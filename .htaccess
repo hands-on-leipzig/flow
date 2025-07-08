@@ -1,0 +1,8 @@
+FcgidWrapper "/home/httpd/cgi-bin/php84-fcgi-starter.fcgi" .php
+
+RewriteEngine On
+RewriteRule ^api/(.*)$ handlers/RouteHandler.php [QSA,L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
