@@ -1,0 +1,22 @@
+export default class Event {
+    id: number
+    name: string | null
+    slug: string | null
+    event_explore: number | null
+    event_challenge: number | null
+    regional_partner: number
+    level: number
+    season: number
+    date: string // ISO 8601 format, e.g. '2025-07-10'
+    enddate: string | null
+    days: number
+    qrcode: string | null
+
+    constructor(data: any) {
+        Object.assign(this, data)
+    }
+
+    isFinalEvent(): boolean {
+        return this.level === 3
+    }
+}

@@ -28,8 +28,29 @@ coverage
 *.sw?
 
 *.tsbuildinfo
-/conf.env
-/package-lock.json
 
-composer.phar
 /vendor/
+/node_modules/
+/storage/
+.env
+.env.*.local
+/public/storage
+.phpunit.result.cache
+/.idea/
+/*.log
+/public/hot
+/public/mix-manifest.json
+/public/build
+/resources/js/**/*.local.*
+/coverage/
+
+/public/css/
+/public/js/
+
+/public/build/
+
+Thumbs.db
+
+/storage/debugbar/
+/storage/logs/
+/vendor
