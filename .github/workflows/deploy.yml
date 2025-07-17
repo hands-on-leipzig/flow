@@ -35,27 +35,22 @@ jobs:
           rm -rf backend/public/*
           cp -r frontend/dist/* backend/public/
       # Deploy to server via rsync
-      - name: Deploy to Apache server via SSH
-        uses: appleboy/ssh-action@v1.0.0
+      #- name: Rsync backend to server
+      #  run: |
+      #    mkdir -p ~/.ssh
+      #    echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
+      #    echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+      #    chmod 600 ~/.ssh/id_rsa
+      #    rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-flow-dev-temp/
+      - name: Upload backend via SCP
+        uses: appleboy/scp-action@v0.1.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: 222
-          script: |
-            rm -rf ~/deploy-flow-dev-temp
-            mkdir ~/deploy-flow-dev-temp
-            exit
-      - name: Add known hosts
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
-      - name: Rsync backend to server
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-flow-dev-temp/
+          source: "./backend/*"
+          target: "~/deploy-flow-dev-temp"
       - name: Finalize on server (move to public dir)
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -64,10 +59,8 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: 222
           script: |
-            cd public_html
-            rm -rf flow-dev/*
-            mv ~/deploy-flow-dev-temp/* flow-dev/
-            cd flow-dev
+            rsync -av --delete ~/deploy-flow-dev-temp/ ~/public_html/flow-dev/
+            cd ~/public_html/flow-dev
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear
