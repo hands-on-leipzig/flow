@@ -66,8 +66,8 @@ jobs:
           script: |
             cd public_html
             rm -rf flow-dev/*
-            mkdir flow-dev
             mv ~/deploy-flow-dev-temp/* flow-dev/
+            cd flow-dev
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear
