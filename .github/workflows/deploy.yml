@@ -8,8 +8,6 @@ on:
 jobs:
   deploy-dev:
     runs-on: ubuntu-latest
-    env:
-      WORK_DIR: ./frontend/dist
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -19,16 +17,16 @@ jobs:
         with:
           node-version: 20
       - name: Install frontend dependencies
-        working-directory: $WORK_DIR
+        working-directory: ./frontend
         run: npm ci
       - name: Create frontend .env file
-        working-directory: $WORK_DIR
+        working-directory: ./frontend
         run: |
           echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_DEV }}" > .env
           echo "VITE_APP_NAME=FLOW" >> .env
           echo "VITE_APP_URL=https://dev.flow.hands-on-technology.org" >> .env
       - name: Build frontend
-        working-directory: $WORK_DIR
+        working-directory: ./frontend/dist
         run: npm run build
       # Set up PHP & Composer
       - name: Set up PHP
