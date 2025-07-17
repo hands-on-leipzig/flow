@@ -8,6 +8,8 @@ class RegionalPartner extends Model
 {
     protected $table = 'regional_partner';
 
+    public $timestamps = false;
+    
     public function events()
     {
         return $this->hasMany(Event::class, 'regional_partner');

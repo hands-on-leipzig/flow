@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\LogoController;
 use App\Http\Controllers\Api\PlanController;
@@ -19,9 +20,13 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/selected-event', function (Request $request) {
-        return response()->json([
-            'selected_event' => $request->user()?->selection_event
-        ]);
+        $eventId = $request->user()?->selection_event;
+        if (!$eventId) {
+            return response()->json(['selected_event' => null]);
+        }
+
+        $controller = new EventController();
+        return $controller->getEvent($eventId);
     });
 
     Route::post('/user/select-event', function (Request $request) {
@@ -39,9 +44,10 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
 
-    Route::get('/api/events/{event}/plans', [PlanController::class, 'getPlansByEvent']);
+    Route::get('/events/{event}/plans', [PlanController::class, 'getPlansByEvent']);
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
     Route::get('/events/{event}', [EventController::class, 'getEvent']);
+    Route::put('/events/{event}', [EventController::class, 'update']);
 
     Route::get('/logos', [LogoController::class, 'index']);
     Route::post('/logos', [LogoController::class, 'store']);
@@ -50,8 +56,15 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/logos/{logo}/toggle-event', [LogoController::class, 'toggleEvent']);
 
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);
+    Route::get('/events/{event}/draht-data', [DrahtController::class, 'show']);
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::put('/rooms/assign-types', [RoomController::class, 'assignRoomType']);
     Route::put('/rooms/{room}', [RoomController::class, 'update']);
     Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
+
+    // routes/api.php
+    Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
+    Route::get('/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
+    Route::get('/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
+
 });

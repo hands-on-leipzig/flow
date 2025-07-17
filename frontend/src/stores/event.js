@@ -3,7 +3,6 @@ import axios from "axios"
 
 export const useEventStore = defineStore('event', {
     state: () => ({
-        selectedEventId: null,
         selectedEvent: null,
     }),
 
@@ -11,11 +10,7 @@ export const useEventStore = defineStore('event', {
         async fetchSelectedEvent() {
             try {
                 const response = await axios.get('/user/selected-event')
-                this.selectedEventId = response.data
-                if (this.selectedEventId) {
-                    const eventResponse = await axios.get(`/events/${this.selectedEventId.selected_event}`)
-                    this.selectedEvent = eventResponse.data
-                }
+                this.selectedEvent = response.data
             } catch (error) {
                 console.error('Failed to fetch selected event', error)
             }
@@ -35,32 +30,3 @@ export const useEventStore = defineStore('event', {
         },
     },
 })
-
-
-/*import {defineStore} from 'pinia'
-import axios from "axios";
-
-export const useEventStore = defineStore('event', {
-    state: () => ({
-        selectedEventId: null,
-    }),
-    actions: {
-        async fetchSelectedEvent() {
-            try {
-                const response = await axios.get('/user/selected-event')
-                this.selectedEventId = response.data
-            } catch (error) {
-                console.error('Failed to fetch selected event', error)
-            }
-        },
-        async setSelectedEvent(eventId) {
-            try {
-                await axios.post('/user/selected-event', {event_id: eventId})
-                this.selectedEventId = eventId
-            } catch (error) {
-                console.error('Failed to update selected event', error)
-            }
-        }
-    }
-})
-*/

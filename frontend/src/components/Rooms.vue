@@ -1,13 +1,14 @@
 <script setup>
-import {ref, onMounted} from 'vue'
+import {ref, onMounted, computed} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 
 const eventStore = useEventStore()
+const eventId = computed(() => eventStore.selectedEvent?.id)
 const rooms = ref([])
 const roomTypes = ref([])
 const typeGroups = ref([])
-const assignments = ref({}) // roomTypeId => roomId
+const assignments = ref({})
 
 const getProgramColor = (type) => {
   return type?.group?.program?.color || '#888888'
@@ -17,19 +18,11 @@ onMounted(async () => {
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
-
-  const eventId = eventStore.selectedEvent?.id
-  if (!eventId) {
-    console.error('No selected event ID available.')
-    return
-  }
-
-  const {data} = await axios.get(`/events/${eventId}/rooms`)
+  const {data} = await axios.get(`/events/${eventId.value}/rooms`)
   rooms.value = data.rooms
   roomTypes.value = data.roomTypes
   typeGroups.value = data.groups
 
-  // Pre-fill assignments from rooms' room_types
   const result = {}
   data.rooms.forEach(room => {
     room.room_types.forEach(rt => {
@@ -78,18 +71,12 @@ const isSaving = ref(false)
 const createRoom = async () => {
   if (!newRoomName.value.trim()) return
 
-  const eventId = eventStore.selectedEvent?.id
-  if (!eventId) {
-    console.error('Kein Event ausgewählt')
-    return
-  }
-
   isSaving.value = true
   try {
     const {data} = await axios.post('/rooms', {
       name: newRoomName.value.trim(),
       navigation_instruction: newRoomNote.value.trim(),
-      event: eventId
+      event: eventId.value
     })
     rooms.value.push(data)
     newRoomName.value = ''
@@ -104,18 +91,18 @@ const createRoom = async () => {
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-6 p-6">
+  <div class="grid grid-cols-[2fr,1fr] gap-6 p-6">
     <div>
       <h2 class="text-xl font-bold mb-4">Vorhandene Räume</h2>
-      <button @click="showModal = true" class="bg-blue-500 text-white px-4 py-1 rounded mb-3">
+      <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3" @click="showModal = true">
         Raum hinzufügen
       </button>
 
-      <ul>
+      <ul class="grid grid-cols-2 gap-4">
         <li
             v-for="room in rooms"
             :key="room.id"
-            class="p-4 mb-2 border rounded bg-white shadow"
+            class="p-4 mb-2 border rounded bg-white shadow "
         >
           <div class="flex justify-between items-start">
             <div class="w-full">
@@ -123,17 +110,17 @@ const createRoom = async () => {
                 <label class="text-xs text-gray-500 uppercase tracking-wide">Raumname</label>
                 <input
                     v-model="room.name"
-                    @blur="updateRoom(room)"
                     class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
+                    @blur="updateRoom(room)"
                 />
               </div>
               <div>
                 <label class="text-xs text-gray-500 uppercase tracking-wide">Navigationshinweis</label>
                 <input
                     v-model="room.navigation_instruction"
-                    @blur="updateRoom(room)"
-                    placeholder="z. B. 2. Etage rechts"
                     class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                    placeholder="z. B. 2. Etage rechts"
+                    @blur="updateRoom(room)"
                 />
               </div>
               <div class="flex flex-wrap mt-2 gap-2">
@@ -141,14 +128,14 @@ const createRoom = async () => {
                 <span
                     v-for="type in roomTypes.filter(t => assignments[t.id] === room.id)"
                     :key="type.id"
-                    class="text-xs px-2 py-1 rounded-full"
                     :style="{ backgroundColor: getProgramColor(type), color: '#fff' }"
+                    class="text-xs px-2 py-1 rounded-full"
                 >
                   {{ type.name }}
                 </span>
               </div>
             </div>
-            <button @click="deleteRoom(room.id)" class="text-red-600 text-lg">🗑️</button>
+            <button class="text-red-600 text-lg" @click="deleteRoom(room.id)">🗑️</button>
           </div>
         </li>
       </ul>
@@ -156,6 +143,15 @@ const createRoom = async () => {
 
     <div>
       <h2 class="text-xl font-bold mb-4">Raumzuordnung</h2>
+      <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3"
+              @click="typeGroups.forEach(item => expandedGroups.add(item.id))">
+        Alle öffnen
+      </button>
+      &nbsp;
+      <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3"
+              @click="expandedGroups.clear()">
+        Alle schließen
+      </button>
       <div
           v-for="group in typeGroups"
           :key="group.id"
@@ -167,15 +163,15 @@ const createRoom = async () => {
         >
           {{ group.name }}
           <span>
-    <svg v-if="expandedGroups.has(group.id)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
-         viewBox="0 0 24 24" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
-    </svg>
-    <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-         stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-    </svg>
-  </span>
+             <svg v-if="expandedGroups.has(group.id)" class="h-4 w-4" fill="none" stroke="currentColor"
+                  viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 15l7-7 7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              </svg>
+              <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                   xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            </svg>
+        </span>
         </button>
 
         <transition name="accordion">
@@ -191,8 +187,8 @@ const createRoom = async () => {
               <label class="font-medium text-gray-700">{{ type.name }}</label>
               <select
                   :value="assignments[type.id] || ''"
-                  @change="assignRoomType(type.id, +$event.target.value)"
                   class="border border-gray-300 rounded px-2 py-1 text-sm"
+                  @change="assignRoomType(type.id, +$event.target.value)"
               >
                 <option value="">Bitte wählen</option>
                 <option
@@ -218,23 +214,23 @@ const createRoom = async () => {
         <h3 class="text-lg font-bold mb-4">Neuen Raum hinzufügen</h3>
         <input
             v-model="newRoomName"
-            type="text"
-            placeholder="Name des Raums"
             class="w-full border px-3 py-2 rounded mb-4"
+            placeholder="Name des Raums"
+            type="text"
             @keyup.enter="createRoom"
         />
         <textarea
             v-model="newRoomNote"
+            class="w-full border px-3 py-2 rounded mb-4 text-sm"
             placeholder="Navigationshinweis"
             rows="2"
-            class="w-full border px-3 py-2 rounded mb-4 text-sm"
         ></textarea>
         <div class="flex justify-end gap-2">
-          <button @click="showModal = false" class="px-4 py-2 text-gray-600 hover:text-black">Abbrechen</button>
+          <button class="px-4 py-2 text-gray-600 hover:text-black" @click="showModal = false">Abbrechen</button>
           <button
-              @click="createRoom"
               :disabled="isSaving || !newRoomName.trim()"
               class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+              @click="createRoom"
           >
             Hinzufügen
           </button>

@@ -15,27 +15,9 @@ class RoomController extends Controller
 {
     public function index(Event $event)
     {
-        /*$rooms = Room::where('event', $event->id)->with('roomTypes')->get();
-        $roomTypes = MRoomType::with('group')->get();
-        $groups = MRoomTypeGroup::all();
-
-        return response()->json([
-            'rooms' => $rooms,
-            'roomTypes' => $roomTypes,
-            'groups' => $groups
-        ]);*/
-        // Load rooms with their assigned room types
         $rooms = Room::where('event', $event->id)->with('roomTypes')->get();
-
-        /*$rooms = Room::where('event', $event->id)
-            ->with(['roomTypes' => function ($query) use ($event) {
-                $query->where('level', '<=', $event->level);
-            }])
-            ->get();
-*/
-        // Load all first programs and index by lowercase name
         $programsByName = FirstProgram::all()->keyBy(fn($p) => strtolower(trim($p->name)));
-        // Load room types with group info and inject matching program color
+
         $roomTypes = MRoomType::with('group')
             ->where('level', '<=', $event->level)
             ->get()
@@ -77,13 +59,13 @@ class RoomController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'event' => 'required|exists:event,id',
-            'note' => 'nullable|string|max:255',
+            'navigation_instruction' => 'nullable|string|max:255',
         ]);
 
         $room = Room::create([
             'name' => $validated['name'],
             'event' => $validated['event'],
-            'navigation_instruction' => $validated['note'],
+            'navigation_instruction' => $validated['navigation_instruction'],
         ]);
 
         return response()->json($room, 201);
@@ -112,13 +94,11 @@ class RoomController extends Controller
 
         $type = MRoomType::findOrFail($validated['type_id']);
 
-        // Detach this type from any room it's currently assigned to
         \DB::table('room_type_room')
             ->where('room_type', $validated['type_id'])
             ->where('event', $validated['event'])
             ->delete();
 
-        // Re-assign to a new room if specified
         if ($validated['room_id']) {
             \DB::table('room_type_room')
                 ->insert([

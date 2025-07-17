@@ -22,6 +22,8 @@ class Event extends Model
         'enddate',
         'days',
         'qrcode',
+        'wifi_ssid',
+        'wifi_password',
     ];
 
     public function regionalPartner()
@@ -29,9 +31,14 @@ class Event extends Model
         return $this->belongsTo(RegionalPartner::class, 'regional_partner');
     }
 
-    public function season()
+    public function seasonRel()
     {
-        return $this->belongsTo(Season::class, 'season');
+        return $this->belongsTo(MSeason::class, 'season');
+    }
+
+    public function levelRel()
+    {
+        return $this->belongsTo(MLevel::class, 'level');
     }
 
     public function logos()

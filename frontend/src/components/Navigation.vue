@@ -14,9 +14,11 @@ onMounted(async () => {
 })
 
 const tabs = [
-  {name: 'Zeitplan', path: '/schedule'},
-  {name: 'Logos', path: '/logos'},
-  {name: 'Räume', path: '/rooms'}
+  {name: 'Veranstaltung', path: '/event'},
+  {name: 'Zeiten', path: '/schedule'},
+  {name: 'Orte', path: '/rooms'},
+  {name: 'Sponsoren', path: '/logos'},
+  {name: 'Veröffentlichung', path: '/publish'},
 ]
 const selectedTab = ref('Schedule')
 const router = useRouter()
@@ -33,13 +35,13 @@ function goTo(tab) {
 </script>
 
 <template>
-  <div class="flex items-center justify-between border-b px-4 py-2 bg-white shadow-sm">
-    <div class="flex items-center gap-14">
+  <div class="flex items-center justify-between border-b px-2 py-2 bg-white shadow-sm">
+    <div class="flex items-center gap-8">
       <img src="../assets/FLOW_v.1.0.png" alt="Logo" class="h-8 w-auto"/>
       <img src="../assets/logo_hot_fll.png" alt="Logo" class="h-8 w-auto"/>
 
       <TabGroup v-model="selectedTab" as="div">
-        <TabList class="flex space-x-4">
+        <TabList class="flex space-x-2">
           <Tab
               v-for="tab in tabs"
               :key="tab.path"
@@ -50,17 +52,13 @@ function goTo(tab) {
           >
             {{ tab.name }}
           </Tab>
+
         </TabList>
       </TabGroup>
     </div>
     <div>
-      Veranstaltung
+      {{ eventStore.selectedEvent?.level_rel.name }}
       {{ eventStore.selectedEvent?.name }}
-      am
-      {{ dayjs(eventStore.selectedEvent?.date).format('dddd, DD.MM.YYYY') }}
-      <!--{{
-        "Veranstaltung " + eventStore.selectedEvent?.name + " am " + dayjs(eventStore.selectedEvent?.date).format('dddd, DD.MM.YYYY')
-      }}-->
     </div>
     <Menu as="div" class="relative inline-block text-left">
       <MenuButton

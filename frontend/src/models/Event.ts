@@ -11,6 +11,8 @@ export default class Event {
     enddate: string | null
     days: number
     qrcode: string | null
+    wifi_ssid: string | null
+    wifi_password: string | null
 
     constructor(data: any) {
         Object.assign(this, data)

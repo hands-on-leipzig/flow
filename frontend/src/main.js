@@ -11,6 +11,9 @@ import SelectEvent from "@/components/SelectEvent.vue";
 import dayjs from "dayjs";
 import 'dayjs/locale/de';
 import Rooms from "@/components/Rooms.vue";
+import EventOverview from "@/components/EventOverview.vue";
+import PublishControl from "@/components/PublishControl.vue";
+import Admin from "@/components/Admin.vue";
 
 keycloak.init({onLoad: 'login-required'}).then(authenticated => {
     if (!authenticated) {
@@ -48,7 +51,10 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
         {path: '/schedule', component: Schedule},
         {path: '/logos', component: Logos},
         {path: '/events', component: SelectEvent},
-        {path: '/rooms', component: Rooms}
+        {path: '/rooms', component: Rooms},
+        {path: '/event', component: EventOverview},
+        {path: '/publish', component: PublishControl},
+        {path: '/admin', component: Admin}
     ]
 
     const router = createRouter({

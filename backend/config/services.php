@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'draht_api' => [
+        'base_url' => env('DRAHT_API_URL'),
+        'key' => env('DRAHT_API_KEY'),
+    ],
+
+
 ];
