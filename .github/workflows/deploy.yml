@@ -59,6 +59,8 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
+      - name: Show known_hosts (debug)
+        run: cat ~/.ssh/known_hosts
 
       - name: Rsync backend to server
         run: |
