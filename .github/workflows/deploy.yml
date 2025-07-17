@@ -35,22 +35,13 @@ jobs:
           rm -rf backend/public/*
           cp -r frontend/dist/* backend/public/
       # Deploy to server via rsync
-      #- name: Rsync backend to server
-      #  run: |
-      #    mkdir -p ~/.ssh
-      #    echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
-      #    echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-      #    chmod 600 ~/.ssh/id_rsa
-      #    rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-flow-dev-temp/
-      - name: Upload backend via SCP
-        uses: appleboy/scp-action@v0.1.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 222
-          source: "./backend/*"
-          target: "~/deploy-flow-dev-temp"
+      - name: Rsync backend to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-flow-dev-temp/
       - name: Finalize on server (move to public dir)
         uses: appleboy/ssh-action@v1.0.0
         with:
