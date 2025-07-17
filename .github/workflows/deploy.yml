@@ -33,13 +33,14 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-      - name: Copy frontend dist to Laravel public dir
-        run: |
-          rm -rf backend/public/*
-          cp -r frontend/dist/* backend/public/
       - name: Install Laravel dependencies
         working-directory: ./backend
         run: composer install --no-dev --optimize-autoloader
+      - name: Copy frontend dist to Laravel public dir
+        run: |
+          rm -rf backend/public/build
+          rm -f backend/public/index.html
+          cp -r frontend/dist/* backend/public/
       # Deploy to server via rsync
       - name: Rsync backend to server
         run: |
