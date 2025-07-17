@@ -50,7 +50,11 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: 222
           script: |
-            rsync -av --delete ~/deploy-flow-dev-temp/ ~/public_html/flow-dev/
+            rsync -av --delete \
+            --exclude='.env' \
+            --exclude='.htaccess' \
+            --exclude='storage/' \
+            ~/deploy-flow-dev-temp/ ~/public_html/flow-dev/
             cd ~/public_html/flow-dev
             php artisan config:clear
             php artisan route:clear
