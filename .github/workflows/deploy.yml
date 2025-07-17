@@ -55,6 +55,11 @@ jobs:
             mkdir ~/deploy-temp
             exit
 
+      - name: Add known hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
       - name: Rsync backend to server
         run: |
           rsync -avz --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-temp/
