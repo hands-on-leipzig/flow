@@ -19,6 +19,12 @@ jobs:
       - name: Install frontend dependencies
         working-directory: ./frontend
         run: npm ci
+      - name: Create frontend .env file
+        working-directory: ./frontend
+        run: |
+          echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_DEV }}" > .env
+          echo "VITE_APP_NAME=FLOW" >> .env
+          echo "VITE_APP_URL=https://dev.flow.hands-on-technology.org" >> .env
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build

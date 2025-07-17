@@ -35,7 +35,7 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
     const app = createApp(App)
     const pinia = createPinia()
 
-    axios.defaults.baseURL = 'http://localhost:8000/api'
+    axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL
     axios.defaults.withCredentials = true
     app.config.globalProperties.$axios = axios
     axios.interceptors.request.use(config => {
