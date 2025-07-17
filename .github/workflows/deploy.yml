@@ -1,86 +1,86 @@
-  STOP
-  name: Deploy Vue + Laravel App
+name: Deploy Vue + Laravel App
 
-  on:
-    push:
-      branches:
-        - main
+on:
+  push:
+    branches:
+      - main
 
-  jobs:
-    deploy:
-      runs-on: ubuntu-latest
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_DIR: /public_html/flow-dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v3
+      # Build Vue frontend
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
 
-        # Build Vue frontend
-        - name: Set up Node
-          uses: actions/setup-node@v3
-          with:
-            node-version: 20
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
 
-        - name: Install frontend dependencies
-          working-directory: ./frontend
-          run: npm ci
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
 
-        - name: Build frontend
-          working-directory: ./frontend
-          run: npm run build
+      # Set up PHP & Composer
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
 
-        # Set up PHP & Composer
-        - name: Set up PHP
-          uses: shivammathur/setup-php@v2
-          with:
-            php-version: '8.2'
+      - name: Install Laravel dependencies
+        working-directory: ./backend
+        run: composer install --no-dev --optimize-autoloader
 
-        - name: Install Laravel dependencies
-          working-directory: ./backend
-          run: composer install --no-dev --optimize-autoloader
+      - name: Copy frontend dist to Laravel public dir
+        run: |
+          rm -rf backend/public/*
+          cp -r frontend/dist/* backend/public/
 
-        - name: Copy frontend dist to Laravel public dir
-          run: |
-            rm -rf backend/public/*
-            cp -r frontend/dist/* backend/public/
+      # Deploy to server via rsync
+      - name: Deploy to Apache server via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 222
+          script: |
+            rm -rf ~/deploy-flow-dev-temp
+            mkdir ~/deploy-flow-dev-temp
+            exit
 
-        # Deploy to server via rsync
-        - name: Deploy to Apache server via SSH
-          uses: appleboy/ssh-action@v1.0.0
-          with:
-            host: ${{ secrets.SSH_HOST }}
-            username: ${{ secrets.SSH_USER }}
-            key: ${{ secrets.SSH_KEY }}
-            port: 222
-            script: |
-              rm -rf ~/deploy-temp
-              mkdir ~/deploy-temp
-              exit
+      - name: Add known hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
 
-        - name: Add known hosts
-          run: |
-            mkdir -p ~/.ssh
-            echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
+      - name: Rsync backend to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~deploy-flow-dev-temp/
 
-        - name: Rsync backend to server
-          run: |
-            mkdir -p ~/.ssh
-            echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
-            
-            rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-temp/
-
-        - name: Finalize on server (move to public dir)
-          uses: appleboy/ssh-action@v1.0.0
-          with:
-            host: ${{ secrets.SSH_HOST }}
-            username: ${{ secrets.SSH_USER }}
-            key: ${{ secrets.SSH_KEY }}
-            port: 222
-            script: |
-              rm -rf ~/public_html/*
-              mv ~/deploy-temp/* ~/public_html/
-              cd ~/public_html
-              php artisan config:clear
-              php artisan route:clear
-              php artisan view:clear
-              php artisan migrate --force
+      - name: Finalize on server (move to public dir)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 222
+          script: |
+            rm -rf $DEPLOY_DIR/*
+            mv ~/deploy-flow-dev-temp/* $DEPLOY_DIR/
+            cd $DEPLOY_DIR/backend
+            php artisan config:clear
+            php artisan route:clear
+            php artisan view:clear
+            php artisan migrate --force
