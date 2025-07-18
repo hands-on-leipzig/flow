@@ -20,6 +20,7 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
         window.location.reload()
     }
 
+
     // save token to use with axios
     localStorage.setItem('kc_token', keycloak.token)
 
@@ -46,13 +47,12 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
         return config
     })
 
-
     const routes = [
+        {path: '/event', component: EventOverview},
         {path: '/schedule', component: Schedule},
         {path: '/logos', component: Logos},
         {path: '/events', component: SelectEvent},
         {path: '/rooms', component: Rooms},
-        {path: '/event', component: EventOverview},
         {path: '/publish', component: PublishControl},
         {path: '/admin', component: Admin}
     ]

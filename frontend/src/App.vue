@@ -1,7 +1,15 @@
 <script setup>
 import Navigation from "@/components/Navigation.vue";
 import {onMounted} from "vue";
+import {useRouter} from "vue-router";
 
+const router = useRouter()
+
+onMounted(() => {
+  if (window.location.pathname === "/") {
+    router.push("/event")
+  }
+})
 </script>
 
 <template>

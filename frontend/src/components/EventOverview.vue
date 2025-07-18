@@ -5,6 +5,7 @@ import {useEventStore} from '@/stores/event'
 import dayjs from "dayjs";
 
 import TeamList from "@/components/molecules/TeamList.vue";
+import {RadioGroup} from "@headlessui/vue";
 
 
 const eventStore = useEventStore()
@@ -121,6 +122,49 @@ const updateEventField = async (field, value) => {
             </div>
           </div>
         </div>
+
+        <div class="p-4 border rounded shadow">
+          <h2 class="text-lg font-semibold mb-2">Explore Modus</h2>
+          <div>
+            <radio-group>
+              <input type="radio" id="vormittag" name="modus"/>&nbsp;
+              <label for="vormittag">Vormittag</label>
+              <br>
+              <input type="radio" id="nachmittag" name="modus"/>&nbsp;
+              <label for="nachmittag">Nachmittag</label>
+            </radio-group>
+          </div>
+        </div>
+
+        <div class="p-4 border rounded shadow">
+          <h2 class="text-lg font-semibold mb-4">Challenge Setup</h2>
+          <div class="flex gap-8 flex-wrap">
+            <!-- Robot-Game Tische -->
+            <div class="flex-grow">
+              <p class="font-medium mb-2">Robot-Game-Tische</p>
+              <label class="block">
+                <input type="radio" name="tables" value="2" class="mr-2"/>
+                2 Tische
+              </label>
+              <label class="block">
+                <input type="radio" name="tables" value="4" class="mr-2"/>
+                4 Tische
+              </label>
+            </div>
+
+            <!-- Jury-Spuren -->
+            <div class="flex-grow">
+              <p class="font-medium mb-2">Jury-Spuren</p>
+              <template v-for="n in 7" :key="n">
+                <label class="block">
+                  <input type="radio" name="spuren" :value="n" class="mr-2"/>
+                  {{ n }}-spurig
+                </label>
+              </template>
+            </div>
+          </div>
+        </div>
+
 
       </div>
     </div>
