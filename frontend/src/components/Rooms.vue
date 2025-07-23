@@ -2,6 +2,7 @@
 import {ref, onMounted, computed} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
+import IconAccordionArrow from "@/components/icons/IconAccordionArrow.vue";
 
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
@@ -163,14 +164,7 @@ const createRoom = async () => {
         >
           {{ group.name }}
           <span>
-             <svg v-if="expandedGroups.has(group.id)" class="h-4 w-4" fill="none" stroke="currentColor"
-                  viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 15l7-7 7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-              </svg>
-              <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                   xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-            </svg>
+            <IconAccordionArrow :opened="expandedGroups.has(group.id)"/>
         </span>
         </button>
 

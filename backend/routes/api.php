@@ -3,9 +3,11 @@
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\LogoController;
+use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\TeamController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -31,11 +33,13 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::post('/user/select-event', function (Request $request) {
         $validated = $request->validate([
-            'event_id' => 'required|integer|exists:event,id',
+            'event' => 'required|integer|exists:event,id',
+            'regional_partner' => 'required|integer|exists:regional_partner,id',
         ]);
 
         $user = $request->user();
-        $user->selection_event = $validated['event_id'];
+        $user->selection_event = $validated['event'];
+        $user->selection_regional_partner = $validated['regional_partner'];
         $user->save();
 
         return response()->json(['status' => 'ok']);
@@ -43,8 +47,11 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
+    Route::post('/plans', [PlanController::class, 'create']);
 
     Route::get('/events/{event}/plans', [PlanController::class, 'getPlansByEvent']);
+    Route::get('/events/{event}/teams', [TeamController::class, 'index']);
+    Route::put('/events/{event}/teams', [TeamController::class, 'update']);
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
     Route::get('/events/{event}', [EventController::class, 'getEvent']);
     Route::put('/events/{event}', [EventController::class, 'update']);
@@ -62,9 +69,16 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/rooms/{room}', [RoomController::class, 'update']);
     Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
 
-    // routes/api.php
+    Route::get('/parameter', [ParameterController::class, 'index']);
+    Route::get('/parameter/condition', [ParameterController::class, 'listConditions']);
+    Route::post('/parameter/condition', [ParameterController::class, 'addCondition']);
+    Route::put('/parameter/condition/{id}', [ParameterController::class, 'updateCondition']);
+    Route::delete('/parameter/condition/{id}', [ParameterController::class, 'deleteCondition']);
+
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
-    Route::get('/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
-    Route::get('/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
+
+    // admin routes
+    Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
+    Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
 
 });

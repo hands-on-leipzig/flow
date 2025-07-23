@@ -17,7 +17,7 @@ const uploadLogo = async () => {
   if (!uploadFile.value) return
   const formData = new FormData()
   formData.append('file', uploadFile.value)
-  formData.append('regional_partner_id', selectedEvent.value.regional_partner_id)
+  formData.append('regional_partner', selectedEvent.regional_partner)
 
   await axios.post('/logos', formData)
   await fetchLogos()
@@ -27,6 +27,9 @@ const updateLogo = async (logo) => {
   await axios.patch(`/logos/${logo.id}`, {
     title: logo.title,
     link: logo.link
+  }).then(() => {
+    uploadFile.value = null
+    refs.fileInput.value = ''
   })
 }
 
@@ -42,6 +45,14 @@ const deleteLogo = async (logo) => {
   await fetchLogos()
 }
 
+const handleFileChange = (e) => {
+  const file = e.target.files?.[0]
+  if (file) {
+    uploadFile.value = file
+  }
+}
+
+
 onMounted(fetchLogos)
 </script>
 
@@ -49,20 +60,21 @@ onMounted(fetchLogos)
   <div class="space-y-6 p-6">
     <!-- Upload -->
     <div class="flex items-center space-x-4">
-      <input type="file" @change="e => uploadFile.value = e.target.files[0]"/>
+      <input type="file" @change="handleFileChange" ref="fileInput"/>
       <button @click="uploadLogo" class="px-4 py-2 bg-blue-600 text-white rounded">Upload</button>
     </div>
 
     <!-- Logos -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div v-for="logo in logos" :key="logo.id" class="border rounded p-4 shadow space-y-2 bg-white">
-        <img :src="`/storage/${logo.file_path}`" alt="Logo" class="h-20 mx-auto"/>
+        <img :src="`${logo.url}/${logo.path}`" alt="Logo" class="h-20 mx-auto"/>
 
         <input
             v-model="logo.title"
             @change="updateLogo(logo)"
             class="w-full px-3 py-1 border rounded"
             placeholder="Titel"
+            type="text"
         />
 
         <input
@@ -70,6 +82,7 @@ onMounted(fetchLogos)
             @change="updateLogo(logo)"
             class="w-full px-3 py-1 border rounded"
             placeholder="Link"
+            type="url"
         />
 
         <div class="flex items-center justify-between">

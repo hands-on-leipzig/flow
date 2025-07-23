@@ -86,6 +86,7 @@ const expertParamsGrouped = computed(() => {
 })
 
 async function fetchPlans() {
+
   if (!selectedEvent.value) return
   const res = await axios.get(`/events/${selectedEvent.value.id}/plans`)
   plans.value = res.data
@@ -93,8 +94,35 @@ async function fetchPlans() {
     selectedPlanId.value = plans.value[0].id
     await fetchParams(selectedPlanId.value)
     updateScheduleUrl(selectedPlanId.value)
+  } else {
+    const newPlanId = await createDefaultPlan()
+    if (newPlanId) {
+      const newPlan = {
+        id: newPlanId,
+        name: 'Standard-Zeitplan',
+        is_chosen: true
+      }
+      plans.value.push(newPlan)
+      selectedPlanId.value = newPlanId
+      await fetchParams(newPlanId)
+      updateScheduleUrl(newPlanId)
+    }
   }
 }
+
+const createDefaultPlan = async () => {
+  try {
+    const response = await axios.post(`/plans`, {
+      event: selectedEvent.value.id,
+      name: 'Zeitplan'
+    })
+    return response.data.id
+  } catch (e) {
+    console.error('Fehler beim Erstellen des Plans', e)
+    return null
+  }
+}
+
 
 onMounted(async () => {
   if (!eventStore.selectedEvent) {

@@ -46,4 +46,9 @@ class Event extends Model
         return $this->belongsToMany(Logo::class, 'event_logo', "event", "logo");
     }
 
+    public function teams()
+    {
+        return $this->hasMany(Team::class, "event");
+    }
+
 }

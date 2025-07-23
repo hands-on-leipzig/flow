@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PlanController extends Controller
 {
@@ -18,5 +21,19 @@ class PlanController extends Controller
             ->get();
 
         return response()->json($plans);
+    }
+
+    public function create(Request $request): JsonResponse
+    {
+        Log::debug($request->all());
+        $validated = $request->validate([
+            'event' => 'required|exists:event,id',
+            'name' => 'required|string|max:255',
+        ]);
+        $validated['created'] = Carbon::now();
+        $validated['last_change'] = Carbon::now();
+        $plan = Plan::create($validated);
+
+        return response()->json($plan, 201);
     }
 }

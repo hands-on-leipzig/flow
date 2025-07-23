@@ -87,6 +87,7 @@ class DrahtController extends Controller
     {
         $res = $this->makeDrahtCall("/handson/flow/events");
         if ($res->ok()) {
+            ini_set('max_execution_time', 300);
             $events = $res->json();
             DB::transaction(function () use ($seasonId, $events) {
                 $eventIds = Event::where('season', $seasonId)->pluck('id');
@@ -102,8 +103,8 @@ class DrahtController extends Controller
                     $event->date = date('Y-m-d', (int)$eventData['date']);
                     $event->enddate = date('Y-m-d', (int)$eventData['enddate']);
                     $event->season = $seasonId;
-                    $event->days = (new \DateTime)->setTimestamp((int)$eventData['date'])->diff((new \DateTime)->setTimestamp((int)$eventData['enddate']))->days + 1;
-                    $event->regional_partner = $regional_partner->id;
+                    $event->days = ($eventData['date'] && $eventData['enddate']) ? ((new \DateTime)->setTimestamp((int)$eventData['date'])->diff((new \DateTime)->setTimestamp((int)$eventData['enddate']))->days + 1) : 1;
+                    $event->regional_partner = $regional_partner ? $regional_partner->id : NULL;
                     $event->level = $eventData["level"];
                     switch ((int)$eventData["first_program"]) {
                         case 2:

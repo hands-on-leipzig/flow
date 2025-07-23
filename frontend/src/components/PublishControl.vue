@@ -2,6 +2,8 @@
 
 import {ref, computed} from 'vue'
 import {useEventStore} from '@/stores/event'
+import jsPDF from "jspdf";
+import QRCode from "qrcode";
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -15,6 +17,21 @@ const activeTab = ref(tabs[0])
 const downloadWifiQr = () => {
   window.open(`/events/${event.value?.id}/wifi-qr`, '_blank')
 }
+
+async function generateWifiPDF() {
+  const qrContent = `WIFI:T:WPA;S:${event.value.wifi_ssid};P:${event.value.wifi_password};;`
+  const qrDataUrl = await QRCode.toDataURL(qrContent)
+
+  const pdf = new jsPDF()
+  pdf.setFontSize(16)
+  pdf.text('WiFi QR Code', 20, 20)
+  pdf.addImage(qrDataUrl, 'PNG', 20, 30, 100, 100)
+  pdf.text(`SSID: ${event.value.wifi_ssid}`, 20, 140)
+  pdf.text(`Password: ${event.value.wifi_password}`, 20, 150)
+
+  window.open(pdf.output('bloburl'), '_blank')
+}
+
 const downloadScheduleQr = () => {
   window.open(`/events/${event.value?.id}/schedule-qr`, '_blank')
 }
@@ -84,7 +101,7 @@ const printNameTags = () => {
             <button
                 class="w-full px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300"
                 :disabled="!event?.wifi_ssid"
-                @click="downloadWifiQr"
+                @click="generateWifiPDF"
             >
               WLAN-Zugang als QR
             </button>

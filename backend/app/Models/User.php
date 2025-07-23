@@ -26,6 +26,7 @@ class User extends Authenticatable
         'subject',
         'password',
         'selection_event',
+        'selection_regional_partner',
         'is_admin'
     ];
 

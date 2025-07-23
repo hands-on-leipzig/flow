@@ -12,8 +12,8 @@ const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const challengeData = ref(null)
 const exploreData = ref(null)
-const exploreTeams = ref([])
-const challengeTeams = ref([])
+const exploreTeamsDraht = ref([])
+const challengeTeamsDraht = ref([])
 const publishedPlanId = ref('')
 const schedules = ref([])
 
@@ -24,13 +24,13 @@ onMounted(async () => {
   exploreData.value = drahtData.data.event_explore
   challengeData.value = drahtData.data.event_challenge
 
-  exploreTeams.value = Object.entries(drahtData.data.teams_explore || {}).map(([id, t]) => ({
+  exploreTeamsDraht.value = Object.entries(drahtData.data.teams_explore || {}).map(([id, t]) => ({
     id: Number(id),
     number: id,
     name: t.name
   }))
 
-  challengeTeams.value = Object.entries(drahtData.data.teams_challenge || {}).map(([id, t]) => ({
+  challengeTeamsDraht.value = Object.entries(drahtData.data.teams_challenge || {}).map(([id, t]) => ({
     id: Number(id),
     number: id,
     name: t.name
@@ -169,8 +169,10 @@ const updateEventField = async (field, value) => {
       </div>
     </div>
     <div class="grid grid-cols-2 gap-4 mt-4">
-      <TeamList :teams="exploreTeams" :program="'explore'"/>
-      <TeamList :teams="challengeTeams" :program="'challenge'"/>
+      <div v-if="exploreTeamsDraht.length">
+        <TeamList :remoteTeams="exploreTeamsDraht" :program="'explore'"/>
+      </div>
+      <TeamList :remoteTeams="challengeTeamsDraht" :program="'challenge'"/>
     </div>
   </div>
 </template>

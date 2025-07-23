@@ -6,17 +6,16 @@ use App\Models\User;
 use Closure;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Illuminate\Auth\GenericUser;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class KeycloakJwtMiddleware
 {
     protected string $jwksUrl = 'https://sso.hands-on-technology.org/realms/master/protocol/openid-connect/certs';
     protected string $expectedIssuer = 'https://sso.hands-on-technology.org/realms/master';
-    protected string $expectedAudience = 'flow'; // or your client_id
+    protected string $expectedAudience = 'flow';
 
     public function handle(Request $request, Closure $next)
     {
@@ -27,7 +26,6 @@ class KeycloakJwtMiddleware
         }
 
         $token = substr($authHeader, 7);
-
         $publicKeyPath = base_path(env('KEYCLOAK_PUBLIC_KEY_PATH'));
 
         if (!file_exists($publicKeyPath)) {
@@ -56,6 +54,28 @@ class KeycloakJwtMiddleware
             ]);
 
             Auth::login($user);
+            $roles = $claims['resource_access']->flow->roles ?? [];
+            $env = App::environment();
+            $path = $request->path();
+
+            // Env-based role access
+            if (in_array($env, ['local', 'staging'])) {
+                if (!in_array('flow-tester', $roles)) {
+                    return response()->json(['error' => 'Forbidden - tester role required'], 403);
+                }
+            } elseif ($env === 'production') {
+                if (!in_array('regionalpartner', $roles) && !in_array('flow-admin', $roles)) {
+                    return response()->json(['error' => 'Forbidden - partner or admin role required'], 403);
+                }
+            }
+            Log::debug($path);
+            Log::debug(str_starts_with($path, 'admin'));
+            // Admin route restriction
+            if (str_starts_with($path, 'api/admin')) {
+                if (!in_array('flow-admin', $roles)) {
+                    return response()->json(['error' => 'Forbidden - admin role required'], 403);
+                }
+            }
 
         } catch (\Exception $e) {
             return response()->json(['error' => 'Invalid token', 'details' => $e->getMessage()], 401);

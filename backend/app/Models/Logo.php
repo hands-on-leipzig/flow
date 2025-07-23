@@ -6,8 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class Logo extends Model
 {
-    protected $fillable = ['title', 'link', 'file_path', 'regional_partner_id'];
+    protected $fillable = ['title', 'link', 'path', 'regional_partner'];
     protected $table = 'logo';
+    protected $appends = ['url'];
+    public $timestamps = false;
+
+    public function getUrlAttribute()
+    {
+        return asset('storage/' . $this->file_path);
+    }
 
     public function regionalPartner()
     {

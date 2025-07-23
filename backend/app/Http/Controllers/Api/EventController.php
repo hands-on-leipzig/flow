@@ -38,10 +38,10 @@ class EventController extends Controller
                     ->get();
                 break;
             case 1:
-                $regionalPartners = RegionalPartner::all();
+                $regionalPartners = RegionalPartner::all()->sortBy('name');
                 break;
         }
-        
+
         return $regionalPartners->map(function ($rp) {
             return [
                 'regional_partner' => [

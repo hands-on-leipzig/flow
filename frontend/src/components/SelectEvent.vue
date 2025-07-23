@@ -21,8 +21,11 @@ onMounted(async () => {
   }
 })
 
-async function selectEvent(eventId) {
-  await axios.post('/user/select-event', {event_id: eventId})
+async function selectEvent(eventId, regionalPartnerId) {
+  await axios.post('/user/select-event', {
+    event: eventId,
+    regional_partner: regionalPartnerId
+  })
   await eventStore.fetchSelectedEvent()
   router.push('/event')
 }
@@ -43,7 +46,7 @@ async function selectEvent(eventId) {
             v-for="event in rp.events"
             :key="event.id"
             class="p-4 bg-white shadow rounded hover:bg-gray-100 cursor-pointer"
-            @click="selectEvent(event.id)"
+            @click="selectEvent(event.id, rp.regional_partner.id)"
         >
           <h3 class="font-medium text-lg">{{ event.name }}</h3>
           <p class="text-sm text-gray-500">{{ dayjs(event.date).format('dddd, DD.MM.YYYY') }}</p>
