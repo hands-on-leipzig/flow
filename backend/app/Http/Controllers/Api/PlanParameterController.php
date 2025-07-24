@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PlanParamValue;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +41,19 @@ class PlanParameterController extends Controller
 
     public function getParametersForPlan($planId): JsonResponse
     {
-        // Fetch all parameters with any matching plan-specific value
+        // Fetch all parameter values for the plan (we need them to evaluate conditions)
+        $paramValues = DB::table('plan_param_value')
+            ->where('plan', $planId)
+            ->pluck('set_value', 'parameter'); // [parameter_id => value]
+
+        if ($paramValues->isEmpty()) {
+            return $this->insertParamsFirst($planId);
+        }
+
+        // Fetch all conditions from DB
+        $conditions = DB::table('m_parameter_condition')->get()->groupBy('parameter');
+
+        // Fetch all parameters and values
         $parameters = DB::table('m_parameter')
             ->leftJoin('plan_param_value', function ($join) use ($planId) {
                 $join->on('m_parameter.id', '=', 'plan_param_value.parameter')
@@ -51,11 +64,45 @@ class PlanParameterController extends Controller
                 'm_parameter.*',
                 'plan_param_value.set_value as value',
                 'm_first_program.name as program_name'
-            ) // include value from plan_param_value
+            )
             ->get();
 
-        return response()->json($parameters);
+        // Filter parameters based on condition logic
+        $filtered = $parameters->filter(function ($param) use ($paramValues, $conditions) {
+            $paramId = $param->id;
+
+            if (!isset($conditions[$paramId])) {
+                return true; // No conditions → keep param
+            }
+
+            foreach ($conditions[$paramId] as $cond) {
+                // Skip if not a "hide" condition
+                if ($cond->action !== 'hide') continue;
+
+                // Get referenced param value
+                $otherValue = $paramValues[$cond->if_parameter] ?? null;
+                if ($otherValue === null) continue;
+
+                // Evaluate condition
+                switch ($cond->is) {
+                    case '=':
+                        if ($otherValue == $cond->value) return false;
+                        break;
+                    case '<':
+                        if (is_numeric($otherValue) && $otherValue < $cond->value) return false;
+                        break;
+                    case '>':
+                        if (is_numeric($otherValue) && $otherValue > $cond->value) return false;
+                        break;
+                }
+            }
+
+            return true; // Keep param
+        })->values(); // reindex
+
+        return response()->json($filtered);
     }
+
 
     public function updateParameter(Request $request, $planId): JsonResponse
     {
@@ -96,6 +143,26 @@ class PlanParameterController extends Controller
         g_generator($planId);
         ob_end_clean();
         return response()->json(['status' => 'ok']);
+    }
+
+    public function insertParamsFirst($planId): JsonResponse
+    {
+        $parameters = DB::table('m_parameter')->select('id', 'value')->get();
+
+        $insertData = [];
+        foreach ($parameters as $param) {
+            $insertData[] = [
+                'plan' => $planId,
+                'parameter' => $param->id,
+                'set_value' => $param->value,
+            ];
+        }
+
+        if (!empty($insertData)) {
+            DB::table('plan_param_value')->insert($insertData);
+        }
+
+        return response()->json($planId, 201);
     }
 }
 

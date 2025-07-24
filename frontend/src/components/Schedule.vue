@@ -23,7 +23,7 @@ watch(selectedPlanId, async (newPlanId) => {
   await fetchParams(newPlanId)
   updateScheduleUrl(newPlanId)
 })
-
+/*
 const fetchParams = async (planId) => {
   if (!planId) return
   try {
@@ -32,8 +32,54 @@ const fetchParams = async (planId) => {
   } finally {
     loading.value = false
   }
+}*/
 
+const fetchParams = async (planId) => {
+  if (!planId) return
+  loading.value = true
+
+  try {
+    // Fetch all parameters + values
+    const {data: rawParams} = await axios.get(`/plans/${planId}/parameters`)
+
+    // Fetch all parameter display conditions
+    const {data: conditions} = await axios.get('/parameter/condition')
+
+    // Filter out hidden parameters based on conditions
+    parameters.value = rawParams.filter(param => {
+      // Find all conditions for this parameter
+      const relevantConditions = conditions.filter(c => c.parameter === param.id)
+
+      // If no conditions, keep it
+      if (relevantConditions.length === 0) return true
+
+      // Evaluate each condition; if any say "hide", then hide it
+      for (const cond of relevantConditions) {
+        const otherParam = rawParams.find(p => p.id === cond.if_parameter)
+        if (!otherParam) continue
+
+        const val = otherParam.value
+        const targetVal = cond.value
+
+        let shouldApply = false
+        if (cond.is === '=' && val == targetVal) shouldApply = true
+        else if (cond.is === '<' && val < targetVal) shouldApply = true
+        else if (cond.is === '>' && val > targetVal) shouldApply = true
+
+        if (shouldApply && cond.action === 'hide') {
+          return false // exclude from result
+        }
+      }
+
+      return true // keep if no hide condition matched
+    })
+  } catch (err) {
+    console.error("Failed to fetch params or conditions:", err)
+  } finally {
+    loading.value = false
+  }
 }
+
 
 function updateScheduleUrl(planId) {
   scheduleUrl.value = `https://dev.planning.hands-on-technology.org/event/${selectedEvent.value?.id}/schedule/${planId}/show?ts=${Date.now()}`
@@ -122,7 +168,6 @@ const createDefaultPlan = async () => {
     return null
   }
 }
-
 
 onMounted(async () => {
   if (!eventStore.selectedEvent) {

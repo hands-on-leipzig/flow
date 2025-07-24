@@ -34,6 +34,8 @@ class PlanController extends Controller
         $validated['last_change'] = Carbon::now();
         $plan = Plan::create($validated);
 
+        (new PlanParameterController)->insertParamsFirst($plan->id);
+
         return response()->json($plan, 201);
     }
 }

@@ -1,7 +1,6 @@
 <script setup>
-import {ref, reactive, watch} from 'vue'
+import {ref, watch} from 'vue'
 import axios from 'axios'
-import IconAccordionArrow from '@/components/icons/IconAccordionArrow.vue'
 import Multiselect from '@vueform/multiselect'
 import '@vueform/multiselect/themes/default.css'
 
@@ -9,14 +8,6 @@ const activeTab = ref('sync')
 
 const parameters = ref([])
 const conditions = ref([])
-
-const newCondition = reactive({
-  parameter: '',
-  if_parameter: '',
-  is: '=',
-  value: '',
-  action: 'hide',
-})
 
 const syncDrahtRegions = async () => {
   await axios.get('/admin/draht/sync-draht-regions')
@@ -47,10 +38,6 @@ const addCondition = async () => {
     _new: true,
     _dirty: false,
   })
-}
-
-const updateCondition = async (cond) => {
-  await axios.put(`/parameter/condition/${cond.id}`, cond)
 }
 
 const removeCondition = async (index) => {
