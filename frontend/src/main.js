@@ -14,6 +14,7 @@ import Rooms from "@/components/Rooms.vue";
 import EventOverview from "@/components/EventOverview.vue";
 import PublishControl from "@/components/PublishControl.vue";
 import Admin from "@/components/Admin.vue";
+import Teams from "@/components/Teams.vue";
 
 keycloak.init({onLoad: 'login-required'}).then(authenticated => {
     if (!authenticated) {
@@ -50,6 +51,7 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
     const routes = [
         {path: '/event', component: EventOverview},
         {path: '/schedule', component: Schedule},
+        {path: '/teams', component: Teams},
         {path: '/logos', component: Logos},
         {path: '/events', component: SelectEvent},
         {path: '/rooms', component: Rooms},

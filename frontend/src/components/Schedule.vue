@@ -1,12 +1,13 @@
 <script setup>
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
-import ParameterField from "@/components/ParameterField.vue";
+import ParameterField from "@/components/molecules/ParameterField.vue";
 
 import {useEventStore} from '@/stores/event'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue";
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import LoaderText from "@/components/LoaderText.vue";
+import {RadioGroup} from "@headlessui/vue";
 
 const eventStore = useEventStore()
 const selectedEvent = computed(() => eventStore.selectedEvent)
@@ -213,6 +214,58 @@ const toggle = (id) => {
              type="text"/>
     </div>
 
+    <div class="grid grid-cols-3 gap-4 mt-4">
+
+      <div class="p-4 border rounded shadow">
+        <h2 class="text-lg font-semibold mb-2">Explore Einstellungen</h2>
+        <div>
+          <radio-group>
+            <input type="radio" id="vormittag" name="modus"/>&nbsp;
+            <label for="vormittag">Vormittag</label>
+            <br>
+            <input type="radio" id="nachmittag" name="modus"/>&nbsp;
+            <label for="nachmittag">Nachmittag</label>
+          </radio-group>
+        </div>
+      </div>
+
+      <div class="p-4 border rounded shadow">
+        <h2 class="text-lg font-semibold mb-4">Challenge Einstellungen</h2>
+        <div class="flex gap-8 flex-wrap">
+          <!-- Robot-Game Tische -->
+          <div class="flex-grow">
+            <p class="font-medium mb-2">Robot-Game-Tische</p>
+            <label class="block">
+              <input type="radio" name="tables" value="2" class="mr-2"/>
+              2 Tische
+            </label>
+            <label class="block">
+              <input type="radio" name="tables" value="4" class="mr-2"/>
+              4 Tische
+            </label>
+          </div>
+
+          <!-- Jury-Spuren -->
+          <div class="flex-grow">
+            <p class="font-medium mb-2">Jury-Spuren</p>
+            <template v-for="n in 7" :key="n">
+              <label class="block">
+                <input type="radio" name="spuren" :value="n" class="mr-2"/>
+                {{ n }}-spurig
+              </label>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 border rounded shadow">
+        <h2 class="text-lg font-semibold mb-2">Zeiten</h2>
+        <div>
+          <!-- show all the params of type "time" here -->
+        </div>
+      </div>
+
+    </div>
     <div
         v-for="(group, programName) in inputParamsByProgram"
         :key="programName"
@@ -238,8 +291,6 @@ const toggle = (id) => {
         </div>
       </transition>
     </div>
-
-
     <div class="mb-4 bg-white border rounded-lg shadow">
       <button
           class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"

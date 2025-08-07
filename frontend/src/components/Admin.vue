@@ -4,7 +4,7 @@ import axios from 'axios'
 import Multiselect from '@vueform/multiselect'
 import '@vueform/multiselect/themes/default.css'
 
-const activeTab = ref('sync')
+const activeTab = ref('conditions')
 
 const parameters = ref([])
 const conditions = ref([])
@@ -72,34 +72,31 @@ fetchConditions()
     <div class="w-64 bg-gray-100 border-r p-4 space-y-2">
       <button
           class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-          :class="{ 'bg-white font-semibold shadow': activeTab === 'sync' }"
-          @click="activeTab = 'sync'"
-      >
-        🔁 Sync Draht
-      </button>
-      <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
           :class="{ 'bg-white font-semibold shadow': activeTab === 'conditions' }"
           @click="activeTab = 'conditions'"
       >
-        📄 Anzeige-Bedingungen
+        📄 Parameter-Anzeige
       </button>
+      <button
+          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+          :class="{ 'bg-white font-semibold shadow': activeTab === 'visibility' }"
+          @click="activeTab = 'visibility'"
+      >
+        👁️ Visibility
+      </button>
+      <button
+          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+          :class="{ 'bg-white font-semibold shadow': activeTab === 'sync' }"
+          @click="activeTab = 'sync'"
+      >
+        🔁 Draht Sync
+      </button>
+
     </div>
 
-    <!-- Main Content -->
     <div class="flex-1 p-6 overflow-auto">
-      <!-- Sync Content -->
-      <div v-if="activeTab === 'sync'">
-        <h2 class="text-xl font-bold mb-4">Sync Draht</h2>
-        <button class="px-4 py-2 rounded bg-blue-500 text-white mr-2" @click="syncDrahtRegions">
-          Sync draht-regions
-        </button>
-        <button class="px-4 py-2 rounded bg-blue-500 text-white" @click="syncDrahtEvents">
-          Sync Draht
-        </button>
-      </div>
-      <!--class="grid grid-cols-[1fr_auto_1fr_auto_auto_1fr_auto] gap-2 items-center mb-3"-->
-      <!-- Conditions Content -->
+
+
       <div v-if="activeTab === 'conditions'">
         <h2 class="text-xl font-bold mb-4">Parameter-Anzeige-Bedingungen</h2>
         <div
@@ -120,8 +117,9 @@ fetchConditions()
           />
 
           <select v-model="cond.action" class="border px-2 py-1 rounded" @change="cond._dirty = true">
-            <option value="hide">verstecken</option>
             <option value="show">anzeigen</option>
+            <option value="hide">verstecken</option>
+            <option value="disable">ausgrauen</option>
           </select>
 
           <span>wenn</span>
@@ -156,6 +154,23 @@ fetchConditions()
           ➕ Bedingung hinzufügen
         </button>
       </div>
+
+      <div v-if="activeTab === 'visibility'">
+        <h2 class="text-xl font-bold mb-4">Visibility</h2>
+        <object class="w-full h-screen"
+                data="https://dev.planning.hands-on-technology.org/output/visibility.cgi"></object>
+      </div>
+
+      <div v-if="activeTab === 'sync'">
+        <h2 class="text-xl font-bold mb-4">Sync aus DRAHT</h2>
+        <button class="px-4 py-2 rounded bg-blue-500 text-white mr-2" @click="syncDrahtRegions">
+          Sync draht-regions
+        </button>
+        <button class="px-4 py-2 rounded bg-blue-500 text-white" @click="syncDrahtEvents">
+          Sync Draht
+        </button>
+      </div>
+
     </div>
   </div>
 </template>

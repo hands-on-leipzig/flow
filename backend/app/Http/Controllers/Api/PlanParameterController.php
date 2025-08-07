@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
+use App\Models\Plan;
 use App\Models\PlanParamValue;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -41,7 +43,9 @@ class PlanParameterController extends Controller
 
     public function getParametersForPlan($planId): JsonResponse
     {
-        // Fetch all parameter values for the plan (we need them to evaluate conditions)
+        $plan = Plan::find($planId);
+        $event = Event::find($plan->event);
+
         $paramValues = DB::table('plan_param_value')
             ->where('plan', $planId)
             ->pluck('set_value', 'parameter'); // [parameter_id => value]
@@ -49,9 +53,6 @@ class PlanParameterController extends Controller
         if ($paramValues->isEmpty()) {
             return $this->insertParamsFirst($planId);
         }
-
-        // Fetch all conditions from DB
-        $conditions = DB::table('m_parameter_condition')->get()->groupBy('parameter');
 
         // Fetch all parameters and values
         $parameters = DB::table('m_parameter')
@@ -67,38 +68,10 @@ class PlanParameterController extends Controller
             )
             ->get();
 
-        // Filter parameters based on condition logic
-        $filtered = $parameters->filter(function ($param) use ($paramValues, $conditions) {
-            $paramId = $param->id;
-
-            if (!isset($conditions[$paramId])) {
-                return true; // No conditions → keep param
-            }
-
-            foreach ($conditions[$paramId] as $cond) {
-                // Skip if not a "hide" condition
-                if ($cond->action !== 'hide') continue;
-
-                // Get referenced param value
-                $otherValue = $paramValues[$cond->if_parameter] ?? null;
-                if ($otherValue === null) continue;
-
-                // Evaluate condition
-                switch ($cond->is) {
-                    case '=':
-                        if ($otherValue == $cond->value) return false;
-                        break;
-                    case '<':
-                        if (is_numeric($otherValue) && $otherValue < $cond->value) return false;
-                        break;
-                    case '>':
-                        if (is_numeric($otherValue) && $otherValue > $cond->value) return false;
-                        break;
-                }
-            }
-
-            return true; // Keep param
-        })->values(); // reindex
+        $filtered = $parameters->filter(function ($param) use ($paramValues, $event) {
+            if ($param->level > $event->level) return false;
+            return true;
+        })->values();
 
         return response()->json($filtered);
     }

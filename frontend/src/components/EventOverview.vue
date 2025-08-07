@@ -6,16 +6,13 @@ import dayjs from "dayjs";
 
 import TeamList from "@/components/molecules/TeamList.vue";
 import {RadioGroup} from "@headlessui/vue";
+import ParameterField from "@/components/molecules/ParameterField.vue";
 
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const challengeData = ref(null)
 const exploreData = ref(null)
-const exploreTeamsDraht = ref([])
-const challengeTeamsDraht = ref([])
-const publishedPlanId = ref('')
-const schedules = ref([])
 
 onMounted(async () => {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
@@ -23,18 +20,6 @@ onMounted(async () => {
 
   exploreData.value = drahtData.data.event_explore
   challengeData.value = drahtData.data.event_challenge
-
-  exploreTeamsDraht.value = Object.entries(drahtData.data.teams_explore || {}).map(([id, t]) => ({
-    id: Number(id),
-    number: id,
-    name: t.name
-  }))
-
-  challengeTeamsDraht.value = Object.entries(drahtData.data.teams_challenge || {}).map(([id, t]) => ({
-    id: Number(id),
-    number: id,
-    name: t.name
-  }))
 
   event.value.address = drahtData.data.address
   event.value.contact = drahtData.data.contact
@@ -123,56 +108,8 @@ const updateEventField = async (field, value) => {
           </div>
         </div>
 
-        <div class="p-4 border rounded shadow">
-          <h2 class="text-lg font-semibold mb-2">Explore Modus</h2>
-          <div>
-            <radio-group>
-              <input type="radio" id="vormittag" name="modus"/>&nbsp;
-              <label for="vormittag">Vormittag</label>
-              <br>
-              <input type="radio" id="nachmittag" name="modus"/>&nbsp;
-              <label for="nachmittag">Nachmittag</label>
-            </radio-group>
-          </div>
-        </div>
-
-        <div class="p-4 border rounded shadow">
-          <h2 class="text-lg font-semibold mb-4">Challenge Setup</h2>
-          <div class="flex gap-8 flex-wrap">
-            <!-- Robot-Game Tische -->
-            <div class="flex-grow">
-              <p class="font-medium mb-2">Robot-Game-Tische</p>
-              <label class="block">
-                <input type="radio" name="tables" value="2" class="mr-2"/>
-                2 Tische
-              </label>
-              <label class="block">
-                <input type="radio" name="tables" value="4" class="mr-2"/>
-                4 Tische
-              </label>
-            </div>
-
-            <!-- Jury-Spuren -->
-            <div class="flex-grow">
-              <p class="font-medium mb-2">Jury-Spuren</p>
-              <template v-for="n in 7" :key="n">
-                <label class="block">
-                  <input type="radio" name="spuren" :value="n" class="mr-2"/>
-                  {{ n }}-spurig
-                </label>
-              </template>
-            </div>
-          </div>
-        </div>
-
 
       </div>
-    </div>
-    <div class="grid grid-cols-2 gap-4 mt-4">
-      <div v-if="exploreTeamsDraht.length">
-        <TeamList :remoteTeams="exploreTeamsDraht" :program="'explore'"/>
-      </div>
-      <TeamList :remoteTeams="challengeTeamsDraht" :program="'challenge'"/>
     </div>
   </div>
 </template>

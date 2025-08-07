@@ -2,7 +2,8 @@
 import {ref, onMounted, computed} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
-import IconAccordionArrow from "@/components/icons/IconAccordionArrow.vue";
+import IconAccordionArrow from '@/components/icons/IconAccordionArrow.vue'
+import draggable from 'vuedraggable'
 
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
@@ -10,6 +11,10 @@ const rooms = ref([])
 const roomTypes = ref([])
 const typeGroups = ref([])
 const assignments = ref({})
+
+const dragOverRoomId = ref(null)
+const isDragging = ref(false)
+const previewedTypeId = ref(null)
 
 const getProgramColor = (type) => {
   return type?.group?.program?.color || '#888888'
@@ -54,8 +59,16 @@ const assignRoomType = async (typeId, roomId) => {
   })
 }
 
-const expandedGroups = ref(new Set())
+const unassignRoomType = async (typeId) => {
+  assignments.value[typeId] = null
+  await axios.put(`/rooms/assign-types`, {
+    type_id: typeId,
+    room_id: null,
+    event: eventStore.selectedEvent?.id
+  })
+}
 
+const expandedGroups = ref(new Set())
 const toggleGroup = (groupId) => {
   if (expandedGroups.value.has(groupId)) {
     expandedGroups.value.delete(groupId)
@@ -88,7 +101,15 @@ const createRoom = async () => {
   }
 }
 
-
+const handleDrop = async (event, room) => {
+  const type = event.item._underlying_vm_ || event.item.__vue__
+  if (type && type.id) {
+    await assignRoomType(type.id, room.id)
+  }
+  dragOverRoomId.value = null
+  previewedTypeId.value = null
+  isDragging.value = false
+}
 </script>
 
 <template>
@@ -103,7 +124,7 @@ const createRoom = async () => {
         <li
             v-for="room in rooms"
             :key="room.id"
-            class="p-4 mb-2 border rounded bg-white shadow "
+            class="p-4 mb-2 border rounded bg-white shadow"
         >
           <div class="flex justify-between items-start">
             <div class="w-full">
@@ -124,16 +145,41 @@ const createRoom = async () => {
                     @blur="updateRoom(room)"
                 />
               </div>
-              <div class="flex flex-wrap mt-2 gap-2">
-                <label class="w-full text-xs text-gray-500 uppercase tracking-wide">wird genutzt für:</label>
-                <span
-                    v-for="type in roomTypes.filter(t => assignments[t.id] === room.id)"
-                    :key="type.id"
-                    :style="{ backgroundColor: getProgramColor(type), color: '#fff' }"
-                    class="text-xs px-2 py-1 rounded-full"
+              <div
+                  class="flex flex-wrap mt-2 gap-2 min-h-[40px] border rounded p-2 transition-colors"
+                  :class="{
+                    'bg-blue-100': dragOverRoomId === room.id,
+                    'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
+                    'bg-gray-50': !isDragging && dragOverRoomId !== room.id
+                  }"
+              >
+                <draggable
+                    :list="roomTypes.filter(t => assignments[t.id] === room.id)"
+                    group="roomtypes"
+                    item-key="id"
+                    @remove="() => {}"
+                    @add="event => handleDrop(event, room)"
+                    @dragenter.native="e => { dragOverRoomId = room.id; previewedTypeId = e.dataTransfer?.getData('text/plain') }"
+                    @dragleave.native="() => {dragOverRoomId = null; previewedTypeId = null}"
+                    @drop.native="() => {dragOverRoomId = null; previewedTypeId = null}"
+                    @start="isDragging = true"
+                    @end="isDragging = false"
+                    class="flex flex-wrap gap-2 w-full"
                 >
-                  {{ type.name }}
-                </span>
+                  <template #item="{element}">
+                    <span
+                        :style="{
+                          backgroundColor: getProgramColor(element),
+                          color: '#fff',
+                          opacity: isDragging && previewedTypeId === String(element.id) ? 0.6 : 1
+                        }"
+                        class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1"
+                    >
+                      {{ element.name }}
+                      <button class="text-white ml-1 text-sm" @click.stop="unassignRoomType(element.id)">✖</button>
+                    </span>
+                  </template>
+                </draggable>
               </div>
             </div>
             <button class="text-red-600 text-lg" @click="deleteRoom(room.id)">🗑️</button>
@@ -149,8 +195,7 @@ const createRoom = async () => {
         Alle öffnen
       </button>
       &nbsp;
-      <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3"
-              @click="expandedGroups.clear()">
+      <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3" @click="expandedGroups.clear()">
         Alle schließen
       </button>
       <div
@@ -163,41 +208,30 @@ const createRoom = async () => {
             @click="toggleGroup(group.id)"
         >
           {{ group.name }}
-          <span>
-            <IconAccordionArrow :opened="expandedGroups.has(group.id)"/>
-        </span>
+          <span><IconAccordionArrow :opened="expandedGroups.has(group.id)"/></span>
         </button>
 
         <transition name="accordion">
-          <div
-              v-if="expandedGroups.has(group.id)"
-              class="space-y-3 overflow-hidden"
-          >
-            <div
-                v-for="type in roomTypes.filter(t => t.group?.id === group.id)"
-                :key="type.id"
-                class="flex items-center justify-between"
+          <div v-if="expandedGroups.has(group.id)" class="overflow-hidden">
+            <draggable
+                :list="roomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
+                group="roomtypes"
+                item-key="id"
+                class="flex flex-wrap gap-2"
+                @start="isDragging = true"
+                @end="isDragging = false"
             >
-              <label class="font-medium text-gray-700">{{ type.name }}</label>
-              <select
-                  :value="assignments[type.id] || ''"
-                  class="border border-gray-300 rounded px-2 py-1 text-sm"
-                  @change="assignRoomType(type.id, +$event.target.value)"
-              >
-                <option value="">Bitte wählen</option>
-                <option
-                    v-for="room in rooms"
-                    :key="room.id"
-                    :value="room.id"
+              <template #item="{element}">
+                <span
+                    :style="{ backgroundColor: getProgramColor(element), color: '#fff' }"
+                    class="text-xs px-2 py-1 rounded-full cursor-move"
                 >
-                  {{ room.name }}
-                </option>
-              </select>
-            </div>
+                  {{ element.name }}
+                </span>
+              </template>
+            </draggable>
           </div>
         </transition>
-
-
       </div>
     </div>
   </div>
@@ -267,4 +301,16 @@ select {
   opacity: 1;
 }
 
+.draggable-dragging {
+  transform: scale(1.05);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  opacity: 0.7;
+}
+
+.draggable-dropzone {
+  transition: background-color 0.2s ease, border 0.2s ease;
+  background-color: #fffbea;
+  border: 2px dashed #facc15;
+}
 </style>

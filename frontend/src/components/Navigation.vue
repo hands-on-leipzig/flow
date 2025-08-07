@@ -15,9 +15,10 @@ onMounted(async () => {
 
 const tabs = [
   {name: 'Veranstaltung', path: '/event'},
-  {name: 'Zeiten', path: '/schedule'},
+  {name: 'Ablauf', path: '/schedule'},
+  {name: 'Teams', path: '/teams'},
   {name: 'Orte', path: '/rooms'},
-  {name: 'Sponsoren', path: '/logos'},
+  {name: 'Logos', path: '/logos'},
   {name: 'Veröffentlichung', path: '/publish'},
 ]
 const selectedTab = ref('Schedule')
