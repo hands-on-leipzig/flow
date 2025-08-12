@@ -1,7 +1,19 @@
 <script setup>
 import {ref, watch} from 'vue'
 
-const props = defineProps({param: Object})
+const props = defineProps({
+  param: {
+    type: Object
+  },
+  withLabel: {
+    type: Boolean,
+    default: false,
+  },
+  horizontal: {
+    type: Boolean,
+    default: false,
+  }
+})
 const emit = defineEmits(['update'])
 const showInfo = ref(false)
 
@@ -26,9 +38,12 @@ function emitChange() {
 </script>
 
 <template>
-  <div class="flex items-center px-4 py-1 space-x-4 w-full hover:bg-gray-50 transition-colors duration-150 rounded">
+  <div
+      class="flex items-center px-4 py-1 space-x-4 w-full hover:bg-gray-50 transition-colors duration-150 rounded"
+      :class="{ 'flex-col items-start space-x-0 space-y-1': !horizontal }"
+  >
     <!-- Label + Info -->
-    <div class="flex items-center min-w-[25rem]">
+    <div class="flex items-center min-w-[25rem]" v-if="withLabel">
       <span class="font-medium">{{ param.ui_label }}</span>
       <button
           @click="showInfo = !showInfo"
@@ -61,7 +76,6 @@ function emitChange() {
         />
       </div>
 
-
       <input
           v-else-if="param.type === 'date'"
           type="date"
@@ -85,10 +99,19 @@ function emitChange() {
           @change="emitChange"
           class="border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
       />
+
+      <!-- Default value when vertical layout -->
+      <div v-if="!horizontal" class="text-gray-500 text-sm mt-1">
+        ({{ showDefaultValue(param) }})
+      </div>
     </div>
 
-    <span class="text-gray-500 text-sm">({{ showDefaultValue(param) }})</span>
+    <!-- Default value when horizontal layout -->
+    <span v-if="horizontal" class="text-gray-500 text-sm">
+      ({{ showDefaultValue(param) }})
+    </span>
 
+    <!-- Info tooltip -->
     <div
         v-if="showInfo"
         class="absolute mt-10 ml-2 z-10 w-64 p-2 text-sm text-gray-700 bg-white border border-gray-300 rounded shadow-lg"

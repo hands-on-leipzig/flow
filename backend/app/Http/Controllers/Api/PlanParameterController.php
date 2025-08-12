@@ -66,6 +66,7 @@ class PlanParameterController extends Controller
                 'plan_param_value.set_value as value',
                 'm_first_program.name as program_name'
             )
+            ->where('m_parameter.context', '!=', "protected")
             ->get();
 
         $filtered = $parameters->filter(function ($param) use ($paramValues, $event) {
