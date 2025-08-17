@@ -5,7 +5,7 @@ require_once '../generator_main.php';
 echo "<head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <title>Testframe for FLOW</title>
+    <title>Testframe for the new FLOW</title>
     <style>
         body {
             font-family: Arial, sans-serif;
