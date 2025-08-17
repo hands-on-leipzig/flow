@@ -41,7 +41,7 @@ if (isset($plan_id) && $plan_id > 0) {
 
     g_show_day_plan($plan_id);
 
-    echo "</body>
+    echo "</body> 
     </html>";
 
 } else {

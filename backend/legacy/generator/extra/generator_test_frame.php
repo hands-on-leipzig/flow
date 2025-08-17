@@ -1,7 +1,6 @@
 <?php
 
-require_once 'generator_db.php';
-require_once 'generator_functions.php';
+require_once '../generator_main.php';
 
 echo "<head>
     <meta charset='UTF-8'>
@@ -96,24 +95,48 @@ echo "<p class='info-line'>Last modified: $lastModified</p>";
 
 echo "<form class='form-container' method='post'>
         <div class='form-column'>
-            <button type='submit' name='action' value='1'>Create all supported plans</button>
+            <div class='form-row'>
+                <label for='c_teams_min'>c teams MIN</label>
+                <input type='text' id='c_teams_min' name='c_teams_min' maxlength='2' value='1'>
+            </div>
+            <div class='form-row'>
+                <label for='c_teams_max'>c teams MAX</label>
+                <input type='text' id='c_teams_max' name='c_teams_max' maxlength='2' value='99'>
+            </div>
+            <div class='form-row'>
+                <label for='j_rounds'>j rounds (0 = all)</label>
+                <input type='text' id='j_rounds' name='j_rounds' maxlength='1' value='4'>
+            </div>
+            <button type='submit' name='action' value='1'>Create supported plans</button>
         </div>
         <div class='form-column'>
             <div class='form-row'>
-                <label for='c_teams'>C Teams:</label>
-                <input type='text' id='c_teams' name='c_teams' maxlength='2'>
+                <label for='c_teams'>c teams</label>
+                <input type='text' id='c_teams' name='c_teams' maxlength='2' value='12'>
             </div>
             <div class='form-row'>
-                <label for='j_lanes'>J Lanes:</label>
-                <input type='text' id='j_lanes' name='j_lanes' maxlength='1'>
+                <label for='j_lanes'>j lanes</label>
+                <input type='text' id='j_lanes' name='j_lanes' maxlength='1' value='3'>
             </div>
             <div class='form-row'>
-                <label for='r_tables'>R Tables:</label>
-                <input type='text' id='r_tables' name='r_tables' maxlength='1'>
+                <label for='r_tables'>r tables</label>
+                <input type='text' id='r_tables' name='r_tables' maxlength='1' value='2'>
             </div>
-            <div class='form-checkbox'>
+            <div class='form-row'>
                 <input type='checkbox' id='r_robot_check' name='r_robot_check' value='0'>
-                <label for='r_robot_check'>R Check</label>
+                <label for='r_robot_check'>r check</label>
+            </div>
+            <div class='form-row'>
+                <label for='e_mode'>e mode</label>
+                <input type='text' id='e_mode' name='e_mode' maxlength='1' value='0'>
+            </div>
+            <div class='form-row'>
+                <label for='DEBUG'>DEBUG level</label>
+                <input type='text' id='DEBUG' name='DEBUG' maxlength='1' value='0'>
+            </div>
+            <div class='form-row'>
+                <input type='checkbox' id='DEBUG_RG' name='DEBUG_RG' value='yes'>
+                <label for='DEBUG_RG'>DEBUG_RG</label>
             </div>
             <button type='submit' name='action' value='2'>Create plan</button>
         </div>
@@ -133,13 +156,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         case 1:
             // Create all supported plans
-            plan_create_mass();
+            plan_create_mass($_POST['c_teams_min'], $_POST['c_teams_max'], $_POST['j_rounds']);
             break;
 
         case 2:
             // Create one new plan with the given parameters
             $r_robot_check = isset($_POST['r_robot_check']) ? 1 : 0;
-            plan_create_one($_POST['c_teams'], $_POST['j_lanes'], $_POST['r_tables'], $r_robot_check);
+            $debug_rg = isset($_POST['DEBUG_RG']) ? 1 : 0;
+            
+            plan_create_one($_POST['c_teams'], $_POST['j_lanes'], $_POST['r_tables'], $r_robot_check, $_POST['e_mode'], $_POST['DEBUG'], $debug_rg);
             break;
             
         case 3:
@@ -156,14 +181,21 @@ overview();
 echo "</body>";
 
 
-function plan_create_mass() {
+function plan_create_mass($c_teams_min, $c_teams_max, $only_j_rounds) {
 
+    global $DEBUG;
     global $g_db;
     global $test_plans;
 
+    $c_teams = 0; 
+    $j_lanes = 0; 
+    $r_tables = 0;
+    $j_rounds = 0; 
+    $r_robot_check = 0; 
+
     // Load all supported plans for FLL Challenge
 
-    $sql = "SELECT teams, lanes, tables, jury_rounds FROM m_supported_plan WHERE first_program = ? ORDER BY teams, lanes, tables";
+    $sql = "SELECT teams, lanes, tables FROM m_supported_plan WHERE first_program = ? ORDER BY teams, lanes, tables";
     $stmt = $g_db->prepare($sql);
 
     if ($stmt === false) {
@@ -173,13 +205,18 @@ function plan_create_mass() {
     $first_program = ID_FP_CHALLENGE;
     $stmt->bind_param("i", $first_program);
     $stmt->execute();
-    $stmt->bind_result($c_teams, $j_lanes, $r_tables, $j_rounds);
+    $stmt->bind_result($c_teams, $j_lanes, $r_tables);
 
     // Create a list of all possible plans with and without robot-check
     
     while ($stmt->fetch()) {
 
-        for ($r_robot_check = 0; $r_robot_check <= 1; $r_robot_check++) {
+        $j_rounds = ceil($c_teams / $j_lanes);
+
+        if (( $j_rounds == $only_j_rounds || $only_j_rounds == 0) &&
+              $c_teams >= $c_teams_min && $c_teams <= $c_teams_max ) {
+
+            for ($r_robot_check = 0; $r_robot_check <= 1; $r_robot_check++) {
 
                 $test_plans[] = [
                     'id' => 0,               // will be updated after creation
@@ -190,11 +227,15 @@ function plan_create_mass() {
                     'r_tables' => $r_tables,
                     'r_robot_check' => $r_robot_check,
 
-                    'e_teams' => 0,           // unused for now
-                    'e_lanes' => 0,           // unused for now
-                    'e_rounds' => 0,          // unused for now
-                    'e_morning' => true       // unused for now
-                ];
+                    'e_mode' => 0,   
+                    'e1_teams' => 0,      
+                    'e1_lanes' => 0,           
+                    'e1_rounds' => 0,          
+                    'e2_teams' => 0,           
+                    'e2_lanes' => 0,           
+                    'e2_rounds' => 0,          
+                    ];
+            }
         }
     }
     $stmt->close();
@@ -213,11 +254,16 @@ function plan_create_mass() {
                             $plan['j_lanes'],
                             $plan['r_tables'],
                             $plan['r_robot_check'],
-                            $plan['e_teams'],
-                            $plan['e_lanes'],
-                            $plan['e_morning'] );
 
-        // Call the generator                          
+                            $plan['e_mode'],
+                            $plan['e1_teams'],
+                            $plan['e1_lanes'],
+                            $plan['e2_teams'],
+                            $plan['e2_lanes']
+                    );
+
+        // Call the generator
+        $DEBUG = 0; // Set DEBUG to 0 to avoid debug output during mass generation                         
         g_generator($plan_id);
         
         // Update the plan ID in the array
@@ -228,26 +274,33 @@ function plan_create_mass() {
 
 }
 
-function plan_create_one($c_teams, $j_lanes, $r_tables, $r_robot_check) {
+function plan_create_one($c_teams, $j_lanes, $r_tables, $r_robot_check, $e_mode, $d = 0, $d_rg = 0) {
 
+    global $DEBUG;
+    global $DEBUG_RG;
     global $test_plans;
 
     // Check if the Challeng plan is supported and get the number of jury rounds
-    $j_rounds = db_get_from_supported_plan(ID_FP_CHALLENGE, $c_teams, $j_lanes, $r_tables);
+    // $j_rounds = db_get_from_supported_plan(ID_FP_CHALLENGE, $c_teams, $j_lanes, $r_tables); // TODO
 
     // Create one new event
     $event_id = event_new(1, 1);
 
     // Simulate the UI by creating an entry in table plan and in plan_param_value
 
+    $j_rounds = ceil($c_teams / $j_lanes);
+
     $plan_id = plan_new($event_id,
                         $c_teams,
                         $j_lanes,
                         $r_tables,
                         $r_robot_check,
-                        0,
-                        0,
-                        0 );
+                        $e_mode);  
+
+    // Set the DEBUG level
+    // This is used to control the debug output in the generator
+    $DEBUG = $d; 
+    $DEBUG_RG = $d_rg;
 
     // Call the generator                          
     g_generator($plan_id);
@@ -258,45 +311,44 @@ function plan_create_one($c_teams, $j_lanes, $r_tables, $r_robot_check) {
 
         'c_teams' => $c_teams,
         'j_lanes' => $j_lanes,
-        'j_rounds' => $j_rounds,   
+        'j_rounds' => $j_rounds, 
         'r_tables' => $r_tables,
         'r_robot_check' => $r_robot_check,
 
-        'e_teams' => 0,           // unused for now
-        'e_lanes' => 0,           // unused for now
-        'e_rounds' => 0,          // unused for now
-        'e_morning' => true       // unused for now
+        'e_mode' => $e_mode,
+        'e1_teams' => 0,
+        'e1_lanes' => 0,
+        'e1_rounds' => 0,
+        'e2_teams' => 0,
+        'e2_lanes' => 0,
+        'e2_rounds' => 0
     ];
 
 }
 
 function plan_load($plan_id) {
 
-    global $g_db;
     global $test_plans;
 
-    global $g_plan; // Required to use the function g_pv()
+    global $g_plan; // Required to use the functiongp()
 
     $g_plan = $plan_id;
 
     // Load the plan with the given plan_id
 
-    // Get the number of jury rounds
-    $j_rounds = db_get_from_supported_plan(ID_FP_CHALLENGE, g_pv('c_teams'), g_pv('j_lanes'), g_pv('r_tables'));
-
     $test_plans[] = [
         'id' => $plan_id,            
 
-        'c_teams' => g_pv('c_teams'),
-        'j_lanes' => g_pv('j_lanes'),
-        'j_rounds' => $j_rounds,
-        'r_tables' => g_pv('r_tables'),
-        'r_robot_check' => g_pv('r_robot_check'),
+        'c_teams' =>gp('c_teams'),
+        'j_lanes' =>gp('j_lanes'),
+        'j_rounds' => 0, // $j_rounds,
+        'r_tables' =>gp('r_tables'),
+        'r_robot_check' =>gp('r_robot_check'),
 
-        'e_teams' => g_pv('e_teams'),          
-        'e_lanes' => g_pv('e_lanes'),
-        'e_rounds' => 0,                                           // g_pv('e_rounds'),
-        'e_morning' => g_pv('e_morning')
+        'e_teams' =>gp('e_teams'),          
+        'e_lanes' =>gp('e_lanes'),
+        'e_rounds' => 0,                                           //gp('e_rounds'),
+        'e_morning' =>gp('e_morning')
     ];
 
 }
@@ -317,7 +369,7 @@ function get_activities() {
         // and robot game assignments
         $team_activities = [];
         $team_robot_game = [];
-        for ($i = 1; $i <= $plan['e_teams']; $i++) {
+        for ($i = 1; $i <= $plan['e1_teams']; $i++) {
             $team_activities[ID_FP_EXPLORE][$i] = [];
         }
         for ($i = 1; $i <= $plan['c_teams']; $i++) {
@@ -446,24 +498,31 @@ function overview() {
             <th>RT</th>
             <th>JR</th>            
             <th>RC</th>
-            <th>ET</th>
-            <th>EL</th>
-            <th>ER</th>
             <th>EM</th>
+            <th>E1T</th>
+            <th>E1L</th>
+            <th>E1R</th>
+            <th>E2T</th>
+            <th>E2L</th>
+            <th>E2R</th>
+            
         </tr>";
 
     foreach ($test_plans as $plan) {
         echo "<tr>
-            <td>{$plan['id']}</td>
+            <td><a href='https://dev.planning.hands-on-technology.org/generator/generator_day_plan.php?plan=" . $plan['id']  ."' target='_new'>" . $plan['id'] ."</a></td>
             <td>{$plan['c_teams']}</td>
             <td>{$plan['j_lanes']}</td>
             <td>{$plan['r_tables']}</td>
             <td>{$plan['j_rounds']}</td>
             <td>" . ($plan['r_robot_check'] ? 'Ja' : 'Nein') . "</td>
-            <td>{$plan['e_teams']}</td>
-            <td>{$plan['e_lanes']}</td>
-            <td>{$plan['e_rounds']}</td>
-            <td>" . ($plan['e_morning'] ? 'Ja' : 'Nein') . "</td>
+            <td>{$plan['e_mode']}</td>
+            <td>{$plan['e1_teams']}</td>
+            <td>{$plan['e1_lanes']}</td>
+            <td>{$plan['e1_rounds']}</td>
+            <td>{$plan['e2_teams']}</td>
+            <td>{$plan['e2_lanes']}</td>
+            <td>{$plan['e2_rounds']}</td>
         </tr>";
     }
 
@@ -482,12 +541,10 @@ function event_new($event_level, $event_days) {
     //
 
     $event_name = "Test event (level=$event_level, days=$event_days)";
-    $event_date = new DateTime('2025-06-05');
-    $event_end_date = clone $event_date;
-    $event_end_date->modify("+$event_days days");
-
+    $event_date = new DateTime('+100 days');
+    
     // Prepare the SQL query
-    $query = "INSERT INTO event (name, level, date, enddate) 
+    $query = "INSERT INTO event (name, level, date, days) 
             VALUES (?, ?, ?, ?)";
 
     // Prepare and bind
@@ -497,7 +554,7 @@ function event_new($event_level, $event_days) {
     }
 
     // Bind parameters
-    $stmt->bind_param('siss', $event_name, $event_level, $event_date->format('Y-m-d'), $event_end_date->format('Y-m-d'));
+    $stmt->bind_param('sisi', $event_name, $event_level, $event_date->format('Y-m-d'), $event_days);
 
     // Execute the query
     $stmt->execute();
@@ -515,20 +572,21 @@ function event_new($event_level, $event_days) {
 }
 
 
-function plan_new($event_id, $c_teams, $j_lanes, $r_tables, $r_robot_check, $e_teams, $e_lanes, $e_morning) {
+function plan_new($event_id, $c_teams, $j_lanes, $r_tables, $r_robot_check, 
+                  $e_mode = 0, $e1_teams = 6, $e1_lanes = 2, $e2_teams = 11, $e2_lanes = 3) {
 
     global $g_db;
-
-    //
-    // Insert a new plan with the given parameters
-    //
-
+    $paramId = 0;
 
     // Set current date and time for created and last_change columns
     $now = new DateTime();
 
+    $j_rounds = ceil($c_teams / $j_lanes); // Calculate jury rounds based on teams and lanes
+    // $e1_rounds = ceil($e1_teams / $e1_lanes); // Calculate e1 rounds
+    // $e2_rounds = ceil($e2_teams / $e2_lanes); // Calculate e2 rounds
+
     // Create the name
-    $plan_name = "Test Plan {$c_teams}-{$j_lanes}-{$r_tables} RC " . ($r_robot_check ? "an" : "aus"); 
+    $plan_name = "Test Plan Challenge: {$c_teams}-{$j_lanes}-{$r_tables}({$j_rounds}) RC " . ($r_robot_check ? "an" : "aus"); 
 
     // Prepare the SQL query
     $query = "INSERT INTO plan (name, event, created, last_change) 
@@ -563,27 +621,31 @@ function plan_new($event_id, $c_teams, $j_lanes, $r_tables, $r_robot_check, $e_t
         ['parameter' => 'j_lanes', 'value' => $j_lanes],
         ['parameter' => 'r_tables', 'value' => $r_tables],
         ['parameter' => 'r_robot_check', 'value' => $r_robot_check],
-        ['parameter' => 'e_teams', 'value' => $e_teams],
-        ['parameter' => 'e_lanes', 'value' => $e_lanes],
-        ['parameter' => 'e_morning', 'value' => $e_morning]
+        ['parameter' => 'e_mode', 'value' => $e_mode],
+        ['parameter' => 'e1_teams', 'value' => $e1_teams],
+        ['parameter' => 'e1_lanes', 'value' => $e1_lanes],
+        ['parameter' => 'e2_teams', 'value' => $e2_teams],
+        ['parameter' => 'e2_lanes', 'value' => $e2_lanes]
     ];
 
-    // Lookup parameter IDs from m_parameter table
+    // Lookup parameter IDs from m_parameter table and store in a map to avoid repeated prepares
+    $param_ids = [];
     $query = "SELECT id FROM m_parameter WHERE name = ?";
     $stmt = $g_db->prepare($query);
     if ($stmt === false) {
         die("Prepare failed: " . $g_db->error);
     }
-
-    foreach ($params as &$param) {
-        $stmt->bind_param('s', $param['parameter']);
+    foreach ($params as $param) {
+        $param_name = $param['parameter'];
+        $stmt->bind_param('s', $param_name);
         $stmt->execute();
         $stmt->bind_result($paramId);
-        $stmt->fetch();
-        if ($stmt->error) {
-            die("Execute failed: " . $stmt->error);
+        if ($stmt->fetch()) {
+            $param_ids[$param_name] = $paramId;
+        } else {
+            die("Parameter name not found: $param_name");
         }
-        $param['id'] = $paramId;
+        $stmt->free_result();
     }
     $stmt->close();
 
@@ -593,9 +655,11 @@ function plan_new($event_id, $c_teams, $j_lanes, $r_tables, $r_robot_check, $e_t
     if ($stmt === false) {
         die("Prepare failed: " . $g_db->error);
     }
-
     foreach ($params as $param) {
-        $stmt->bind_param('iis', $plan_id, $param['id'], $param['value']);
+        $param_id = $param_ids[$param['parameter']];
+        // Determine the type for set_value: 'i' for integer, 's' for string
+        $type = is_int($param['value']) ? 'i' : 's';
+        $stmt->bind_param("ii{$type}", $plan_id, $param_id, $param['value']);
         $stmt->execute();
         if ($stmt->error) {
             die("Execute failed: " . $stmt->error);
@@ -605,9 +669,6 @@ function plan_new($event_id, $c_teams, $j_lanes, $r_tables, $r_robot_check, $e_t
     // Close the statement
     $stmt->close();
 
-    // Debug
-    // echo "<br> New plan $plan_id: $plan_name";
-    
     return $plan_id;
 }
 

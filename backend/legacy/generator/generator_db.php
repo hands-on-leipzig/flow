@@ -11,6 +11,8 @@ function db_connect_persistent() {
     // Database configuration
     if (file_exists("../conf.php")) {
         require_once "../conf.php";
+    } else if (file_exists("../../conf.php")) {
+        require_once "../../conf.php";
     } else {
         require_once "conf.php";
     }
@@ -120,10 +122,14 @@ define('ID_ATD_E_FREE', 51);
 define('ID_ATD_C_FREE', 52);
 
 // Insert Points
+define('ID_IP_RG_1', 6);
+define('ID_IP_RG_2', 7);
+define('ID_IP_RG_3', 8);
 define('ID_IP_PRESENTATIONS', 1);
-define('ID_IP_RG_FINALS', 2);
-define('ID_IP_AWARDS', 3);
+define('ID_IP_RG_FINAL_ROUNDS', 2);
 define('ID_IP_RG_LAST_MATCHES', 4);
+define('ID_IP_AWARDS', 3);
+
 
 // IDs from m_room_type
 
@@ -167,68 +173,159 @@ define('ID_RT_E_JUDGE_DELIBERATIONS', 36);
 // FLL Explore modes
 define('ID_E_MORNING', 1);                              // joint opening, separate awards
 define('ID_E_AFTERNOON', 2);                            // separate opening, joint awards
-define('ID_E_INDEPENDENT', 3);                          // independent opening and awards
+define('ID_E_DECOUPLED_ONE', 3);                        // parallel opening and awards - one group
+define('ID_E_DECOUPLED_TWO', 4);                        // parallel opening and awards - two groups
 
 
 // ***********************************************************************************
 // Reading from and adding to db tables
 // ***********************************************************************************
 
+/**
+ * Load all parameters for a given plan ID into the global $g_params array.
+ * 
+ * Each entry is stored as: 
+ *   $g_params['param_name'] = [ 'value' => casted_value, 'type' => 'integer' ];
+ * 
+ * @param mysqli $db
+ * @param int    $planId
+ */
 
-// Function to get the value of a parameter directly from the database
-function g_pv($parameterName)
+function db_get_parameters()
 {
-    global $g_db, $g_plan;
+    global $DEBUG;
+    global $g_db;
+    global $g_params;
+    
+    // Step 1: Load all base parameters from m_parameter (with type)
+    $query = "SELECT id, name, type, value FROM m_parameter";
+    $res = $g_db->query($query);
 
-    // Step 1: Retrieve the parameter ID from m_parameter
-    $query = "SELECT id, value FROM m_parameter WHERE name = ?";
+    $base = [];
+    while ($row = $res->fetch_assoc()) {
+        $base[$row['id']] = [
+            'name'  => $row['name'],
+            'type'  => $row['type'],
+            'value' => cast_value($row['value'], $row['type'])
+        ];
+    }
+    $res->close();
+
+    // Step 2: Overlay with plan-specific values
+    $query = "
+        SELECT ppv.parameter, ppv.set_value
+        FROM plan_param_value ppv
+        WHERE ppv.plan = ?
+    ";
     $stmt = $g_db->prepare($query);
-    $stmt->bind_param('s', $parameterName);
+    $stmt->bind_param('i', gp("g_plan"));
     $stmt->execute();
     $result = $stmt->get_result();
 
-    if ($result->num_rows === 0) {
-        // Parameter not found in m_parameter
-        die("Error: Parameter '{$parameterName}' not found in m_parameter.");
+    while ($row = $result->fetch_assoc()) {
+        $paramId = $row['parameter'];
+        if (isset($base[$paramId])) {
+            $base[$paramId]['value'] = cast_value($row['set_value'], $base[$paramId]['type']);
+        }
     }
-
-    $paramRow = $result->fetch_assoc();
-    $parameterId = $paramRow['id'];
-    $fallbackValue = $paramRow['value']; // Fallback value from m_parameter
-
     $stmt->close();
 
-    // Step 2: Retrieve the value from plan_param_value using the parameter ID and the current plan
-    $query = "SELECT set_value FROM plan_param_value WHERE parameter = ? AND plan = ?";
-    $stmt = $g_db->prepare($query);
-    $stmt->bind_param('ii', $parameterId, $g_plan);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        // Found in plan_param_value
-        $row = $result->fetch_assoc();
-        $stmt->close();
-        return $row['set_value'];
+    // Step 3: Fill global $g_params keyed by parameter name
+    foreach ($base as $p) {
+        $g_params[$p['name']] = [
+            'value' => $p['value'],
+            'type'  => $p['type']
+        ];
     }
 
-    $stmt->close();
-
-    // Step 3: Fallback to value from m_parameter if available
-    if (!is_null($fallbackValue)) {
-        return $fallbackValue;
+    if($DEBUG >= 4) {
+        // Sort by parameter name (array key)
+        ksort($g_params);
+        echo "<h3>Parameter</h3>";
+        echo "<pre>";
+        foreach ($g_params as $name => $data) {
+            $val = var_export($data['value'], true);
+            echo sprintf("%-30s | %-8s | %s\n", $name, $data['type'], $val);
+        }
+        echo "</pre>";
     }
-
-    // Step 4: If all else fails, die with an error
-    die("Error: Parameter '{$parameterName}' not found in table plan_param_value or any fallback.");
 }
 
+/**
+ * Helper to cast DB string values according to parameter type
+ */
+function cast_value($rawValue, $type)
+{
+    if ($rawValue === null) return null;
 
+    switch ($type) {
+        case 'integer':
+            return (int)$rawValue;
+        case 'decimal':
+            return (float)$rawValue;
+        case 'boolean':
+            return ($rawValue == '1');
+        case 'time':
+        case 'date':
+            // Keep as string, format validation could be added
+            return $rawValue;
+        default:
+            return (string)$rawValue;
+    }
+}
 
-function db_get_from_plan(&$g_event) {
+/**
+ * Accessor: returns the parameter value, or dies if missing.
+ * 
+ * @param string $name
+ * @return mixed
+ */
+function gp($name)
+{
+    global $g_params;
+    if (!isset($g_params[$name])) {
+        die("Error: Parameter '{$name}' not found.");
+    }
+    return $g_params[$name]['value'];
+}
+
+/**
+ * Add or overwrite a calculated parameter in $g_params.
+ *
+ * @param string $name   Name of the parameter
+ * @param mixed  $value  Calculated value
+ * @param string $type   Optional type ('integer','decimal','boolean','time','date','string')
+ */
+function add_param($name, $value, $type = 'string')
+{
+    global $g_params;
+
+    $g_params[$name] = [
+        'value' => $value,
+        'type'  => $type
+    ];
+}
+
+/**
+ * Loads the event ID for the current plan from the database and adds it to global parameters.
+ *
+ * This function queries the 'plan' table for the event associated with the plan ID stored in $g_params["g_plan"],
+ * and adds the event ID as 'g_event' to the global parameters array.
+ *
+ * Globals used:
+ *   - $DEBUG: Controls debug output.
+ *   - $g_db: The mysqli database connection.
+ *   - $g_params: Global parameters array.
+ *
+ * @return void
+ */
+function db_get_from_plan() {
 
     global $DEBUG;
-    global $g_db, $g_plan;
+    global $g_db;
+    global $g_params;
+
+    $event = 0;
 
     $sql = "SELECT event FROM plan WHERE id = ?";
     $stmt = $g_db->prepare($sql);
@@ -236,19 +333,26 @@ function db_get_from_plan(&$g_event) {
         die("Prepare failed: " . $g_db->error);
     }
 
-    $stmt->bind_param("i", $g_plan);
+    if (!isset($g_params["g_plan"])) {
+        die("Error: Parameter 'g_plan' not found.");
+    }
+    $plan_id = gp("g_plan");
+    $stmt->bind_param("i", $plan_id);
     $stmt->execute();
-    $stmt->bind_result($g_event);
+    $stmt->bind_result($event);
 
     if ($stmt->fetch()) {
         // Fetch succeeded, variables are populated
-        if ($DEBUG >= 2) {
-            echo "<h3>From plan</h3>";
-            echo "g_event: $g_event<br><br>";
+
+        add_param("g_event", $event, "integer");
+
+        if ($DEBUG >= 3) {
+            echo "<h4>From plan</h4>";
+            echo("g event: " . gp("g_event"));
         }
     } else {
         // Fetch failed, likely no data was returned
-        echo "<h3>No data found for plan ID $g_plan</h3>";
+        echo "<h3>No data found for plan ID " . gp("g_plan") . "</h3>";
     }
 
     // Close the statement
@@ -256,13 +360,17 @@ function db_get_from_plan(&$g_event) {
 }
 
 
-function db_get_from_event($g_event, &$g_event_date, &$g_days, &$g_finale) {
+function db_get_from_event() {
 
     global $DEBUG;
     global $g_db;
+
+    $date = "";
+    $days = 0;
+    $level = 0;
     
     // Prepare the SQL query
-    $query = "SELECT date, enddate, level FROM event WHERE id = ?";
+    $query = "SELECT date, days, level FROM event WHERE id = ?";
 
     // Prepare and bind
     $stmt = $g_db->prepare($query);
@@ -271,7 +379,7 @@ function db_get_from_event($g_event, &$g_event_date, &$g_days, &$g_finale) {
     }
 
     // Bind parameters
-    $stmt->bind_param('i', $g_event);
+    $stmt->bind_param('i', gp("g_event"));
 
     // Execute the query
     $stmt->execute();
@@ -280,54 +388,48 @@ function db_get_from_event($g_event, &$g_event_date, &$g_days, &$g_finale) {
     }
 
     // Get the result
-    $stmt->bind_result($event_date, $end_date, $level);
+    $stmt->bind_result($date, $days, $level);
     $stmt->fetch();
 
     // Close the statement
     $stmt->close();
 
-    // Convert the date to DateTime object
-    $g_event_date = new DateTime($event_date); 
-    $end_date_obj = new DateTime($end_date);
+    // Add to global parameters
+    add_param("g_event_date", $date, "date");
+    add_param("g_days", $days, "integer");
+    // Set g_finale to true if the event level is 3 (finale event)
+        add_param("g_finale", $level == 3, "boolean");
 
-    // Calculate the number of days between date and enddate
-    $interval = $g_event_date->diff($end_date_obj);
-    $g_days = $interval->days + 1; // Including the start date
 
-    $g_finale = ($level == 3);
-
-    if($DEBUG >= 2) {
-        echo "<h3>From event</h3>";
-        echo "g_event_date: " . $g_event_date->format('d.m.Y') . "<br>";
-        echo "g_days: $g_days<br>";
-        echo "g_finale: " . ($g_finale ? 'true' : 'false') . "<br>";
+    if($DEBUG >= 3) {
+        echo "<h4>From event</h4>";
+        echo "g event date: " . gp("g_event_date") . "<br>";
+        echo "g days: " . gp("g_days") . "<br>";
+        echo "g finale: " . (gp("g_finale") ? 'true' : 'false') . "<br>";
     }
 }
 
-function db_get_from_supported_plan($first_program, $teams, $lanes, $tables = null) {
-    
-    global $DEBUG;
+
+function db_check_supported_plan($first_program, $teams, $lanes, $tables = NULL) {
+
     global $g_db;
 
-    // Prepare the SQL query
-    $query = "SELECT jury_rounds FROM m_supported_plan WHERE first_program = ? AND teams = ? AND lanes = ?";
-    
-    // Check if tables is provided
-    if ($tables !== null) {
-        $query .= " AND tables = ?";
-    }
-    
-    // Prepare and bind
-    $stmt = $g_db->prepare($query);
-    if ($stmt === false) {
-        die("Prepare failed: " . $g_db->error);
-    }
-
-    // Bind parameters
-    if ($tables !== null) {
-        $stmt->bind_param('iiii', $first_program, $teams, $lanes, $tables);
-    } else {
+    if ($tables === NULL) {
+        // Query without tables
+        $query = "SELECT id FROM m_supported_plan WHERE first_program = ? AND teams = ? AND lanes = ? AND tables IS NULL";
+        $stmt = $g_db->prepare($query);
+        if ($stmt === false) {
+            die("Prepare failed: " . $g_db->error);
+        }
         $stmt->bind_param('iii', $first_program, $teams, $lanes);
+    } else {
+        // Query with tables
+        $query = "SELECT id FROM m_supported_plan WHERE first_program = ? AND teams = ? AND lanes = ? AND tables = ?";
+        $stmt = $g_db->prepare($query);
+        if ($stmt === false) {
+            die("Prepare failed: " . $g_db->error);
+        }
+        $stmt->bind_param('iiii', $first_program, $teams, $lanes, $tables);
     }
 
     // Execute the query
@@ -337,39 +439,18 @@ function db_get_from_supported_plan($first_program, $teams, $lanes, $tables = nu
     }
 
     // Get the result
-    $stmt->store_result();
-    if ($stmt->num_rows > 0) {
-        // Bind result variables
-        $stmt->bind_result($jury_rounds);
-        $stmt->fetch();
-        $stmt->close();
-
-        if($DEBUG >= 2) {
-            echo "<h3>From m_supported_plan</h3>";
-            if($first_program == ID_FP_CHALLENGE) {
-                echo "j_rounds: $jury_rounds<br>";
-            } else {
-                echo "e_rounds: $jury_rounds<br>";
-            }
-            
-        }
-
-        return $jury_rounds;
-
-    } else {
-        $stmt->close();
-        if ($tables !== null) {
-            die("Error: No entry found for first_program=$first_program, teams=$teams, lanes=$lanes, tables=$tables");
-        } else {
-            die("Error: No entry found for first_program=$first_program, teams=$teams, lanes=$lanes");
-        }
+    $result = $stmt->get_result();
+    
+    // Check if any rows were returned
+    if ($result->num_rows <= 0) {
+        die("No supported plan found for the given parameters.");
     }
 }
 
+
 function db_insert_activity_group($activity_type_detail) {
 
-    global $g_db, $g_plan;
-
+    global $g_db;
     global $g_activity_group;
 
     // Prepare the SQL query
@@ -383,7 +464,7 @@ function db_insert_activity_group($activity_type_detail) {
     }
 
     // Bind parameters
-    $stmt->bind_param('ii', $g_plan, $activity_type_detail);
+    $stmt->bind_param('ii', gp("g_plan"), $activity_type_detail);
 
     // Execute the query
     $stmt->execute();
@@ -400,13 +481,13 @@ function db_insert_activity_group($activity_type_detail) {
     // Store the ID so that activities can be added easily
     $g_activity_group = $insertId;
 
-    return $g_activity_group;
 }
 
-function db_insert_activity($g_activity_group, $activity_type_detail, DateTime $time_start, $duration, $jury_lane = Null, $jury_team = NULL,
+function db_insert_activity($activity_type_detail, DateTime $time_start, $duration, $jury_lane = Null, $jury_team = NULL,
 $table_1 = Null, $table_1_team = Null, $table_2 = Null, $table_2_team = Null) {
 
     global $g_db;
+    global $g_activity_group;
 
     // Calculate end of activity
     $time_end = clone $time_start; // Clone the datetime object to prevent modification of original
@@ -681,7 +762,6 @@ $table_1 = Null, $table_1_team = Null, $table_2 = Null, $table_2_team = Null) {
 function db_get_duration_inserted_activity($insert_point) {
 
     global $g_db;
-    global $g_plan;
 
     // $horst = 2018; // böse 
 
@@ -696,7 +776,7 @@ function db_get_duration_inserted_activity($insert_point) {
         die("Prepare failed: " . $g_db->error);
     }
 
-    $stmt->bind_param('ii', $g_plan, $insert_point);                // böse $g_plan
+    $stmt->bind_param('ii', gp("g_plan"), $insert_point);               
     $stmt->execute();
     $stmt->bind_result($buffer_before, $duration, $buffer_after);
     $stmt->fetch();
@@ -706,12 +786,15 @@ function db_get_duration_inserted_activity($insert_point) {
 
 }
 
-function db_insert_extra_activity($g_activity_group, $activity_type_detail, $time, $insert_point) {
+function db_insert_extra_activity($activity_type_detail, $time, $insert_point) {
 
     global $g_db;
-    global $g_plan;
+    global $g_activity_group;
 
-    // $horst = 2018; // böse 
+    $extra_block = 0;
+    $buffer_before = 0;
+    $duration = 0;
+    $buffer_after = 0;
 
     $time_start = new DateTime;
     $time_end = new DateTime;
@@ -729,7 +812,7 @@ function db_insert_extra_activity($g_activity_group, $activity_type_detail, $tim
         die("Prepare failed: " . $g_db->error);
     }
 
-    $stmt->bind_param('ii', $g_plan, $insert_point);                // böse $g_plan
+    $stmt->bind_param('ii', gp("g_plan"), $insert_point);                
     $stmt->execute();
     $stmt->bind_result($extra_block, $buffer_before, $duration, $buffer_after);
     $stmt->fetch();
@@ -773,7 +856,11 @@ function db_insert_extra_activity($g_activity_group, $activity_type_detail, $tim
 function db_insert_free_activities() {
 
     global $g_db;
-    global $g_plan;
+
+    $extra_block = 0;
+    $first_program = 0;
+    $start = "";
+    $end = "";
 
     // $horst = 2018; // böse 
 
@@ -785,7 +872,7 @@ function db_insert_free_activities() {
         die("Prepare failed: " . $g_db->error);
     }
 
-    $stmt->bind_param('i', $g_plan);                                      // böse $g_plan     
+    $stmt->bind_param('i', gp("g_plan"));                                     
     $stmt->execute();
     $stmt->bind_result($extra_block, $first_program, $start, $end);
     $stmt->store_result();
@@ -838,5 +925,68 @@ function db_insert_free_activities() {
     $stmt->close();
 
 } 
+
+// Insert an activity that delays the schedule
+function g_insert_point($id) {
+
+    global $c_time;
+//    global $j_time;
+    global $r_time;
+//    global $e_time;
+
+    $time = new DateTime(); 
+
+    switch($id) {
+
+            case ID_IP_RG_1:
+            case ID_IP_RG_2:  
+            case ID_IP_RG_3:   
+                $time = $r_time;
+                break;
+
+            case ID_IP_PRESENTATIONS:
+            case ID_IP_AWARDS:
+                $time = $c_time;
+                break;           
+        }
+
+    // Check if an extra block is inserted. If so, get the total duration back.
+    $duration = db_get_duration_inserted_activity($id);
+
+    if ($duration > 0) {
+
+        // Additional block for this insert point
+        db_insert_activity_group(ID_ATD_C_INSERTED);
+        db_insert_extra_activity(ID_ATD_C_INSERTED, $time, $id);
+
+        g_add_minutes($time, $duration);
+
+    } else {
+
+        // If no inserted block is planned, use the normal time
+
+        switch($id) {
+
+            case ID_IP_RG_1:
+            case ID_IP_RG_3:   
+                g_add_minutes($time, gp("r_duration_break"));
+                break;
+
+            case ID_IP_RG_2:   
+                g_add_minutes($time, gp("r_duration_lunch"));
+                break;
+    
+            case ID_IP_PRESENTATIONS:
+                g_add_minutes($time, gp("c_ready_presentations"));
+                break;
+
+            case ID_IP_AWARDS:
+                g_add_minutes($time, gp("c_ready_awards"));
+                break;
+            
+        }
+
+    }
+}
 
 ?>

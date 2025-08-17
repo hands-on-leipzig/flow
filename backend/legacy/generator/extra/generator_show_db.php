@@ -1,5 +1,5 @@
 <?php
-require_once 'generator_db.php';
+require_once '../generator_db.php';
 
 echo "<html><head><title>Show DB</title><style>
     .table-container {

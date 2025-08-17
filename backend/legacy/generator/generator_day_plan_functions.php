@@ -116,10 +116,10 @@ function g_show_day_plan($plan)
                 'RG SR' => ['text' => '', 'row_span' => 1],
                 'RG C1' => ['text' => '', 'row_span' => 1],
                 'RG C2' => ['text' => '', 'row_span' => 1],
-                'RG C3' => ['text' => '', 'row_span' => 1],
-                'RG C4' => ['text' => '', 'row_span' => 1],
                 'RG T1' => ['text' => '', 'row_span' => 1],
                 'RG T2' => ['text' => '', 'row_span' => 1],
+                'RG C3' => ['text' => '', 'row_span' => 1],
+                'RG C4' => ['text' => '', 'row_span' => 1],
                 'RG T3' => ['text' => '', 'row_span' => 1],
                 'RG T4' => ['text' => '', 'row_span' => 1],
                 'Ex Be' => ['text' => '', 'row_span' => 1],
@@ -398,10 +398,10 @@ function g_show_day_plan($plan)
         "RG SR" => "challenge",
         "RG C1" => "challenge",
         "RG C2" => "challenge",
-        "RG C3" => "challenge",
-        "RG C4" => "challenge",
         "RG T1" => "challenge",
         "RG T2" => "challenge",
+        "RG C3" => "challenge",
+        "RG C4" => "challenge",
         "RG T3" => "challenge",
         "RG T4" => "challenge",
         "LC" => "challenge",
@@ -476,8 +476,8 @@ function g_show_team_plan($plan)
     $g_plan = $plan;
 
     // Fetch the number of teams
-    $e_teams = (int) g_pv('e_teams');
-    $c_teams = (int) g_pv('c_teams');
+    $e_teams = gp('e_teams');
+    $c_teams = gp('c_teams');
 
     echo $e_teams, $c_teams;
 
@@ -595,8 +595,8 @@ function g_list_teams_activities($plan)
     $g_plan = $plan;
 
     // Fetch the number of teams
-    $e_teams = (int) g_pv('e_teams');
-    $c_teams = (int) g_pv('c_teams');
+    $e_teams = gp('e_teams');
+    $c_teams = gp('c_teams');
 
     // Initialize arrays for team activities
     $team_activities = [];

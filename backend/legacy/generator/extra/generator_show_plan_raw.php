@@ -1,5 +1,5 @@
 <?php
-require_once 'generator_db.php';
+require_once '../generator_db.php';
 
 // Get the plan parameter from the URL
 $g_plan = isset($_GET['plan']) ? intval($_GET['plan']) : 0;
