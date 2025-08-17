@@ -544,8 +544,8 @@ function event_new($event_level, $event_days) {
     $event_date = new DateTime('+100 days');
     
     // Prepare the SQL query
-    $query = "INSERT INTO event (name, level, date, days) 
-            VALUES (?, ?, ?, ?)";
+    $query = "INSERT INTO event (name, level, date, days, regional_partner) 
+            VALUES (?, ?, ?, ?, ?)";
 
     // Prepare and bind
     $stmt = $g_db->prepare($query);
@@ -554,7 +554,7 @@ function event_new($event_level, $event_days) {
     }
 
     // Bind parameters
-    $stmt->bind_param('sisi', $event_name, $event_level, $event_date->format('Y-m-d'), $event_days);
+    $stmt->bind_param('sisi', $event_name, $event_level, $event_date->format('Y-m-d'), $event_days, 1);
 
     // Execute the query
     $stmt->execute();
