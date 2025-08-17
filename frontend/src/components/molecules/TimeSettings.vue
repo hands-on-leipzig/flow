@@ -34,18 +34,31 @@ function cellParam(prefix: 'g' | 'c' | 'e1' | 'e2', key: 'start_opening' | 'dura
   return getParam(name)
 }
 
+const e1Teams = computed(() => Number(byName.value['e1_teams']?.value || 0))
+const e2Teams = computed(() => Number(byName.value['e2_teams']?.value || 0))
+const independentSide = computed<'am' | 'pm'>(() => (e1Teams.value > 0 ? 'am' : 'pm'))
+
 // Row activation / greying
 const rows = computed(() => {
-  // Gemeinsame row is only meaningful when Explore is integrated with Challenge
-  const gemeinsamActive = isIntegrated.value
-  // Challenge row is always editable
-  const challengeActive = true
-  // Explore rows:
-  //  - split -> both active
-  //  - one-block -> AM visible & active (uses e1_* as per your note), PM greyed
-  //  - integrated -> both greyed
-  const exploreAMActive = isSplit.value || isExploreOne.value
-  const explorePMActive = isSplit.value
+  const gemeinsamActive = isIntegrated.value   // g_* only when integrated
+  const challengeActive = true                 // c_* always editable
+
+  let exploreAMActive = false
+  let explorePMActive = false
+
+  if (isSplit.value) {
+    // mode 4: both AM+PM active
+    exploreAMActive = true
+    explorePMActive = true
+  } else if (isExploreOne.value) {
+    // mode 3: activate the side that actually has teams
+    exploreAMActive = independentSide.value === 'am'
+    explorePMActive = independentSide.value === 'pm'
+  } else if (isIntegrated.value) {
+    // modes 1/2: explore rows are greyed; only "Gemeinsam" is active
+    exploreAMActive = false
+    explorePMActive = false
+  }
 
   return {
     gemeinsamActive,

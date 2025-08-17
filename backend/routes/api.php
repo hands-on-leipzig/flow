@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn() => ['pong' => true]);
@@ -23,6 +24,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/selected-event', function (Request $request) {
         $eventId = $request->user()?->selection_event;
+        Log::info($eventId);
         if (!$eventId) {
             return response()->json(['selected_event' => null]);
         }
@@ -71,6 +73,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::get('/parameter', [ParameterController::class, 'index']);
     Route::get('/parameter/condition', [ParameterController::class, 'listConditions']);
+    Route::get('/parameter/lanes-options', [ParameterController::class, 'listLanesOptions']);
     Route::post('/parameter/condition', [ParameterController::class, 'addCondition']);
     Route::put('/parameter/condition/{id}', [ParameterController::class, 'updateCondition']);
     Route::delete('/parameter/condition/{id}', [ParameterController::class, 'deleteCondition']);

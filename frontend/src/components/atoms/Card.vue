@@ -1,13 +1,15 @@
 <script setup>
 defineProps({
-  title: String
+  title: String,
+  widthColumns: Number,
 })
 </script>
 
 <template>
-  <div class="bg-white border rounded-xl shadow p-4 space-y-2">
-    <h2 v-if="title" class="text-lg font-semibold text-gray-800">{{ title }}</h2>
-    <slot/>
+  <div :class="'rounded-xl shadow bg-white p-4 flex flex-col justify-between col-span-' + widthColumns">
+    <h2 class="text-lg font-semibold mb-4">{{ title }}</h2>
+    <div>
+    </div>
   </div>
 </template>
 

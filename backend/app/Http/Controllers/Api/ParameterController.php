@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\MParameter;
 use App\Models\MParameterCondition;
+use App\Models\SupportedPlan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ParameterController extends Controller
 {
@@ -46,5 +48,11 @@ class ParameterController extends Controller
     {
         MParameterCondition::destroy($id);
         return response()->json();
+    }
+
+    public function listLanesOptions()
+    {
+        $options = DB::table('m_supported_plan')->get();
+        return response()->json($options);
     }
 }

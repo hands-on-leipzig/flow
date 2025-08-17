@@ -1,58 +1,51 @@
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
-import axios from 'axios'
+import {computed, UnwrapRef, watch} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import SplitBar from '@/components/atoms/SplitBar.vue'
-
-type Param = { id: string | number, name: string, value: any, min?: number, max?: number }
+import type {LanesIndex} from '@/utils/lanesIndex'
 
 const props = defineProps<{
-  parameters: Param[]
+  parameters: any[]
+  lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'update-param', param: Param): void
+  (e: 'update-param', param: any): void
+  (e: 'update-by-name', name: string, value: any): void
 }>()
 
-// --- helpers ---
-const paramMapByName = computed<Record<string, Param>>(() =>
-    Object.fromEntries(props.parameters.map(p => [p.name, p as Param]))
+const paramMapByName = computed<Record<string, any>>(
+    () => Object.fromEntries(props.parameters.map((p: any) => [p.name, p]))
 )
 
 function updateByName(name: string, value: any) {
-  const p = paramMapByName.value[name]
-  if (!p) return
-  p.value = value
-  emit('update-param', p)
+  emit('update-by-name', name, value)
 }
 
-// ------------------ e_mode + counts ------------------
+/** Core derived state **/
 const eMode = computed<number>({
-  get: () => Number(paramMapByName.value['e_mode']?.value ?? 0),
+  get: () => Number(paramMapByName.value['e_mode']?.value || 0),
   set: (v) => updateByName('e_mode', v)
 })
-const eTeams = computed(() => Number(paramMapByName.value['e_teams']?.value ?? 0))
-const e1Teams = computed(() => Number(paramMapByName.value['e1_teams']?.value ?? 0))
-const e2Teams = computed(() => Number(paramMapByName.value['e2_teams']?.value ?? 0))
+const eTeams = computed(() => Number(paramMapByName.value['e_teams']?.value || 0))
+const e1Teams = computed(() => Number(paramMapByName.value['e1_teams']?.value || 0))
+const e2Teams = computed(() => Number(paramMapByName.value['e2_teams']?.value || 0))
 
 const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2)
 const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4)
 const isSplit = computed(() => eMode.value === 4)
-
-// For mode 3 we keep exactly one side active; infer which one from teams
 const independentSide = computed<'am' | 'pm'>(() => e1Teams.value > 0 ? 'am' : 'pm')
 
+/** Fancy mode changes **/
 function setMode(mode: 1 | 2 | 3 | 4) {
   eMode.value = mode
   const total = eTeams.value
-  if (mode === 4) {
-    initHalfSplitIfNeeded()
-  } else if (mode === 3) {
-    // default to AM only; user can flip to PM via sub-buttons
+  if (mode === 4) initHalfSplitIfNeeded()
+  if (mode === 3) {
+    // default single block in the morning
     updateByName('e1_teams', total)
     updateByName('e2_teams', 0)
   }
-  // modes 1/2 keep e1/e2 as-is
 }
 
 function setMode3Side(side: 'am' | 'pm') {
@@ -78,103 +71,75 @@ function initHalfSplitIfNeeded() {
   }
 }
 
-// Keep user’s split when total changes
+/** Keep user split when total changes **/
 watch(() => paramMapByName.value['e_teams']?.value, (newTotalRaw) => {
-  const total = Number(newTotalRaw ?? 0)
+  const total = Number(newTotalRaw || 0)
   const e1P = paramMapByName.value['e1_teams']
   const e2P = paramMapByName.value['e2_teams']
   if (!total || !e1P || !e2P) return
-  const e1 = Math.min(Number(e1P.value ?? 0), total)
-  const e2 = total - e1
+  let e1 = Math.min(Number(e1P.value || 0), total)
+  let e2 = total - e1
   updateByName('e1_teams', e1)
   updateByName('e2_teams', e2)
 })
 
-// ------------------ Explore lanes (DB-backed) ------------------
+/** Lanes – use lanesIndex.explore[teams] **/
 const allLaneOptions = [1, 2, 3, 4, 5, 6, 7]
 
-// Integrated (1/2): single selector bound to e1_lanes using TOTAL e_teams
-const allowedExploreLanesIntegrated = ref<number[]>([])
+/* Integrated (modes 1/2) use e1_lanes, keyed by total e_teams */
+const allowedExploreLanesIntegrated = computed<number[]>(() => {
+  if (!props.lanesIndex || !eTeams.value) return []
+  const key = `${eTeams.value}`
+  return props.lanesIndex.explore[key] ?? []
+})
 const e1LanesProxy = computed<number>({
-  get: () => Number(paramMapByName.value['e1_lanes']?.value ?? 0),
+  get: () => Number(paramMapByName.value['e1_lanes']?.value || 0),
   set: (val) => updateByName('e1_lanes', val)
 })
-
-async function loadAllowedExploreLanesIntegrated() {
-  const total = Number(paramMapByName.value['e_teams']?.value ?? 0)
-  if (!total) {
-    allowedExploreLanesIntegrated.value = [];
-    return
-  }
-  try {
-    const {data} = await axios.get('/parameter/explore-lanes/options', {params: {teams: total}})
-    allowedExploreLanesIntegrated.value = Array.isArray(data?.options) ? data.options : []
-  } catch {
-    allowedExploreLanesIntegrated.value = allLaneOptions.slice()
-  }
-}
-
-watch(() => paramMapByName.value['e_teams']?.value, loadAllowedExploreLanesIntegrated, {immediate: true})
 watch(allowedExploreLanesIntegrated, (opts) => {
   if (!opts.length) return
-  const cur = Number(paramMapByName.value['e1_lanes']?.value ?? 0)
+  const cur = Number(paramMapByName.value['e1_lanes']?.value || 0)
   if (!opts.includes(cur)) updateByName('e1_lanes', opts[0])
 })
-const isExploreLaneAllowedIntegrated = (n: number) => allowedExploreLanesIntegrated.value.includes(n)
+const isExploreLaneAllowedIntegrated = (n: number) =>
+    allowedExploreLanesIntegrated.value.includes(n)
 
-// Independent (3/4): per side selectors bound to e1_lanes / e2_lanes using e1_teams / e2_teams
-const allowedExploreLanesAM = ref<number[]>([])
-const allowedExploreLanesPM = ref<number[]>([])
+/* Independent AM uses e1_lanes keyed by e1_teams; PM uses e2_lanes keyed by e2_teams */
+const allowedExploreLanesAM = computed<number[]>(() => {
+  if (!props.lanesIndex || !e1Teams.value) return []
+  const key = `${e1Teams.value}`
+  return props.lanesIndex.explore[key] ?? []
+})
+const allowedExploreLanesPM = computed<number[]>(() => {
+  if (!props.lanesIndex || !e2Teams.value) return []
+  const key = `${e2Teams.value}`
+  return props.lanesIndex.explore[key] ?? []
+})
+
 const eLanesAMProxy = computed<number>({
-  get: () => Number(paramMapByName.value['e1_lanes']?.value ?? 0),
+  get: () => Number(paramMapByName.value['e1_lanes']?.value || 0),
   set: (val) => updateByName('e1_lanes', val)
 })
 const eLanesPMProxy = computed<number>({
-  get: () => Number(paramMapByName.value['e2_lanes']?.value ?? 0),
+  get: () => Number(paramMapByName.value['e2_lanes']?.value || 0),
   set: (val) => updateByName('e2_lanes', val)
 })
 
-async function loadAllowedExploreLanesAM() {
-  const teamsAM = Number(paramMapByName.value['e1_teams']?.value ?? 0)
-  if (!teamsAM) {
-    allowedExploreLanesAM.value = [];
-    return
-  }
-  try {
-    const {data} = await axios.get('/parameter/explore-lanes/options', {params: {teams: teamsAM}})
-    allowedExploreLanesAM.value = Array.isArray(data?.options) ? data.options : []
-  } catch {
-    allowedExploreLanesAM.value = allLaneOptions.slice()
-  }
-}
-
-async function loadAllowedExploreLanesPM() {
-  const teamsPM = Number(paramMapByName.value['e2_teams']?.value ?? 0)
-  if (!teamsPM) {
-    allowedExploreLanesPM.value = [];
-    return
-  }
-  try {
-    const {data} = await axios.get('/parameter/explore-lanes/options', {params: {teams: teamsPM}})
-    allowedExploreLanesPM.value = Array.isArray(data?.options) ? data.options : []
-  } catch {
-    allowedExploreLanesPM.value = allLaneOptions.slice()
-  }
-}
-
-watch(() => paramMapByName.value['e1_teams']?.value, loadAllowedExploreLanesAM, {immediate: true})
-watch(() => paramMapByName.value['e2_teams']?.value, loadAllowedExploreLanesPM, {immediate: true})
 watch(allowedExploreLanesAM, (opts) => {
   if (!opts.length) return
-  const cur = Number(paramMapByName.value['e1_lanes']?.value ?? 0)
+  const cur = Number(paramMapByName.value['e1_lanes']?.value || 0)
   if (!opts.includes(cur)) updateByName('e1_lanes', opts[0])
 })
 watch(allowedExploreLanesPM, (opts) => {
   if (!opts.length) return
-  const cur = Number(paramMapByName.value['e2_lanes']?.value ?? 0)
+  const cur = Number(paramMapByName.value['e2_lanes']?.value || 0)
   if (!opts.includes(cur)) updateByName('e2_lanes', opts[0])
 })
 
+const isExploreLaneAllowedAM = (n: number) => allowedExploreLanesAM.value.includes(n)
+const isExploreLaneAllowedPM = (n: number) => allowedExploreLanesPM.value.includes(n)
+
+/** SplitBar updates **/
 const onUpdateE1 = (val: number) => updateByName('e1_teams', val)
 const onUpdateE2 = (val: number) => updateByName('e2_teams', val)
 </script>
@@ -223,16 +188,24 @@ const onUpdateE2 = (val: number) => updateByName('e2_teams', val)
             Von Challenge unabhängig – <span class="font-semibold">ein Zeitblock</span>
           </div>
           <div class="flex gap-2">
-            <button type="button"
-                    class="px-3 py-1.5 rounded-md border text-sm transition focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                    :class="independentSide === 'am' ? 'ring-1 ring-gray-500' : 'hover:border-gray-400'"
-                    @click.stop="setMode3Side('am')">
+            <button
+                type="button"
+                class="px-3 py-1.5 rounded-md border text-sm transition
+                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                :class="independentSide === 'am' ? 'ring-1 ring-gray-500' : 'hover:border-gray-400'"
+                @click.stop="setMode3Side('am')"
+                @mousedown.stop
+            >
               Vormittag
             </button>
-            <button type="button"
-                    class="px-3 py-1.5 rounded-md border text-sm transition focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                    :class="independentSide === 'pm' ? 'ring-1 ring-gray-500' : 'hover:border-gray-400'"
-                    @click.stop="setMode3Side('pm')">
+            <button
+                type="button"
+                class="px-3 py-1.5 rounded-md border text-sm transition
+                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                :class="independentSide === 'pm' ? 'ring-1 ring-gray-500' : 'hover:border-gray-400'"
+                @click.stop="setMode3Side('pm')"
+                @mousedown.stop
+            >
               Nachmittag
             </button>
           </div>
@@ -242,15 +215,14 @@ const onUpdateE2 = (val: number) => updateByName('e2_teams', val)
       <RadioGroupOption :value="4" v-slot="{ checked }">
         <div class="rounded-lg border px-3 py-2 cursor-pointer transition hover:border-gray-400"
              :class="checked ? 'ring-2 ring-gray-500 border-gray-500' : 'border-gray-300'">
-          <div class="text-sm font-medium">
-            Von Challenge unabhängig – <span class="font-semibold">beide (geteilt)</span>
+          <div class="text-sm font-medium">Von Challenge unabhängig – <span class="font-semibold">beide (geteilt)</span>
           </div>
           <div class="text-xs text-gray-500">Teams werden zwischen Vor- und Nachmittag aufgeteilt.</div>
         </div>
       </RadioGroupOption>
     </RadioGroup>
 
-    <!-- Integrated (1/2): centered n-spurig using TOTAL teams -> e1_lanes -->
+    <!-- INTEGRATED (1/2): centered lane selector bound to e1_lanes (allowed by total e_teams) -->
     <div v-if="isIntegrated" class="mt-4 flex justify-center">
       <RadioGroup v-model="e1LanesProxy" class="flex flex-wrap gap-2">
         <RadioGroupOption
@@ -260,29 +232,36 @@ const onUpdateE2 = (val: number) => updateByName('e2_teams', val)
             :disabled="!isExploreLaneAllowedIntegrated(n)"
             v-slot="{ checked, disabled }"
         >
-          <button type="button"
-                  class="px-3 py-1.5 rounded-md border text-sm transition
-                         focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  :class="[checked ? 'ring-1 ring-gray-500' : '', disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400']"
-                  :aria-disabled="disabled">
+          <button
+              type="button"
+              class="px-3 py-1.5 rounded-md border text-sm transition
+                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+              :class="[
+              checked ? 'ring-1 ring-gray-500' : '',
+              disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+            ]"
+              :aria-disabled="disabled"
+          >
             {{ n }}-spurig
           </button>
         </RadioGroupOption>
       </RadioGroup>
     </div>
 
-    <!-- Split (4): slider for team split -->
+    <!-- SPLIT slider only for mode 4 -->
     <SplitBar
         v-if="isSplit && paramMapByName['e_teams']?.value"
         :e1="Number(paramMapByName['e1_teams']?.value || 0)"
         :e2="Number(paramMapByName['e2_teams']?.value || 0)"
         :total="Number(paramMapByName['e_teams']?.value || 0)"
-        @update:e1="onUpdateE1"
-        @update:e2="onUpdateE2"
+        @update:e1="(v:number) => updateByName('e1_teams', v)"
+        @update:e2="(v:number) => updateByName('e2_teams', v)"
+        class="mt-3"
     />
 
-    <!-- Independent (3/4): two columns of n-spurig with per-side allowed options -->
+    <!-- Two columns when independent (3 or 4); grey out side if inactive in mode 3 -->
     <div v-if="isIndependent" class="mt-4 grid grid-cols-2 gap-8 text-gray-800">
+      <!-- AM -->
       <div :class="(eMode === 3 && independentSide !== 'am') ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
           Vormittag <span class="text-xs text-gray-500">(Teams: {{ e1Teams }})</span>
@@ -292,20 +271,26 @@ const onUpdateE2 = (val: number) => updateByName('e2_teams', val)
               v-for="n in allLaneOptions"
               :key="'e_lane_am_' + n"
               :value="n"
-              :disabled="!allowedExploreLanesAM.includes(n)"
+              :disabled="!isExploreLaneAllowedAM(n)"
               v-slot="{ checked, disabled }"
           >
-            <button type="button"
-                    class="px-3 py-1.5 rounded-md border text-sm transition
-                           focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                    :class="[checked ? 'ring-1 ring-gray-500' : '', disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400']"
-                    :aria-disabled="disabled">
+            <button
+                type="button"
+                class="px-3 py-1.5 rounded-md border text-sm transition
+                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                :class="[
+                checked ? 'ring-1 ring-gray-500' : '',
+                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+              ]"
+                :aria-disabled="disabled"
+            >
               {{ n }}-spurig
             </button>
           </RadioGroupOption>
         </RadioGroup>
       </div>
 
+      <!-- PM -->
       <div :class="(eMode === 3 && independentSide !== 'pm') ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
           Nachmittag <span class="text-xs text-gray-500">(Teams: {{ e2Teams }})</span>
@@ -315,14 +300,19 @@ const onUpdateE2 = (val: number) => updateByName('e2_teams', val)
               v-for="n in allLaneOptions"
               :key="'e_lane_pm_' + n"
               :value="n"
-              :disabled="!allowedExploreLanesPM.includes(n)"
+              :disabled="!isExploreLaneAllowedPM(n)"
               v-slot="{ checked, disabled }"
           >
-            <button type="button"
-                    class="px-3 py-1.5 rounded-md border text-sm transition
-                           focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                    :class="[checked ? 'ring-1 ring-gray-500' : '', disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400']"
-                    :aria-disabled="disabled">
+            <button
+                type="button"
+                class="px-3 py-1.5 rounded-md border text-sm transition
+                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                :class="[
+                checked ? 'ring-1 ring-gray-500' : '',
+                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+              ]"
+                :aria-disabled="disabled"
+            >
               {{ n }}-spurig
             </button>
           </RadioGroupOption>

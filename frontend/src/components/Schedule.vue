@@ -7,7 +7,6 @@ import {useEventStore} from '@/stores/event'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue"
 import LoaderText from "@/components/LoaderText.vue"
-import {RadioGroup, RadioGroupOption} from "@headlessui/vue"
 import TimeSettings from "@/components/molecules/TimeSettings.vue";
 import ExploreSettings from "@/components/molecules/ExploreSettings.vue";
 import ChallengeSettings from "@/components/molecules/ChallengeSettings.vue";
@@ -21,6 +20,7 @@ const plans = ref<any[]>([])
 const selectedPlanId = ref<number | null>(null)
 const previewRef = ref<HTMLElement | null>(null)
 const loading = ref(true)
+import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex'
 
 const SPECIAL_KEYS = new Set([
   'e1_teams', 'e2_teams',
@@ -194,17 +194,6 @@ const createDefaultPlan = async () => {
   }
 }
 
-onMounted(async () => {
-  if (!eventStore.selectedEvent) {
-    await eventStore.fetchSelectedEvent()
-  }
-  if (!selectedEvent.value) {
-    console.error('No selected event could be loaded.')
-    return
-  }
-  await fetchPlans()
-})
-
 const openGroup = ref<string | null>(null)
 const toggle = (id: string) => {
   openGroup.value = openGroup.value === id ? null : id
@@ -216,6 +205,24 @@ function isTimeParam(param: any) {
       param.context !== 'expert'
   )
 }
+
+
+const lanesIndex = ref<LanesIndex | null>(null)
+
+onMounted(async () => {
+  if (!eventStore.selectedEvent) {
+    await eventStore.fetchSelectedEvent()
+  }
+  if (!selectedEvent.value) {
+    console.error('No selected event could be loaded.')
+    return
+  }
+  await fetchPlans()
+
+  const {data} = await axios.get('/parameter/lanes-options')
+  const rows: LaneRow[] = Array.isArray(data?.rows) ? data.rows : data
+  lanesIndex.value = buildLanesIndex(rows)
+})
 </script>
 
 <template>
@@ -235,19 +242,20 @@ function isTimeParam(param: any) {
     </div>
 
     <div class="grid grid-cols-3 gap-4 mt-4">
-      <ExploreSettings
-          :parameters="parameters"
-          @update-param="updateParam"
-      />
-
       <ChallengeSettings
           :parameters="parameters"
-          :showChallenge="showChallenge"
+          :show-challenge="showChallenge"
+          :lanes-index="lanesIndex"
+          @toggle-show="(v) => showChallenge = v"
           @update-param="updateParam"
           @update-by-name="updateByName"
-          @toggle-show="(v) => showChallenge = v"
       />
-
+      <ExploreSettings
+          :parameters="parameters"
+          :lanes-index="lanesIndex"
+          @update-param="updateParam"
+          @update-by-name="updateByName"
+      />
       <TimeSettings
           :parameters="parameters"
           :visibilityMap="visibilityMap"
