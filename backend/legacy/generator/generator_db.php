@@ -1,47 +1,30 @@
 <?php
 
+use Illuminate\Support\Facades\DB;
+
+// <-- new
+
 // ***********************************************************************************
-// DB abstraction layer
+// DB abstraction layer (now using Laravel DB facade)
 // ***********************************************************************************
 
-function db_connect_persistent() {
-
+/**
+ * Legacy no-op: leave in place so legacy code can still call it.
+ */
+function db_connect_persistent()
+{
+    // No-op. We rely on Laravel's DB connection pool.
+    // Keep $g_db for legacy compatibility if any function checks it exists.
     global $g_db;
-
-    // Database configuration
-    if (file_exists("../conf.php")) {
-        require_once "../conf.php";
-    } else if (file_exists("../../conf.php")) {
-        require_once "../../conf.php";
-    } else {
-        require_once "conf.php";
-    }
-
-    static $connection;
-
-    if ($connection === null) {
-        // Create a new connection
-        $connection = new mysqli(DB_HOST, DB_USER, DB_PW, DB_NAME);
-
-        // Check connection
-        if ($connection->connect_error) {
-            die("Connection failed: " . $connection->connect_error);
-        }
-    }
-
-    mysqli_set_charset($connection, "utf8mb4");
-
-    $g_db = $connection;
+    $g_db = true;
 }
 
-
-function db_disconnect_persistent() {
-    
-    global $g_db;
-    
-    if ($g_db !== null) {
-        $g_db->close();
-    }
+/**
+ * Legacy no-op: leave in place so legacy code can still call it.
+ */
+function db_disconnect_persistent()
+{
+    // No-op. Let Laravel manage connections.
 }
 
 // ***********************************************************************************
@@ -101,14 +84,14 @@ define('ID_ATD_E_DELIBERATIONS', 3);
 define('ID_ATD_E_LUNCH', 26);
 define('ID_ATD_E_LUNCH_TEAM', 27);
 define('ID_ATD_E_LUNCH_JUDGE', 28);
-define('ID_ATD_E_LUNCH_VISITOR', 29);  
+define('ID_ATD_E_LUNCH_VISITOR', 29);
 define('ID_ATD_E_AWARDS', 31);
 define('ID_ATD_E_COACH_BRIEFING', 38);
 define('ID_ATD_E_JUDGE_BRIEFING', 39);
 
 // Live Challenge
 define('ID_ATD_LC_JUDGE_BRIEFING', 40);
-define('ID_ATD_LC_JUDGING_PACKAGE', 41);    
+define('ID_ATD_LC_JUDGING_PACKAGE', 41);
 define('ID_ATD_LC_WITH_TEAM', 42);
 define('ID_ATD_LC_SCORING', 43);
 define('ID_ATD_LC_DELIBERATIONS', 44);
@@ -130,9 +113,7 @@ define('ID_IP_RG_FINAL_ROUNDS', 2);
 define('ID_IP_RG_LAST_MATCHES', 4);
 define('ID_IP_AWARDS', 3);
 
-
 // IDs from m_room_type
-
 define('ID_RT_R_MATCH', 1);
 define('ID_RT_C_LANE_1', 2);
 define('ID_RT_C_LANE_2', 3);
@@ -171,78 +152,58 @@ define('ID_RT_C_JUDGE_DELIBERATIONS', 35);
 define('ID_RT_E_JUDGE_DELIBERATIONS', 36);
 
 // FLL Explore modes
-define('ID_E_MORNING', 1);                              // joint opening, separate awards
-define('ID_E_AFTERNOON', 2);                            // separate opening, joint awards
-define('ID_E_DECOUPLED_ONE', 3);                        // parallel opening and awards - one group
-define('ID_E_DECOUPLED_TWO', 4);                        // parallel opening and awards - two groups
-
+define('ID_E_MORNING', 1);
+define('ID_E_AFTERNOON', 2);
+define('ID_E_DECOUPLED_ONE', 3);
+define('ID_E_DECOUPLED_TWO', 4);
 
 // ***********************************************************************************
-// Reading from and adding to db tables
+// Reading from and adding to db tables (now via Laravel DB)
 // ***********************************************************************************
 
 /**
- * Load all parameters for a given plan ID into the global $g_params array.
- * 
- * Each entry is stored as: 
- *   $g_params['param_name'] = [ 'value' => casted_value, 'type' => 'integer' ];
- * 
- * @param mysqli $db
- * @param int    $planId
+ * Load all parameters for a given plan into global $g_params.
+ * (signatures preserved; uses DB facade)
  */
-
 function db_get_parameters()
 {
-    global $DEBUG;
-    global $g_db;
-    global $g_params;
-    
-    // Step 1: Load all base parameters from m_parameter (with type)
-    $query = "SELECT id, name, type, value FROM m_parameter";
-    $res = $g_db->query($query);
+    global $DEBUG, $g_params;
 
+    // 1) base parameters (with type + default value)
     $base = [];
-    while ($row = $res->fetch_assoc()) {
-        $base[$row['id']] = [
-            'name'  => $row['name'],
-            'type'  => $row['type'],
-            'value' => cast_value($row['value'], $row['type'])
+    $rows = DB::table('m_parameter')->select('id', 'name', 'type', 'value')->get();
+    foreach ($rows as $row) {
+        $base[$row->id] = [
+            'name' => $row->name,
+            'type' => $row->type,
+            'value' => cast_value($row->value, $row->type),
         ];
     }
-    $res->close();
 
-    // Step 2: Overlay with plan-specific values
-    $query = "
-        SELECT ppv.parameter, ppv.set_value
-        FROM plan_param_value ppv
-        WHERE ppv.plan = ?
-    ";
-    $stmt = $g_db->prepare($query);
-    $stmt->bind_param('i', gp("g_plan"));
-    $stmt->execute();
-    $result = $stmt->get_result();
+    // 2) overlay plan-specific values
+    $planId = gp('g_plan');
+    $over = DB::table('plan_param_value')
+        ->select('parameter', 'set_value')
+        ->where('plan', $planId)
+        ->get();
 
-    while ($row = $result->fetch_assoc()) {
-        $paramId = $row['parameter'];
-        if (isset($base[$paramId])) {
-            $base[$paramId]['value'] = cast_value($row['set_value'], $base[$paramId]['type']);
+    foreach ($over as $r) {
+        if (isset($base[$r->parameter])) {
+            $base[$r->parameter]['value'] = cast_value($r->set_value, $base[$r->parameter]['type']);
         }
     }
-    $stmt->close();
 
-    // Step 3: Fill global $g_params keyed by parameter name
+    // 3) fill $g_params keyed by name
     foreach ($base as $p) {
         $g_params[$p['name']] = [
             'value' => $p['value'],
-            'type'  => $p['type']
+            'type' => $p['type'],
         ];
     }
 
-    if($DEBUG >= 4) {
-        // Sort by parameter name (array key)
+    if (($DEBUG ?? 0) >= 4) {
         ksort($g_params);
-        echo "<h3>Parameter</h3>";
-        echo "<pre>";
+        echo "<h3>Parameter</h3><pre>";
         foreach ($g_params as $name => $data) {
             $val = var_export($data['value'], true);
             echo sprintf("%-30s | %-8s | %s\n", $name, $data['type'], $val);
@@ -251,9 +212,6 @@ function db_get_parameters()
     }
 }
 
-/**
- * Helper to cast DB string values according to parameter type
- */
 function cast_value($rawValue, $type)
 {
     if ($rawValue === null) return null;
@@ -267,19 +225,12 @@ function cast_value($rawValue, $type)
             return ($rawValue == '1');
         case 'time':
         case 'date':
-            // Keep as string, format validation could be added
-            return $rawValue;
+            return $rawValue; // keep string
         default:
             return (string)$rawValue;
     }
 }
 
-/**
- * Accessor: returns the parameter value, or dies if missing.
- * 
- * @param string $name
- * @return mixed
- */
 function gp($name)
 {
     global $g_params;
@@ -289,119 +240,45 @@ function gp($name)
     return $g_params[$name]['value'];
 }
 
-/**
- * Add or overwrite a calculated parameter in $g_params.
- *
- * @param string $name   Name of the parameter
- * @param mixed  $value  Calculated value
- * @param string $type   Optional type ('integer','decimal','boolean','time','date','string')
- */
 function add_param($name, $value, $type = 'string')
 {
     global $g_params;
-
-    $g_params[$name] = [
-        'value' => $value,
-        'type'  => $type
-    ];
+    $g_params[$name] = ['value' => $value, 'type' => $type];
 }
 
-/**
- * Loads the event ID for the current plan from the database and adds it to global parameters.
- *
- * This function queries the 'plan' table for the event associated with the plan ID stored in $g_params["g_plan"],
- * and adds the event ID as 'g_event' to the global parameters array.
- *
- * Globals used:
- *   - $DEBUG: Controls debug output.
- *   - $g_db: The mysqli database connection.
- *   - $g_params: Global parameters array.
- *
- * @return void
- */
-function db_get_from_plan() {
-
+function db_get_from_plan()
+{
     global $DEBUG;
-    global $g_db;
-    global $g_params;
 
-    $event = 0;
+    $planId = gp('g_plan');
+    $row = DB::table('plan')->select('event')->where('id', $planId)->first();
 
-    $sql = "SELECT event FROM plan WHERE id = ?";
-    $stmt = $g_db->prepare($sql);
-    if ($stmt === false) {
-        die("Prepare failed: " . $g_db->error);
-    }
-
-    if (!isset($g_params["g_plan"])) {
-        die("Error: Parameter 'g_plan' not found.");
-    }
-    $plan_id = gp("g_plan");
-    $stmt->bind_param("i", $plan_id);
-    $stmt->execute();
-    $stmt->bind_result($event);
-
-    if ($stmt->fetch()) {
-        // Fetch succeeded, variables are populated
-
-        add_param("g_event", $event, "integer");
-
-        if ($DEBUG >= 3) {
+    if ($row) {
+        add_param('g_event', (int)$row->event, 'integer');
+        if (($DEBUG ?? 0) >= 3) {
             echo "<h4>From plan</h4>";
-            echo("g event: " . gp("g_event"));
+            echo "g event: " . gp("g_event");
         }
     } else {
-        // Fetch failed, likely no data was returned
         echo "<h3>No data found for plan ID " . gp("g_plan") . "</h3>";
     }
-
-    // Close the statement
-    $stmt->close();
 }
 
-
-function db_get_from_event() {
-
+function db_get_from_event()
+{
     global $DEBUG;
-    global $g_db;
 
-    $date = "";
-    $days = 0;
-    $level = 0;
-    
-    // Prepare the SQL query
-    $query = "SELECT date, days, level FROM event WHERE id = ?";
+    $row = DB::table('event')->select('date', 'days', 'level')->where('id', gp('g_event'))->first();
 
-    // Prepare and bind
-    $stmt = $g_db->prepare($query);
-    if ($stmt === false) {
-        die("Prepare failed: " . $g_db->error);
-    }
+    $date = $row->date ?? '';
+    $days = (int)($row->days ?? 0);
+    $level = (int)($row->level ?? 0);
 
-    // Bind parameters
-    $stmt->bind_param('i', gp("g_event"));
+    add_param('g_event_date', $date, 'date');
+    add_param('g_days', $days, 'integer');
+    add_param('g_finale', $level === 3, 'boolean');
 
-    // Execute the query
-    $stmt->execute();
-    if ($stmt->error) {
-        die("Execute failed: " . $stmt->error);
-    }
-
-    // Get the result
-    $stmt->bind_result($date, $days, $level);
-    $stmt->fetch();
-
-    // Close the statement
-    $stmt->close();
-
-    // Add to global parameters
-    add_param("g_event_date", $date, "date");
-    add_param("g_days", $days, "integer");
-    // Set g_finale to true if the event level is 3 (finale event)
-        add_param("g_finale", $level == 3, "boolean");
-
-
-    if($DEBUG >= 3) {
+    if (($DEBUG ?? 0) >= 3) {
         echo "<h4>From event</h4>";
         echo "g event date: " . gp("g_event_date") . "<br>";
         echo "g days: " . gp("g_days") . "<br>";
@@ -409,584 +286,319 @@ function db_get_from_event() {
     }
 }
 
-
-function db_check_supported_plan($first_program, $teams, $lanes, $tables = NULL) {
-
-    global $g_db;
+function db_check_supported_plan($first_program, $teams, $lanes, $tables = NULL)
+{
+    $q = DB::table('m_supported_plan')
+        ->where('first_program', $first_program)
+        ->where('teams', $teams)
+        ->where('lanes', $lanes);
 
     if ($tables === NULL) {
-        // Query without tables
-        $query = "SELECT id FROM m_supported_plan WHERE first_program = ? AND teams = ? AND lanes = ? AND tables IS NULL";
-        $stmt = $g_db->prepare($query);
-        if ($stmt === false) {
-            die("Prepare failed: " . $g_db->error);
-        }
-        $stmt->bind_param('iii', $first_program, $teams, $lanes);
+        $q->whereNull('tables');
     } else {
-        // Query with tables
-        $query = "SELECT id FROM m_supported_plan WHERE first_program = ? AND teams = ? AND lanes = ? AND tables = ?";
-        $stmt = $g_db->prepare($query);
-        if ($stmt === false) {
-            die("Prepare failed: " . $g_db->error);
-        }
-        $stmt->bind_param('iiii', $first_program, $teams, $lanes, $tables);
+        $q->where('tables', $tables);
     }
 
-    // Execute the query
-    $stmt->execute();
-    if ($stmt->error) {
-        die("Execute failed: " . $stmt->error);
-    }
-
-    // Get the result
-    $result = $stmt->get_result();
-    
-    // Check if any rows were returned
-    if ($result->num_rows <= 0) {
+    if (!$q->exists()) {
         die("No supported plan found for the given parameters.");
     }
 }
 
-
-function db_insert_activity_group($activity_type_detail) {
-
-    global $g_db;
+function db_insert_activity_group($activity_type_detail)
+{
     global $g_activity_group;
 
-    // Prepare the SQL query
-    $query = "INSERT INTO activity_group (plan, activity_type_detail) 
-              VALUES (?, ?)";
+    $id = DB::table('activity_group')->insertGetId([
+        'plan' => gp('g_plan'),
+        'activity_type_detail' => $activity_type_detail,
+    ]);
 
-    // Prepare and bind
-    $stmt = $g_db->prepare($query);
-    if ($stmt === false) {
-        die("Prepare failed: " . $g_db->error);
-    }
+    // keep global for legacy code
+    $g_activity_group = $id;
 
-    // Bind parameters
-    $stmt->bind_param('ii', gp("g_plan"), $activity_type_detail);
-
-    // Execute the query
-    $stmt->execute();
-    if ($stmt->error) {
-        die("Execute failed: " . $stmt->error);
-    }
-
-    // Get the insert ID
-    $insertId = $stmt->insert_id;
-
-    // Close the statement
-    $stmt->close();
-
-    // Store the ID so that activities can be added easily
-    $g_activity_group = $insertId;
-
+    // also return for places that do $g_activity_group = db_insert_activity_group(...)
+    return $id;
 }
 
-function db_insert_activity($activity_type_detail, DateTime $time_start, $duration, $jury_lane = Null, $jury_team = NULL,
-$table_1 = Null, $table_1_team = Null, $table_2 = Null, $table_2_team = Null) {
-
-    global $g_db;
+function db_insert_activity(
+    $activity_type_detail,
+    DateTime $time_start,
+    $duration,
+    $jury_lane = null, $jury_team = null,
+    $table_1 = null, $table_1_team = null,
+    $table_2 = null, $table_2_team = null
+)
+{
     global $g_activity_group;
 
-    // Calculate end of activity
-    $time_end = clone $time_start; // Clone the datetime object to prevent modification of original
+    // Calculate end
+    $time_end = clone $time_start;
     g_add_minutes($time_end, $duration);
 
-    // Convert to strings
     $start = $time_start->format('Y-m-d H:i:s');
     $end = $time_end->format('Y-m-d H:i:s');
 
-    // Convert to strings
-    $start = $time_start->format('Y-m-d H:i:s');
-    $end = $time_end->format('Y-m-d H:i:s');
-  
-    // Prepare the SQL query
+    $room_type = null;
+
     if ($jury_lane > 0) {
-
-        // Judging = ignore RG
-        $query = "INSERT INTO activity (activity_group, activity_type_detail, start, end, room_type, jury_lane, jury_team) 
-        VALUES (?, ?, ?, ?, ?, ?, ?)";
-
-        // Determine the room type
-
-        switch($activity_type_detail){
-
+        // Judging
+        switch ($activity_type_detail) {
             case ID_ATD_C_WITH_TEAM:
             case ID_ATD_C_SCORING:
-
-                // FLL Challenge
-
-                switch($jury_lane) {
-
-                    case 1:
-                        $room_type = ID_RT_C_LANE_1;
-                        break;
-        
-                    case 2:
-                        $room_type = ID_RT_C_LANE_2;
-                        break;
-        
-                    case 3:
-                        $room_type = ID_RT_C_LANE_3;
-                        break;
-        
-                    case 4:
-                        $room_type = ID_RT_C_LANE_4;
-                        break;
-        
-                    case 5: 
-                        $room_type = ID_RT_C_LANE_5;
-                        break;
-        
-                    case 6:
-                        $room_type = ID_RT_C_LANE_6;
-                        break;
-                }               
-            break;
+                $room_type = [
+                    1 => ID_RT_C_LANE_1, 2 => ID_RT_C_LANE_2, 3 => ID_RT_C_LANE_3,
+                    4 => ID_RT_C_LANE_4, 5 => ID_RT_C_LANE_5, 6 => ID_RT_C_LANE_6
+                ][$jury_lane] ?? null;
+                break;
 
             case ID_ATD_E_WITH_TEAM:
             case ID_ATD_E_SCORING:
-
-                // FLL Explore
-
-                switch($jury_lane) {
-
-                    case 1:
-                        $room_type = ID_RT_E_LANE_1;
-                        break;
-        
-                    case 2:
-                        $room_type = ID_RT_E_LANE_2;
-                        break;
-        
-                    case 3:
-                        $room_type = ID_RT_E_LANE_3;
-                        break;
-        
-                    case 4:
-                        $room_type = ID_RT_E_LANE_4;
-                        break;
-        
-                    case 5:
-                        $room_type = ID_RT_E_LANE_5;
-                        break;
-        
-                    case 6:
-                        $room_type = ID_RT_E_LANE_6;
-                        break;
-                }               
-
-            break;    
+                $room_type = [
+                    1 => ID_RT_E_LANE_1, 2 => ID_RT_E_LANE_2, 3 => ID_RT_E_LANE_3,
+                    4 => ID_RT_E_LANE_4, 5 => ID_RT_E_LANE_5, 6 => ID_RT_E_LANE_6
+                ][$jury_lane] ?? null;
+                break;
 
             case ID_ATD_LC_WITH_TEAM:
             case ID_ATD_LC_SCORING:
-
-                // FLL Challenge
-
-                switch($jury_lane) {
-
-                    case 1:
-                        $room_type = ID_RT_LC_1;
-                        break;
-        
-                    case 2:
-                        $room_type = ID_RT_LC_2;
-                        break;
-        
-                    case 3:
-                        $room_type = ID_RT_LC_3;
-                        break;
-        
-                    case 4:
-                        $room_type = ID_RT_LC_4;
-                        break;
-        
-                    case 5: 
-                        $room_type = ID_RT_LC_5;
-                        break;
-        
-                    case 6:
-                        $room_type = ID_RT_LC_6;
-                        break;
-                }               
-            break;
-
+                $room_type = [
+                    1 => ID_RT_LC_1, 2 => ID_RT_LC_2, 3 => ID_RT_LC_3,
+                    4 => ID_RT_LC_4, 5 => ID_RT_LC_5, 6 => ID_RT_LC_6
+                ][$jury_lane] ?? null;
+                break;
         }
 
+        DB::table('activity')->insertGetId([
+            'activity_group' => $g_activity_group,
+            'activity_type_detail' => $activity_type_detail,
+            'start' => $start,
+            'end' => $end,
+            'room_type' => $room_type,
+            'jury_lane' => $jury_lane,
+            'jury_team' => $jury_team,
+        ]);
 
     } elseif ($table_1 > 0) {
-
-        //Check Check or Robot Game = ignore judging
-        $query = "INSERT INTO activity (activity_group, activity_type_detail, start, end, room_type, table_1, table_1_team, table_2, table_2_team)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-        // Roome type Robot Game
+        // Robot Game
         $room_type = ID_RT_R_MATCH;
 
+        DB::table('activity')->insertGetId([
+            'activity_group' => $g_activity_group,
+            'activity_type_detail' => $activity_type_detail,
+            'start' => $start,
+            'end' => $end,
+            'room_type' => $room_type,
+            'table_1' => $table_1,
+            'table_1_team' => $table_1_team ?: null,
+            'table_2' => $table_2,
+            'table_2_team' => $table_2_team ?: null,
+        ]);
+
     } else {
-
-        // Anything else = ignore both
-        $query = "INSERT INTO activity (activity_group, activity_type_detail, start, end, room_type) 
-        VALUES (?, ?, ?, ?, ?)";   
-        
-
-        switch($activity_type_detail){
-
+        // Everything else
+        switch ($activity_type_detail) {
             case ID_ATD_OPENING:
-            case ID_ATD_C_OPENING: 
+            case ID_ATD_C_OPENING:
             case ID_ATD_E_OPENING:
                 $room_type = ID_RT_OPENING;
-                break;      
+                break;
 
             case ID_ATD_C_OPENING_DAY_1:
                 $room_type = ID_RT_OPENING_DAY_1;
-                break;   
+                break;
             case ID_ATD_C_OPENING_DAY_3:
                 $room_type = ID_RT_OPENING_DAY_3;
-                break;      
+                break;
 
-            case ID_ATD_OPENING:
             case ID_ATD_AWARDS:
-            case ID_ATD_C_AWARDS:  
-            case ID_ATD_E_AWARDS:               
+            case ID_ATD_C_AWARDS:
+            case ID_ATD_E_AWARDS:
                 $room_type = ID_RT_AWARDS;
-                break;  
+                break;
 
-            case ID_ATD_C_PRESENTATIONS:                    
+            case ID_ATD_C_PRESENTATIONS:
                 $room_type = ID_RT_C_PRESENTATIONS;
-                break;  
-                
-            case ID_ATD_C_COACH_BRIEFING:    
+                break;
+            case ID_ATD_C_COACH_BRIEFING:
                 $room_type = ID_RT_C_COACH;
-                break;      
-
+                break;
             case ID_ATD_C_JUDGE_BRIEFING:
                 $room_type = ID_RT_C_JUDGE_BRIEFING;
-                break; 
-
+                break;
             case ID_ATD_C_JUDGE_BRIEFING_DAY_1:
                 $room_type = ID_RT_C_JUDGE_BRIEFING_DAY_1;
-                break; 
-
+                break;
             case ID_ATD_C_DELIBERATIONS:
                 $room_type = ID_RT_C_JUDGE_DELIBERATIONS;
-                break;      
+                break;
 
-            case ID_ATD_R_REFEREE_BRIEFING:      
+            case ID_ATD_R_REFEREE_BRIEFING:
             case ID_ATD_R_REFEREE_DEBRIEFING:
                 $room_type = ID_RT_R_MATCH;
-                break;      
+                break;
 
-            case ID_ATD_E_COACH_BRIEFING:    
+            case ID_ATD_E_COACH_BRIEFING:
                 $room_type = ID_RT_E_COACH;
-                break;      
-
-            case ID_ATD_E_JUDGE_BRIEFING:    
+                break;
+            case ID_ATD_E_JUDGE_BRIEFING:
                 $room_type = ID_RT_E_JUDGE_BRIEFING;
-                break;      
-
+                break;
             case ID_ATD_E_DELIBERATIONS:
                 $room_type = ID_RT_E_JUDGE_DELIBERATIONS;
-                break;    
+                break;
 
             case ID_ATD_C_LUNCH_TEAM:
-            case ID_ATD_E_LUNCH_TEAM:    
+            case ID_ATD_E_LUNCH_TEAM:
                 $room_type = ID_RT_LUNCH_TEAM;
-                break;      
+                break;
 
-           
             case ID_ATD_C_LUNCH_VISITOR:
-            case ID_ATD_E_LUNCH_VISITOR:        
+            case ID_ATD_E_LUNCH_VISITOR:
                 $room_type = ID_RT_LUNCH_VISITOR;
-                break;      
-            
+                break;
+
             case ID_ATD_C_LUNCH_JUDGE:
             case ID_ATD_R_LUNCH_REFEREE:
-            case ID_ATD_E_LUNCH_JUDGE:         
+            case ID_ATD_E_LUNCH_JUDGE:
                 $room_type = ID_RT_LUNCH_VOLUNTEER;
-                break;   
-                
+                break;
+
             case ID_ATD_LC_JUDGE_BRIEFING:
             case ID_ATD_LC_DELIBERATIONS:
                 $room_type = ID_RT_LC_JUDGE;
-                break;  
-
+                break;
         }
 
+        DB::table('activity')->insertGetId([
+            'activity_group' => $g_activity_group,
+            'activity_type_detail' => $activity_type_detail,
+            'start' => $start,
+            'end' => $end,
+            'room_type' => $room_type,
+        ]);
     }
-
-    // Prepare and bind
-    $stmt = $g_db->prepare($query);
-    if ($stmt === false) {
-        die("Prepare failed: " . $g_db->error);
-    }
-
-    // Bind parameters        
-    if ($jury_lane > 0) {
-
-        // Judging = ignore RG
-        $stmt->bind_param('iissiii', $g_activity_group, $activity_type_detail, $start, $end, $room_type, $jury_lane, $jury_team);
-
-    } elseif ($table_1 > 0) {
-
-        // Robot Game = ignore judging
-
-        // Make sure that 0 is turned into NULL.
-        $table_1_team = ($table_1_team == 0) ? null : $table_1_team;
-        $table_2_team = ($table_2_team == 0) ? null : $table_2_team;
-
-        $stmt->bind_param('iissiiiii', $g_activity_group, $activity_type_detail, $start, $end, $room_type, $table_1, $table_1_team, $table_2, $table_2_team);
-
-    } else {
-
-        // Anything else = ignore both                                  
-        $stmt->bind_param('iissi', $g_activity_group, $activity_type_detail, $start, $end, $room_type);
-
-    }
-
-    // Execute the query
-    $stmt->execute();
-    if ($stmt->error) {
-        die("Execute failed: " . $stmt->error);
-    }
-
-    // Get the insert ID
-    $insertId = $stmt->insert_id;
-
-    // Close the statement
-    $stmt->close();
-
 }
 
-function db_get_duration_inserted_activity($insert_point) {
+function db_get_duration_inserted_activity($insert_point)
+{
+    $row = DB::table('extra_block')
+        ->select('buffer_before', 'duration', 'buffer_after')
+        ->where('plan', gp('g_plan'))
+        ->where('insert_point', $insert_point)
+        ->first();
 
-    global $g_db;
+    if (!$row) return 0;
 
-    // $horst = 2018; // böse 
-
-    $buffer_before = 0;
-    $duration = 0;
-    $buffer_after = 0;
-
-    // Prepare the SQL query
-    $query = "SELECT buffer_before, duration, buffer_after FROM extra_block WHERE plan = ? AND insert_point = ?";
-    $stmt = $g_db->prepare($query);
-    if ($stmt === false) {
-        die("Prepare failed: " . $g_db->error);
-    }
-
-    $stmt->bind_param('ii', gp("g_plan"), $insert_point);               
-    $stmt->execute();
-    $stmt->bind_result($buffer_before, $duration, $buffer_after);
-    $stmt->fetch();
-    $stmt->close();
-    
-    return $buffer_before + $duration + $buffer_after;
-
+    return (int)$row->buffer_before + (int)$row->duration + (int)$row->buffer_after;
 }
 
-function db_insert_extra_activity($activity_type_detail, $time, $insert_point) {
-
-    global $g_db;
+function db_insert_extra_activity($activity_type_detail, $time, $insert_point)
+{
     global $g_activity_group;
 
-    $extra_block = 0;
-    $buffer_before = 0;
-    $duration = 0;
-    $buffer_after = 0;
+    $row = DB::table('extra_block')
+        ->select('id', 'buffer_before', 'duration', 'buffer_after')
+        ->where('plan', gp('g_plan'))
+        ->where('insert_point', $insert_point)
+        ->first();
 
-    $time_start = new DateTime;
-    $time_end = new DateTime;
+    if (!$row) return;
 
-    // Use the provided time as start time
     $time_start = clone $time;
+    g_add_minutes($time_start, (int)$row->buffer_before);
 
-    // Inserted Blocks have a buffer before the actual activity. This needs to be added to the start time.
-    // Also we need the duration of the activity
-    // Read these from table extra_block using the insert_point ID and plan ID
+    $time_end = clone $time_start;
+    g_add_minutes($time_end, (int)$row->duration);
 
-    $query = "SELECT id, buffer_before, duration, buffer_after FROM extra_block WHERE plan = ? AND insert_point = ?";
-    $stmt = $g_db->prepare($query);
-    if ($stmt === false) {
-        die("Prepare failed: " . $g_db->error);
-    }
-
-    $stmt->bind_param('ii', gp("g_plan"), $insert_point);                
-    $stmt->execute();
-    $stmt->bind_result($extra_block, $buffer_before, $duration, $buffer_after);
-    $stmt->fetch();
-    $stmt->close();
-
-    // Add the buffer before the activity
-    g_add_minutes($time_start, $buffer_before);                 
-
-    // Calculate the end time
-    $time_end = clone $time_start; 
-    g_add_minutes($time_end, $duration);            
-
-    // Convert to strings
     $start = $time_start->format('Y-m-d H:i:s');
     $end = $time_end->format('Y-m-d H:i:s');
 
-
-    // Prepare the SQL query
-    $query = "INSERT INTO activity (activity_group, activity_type_detail, start, end, extra_block) 
-            VALUES (?, ?, ?, ?, ?)";
-
-    // Prepare and bind
-    $stmt = $g_db->prepare($query);
-    if ($stmt === false) {
-        die("Prepare failed: " . $g_db->error);
-    }
-
-    $stmt->bind_param('iissi', $g_activity_group, $activity_type_detail, $start, $end, $extra_block);
-
-    // Execute the query
-    $stmt->execute();
-    if ($stmt->error) {
-        die("Execute failed: " . $stmt->error);
-    }
-
-    // Close the statement
-    $stmt->close();
-
+    DB::table('activity')->insertGetId([
+        'activity_group' => $g_activity_group,
+        'activity_type_detail' => $activity_type_detail,
+        'start' => $start,
+        'end' => $end,
+        'extra_block' => (int)$row->id,
+    ]);
 }
 
-function db_insert_free_activities() {
+function db_insert_free_activities()
+{
+    // Free blocks with fixed times
+    $rows = DB::table('extra_block')
+        ->select('id', 'first_program', 'start', 'end')
+        ->where('plan', gp('g_plan'))
+        ->whereNotNull('start')
+        ->get();
 
-    global $g_db;
-
-    $extra_block = 0;
-    $first_program = 0;
-    $start = "";
-    $end = "";
-
-    // $horst = 2018; // böse 
-
-    // Free Blocks have a fixed duration and start time. No need to calculate anything.
-
-    $query = "SELECT id, first_program, start, end FROM extra_block WHERE plan = ? and start IS NOT NULL";
-    $stmt = $g_db->prepare($query);
-    if ($stmt === false) {
-        die("Prepare failed: " . $g_db->error);
-    }
-
-    $stmt->bind_param('i', gp("g_plan"));                                     
-    $stmt->execute();
-    $stmt->bind_result($extra_block, $first_program, $start, $end);
-    $stmt->store_result();
-
-    // Check if there are any results
-    if ($stmt->num_rows > 0) {
-
-        // Loop through all results and insert activities
-        while ($stmt->fetch()) {
-
-            switch ($first_program) {
-                case ID_FP_CHALLENGE:
-                    $atd = ID_ATD_C_FREE;
-                    break;
-                case ID_FP_EXPLORE:
-                    $atd = ID_ATD_E_FREE;
-                    break;
-                default:
-                    $atd = ID_ATD_FREE;
-            }
-
-            // Insert an activity group
-            $g_activity_group = db_insert_activity_group($atd);
-
-            // Prepare the SQL query
-            $insert_query = "INSERT INTO activity (activity_group, activity_type_detail, start, end, extra_block) 
-                    VALUES (?, ?, ?, ?, ?)";
-
-            // Prepare and bind
-            $stmt_insert = $g_db->prepare($insert_query);
-            if ($stmt_insert === false) {
-                die("Prepare failed: " . $g_db->error);
-            }
-            $stmt_insert = $g_db->prepare($insert_query);
-
-            $stmt_insert->bind_param('iissi', $g_activity_group, $atd, $start, $end, $extra_block);
-
-            // Execute the query
-            $stmt_insert->execute();
-            if ($stmt_insert->error) {
-                die("Execute failed: " . $stmt_insert->error);
-            }
-
-            // Close the insert statement
-            $stmt_insert->close();
+    foreach ($rows as $row) {
+        switch ((int)$row->first_program) {
+            case ID_FP_CHALLENGE:
+                $atd = ID_ATD_C_FREE;
+                break;
+            case ID_FP_EXPLORE:
+                $atd = ID_ATD_E_FREE;
+                break;
+            default:
+                $atd = ID_ATD_FREE;
         }
+
+        $gid = db_insert_activity_group($atd);
+
+        DB::table('activity')->insert([
+            'activity_group' => $gid,
+            'activity_type_detail' => $atd,
+            'start' => $row->start,
+            'end' => $row->end,
+            'extra_block' => (int)$row->id,
+        ]);
     }
-
-    // Close the select statement
-    $stmt->close();
-
-} 
+}
 
 // Insert an activity that delays the schedule
-function g_insert_point($id) {
+function g_insert_point($id)
+{
+    global $c_time, $r_time;
 
-    global $c_time;
-//    global $j_time;
-    global $r_time;
-//    global $e_time;
+    $time = new DateTime();
 
-    $time = new DateTime(); 
+    switch ($id) {
+        case ID_IP_RG_1:
+        case ID_IP_RG_2:
+        case ID_IP_RG_3:
+            $time = $r_time;
+            break;
 
-    switch($id) {
+        case ID_IP_PRESENTATIONS:
+        case ID_IP_AWARDS:
+            $time = $c_time;
+            break;
+    }
 
-            case ID_IP_RG_1:
-            case ID_IP_RG_2:  
-            case ID_IP_RG_3:   
-                $time = $r_time;
-                break;
-
-            case ID_IP_PRESENTATIONS:
-            case ID_IP_AWARDS:
-                $time = $c_time;
-                break;           
-        }
-
-    // Check if an extra block is inserted. If so, get the total duration back.
     $duration = db_get_duration_inserted_activity($id);
 
     if ($duration > 0) {
-
-        // Additional block for this insert point
         db_insert_activity_group(ID_ATD_C_INSERTED);
         db_insert_extra_activity(ID_ATD_C_INSERTED, $time, $id);
-
         g_add_minutes($time, $duration);
-
     } else {
-
-        // If no inserted block is planned, use the normal time
-
-        switch($id) {
-
+        switch ($id) {
             case ID_IP_RG_1:
-            case ID_IP_RG_3:   
-                g_add_minutes($time, gp("r_duration_break"));
+            case ID_IP_RG_3:
+                g_add_minutes($time, gp('r_duration_break'));
                 break;
 
-            case ID_IP_RG_2:   
-                g_add_minutes($time, gp("r_duration_lunch"));
+            case ID_IP_RG_2:
+                g_add_minutes($time, gp('r_duration_lunch'));
                 break;
-    
+
             case ID_IP_PRESENTATIONS:
-                g_add_minutes($time, gp("c_ready_presentations"));
+                g_add_minutes($time, gp('c_ready_presentations'));
                 break;
 
             case ID_IP_AWARDS:
-                g_add_minutes($time, gp("c_ready_awards"));
+                g_add_minutes($time, gp('c_ready_awards'));
                 break;
-            
         }
-
     }
 }
-
-?>

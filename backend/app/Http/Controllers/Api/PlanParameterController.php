@@ -108,9 +108,12 @@ class PlanParameterController extends Controller
             ->delete();
 
 
-        \App\Jobs\GeneratePlan::dispatch($planId);
+        //\App\Jobs\GeneratePlan::dispatch($planId);
+        require_once base_path('legacy/generator/generator_main.php');
+        g_generator($planId);
 
         return response()->json(['status' => 'ok', 'queued' => true]);
+        return response()->json(['status' => 'ok']);
     }
 
     public function insertParamsFirst($planId): JsonResponse
