@@ -553,8 +553,10 @@ function event_new($event_level, $event_days) {
         die("Prepare failed: " . $g_db->error);
     }
 
+    $rp = 1;
+
     // Bind parameters
-    $stmt->bind_param('sisi', $event_name, $event_level, $event_date->format('Y-m-d'), $event_days, 1);
+    $stmt->bind_param('sisi', $event_name, $event_level, $event_date->format('Y-m-d'), $event_days, $rp);
 
     // Execute the query
     $stmt->execute();
