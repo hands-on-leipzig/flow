@@ -84,7 +84,6 @@ const isSaving = ref(false)
 
 const createRoom = async () => {
   if (!newRoomName.value.trim()) return
-
   isSaving.value = true
   try {
     const {data} = await axios.post('/rooms', {
@@ -93,9 +92,9 @@ const createRoom = async () => {
       event: eventId.value
     })
     rooms.value.push(data)
+    // reset for the next ghost tile
     newRoomName.value = ''
     newRoomNote.value = ''
-    showModal.value = false
   } finally {
     isSaving.value = false
   }
@@ -110,17 +109,36 @@ const handleDrop = async (event, room) => {
   previewedTypeId.value = null
   isDragging.value = false
 }
+
+const showDeleteModal = ref(false)
+const roomToDelete = ref(null)
+
+const askDeleteRoom = (room) => {
+  roomToDelete.value = room
+  showDeleteModal.value = true
+}
+
+const confirmDeleteRoom = async () => {
+  if (!roomToDelete.value) return
+  await axios.delete(`/rooms/${roomToDelete.value}`)
+  rooms.value = rooms.value.filter(r => r.id !== roomToDelete.value)
+  showDeleteModal.value = false
+  roomToDelete.value = null
+}
+
+const cancelDeleteRoom = () => {
+  showDeleteModal.value = false
+  roomToDelete.value = null
+}
 </script>
 
 <template>
   <div class="grid grid-cols-[2fr,1fr] gap-6 p-6">
     <div>
       <h2 class="text-xl font-bold mb-4">Vorhandene Räume</h2>
-      <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3" @click="showModal = true">
-        Raum hinzufügen
-      </button>
-
       <ul class="grid grid-cols-2 gap-4">
+
+
         <li
             v-for="room in rooms"
             :key="room.id"
@@ -129,7 +147,6 @@ const handleDrop = async (event, room) => {
           <div class="flex justify-between items-start">
             <div class="w-full">
               <div class="mb-2">
-                <label class="text-xs text-gray-500 uppercase tracking-wide">Raumname</label>
                 <input
                     v-model="room.name"
                     class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
@@ -137,7 +154,6 @@ const handleDrop = async (event, room) => {
                 />
               </div>
               <div>
-                <label class="text-xs text-gray-500 uppercase tracking-wide">Navigationshinweis</label>
                 <input
                     v-model="room.navigation_instruction"
                     class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
@@ -182,7 +198,29 @@ const handleDrop = async (event, room) => {
                 </draggable>
               </div>
             </div>
-            <button class="text-red-600 text-lg" @click="deleteRoom(room.id)">🗑️</button>
+            <button class="text-red-600 text-lg" @click="askDeleteRoom(room.id)">🗑️</button>
+          </div>
+        </li>
+        <li class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm">
+          <div class="mb-2">
+            <input
+                v-model="newRoomName"
+                class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
+                placeholder="Neuer Raum"
+                @keyup.enter="createRoom"
+                @blur="createRoom"
+                :disabled="isSaving"
+            />
+          </div>
+          <div>
+            <input
+                v-model="newRoomNote"
+                class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                placeholder="Navigationshinweis"
+                @keyup.enter="createRoom"
+                @blur="createRoom"
+                :disabled="isSaving"
+            />
           </div>
         </li>
       </ul>
@@ -261,6 +299,23 @@ const handleDrop = async (event, room) => {
               @click="createRoom"
           >
             Hinzufügen
+          </button>
+        </div>
+      </div>
+    </div>
+  </teleport>
+
+  <teleport to="body">
+    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
+        <h3 class="text-lg font-bold mb-4">Raum löschen?</h3>
+        <p class="mb-6 text-sm text-gray-700">
+          Bist du sicher, dass du den Raum <span class="font-semibold">{{ roomToDelete?.name }}</span> löschen möchtest?
+          Diese Aktion kann nicht rückgängig gemacht werden.
+        </p>
+        <div class="flex justify-end gap-2">
+          <button class="px-4 py-2 text-gray-600 hover:text-black" @click="cancelDeleteRoom">Abbrechen</button>
+          <button class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" @click="confirmDeleteRoom">Löschen
           </button>
         </div>
       </div>
