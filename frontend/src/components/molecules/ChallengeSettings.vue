@@ -2,6 +2,7 @@
 import {computed, UnwrapRef, watch, watchEffect} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
+import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 
 const props = defineProps<{
   parameters: any[]
@@ -142,13 +143,17 @@ const currentLaneNote = computed<string | undefined>(() => {
         <input
             type="checkbox"
             :checked="showChallenge"
-            @change="emit('toggle-show', ($event.target as HTMLInputElement).checked)"
+            @change="emit('toggle-show', $event)"
             class="sr-only peer"
         >
         <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
         <div
             class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
       </label>
+      <ToggleSwitch
+          :model-value="showChallenge"
+          @update:modelValue="emit('toggle-show', ($event.target as HTMLInputElement).checked)"
+      />
     </div>
 
     <template v-if="showChallenge">

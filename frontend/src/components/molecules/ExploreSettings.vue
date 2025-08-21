@@ -6,6 +6,7 @@ import type {LanesIndex} from '@/utils/lanesIndex'
 
 const props = defineProps<{
   parameters: any[]
+  showExplore: boolean
   lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
 }>()
 
@@ -148,6 +149,17 @@ const onUpdateE2 = (val: number) => updateByName('e2_teams', val)
   <div class="p-4 border rounded shadow">
     <div class="flex items-center justify-between mb-2">
       <h2 class="text-lg font-semibold">Explore Einstellungen</h2>
+      <label class="relative inline-flex items-center cursor-pointer">
+        <input
+            type="checkbox"
+            :checked="showExplore"
+            @change="emit('toggle-show', ($event.target as HTMLInputElement).checked)"
+            class="sr-only peer"
+        >
+        <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+        <div
+            class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
+      </label>
     </div>
 
     <div class="mb-3">

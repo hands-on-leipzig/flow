@@ -12,8 +12,8 @@ import ExploreSettings from "@/components/molecules/ExploreSettings.vue";
 import ChallengeSettings from "@/components/molecules/ChallengeSettings.vue";
 
 const eventStore = useEventStore()
-const selectedEvent = computed(() => eventStore.selectedEvent)
-const parameters = ref<any[]>([])
+const selectedEvent = computed(() => eventStore.selectedEvent)<FllEvent>
+const parameters = ref<Parameter[]>([])
 const scheduleUrl = ref('')
 const inputName = ref('')
 const plans = ref<any[]>([])
@@ -21,6 +21,9 @@ const selectedPlanId = ref<number | null>(null)
 const previewRef = ref<HTMLElement | null>(null)
 const loading = ref(true)
 import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex'
+import ExtraBlocks from "@/components/molecules/ExtraBlocks.vue";
+import FllEvent from "@/models/FllEvent";
+import {Parameter, ParameterCondition} from "@/models/Parameter"
 
 const SPECIAL_KEYS = new Set([
   'e1_teams', 'e2_teams',
@@ -36,53 +39,58 @@ watch(selectedPlanId, async (newPlanId) => {
   updateScheduleUrl(newPlanId)
 })
 
-const paramMap = computed<Record<string, any>>(() => {
-  return parameters.value.reduce((acc: any, param: any) => {
-    acc[param.id] = param
-    return acc
-  }, {})
+const paramMap = computed<Record<number, Parameter>>(() => {
+  const map: Record<number, Parameter> = {}
+  for (const p of parameters.value) map[p.id] = p
+  return map
 })
 
-const paramMapByName = computed<Record<string, any>>(
-    () => Object.fromEntries(parameters.value.map((p: any) => [p.name, p]))
-)
+const paramMapByName = computed<Record<string, Parameter>>(() => {
+  const map: Record<string, Parameter> = {}
+  for (const p of parameters.value) if (p.name) map[p.name] = p
+  return map
+})
 
-const displayConditions = ref<any[]>([]) // from `/parameter/condition`
+const displayConditions = ref<ParameterCondition[]>([])
 
-const visibilityMap = computed<Record<string, boolean>>(() => {
-  const map: Record<string, boolean> = {}
+function matchCondition(cond: ParameterCondition, other: Parameter | undefined): boolean {
+  if (!other) return false
+  const val = other.value
+
+  // numeric ops coerce to numbers
+  if (cond.is === '<' || cond.is === '<=' || cond.is === '>' || cond.is === '>=') {
+    const a = Number(val)
+    const b = Number(cond.value)
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return false
+    if (cond.is === '<') return a < b
+    if (cond.is === '<=') return a <= b
+    if (cond.is === '>') return a > b
+    if (cond.is === '>=') return a >= b
+  }
+
+  // equality ops: loose == for backend string values, but you can switch to strict if you normalize
+  if (cond.is === '=') return (val as any) == (cond.value as any)
+  if (cond.is === '!=') return (val as any) != (cond.value as any)
+
+  // unknown operator → no match
+  return false
+}
+
+const visibilityMap = computed<Record<number, boolean>>(() => {
+  const map: Record<number, boolean> = {}
   for (const param of parameters.value) {
     const relevant = displayConditions.value.filter(c => c.parameter === param.id)
-    map[param.id] = !relevant.some(cond => {
-      const other = paramMap.value[cond.if_parameter]
-      if (!other) return false
-      const val = other.value
-      const target = cond.value
-      let match = false
-      if (cond.is === '=' && val == target) match = true
-      else if (cond.is === '<' && Number(val) < Number(target)) match = true
-      else if (cond.is === '>' && Number(val) > Number(target)) match = true
-      return match && cond.action === 'hide'
-    })
+    const shouldHide = relevant.some(cond => matchCondition(cond, paramMap.value[cond.if_parameter]) && cond.action === 'hide')
+    map[param.id] = !shouldHide
   }
   return map
 })
 
-const disabledMap = computed<Record<string, boolean>>(() => {
-  const map: Record<string, boolean> = {}
+const disabledMap = computed<Record<number, boolean>>(() => {
+  const map: Record<number, boolean> = {}
   for (const param of parameters.value) {
     const relevant = displayConditions.value.filter(c => c.parameter === param.id)
-    map[param.id] = relevant.some(cond => {
-      const other = paramMap.value[cond.if_parameter]
-      if (!other) return false
-      const val = other.value
-      const target = cond.value
-      let match = false
-      if (cond.is === '=' && val == target) match = true
-      else if (cond.is === '<' && Number(val) < Number(target)) match = true
-      else if (cond.is === '>' && Number(val) > Number(target)) match = true
-      return match && cond.action === 'disable'
-    })
+    map[param.id] = relevant.some(cond => matchCondition(cond, paramMap.value[cond.if_parameter]) && cond.action === 'disable')
   }
   return map
 })
@@ -91,12 +99,16 @@ const fetchParams = async (planId: number) => {
   if (!planId) return
   loading.value = true
   try {
-    const {data: rawParams} = await axios.get(`/plans/${planId}/parameters`)
-    const {data: conditions} = await axios.get('/parameter/condition')
-    displayConditions.value = conditions
-    parameters.value = rawParams
+    const {data: rawParams} = await axios.get<Parameter[]>(`/plans/${planId}/parameters`)
+    const {data: conditions} = await axios.get<ParameterCondition[]>('/parameter/condition')
+
+    // Defensive: backend could send a single object or null
+    parameters.value = Array.isArray(rawParams) ? rawParams : []
+    displayConditions.value = Array.isArray(conditions) ? conditions : []
   } catch (err) {
     console.error("Failed to fetch params or conditions:", err)
+    parameters.value = []
+    displayConditions.value = []
   } finally {
     loading.value = false
   }
@@ -210,6 +222,7 @@ function isTimeParam(param: any) {
 const lanesIndex = ref<LanesIndex | null>(null)
 
 onMounted(async () => {
+  openGroup.value = "general"
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
@@ -241,31 +254,46 @@ onMounted(async () => {
              type="text"/>
     </div>
 
-    <div class="grid grid-cols-3 gap-4 mt-4">
-      <ChallengeSettings
-          :parameters="parameters"
-          :show-challenge="showChallenge"
-          :lanes-index="lanesIndex"
-          @toggle-show="(v) => showChallenge = v"
-          @update-param="updateParam"
-          @update-by-name="updateByName"
-      />
-      <ExploreSettings
-          :parameters="parameters"
-          :lanes-index="lanesIndex"
-          @update-param="updateParam"
-          @update-by-name="updateByName"
-      />
-      <TimeSettings
-          :parameters="parameters"
-          :visibilityMap="visibilityMap"
-          :disabledMap="disabledMap"
-          @update-param="updateParam"
-      />
+
+    <div class="bg-white border rounded-lg shadow">
+      <button
+          class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
+          @click="toggle('general')"
+      >
+        Allgemein
+        <AccordionArrow :opened="openGroup === 'general'"/>
+      </button>
+      <transition name="fade">
+        <div v-if="openGroup === 'general'" class="p-4">
+          <div class="grid grid-cols-3 gap-4 mt-4">
+            <ChallengeSettings
+                :parameters="parameters"
+                :show-challenge="showChallenge"
+                :lanes-index="lanesIndex"
+                @toggle-show="(v) => showChallenge = v"
+                @update-param="updateParam"
+                @update-by-name="updateByName"
+            />
+            <ExploreSettings
+                :parameters="parameters"
+                :show-explore="showExplore"
+                @toggle-show="(v) => showExplore = v"
+                :lanes-index="lanesIndex"
+                @update-param="updateParam"
+                @update-by-name="updateByName"
+            />
+            <TimeSettings
+                :parameters="parameters"
+                :visibilityMap="visibilityMap"
+                :disabledMap="disabledMap"
+                @update-param="updateParam"
+            />
+          </div>
+        </div>
+      </transition>
     </div>
 
-    <!-- Experten -->
-    <div class="mb-4 bg-white border rounded-lg shadow">
+    <div class="bg-white border rounded-lg shadow">
       <button
           class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
           @click="toggle('expert')"
@@ -294,8 +322,7 @@ onMounted(async () => {
       </transition>
     </div>
 
-    <!-- Finals -->
-    <div class="mb-4 bg-white border rounded-lg shadow" v-if="selectedEvent?.value?.level === 3">
+    <div class="bg-white border rounded-lg shadow" v-if="selectedEvent?.level === 3">
       <button
           class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
           @click="toggle('finals')"
@@ -321,7 +348,25 @@ onMounted(async () => {
       </transition>
     </div>
 
-    <!-- Preview -->
+    <div class="bg-white border rounded-lg shadow">
+      <button
+          class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
+          @click="toggle('extras')"
+      >
+        Zusatzblöcke
+        <AccordionArrow :opened="openGroup === 'extras'"/>
+      </button>
+      <transition name="fade">
+        <div v-if="openGroup === 'extras'" class="p-4">
+          <ExtraBlocks
+              :plan-id="selectedPlanId as number"
+              :event-level="selectedEvent?.level ?? null"
+              @changed="updateScheduleUrl(selectedPlanId as number)"
+          />
+        </div>
+      </transition>
+    </div>
+
     <div class="flex-grow overflow-hidden">
       <div v-if="loading" class="flex flex-col justify-center items-center h-64 space-y-4">
         <LoaderFlow/>

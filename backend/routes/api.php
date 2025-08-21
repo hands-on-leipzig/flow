@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LogoController;
 use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanController;
@@ -49,6 +50,8 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
+    Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
+    Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::post('/plans', [PlanController::class, 'create']);
 
     Route::get('/events/{event}/plans', [PlanController::class, 'getPlansByEvent']);
@@ -79,6 +82,9 @@ Route::middleware(['keycloak'])->group(function () {
     Route::delete('/parameter/condition/{id}', [ParameterController::class, 'deleteCondition']);
 
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
+
+    Route::get('/insert-points', [ExtraBlockController::class, 'getInsertPoints']);
+    Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
 
     // admin routes
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);

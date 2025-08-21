@@ -65,7 +65,7 @@ onMounted(fetchLogos)
     </div>
 
     <!-- Logos -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <div v-for="logo in logos" :key="logo.id" class="border rounded p-4 shadow space-y-2 bg-white">
         <img :src="`${logo.url}/${logo.path}`" alt="Logo" class="h-20 mx-auto"/>
 

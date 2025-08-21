@@ -1,4 +1,4 @@
-export default class Event {
+export default class FllEvent {
     id: number
     name: string | null
     slug: string | null

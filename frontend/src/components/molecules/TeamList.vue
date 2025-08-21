@@ -151,7 +151,7 @@ onMounted(async () => {
         <h3 class="text-lg font-semibold capitalize">{{ program }}</h3>
       </div>
       <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
-        Die Teamdaten bei HandsOn weichen von den Daten in FLOW ab.
+        Die Teamdaten der Anmeldung weichen von den Daten in FLOW ab.
         <button class="text-sm text-yellow-600" @click="showDiffModal = !showDiffModal">
           Unterschiede {{ showDiffModal ? 'ausblenden' : 'anzeigen' }}
           ({{ mergedTeams.filter(t => t.status !== 'match').length }})
