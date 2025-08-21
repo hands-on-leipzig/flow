@@ -31,7 +31,7 @@ class ExtraBlockController extends Controller
         $validated = $request->validate([
             'id' => 'nullable|integer|exists:extra_block,id',
             'first_program' => 'nullable|integer|in:0,2,3',
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'link' => 'nullable|string|max:255',
             'insert_point' => 'nullable|integer|exists:m_insert_point,id',

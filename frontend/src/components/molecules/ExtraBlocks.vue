@@ -238,13 +238,15 @@ function onFixedBlur(pointId: number) {
 <template>
   <div class="space-y-8">
     <!-- FIXED: blocks with insert_point -->
-    <div class="border rounded-lg overflow-hidden">
-      <div class="bg-gray-100 px-4 py-2 font-semibold uppercase">Mit festen Einfügepunkten</div>
+    <div class="bg-white shadow-sm rounded-xl border border-gray-200">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <h3 class="text-sm font-semibold text-gray-700">Mit festen Einfügepunkten</h3>
+      </div>
 
       <div class="overflow-x-auto">
-        <table class="min-w-full">
+        <table class="min-w-full text-sm">
           <thead>
-          <tr class="bg-blue-600 text-white text-sm">
+          <tr class="text-gray-500 text-xs uppercase tracking-wide">
             <th class="text-left px-4 py-2 w-64">Zeitpunkt</th>
             <th class="text-center px-2 py-2 w-20">Davor</th>
             <th class="text-center px-2 py-2 w-20">Dauer</th>
@@ -254,7 +256,7 @@ function onFixedBlur(pointId: number) {
             <th class="text-left px-2 py-2 w-64">Link</th>
           </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-gray-100">
           <tr v-for="p in insertPoints" :key="p.id" class="border-b">
             <td class="px-4 py-2">
               <label class="inline-flex items-center space-x-3">
@@ -340,19 +342,19 @@ function onFixedBlur(pointId: number) {
     </div>
 
     <!-- CUSTOM: blocks without insert_point -->
-    <div class="border rounded-lg overflow-hidden">
-      <div class="flex items-center justify-between bg-gray-100 px-4 py-2">
-        <div class="font-semibold uppercase">Freie Zusatzblöcke</div>
-        <button class="bg-green-500 hover:bg-green-600 text-white text-sm font-medium px-3 py-1 rounded"
+    <div class="bg-white shadow-sm rounded-xl border border-gray-200">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <h3 class="text-sm font-semibold text-gray-700">Freie Zusatzblöcke</h3>
+        <button class="bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
                 @click="addCustom">
           + Block hinzufügen
         </button>
       </div>
 
       <div class="overflow-x-auto">
-        <table class="min-w-full">
+        <table class="min-w-full text-sm">
           <thead>
-          <tr class="bg-blue-600 text-white text-sm">
+          <tr class="text-gray-500 text-xs uppercase tracking-wide">
             <th class="text-center px-2 py-2 w-24">Explore</th>
             <th class="text-center px-2 py-2 w-24">Challenge</th>
             <th class="text-left px-2 py-2 w-64">Beginn</th>
@@ -363,18 +365,16 @@ function onFixedBlur(pointId: number) {
             <th class="px-2 py-2 w-28">Aktion</th>
           </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-gray-100">
           <tr v-for="b in customBlocks" :key="b.id ?? JSON.stringify(b)" class="border-b">
             <td class="px-2 py-2 text-center">
-              <ToggleSwitch
-                  :model-value="b.first_program === 2 || b.first_program === 0"
-                  @update:modelValue="(val) => {
-    b.first_program = val
-      ? (b.first_program === 3 ? 0 : 2)
-      : (b.first_program === 0 ? 3 : null)
-    saveBlock(b)
-  }"
-              />
+              <input :checked="b.first_program === 2 || b.first_program === 0"
+                     class="h-5 w-5 rounded"
+                     type="checkbox"
+                     @change="b.first_program = ($event.target as HTMLInputElement).checked
+                               ? (b.first_program === 3 ? 0 : 2)
+                               : (b.first_program === 0 ? 3 : null);
+                               saveBlock(b)"/>
 
             </td>
             <td class="px-2 py-2 text-center">
