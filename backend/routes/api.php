@@ -49,6 +49,7 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
+
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);

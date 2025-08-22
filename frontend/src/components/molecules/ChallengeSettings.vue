@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, UnwrapRef, watch, watchEffect} from 'vue'
+import {computed, ref, UnwrapRef, watch, watchEffect} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
@@ -12,16 +12,18 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update-param', param: any): void
-  (e: 'update-by-name', name: string, value: any): void
   (e: 'toggle-show', value: boolean): void
 }>()
+
+// No need to expose anything - parent handles all batching
 
 const paramMapByName = computed<Record<string, any>>(
     () => Object.fromEntries(props.parameters.map((p: any) => [p.name, p]))
 )
 
+// Simple parameter update - emit immediately to parent for batching
 function updateByName(name: string, value: any) {
-  emit('update-by-name', name, value)
+  emit('update-param', { name, value })
 }
 
 // Inputs
@@ -138,22 +140,22 @@ const currentLaneNote = computed<string | undefined>(() => {
 <template>
   <div class="p-4 border rounded shadow">
     <div class="flex items-center justify-between mb-2">
-      <h2 class="text-lg font-semibold">Challenge Einstellungen</h2>
+      <div class="flex items-center gap-2">
+        <h2 class="text-lg font-semibold">Challenge Einstellungen</h2>
+
+      </div>
       <label class="relative inline-flex items-center cursor-pointer">
         <input
             type="checkbox"
             :checked="showChallenge"
-            @change="emit('toggle-show', $event)"
+            @change="emit('toggle-show', ($event.target as HTMLInputElement).checked)"
             class="sr-only peer"
         >
         <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
         <div
             class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
       </label>
-      <ToggleSwitch
-          :model-value="showChallenge"
-          @update:modelValue="emit('toggle-show', ($event.target as HTMLInputElement).checked)"
-      />
+
     </div>
 
     <template v-if="showChallenge">

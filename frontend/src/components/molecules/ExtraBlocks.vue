@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
@@ -44,11 +44,70 @@ const emit = defineEmits<{
   (e: 'changed'): void
 }>()
 
+// Expose flush function to parent if needed
+defineExpose({
+  flushPendingSaves
+})
+
 // --- State ---
 const loading = ref(false)
 const saving = ref(false)
 const insertPoints = ref<InsertPoint[]>([])
 const blocks = ref<ExtraBlock[]>([])
+
+// Debounced save system
+const pendingSaves = ref<Map<string, ExtraBlock>>(new Map())
+const saveTimeoutId = ref<NodeJS.Timeout | null>(null)
+const DEBOUNCE_DELAY = 5000 // 5 seconds
+
+// Track if there are pending saves
+const hasPendingSaves = computed(() => pendingSaves.value.size > 0)
+
+function scheduleSave(block: ExtraBlock) {
+  // Use a unique key for each block
+  const key = block.id ? `id-${block.id}` : `temp-${JSON.stringify(block)}`
+  
+  // Add/update the pending save
+  pendingSaves.value.set(key, { ...block })
+  
+  // Clear existing timeout
+  if (saveTimeoutId.value) {
+    clearTimeout(saveTimeoutId.value)
+  }
+  
+  // Schedule new save
+  saveTimeoutId.value = setTimeout(() => {
+    // Get all pending saves
+    const saves = Array.from(pendingSaves.value.values())
+    
+    // Clear pending saves
+    pendingSaves.value.clear()
+    saveTimeoutId.value = null
+    
+    // Save all blocks
+    saves.forEach(block => saveBlockImmediate(block))
+  }, DEBOUNCE_DELAY)
+}
+
+// Force immediate save of all pending changes
+function flushPendingSaves() {
+  if (saveTimeoutId.value) {
+    clearTimeout(saveTimeoutId.value)
+    saveTimeoutId.value = null
+  }
+  
+  if (pendingSaves.value.size > 0) {
+    const saves = Array.from(pendingSaves.value.values())
+    pendingSaves.value.clear()
+    
+    saves.forEach(block => saveBlockImmediate(block))
+  }
+}
+
+// Cleanup on unmount
+onUnmounted(() => {
+  flushPendingSaves()
+})
 
 // Split by flavor
 const fixedBlocks = computed(() => blocks.value.filter(b => !!b.insert_point))
@@ -135,13 +194,14 @@ async function togglePoint(point: InsertPoint, enabled: boolean) {
       duration: 5,
       buffer_after: 5
     }
-    await saveBlock(draft)
+    await saveBlockImmediate(draft)
   } else if (!enabled && existing?.id) {
     await removeBlock(existing.id)
   }
 }
 
-async function saveBlock(block: ExtraBlock) {
+// Immediate save function (internal use)
+async function saveBlockImmediate(block: ExtraBlock) {
   if (props.planId == null) return
   saving.value = true
   try {
@@ -160,6 +220,11 @@ async function saveBlock(block: ExtraBlock) {
   } finally {
     saving.value = false
   }
+}
+
+// Debounced save function (public interface)
+function saveBlock(block: ExtraBlock) {
+  scheduleSave(block)
 }
 
 
@@ -202,7 +267,7 @@ async function addCustom() {
     start: fromLocalInput(now.toISOString().slice(0, 16)),
     end: fromLocalInput(oneHour.toISOString().slice(0, 16))
   }
-  await saveBlock(draft)
+  await saveBlockImmediate(draft)
 }
 
 function labelForProgram(v: number | null | 0) {
@@ -230,13 +295,19 @@ function onFixedTextInput(pointId: number, field: 'name' | 'description' | 'link
 
 function onFixedBlur(pointId: number) {
   const b = fixedByPoint.value[pointId]
-  if (b) saveBlock(b)
+  if (b) saveBlockImmediate(b)
 }
 
 </script>
 
 <template>
   <div class="space-y-8">
+    <!-- Pending saves indicator -->
+    <div v-if="hasPendingSaves" class="flex items-center gap-2 text-orange-600 text-sm bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
+      <div class="w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
+      <span>Änderungen werden in Kürze gespeichert...</span>
+    </div>
+    
     <!-- FIXED: blocks with insert_point -->
     <div class="bg-white shadow-sm rounded-xl border border-gray-200">
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
