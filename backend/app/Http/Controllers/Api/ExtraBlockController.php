@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ExtraBlock;
 use App\Models\MInsertPoint;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ExtraBlockController extends Controller
 {
@@ -57,7 +58,14 @@ class ExtraBlockController extends Controller
 
     public function delete(int $id)
     {
-        $deleted = ExtraBlock::destroy($id);
-        return response()->json($deleted);
+        $block = ExtraBlock::findOrFail($id);
+
+        DB::table('activity')
+            ->where('extra_block', $block->id)
+            ->update(['extra_block' => null]);
+
+        $block->delete();
+
+        return response()->json(['message' => 'Extra block deleted']);
     }
 }
