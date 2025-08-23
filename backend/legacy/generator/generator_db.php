@@ -154,8 +154,10 @@ define('ID_RT_E_JUDGE_DELIBERATIONS', 36);
 // FLL Explore modes
 define('ID_E_MORNING', 1);
 define('ID_E_AFTERNOON', 2);
-define('ID_E_DECOUPLED_ONE', 3);
-define('ID_E_DECOUPLED_TWO', 4);
+define('ID_E_DECOUPLED_MORNING', 3);
+define('ID_E_DECOUPLED_AFTERNOON', 4);
+define('ID_E_DECOUPLED_BOTH', 5);
+
 
 // ***********************************************************************************
 // Reading from and adding to db tables (now via Laravel DB)
@@ -566,6 +568,8 @@ function g_insert_point($id)
         case ID_IP_RG_1:
         case ID_IP_RG_2:
         case ID_IP_RG_3:
+        case ID_IP_RG_FINAL_ROUNDS:
+        case ID_IP_RG_LAST_MATCHES:    
             $time = $r_time;
             break;
 

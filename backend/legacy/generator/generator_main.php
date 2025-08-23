@@ -19,8 +19,8 @@ function g_generator($plan_id) {
     // j_ FLL Challenge judging
     // r_ FLL Challenge robot game
     // e_ FLL Explore
-    // e1_ FLL Explore first group (usually morning)
-    // e2_ FLL Explore second group (usually afternoon)
+    // e1_ FLL Explore first group (morning)
+    // e2_ FLL Explore second group (afternoon)
     // f_ Finale
     // lc_ Live Challenge
 
@@ -670,7 +670,7 @@ function g_generator($plan_id) {
 
         // FLL Explore
         // Deliberations might have taken longer. Which is rather theroritical ...
-        if (gp("e2_teams") > 0 && g_diff_in_minutes($e_time, $c_time) > 0 ) {                       // TODO use emode
+        if (gp("e_mode") == ID_E_AFTERNOON && g_diff_in_minutes($e_time, $c_time) > 0 ) {                       
             $c_time = clone $e_time;
         } 
   
@@ -706,7 +706,7 @@ function g_generator($plan_id) {
         // FLL Explore decoupled from FLL Challenge
         // -----------------------------------------------------------------------------------
 
-        if (gp("e_mode") == ID_E_DECOUPLED_ONE || gp("e_mode") == ID_E_DECOUPLED_TWO) {
+        if (gp("e_mode") == ID_E_DECOUPLED_MORNING || gp("e_mode") == ID_E_DECOUPLED_AFTERNOON || gp("e_mode") == ID_E_DECOUPLED_BOTH) {
             e_decoupled($g_event_date);
         } else {
             if($DEBUG >= 1){

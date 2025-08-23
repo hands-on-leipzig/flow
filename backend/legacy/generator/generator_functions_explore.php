@@ -132,60 +132,64 @@ function e_decoupled($g_event_date) {
     global $DEBUG;
     global $e_time;
 
-    if($DEBUG >= 1) {
-        echo "<h2>Explore decoupled - group 1</h2>";
-        echo "e1 teams: " . gp("e1_teams") . "<br>";
-        echo "e1 lanes: " . gp("e1_lanes") . "<br>";
-        echo "e1 rounds: " . gp("e1_rounds") . "<br>";
-        echo "<br>";
-    }
+    if (gp("e1_teams") > 0) {
 
-    // Check if the plan is supported. Die if not.
-    db_check_supported_plan(
-        ID_FP_EXPLORE,
-        gp("e1_teams"), 
-        gp("e1_lanes") 
-    );
+        if($DEBUG >= 1) {
+            echo "<h2>Explore decoupled - group 1</h2>";
+            echo "e1 teams: " . gp("e1_teams") . "<br>";
+            echo "e1 lanes: " . gp("e1_lanes") . "<br>";
+            echo "e1 rounds: " . gp("e1_rounds") . "<br>";
+            echo "<br>";
+        }
 
-    // Get date and time for FLL Explore
-    $e_time = clone $g_event_date;
-    list($hours, $minutes) = explode(':', gp("e1_start_opening"));
-    $e_time->setTime((int)$hours, (int)$minutes); 
+        // Check if the plan is supported. Die if not.
+        db_check_supported_plan(
+            ID_FP_EXPLORE,
+            gp("e1_teams"), 
+            gp("e1_lanes") 
+        );
 
-    // Catch the time for the opening
-    $t = clone $e_time;
+        // Get date and time for FLL Explore
+        $e_time = clone $g_event_date;
+        list($hours, $minutes) = explode(':', gp("e1_start_opening"));
+        $e_time->setTime((int)$hours, (int)$minutes); 
 
-    // Opening   
-    db_insert_activity_group(ID_ATD_E_OPENING);
-    db_insert_activity(ID_ATD_E_OPENING, $e_time, gp("e1_duration_opening"));
-    g_add_minutes($e_time, gp("e1_duration_opening"));
+        // Catch the time for the opening
+        $t = clone $e_time;
+
+        // Opening   
+        db_insert_activity_group(ID_ATD_E_OPENING);
+        db_insert_activity(ID_ATD_E_OPENING, $e_time, gp("e1_duration_opening"));
+        g_add_minutes($e_time, gp("e1_duration_opening"));
+        
+        // Briefings for FLL Explore independent group 1
+        e_briefings($t, 1); // Briefings
+
+        // Judging
+        e_judging(1);
+
+        // Buffer before all judges meet for deliberations
+        g_add_minutes($e_time, gp("e_ready_deliberations"));
+
+        // Deliberations
+        db_insert_activity_group(ID_ATD_E_DELIBERATIONS);
+        db_insert_activity(ID_ATD_E_DELIBERATIONS, $e_time, gp("e1_duration_deliberations"), 0, 0);
+        g_add_minutes($e_time, gp("e1_duration_deliberations"));
+
+        // Awards
+
+        // Get ready e.g. judges get on stage
+        g_add_minutes($e_time, gp("e_ready_awards"));
+
+        // Add FLL Explore Awards
+        db_insert_activity_group(ID_ATD_E_AWARDS);
+        db_insert_activity(ID_ATD_E_AWARDS, $e_time, gp("e1_duration_awards"));
+        g_add_minutes($e_time, gp("e1_duration_awards"));
     
-    // Briefings for FLL Explore independent group 1
-    e_briefings($t, 1); // Briefings
+    } // e1_teams > 0
 
-    // Judging
-    e_judging(1);
 
-    // Buffer before all judges meet for deliberations
-    g_add_minutes($e_time, gp("e_ready_deliberations"));
-
-    // Deliberations
-    db_insert_activity_group(ID_ATD_E_DELIBERATIONS);
-    db_insert_activity(ID_ATD_E_DELIBERATIONS, $e_time, gp("e1_duration_deliberations"), 0, 0);
-    g_add_minutes($e_time, gp("e1_duration_deliberations"));
-
-    // Awards
-
-    // Get ready e.g. judges get on stage
-    g_add_minutes($e_time, gp("e_ready_awards"));
-
-    // Add FLL Explore Awards
-    db_insert_activity_group(ID_ATD_E_AWARDS);
-    db_insert_activity(ID_ATD_E_AWARDS, $e_time, gp("e1_duration_awards"));
-    g_add_minutes($e_time, gp("e1_duration_awards"));
-    
-
-    if(gp("e_mode") == ID_E_DECOUPLED_TWO) {
+    if(gp("e2_teams") > 0) {
 
         if($DEBUG >= 1) {
             echo "<h2>Explore decoupled - group 2</h2>";
@@ -346,8 +350,9 @@ function e_integrated() {
             // Wait for the joint awards ceremony
             break;
 
-        case ID_E_DECOUPLED_ONE:
-        case ID_E_DECOUPLED_TWO:
+        case ID_E_DECOUPLED_MORNING:
+        case ID_E_DECOUPLED_AFTERNOON:
+        case ID_E_DECOUPLED_BOTH:
 
             if($DEBUG >= 1){
                 echo "<h2>Explore - no afternoon batch</h2>";
