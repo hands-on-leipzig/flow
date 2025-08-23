@@ -69,3 +69,10 @@ function g_debug_timing($text, $c_block = 0, $r_start_shift = 0) {
     }
 }
 
+function g_debug_log($parameter) {
+
+    global $DEBUG;
+
+    error_log("DEBUG" . $DEBUG . " ". $parameter. "=" . gp($parameter));
+
+}
