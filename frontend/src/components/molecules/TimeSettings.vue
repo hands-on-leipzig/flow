@@ -85,6 +85,34 @@ function updateParam(p: any) {
       <div class="border-b border-l border-gray-300 font-semibold p-2">Eröffnung<br/>Dauer</div>
       <div class="border-b border-l border-gray-300 font-semibold p-2">Preisv.<br/>Dauer</div>
 
+
+      <!-- Challenge (c_*) -->
+      <div class="p-2 border-t border-gray-300">Challenge</div>
+
+      <div class="p-2 border-t border-l border-gray-300">
+        <ParameterField v-if="cellParam('c','start_opening') && visibilityMap[cellParam('c','start_opening').id]"
+                        :param="cellParam('c','start_opening')"
+                        :horizontal="false"
+                        :disabled="disabledMap[cellParam('c','start_opening').id]"
+                        @update="updateParam"/>
+      </div>
+
+      <div class="p-2 border-t border-l border-gray-300">
+        <ParameterField v-if="cellParam('c','duration_opening') && visibilityMap[cellParam('c','duration_opening').id]"
+                        :param="cellParam('c','duration_opening')"
+                        :horizontal="false"
+                        :disabled="disabledMap[cellParam('c','duration_opening').id]"
+                        @update="updateParam"/>
+      </div>
+
+      <div class="p-2 border-t border-l border-gray-300">
+        <ParameterField v-if="cellParam('c','duration_awards') && visibilityMap[cellParam('c','duration_awards').id]"
+                        :param="cellParam('c','duration_awards')"
+                        :horizontal="false"
+                        :disabled="disabledMap[cellParam('c','duration_awards').id]"
+                        @update="updateParam"/>
+      </div>
+
       <!-- Gemeinsame (g_*) -->
       <div
           class="p-2 border-t border-gray-300"
@@ -119,32 +147,6 @@ function updateParam(p: any) {
                         @update="updateParam"/>
       </div>
 
-      <!-- Challenge (c_*) -->
-      <div class="p-2 border-t border-gray-300">Challenge</div>
-
-      <div class="p-2 border-t border-l border-gray-300">
-        <ParameterField v-if="cellParam('c','start_opening') && visibilityMap[cellParam('c','start_opening').id]"
-                        :param="cellParam('c','start_opening')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('c','start_opening').id]"
-                        @update="updateParam"/>
-      </div>
-
-      <div class="p-2 border-t border-l border-gray-300">
-        <ParameterField v-if="cellParam('c','duration_opening') && visibilityMap[cellParam('c','duration_opening').id]"
-                        :param="cellParam('c','duration_opening')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('c','duration_opening').id]"
-                        @update="updateParam"/>
-      </div>
-
-      <div class="p-2 border-t border-l border-gray-300">
-        <ParameterField v-if="cellParam('c','duration_awards') && visibilityMap[cellParam('c','duration_awards').id]"
-                        :param="cellParam('c','duration_awards')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('c','duration_awards').id]"
-                        @update="updateParam"/>
-      </div>
 
       <!-- Explore Vormittag (e1_*) -->
       <div
