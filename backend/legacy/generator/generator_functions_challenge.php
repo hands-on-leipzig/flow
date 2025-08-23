@@ -628,16 +628,24 @@ function c_presentations () {
 
     // Duration:
     // 5 minutes for each presentation
-    // Buffer before and after to get organized in the room
+    // Buffer before and after to get organized in the room is managed outside of this function
     // Additional buffer, because team will likely overrun the 5 minutes.
-    // TODO. May need to displayed differently in the schedule
 
     db_insert_activity_group(ID_ATD_C_PRESENTATIONS);
+
+    /* 2024 version: x-time 5 Minutes
 
     for ($p = 1; $p <= gp("c_presentations"); $p++) {
         db_insert_activity(ID_ATD_C_PRESENTATIONS, $c_time, gp("c_duration_presentation") );
         g_add_minutes($c_time, gp("c_duration_presentation"));
     }       
+
+    */
+
+    $duration = gp("c_presentations") * gp("c_duration_presentation") + 5; // 5 minutes buffer for overruns
+
+    db_insert_activity(ID_ATD_C_PRESENTATIONS, $c_time, $duration );
+    g_add_minutes($c_time, $duration);
 
 } 
 
