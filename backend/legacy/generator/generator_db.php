@@ -498,6 +498,7 @@ function db_insert_extra_activity($activity_type_detail, $time, $insert_point)
 {
     global $g_activity_group;
 
+    // Read extra block
     $row = DB::table('extra_block')
         ->select('id', 'buffer_before', 'duration', 'buffer_after')
         ->where('plan', gp('g_plan'))
@@ -505,6 +506,14 @@ function db_insert_extra_activity($activity_type_detail, $time, $insert_point)
         ->first();
 
     if (!$row) return;
+
+    // Read room_type from m_insert_point
+    $insert_point_row = DB::table('m_insert_point')
+        ->select('room_type')
+        ->where('id', $insert_point)
+        ->first();
+
+    $room_type = $insert_point_row ? $insert_point_row->room_type : null;
 
     $time_start = clone $time;
     g_add_minutes($time_start, (int)$row->buffer_before);
@@ -521,6 +530,7 @@ function db_insert_extra_activity($activity_type_detail, $time, $insert_point)
         'start' => $start,
         'end' => $end,
         'extra_block' => (int)$row->id,
+        'room_type' => $room_type,
     ]);
 }
 
