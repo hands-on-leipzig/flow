@@ -22,13 +22,13 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
     ]);
 });
 
-// Test routes, nur in lokaler Umgebung
-if (app()->environment('local')) {
-    // offene Test-Route ohne Auth
-    Route::get('/test/plans/{plan}/schedule/roles', [ScheduleController::class, 'roles']);
-    Route::get('/test/plans/{plan}/schedule/teams', [ScheduleController::class, 'teams']);
-    Route::get('/test/plans/{plan}/schedule/rooms', [ScheduleController::class, 'rooms']);
-}
+
+// Premiliary schedule overview routes TODO: remove when frontend has its own way to show the schedule overview
+Route::prefix('public')->group(function () {
+    Route::get('/plans/{plan}/schedule/roles', [ScheduleController::class, 'roles']);
+    Route::get('/plans/{plan}/schedule/teams', [ScheduleController::class, 'teams']);
+    Route::get('/plans/{plan}/schedule/rooms', [ScheduleController::class, 'rooms']);
+});
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));

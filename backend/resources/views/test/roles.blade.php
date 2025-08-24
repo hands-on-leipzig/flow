@@ -160,13 +160,20 @@
   const plan = {{ $plan }};
   const view = "{{ $view }}";
 
+  function setQueryParam(url, key, value) {
+    const u = new URL(url, window.location.origin);
+    u.searchParams.set(key, value);
+    return u.pathname + u.search + u.hash;
+  }
+
   function switchView(newView) {
-    window.location.href = `/test/plans/${plan}/${newView}`;
+    // gleiche Seite, nur ?view=… tauschen
+    window.location.href = setQueryParam(window.location.href, 'view', newView);
   }
 
   (async function() {
     try {
-      const resp = await fetch(`/api/test/plans/${plan}/schedule/${view}`);
+      const resp = await fetch(`/api/public/plans/${plan}/schedule/${view}`);
       if (!resp.ok) {
         document.getElementById('err').textContent = `API error ${resp.status}: ${await resp.text()}`;
         return;

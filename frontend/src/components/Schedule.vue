@@ -114,9 +114,20 @@ const fetchParams = async (planId: number) => {
   }
 }
 
+/* old approach 
 function updateScheduleUrl(planId: number) {
   scheduleUrl.value = `https://dev.planning.hands-on-technology.org/event/${selectedEvent.value?.id}/schedule/${planId}/show?ts=${Date.now()}`
 }
+  */
+
+function updateScheduleUrl(planId: number) {
+  const view = 'roles';               // kannst du bei Bedarf umschalten
+  if (!planId) { scheduleUrl.value = ''; return; }
+
+  // RELATIV, ohne Domain/Port und OHNE /event
+  scheduleUrl.value = `/schedule/${planId}/show?view=${view}&ts=${Date.now()}`;
+}
+
 
 const showExplore = ref(true)
 const showChallenge = ref(true)

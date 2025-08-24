@@ -46,13 +46,14 @@ Route::any('legacy/generator/extra/{file}', function (string $file) {
     return response($content);
 });
 
-/* Testseite für schedule matrix – nur lokal, ohne Auth */
-if (app()->environment('local')) {
-    // Generisch: /test/plans/{plan}/{view}  mit Whitelist
-    Route::get('/test/plans/{plan}/{view}', function (int $plan, string $view) {
-        if (!in_array($view, ['roles','teams','rooms'], true)) {
-            abort(404);
-        }
-        return view('test.roles', ['plan' => $plan, 'view' => $view]);
-    });
-}
+// Premiliary schedule overview routes TODO: remove when frontend has its own way to show the schedule overview
+Route::get('/schedule/{plan}/show', function (int $plan) {
+    $view = request()->query('view', 'roles');
+    if (!in_array($view, ['roles','teams','rooms'], true)) $view = 'roles';
+
+    return view('test.roles', [
+        'plan'  => $plan,
+        'view'  => $view,
+        'event' => null,
+    ]);
+});
