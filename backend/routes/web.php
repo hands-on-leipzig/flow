@@ -46,14 +46,3 @@ Route::any('legacy/generator/extra/{file}', function (string $file) {
     return response($content);
 });
 
-// Premiliary schedule overview routes TODO: remove when frontend has its own way to show the schedule overview
-Route::get('/schedule/{plan}/show', function (int $plan) {
-    $view = request()->query('view', 'roles');
-    if (!in_array($view, ['roles','teams','rooms'], true)) $view = 'roles';
-
-    return view('test.roles', [
-        'plan'  => $plan,
-        'view'  => $view,
-        'event' => null,
-    ]);
-});

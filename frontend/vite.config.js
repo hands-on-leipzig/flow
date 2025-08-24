@@ -16,20 +16,5 @@ export default defineConfig({
     },
   },
 
-  // TODO Remove after frontend has its own visualization of the schedule
-  // Proxy configuration to forward requests to the backend server
-  server: {
-    proxy: {
-      // Blade-Views (unsere Tabelle)
-      '^/schedule/.*': {
-        target: 'http://127.0.0.1:5666',
-        changeOrigin: true,
-      },
-      // API-Endpunkte
-      '^/api/.*': {
-        target: 'http://127.0.0.1:5666',
-        changeOrigin: true,
-      },
-    }
-  }
+  
 })
