@@ -86,7 +86,7 @@ function setView(v: 'roles'|'teams'|'rooms') {
       </div>
 
       <span class="text-xs text-gray-500 ml-2">
-        Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+        Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen. Plan ID: {{ props.planId }}  
       </span>
     </div>
 
