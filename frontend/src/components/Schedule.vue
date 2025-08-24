@@ -10,15 +10,16 @@ import LoaderText from "@/components/LoaderText.vue"
 import TimeSettings from "@/components/molecules/TimeSettings.vue";
 import ExploreSettings from "@/components/molecules/ExploreSettings.vue";
 import ChallengeSettings from "@/components/molecules/ChallengeSettings.vue";
+import ScheduleMatrix from "@/components/molecules/ScheduleMatrix.vue"
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
 const parameters = ref<Parameter[]>([])
-const scheduleUrl = ref('')
+const matrixReloadTick = ref(0)
+function notifyMatrixReload() { matrixReloadTick.value++ }
 const inputName = ref('')
 const plans = ref<any[]>([])
 const selectedPlanId = ref<number | null>(null)
-const previewRef = ref<HTMLElement | null>(null)
 const loading = ref(true)
 import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex'
 import ExtraBlocks from "@/components/molecules/ExtraBlocks.vue";
@@ -36,7 +37,7 @@ const isSpecial = (p: any) => SPECIAL_KEYS.has((p.name || '').toLowerCase())
 watch(selectedPlanId, async (newPlanId) => {
   if (!newPlanId) return
   await fetchParams(newPlanId)
-  updateScheduleUrl(newPlanId)
+  notifyMatrixReload()
 })
 
 const paramMap = computed<Record<number, Parameter>>(() => {
@@ -112,20 +113,6 @@ const fetchParams = async (planId: number) => {
   } finally {
     loading.value = false
   }
-}
-
-/* old approach 
-function updateScheduleUrl(planId: number) {
-  scheduleUrl.value = `https://dev.planning.hands-on-technology.org/event/${selectedEvent.value?.id}/schedule/${planId}/show?ts=${Date.now()}`
-}
-  */
-
-function updateScheduleUrl(planId: number) {
-  const view = 'roles';               // kannst du bei Bedarf umschalten
-  if (!planId) { scheduleUrl.value = ''; return; }
-
-  // RELATIV, ohne Domain/Port und OHNE /event
-  scheduleUrl.value = `/schedule/${planId}/show?view=${view}&ts=${Date.now()}`;
 }
 
 
@@ -229,7 +216,7 @@ async function updateParams(params: Array<{ name: string, value: any }>) {
         }
     )
 
-    updateScheduleUrl(selectedPlanId.value)
+    notifyMatrixReload()
   } catch (error) {
     console.error('Error updating parameters:', error)
   } finally {
@@ -262,7 +249,7 @@ async function fetchPlans() {
   if (plans.value.length > 0) {
     selectedPlanId.value = plans.value[0].id
     await fetchParams(selectedPlanId.value as number)
-    updateScheduleUrl(selectedPlanId.value as number)
+    notifyMatrixReload()
   } else {
     const newPlanId = await createDefaultPlan()
     if (newPlanId) {
@@ -270,7 +257,7 @@ async function fetchPlans() {
       plans.value.push(newPlan)
       selectedPlanId.value = newPlanId
       await fetchParams(newPlanId)
-      updateScheduleUrl(newPlanId)
+     notifyMatrixReload()
     }
   }
 }
@@ -447,24 +434,19 @@ onMounted(async () => {
           <ExtraBlocks
               :plan-id="selectedPlanId as number"
               :event-level="selectedEvent?.level ?? null"
-              @changed="updateScheduleUrl(selectedPlanId as number)"
+              @changed="notifyMatrixReload()"
           />
         </div>
       </transition>
     </div>
 
     <div class="flex-grow overflow-hidden">
-      <div v-if="loading" class="flex flex-col justify-center items-center h-64 space-y-4">
-        <LoaderFlow/>
-        <LoaderText/>
-      </div>
-      <object
-          v-else
-          ref="previewRef"
-          :data="scheduleUrl"
-          class="w-full h-full border rounded shadow"
-          type="text/html"
-      ></object>
+      <ScheduleMatrix
+        v-if="selectedPlanId"
+        :plan-id="selectedPlanId as number"
+        initial-view="roles"
+        :reload="matrixReloadTick"
+      />
     </div>
   </div>
 </template>
