@@ -32,11 +32,18 @@ async function load() {
   if (!props.planId) return
   loading.value = true
   error.value = null
+
+  const url = `/api/public/plans/${props.planId}/schedule/${view.value}`
+  console.log('[ScheduleMatrix] GET', url, 'axios.defaults.baseURL =', axios.defaults.baseURL)
+
   try {
-    const { data } = await axios.get(`/api/public/plans/${props.planId}/schedule/${view.value}`)
+    // baseURL für DIESEN Request leeren → geht sicher an Laravel
+    const { data } = await axios.get(url, { baseURL: '' })
+
     headers.value = Array.isArray(data?.headers) ? data.headers : []
-    rows.value = Array.isArray(data?.rows) ? data.rows : []
+    rows.value    = Array.isArray(data?.rows) ? data.rows : []
   } catch (e: any) {
+    console.error('[ScheduleMatrix] load() error:', e)
     error.value = e?.message || 'Fehler beim Laden'
     headers.value = []
     rows.value = []
@@ -57,38 +64,39 @@ function setView(v: 'roles'|'teams'|'rooms') {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <!-- Kopf -->
-    <div class="flex items-center justify-between">
-      <h2 class="text-xl font-normal tracking-tight">Plan {{ props.planId }} – {{ view === 'roles' ? 'Rollen' : view === 'teams' ? 'Teams' : 'Räume' }}</h2>
-      <div class="inline-flex rounded-md shadow-sm overflow-hidden border border-gray-300">
+  <div class="flex flex-col gap-3 h-full min-h-0">
+    <!-- Kopfbereich: Buttons links, Hinweistext direkt rechts daneben -->
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="inline-flex rounded-md overflow-hidden border">
         <button
-          class="px-3 py-1.5 text-sm"
-          :class="view==='roles' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900 hover:bg-gray-100'"
-          @click="setView('roles')">Rollen</button>
+          class="px-3 py-1 text-sm"
+          :class="view === 'roles' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+          @click="setView('roles')"
+        >Rollen</button>
         <button
-          class="px-3 py-1.5 text-sm border-l border-gray-300"
-          :class="view==='teams' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900 hover:bg-gray-100'"
-          @click="setView('teams')">Teams</button>
+          class="px-3 py-1 text-sm border-l"
+          :class="view === 'teams' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+          @click="setView('teams')"
+        >Teams</button>
         <button
-          class="px-3 py-1.5 text-sm border-l border-gray-300"
-          :class="view==='rooms' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900 hover:bg-gray-100'"
-          @click="setView('rooms')">Räume</button>
+          class="px-3 py-1 text-sm border-l"
+          :class="view === 'rooms' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+          @click="setView('rooms')"
+        >Räume</button>
       </div>
-    </div>
 
-    <!-- Hinweis -->
-    <p class="text-xs text-gray-500">
-      Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
-    </p>
+      <span class="text-xs text-gray-500 ml-2">
+        Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+      </span>
+    </div>
 
     <!-- Fehlermeldung -->
     <div v-if="error" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
       {{ error }}
     </div>
 
-    <!-- Tabelle -->
-    <div class="overflow-auto rounded-md border border-gray-200 bg-white">
+    <!-- Scrollbarer Bereich für Tabelle -->
+    <div class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white">
       <table class="w-full table-fixed text-sm">
         <thead class="sticky top-0 bg-gray-50">
           <tr>
@@ -116,16 +124,11 @@ function setView(v: 'roles'|'teams'|'rooms') {
               </tr>
 
               <tr v-else class="odd:bg-gray-50 even:bg-gray-100">
-                <!-- Zeitspalte (erste Spalte in headers) -->
+                <!-- Zeitspalte -->
                 <td v-if="headerKeys[0]==='time'" class="align-top px-2 py-2 whitespace-pre-line">
                   <template v-if="r.timeLabel">
-                    <!-- Erwartet "dd.mm. HH:MM" -->
-                    <span class="block">
-                      {{ (r.timeLabel || '').split(' ')[0] }}
-                    </span>
-                    <span class="block">
-                      {{ (r.timeLabel || '').split(' ')[1] || '' }}
-                    </span>
+                    <span class="block">{{ (r.timeLabel || '').split(' ')[0] }}</span>
+                    <span class="block">{{ (r.timeLabel || '').split(' ')[1] || '' }}</span>
                   </template>
                 </td>
 
@@ -139,7 +142,6 @@ function setView(v: 'roles'|'teams'|'rooms') {
                         :class="(r.cells[h.key].text && r.cells[h.key].text!.trim() !== '') ? 'bg-white' : ''">
                       {{ r.cells[h.key].text || '' }}
                     </td>
-                    <!-- wenn render === false: nichts rendern (Rowspan wirkt) -->
                   </template>
                   <td v-else class="align-top px-2 py-2"></td>
                 </template>
