@@ -45,3 +45,14 @@ Route::any('legacy/generator/extra/{file}', function (string $file) {
 
     return response($content);
 });
+
+/* Testseite für schedule matrix – nur lokal, ohne Auth */
+if (app()->environment('local')) {
+    // Generisch: /test/plans/{plan}/{view}  mit Whitelist
+    Route::get('/test/plans/{plan}/{view}', function (int $plan, string $view) {
+        if (!in_array($view, ['roles','teams','rooms'], true)) {
+            abort(404);
+        }
+        return view('test.roles', ['plan' => $plan, 'view' => $view]);
+    });
+}

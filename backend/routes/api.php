@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\ScheduleController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,14 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
         'user' => $request->get('jwt'),
     ]);
 });
+
+// Test routes, nur in lokaler Umgebung
+if (app()->environment('local')) {
+    // offene Test-Route ohne Auth
+    Route::get('/test/plans/{plan}/schedule/roles', [ScheduleController::class, 'roles']);
+    Route::get('/test/plans/{plan}/schedule/teams', [ScheduleController::class, 'teams']);
+    Route::get('/test/plans/{plan}/schedule/rooms', [ScheduleController::class, 'rooms']);
+}
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));

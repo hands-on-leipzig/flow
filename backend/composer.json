@@ -29,10 +29,15 @@
             "Database\\Seeders\\": "database/seeders/"
         }
     },
-    "autoload-dev": {
+  "autoload": {
         "psr-4": {
-            "Tests\\": "tests/"
-        }
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/"
+        },
+        "files": [
+            "legacy/generator/generator_db.php"
+        ]
     },
     "scripts": {
         "post-autoload-dump": [
