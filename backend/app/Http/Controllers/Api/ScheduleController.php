@@ -14,10 +14,7 @@ class ScheduleController extends Controller
 
         if ($activities->isEmpty()) {
             // Return stable headers so the frontend can render an empty grid
-            return response()->json([
-                'headers' => $builder->defaultRolesHeaders(),
-                'rows'    => [],
-            ]);
+            return [ ['key' => 'time', 'title' => 'Zeit'],];
         }
 
         $matrix = $builder->buildRolesMatrix($activities);
@@ -29,10 +26,8 @@ class ScheduleController extends Controller
         $activities = $this->fetchActivities($plan, includeRooms: false);
 
         if ($activities->isEmpty()) {
-            return response()->json([
-                'headers' => $builder->defaultTeamsHeaders(),
-                'rows'    => [],
-            ]);
+            // Return stable headers so the frontend can render an empty grid
+            return [ ['key' => 'time', 'title' => 'Zeit'],];
         }
 
         $matrix = $builder->buildTeamsMatrix($activities);
@@ -44,10 +39,8 @@ class ScheduleController extends Controller
         $activities = $this->fetchActivities($plan, includeRooms: true);
 
         if ($activities->isEmpty()) {
-            return response()->json([
-                'headers' => $builder->defaultRoomsHeaders(),
-                'rows'    => [],
-            ]);
+            // Return stable headers so the frontend can render an empty grid
+            return [ ['key' => 'time', 'title' => 'Zeit'],];
         }
 
         $matrix = $builder->buildRoomsMatrix($activities);

@@ -87,11 +87,15 @@ class ScheduleMatrixDb
 
                 $start = Carbon::parse($a->start_time)->startOfMinute();
                 $end   = Carbon::parse($a->end_time)->startOfMinute();
-                $text  = (string)$a->activity_name;
+
+                $baseText = (string)$a->activity_name;
 
                 if ($role->differentiation_parameter === 'lane') {
                     $lane = (int)($a->lane ?? 0);
+                    $teamNo = (int)($a->team ?? 0);
+                    $text = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
                     $key  = strtolower($progLetter).'_'.$shortName.$lane;
+
                     if ($lane > 0) {
                         $this->push($bucket, $key, $start, $end, $text);
                     } else {
@@ -100,14 +104,42 @@ class ScheduleMatrixDb
                         }
                     }
                 } elseif ($role->differentiation_parameter === 'table') {
-                    foreach ([1,2] as $ti) {
+                    // 1) Place on the explicitly assigned tables (if any)
+                    $pushed = false;
+                    foreach ([1, 2] as $ti) {
                         $tNo = (int)($a->{'table_'.$ti} ?? 0);
                         if ($tNo > 0) {
-                            $key = strtolower($progLetter).'_'.$shortName.'t'.$tNo;
+                            $teamNo = (int)($a->{'table_'.$ti.'_team'} ?? 0);
+                            $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
+                            $key    = strtolower($progLetter).'_'.$shortName.'t'.$tNo;
+                            $this->push($bucket, $key, $start, $end, $text);
+                            $pushed = true;
+                        }
+                    }
+
+                    // 2) If no table is set → replicate across all used tables
+                    if (!$pushed) {
+                        $teamNo = (int)($a->team ?? 0); // generic fallback team number
+                        $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
+                        foreach ($tablesUsed as $t) {
+                            $key = strtolower($progLetter).'_'.$shortName.'t'.$t;
                             $this->push($bucket, $key, $start, $end, $text);
                         }
                     }
+                } elseif ($role->differentiation_parameter === 'team') {
+                    // show only activities WITHOUT any team assignment
+                    $text = $baseText;
+                    $hasTeam =
+                        (int)($a->team ?? 0) > 0
+                        || (int)($a->table_1_team ?? 0) > 0
+                        || (int)($a->table_2_team ?? 0) > 0;
+
+                    if (!$hasTeam) {
+                        $key = strtolower($progLetter).'_'.$shortName; // same key as simple column
+                        $this->push($bucket, $key, $start, $end, $text);
+                    }
                 } else {
+                    $text = $baseText;
                     $key = strtolower($progLetter).'_'.$shortName;
                     $this->push($bucket, $key, $start, $end, $text);
                 }
@@ -214,24 +246,6 @@ class ScheduleMatrixDb
     public function buildRoomsMatrix(Collection $activities): array
     {
         return $this->v1->buildRoomsMatrix($activities);
-    }
-
-    /** Default headers for roles. */
-    public function defaultRolesHeaders(): array
-    {
-        return $this->v1->defaultRolesHeaders();
-    }
-
-    /** Default headers for teams. */
-    public function defaultTeamsHeaders(): array
-    {
-        return $this->v1->defaultTeamsHeaders();
-    }
-
-    /** Default headers for rooms. */
-    public function defaultRoomsHeaders(): array
-    {
-        return $this->v1->defaultRoomsHeaders();
     }
 
 }
