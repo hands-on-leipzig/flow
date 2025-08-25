@@ -498,6 +498,52 @@ class ScheduleMatrix
         return ['headers'=>$headers, 'rows'=>$rows];
     }
 
+
+    /**
+     * Default headers for the "roles" view when there are no activities.
+     */
+    public function defaultRolesHeaders(): array
+    {
+        // Keep a minimal but useful skeleton so the frontend can render the table
+        return [
+            ['key' => 'time',  'title' => 'Zeit'],
+            ['key' => 'ex_be', 'title' => 'Ex Be'],
+            ['key' => 'ex_te', 'title' => 'Ex Te'],
+            ['key' => 'ex_gu', 'title' => 'Ex Gu'],
+            ['key' => 'ch_be', 'title' => 'Ch Be'],
+            ['key' => 'ch_te', 'title' => 'Ch Te'],
+            ['key' => 'ch_ju', 'title' => 'Ch Ju'],
+            ['key' => 'rg_sr', 'title' => 'RG SR'],
+            ['key' => 'rc_t1', 'title' => 'RC T1'],
+            ['key' => 'rc_t2', 'title' => 'RC T2'],
+            ['key' => 'rg_t1', 'title' => 'RG T1'],
+            ['key' => 'rg_t2', 'title' => 'RG T2'],
+        ];
+    }
+
+    /**
+     * Default headers for the "teams" view when there are no activities.
+     * We cannot infer team count without data, so keep only "Zeit".
+     */
+    public function defaultTeamsHeaders(): array
+    {
+        return [
+            ['key' => 'time', 'title' => 'Zeit'],
+        ];
+    }
+
+    /**
+     * Default headers for the "rooms" view when there are no activities.
+     * We cannot infer room types without data, so keep only "Zeit".
+     */
+    public function defaultRoomsHeaders(): array
+    {
+        return [
+            ['key' => 'time', 'title' => 'Zeit'],
+        ];
+    }
+
+
     /**
      * Baut eine leere Raster-Zeile mit Zeitstempel $t und leeren Zellen.
      * $headerKeys ist die Liste aller Header-Keys (inkl. 'time').
