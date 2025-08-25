@@ -415,149 +415,179 @@ class ScheduleMatrixDb
 
 
 
-    /** Build "Rooms" view. Step 1: delegate to V1. */
+    
     public function buildRoomsMatrix(Collection $activities): array
-    {
-        // 1) Load roles (only used in schedule matrix) and filter out table-differentiated roles
-        $roles = DB::table('m_role')
-            ->whereNotNull('first_program')
-            ->where('schedule_matrix', 1)
-            ->where(function($q){
-                $q->whereNull('differentiation_parameter')
-                ->orWhere('differentiation_parameter', '<>', 'table');
-            })
-            ->orderBy('first_program')
-            ->orderBy('sequence')
-            ->get();
+{
+    // 1) Load roles (only used in schedule matrix) and filter out table-differentiated roles
+    $roles = DB::table('m_role')
+        ->whereNotNull('first_program')
+        ->where('schedule_matrix', 1)
+        ->where(function($q){
+            $q->whereNull('differentiation_parameter')
+              ->orWhere('differentiation_parameter', '<>', 'table');
+        })
+        ->orderBy('first_program')
+        ->orderBy('sequence')
+        ->get();
 
-        // Map of ATDs that are visible for at least one of these roles
-        $visibleAtdIds = DB::table('m_visibility')
-            ->whereIn('role', $roles->pluck('id')->all())
-            ->pluck('activity_type_detail')
-            ->unique()
-            ->values()
-            ->all();
+    // Map of ATDs that are visible for at least one of these roles
+    $visibleAtdIds = DB::table('m_visibility')
+        ->whereIn('role', $roles->pluck('id')->all())
+        ->pluck('activity_type_detail')
+        ->unique()
+        ->values()
+        ->all();
 
-        // Filter activities to those that belong to the above-visible ATDs
-        $acts = $activities->filter(function ($a) use ($visibleAtdIds) {
-            return in_array((int)$a->activity_type_detail_id, $visibleAtdIds, true);
-        })->values();
+    // Filter activities to those that belong to the above-visible ATDs
+    $acts = $activities->filter(function ($a) use ($visibleAtdIds) {
+        return in_array((int)$a->activity_type_detail_id, $visibleAtdIds, true);
+    })->values();
 
-        if ($acts->isEmpty()) {
-            return [
-                'headers' => [['key' => 'time', 'title' => 'Zeit']],
-                'rows'    => [['separator' => true]],
-            ];
-        }
-
-        // 2) Time window from filtered activities
-        $minStart = Carbon::parse($acts->min('start_time'))->startOfMinute();
-        $maxEnd   = Carbon::parse($acts->max('end_time'))->startOfMinute();
-
-        // 3) Room types actually used by filtered activities (sorted by sequence)
-        $roomTypes = $acts
-            ->filter(fn($a) => (int)($a->room_type_id ?? 0) > 0)
-            ->groupBy('room_type_id')
-            ->map(function ($grp) {
-                $first = $grp->first();
-                return [
-                    'id'       => (int)$first->room_type_id,
-                    'name'     => (string)($first->room_type_name ?? ('Room '.$first->room_type_id)),
-                    'sequence' => (int)($first->room_type_sequence ?? 0),
-                ];
-            })
-            ->values()
-            ->sortBy('sequence')
-            ->all();
-
-        // 4) Headers: Zeit + one column per used room type
-        $headers = [['key'=>'time','title'=>'Zeit']];
-        foreach ($roomTypes as $rt) {
-            $headers[] = ['key' => 'room_'.$rt['id'], 'title' => $rt['name']];
-        }
-        $headerKeys = array_map(fn($h) => $h['key'], $headers);
-
-        // 5) Buckets per room + start minute
-        $bucket = [];
-        $push = function(string $colKey, Carbon $start, Carbon $end, string $text) use (&$bucket) {
-            $k = $start->toDateTimeString();
-            $bucket[$colKey][$k] = $bucket[$colKey][$k] ?? [];
-            $bucket[$colKey][$k][] = ['start'=>$start->toDateTimeString(), 'end'=>$end->toDateTimeString(), 'text'=>$text];
-        };
-
-        foreach ($acts as $a) {
-            $rtId = (int)($a->room_type_id ?? 0);
-            if ($rtId <= 0) continue; // no room -> nowhere to place
-
-            $start = Carbon::parse($a->start_time)->startOfMinute();
-            $end   = Carbon::parse($a->end_time)->startOfMinute();
-
-            // Base text (hard override for "Mit Team")
-            $base = (string)$a->activity_name;
-            if (trim($base) === 'Mit Team') {
-                $prog = strtoupper((string)$a->program_name);
-                if ($prog === 'EXPLORE')   { $base = 'Begutachtung'; }
-                elseif ($prog === 'CHALLENGE') { $base = 'Jury'; }
-            }
-
-            $push('room_'.$rtId, $start, $end, $base);
-        }
-
-        // 6) Raster rows (5-min) + day separators + extra empty row after day & at end
-        $rows = [];
-        $activeUntil = [];
-        $t = $minStart->copy();
-        $lastDay = null;
-
-        while ($t < $maxEnd) {
-            $day = $t->toDateString();
-
-            $row = [
-                'timeIso'   => $t->copy()->utc()->toIso8601String(),
-                'timeLabel' => $t->copy()->format('d.m. H:i'),
-                'cells'     => [],
-            ];
-
-            foreach ($headers as $h) {
-                $key = $h['key'];
-                if ($key === 'time') continue;
-
-                if (isset($activeUntil[$key]) && $t < $activeUntil[$key]) {
-                    $row['cells'][$key] = ['render'=>false];
-                    continue;
-                }
-
-                $iso = $t->toDateTimeString();
-                $items = $bucket[$key][$iso] ?? [];
-                if (!empty($items)) {
-                    $it = $items[0];
-                    $start = Carbon::parse($it['start']);
-                    $end   = Carbon::parse($it['end']);
-                    $span  = max(1, (int)($start->diffInMinutes($end) / 5));
-                    $activeUntil[$key] = $end;
-
-                    $row['cells'][$key] = ['render'=>true,'rowspan'=>$span,'colspan'=>1,'text'=>$it['text']];
-                } else {
-                    $row['cells'][$key] = ['render'=>true,'rowspan'=>1,'colspan'=>1,'text'=>''];
-                }
-            }
-
-            $rows[] = $row;
-
-            $next = $t->copy()->addMinutes(5);
-            if ($lastDay !== null && $next->toDateString() !== $day) {
-                $rows[] = ['separator'=>true];
-                $rows[] = $this->emptyRow($next, $headerKeys);
-            }
-            $lastDay = $day;
-
-            $t = $next;
-        }
-
-        // Extra empty row at the end
-        $rows[] = $this->emptyRow($maxEnd, $headerKeys);
-
-        return ['headers'=>$headers, 'rows'=>$rows];
+    if ($acts->isEmpty()) {
+        return [
+            'headers' => [['key' => 'time', 'title' => 'Zeit']],
+            'rows'    => [['separator' => true]],
+        ];
     }
+
+    // 2) Time window from filtered activities
+    $minStart = \Illuminate\Support\Carbon::parse($acts->min('start_time'))->startOfMinute();
+    $maxEnd   = \Illuminate\Support\Carbon::parse($acts->max('end_time'))->startOfMinute();
+
+    // 3) **NEU**: Räume & Room-Types bestimmen
+    // 3a) Räume, die tatsächlich vorkommen (room_id > 0), sortiert nach room_type_sequence, dann room_name
+    $rooms = $acts
+        ->filter(fn($a) => (int)($a->room_id ?? 0) > 0)
+        ->groupBy('room_id')
+        ->map(function ($grp) {
+            $first = $grp->first();
+            return [
+                'room_id'   => (int)$first->room_id,
+                'room_name' => (string)($first->room_name ?? ('Room '.$first->room_id)),
+                'rt_id'     => (int)($first->room_type_id ?? 0),
+                'rt_seq'    => (int)($first->room_type_sequence ?? 0),
+            ];
+        })
+        ->values()
+        ->sortBy([['rt_seq','asc'],['room_name','asc']])
+        ->all();
+
+    // 3b) Room-Types ohne zugeordneten Raum (room_id leer), die vorkommen
+    $roomTypesNoRoom = $acts
+        ->filter(fn($a) => (int)($a->room_id ?? 0) === 0 && (int)($a->room_type_id ?? 0) > 0)
+        ->groupBy('room_type_id')
+        ->map(function ($grp) {
+            $first = $grp->first();
+            return [
+                'id'       => (int)$first->room_type_id,
+                'name'     => (string)($first->room_type_name ?? ('RoomType '.$first->room_type_id)),
+                'sequence' => (int)($first->room_type_sequence ?? 0),
+            ];
+        })
+        ->values()
+        ->sortBy('sequence')
+        ->all();
+
+    // 4) **NEU** Headers: Zeit + Räume + Room-Types (ohne Raum)
+    $headers = [['key'=>'time','title'=>'Zeit']];
+    foreach ($rooms as $r) {
+        $headers[] = ['key' => 'room_'.$r['room_id'], 'title' => $r['room_name']];
+    }
+    foreach ($roomTypesNoRoom as $rt) {
+        $headers[] = [
+            'key'   => 'roomtype_'.$rt['id'],
+            'title' => '['.$rt['name'].']',   // <--- NEU: Klammern
+        ];
+    }
+    $headerKeys = array_map(fn($h) => $h['key'], $headers);
+
+    // 5) Buckets per column + start minute
+    $bucket = [];
+    $push = function(string $colKey, \Illuminate\Support\Carbon $start, \Illuminate\Support\Carbon $end, string $text) use (&$bucket) {
+        $k = $start->toDateTimeString();
+        $bucket[$colKey][$k] = $bucket[$colKey][$k] ?? [];
+        $bucket[$colKey][$k][] = ['start'=>$start->toDateTimeString(), 'end'=>$end->toDateTimeString(), 'text'=>$text];
+    };
+
+    foreach ($acts as $a) {
+        $start = \Illuminate\Support\Carbon::parse($a->start_time)->startOfMinute();
+        $end   = \Illuminate\Support\Carbon::parse($a->end_time)->startOfMinute();
+
+        // Base text (hard override for "Mit Team")
+        $base = (string)$a->activity_name;
+        if (trim($base) === 'Mit Team') {
+            $prog = strtoupper((string)$a->program_name);
+            if ($prog === 'EXPLORE')   { $base = 'Begutachtung'; }
+            elseif ($prog === 'CHALLENGE') { $base = 'Jury'; }
+        }
+
+        // **NEU**: Key je nach room_id / room_type_id
+        $rid = (int)($a->room_id ?? 0);
+        if ($rid > 0) {
+            $push('room_'.$rid, $start, $end, $base);
+        } else {
+            $rtId = (int)($a->room_type_id ?? 0);
+            if ($rtId > 0) {
+                $push('roomtype_'.$rtId, $start, $end, $base);
+            }
+        }
+    }
+
+    // 6) Raster rows (5-min) + day separators + extra empty row after day & at end
+    $rows = [];
+    $activeUntil = [];
+    $t = $minStart->copy();
+    $lastDay = null;
+
+    while ($t < $maxEnd) {
+        $day = $t->toDateString();
+
+        $row = [
+            'timeIso'   => $t->copy()->utc()->toIso8601String(),
+            'timeLabel' => $t->copy()->format('d.m. H:i'),
+            'cells'     => [],
+        ];
+
+        foreach ($headers as $h) {
+            $key = $h['key'];
+            if ($key === 'time') continue;
+
+            if (isset($activeUntil[$key]) && $t < $activeUntil[$key]) {
+                $row['cells'][$key] = ['render'=>false];
+                continue;
+            }
+
+            $iso = $t->toDateTimeString();
+            $items = $bucket[$key][$iso] ?? [];
+            if (!empty($items)) {
+                $it = $items[0];
+                $start = \Illuminate\Support\Carbon::parse($it['start']);
+                $end   = \Illuminate\Support\Carbon::parse($it['end']);
+                $span  = max(1, (int)($start->diffInMinutes($end) / 5));
+                $activeUntil[$key] = $end;
+
+                $row['cells'][$key] = ['render'=>true,'rowspan'=>$span,'colspan'=>1,'text'=>$it['text']];
+            } else {
+                $row['cells'][$key] = ['render'=>true,'rowspan'=>1,'colspan'=>1,'text'=>''];
+            }
+        }
+
+        $rows[] = $row;
+
+        $next = $t->copy()->addMinutes(5);
+        if ($lastDay !== null && $next->toDateString() !== $day) {
+            $rows[] = ['separator'=>true];
+            $rows[] = $this->emptyRow($next, $headerKeys);
+        }
+        $lastDay = $day;
+
+        $t = $next;
+    }
+
+    // Extra empty row at the end
+    $rows[] = $this->emptyRow($maxEnd, $headerKeys);
+
+    return ['headers'=>$headers, 'rows'=>$rows];
+}
 
 }
