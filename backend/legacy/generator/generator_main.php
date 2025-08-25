@@ -665,7 +665,7 @@ function g_generator($plan_id) {
         // FLL Challenge: Research presentations on stage
         // -----------------------------------------------------------------------------------  
 
-        if ( gp("c_presentations") > 0 || gp("c_presentations_last") ) {
+        if ( gp("c_presentations") > 0 && gp("c_presentations_last") ) {
             // Create inserted block or planned delay.
             g_insert_point(ID_IP_PRESENTATIONS);
 
