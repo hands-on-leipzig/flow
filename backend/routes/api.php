@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
-use App\Http\Controllers\Api\ScheduleController;
+use App\Http\Controllers\Api\PreviewController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -25,9 +25,9 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 
 // Premiliary schedule overview routes TODO: remove when frontend has its own way to show the schedule overview
 Route::prefix('public')->group(function () {
-    Route::get('/plans/{plan}/schedule/roles', [ScheduleController::class, 'roles']);
-    Route::get('/plans/{plan}/schedule/teams', [ScheduleController::class, 'teams']);
-    Route::get('/plans/{plan}/schedule/rooms', [ScheduleController::class, 'rooms']);
+    Route::get('/plans/{plan}/schedule/roles', [PreviewController::class, 'roles']);
+    Route::get('/plans/{plan}/schedule/teams', [PreviewController::class, 'teams']);
+    Route::get('/plans/{plan}/schedule/rooms', [PreviewController::class, 'rooms']);
 });
 
 Route::middleware(['keycloak'])->group(function () {
