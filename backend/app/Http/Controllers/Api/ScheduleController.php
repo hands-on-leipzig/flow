@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\ScheduleMatrix;
+use App\Services\ScheduleMatrixDb;
 use Illuminate\Support\Facades\DB;
 
 class ScheduleController extends Controller
 {
-    public function roles(int $plan, ScheduleMatrix $builder)
+    public function roles(int $plan, ScheduleMatrixDb $builder)
     {
         $activities = $this->fetchActivities($plan, includeRooms: false);
 
@@ -24,7 +24,7 @@ class ScheduleController extends Controller
         return response()->json($matrix);
     }
 
-    public function teams(int $plan, ScheduleMatrix $builder)
+    public function teams(int $plan, ScheduleMatrixDb $builder)
     {
         $activities = $this->fetchActivities($plan, includeRooms: false);
 
@@ -39,7 +39,7 @@ class ScheduleController extends Controller
         return response()->json($matrix);
     }
 
-    public function rooms(int $plan, ScheduleMatrix $builder)
+    public function rooms(int $plan, ScheduleMatrixDb $builder)
     {
         $activities = $this->fetchActivities($plan, includeRooms: true);
 
