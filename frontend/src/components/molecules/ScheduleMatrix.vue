@@ -16,8 +16,8 @@ const props = withDefaults(defineProps<{
   planId: number
   initialView?: 'roles' | 'teams' | 'rooms'
   reload?: number             // optionaler „Tick“, bei Änderung neu laden
-}>(), {
-  initialView: 'roles',
+  }>(), {
+    initialView: 'roles',
 })
 
 const view = ref<'roles' | 'teams' | 'rooms'>(props.initialView)
@@ -68,6 +68,7 @@ function setView(v: 'roles'|'teams'|'rooms') {
     <!-- Kopfbereich: Buttons links, Hinweistext direkt rechts daneben -->
     <div class="flex flex-wrap items-center gap-2">
       <div class="inline-flex rounded-md overflow-hidden border">
+        <!-- Buttons unverändert -->
         <button
           class="px-3 py-1 text-sm"
           :class="view === 'roles' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
@@ -85,9 +86,15 @@ function setView(v: 'roles'|'teams'|'rooms') {
         >Räume</button>
       </div>
 
-      <span class="text-xs text-gray-500 ml-2">
-        Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen. Plan ID: {{ props.planId }}  
-      </span>
+      <!-- Neu: nimmt restliche Breite ein, verteilt Text links/rechts -->
+      <div class="ml-3 flex-1 flex items-center justify-between text-xs text-gray-500 min-w-0">
+        <span class="truncate">
+          Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+        </span>
+        <span class="whitespace-nowrap">
+          Plan ID: {{ props.planId }}
+        </span>
+      </div>
     </div>
 
     <!-- Fehlermeldung -->
