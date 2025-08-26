@@ -16,7 +16,11 @@ const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
 const parameters = ref<Parameter[]>([])
 const matrixReloadTick = ref(0)
-function notifyMatrixReload() { matrixReloadTick.value++ }
+
+function notifyMatrixReload() {
+  matrixReloadTick.value++
+}
+
 const inputName = ref('')
 const plans = ref<any[]>([])
 const selectedPlanId = ref<number | null>(null)
@@ -196,6 +200,13 @@ onUnmounted(() => {
   flushParamUpdates()
 })
 
+function normalizeValue(value: any, type: string | undefined) {
+  if (type === 'boolean') {
+    return value ? 1 : 0
+  }
+  return value
+}
+
 // Unified update function for single or multiple parameters
 async function updateParams(params: Array<{ name: string, value: any }>) {
   if (!selectedPlanId.value) return
@@ -210,7 +221,7 @@ async function updateParams(params: Array<{ name: string, value: any }>) {
             const p = paramMapByName.value[name]
             return {
               id: p?.id,
-              value: typeof value === 'string' ? value : value.toString()
+              value: normalizeValue(value, p?.type)?.toString() ?? ''
             }
           })
         }
@@ -257,7 +268,7 @@ async function fetchPlans() {
       plans.value.push(newPlan)
       selectedPlanId.value = newPlanId
       await fetchParams(newPlanId)
-     notifyMatrixReload()
+      notifyMatrixReload()
     }
   }
 }
@@ -442,10 +453,10 @@ onMounted(async () => {
 
     <div class="flex-grow overflow-hidden">
       <ScheduleMatrix
-        v-if="selectedPlanId"
-        :plan-id="selectedPlanId as number"
-        initial-view="roles"
-        :reload="matrixReloadTick"
+          v-if="selectedPlanId"
+          :plan-id="selectedPlanId as number"
+          initial-view="roles"
+          :reload="matrixReloadTick"
       />
     </div>
   </div>
