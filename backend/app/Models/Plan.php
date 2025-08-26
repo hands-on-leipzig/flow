@@ -25,5 +25,15 @@ class Plan extends Model
     {
         return $this->belongsTo(Event::class);
     }
+
+    /**
+     * Returns the QPlan entry associated with this plan.
+     * Not all plans have one – only after quality evaluation.
+     */
+    public function qPlan()
+    {
+        return $this->hasOne(QPlan::class, 'plan');
+    }
+    
 }
 

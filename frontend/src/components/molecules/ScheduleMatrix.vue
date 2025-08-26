@@ -33,7 +33,7 @@ async function load() {
   loading.value = true
   error.value = null
 
-  const url = `/public/plans/${props.planId}/schedule/${view.value}`
+  const url = `/plans/${props.planId}/schedule/${view.value}`
   console.log('[ScheduleMatrix] GET', url, 'axios.defaults.baseURL =', axios.defaults.baseURL)
 
   try {

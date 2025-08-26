@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\PreviewController;
+use App\Http\Controllers\Api\QualityController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -56,11 +57,9 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::post('/plans', [PlanController::class, 'create']);
 
-    Route::prefix('public')->group(function () {
-        Route::get('/plans/{plan}/schedule/roles', [PreviewController::class, 'roles']);
-        Route::get('/plans/{plan}/schedule/teams', [PreviewController::class, 'teams']);
-        Route::get('/plans/{plan}/schedule/rooms', [PreviewController::class, 'rooms']);
-    });
+    Route::get('/plans/{plan}/schedule/roles', [PreviewController::class, 'roles']);
+    Route::get('/plans/{plan}/schedule/teams', [PreviewController::class, 'teams']);
+    Route::get('/plans/{plan}/schedule/rooms', [PreviewController::class, 'rooms']);
 
     Route::get('/events/{event}/plans', [PlanController::class, 'getPlansByEvent']);
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
@@ -97,5 +96,8 @@ Route::middleware(['keycloak'])->group(function () {
     // admin routes
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
+
+    // TODO
+    Route::get('/debug/qplan/{id}', [QualityController::class, 'debug']);
 
 });
