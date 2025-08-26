@@ -23,6 +23,10 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
     ]);
 });
 
+// TODO
+Route::get('/quality/{qPlanId}', [QualityController::class, 'debug']);
+
+
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/selected-event', function (Request $request) {
@@ -97,7 +101,5 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
 
-    // TODO
-    Route::get('/debug/qplan/{id}', [QualityController::class, 'debug']);
-
+    
 });
