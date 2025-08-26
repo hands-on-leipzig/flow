@@ -6,11 +6,11 @@ type Header = { key: string; title: string }
 type Cell = { render?: boolean; rowspan?: number; colspan?: number; text?: string }
 type Row = {
   separator?: boolean
+  variant?: 'day'        
   timeIso?: string
   timeLabel?: string
   cells?: Record<string, Cell>
 }
-
 
 const props = withDefaults(defineProps<{
   planId: number
@@ -127,9 +127,15 @@ function setView(v: 'roles' | 'teams' | 'rooms') {
         <!-- Inhalt -->
         <template v-else>
           <template v-for="(r, ridx) in rows" :key="ridx">
-            <!-- Separator (Tageswechsel / Abschlusspuffer) -->
-            <tr v-if="r.separator" class="bg-white">
-              <td :colspan="headers.length" class="h-3 p-0"></td>
+            <tr v-if="r.separator">
+              <td :colspan="headers.length" class="p-0">
+                <!-- Tages-Trenner: erst kam bereits die leere Zeile aus dem Backend,
+                    hier jetzt die dunkle Linie -->
+                <div v-if="r.variant === 'day'" class="h-0.5 bg-gray-500"></div>
+
+                <!-- Sonst: „alter“ Abstand-Separator -->
+                <div v-else class="h-3"></div>
+              </td>
             </tr>
 
             <tr v-else class="odd:bg-gray-50 even:bg-gray-100">
