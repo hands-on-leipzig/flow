@@ -16,8 +16,8 @@ const props = withDefaults(defineProps<{
   planId: number
   initialView?: 'roles' | 'teams' | 'rooms'
   reload?: number             // optionaler „Tick“, bei Änderung neu laden
-  }>(), {
-    initialView: 'roles',
+}>(), {
+  initialView: 'roles',
 })
 
 const view = ref<'roles' | 'teams' | 'rooms'>(props.initialView)
@@ -33,15 +33,14 @@ async function load() {
   loading.value = true
   error.value = null
 
-  const url = `/api/public/plans/${props.planId}/schedule/${view.value}`
+  const url = `/public/plans/${props.planId}/schedule/${view.value}`
   console.log('[ScheduleMatrix] GET', url, 'axios.defaults.baseURL =', axios.defaults.baseURL)
 
   try {
-    // baseURL für DIESEN Request leeren → geht sicher an Laravel
-    const { data } = await axios.get(url, { baseURL: '' })
+    const {data} = await axios.get(url)
 
     headers.value = Array.isArray(data?.headers) ? data.headers : []
-    rows.value    = Array.isArray(data?.rows) ? data.rows : []
+    rows.value = Array.isArray(data?.rows) ? data.rows : []
   } catch (e: any) {
     console.error('[ScheduleMatrix] load() error:', e)
     error.value = e?.message || 'Fehler beim Laden'
@@ -58,7 +57,7 @@ watch(() => props.reload, () => load())
 
 onMounted(load)
 
-function setView(v: 'roles'|'teams'|'rooms') {
+function setView(v: 'roles' | 'teams' | 'rooms') {
   if (view.value !== v) view.value = v
 }
 </script>
@@ -70,20 +69,23 @@ function setView(v: 'roles'|'teams'|'rooms') {
       <div class="inline-flex rounded-md overflow-hidden border">
         <!-- Buttons unverändert -->
         <button
-          class="px-3 py-1 text-sm"
-          :class="view === 'roles' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
-          @click="setView('roles')"
-        >Rollen</button>
+            class="px-3 py-1 text-sm"
+            :class="view === 'roles' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+            @click="setView('roles')"
+        >Rollen
+        </button>
         <button
-          class="px-3 py-1 text-sm border-l"
-          :class="view === 'teams' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
-          @click="setView('teams')"
-        >Teams</button>
+            class="px-3 py-1 text-sm border-l"
+            :class="view === 'teams' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+            @click="setView('teams')"
+        >Teams
+        </button>
         <button
-          class="px-3 py-1 text-sm border-l"
-          :class="view === 'rooms' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
-          @click="setView('rooms')"
-        >Räume</button>
+            class="px-3 py-1 text-sm border-l"
+            :class="view === 'rooms' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+            @click="setView('rooms')"
+        >Räume
+        </button>
       </div>
 
       <!-- Neu: nimmt restliche Breite ein, verteilt Text links/rechts -->
@@ -106,62 +108,62 @@ function setView(v: 'roles'|'teams'|'rooms') {
     <div class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white">
       <table class="w-full table-fixed text-sm">
         <thead class="sticky top-0 bg-gray-50">
-          <tr>
-            <th v-for="h in headers" :key="h.key"
-                class="text-left font-normal px-2 py-2 border-b border-gray-200">
-              {{ h.title }}
-            </th>
-          </tr>
+        <tr>
+          <th v-for="h in headers" :key="h.key"
+              class="text-left font-normal px-2 py-2 border-b border-gray-200">
+            {{ h.title }}
+          </th>
+        </tr>
         </thead>
 
         <tbody>
-          <!-- Laden -->
-          <tr v-if="loading">
-            <td :colspan="headers.length" class="px-3 py-8 text-center text-gray-500">
-              Lädt …
-            </td>
-          </tr>
+        <!-- Laden -->
+        <tr v-if="loading">
+          <td :colspan="headers.length" class="px-3 py-8 text-center text-gray-500">
+            Lädt …
+          </td>
+        </tr>
 
-          <!-- Inhalt -->
-          <template v-else>
-            <template v-for="(r, ridx) in rows" :key="ridx">
-              <!-- Separator (Tageswechsel / Abschlusspuffer) -->
-              <tr v-if="r.separator" class="bg-white">
-                <td :colspan="headers.length" class="h-3 p-0"></td>
-              </tr>
+        <!-- Inhalt -->
+        <template v-else>
+          <template v-for="(r, ridx) in rows" :key="ridx">
+            <!-- Separator (Tageswechsel / Abschlusspuffer) -->
+            <tr v-if="r.separator" class="bg-white">
+              <td :colspan="headers.length" class="h-3 p-0"></td>
+            </tr>
 
-              <tr v-else class="odd:bg-gray-50 even:bg-gray-100">
-                <!-- Zeitspalte -->
-                <td v-if="headerKeys[0]==='time'" class="align-top px-2 py-2 whitespace-pre-line">
-                  <template v-if="r.timeLabel">
-                    <span class="block">{{ (r.timeLabel || '').split(' ')[0] }}</span>
-                    <span class="block">{{ (r.timeLabel || '').split(' ')[1] || '' }}</span>
-                  </template>
-                </td>
-
-                <!-- Restliche Spalten -->
-                <template v-for="(h, cidx) in headers.slice(1)" :key="h.key + '-' + ridx">
-                  <template v-if="r.cells && r.cells[h.key]">
-                    <td v-if="r.cells[h.key].render !== false"
-                        class="align-top px-2 py-2 whitespace-pre-line"
-                        :rowspan="r.cells[h.key].rowspan || 1"
-                        :colspan="r.cells[h.key].colspan || 1"
-                        :class="(r.cells[h.key].text && r.cells[h.key].text!.trim() !== '') ? 'bg-white' : ''">
-                      {{ r.cells[h.key].text || '' }}
-                    </td>
-                  </template>
-                  <td v-else class="align-top px-2 py-2"></td>
+            <tr v-else class="odd:bg-gray-50 even:bg-gray-100">
+              <!-- Zeitspalte -->
+              <td v-if="headerKeys[0]==='time'" class="align-top px-2 py-2 whitespace-pre-line">
+                <template v-if="r.timeLabel">
+                  <span class="block">{{ (r.timeLabel || '').split(' ')[0] }}</span>
+                  <span class="block">{{ (r.timeLabel || '').split(' ')[1] || '' }}</span>
                 </template>
-              </tr>
-            </template>
-
-            <!-- Keine Daten -->
-            <tr v-if="rows.length === 0 && !loading">
-              <td :colspan="headers.length" class="px-3 py-6 text-center text-gray-500">
-                Keine Aktivitäten im Zeitraum.
               </td>
+
+              <!-- Restliche Spalten -->
+              <template v-for="(h, cidx) in headers.slice(1)" :key="h.key + '-' + ridx">
+                <template v-if="r.cells && r.cells[h.key]">
+                  <td v-if="r.cells[h.key].render !== false"
+                      class="align-top px-2 py-2 whitespace-pre-line"
+                      :rowspan="r.cells[h.key].rowspan || 1"
+                      :colspan="r.cells[h.key].colspan || 1"
+                      :class="(r.cells[h.key].text && r.cells[h.key].text!.trim() !== '') ? 'bg-white' : ''">
+                    {{ r.cells[h.key].text || '' }}
+                  </td>
+                </template>
+                <td v-else class="align-top px-2 py-2"></td>
+              </template>
             </tr>
           </template>
+
+          <!-- Keine Daten -->
+          <tr v-if="rows.length === 0 && !loading">
+            <td :colspan="headers.length" class="px-3 py-6 text-center text-gray-500">
+              Keine Aktivitäten im Zeitraum.
+            </td>
+          </tr>
+        </template>
         </tbody>
       </table>
     </div>
@@ -170,10 +172,19 @@ function setView(v: 'roles'|'teams'|'rooms') {
 
 <style scoped>
 /* alle Spalten gleich breit */
-table { table-layout: fixed; }
+table {
+  table-layout: fixed;
+}
+
 /* kein fett im Header */
-th { font-weight: 400; }
+th {
+  font-weight: 400;
+}
+
 /* Inhalte dürfen Zeilenumbrüche enthalten */
-td { white-space: pre-line; }
+td {
+  white-space: pre-line;
+}
+
 /* Zeitspalte genau wie Zellen (kein Bold) */
 </style>

@@ -22,14 +22,6 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
     ]);
 });
 
-
-// Premiliary schedule overview routes TODO: remove when frontend has its own way to show the schedule overview
-Route::prefix('public')->group(function () {
-    Route::get('/plans/{plan}/schedule/roles', [PreviewController::class, 'roles']);
-    Route::get('/plans/{plan}/schedule/teams', [PreviewController::class, 'teams']);
-    Route::get('/plans/{plan}/schedule/rooms', [PreviewController::class, 'rooms']);
-});
-
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/selected-event', function (Request $request) {
@@ -63,6 +55,12 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::post('/plans', [PlanController::class, 'create']);
+
+    Route::prefix('public')->group(function () {
+        Route::get('/plans/{plan}/schedule/roles', [PreviewController::class, 'roles']);
+        Route::get('/plans/{plan}/schedule/teams', [PreviewController::class, 'teams']);
+        Route::get('/plans/{plan}/schedule/rooms', [PreviewController::class, 'rooms']);
+    });
 
     Route::get('/events/{event}/plans', [PlanController::class, 'getPlansByEvent']);
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
