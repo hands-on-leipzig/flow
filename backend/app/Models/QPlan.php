@@ -26,7 +26,7 @@ class QPlan extends Model
         'q3_ok',
         'q4_ok',
         'q5_gap_avg',
-        'q5_gap_std'
+        'q5_gap_stddev'
     ];
 
     /**
