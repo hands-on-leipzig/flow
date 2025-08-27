@@ -24,8 +24,8 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 });
 
 // TODO
-Route::get('/quality/{qPlanId}', [QualityController::class, 'debug']);
-
+Route::get('/quality/debug/{qPlanId}', [QualityController::class, 'debug']);
+Route::post('/quality/start-run', [QualityController::class, 'startRun']);
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
