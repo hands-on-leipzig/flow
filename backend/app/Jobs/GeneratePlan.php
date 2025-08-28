@@ -8,67 +8,79 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use App\Models\QPlan;
+use App\Models\QRun;
+use App\Services\EvaluateQuality;
 
 class GeneratePlan implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $planId;
+    public int $runId;
 
-    // tune as you like
-    public $timeout = 300;      // seconds
+    public $timeout = 300;
     public $tries = 1;
 
-    public function __construct(int $planId)
+    public function __construct(int $runId)
     {
-        $this->planId = $planId;
+        $this->runId = $runId;
     }
 
     public function handle(): void
     {
-        Log::info("Generating plan: {$this->planId}");
+        Log::info("GeneratePlan gestartet für Run ID {$this->runId}");
 
-        // Use Laravel’s DB connection, not the legacy one
-        // If legacy code insists on including its own DB bootstrap,
-        // we still hard-mute all output so it can’t break anything.
+        $qPlan = QPlan::where('q_run', $this->runId)
+            ->where('calculated', false)
+            ->first();
+
+        if (!$qPlan) {
+            QRun::where('id', $this->runId)->update([
+                'finished_at' => now(),
+                'status' => 'done',
+            ]);
+
+            Log::info("Alle Pläne für Run ID {$this->runId} sind berechnet.");
+            return;
+        }
+
+        $planId = $qPlan->plan;
+
+        Log::info("Generating plan: $planId (QPlan ID {$qPlan->id})");
 
         $startLevel = ob_get_level();
-        ob_start(); // catch all echoes/prints
+        ob_start();
 
         try {
-            // Load legacy code
-            require_once base_path('legacy/generator/generator_functions.php');
-            require_once base_path('legacy/generator/generator_db.php'); // only if absolutely needed
+            require_once base_path("legacy/generator/generator_main.php");
+            $GLOBALS['DEBUG'] = 0;
 
-            // Silence legacy debug
-            if (!isset($GLOBALS['DEBUG'])) {
-                $GLOBALS['DEBUG'] = 0;
-            } else {
-                $GLOBALS['DEBUG'] = 0;
-            }
-
-            // If possible, remove this and let the legacy use Laravel’s connection instead.
-            // If you MUST call it, keep it inside the buffer:
-            if (function_exists('db_connect_persistent')) {
-                @db_connect_persistent();
-            }
-
-            // Run generator
             if (function_exists('g_generator')) {
-                g_generator($this->planId);
+                g_generator($planId);
             } else {
-                Log::warning('g_generator() not found for plan ' . $this->planId);
+                Log::warning('g_generator() not found', ['planId' => $planId]);
             }
         } catch (\Throwable $e) {
-            Log::error('GeneratePlan failed: ' . $e->getMessage(), ['planId' => $this->planId]);
-            throw $e; // let Laravel retry/fail the job
+            Log::error('GeneratePlan failed', [
+                'planId' => $planId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
         } finally {
-            // Drop anything the legacy code might have printed
             while (ob_get_level() > $startLevel) {
                 ob_end_clean();
             }
         }
 
-        Log::info('GeneratePlan completed', ['planId' => $this->planId]);
+        Log::info('GeneratePlan completed', ['planId' => $planId]);
+
+        $evaluator = new EvaluateQuality();
+        $evaluator->evaluatePlanId($planId);
+
+        QPlan::where('id', $qPlan->id)->update(['calculated' => true]);
+
+        Log::info("Plan $planId ausgewertet, QPlan {$qPlan->id} abgehakt");
+
+        GeneratePlan::dispatch($this->runId);
     }
 }

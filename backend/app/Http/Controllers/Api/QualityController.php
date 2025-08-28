@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\EvaluateQuality;
+use App\Jobs\ExecuteQRun;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -17,45 +18,37 @@ class QualityController extends Controller
         return response()->json($data);
     }
 
+
+
     public function startRun(Request $request)
     {
-        error_log('startRun top'); // <-- ganz oben!
-
-            try {
-                $validated = $request->validate([
-                    'name' => 'required|string|max:100',
-                    'comment' => 'nullable|string',
-                    'min_teams' => 'required|integer|min:4|max:25',
-                    'max_teams' => 'required|integer|min:4|max:25|gte:min_teams',
-                    'lane_1' => 'nullable|boolean',
-                    'lane_2' => 'nullable|boolean',
-                    'lane_3' => 'nullable|boolean',
-                    'lane_4' => 'nullable|boolean',
-                    'lane_5' => 'nullable|boolean',
-                    'tables_2' => 'nullable|boolean',
-                    'tables_4' => 'nullable|boolean',
-                ]);
-            } catch (\Illuminate\Validation\ValidationException $e) {
-                error_log('Validation failed: ' . json_encode($e->errors()));
-                return response()->json(['error' => 'Validation failed', 'details' => $e->errors()], 422);
-            }
-
-            error_log('Validation passed');
+        try {
+            $payload = $request->validate([
+                'name' => 'required|string|max:100',
+                'comment' => 'nullable|string',
+                'selection' => 'required|array',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            error_log('Validation failed: ' . json_encode($e->errors()));
+            return response()->json(['error' => 'Validation failed', 'details' => $e->errors()], 422);
+        }
 
         $runId = DB::table('q_run')->insertGetId([
-            'input_json' => json_encode($validated),
-            'name' => $validated['name'],
-            'comment' => $validated['comment'] ?? null,
+            'name' => $payload['name'],
+            'comment' => $payload['comment'] ?? null,
+            'selection' => json_encode($payload['selection']),
             'started_at' => now(),
             'status' => 'pending',
         ]);
+
+        // Job dispatchen (asynchron)
+        ExecuteQRun::dispatch($runId);
 
         return response()->json([
             'status' => 'started',
             'run_id' => $runId,
         ]);
     }
-
 
     public function listRuns()
     {

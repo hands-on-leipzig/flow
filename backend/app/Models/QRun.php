@@ -15,6 +15,7 @@ class QRun extends Model
     // Mass assignable fields
     protected $fillable = [
         'name',
+        'selection',
         'started_at',
         'finished_at',
         'status',

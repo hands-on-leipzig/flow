@@ -8,6 +8,7 @@ use App\Models\QPlanTeam;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class EvaluateQuality
 {
@@ -56,6 +57,21 @@ class EvaluateQuality
         $this->calculateQ4($qPlanId);
         $this->calculateQ5($qPlanId);
     }
+
+
+    // Evaluate quality for a given plan ID by looking up the corresponding QPlan entry.
+    // This called from the GeneratePlan job after plan generation.
+    public function evaluatePlanId(int $planId): void
+    {
+        $qPlan = \App\Models\QPlan::where('plan', $planId)->first();
+
+        if (!$qPlan) {
+            Log::warning("Kein QPlan für Plan ID $planId gefunden – Evaluation übersprungen");
+            return;
+        }
+
+        $this->evaluate($qPlan->id);
+}
 
     /**
      * Load all relevant activities for a given plan, including joins to group and type info.
