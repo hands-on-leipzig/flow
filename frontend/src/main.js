@@ -16,6 +16,7 @@ import PublishControl from "@/components/PublishControl.vue";
 import Admin from "@/components/Admin.vue";
 import Teams from "@/components/Teams.vue";
 import Preview from "@/components/molecules/Preview.vue";
+import VueKonva from "vue-konva";
 
 keycloak.init({onLoad: 'login-required'}).then(authenticated => {
     if (!authenticated) {
@@ -38,9 +39,11 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
     const app = createApp(App)
     const pinia = createPinia()
 
+    app.use(VueKonva);
+
     axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL
     axios.defaults.withCredentials = true
-    
+
     app.config.globalProperties.$axios = axios
     axios.interceptors.request.use(config => {
         // Ensure Content-Type is set for POST requests
@@ -66,6 +69,7 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
         {path: '/publish', component: PublishControl},
         {path: '/admin', component: Admin},
         {path: '/preview/:planId', component: Preview, props: true},
+        {path: '/editSlide', component: EditSlide}
     ]
 
     const router = createRouter({

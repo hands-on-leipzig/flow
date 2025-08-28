@@ -16,10 +16,12 @@
     "dayjs": "^1.11.13",
     "jspdf": "^3.0.1",
     "keycloak-js": "^26.2.0",
+    "konva": "^9.3.22",
     "pinia": "^3.0.3",
     "qrcode": "^1.5.4",
     "router": "^2.2.0",
     "vue": "^3.5.17",
+    "vue-konva": "^3.2.6",
     "vue-router": "^4.5.1",
     "vuedraggable": "^4.1.0"
   },
