@@ -2,25 +2,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\EvaluateQuality;
 use App\Jobs\ExecuteQRun;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class QualityController extends Controller
 {
-    public function debug(int $planId)
-    {
-        error_log("debug called");
-
-        $service = new EvaluateQuality();
-        $data = $service->debugDump($planId);
-        return response()->json($data);
-    }
-
-
-
-    public function startRun(Request $request)
+    
+    public function startQRun(Request $request)
     {
         try {
             $payload = $request->validate([
@@ -50,19 +39,19 @@ class QualityController extends Controller
         ]);
     }
 
-    public function listRuns()
+    public function listQRuns()
     {
         // TODO: Implement run listing logic
         return response()->json(['status' => 'not implemented'], 501);
     }
 
-    public function getRunPlans(int $runId)
+    public function listQPlans(int $runId)
     {
         // TODO: Implement plan retrieval for given run
         return response()->json(['status' => 'not implemented'], 501);
     }
 
-    public function getPlanDetails(int $planId)
+    public function getQPlanDetails(int $planId)
     {
         // TODO: Implement plan details retrieval
         return response()->json(['status' => 'not implemented'], 501);

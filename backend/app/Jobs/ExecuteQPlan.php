@@ -12,7 +12,7 @@ use App\Models\QPlan;
 use App\Models\QRun;
 use App\Services\EvaluateQuality;
 
-class GeneratePlan implements ShouldQueue
+class ExecuteQPlan implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -28,7 +28,7 @@ class GeneratePlan implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info("GeneratePlan gestartet für Run ID {$this->runId}");
+        Log::info("ExecuteQPlan gestartet für Run ID {$this->runId}");
 
         $qPlan = QPlan::where('q_run', $this->runId)
             ->where('calculated', false)
@@ -40,13 +40,13 @@ class GeneratePlan implements ShouldQueue
                 'status' => 'done',
             ]);
 
-            Log::info("Alle Pläne für Run ID {$this->runId} sind berechnet.");
+            Log::info("Quality Run ID {$this->runId} berechnet.");
             return;
         }
 
         $planId = $qPlan->plan;
 
-        Log::info("Generating plan: $planId (QPlan ID {$qPlan->id})");
+        Log::info("Generierung plan ID $planId für QPlan ID {$qPlan->id} startet");
 
         $startLevel = ob_get_level();
         ob_start();
@@ -72,15 +72,15 @@ class GeneratePlan implements ShouldQueue
             }
         }
 
-        Log::info('GeneratePlan completed', ['planId' => $planId]);
+        Log::info("Evaluierung Quality für QPlan ID {$qPlan->id} startet");
 
         $evaluator = new EvaluateQuality();
         $evaluator->evaluatePlanId($planId);
 
         QPlan::where('id', $qPlan->id)->update(['calculated' => true]);
 
-        Log::info("Plan $planId ausgewertet, QPlan {$qPlan->id} abgehakt");
+        Log::info("Plan $planId evaluiert, QPlan {$qPlan->id} abgehakt.");
 
-        GeneratePlan::dispatch($this->runId);
+        ExecuteQPlan::dispatch($this->runId);
     }
 }
