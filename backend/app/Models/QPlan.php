@@ -19,6 +19,7 @@ class QPlan extends Model
         'c_teams',
         'r_tables',
         'j_lanes',
+        'j_rounds',
         'r_robot_check',
         'r_duration_robot_check',
         'q1_ok_count',

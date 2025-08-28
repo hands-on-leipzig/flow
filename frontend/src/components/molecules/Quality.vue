@@ -1,6 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import QRunConfigForm from '@/components/atoms/QRunConfigForm.vue'
+import QRunList from '@/components/atoms/QRunList.vue'
+
+const reload = ref(0)
 
 const minTeams = ref(8)
 const maxTeams = ref(8)
@@ -43,11 +47,9 @@ const startVolumeTest = () => {
     jury_lanes: Object.entries(juryLanes.value)
       .filter(([_, v]) => v)
       .map(([k]) => Number(k.split('_')[1])),
-
     tables: Object.entries(tables.value)
       .filter(([_, v]) => v)
       .map(([k]) => Number(k.split('_')[1])),
-
     jury_rounds: Object.entries(juryRounds.value)
       .filter(([_, v]) => v)
       .map(([k]) => Number(k.split('_')[1])),
@@ -59,7 +61,10 @@ const startVolumeTest = () => {
     selection,
   }
 
-  axios.post('/quality/start-qrun', payload)
+  axios.post('/quality/runs', payload)
+    .then(() => {
+      reload.value++  // 🔁 Trigger Liste neu laden
+    })
     .catch(error => {
       if (error.response) {
         const status = error.response.status
@@ -77,111 +82,28 @@ const startVolumeTest = () => {
       }
     })
 }
-
 </script>
 
 <template>
-  <div class="space-y-6">
-
-    <!-- Sticky Eingabebereich -->
-    <div class="sticky top-0 bg-white border-b p-4 z-10">
-      <div class="flex flex-wrap items-end gap-6">
-
-        <!-- Name -->
-        <div>
-        <label class="block font-semibold mb-1">Name für den Run</label>
-        <input
-            v-model="runName"
-            type="text"
-            class="border rounded px-2 py-1 w-64"
-            placeholder="z. B. letzter Test für heute"
-        />
-        </div>
-
-
-        <!-- Team Range -->
-        <div>
-          <label class="block font-semibold mb-1">Teams (min–max)</label>
-          <div class="flex gap-2">
-            <input type="number" v-model.number="minTeams" min="4" max="25" class="border rounded px-2 py-1 w-20" />
-            <span class="self-center">–</span>
-            <input type="number" v-model.number="maxTeams" min="4" max="25" class="border rounded px-2 py-1 w-20" />
-          </div>
-        </div>
-
-        <!-- Jury Runden -->
-        <div>
-            <label class="block font-semibold mb-1">Anzahl Jury-Runden</label>
-            <div class="flex gap-4">
-                <label class="flex items-center gap-1">
-                <input type="checkbox" v-model="juryRounds.rounds_4" />
-                4
-                </label>
-                <label class="flex items-center gap-1">
-                <input type="checkbox" v-model="juryRounds.rounds_5" />
-                5
-                </label>
-                <label class="flex items-center gap-1">
-                <input type="checkbox" v-model="juryRounds.rounds_6" />
-                6
-                </label>
-            </div>
-        </div>
-
-        <!-- Jury Lanes -->
-        <div>
-          <label class="block font-semibold mb-1">Jury-Spuren</label>
-          <div class="flex flex-wrap gap-2">
-            <label v-for="i in 5" :key="'lane_' + i" class="flex items-center gap-1">
-              <input type="checkbox" v-model="juryLanes['lane_' + i]" />
-              {{ i }}
-            </label>
-          </div>
-        </div>
-
-        <!-- Table Types -->
-        <div>
-          <label class="block font-semibold mb-1">Anzahl RG-Tische</label>
-          <div class="flex gap-4">
-            <label class="flex items-center gap-1">
-              <input type="checkbox" v-model="tables['tables_2']" />
-              2 
-            </label>
-            <label class="flex items-center gap-1">
-              <input type="checkbox" v-model="tables['tables_4']" />
-              4
-            </label>
-          </div>
-        </div>
-
-        <!-- Kommentar -->
-        <div class="w-full">
-        <label class="block font-semibold mb-1">Kommentar (optional)</label>
-        <textarea
-            v-model="runComment"
-            class="border rounded px-2 py-1 w-full"
-            rows="2"
-            placeholder="Notizen zum Run …"
-        />
-        </div>
-
-        <!-- Start Button -->
-        <div>
-          <button
-            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded disabled:opacity-40"
-            :disabled="!isValid"
-            @click="startVolumeTest"
-          >
-            ▶️ Start
-          </button>
-        </div>
-
-      </div>
+  <div class="flex flex-col h-full overflow-hidden">
+    <!-- Eingabebereich: bleibt oben fix -->
+    <div class="sticky top-0 z-10 bg-white border-b p-4">
+      <QRunConfigForm
+        v-model:min-teams="minTeams"
+        v-model:max-teams="maxTeams"
+        v-model:jury-lanes="juryLanes"
+        v-model:tables="tables"
+        v-model:jury-rounds="juryRounds"
+        v-model:run-name="runName"
+        v-model:run-comment="runComment"
+        :is-valid="isValid"
+        @start="startVolumeTest"
+      />
     </div>
 
-    <!-- Platz für Runs -->
-    <div class="p-4">
-      <p class="text-gray-500">Hier erscheinen später alle gestarteten Runs.</p>
+    <!-- Scrollbarer Bereich darunter -->
+    <div class="flex-1 overflow-y-auto p-4">
+      <QRunList :reload="reload" />
     </div>
   </div>
 </template>

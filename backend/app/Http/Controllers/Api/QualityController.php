@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\ExecuteQRun;
+use App\Models\QRun;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -41,14 +42,28 @@ class QualityController extends Controller
 
     public function listQRuns()
     {
-        // TODO: Implement run listing logic
-        return response()->json(['status' => 'not implemented'], 501);
+        $runs = QRun::orderBy('id', 'desc')->get();
+
+        $hasRunning = $runs->contains(function ($run) {
+            return $run->status === 'running';
+        });
+
+        return response()->json([
+            'runs' => $runs,
+            'has_running' => $hasRunning,
+        ]);
     }
 
     public function listQPlans(int $runId)
     {
-        // TODO: Implement plan retrieval for given run
-        return response()->json(['status' => 'not implemented'], 501);
+        $plans = \App\Models\QPlan::where('q_run', $runId)
+            ->orderBy('c_teams')
+            ->orderBy('j_lanes')
+            ->orderBy('r_tables')
+            ->orderBy('r_robot_check')
+            ->get();
+
+        return response()->json($plans);
     }
 
     public function getQPlanDetails(int $planId)

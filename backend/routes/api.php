@@ -11,7 +11,6 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\PreviewController;
 use App\Http\Controllers\Api\QualityController;
-use App\Services\EvaluateQuality;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -25,13 +24,13 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 });
 
 // TODO
-//Route::get('/quality/debug/{qPlanId}', [QualityController::class, 'debug']);
-Route::post('/quality/start-qrun', [QualityController::class, 'startQRun']);
-Route::get('/quality/qrun/{id}', function ($id) {
-    (new EvaluateQuality())->generateQPlans((int)$id);
-    return 'Fertig';
+Route::prefix('quality')->group(function () {
+    Route::post('/runs', [QualityController::class, 'startQRun']);                   // Start eines neuen Runs
+    Route::get('/runs', [QualityController::class, 'listQRuns']);                    // Alle Runs auflisten
+    Route::get('/runs/{runId}/plans', [QualityController::class, 'listQPlans']);     // Alle Pläne zu einem Run
+    Route::get('/plans/{planId}', [QualityController::class, 'getQPlanDetails']);    // Einzelplan-Details
 });
-Route::get('/quality/', [PreviewController::class, 'roles']);
+
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));

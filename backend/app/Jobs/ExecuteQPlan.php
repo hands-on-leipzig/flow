@@ -77,7 +77,9 @@ class ExecuteQPlan implements ShouldQueue
         $evaluator = new EvaluateQuality();
         $evaluator->evaluatePlanId($planId);
 
+        // Mark QPlan as calculated
         QPlan::where('id', $qPlan->id)->update(['calculated' => true]);
+        QRun::where('id', $this->runId)->increment('qplans_calculated');
 
         Log::info("Plan $planId evaluiert, QPlan {$qPlan->id} abgehakt.");
 
