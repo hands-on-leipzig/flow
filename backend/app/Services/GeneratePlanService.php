@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
@@ -14,14 +13,9 @@ class GeneratePlanService
         ob_start();
 
         try {
-            require_once base_path('legacy/generator/generator_functions.php');
-            require_once base_path('legacy/generator/generator_db.php');
+            require_once base_path("legacy/generator/generator_main.php");
 
             $GLOBALS['DEBUG'] = 0;
-
-            if (function_exists('db_connect_persistent')) {
-                @db_connect_persistent(); // vermeiden, wenn möglich
-            }
 
             if (function_exists('g_generator')) {
                 g_generator($planId);

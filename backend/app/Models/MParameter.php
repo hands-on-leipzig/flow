@@ -9,6 +9,21 @@ class MParameter extends Model
     protected $table = 'm_parameter';
     public $timestamps = false;
 
+    protected $fillable = [
+        'name',
+        'context',
+        'level',
+        'type',
+        'value',
+        'min',
+        'max',
+        'step',
+        'first_program',
+        'sequence',
+        'ui_label',
+        'ui_description',
+    ];
+
     public function valueForPlan($planId)
     {
         return $this->hasOne(PlanParamValue::class, 'parameter')
@@ -16,4 +31,3 @@ class MParameter extends Model
     }
 
 }
-

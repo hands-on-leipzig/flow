@@ -21,12 +21,13 @@ class QPlan extends Model
         'j_lanes',
         'r_robot_check',
         'r_duration_robot_check',
-        'q1_ok',
-        'q2_ok',
-        'q3_ok',
-        'q4_ok',
-        'q5_gap_avg',
-        'q5_gap_stddev'
+        'q1_ok_count',
+        'q2_ok_count',
+        'q3_ok_count',
+        'q4_ok_count',
+        'q5_idle_avg',
+        'q5_idle_stddev',
+        'calculated',
     ];
 
     /**

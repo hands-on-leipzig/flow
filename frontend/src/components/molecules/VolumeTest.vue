@@ -6,16 +6,22 @@ const minTeams = ref(8)
 const maxTeams = ref(12)
 
 const juryLanes = ref({
-  lane_1: false,
+  lane_1: true,
   lane_2: true,
   lane_3: true,
-  lane_4: false,
-  lane_5: false,
+  lane_4: true,
+  lane_5: true,
 })
 
 const tables = ref({
-  2: true,
-  4: true,
+  tables_2: true,
+  tables_4: true,
+})
+
+const juryRounds = ref({
+  rounds_4: true,
+  rounds_5: true,
+  rounds_6: true,
 })
 
 const runName = ref('')
@@ -24,35 +30,54 @@ const runComment = ref('')
 const isValid = computed(() => {
   const atLeastOneLane = Object.values(juryLanes.value).some(v => v)
   const atLeastOneTable = Object.values(tables.value).some(v => v)
+  const atLeastOneRound = Object.values(juryRounds.value).some(v => v)
   const validTeamRange = minTeams.value >= 4 && maxTeams.value <= 25 && minTeams.value <= maxTeams.value
   const hasName = runName.value.trim().length > 0
-  return atLeastOneLane && atLeastOneTable && validTeamRange && hasName
+  return atLeastOneLane && atLeastOneTable && atLeastOneRound && validTeamRange && hasName
 })
 
 const startVolumeTest = () => {
+  const selection = {
+    min_teams: minTeams.value,
+    max_teams: maxTeams.value,
+    jury_lanes: Object.entries(juryLanes.value)
+      .filter(([_, v]) => v)
+      .map(([k]) => Number(k.split('_')[1])),
+
+    tables: Object.entries(tables.value)
+      .filter(([_, v]) => v)
+      .map(([k]) => Number(k.split('_')[1])),
+
+    jury_rounds: Object.entries(juryRounds.value)
+      .filter(([_, v]) => v)
+      .map(([k]) => Number(k.split('_')[1])),
+  }
+
   const payload = {
     name: runName.value.trim(),
     comment: runComment.value.trim(),
-    min_teams: minTeams.value,
-    max_teams: maxTeams.value,
-    ...juryLanes.value,
-    ...tables.value,
+    selection,
   }
 
-  console.log('Payload an Backend:', payload)
-
   axios.post('/quality/start-run', payload)
-/*   .then(response => {
-      console.log('Run gestartet mit ID:', response.data.run_id)
-    }) */
     .catch(error => {
-    if (error.response) {
-        console.error('Backend-Antwort:', error.response.status, error.response.data)
-    } else {
+      if (error.response) {
+        const status = error.response.status
+        const data = error.response.data
+
+        if (status === 429 && data.error) {
+          alert(data.error)
+        } else {
+          console.error('Backend-Antwort:', status, data)
+          alert('Ein Fehler ist aufgetreten. Bitte prüfe die Eingaben.')
+        }
+      } else {
         console.error('Netzwerk-Fehler:', error)
-    }
+        alert('Keine Verbindung zum Server.')
+      }
     })
 }
+
 </script>
 
 <template>
@@ -84,6 +109,25 @@ const startVolumeTest = () => {
           </div>
         </div>
 
+        <!-- Jury Runden -->
+        <div>
+            <label class="block font-semibold mb-1">Anzahl Jury-Runden</label>
+            <div class="flex gap-4">
+                <label class="flex items-center gap-1">
+                <input type="checkbox" v-model="juryRounds.rounds_4" />
+                4
+                </label>
+                <label class="flex items-center gap-1">
+                <input type="checkbox" v-model="juryRounds.rounds_5" />
+                5
+                </label>
+                <label class="flex items-center gap-1">
+                <input type="checkbox" v-model="juryRounds.rounds_6" />
+                6
+                </label>
+            </div>
+        </div>
+
         <!-- Jury Lanes -->
         <div>
           <label class="block font-semibold mb-1">Jury-Spuren</label>
@@ -100,11 +144,11 @@ const startVolumeTest = () => {
           <label class="block font-semibold mb-1">Anzahl RG-Tische</label>
           <div class="flex gap-4">
             <label class="flex items-center gap-1">
-              <input type="checkbox" v-model="tables['2']" />
+              <input type="checkbox" v-model="tables['tables_2']" />
               2 
             </label>
             <label class="flex items-center gap-1">
-              <input type="checkbox" v-model="tables['4']" />
+              <input type="checkbox" v-model="tables['tables_4']" />
               4
             </label>
           </div>
