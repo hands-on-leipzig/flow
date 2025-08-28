@@ -9,7 +9,7 @@ use App\Models\MParameter;
 use App\Models\PlanParamValue;
 use App\Models\Plan;
 use App\Models\Event;
-use app\Models\MSupportedPlan;
+use App\Models\MSupportedPlan;
 use Carbon\Carbon;
 
 use Illuminate\Support\Facades\DB;
