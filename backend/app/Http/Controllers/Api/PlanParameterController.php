@@ -64,7 +64,7 @@ class PlanParameterController extends Controller
             ->leftJoin('m_first_program', 'm_parameter.first_program', '=', 'm_first_program.id')
             ->select(
                 'm_parameter.*',
-                'plan_param_value.set_value as value',
+                'plan_param_value.set_value',
                 'm_first_program.name as program_name'
             )
             ->where('m_parameter.context', '!=', "protected")

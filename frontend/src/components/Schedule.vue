@@ -106,7 +106,6 @@ const fetchParams = async (planId: number) => {
   try {
     const {data: rawParams} = await axios.get<Parameter[]>(`/plans/${planId}/parameters`)
     const {data: conditions} = await axios.get<ParameterCondition[]>('/parameter/condition')
-
     // Defensive: backend could send a single object or null
     parameters.value = Array.isArray(rawParams) ? rawParams : []
     displayConditions.value = Array.isArray(conditions) ? conditions : []
@@ -245,6 +244,7 @@ const updateParam = async (param: any) => {
 const expertParamsGrouped = computed(() => {
   return parameters.value
       .filter((p: any) => p.context === 'expert')
+      .sort((a: any, b: any) => (a.sequence ?? 0) - (b.sequence ?? 0))
       .reduce((acc: any, param: any) => {
         const key = param.program_name || 'Unassigned'
         if (!acc[key]) acc[key] = []

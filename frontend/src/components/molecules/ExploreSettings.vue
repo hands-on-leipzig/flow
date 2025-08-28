@@ -23,13 +23,13 @@ const paramMapByName = computed<Record<string, any>>(
 
 // Simple parameter update - emit immediately to parent for batching
 function updateByName(name: string, value: any) {
-  emit('update-param', { name, value })
+  emit('update-param', {name, value})
 }
 
 function handleToggleChange(target: HTMLInputElement) {
   const isChecked = target.checked
   emit('toggle-show', isChecked)
-  
+
   // Update explore mode based on toggle state
   if (isChecked) {
     // Turn on explore - default to mode 1 (integrated AM) if currently off
@@ -72,7 +72,7 @@ const hasExplore = computed(() => eMode.value > 0)
 function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5) {
   eMode.value = mode
   const total = eTeams.value
-  
+
   // Reset team counts and lane counts based on mode
   if (mode === 0) {
     // No explore - clear all team and lane counts
@@ -107,7 +107,6 @@ function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5) {
 }
 
 
-
 function initHalfSplitIfNeeded() {
   const total = eTeams.value
   if (!total) return
@@ -122,12 +121,12 @@ function initHalfSplitIfNeeded() {
 /** Keep user split when total changes **/
 watch(() => paramMapByName.value['e_teams']?.value, (newTotalRaw) => {
   const total = Number(newTotalRaw || 0)
-  
+
   // Always update e_teams with the total
   if (total !== eTeams.value) {
     updateByName('e_teams', total)
   }
-  
+
   // Update e1_teams and e2_teams based on current mode
   if (eMode.value === 0) {
     // No explore - clear all
@@ -204,21 +203,21 @@ watch(allowedExploreLanesIntegrated, (opts) => {
 /* Independent lanes - use appropriate team count based on mode */
 const allowedExploreLanesAM = computed<number[]>(() => {
   if (!props.lanesIndex) return []
-  
+
   // For mode 3 (separate AM), use total teams. For mode 5 (split), use actual e1Teams
   const teamCount = (eMode.value === 3) ? eTeams.value : e1Teams.value
   if (!teamCount) return []
-  
+
   const key = `${teamCount}`
   return props.lanesIndex.explore[key] ?? []
 })
 const allowedExploreLanesPM = computed<number[]>(() => {
   if (!props.lanesIndex) return []
-  
+
   // For mode 4 (separate PM), use total teams. For mode 5 (split), use actual e2Teams
   const teamCount = (eMode.value === 4) ? eTeams.value : e2Teams.value
   if (!teamCount) return []
-  
+
   const key = `${teamCount}`
   return props.lanesIndex.explore[key] ?? []
 })
@@ -333,9 +332,6 @@ const onUpdateE2 = (val: number) => {
           :value="paramMapByName['e_teams']?.value"
           @input="updateByName('e_teams', Number(($event.target as HTMLInputElement).value || 0))"
       />
-      <div class="text-xs text-gray-500 mt-1">
-        Gesamt: {{ eTeams }} | AM: {{ e1Teams }} | PM: {{ e2Teams }}
-      </div>
 
     </div>
 
@@ -417,7 +413,7 @@ const onUpdateE2 = (val: number) => {
     <div v-if="hasExplore && isIntegrated" class="mt-4 flex justify-center">
       <div class="text-center">
         <div class="text-sm font-medium mb-2">
-          {{ isIntegratedAM ? 'Vormittag' : 'Nachmittag' }} 
+          {{ isIntegratedAM ? 'Vormittag' : 'Nachmittag' }}
           <span class="text-xs text-gray-500">(Teams: {{ isIntegratedAM ? e1Teams : e2Teams }})</span>
         </div>
         <RadioGroup v-model="integratedLanesProxy" class="flex flex-wrap gap-2">
