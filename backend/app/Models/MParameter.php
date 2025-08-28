@@ -24,10 +24,14 @@ class MParameter extends Model
         'ui_description',
     ];
 
-    public function valueForPlan($planId)
+    public function planParamValues()
     {
-        return $this->hasOne(PlanParamValue::class, 'parameter')
-            ->where('plan', $planId);
+        return $this->hasMany(PlanParamValue::class, 'parameter');
+    }
+
+    public function firstProgram()
+    {
+        return $this->belongsTo(FirstProgram::class, 'first_program');
     }
 
 }

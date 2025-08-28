@@ -24,10 +24,13 @@
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
+    "@types/node": "^24.3.0",
     "@vitejs/plugin-vue": "^6.0.0",
+    "@vue/tsconfig": "^0.8.1",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.3",
+    "typescript": "^5.9.2",
     "vite": "^7.0.0",
     "vite-plugin-vue-devtools": "^7.7.7"
   }
