@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\MParameter;
 use App\Models\Plan;
 use App\Models\PlanParamValue;
 use Carbon\Carbon;
@@ -47,30 +48,37 @@ class PlanParameterController extends Controller
         $plan = Plan::find($planId);
         $event = Event::find($plan->event);
 
-        $paramValues = DB::table('plan_param_value')
-            ->where('plan', $planId)
-            ->pluck('set_value', 'parameter'); // [parameter_id => value]
+        // Check if we have any parameter values for this plan
+        $hasParamValues = PlanParamValue::where('plan', $planId)->exists();
 
-        if ($paramValues->isEmpty()) {
+        if (!$hasParamValues) {
             return $this->insertParamsFirst($planId);
         }
 
-        // Fetch all parameters and values
-        $parameters = DB::table('m_parameter')
-            ->leftJoin('plan_param_value', function ($join) use ($planId) {
-                $join->on('m_parameter.id', '=', 'plan_param_value.parameter')
-                    ->where('plan_param_value.plan', '=', $planId);
-            })
-            ->leftJoin('m_first_program', 'm_parameter.first_program', '=', 'm_first_program.id')
-            ->select(
-                'm_parameter.*',
-                'plan_param_value.set_value',
-                'm_first_program.name as program_name'
-            )
-            ->where('m_parameter.context', '!=', "protected")
-            ->get();
+        // Fetch all parameters using Eloquent relationships
+        $parameters = MParameter::with(['planParamValues' => function($query) use ($planId) {
+                $query->where('plan', $planId);
+            }, 'firstProgram'])
+            ->where('context', '!=', 'protected')
+            ->get()
+            ->map(function ($param) {
+                // Get the user-set value if available
+                $userValue = $param->planParamValues->first();
+                $setValue = $userValue ? $userValue->set_value : null;
 
-        $filtered = $parameters->filter(function ($param) use ($paramValues, $event) {
+                // Set the final value: user-set value if available, otherwise default value
+                $param->set_value = $setValue;
+                $param->default_value = $param->value;
+                $param->value = $setValue !== null ? $setValue : $param->value;
+                $param->program_name = $param->firstProgram->name ?? null;
+
+                // Remove the relationship objects to clean up the response
+                unset($param->planParamValues, $param->firstProgram);
+
+                return $param;
+            });
+
+        $filtered = $parameters->filter(function ($param) use ($event) {
             if ($param->level > $event->level) return false;
             return true;
         })->values();
@@ -100,9 +108,9 @@ class PlanParameterController extends Controller
                 'parameters.*.value' => 'nullable|string',
             ]);
 
-            // Update all parameters in the database
+            // Update all parameters in the database using Eloquent
             foreach ($validated['parameters'] as $param) {
-                DB::table('plan_param_value')->updateOrInsert(
+                PlanParamValue::updateOrCreate(
                     [
                         'plan' => $planId,
                         'parameter' => $param['id'],
@@ -119,7 +127,7 @@ class PlanParameterController extends Controller
                 'value' => 'nullable|string',
             ]);
 
-            DB::table('plan_param_value')->updateOrInsert(
+            PlanParamValue::updateOrCreate(
                 [
                     'plan' => $planId,
                     'parameter' => $validated['id'],
@@ -152,7 +160,7 @@ class PlanParameterController extends Controller
 
     public function insertParamsFirst($planId): JsonResponse
     {
-        $parameters = DB::table('m_parameter')->select('id', 'value')->get();
+        $parameters = MParameter::select('id', 'value')->get();
 
         $insertData = [];
         foreach ($parameters as $param) {
@@ -164,7 +172,7 @@ class PlanParameterController extends Controller
         }
 
         if (!empty($insertData)) {
-            DB::table('plan_param_value')->insert($insertData);
+            PlanParamValue::insert($insertData);
         }
 
         return response()->json($planId, 201);

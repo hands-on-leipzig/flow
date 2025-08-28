@@ -5,8 +5,6 @@ import ParameterField from "@/components/molecules/ParameterField.vue"
 
 import {useEventStore} from '@/stores/event'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
-import LoaderFlow from "@/components/atoms/LoaderFlow.vue"
-import LoaderText from "@/components/LoaderText.vue"
 import TimeSettings from "@/components/molecules/TimeSettings.vue";
 import ExploreSettings from "@/components/molecules/ExploreSettings.vue";
 import ChallengeSettings from "@/components/molecules/ChallengeSettings.vue";

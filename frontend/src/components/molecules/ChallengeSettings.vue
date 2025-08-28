@@ -3,6 +3,7 @@ import {computed, ref, UnwrapRef, watch, watchEffect} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
+import InfoPopover from "@/components/atoms/InfoPopover.vue";
 
 const props = defineProps<{
   parameters: any[]
@@ -23,7 +24,7 @@ const paramMapByName = computed<Record<string, any>>(
 
 // Simple parameter update - emit immediately to parent for batching
 function updateByName(name: string, value: any) {
-  emit('update-param', { name, value })
+  emit('update-param', {name, value})
 }
 
 // Inputs
@@ -162,6 +163,8 @@ const currentLaneNote = computed<string | undefined>(() => {
       <!-- Teams -->
       <div class="mb-3">
         <label class="text-sm font-medium">Teams (Challenge)</label>
+        <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
+        &nbsp;
         <input
             class="mt-1 w-32 border rounded px-2 py-1"
             type="number"
@@ -174,7 +177,9 @@ const currentLaneNote = computed<string | undefined>(() => {
 
       <!-- Robot-Game tables (styled like n-spurig) -->
       <div class="mb-3">
-        <div class="text-sm font-medium mb-1">Robot-Game-Tische</div>
+        <div class="text-sm font-medium mb-1">Robot-Game-Tische
+          <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
+        </div>
         <RadioGroup v-model="rTablesProxy" class="flex flex-wrap gap-2">
           <RadioGroupOption
               v-for="tb in [2,4]"
@@ -204,9 +209,7 @@ const currentLaneNote = computed<string | undefined>(() => {
       <div class="mb-1">
         <div class="text-sm font-medium mb-1">
           Jury-Spuren
-          <span v-if="paramMapByName['c_teams']?.value" class="text-xs text-gray-500">
-      ({{ paramMapByName['c_teams']?.value }} Teams)
-    </span>
+          <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
         </div>
 
         <RadioGroup v-model="jLanesProxy" class="flex flex-wrap gap-2">

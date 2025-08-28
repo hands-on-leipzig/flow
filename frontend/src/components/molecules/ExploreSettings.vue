@@ -3,6 +3,7 @@ import {computed, ref, UnwrapRef, watch} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import SplitBar from '@/components/atoms/SplitBar.vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
+import InfoPopover from "@/components/atoms/InfoPopover.vue";
 
 const props = defineProps<{
   parameters: any[]
@@ -324,6 +325,8 @@ const onUpdateE2 = (val: number) => {
 
     <div v-if="hasExplore" class="mb-3">
       <label class="text-sm font-medium">Anzahl Teams</label>
+      <InfoPopover :text="paramMapByName['e_teams']?.ui_description"/>
+      &nbsp;
       <input
           class="mt-1 w-32 border rounded px-2 py-1"
           type="number"
@@ -336,6 +339,7 @@ const onUpdateE2 = (val: number) => {
     </div>
 
     <!-- Fancy e_mode selector -->
+    <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
     <div v-if="hasExplore">
       <div class="grid grid-cols-1 gap-2 mb-4">
         <!-- Integrated with Challenge -->
@@ -395,12 +399,16 @@ const onUpdateE2 = (val: number) => {
                 :class="eMode === 5 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
                 @click="setMode(5)"
             >
-              Beide (geteilt)
+              Vor- und Nachmittag geteilt
             </button>
           </div>
           <div class="text-xs text-gray-500 mt-1">Explore läuft unabhängig vom Challenge.</div>
         </div>
       </div>
+      <span>
+        Jury-Spuren
+      </span>
+      <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
     </div>
 
     <!-- Message when explore is disabled -->
@@ -412,10 +420,6 @@ const onUpdateE2 = (val: number) => {
     <!-- INTEGRATED (1/2): centered lane selector bound to e1_lanes (allowed by total e_teams) -->
     <div v-if="hasExplore && isIntegrated" class="mt-4 flex justify-center">
       <div class="text-center">
-        <div class="text-sm font-medium mb-2">
-          {{ isIntegratedAM ? 'Vormittag' : 'Nachmittag' }}
-          <span class="text-xs text-gray-500">(Teams: {{ isIntegratedAM ? e1Teams : e2Teams }})</span>
-        </div>
         <RadioGroup v-model="integratedLanesProxy" class="flex flex-wrap gap-2">
           <RadioGroupOption
               v-for="n in allLaneOptions"
@@ -459,7 +463,7 @@ const onUpdateE2 = (val: number) => {
       <!-- AM -->
       <div :class="(eMode === 4) ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
-          Vormittag <span class="text-xs text-gray-500">(Teams: {{ e1Teams }})</span>
+          Vormittag
         </div>
         <RadioGroup v-model="eLanesAMProxy" class="flex flex-wrap gap-2">
           <RadioGroupOption
@@ -488,7 +492,7 @@ const onUpdateE2 = (val: number) => {
       <!-- PM -->
       <div :class="(eMode === 3) ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
-          Nachmittag <span class="text-xs text-gray-500">(Teams: {{ e2Teams }})</span>
+          Nachmittag
         </div>
         <RadioGroup v-model="eLanesPMProxy" class="flex flex-wrap gap-2">
           <RadioGroupOption

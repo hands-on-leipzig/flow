@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import {ref, watch, onMounted, computed} from 'vue'
 import axios from 'axios'
+import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
+import LoaderText from "@/components/LoaderText.vue";
 
 type Header = { key: string; title: string }
 type Cell = { render?: boolean; rowspan?: number; colspan?: number; text?: string }
 type Row = {
   separator?: boolean
-  variant?: 'day'        
+  variant?: 'day'
   timeIso?: string
   timeLabel?: string
   cells?: Record<string, Cell>
@@ -120,7 +122,8 @@ function setView(v: 'roles' | 'teams' | 'rooms') {
         <!-- Laden -->
         <tr v-if="loading">
           <td :colspan="headers.length" class="px-3 py-8 text-center text-gray-500">
-            Lädt …
+            <LoaderFlow/>
+            <LoaderText/>
           </td>
         </tr>
 

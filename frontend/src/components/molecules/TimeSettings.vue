@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import ParameterField from '@/components/molecules/ParameterField.vue'
+import InfoPopover from "@/components/atoms/InfoPopover.vue";
+import TimeSettingCell from "@/components/atoms/TimeSettingCell.vue";
 
 const props = defineProps<{
   parameters: any[]
@@ -89,29 +91,26 @@ function updateParam(p: any) {
       <!-- Challenge (c_*) -->
       <div class="p-2 border-t border-gray-300">Challenge</div>
 
-      <div class="p-2 border-t border-l border-gray-300">
-        <ParameterField v-if="cellParam('c','start_opening') && visibilityMap[cellParam('c','start_opening').id]"
-                        :param="cellParam('c','start_opening')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('c','start_opening').id]"
-                        @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('c','start_opening')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          @update="updateParam"
+      />
 
-      <div class="p-2 border-t border-l border-gray-300">
-        <ParameterField v-if="cellParam('c','duration_opening') && visibilityMap[cellParam('c','duration_opening').id]"
-                        :param="cellParam('c','duration_opening')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('c','duration_opening').id]"
-                        @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('c','duration_opening')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          @update="updateParam"
+      />
 
-      <div class="p-2 border-t border-l border-gray-300">
-        <ParameterField v-if="cellParam('c','duration_awards') && visibilityMap[cellParam('c','duration_awards').id]"
-                        :param="cellParam('c','duration_awards')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('c','duration_awards').id]"
-                        @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('c','duration_awards')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          @update="updateParam"
+      />
 
       <!-- Gemeinsame (g_*) -->
       <div
@@ -120,32 +119,29 @@ function updateParam(p: any) {
       >Gemeinsam
       </div>
 
-      <div class="p-2 border-t border-l border-gray-300"
-           :class="{ 'opacity-50 pointer-events-none': !rows.gemeinsamActive }">
-        <ParameterField v-if="cellParam('g','start_opening') && visibilityMap[cellParam('g','start_opening').id]"
-                        :param="cellParam('g','start_opening')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('g','start_opening').id]"
-                        @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('g','start_opening')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          :additional-classes="{ 'opacity-50 pointer-events-none': !rows.gemeinsamActive }"
+          @update="updateParam"
+      />
 
-      <div class="p-2 border-t border-l border-gray-300"
-           :class="{ 'opacity-50 pointer-events-none': !rows.gemeinsamActive }">
-        <ParameterField v-if="cellParam('g','duration_opening') && visibilityMap[cellParam('g','duration_opening').id]"
-                        :param="cellParam('g','duration_opening')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('g','duration_opening').id]"
-                        @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('g','duration_opening')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          :additional-classes="{ 'opacity-50 pointer-events-none': !rows.gemeinsamActive }"
+          @update="updateParam"
+      />
 
-      <div class="p-2 border-t border-l border-gray-300"
-           :class="{ 'opacity-50 pointer-events-none': !rows.gemeinsamActive }">
-        <ParameterField v-if="cellParam('g','duration_awards') && visibilityMap[cellParam('g','duration_awards').id]"
-                        :param="cellParam('g','duration_awards')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('g','duration_awards').id]"
-                        @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('g','duration_awards')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          :additional-classes="{ 'opacity-50 pointer-events-none': !rows.gemeinsamActive }"
+          @update="updateParam"
+      />
 
 
       <!-- Explore Vormittag (e1_*) -->
@@ -157,33 +153,29 @@ function updateParam(p: any) {
         <div class="text-xs text-gray-500 -mt-1">Vormittag</div>
       </div>
 
-      <div class="p-2 border-t border-l border-gray-300"
-           :class="{ 'opacity-50 pointer-events-none': !rows.exploreAMActive }">
-        <ParameterField v-if="cellParam('e1','start_opening') && visibilityMap[cellParam('e1','start_opening').id]"
-                        :param="cellParam('e1','start_opening')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('e1','start_opening').id]"
-                        @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('e1','start_opening')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          :additional-classes="{ 'opacity-50 pointer-events-none': !rows.exploreAMActive }"
+          @update="updateParam"
+      />
 
-      <div class="p-2 border-t border-l border-gray-300"
-           :class="{ 'opacity-50 pointer-events-none': !rows.exploreAMActive }">
-        <ParameterField
-            v-if="cellParam('e1','duration_opening') && visibilityMap[cellParam('e1','duration_opening').id]"
-            :param="cellParam('e1','duration_opening')"
-            :horizontal="false"
-            :disabled="disabledMap[cellParam('e1','duration_opening').id]"
-            @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('e1','duration_opening')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          :additional-classes="{ 'opacity-50 pointer-events-none': !rows.exploreAMActive }"
+          @update="updateParam"
+      />
 
-      <div class="p-2 border-t border-l border-gray-300"
-           :class="{ 'opacity-50 pointer-events-none': !rows.exploreAMActive }">
-        <ParameterField v-if="cellParam('e1','duration_awards') && visibilityMap[cellParam('e1','duration_awards').id]"
-                        :param="cellParam('e1','duration_awards')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('e1','duration_awards').id]"
-                        @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('e1','duration_awards')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          :additional-classes="{ 'opacity-50 pointer-events-none': !rows.exploreAMActive }"
+          @update="updateParam"
+      />
 
       <!-- Explore Nachmittag (e2_*) -->
       <div
@@ -194,33 +186,29 @@ function updateParam(p: any) {
         <div class="text-xs text-gray-500 -mt-1">Nachmittag</div>
       </div>
 
-      <div class="p-2 border-t border-l border-gray-300"
-           :class="{ 'opacity-50 pointer-events-none': !rows.explorePMActive }">
-        <ParameterField v-if="cellParam('e2','start_opening') && visibilityMap[cellParam('e2','start_opening').id]"
-                        :param="cellParam('e2','start_opening')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('e2','start_opening').id]"
-                        @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('e2','start_opening')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          :additional-classes="{ 'opacity-50 pointer-events-none': !rows.explorePMActive }"
+          @update="updateParam"
+      />
 
-      <div class="p-2 border-t border-l border-gray-300"
-           :class="{ 'opacity-50 pointer-events-none': !rows.explorePMActive }">
-        <ParameterField
-            v-if="cellParam('e2','duration_opening') && visibilityMap[cellParam('e2','duration_opening').id]"
-            :param="cellParam('e2','duration_opening')"
-            :horizontal="false"
-            :disabled="disabledMap[cellParam('e2','duration_opening').id]"
-            @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('e2','duration_opening')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          :additional-classes="{ 'opacity-50 pointer-events-none': !rows.explorePMActive }"
+          @update="updateParam"
+      />
 
-      <div class="p-2 border-t border-l border-gray-300"
-           :class="{ 'opacity-50 pointer-events-none': !rows.explorePMActive }">
-        <ParameterField v-if="cellParam('e2','duration_awards') && visibilityMap[cellParam('e2','duration_awards').id]"
-                        :param="cellParam('e2','duration_awards')"
-                        :horizontal="false"
-                        :disabled="disabledMap[cellParam('e2','duration_awards').id]"
-                        @update="updateParam"/>
-      </div>
+      <TimeSettingCell
+          :param="cellParam('e2','duration_awards')"
+          :visibility-map="visibilityMap"
+          :disabled-map="disabledMap"
+          :additional-classes="{ 'opacity-50 pointer-events-none': !rows.explorePMActive }"
+          @update="updateParam"
+      />
     </div>
   </div>
 </template>
