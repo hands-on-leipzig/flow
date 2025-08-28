@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\PreviewController;
+use App\Http\Controllers\Api\QualityController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +22,10 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
         'user' => $request->get('jwt'),
     ]);
 });
+
+// TODO
+Route::get('/quality/debug/{qPlanId}', [QualityController::class, 'debug']);
+Route::post('/quality/start-run', [QualityController::class, 'startRun']);
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
@@ -49,10 +55,15 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
+
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::post('/plans', [PlanController::class, 'create']);
+
+    Route::get('/plans/{plan}/schedule/roles', [PreviewController::class, 'roles']);
+    Route::get('/plans/{plan}/schedule/teams', [PreviewController::class, 'teams']);
+    Route::get('/plans/{plan}/schedule/rooms', [PreviewController::class, 'rooms']);
 
     Route::get('/events/{event}/plans', [PlanController::class, 'getPlansByEvent']);
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
@@ -90,4 +101,5 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
 
+    
 });

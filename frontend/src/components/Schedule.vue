@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import ParameterField from "@/components/molecules/ParameterField.vue"
 
@@ -10,15 +10,20 @@ import LoaderText from "@/components/LoaderText.vue"
 import TimeSettings from "@/components/molecules/TimeSettings.vue";
 import ExploreSettings from "@/components/molecules/ExploreSettings.vue";
 import ChallengeSettings from "@/components/molecules/ChallengeSettings.vue";
+import ScheduleMatrix from "@/components/molecules/ScheduleMatrix.vue"
 
 const eventStore = useEventStore()
-const selectedEvent = computed(() => eventStore.selectedEvent)<FllEvent>
+const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
 const parameters = ref<Parameter[]>([])
-const scheduleUrl = ref('')
+const matrixReloadTick = ref(0)
+
+function notifyMatrixReload() {
+  matrixReloadTick.value++
+}
+
 const inputName = ref('')
 const plans = ref<any[]>([])
 const selectedPlanId = ref<number | null>(null)
-const previewRef = ref<HTMLElement | null>(null)
 const loading = ref(true)
 import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex'
 import ExtraBlocks from "@/components/molecules/ExtraBlocks.vue";
@@ -36,7 +41,7 @@ const isSpecial = (p: any) => SPECIAL_KEYS.has((p.name || '').toLowerCase())
 watch(selectedPlanId, async (newPlanId) => {
   if (!newPlanId) return
   await fetchParams(newPlanId)
-  updateScheduleUrl(newPlanId)
+  notifyMatrixReload()
 })
 
 const paramMap = computed<Record<number, Parameter>>(() => {
@@ -114,9 +119,6 @@ const fetchParams = async (planId: number) => {
   }
 }
 
-function updateScheduleUrl(planId: number) {
-  scheduleUrl.value = `https://dev.planning.hands-on-technology.org/event/${selectedEvent.value?.id}/schedule/${planId}/show?ts=${Date.now()}`
-}
 
 const showExplore = ref(true)
 const showChallenge = ref(true)
@@ -145,21 +147,99 @@ function updateByName(name: string, value: any) {
   updateParam(p)
 }
 
-const updateParam = async (param: any) => {
+// Batch parameter update system
+const pendingParamUpdates = ref<Record<string, any>>({})
+const paramUpdateTimeoutId = ref<NodeJS.Timeout | null>(null)
+const PARAM_DEBOUNCE_DELAY = 5000 // 5 seconds
+
+// Track if there are pending parameter updates
+const hasPendingParamUpdates = computed(() => Object.keys(pendingParamUpdates.value).length > 0)
+
+// Handle parameter updates from child components
+function handleParamUpdate(param: { name: string, value: any }) {
+  const p = paramMapByName.value[param.name]
+  if (!p) {
+    console.warn('Parameter not found:', param.name)
+    return
+  }
+
+  // Update local state immediately
+  p.value = param.value
+
+  // Add to pending updates
+  pendingParamUpdates.value[param.name] = param.value
+
+  // Clear existing timeout
+  if (paramUpdateTimeoutId.value) {
+    clearTimeout(paramUpdateTimeoutId.value)
+  }
+
+  // Schedule batch update
+  paramUpdateTimeoutId.value = setTimeout(() => {
+    flushParamUpdates()
+  }, PARAM_DEBOUNCE_DELAY)
+}
+
+// Force immediate update of all pending parameter changes
+function flushParamUpdates() {
+  if (paramUpdateTimeoutId.value) {
+    clearTimeout(paramUpdateTimeoutId.value)
+    paramUpdateTimeoutId.value = null
+  }
+
+  if (Object.keys(pendingParamUpdates.value).length > 0) {
+    const updates = {...pendingParamUpdates.value}
+    pendingParamUpdates.value = {}
+
+    updateParams(Object.entries(updates).map(([name, value]) => ({name, value})))
+  }
+}
+
+// Cleanup on unmount
+onUnmounted(() => {
+  flushParamUpdates()
+})
+
+function normalizeValue(value: any, type: string | undefined) {
+  if (type === 'boolean') {
+    return value ? 1 : 0
+  }
+  return value
+}
+
+// Unified update function for single or multiple parameters
+async function updateParams(params: Array<{ name: string, value: any }>) {
+  if (!selectedPlanId.value) return
+
   loading.value = true
+
   try {
-    const existing = parameters.value.find(p => p.id === param.id)
-    if (existing) existing.value = param.value
-    await axios.post(`/plans/${selectedPlanId?.value}/parameters`, {
-      id: param.id,
-      value: typeof param.value == 'string' ? param.value : param.value.toString(),
-    })
-    updateScheduleUrl(selectedPlanId.value as number)
+    // Send update to unified endpoint using global axios instance
+    await axios.post(`/plans/${selectedPlanId.value}/parameters`,
+        {
+          parameters: params.map(({name, value}) => {
+            const p = paramMapByName.value[name]
+            return {
+              id: p?.id,
+              value: normalizeValue(value, p?.type)?.toString() ?? ''
+            }
+          })
+        }
+    )
+
+    notifyMatrixReload()
   } catch (error) {
-    console.error('Error updating parameter:', error)
+    console.error('Error updating parameters:', error)
   } finally {
     loading.value = false
   }
+}
+
+// Legacy function - kept for backward compatibility but not used in new batch system
+const updateParam = async (param: any) => {
+  console.warn('updateParam called directly - this should not happen in new batch system')
+  // This function is kept for backward compatibility but should not be used
+  // All updates should go through handleParamUpdate for batching
 }
 
 const expertParamsGrouped = computed(() => {
@@ -180,7 +260,7 @@ async function fetchPlans() {
   if (plans.value.length > 0) {
     selectedPlanId.value = plans.value[0].id
     await fetchParams(selectedPlanId.value as number)
-    updateScheduleUrl(selectedPlanId.value as number)
+    notifyMatrixReload()
   } else {
     const newPlanId = await createDefaultPlan()
     if (newPlanId) {
@@ -188,7 +268,7 @@ async function fetchPlans() {
       plans.value.push(newPlan)
       selectedPlanId.value = newPlanId
       await fetchParams(newPlanId)
-      updateScheduleUrl(newPlanId)
+      notifyMatrixReload()
     }
   }
 }
@@ -240,6 +320,12 @@ onMounted(async () => {
 
 <template>
   <div class="h-screen p-6 flex flex-col space-y-5">
+    <!-- Pending parameter updates indicator -->
+    <div v-if="hasPendingParamUpdates"
+         class="flex items-center gap-2 text-orange-600 text-sm bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
+      <div class="w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
+      <span>Parameter-Änderungen werden in Kürze gespeichert...</span>
+    </div>
 
     <div v-if="false" class="flex items-center space-x-4">
       <label for="plan-select" class="text-sm font-medium">Plan auswählen:</label>
@@ -271,22 +357,20 @@ onMounted(async () => {
                 :show-challenge="showChallenge"
                 :lanes-index="lanesIndex"
                 @toggle-show="(v) => showChallenge = v"
-                @update-param="updateParam"
-                @update-by-name="updateByName"
+                @update-param="handleParamUpdate"
             />
             <ExploreSettings
                 :parameters="parameters"
                 :show-explore="showExplore"
                 @toggle-show="(v) => showExplore = v"
                 :lanes-index="lanesIndex"
-                @update-param="updateParam"
-                @update-by-name="updateByName"
+                @update-param="handleParamUpdate"
             />
             <TimeSettings
                 :parameters="parameters"
                 :visibilityMap="visibilityMap"
                 :disabledMap="disabledMap"
-                @update-param="updateParam"
+                @update-param="handleParamUpdate"
             />
           </div>
         </div>
@@ -313,7 +397,7 @@ onMounted(async () => {
                     :disabled="disabledMap[param.id]"
                     :with-label="true"
                     :horizontal="true"
-                    @update="updateParam"
+                    @update="(param) => handleParamUpdate({name: param.name, value: param.value})"
                 />
               </template>
             </div>
@@ -340,7 +424,7 @@ onMounted(async () => {
                   :disabled="disabledMap[param.id]"
                   :with-label="true"
                   :horizontal="true"
-                  @update="updateParam"
+                  @update="(param) => handleParamUpdate({name: param.name, value: param.value})"
               />
             </template>
           </div>
@@ -361,24 +445,19 @@ onMounted(async () => {
           <ExtraBlocks
               :plan-id="selectedPlanId as number"
               :event-level="selectedEvent?.level ?? null"
-              @changed="updateScheduleUrl(selectedPlanId as number)"
+              @changed="notifyMatrixReload()"
           />
         </div>
       </transition>
     </div>
 
     <div class="flex-grow overflow-hidden">
-      <div v-if="loading" class="flex flex-col justify-center items-center h-64 space-y-4">
-        <LoaderFlow/>
-        <LoaderText/>
-      </div>
-      <object
-          v-else
-          ref="previewRef"
-          :data="scheduleUrl"
-          class="w-full h-full border rounded shadow"
-          type="text/html"
-      ></object>
+      <ScheduleMatrix
+          v-if="selectedPlanId"
+          :plan-id="selectedPlanId as number"
+          initial-view="roles"
+          :reload="matrixReloadTick"
+      />
     </div>
   </div>
 </template>

@@ -1,5 +1,5 @@
 <script setup>
-import {ref, onMounted, computed} from 'vue'
+import {ref, onMounted, computed, nextTick} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import IconAccordionArrow from '@/components/icons/IconAccordionArrow.vue'
@@ -45,11 +45,6 @@ const updateRoom = async (room) => {
   })
 }
 
-const deleteRoom = async (roomId) => {
-  await axios.delete(`/rooms/${roomId}`)
-  rooms.value = rooms.value.filter(r => r.id !== roomId)
-}
-
 const assignRoomType = async (typeId, roomId) => {
   assignments.value[typeId] = roomId
   await axios.put(`/rooms/assign-types`, {
@@ -77,13 +72,20 @@ const toggleGroup = (groupId) => {
   }
 }
 
-const showModal = ref(false)
+// 🔹 Ghost tile refs
 const newRoomName = ref('')
 const newRoomNote = ref('')
+const newRoomInput = ref(null)
+const newRoomNoteInput = ref(null)
 const isSaving = ref(false)
 
 const createRoom = async () => {
-  if (!newRoomName.value.trim()) return
+  if (!newRoomName.value.trim() && !newRoomNote.value.trim()) {
+    newRoomName.value = ''
+    newRoomNote.value = ''
+    return
+  }
+
   isSaving.value = true
   try {
     const {data} = await axios.post('/rooms', {
@@ -92,9 +94,12 @@ const createRoom = async () => {
       event: eventId.value
     })
     rooms.value.push(data)
-    // reset for the next ghost tile
+
+    // reset ghost tile
     newRoomName.value = ''
     newRoomNote.value = ''
+    await nextTick()
+    newRoomInput.value?.focus()
   } finally {
     isSaving.value = false
   }
@@ -110,6 +115,7 @@ const handleDrop = async (event, room) => {
   isDragging.value = false
 }
 
+// 🔹 Delete modal
 const showDeleteModal = ref(false)
 const roomToDelete = ref(null)
 
@@ -120,8 +126,8 @@ const askDeleteRoom = (room) => {
 
 const confirmDeleteRoom = async () => {
   if (!roomToDelete.value) return
-  await axios.delete(`/rooms/${roomToDelete.value}`)
-  rooms.value = rooms.value.filter(r => r.id !== roomToDelete.value)
+  await axios.delete(`/rooms/${roomToDelete.value.id}`)
+  rooms.value = rooms.value.filter(r => r.id !== roomToDelete.value.id)
   showDeleteModal.value = false
   roomToDelete.value = null
 }
@@ -138,7 +144,7 @@ const cancelDeleteRoom = () => {
       <h2 class="text-xl font-bold mb-4">Vorhandene Räume</h2>
       <ul class="grid grid-cols-2 gap-4">
 
-
+        <!-- Existing rooms -->
         <li
             v-for="room in rooms"
             :key="room.id"
@@ -157,27 +163,23 @@ const cancelDeleteRoom = () => {
                 <input
                     v-model="room.navigation_instruction"
                     class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
-                    placeholder="z. B. 2. Etage rechts"
+                    placeholder="z. B. 2. Etage rechts"
                     @blur="updateRoom(room)"
                 />
               </div>
               <div
                   class="flex flex-wrap mt-2 gap-2 min-h-[40px] border rounded p-2 transition-colors"
                   :class="{
-                    'bg-blue-100': dragOverRoomId === room.id,
-                    'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
-                    'bg-gray-50': !isDragging && dragOverRoomId !== room.id
-                  }"
+                  'bg-blue-100': dragOverRoomId === room.id,
+                  'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
+                  'bg-gray-50': !isDragging && dragOverRoomId !== room.id
+                }"
               >
                 <draggable
                     :list="roomTypes.filter(t => assignments[t.id] === room.id)"
                     group="roomtypes"
                     item-key="id"
-                    @remove="() => {}"
                     @add="event => handleDrop(event, room)"
-                    @dragenter.native="e => { dragOverRoomId = room.id; previewedTypeId = e.dataTransfer?.getData('text/plain') }"
-                    @dragleave.native="() => {dragOverRoomId = null; previewedTypeId = null}"
-                    @drop.native="() => {dragOverRoomId = null; previewedTypeId = null}"
                     @start="isDragging = true"
                     @end="isDragging = false"
                     class="flex flex-wrap gap-2 w-full"
@@ -185,10 +187,10 @@ const cancelDeleteRoom = () => {
                   <template #item="{element}">
                     <span
                         :style="{
-                          backgroundColor: getProgramColor(element),
-                          color: '#fff',
-                          opacity: isDragging && previewedTypeId === String(element.id) ? 0.6 : 1
-                        }"
+                        backgroundColor: getProgramColor(element),
+                        color: '#fff',
+                        opacity: isDragging && previewedTypeId === String(element.id) ? 0.6 : 1
+                      }"
                         class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1"
                     >
                       {{ element.name }}
@@ -198,12 +200,15 @@ const cancelDeleteRoom = () => {
                 </draggable>
               </div>
             </div>
-            <button class="text-red-600 text-lg" @click="askDeleteRoom(room.id)">🗑️</button>
+            <button class="text-red-600 text-lg" @click="askDeleteRoom(room)">🗑️</button>
           </div>
         </li>
+
+        <!-- Ghost tile -->
         <li class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm">
           <div class="mb-2">
             <input
+                ref="newRoomInput"
                 v-model="newRoomName"
                 class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
                 placeholder="Neuer Raum"
@@ -212,20 +217,25 @@ const cancelDeleteRoom = () => {
                 :disabled="isSaving"
             />
           </div>
-          <div>
-            <input
-                v-model="newRoomNote"
-                class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
-                placeholder="Navigationshinweis"
-                @keyup.enter="createRoom"
-                @blur="createRoom"
-                :disabled="isSaving"
-            />
-          </div>
+          <transition name="fade">
+            <div v-if="newRoomName.trim().length > 0">
+              <input
+                  ref="newRoomNoteInput"
+                  v-model="newRoomNote"
+                  class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                  placeholder="Navigationshinweis"
+                  @keyup.enter="createRoom"
+                  @blur="createRoom"
+                  :disabled="isSaving"
+                  @vue:mounted="nextTick(() => newRoomNoteInput?.focus())"
+              />
+            </div>
+          </transition>
         </li>
       </ul>
     </div>
 
+    <!-- Assignment panel (unchanged) -->
     <div>
       <h2 class="text-xl font-bold mb-4">Raumzuordnung</h2>
       <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3"
@@ -274,37 +284,7 @@ const cancelDeleteRoom = () => {
     </div>
   </div>
 
-  <teleport to="body">
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
-        <h3 class="text-lg font-bold mb-4">Neuen Raum hinzufügen</h3>
-        <input
-            v-model="newRoomName"
-            class="w-full border px-3 py-2 rounded mb-4"
-            placeholder="Name des Raums"
-            type="text"
-            @keyup.enter="createRoom"
-        />
-        <textarea
-            v-model="newRoomNote"
-            class="w-full border px-3 py-2 rounded mb-4 text-sm"
-            placeholder="Navigationshinweis"
-            rows="2"
-        ></textarea>
-        <div class="flex justify-end gap-2">
-          <button class="px-4 py-2 text-gray-600 hover:text-black" @click="showModal = false">Abbrechen</button>
-          <button
-              :disabled="isSaving || !newRoomName.trim()"
-              class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-              @click="createRoom"
-          >
-            Hinzufügen
-          </button>
-        </div>
-      </div>
-    </div>
-  </teleport>
-
+  <!-- Delete modal -->
   <teleport to="body">
     <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
@@ -321,51 +301,4 @@ const cancelDeleteRoom = () => {
       </div>
     </div>
   </teleport>
-
 </template>
-
-<style scoped>
-select {
-  min-width: 10rem;
-}
-
-.fade-enter-active, .fade-leave-active {
-  transition: max-height 0.3s ease;
-}
-
-.fade-enter-from, .fade-leave-to {
-  max-height: 0;
-  overflow: hidden;
-}
-
-.accordion-enter-active,
-.accordion-leave-active {
-  transition: all 0.3s ease;
-  max-height: 500px;
-}
-
-.accordion-enter-from,
-.accordion-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-
-.accordion-enter-to,
-.accordion-leave-from {
-  max-height: 500px;
-  opacity: 1;
-}
-
-.draggable-dragging {
-  transform: scale(1.05);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  opacity: 0.7;
-}
-
-.draggable-dropzone {
-  transition: background-color 0.2s ease, border 0.2s ease;
-  background-color: #fffbea;
-  border: 2px dashed #facc15;
-}
-</style>

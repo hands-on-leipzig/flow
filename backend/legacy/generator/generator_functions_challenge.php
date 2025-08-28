@@ -89,8 +89,10 @@ function r_create_match_plan() {
     // Then build the test round from round 1
     // - preserve the table assignments
     // - shift matches "backwards" to fit judging round 1
+
+    // TODO Treat TR differently to ensure matches are on same table as RG1
     
-    for ($round = 1; $round <= 3; $round++) {
+    for ($round = 0; $round <= 3; $round++) {
         
         // Fill the lines from bottom to top
         // Start with adding teams that are scheduled for judging first. They will be last in the RG round.
@@ -123,11 +125,17 @@ function r_create_match_plan() {
                 // but that does not matter with six rounds, because robot game is aligned with judging 5
                 
         } 
-    
+
         // If we have an odd number of teams, we start with the empty team                     
         if ($team == gp("c_teams") && gp("r_need_volunteer")) {
             $team = gp("c_teams") + 1; 
         }
+
+        // TODO Treat TR differently to ensure matches are on same table as RG1
+        if ($round == 0) {
+            $team = gp("j_lanes");
+        }
+
 
         // fill the match-plan for the round starting with the last match, then going backwards
         // Start with just 2 tables. Distribution to 4 tables is done afterwards.
@@ -161,6 +169,8 @@ function r_create_match_plan() {
 
     // Build TR from RG1
 
+    /* TODO 
+
     // Calculate the shift needed backwards from RG1 to TR
     // 
     // Four judging rounds: shift once               
@@ -187,7 +197,7 @@ function r_create_match_plan() {
     // Iterate through each match
     for ($match = 1; $match <= gp("r_matches_per_round"); $match++) {
 
-        /* TODO
+         TODO
 
 
         // For four tables with asymmetric robot games, we need to do more to prevent the same pair of tables being used twice
@@ -215,7 +225,7 @@ function r_create_match_plan() {
             r_add_match(0, $match, 0, 0 );
             
         }
-            TODO */ 
+            TODO 
 
         if ($match - $r_shift > 0) {
             // Shift matches down from the top of RG1
@@ -228,6 +238,7 @@ function r_create_match_plan() {
 
     } // for matches 1 to n
 
+    TODO */
 
     if ($DEBUG_RG) {
         
@@ -617,16 +628,24 @@ function c_presentations () {
 
     // Duration:
     // 5 minutes for each presentation
-    // Buffer before and after to get organized in the room
+    // Buffer before and after to get organized in the room is managed outside of this function
     // Additional buffer, because team will likely overrun the 5 minutes.
-    // TODO. May need to displayed differently in the schedule
 
     db_insert_activity_group(ID_ATD_C_PRESENTATIONS);
+
+    /* 2024 version: x-time 5 Minutes
 
     for ($p = 1; $p <= gp("c_presentations"); $p++) {
         db_insert_activity(ID_ATD_C_PRESENTATIONS, $c_time, gp("c_duration_presentation") );
         g_add_minutes($c_time, gp("c_duration_presentation"));
     }       
+
+    */
+
+    $duration = gp("c_presentations") * gp("c_duration_presentation") + 5; // 5 minutes buffer for overruns
+
+    db_insert_activity(ID_ATD_C_PRESENTATIONS, $c_time, $duration );
+    g_add_minutes($c_time, $duration);
 
 } 
 

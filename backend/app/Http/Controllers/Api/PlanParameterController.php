@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PlanParameterController extends Controller
 {
@@ -79,21 +80,55 @@ class PlanParameterController extends Controller
 
 
     public function updateParameter(Request $request, $planId): JsonResponse
+
     {
-        $validated = $request->validate([
-            'id' => 'required|integer|exists:m_parameter,id',
-            'value' => 'nullable|string',
+        // Debug logging
+        Log::info("updateParameter called", [
+            "planId" => $planId,
+            "requestData" => $request->all(),
+            "headers" => $request->headers->all(),
+            "method" => $request->method(),
+            "url" => $request->url()
         ]);
 
-        DB::table('plan_param_value')->updateOrInsert(
-            [
-                'plan' => $planId,
-                'parameter' => $validated['id'],
-            ],
-            [
-                'set_value' => $validated['value'],
-            ]
-        );
+        // Handle both single parameter and batch updates
+        if ($request->has('parameters')) {
+            // Batch update
+            $validated = $request->validate([
+                'parameters' => 'required|array',
+                'parameters.*.id' => 'required|integer|exists:m_parameter,id',
+                'parameters.*.value' => 'nullable|string',
+            ]);
+
+            // Update all parameters in the database
+            foreach ($validated['parameters'] as $param) {
+                DB::table('plan_param_value')->updateOrInsert(
+                    [
+                        'plan' => $planId,
+                        'parameter' => $param['id'],
+                    ],
+                    [
+                        'set_value' => $param['value'],
+                    ]
+                );
+            }
+        } else {
+            // Single parameter update (backward compatibility)
+            $validated = $request->validate([
+                'id' => 'required|integer|exists:m_parameter,id',
+                'value' => 'nullable|string',
+            ]);
+
+            DB::table('plan_param_value')->updateOrInsert(
+                [
+                    'plan' => $planId,
+                    'parameter' => $validated['id'],
+                ],
+                [
+                    'set_value' => $validated['value'],
+                ]
+            );
+        }
 
         $groupIds = DB::table('activity_group')
             ->where('plan', $planId)
@@ -107,13 +142,12 @@ class PlanParameterController extends Controller
             ->where('plan', $planId)
             ->delete();
 
-
         //\App\Jobs\GeneratePlan::dispatch($planId);
-        require_once base_path('legacy/generator/generator_main.php');
+        require_once base_path("legacy/generator/generator_main.php");
         g_generator($planId);
 
         return response()->json(['status' => 'ok', 'queued' => true]);
-        return response()->json(['status' => 'ok']);
+        // return response()->json(['status' => 'ok']);
     }
 
     public function insertParamsFirst($planId): JsonResponse

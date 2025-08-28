@@ -2,6 +2,7 @@
 import {ref, watch} from 'vue'
 import axios from 'axios'
 import Multiselect from '@vueform/multiselect'
+import VolumeTest from '@/components/molecules/VolumeTest.vue'
 import '@vueform/multiselect/themes/default.css'
 
 const activeTab = ref('conditions')
@@ -92,6 +93,13 @@ fetchConditions()
         🔁 Draht Sync
       </button>
 
+      <button
+          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+          :class="{ 'bg-white font-semibold shadow': activeTab === 'volumetest' }"
+          @click="activeTab = 'volumetest'">
+        📊 Massentest
+      </button>
+
     </div>
 
     <div class="flex-1 p-6 overflow-auto">
@@ -169,6 +177,11 @@ fetchConditions()
         <button class="px-4 py-2 rounded bg-blue-500 text-white" @click="syncDrahtEvents">
           Sync Draht
         </button>
+      </div>
+
+      <div v-if="activeTab === 'volumetest'">
+        <h2 class="text-xl font-bold mb-4">Massentest</h2>
+        <VolumeTest />
       </div>
 
     </div>

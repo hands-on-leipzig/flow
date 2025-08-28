@@ -283,6 +283,8 @@ function plan_create_one($c_teams, $j_lanes, $r_tables, $r_robot_check, $e_mode,
     // Check if the Challeng plan is supported and get the number of jury rounds
     // $j_rounds = db_get_from_supported_plan(ID_FP_CHALLENGE, $c_teams, $j_lanes, $r_tables); // TODO
 
+/*
+
     // Create one new event
     $event_id = event_new(1, 1);
 
@@ -295,7 +297,9 @@ function plan_create_one($c_teams, $j_lanes, $r_tables, $r_robot_check, $e_mode,
                         $j_lanes,
                         $r_tables,
                         $r_robot_check,
-                        $e_mode);  
+                        $e_mode);  */
+
+    $plan_id = 4398; // for testing only
 
     // Set the DEBUG level
     // This is used to control the debug output in the generator

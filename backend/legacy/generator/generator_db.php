@@ -154,8 +154,10 @@ define('ID_RT_E_JUDGE_DELIBERATIONS', 36);
 // FLL Explore modes
 define('ID_E_MORNING', 1);
 define('ID_E_AFTERNOON', 2);
-define('ID_E_DECOUPLED_ONE', 3);
-define('ID_E_DECOUPLED_TWO', 4);
+define('ID_E_DECOUPLED_MORNING', 3);
+define('ID_E_DECOUPLED_AFTERNOON', 4);
+define('ID_E_DECOUPLED_BOTH', 5);
+
 
 // ***********************************************************************************
 // Reading from and adding to db tables (now via Laravel DB)
@@ -496,6 +498,7 @@ function db_insert_extra_activity($activity_type_detail, $time, $insert_point)
 {
     global $g_activity_group;
 
+    // Read extra block
     $row = DB::table('extra_block')
         ->select('id', 'buffer_before', 'duration', 'buffer_after')
         ->where('plan', gp('g_plan'))
@@ -503,6 +506,14 @@ function db_insert_extra_activity($activity_type_detail, $time, $insert_point)
         ->first();
 
     if (!$row) return;
+
+    // Read room_type from m_insert_point
+    $insert_point_row = DB::table('m_insert_point')
+        ->select('room_type')
+        ->where('id', $insert_point)
+        ->first();
+
+    $room_type = $insert_point_row ? $insert_point_row->room_type : null;
 
     $time_start = clone $time;
     g_add_minutes($time_start, (int)$row->buffer_before);
@@ -519,6 +530,7 @@ function db_insert_extra_activity($activity_type_detail, $time, $insert_point)
         'start' => $start,
         'end' => $end,
         'extra_block' => (int)$row->id,
+        'room_type' => $room_type,
     ]);
 }
 
@@ -566,6 +578,8 @@ function g_insert_point($id)
         case ID_IP_RG_1:
         case ID_IP_RG_2:
         case ID_IP_RG_3:
+        case ID_IP_RG_FINAL_ROUNDS:
+        case ID_IP_RG_LAST_MATCHES:    
             $time = $r_time;
             break;
 

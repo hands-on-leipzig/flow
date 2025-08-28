@@ -19,8 +19,8 @@ function g_generator($plan_id) {
     // j_ FLL Challenge judging
     // r_ FLL Challenge robot game
     // e_ FLL Explore
-    // e1_ FLL Explore first group (usually morning)
-    // e2_ FLL Explore second group (usually afternoon)
+    // e1_ FLL Explore first group (morning)
+    // e2_ FLL Explore second group (afternoon)
     // f_ Finale
     // lc_ Live Challenge
 
@@ -30,14 +30,18 @@ function g_generator($plan_id) {
 
     global $DEBUG;                      // Debug level. 0 = off
 
+    // !!!! TODEL
+    $DEBUG = 3;                       
+
     global $g_params;                   // Global array holding all parameters for the current plan
     $g_params = [];
     
     add_param("g_plan", $plan_id, "integer");   
 
     if($DEBUG >= 1){
+        g_debug_log("g_plan");
         echo "<h2>Plan</h2>";
-        echo "g plan: " . gp("g_plan") . " <a href='https://dev.planning.hands-on-technology.org/generator/generator_day_plan.php?plan=" . gp("g_plan")  ."' target='plan'>Day Plan</a>"
+        echo "g_plan: " . gp("g_plan") . " <a href='https://dev.planning.hands-on-technology.org/generator/generator_day_plan.php?plan=" . gp("g_plan")  ."' target='plan'>Day Plan</a>"
              . " <a href='https://dev.planning.hands-on-technology.org/generator/extra/generator_show_plan_raw.php?plan=" . gp("g_plan")  ."' target='act'>Activities</a><br>";
     }
 
@@ -51,6 +55,7 @@ function g_generator($plan_id) {
     db_get_parameters();                // Get all parameters for the plan
 
     if($DEBUG >= 1){
+        g_debug_log("e_mode");
         echo "<h2>Mode</h2>";
         echo "e mode: " . gp("e_mode") . "<br>";
     }
@@ -133,6 +138,16 @@ function g_generator($plan_id) {
         // ***********************************************************************************
 
         if ($DEBUG >= 1) {
+
+            g_debug_log("c_teams");
+            g_debug_log("j_lanes");
+            g_debug_log("j_rounds");
+            g_debug_log("r_tables");
+            g_debug_log("r_robot_check");
+            g_debug_log("r_matches_per_round");
+            g_debug_log("r_need_volunteer");
+            g_debug_log("r_asym");
+
             echo "<h2>Challenge</h2>";
             echo "c teams: " . gp("c_teams") . "<br>";
             echo "j lanes: " . gp("j_lanes") . "<br>";
@@ -249,6 +264,10 @@ function g_generator($plan_id) {
             e_briefings($t, 1);
         
             if($DEBUG >= 1) {
+                g_debug_log("e1_teams");
+                g_debug_log("e1_lanes");
+                g_debug_log("e1_rounds");
+
                 echo "<h2>Explore - morning batch</h2>";
                 echo "e1 teams: " . gp("e1_teams") . "<br>";
                 echo "e1 lanes: " . gp("e1_lanes") . "<br>";
@@ -646,8 +665,7 @@ function g_generator($plan_id) {
         // FLL Challenge: Research presentations on stage
         // -----------------------------------------------------------------------------------  
 
-        if (gp("c_presentations_last") )  
-        {
+        if ( gp("c_presentations") > 0 && gp("c_presentations_last") ) {
             // Create inserted block or planned delay.
             g_insert_point(ID_IP_PRESENTATIONS);
 
@@ -670,7 +688,7 @@ function g_generator($plan_id) {
 
         // FLL Explore
         // Deliberations might have taken longer. Which is rather theroritical ...
-        if (gp("e2_teams") > 0 && g_diff_in_minutes($e_time, $c_time) > 0 ) {                       // TODO use emode
+        if (gp("e_mode") == ID_E_AFTERNOON && g_diff_in_minutes($e_time, $c_time) > 0 ) {                       
             $c_time = clone $e_time;
         } 
   
@@ -706,7 +724,7 @@ function g_generator($plan_id) {
         // FLL Explore decoupled from FLL Challenge
         // -----------------------------------------------------------------------------------
 
-        if (gp("e_mode") == ID_E_DECOUPLED_ONE || gp("e_mode") == ID_E_DECOUPLED_TWO) {
+        if (gp("e_mode") == ID_E_DECOUPLED_MORNING || gp("e_mode") == ID_E_DECOUPLED_AFTERNOON || gp("e_mode") == ID_E_DECOUPLED_BOTH) {
             e_decoupled($g_event_date);
         } else {
             if($DEBUG >= 1){
