@@ -11,7 +11,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\PreviewController;
 use App\Http\Controllers\Api\QualityController;
-use App\Services\VolumeTest;
+use App\Services\EvaluateQuality;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -26,9 +26,9 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 
 // TODO
 //Route::get('/quality/debug/{qPlanId}', [QualityController::class, 'debug']);
-Route::post('/quality/start-run', [QualityController::class, 'startRun']);
+Route::post('/quality/start-qrun', [QualityController::class, 'startQRun']);
 Route::get('/quality/qrun/{id}', function ($id) {
-    (new VolumeTest())->generateQPlans((int)$id);
+    (new EvaluateQuality())->generateQPlans((int)$id);
     return 'Fertig';
 });
 Route::get('/quality/', [PreviewController::class, 'roles']);

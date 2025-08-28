@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import axios from 'axios'
 
 const minTeams = ref(8)
-const maxTeams = ref(12)
+const maxTeams = ref(8)
 
 const juryLanes = ref({
   lane_1: true,
@@ -15,7 +15,7 @@ const juryLanes = ref({
 
 const tables = ref({
   tables_2: true,
-  tables_4: true,
+  tables_4: false,
 })
 
 const juryRounds = ref({
@@ -59,7 +59,7 @@ const startVolumeTest = () => {
     selection,
   }
 
-  axios.post('/quality/start-run', payload)
+  axios.post('/quality/start-qrun', payload)
     .catch(error => {
       if (error.response) {
         const status = error.response.status

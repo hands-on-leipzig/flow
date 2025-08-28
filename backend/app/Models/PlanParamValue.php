@@ -10,10 +10,6 @@ class PlanParamValue extends Model
     protected $table = 'plan_param_value';
     public $timestamps = false;
     protected $fillable = [
-        "set_value"
-    ];
-
-    protected $fillable = [
         'parameter',
         'plan',
         'set_value',

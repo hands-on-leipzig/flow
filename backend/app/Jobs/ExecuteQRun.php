@@ -1,6 +1,7 @@
 <?php
 namespace App\Jobs;
-use App\Services\VolumeTest;
+
+use App\Services\EvaluateQuality;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -30,8 +31,8 @@ class ExecuteQRun implements ShouldQueue
         Log::info("ExecuteQRun gestartet für Run {$this->runId}");
 
         try {
-            $volumeTest = new VolumeTest();
-            $volumeTest->generateQPlans($this->runId);
+            $qPlans = new EvaluateQuality();
+            $qPlans->generateQPlans($this->runId);
             Log::info("ExecuteQRun erfolgreich abgeschlossen für Run {$this->runId}");
         } catch (\Throwable $e) {
             Log::error("ExecuteQRun fehlgeschlagen für Run {$this->runId}: {$e->getMessage()}");
