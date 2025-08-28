@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Activity;
+use App\Models\QRun;
 use App\Models\QPlan;
 use App\Models\QPlanTeam;
 use App\Models\MParameter;
@@ -152,6 +153,7 @@ class EvaluateQuality
                     'c_teams' => $plan->teams,
                     'r_tables' => $plan->tables ?? 0,
                     'j_lanes' => $plan->lanes,
+                    'j_rounds' => $rounds,
                     'r_robot_check' => $robotCheck,
                     'r_duration_robot_check' => 0,
                     'q1_ok_count' => null,
@@ -167,7 +169,13 @@ class EvaluateQuality
              
         }  // End foreach supported plan
 
-        // ⬇️ Statt Service direkt Job dispatchen – jetzt mit runId
+        // Update q_run with the total number of q_plans created
+        $qPlansTotal = QPlan::where('q_run', $runId)->count();
+        QRun::where('id', $runId)->update([
+            'qplans_total' => $qPlansTotal,
+        ]);
+
+        // Dispatch the job to generate plans for this run
         \App\Jobs\ExecuteQPlan::dispatch($runId);
 
         Log::info("ExecuteQPlan Job für Run ID $runId dispatcht");

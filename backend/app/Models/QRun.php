@@ -20,6 +20,8 @@ class QRun extends Model
         'finished_at',
         'status',
         'comment',
+        'qplans_total',
+        'qplans_calculated'
     ];
 
     /**
