@@ -27,8 +27,8 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 Route::prefix('quality')->group(function () {
     Route::post('/runs', [QualityController::class, 'startQRun']);                   // Start eines neuen Runs
     Route::get('/runs', [QualityController::class, 'listQRuns']);                    // Alle Runs auflisten
-    Route::get('/runs/{runId}/plans', [QualityController::class, 'listQPlans']);     // Alle Pläne zu einem Run
-    Route::get('/plans/{planId}', [QualityController::class, 'getQPlanDetails']);    // Einzelplan-Details
+    Route::get('/plans/{runId}', [QualityController::class, 'listQPlans']);          // Alle Pläne zu einem Run
+    Route::get('/details/{planId}', [QualityController::class, 'getQPlanDetails']);  // Einzelplan-Details
 });
 
 
