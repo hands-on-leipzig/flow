@@ -7,6 +7,7 @@ use App\Models\QRun;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+
 class QualityController extends Controller
 {
     
@@ -66,9 +67,62 @@ class QualityController extends Controller
         return response()->json($plans);
     }
 
-    public function getQPlanDetails(int $planId)
+    public function getQPlanDetails(int $qplanId)
     {
-        // TODO: Implement plan details retrieval
-        return response()->json(['status' => 'not implemented'], 501);
+        $teams = \App\Models\QPlanTeam::where('q_plan', $qplanId)->get();
+        $matches = \App\Models\QPlanMatch::where('q_plan', $qplanId)->get();
+
+        $qplan = \App\Models\QPlan::findOrFail($qplanId);
+        $c_teams = $qplan->c_teams;
+
+        // Indexiere Matches nach Runde für schnelleren Zugriff
+        $matchesByRound = $matches->groupBy('round');
+
+        $summary = [];
+
+        for ($team = 1; $team <= $c_teams; $team++) {
+            $entry = ['team' => $team];
+
+            // Runde 0 – Testrunde
+            $round0 = $matchesByRound[0]->first(fn($m) => $m->table_1_team == $team || $m->table_2_team == $team);
+            $entry['tr_table'] = $round0?->table_1_team == $team ? $round0->table_1 : $round0?->table_2;
+
+            // Runde 1–3
+            $tables = [];
+            $opponents = [];
+
+            foreach ([1, 2, 3] as $r) {
+                $match = $matchesByRound[$r]?->first(fn($m) => $m->table_1_team == $team || $m->table_2_team == $team);
+                if ($match) {
+                    $tableKey = "r{$r}_table";
+                    $oppKey = "r{$r}_opponent";
+
+                    $table = $match->table_1_team == $team ? $match->table_1 : $match->table_2;
+                    $opponent = $match->table_1_team == $team ? $match->table_2_team : $match->table_1_team;
+
+                    $entry[$tableKey] = $table;
+                    $entry[$oppKey] = $opponent;
+
+                    $tables[] = $table;
+                    $opponents[] = $opponent;
+                } else {
+                    $entry["r{$r}_table"] = null;
+                    $entry["r{$r}_opponent"] = null;
+                }
+            }
+
+            $entry['tables'] = count(array_unique($tables));
+            $entry['teams'] = count(array_unique($opponents));
+
+            $summary[] = $entry;
+        }
+
+        return response()->json([
+            'teams' => $teams,
+            'matches' => $matches,
+            'c_duration_transfer' => (int) $qplan->c_duration_transfer,
+            'r_tables' => (int) $qplan->r_tables,
+            'match_summary' => $summary,
+        ]);
     }
 }

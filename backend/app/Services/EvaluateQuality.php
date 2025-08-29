@@ -146,16 +146,19 @@ class EvaluateQuality
                     'set_value' => 0,
                 ]);
 
+
                 // Create the corresponding q_plan entry
                 $qPlan = QPlan::create([
                     'plan' => $planId,
                     'q_run' => $runId,
+                    'name' => $newPlan->name,
                     'c_teams' => $plan->teams,
                     'r_tables' => $plan->tables ?? 0,
                     'j_lanes' => $plan->lanes,
                     'j_rounds' => $rounds,
                     'r_robot_check' => $robotCheck,
                     'r_duration_robot_check' => 0,
+                    'c_duration_transfer' => $parameters['c_duration_transfer']->value,
                     'q1_ok_count' => null,
                     'q2_ok_count' => null,
                     'q3_ok_count' => null,
