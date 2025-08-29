@@ -21,8 +21,9 @@ const emit = defineEmits([
   'update:qrunName',
   'update:qrunComment',
   'start',
-  'refresh',
+  'refresh', // ← HIER
 ])
+
 </script>
 
 <template>
@@ -188,11 +189,12 @@ const emit = defineEmits([
         <button
           class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-3 py-2 rounded"
           title="Liste neu laden"
-          @click="emit('refresh')"
+          @click="$emit('refresh')"
         >
-          🔄 Aktualisieren
+          🔄 Refresh
         </button>
-      </div>
+</div>
+
     </div>
   </div>
 </template>

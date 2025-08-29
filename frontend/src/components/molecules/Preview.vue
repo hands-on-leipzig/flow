@@ -42,7 +42,8 @@ async function load() {
   loading.value = true
   error.value = null
 
-  const url = `/plans/preview/${effectivePlanId.value}/${view.value}`                    // /preview/{planId}/teams role rooms
+  const url = `/plans/${effectivePlanId.value}/schedule/${view.value}`
+  console.log('[Preview] GET', url, 'axios.defaults.baseURL =', axios.defaults.baseURL)
 
   try {
     const {data} = await axios.get(url)

@@ -69,7 +69,7 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
         {path: '/publish', component: PublishControl},
         {path: '/admin', component: Admin},
         {path: '/preview/:planId', component: Preview, props: true},
-        {path: '/editSlide', component: EditSlide}
+        {path: '/preview/:planId', component: Preview, props: true},
     ]
 
     const router = createRouter({
