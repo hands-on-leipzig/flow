@@ -51,4 +51,9 @@ class Event extends Model
         return $this->hasMany(Team::class, "event");
     }
 
+    public function tableNames()
+    {
+        return $this->hasMany(TableEvent::class, 'event');
+    }
+
 }

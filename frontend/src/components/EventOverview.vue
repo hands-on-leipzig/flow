@@ -4,11 +4,6 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import dayjs from "dayjs";
 
-import TeamList from "@/components/molecules/TeamList.vue";
-import {RadioGroup} from "@headlessui/vue";
-import ParameterField from "@/components/molecules/ParameterField.vue";
-
-
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const challengeData = ref(null)
@@ -27,16 +22,55 @@ onMounted(async () => {
 
   event.value.wifi_ssid ??= ''
   event.value.wifi_password ??= ''
+
+  await fetchTableNames()
 })
 
 const updateEventField = async (field, value) => {
-  //if (!event.id) return
   try {
     await axios.put(`/events/${event.value?.id}`, {
       [field]: value
     })
   } catch (e) {
     console.error('WLAN update failed:', e)
+  }
+}
+
+const tableNames = ref(['', '', '', ''])
+
+const fetchTableNames = async () => {
+  if (!event.value?.id) return
+  try {
+    const response = await axios.get(`/events/${event.value.id}/table-names`)
+    const tables = response.data.table_names
+
+    const names = Array(4).fill('')
+    tables.forEach(t => {
+      if (t.table_number >= 1 && t.table_number <= 4) {
+        names[t.table_number - 1] = t.table_name ?? ''
+      }
+    })
+    tableNames.value = names
+  } catch (e) {
+    console.error('Fehler beim Laden der Tischbezeichnungen:', e)
+    tableNames.value = Array(4).fill('')
+  }
+}
+
+const updateTableName = async () => {
+  if (!event.value?.id) return
+
+  try {
+    const payload = {
+      table_names: tableNames.value.map((name, i) => ({
+        table_number: i + 1,
+        table_name: name ?? '',
+      })),
+    }
+
+    await axios.put(`/events/${event.value.id}/table-names`, payload)
+  } catch (e) {
+    console.error('Fehler beim Speichern der Tischnamen:', e)
   }
 }
 </script>
@@ -92,7 +126,7 @@ const updateEventField = async (field, value) => {
                   @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
                   class="w-full border px-3 py-1 rounded text-sm"
                   type="text"
-                  placeholder="z. B. Gäste-WLAN"
+                  placeholder="z. B. TH_EVENT_WLAN"
               />
             </div>
             <div>
@@ -102,12 +136,31 @@ const updateEventField = async (field, value) => {
                   @blur="updateEventField('wifi_password', event.wifi_password)"
                   class="w-full border px-3 py-1 rounded text-sm"
                   type="text"
-                  placeholder="z. B. 12345678"
+                  placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
+              />
+            </div>
+            
+          </div>
+        </div>
+
+        <!-- Neue Kiste für Robot-Game-Tische -->
+        <div class="p-4 border rounded shadow">
+          <h2 class="text-lg font-semibold mb-2">Bezeichnung der Robot-Game-Tische</h2>
+          <div class="grid grid-cols-2 gap-4">
+            <div v-for="(name, index) in tableNames" :key="index">
+              <label class="block text-sm text-gray-700 mb-1">Tisch {{ index + 1 }}</label>
+              <input
+                v-model="tableNames[index]"
+                @blur="updateTableName"
+                class="w-full border px-3 py-1 rounded text-sm"
+                type="text"
+                :placeholder='"leer lassen für \"Tisch " + (index + 1) + "\""'
               />
             </div>
           </div>
         </div>
 
+        
 
       </div>
     </div>

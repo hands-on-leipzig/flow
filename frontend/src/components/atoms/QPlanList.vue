@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import axios from 'axios'
 import QRunCard from '@/components/atoms/QRunCard.vue'
 
@@ -10,17 +10,34 @@ const props = defineProps({
   },
 })
 
-const plans = ref([])
+const plansRaw = ref([])
 const loading = ref(true)
 const error = ref(null)
 const expandedPlanId = ref(null)
+
+const filterQ = {
+  1: ref(false),
+  2: ref(false),
+  3: ref(false),
+  4: ref(false),
+}
+
+const plans = computed(() => {
+  return plansRaw.value.filter(plan => {
+    return [1, 2, 3, 4].every(q => {
+      if (!filterQ[q].value) return true
+      const ok = plan[`q${q}_ok_count`]
+      return ok < plan.c_teams
+    })
+  })
+})
 
 const loadPlans = async () => {
   loading.value = true
   error.value = null
   try {
     const response = await axios.get(`/quality/plans/${props.runId}`)
-    plans.value = response.data
+    plansRaw.value = response.data
   } catch (err) {
     console.error('Fehler beim Laden der QPlans', err)
     error.value = 'Fehler beim Laden der Pläne'
@@ -67,14 +84,55 @@ function toggleExpanded(planId) {
     <div v-else-if="error" class="text-red-500 text-sm">{{ error }}</div>
     <div v-else-if="plans.length === 0" class="text-gray-400 text-sm">Keine Pläne gefunden.</div>
     <div v-else>
-      <!-- Tabellenkopf -->
+      <!-- Tabellenkopf mit Checkboxen in Q1–Q4 -->
       <div class="grid grid-cols-7 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
         <div>Name</div>
         <div>Teamanzahl</div>
-        <div>Q1 Transfer</div>
-        <div>Q2 Tische</div>
-        <div>Q3 Teams</div>
-        <div>Q4 Testrunde</div>
+
+        <div class="flex items-center gap-1">
+          
+          <input
+            type="checkbox"
+            v-model="filterQ[1].value"
+            class="accent-gray-600"
+            title="Nur Pläne anzeigen, bei denen Q1 nicht ok ist"
+          />
+          <span>Q1 Transfer</span>
+        </div>
+
+        <div class="flex items-center gap-1">
+          
+          <input
+            type="checkbox"
+            v-model="filterQ[2].value"
+            class="accent-gray-600"
+            title="Nur Pläne anzeigen, bei denen Q2 nicht ok ist"
+          />
+          <span>Q2 Tische</span>
+        </div>
+
+        <div class="flex items-center gap-1">
+          
+          <input
+            type="checkbox"
+            v-model="filterQ[3].value"
+            class="accent-gray-600"
+            title="Nur Pläne anzeigen, bei denen Q3 nicht ok ist"
+          />
+          <span>Q3 Teams</span>
+        </div>
+
+        <div class="flex items-center gap-1">
+          
+          <input
+            type="checkbox"
+            v-model="filterQ[4].value"
+            class="accent-gray-600"
+            title="Nur Pläne anzeigen, bei denen Q4 nicht ok ist"
+          />
+          <span>Q4 Testrunde</span>
+        </div>
+
         <div>Q5 Abstand</div>
       </div>
 
@@ -84,7 +142,6 @@ function toggleExpanded(planId) {
         :key="plan.id"
         class="border-b border-gray-100"
       >
-        <!-- Plan-Zeile -->
         <div
           class="grid grid-cols-7 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
           @click="toggleExpanded(plan.id)"
