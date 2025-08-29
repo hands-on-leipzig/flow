@@ -58,6 +58,7 @@ class QualityController extends Controller
     public function listQPlans(int $runId)
     {
         $plans = \App\Models\QPlan::where('q_run', $runId)
+            ->where('calculated', 1)
             ->orderBy('c_teams')
             ->orderBy('j_lanes')
             ->orderBy('r_tables')

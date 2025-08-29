@@ -97,9 +97,9 @@ const matchesByRound = (round) => {
                 <th class="px-2 py-1">R2</th>
                 <th class="px-2 py-1">R3</th>
                 <th class="px-2 py-1">Tische</th>
-                <th class="px-2 py-1">T1</th>
-                <th class="px-2 py-1">T2</th>
-                <th class="px-2 py-1">T3</th>
+                <th class="px-2 py-1">R1</th>
+                <th class="px-2 py-1">R2</th>
+                <th class="px-2 py-1">R3</th>
                 <th class="px-2 py-1">Teams</th>
               </tr>
             </thead>

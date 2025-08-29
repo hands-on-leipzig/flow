@@ -97,7 +97,7 @@ fetchConditions()
           class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
           :class="{ 'bg-white font-semibold shadow': activeTab === 'volumetest' }"
           @click="activeTab = 'quality'">
-        📊 Plan-Qualität
+        📈 Plan-Qualität
       </button>
 
     </div>
