@@ -19,7 +19,9 @@ const emit = defineEmits([
   'update:runName',
   'update:runComment',
   'start',
+  'refresh', // ← HIER
 ])
+
 </script>
 
 <template>
@@ -149,8 +151,8 @@ const emit = defineEmits([
         />
       </div>
 
-      <!-- Start Button -->
-      <div>
+      <!-- Buttons: Start + Refresh -->
+      <div class="flex items-center gap-3">
         <button
           class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded disabled:opacity-40"
           :disabled="!isValid"
@@ -158,7 +160,16 @@ const emit = defineEmits([
         >
           ▶️ Start
         </button>
-      </div>
+
+        <button
+          class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-3 py-2 rounded"
+          title="Liste neu laden"
+          @click="$emit('refresh')"
+        >
+          🔄 Refresh
+        </button>
+</div>
+
     </div>
   </div>
 </template>

@@ -5,7 +5,6 @@ import {useRouter} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import dayjs from "dayjs";
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
-import LoaderText from "@/components/LoaderText.vue";
 
 const regionalPartners = ref([])
 const eventStore = useEventStore()

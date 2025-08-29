@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import axios from 'axios'
-import QRunCard from '@/components/atoms/QRunCard.vue'
+import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 
 const props = defineProps({
   runId: {
@@ -76,6 +76,11 @@ function farbeQ5Stddev(stddev) {
 function toggleExpanded(planId) {
   expandedPlanId.value = expandedPlanId.value === planId ? null : planId
 }
+
+function openPreview(planId) {
+  window.open(`/preview/${planId}`, '_blank', 'noopener')
+}
+
 </script>
 
 <template>
@@ -141,12 +146,22 @@ function toggleExpanded(planId) {
         v-for="plan in plans"
         :key="plan.id"
         class="border-b border-gray-100"
-      >
-        <div
-          class="grid grid-cols-7 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
-          @click="toggleExpanded(plan.id)"
         >
-          <div class="flex items-center gap-1">{{ plan.name || `#${plan.id}` }}</div>
+          <div
+              class="grid grid-cols-7 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
+              @click="toggleExpanded(plan.id)"
+            >
+            <div class="flex items-center gap-2">
+              <button
+                @click.stop="openPreview(plan.plan)"
+                class="text-blue-600 hover:text-blue-800"
+                title="Vorschau öffnen"
+              >
+              🧾 
+              </button>
+              <span>{{ plan.name || `#${plan.plan}` }}</span>
+            </div>
+
           <div>{{ plan.c_teams }}</div>
 
           <div class="flex items-center gap-1">
@@ -177,11 +192,14 @@ function toggleExpanded(planId) {
           </div>
         </div>
 
+
         <!-- Akkordeon für Details -->
         <div v-if="expandedPlanId === plan.id" class="bg-gray-50 px-2 py-1 border-t border-gray-200">
-          <QRunCard :planId="plan.id" />
+          <QPlanDetails :planId="plan.id" />
         </div>
+        
       </div>
+
     </div>
   </div>
 </template>

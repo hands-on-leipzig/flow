@@ -27,12 +27,6 @@ const loadRuns = async () => {
       selection: JSON.parse(run.selection),
     }))
 
-    if (response.data.has_running && !intervalId) {
-      intervalId = setInterval(loadRuns, 30000)
-    } else if (!response.data.has_running && intervalId) {
-      clearInterval(intervalId)
-      intervalId = null
-    }
   } catch (err) {
     console.error('Fehler beim Laden der Runs', err)
     error.value = 'Fehler beim Laden der Liste'
@@ -50,7 +44,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="space-y-2 mt-4">
-    <div v-if="loading" class="text-gray-500">Lade …</div>
+    <div v-if="loading" class="text-gray-500">Lade Runs …</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else-if="runs.length === 0" class="text-gray-400">Keine Runs gefunden.</div>
     <div v-else>

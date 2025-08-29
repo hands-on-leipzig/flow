@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import {ref, watch, onMounted, computed} from 'vue'
 import axios from 'axios'
-import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
-import LoaderText from "@/components/LoaderText.vue";
 
 type Header = { key: string; title: string }
 type Cell = { render?: boolean; rowspan?: number; colspan?: number; text?: string }
@@ -14,12 +12,21 @@ type Row = {
   cells?: Record<string, Cell>
 }
 
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
 const props = withDefaults(defineProps<{
-  planId: number
+  planId?: number
   initialView?: 'roles' | 'teams' | 'rooms'
-  reload?: number             // optionaler „Tick“, bei Änderung neu laden
+  reload?: number
 }>(), {
   initialView: 'roles',
+})
+
+// Fallback: Wenn planId nicht direkt als Prop übergeben wurde (z. B. über Router), nimm's aus der URL
+const effectivePlanId = computed(() => {
+  return props.planId ?? Number(route.params.planId)
 })
 
 const view = ref<'roles' | 'teams' | 'rooms'>(props.initialView)
@@ -31,12 +38,12 @@ const rows = ref<Row[]>([])
 const headerKeys = computed(() => headers.value.map(h => h.key))
 
 async function load() {
-  if (!props.planId) return
+  if (!effectivePlanId.value) return
   loading.value = true
   error.value = null
 
-  const url = `/plans/${props.planId}/schedule/${view.value}`
-  console.log('[ScheduleMatrix] GET', url, 'axios.defaults.baseURL =', axios.defaults.baseURL)
+  const url = `/plans/${effectivePlanId.value}/schedule/${view.value}`
+  console.log('[Preview] GET', url, 'axios.defaults.baseURL =', axios.defaults.baseURL)
 
   try {
     const {data} = await axios.get(url)
@@ -44,7 +51,7 @@ async function load() {
     headers.value = Array.isArray(data?.headers) ? data.headers : []
     rows.value = Array.isArray(data?.rows) ? data.rows : []
   } catch (e: any) {
-    console.error('[ScheduleMatrix] load() error:', e)
+    console.error('[Preview] load() error:', e)
     error.value = e?.message || 'Fehler beim Laden'
     headers.value = []
     rows.value = []
@@ -53,7 +60,7 @@ async function load() {
   }
 }
 
-watch(() => props.planId, () => load())
+watch(() => effectivePlanId.value, () => load())
 watch(view, () => load())
 watch(() => props.reload, () => load())
 
@@ -96,7 +103,7 @@ function setView(v: 'roles' | 'teams' | 'rooms') {
           Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
         </span>
         <span class="whitespace-nowrap">
-          Plan ID: {{ props.planId }}
+          Plan ID: {{ effectivePlanId }}
         </span>
       </div>
     </div>
@@ -121,9 +128,8 @@ function setView(v: 'roles' | 'teams' | 'rooms') {
         <tbody>
         <!-- Laden -->
         <tr v-if="loading">
-          <td :colspan="headers.length" class="px-3 py-8 text-center text-gray-500">
-            <LoaderFlow/>
-            <LoaderText/>
+          <td :colspan="headers.length" class="px-3 py-8 text-left text-gray-500">
+            Wird geladen …
           </td>
         </tr>
 

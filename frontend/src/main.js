@@ -15,6 +15,7 @@ import EventOverview from "@/components/EventOverview.vue";
 import PublishControl from "@/components/PublishControl.vue";
 import Admin from "@/components/Admin.vue";
 import Teams from "@/components/Teams.vue";
+import Preview from "@/components/molecules/Preview.vue";
 
 keycloak.init({onLoad: 'login-required'}).then(authenticated => {
     if (!authenticated) {
@@ -63,7 +64,8 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
         {path: '/events', component: SelectEvent},
         {path: '/rooms', component: Rooms},
         {path: '/publish', component: PublishControl},
-        {path: '/admin', component: Admin}
+        {path: '/admin', component: Admin},
+        {path: '/preview/:planId', component: Preview, props: true},
     ]
 
     const router = createRouter({
