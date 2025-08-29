@@ -8,16 +8,14 @@ import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import TimeSettings from "@/components/molecules/TimeSettings.vue";
 import ExploreSettings from "@/components/molecules/ExploreSettings.vue";
 import ChallengeSettings from "@/components/molecules/ChallengeSettings.vue";
-import ScheduleMatrix from "@/components/molecules/ScheduleMatrix.vue"
+import Preview from "@/components/molecules/Preview.vue";
+import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
+import LoaderText from "@/components/atoms/LoaderText.vue"; 
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
 const parameters = ref<Parameter[]>([])
-const matrixReloadTick = ref(0)
 
-function notifyMatrixReload() {
-  matrixReloadTick.value++
-}
 
 const inputName = ref('')
 const plans = ref<any[]>([])
@@ -35,12 +33,6 @@ const SPECIAL_KEYS = new Set([
   'e1_lanes', 'e2_lanes'
 ])
 const isSpecial = (p: any) => SPECIAL_KEYS.has((p.name || '').toLowerCase())
-
-watch(selectedPlanId, async (newPlanId) => {
-  if (!newPlanId) return
-  await fetchParams(newPlanId)
-  notifyMatrixReload()
-})
 
 const paramMap = computed<Record<number, Parameter>>(() => {
   const map: Record<number, Parameter> = {}
@@ -205,30 +197,33 @@ function normalizeValue(value: any, type: string | undefined) {
 }
 
 // Unified update function for single or multiple parameters
-async function updateParams(params: Array<{ name: string, value: any }>) {
+// Including new "isGenerating" state
+
+const isGenerating = ref(false)
+
+async function updateParams(params: Array<{ name: string, value: any }>, afterUpdate?: () => Promise<void>) {
   if (!selectedPlanId.value) return
 
   loading.value = true
+  isGenerating.value = true
 
   try {
-    // Send update to unified endpoint using global axios instance
-    await axios.post(`/plans/${selectedPlanId.value}/parameters`,
-        {
-          parameters: params.map(({name, value}) => {
-            const p = paramMapByName.value[name]
-            return {
-              id: p?.id,
-              value: normalizeValue(value, p?.type)?.toString() ?? ''
-            }
-          })
+    await axios.post(`/plans/${selectedPlanId.value}/parameters`, {
+      parameters: params.map(({ name, value }) => {
+        const p = paramMapByName.value[name]
+        return {
+          id: p?.id,
+          value: normalizeValue(value, p?.type)?.toString() ?? ''
         }
-    )
+      })
+    })
 
-    notifyMatrixReload()
+    if (afterUpdate) await afterUpdate()
   } catch (error) {
     console.error('Error updating parameters:', error)
   } finally {
     loading.value = false
+    isGenerating.value = false
   }
 }
 
@@ -258,7 +253,7 @@ async function fetchPlans() {
   if (plans.value.length > 0) {
     selectedPlanId.value = plans.value[0].id
     await fetchParams(selectedPlanId.value as number)
-    notifyMatrixReload()
+   
   } else {
     const newPlanId = await createDefaultPlan()
     if (newPlanId) {
@@ -266,7 +261,7 @@ async function fetchPlans() {
       plans.value.push(newPlan)
       selectedPlanId.value = newPlanId
       await fetchParams(newPlanId)
-      notifyMatrixReload()
+      
     }
   }
 }
@@ -443,20 +438,23 @@ onMounted(async () => {
           <ExtraBlocks
               :plan-id="selectedPlanId as number"
               :event-level="selectedEvent?.level ?? null"
-              @changed="notifyMatrixReload()"
           />
         </div>
       </transition>
     </div>
 
     <div class="flex-grow overflow-hidden">
-      <ScheduleMatrix
-          v-if="selectedPlanId"
+      <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-gray-600">
+        <LoaderFlow />
+        <LoaderText />
+      </div>
+      <Preview
+          v-else-if="selectedPlanId"
           :plan-id="selectedPlanId as number"
           initial-view="roles"
-          :reload="matrixReloadTick"
       />
-    </div>
+</div>
+
   </div>
 </template>
 

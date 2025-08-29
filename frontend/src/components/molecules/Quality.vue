@@ -98,6 +98,7 @@ const startVolumeTest = () => {
         v-model:run-comment="runComment"
         :is-valid="isValid"
         @start="startVolumeTest"
+        @refresh="reload++" 
       />
     </div>
 

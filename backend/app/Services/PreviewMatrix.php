@@ -15,7 +15,7 @@ class PreviewMatrix
         // --- 1. Load roles and visibility map
         $roles = DB::table('m_role')
             ->whereNotNull('first_program')
-            ->where('schedule_matrix', 1)
+            ->where('preview_matrix', 1)
             ->orderBy('first_program')
             ->orderBy('sequence')
             ->get();
@@ -269,7 +269,7 @@ class PreviewMatrix
         // 1) Load ONLY the team-roles per program (for visibility) 
         $teamRoles = DB::table('m_role')
             ->whereNotNull('first_program')
-            ->where('schedule_matrix', 1)
+            ->where('preview_matrix', 1)
             ->where('differentiation_parameter', 'team')
             ->select('id','first_program','name_short')
             ->get();
@@ -400,7 +400,7 @@ class PreviewMatrix
         // 1) Load roles (only used in schedule matrix) and filter out table-differentiated roles
         $roles = DB::table('m_role')
             ->whereNotNull('first_program')
-            ->where('schedule_matrix', 1)
+            ->where('preview_matrix', 1)
             ->where(function($q){
                 $q->whereNull('differentiation_parameter')
                 ->orWhere('differentiation_parameter', '<>', 'table');
