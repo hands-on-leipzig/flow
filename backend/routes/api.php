@@ -23,13 +23,7 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
     ]);
 });
 
-// TODO
-Route::prefix('quality')->group(function () {
-    Route::post('/runs', [QualityController::class, 'startQRun']);                   // Start eines neuen Runs
-    Route::get('/runs', [QualityController::class, 'listQRuns']);                    // Alle Runs auflisten
-    Route::get('/plans/{runId}', [QualityController::class, 'listQPlans']);          // Alle Pläne zu einem Run
-    Route::get('/details/{planId}', [QualityController::class, 'getQPlanDetails']);  // Einzelplan-Details
-});
+
 
 
 Route::middleware(['keycloak'])->group(function () {
@@ -77,6 +71,9 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}', [EventController::class, 'getEvent']);
     Route::put('/events/{event}', [EventController::class, 'update']);
 
+    Route::get('/events/{event}/table-names', [EventController::class, 'getTableNames']);
+    Route::put('/events/{id}/table-names', [EventController::class, 'updateTableNames']);
+
     Route::get('/logos', [LogoController::class, 'index']);
     Route::post('/logos', [LogoController::class, 'store']);
     Route::patch('/logos/{logo}', [LogoController::class, 'update']);
@@ -105,6 +102,14 @@ Route::middleware(['keycloak'])->group(function () {
     // admin routes
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
+
+    // Quality controller routes
+    Route::prefix('quality')->group(function () {
+        Route::post('/runs', [QualityController::class, 'startQRun']);                   // Start eines neuen Runs
+        Route::get('/runs', [QualityController::class, 'listQRuns']);                    // Alle Runs auflisten
+        Route::get('/plans/{runId}', [QualityController::class, 'listQPlans']);          // Alle Pläne zu einem Run
+        Route::get('/details/{planId}', [QualityController::class, 'getQPlanDetails']);  // Einzelplan-Details
+    });
 
     
 });
