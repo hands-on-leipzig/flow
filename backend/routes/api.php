@@ -109,7 +109,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/qruns', [QualityController::class, 'listQRuns']);                    // Alle Runs auflisten
         Route::get('/qplans/{qRunId}', [QualityController::class, 'listQPlans']);          // Alle Pläne zu einem Run
         Route::get('/details/{qPlanId}', [QualityController::class, 'getQPlanDetails']);  // Einzelplan-Details
-        Route::post('/rerun', [QualityController::class, 'rerunFromQPlans']);
+        Route::post('/rerun', [QualityController::class, 'rerunQPlans']);
     });
 
     

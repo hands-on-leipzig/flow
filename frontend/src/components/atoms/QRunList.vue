@@ -22,11 +22,19 @@ const loadQRuns = async () => {
   error.value = null
   try {
     const response = await axios.get('/quality/qruns')
-    qruns.value = response.data.qruns.map(qrun => ({
-      ...qrun,
-      selection: JSON.parse(qrun.selection),
-    }))
-  } catch (err) {
+    qruns.value = response.data.qruns.map(qrun => {
+      let selection = {}
+      try {
+        selection = qrun.selection ? JSON.parse(qrun.selection) : {}
+      } catch (e) {
+        console.warn(`Ungültiges JSON in selection für qrun ${qrun.id}`)
+      }
+      return {
+        ...qrun,
+        selection,
+      }
+    })
+      } catch (err) {
     console.error('Fehler beim Laden der QRuns', err)
     error.value = 'Fehler beim Laden der Liste'
   } finally {
@@ -64,14 +72,14 @@ onBeforeUnmount(() => {
 
           <!-- Spalte 2: Teams + Runden -->
           <div class="basis-[20%] flex-shrink-0 text-sm text-gray-600 space-y-1">
-            <div><strong>Teams:</strong> {{ qrun.selection.min_teams }}–{{ qrun.selection.max_teams }}</div>
-            <div><strong>Runden:</strong> {{ qrun.selection.jury_rounds?.join(', ') || '–' }}</div>
+            <div><strong>Teams:</strong> {{ qrun.selection.min_teams ?? '?' }}–{{ qrun.selection.max_teams ?? '?' }}</div>
+            <div><strong>Runden:</strong> {{ qrun.selection.jury_rounds?.join(', ') ?? '?' }}</div>
           </div>
 
           <!-- Spalte 3: Spuren + Tische -->
           <div class="basis-[20%] flex-shrink-0 text-sm text-gray-600 space-y-1">
-            <div><strong>Spuren:</strong> {{ qrun.selection.jury_lanes?.join(', ') || '–' }}</div>
-            <div><strong>Tische:</strong> {{ qrun.selection.tables?.join(', ') || '–' }}</div>
+            <div><strong>Spuren:</strong> {{ qrun.selection.jury_lanes?.join(', ') ?? '?' }}</div>
+            <div><strong>Tische:</strong> {{ qrun.selection.tables?.join(', ') ?? '?' }}</div>
           </div>
 
           <!-- Spalte 4: QPlans + Status + Start/Ende -->

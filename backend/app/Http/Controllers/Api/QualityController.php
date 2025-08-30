@@ -2,7 +2,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\ExecuteQRun;
 use App\Services\EvaluateQuality;
 
 use App\Models\QRun;
@@ -35,16 +34,10 @@ class QualityController extends Controller
             'status' => 'pending',
         ]);
 
-/* alt
-
-        // Job dispatchen (asynchron)
-        ExecuteQRun::dispatch($qRun); */
-
-// neu
 
         // Create all QPlans for this run (synchronously)
         $qPlans = new EvaluateQuality();
-        $qPlans->generateQPlans($qRun);
+        $qPlans->generateQPlansFromSelection($qRun);
 
         // Dispatch the job to generate plans for this run
         \App\Jobs\ExecuteQPlan::dispatch($qRun);
@@ -57,17 +50,45 @@ class QualityController extends Controller
         ]);
     }
 
-    public function rerunFromQPlans(Request $request)
+    public function rerunQPlans(Request $request)
     {
+        $planIds = $request->input('plan_ids');
 
+        // 1. Prüfen, ob plan_ids übergeben wurden
+        if (empty($planIds) || !is_array($planIds)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Keine QPlan-IDs übergeben.',
+            ], 400);
+        }
 
-       return response()->json([
-            'status' => 'started',
-            'run_id' => 1,
+        // 2. Erste qPlan-ID nehmen und zugehörige qRun-ID holen
+        $firstQPlan = DB::table('q_plan')->where('id', $planIds[0])->first();
+
+        $originalRunId = $firstQPlan->q_run;
+
+        // 3. Neuen qRun anlegen mit passendem Namen
+        $newRunId = DB::table('q_run')->insertGetId([
+            'name' => "Rerun für $originalRunId (gefiltert)",
+            'comment' => null,
+            'selection' => null,
+            'started_at' => now(),
+            'status' => 'pending',
         ]);
 
-    }
+        // QPlans erzeugen (du baust das intern mit deinen IDs)
+        $qPlans = new EvaluateQuality();
+        $qPlans->generateQPlansFromQPlans($newRunId, $planIds); 
+        
+        // Job dispatchen
+        \App\Jobs\ExecuteQPlan::dispatch($newRunId);
+        Log::info("ExecuteQPlan Job für Run ID $newRunId dispatcht");
 
+        return response()->json([
+            'status' => 'started',
+            'run_id' => $newRunId,
+        ]);
+    }
 
     public function listQRuns()
     {
