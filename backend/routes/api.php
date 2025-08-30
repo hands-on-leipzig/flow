@@ -110,6 +110,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/qplans/{qRunId}', [QualityController::class, 'listQPlans']);          // Alle Pläne zu einem Run
         Route::get('/details/{qPlanId}', [QualityController::class, 'getQPlanDetails']);  // Einzelplan-Details
         Route::post('/rerun', [QualityController::class, 'rerunQPlans']);
+        Route::delete('/delete/{qRunId}', [QualityController::class, 'deleteQRun']);        // Löschen eines Runs und aller zugehörigen Pläne
     });
 
     

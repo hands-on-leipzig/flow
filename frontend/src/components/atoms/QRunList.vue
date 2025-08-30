@@ -47,6 +47,21 @@ watch(() => props.reload, loadQRuns)
 onBeforeUnmount(() => {
   if (intervalId) clearInterval(intervalId)
 })
+
+async function handleDelete(qrunId) {
+  if (!confirm(`QRun ${qrunId} wirklich löschen?`)) return
+
+  try {
+    await axios.delete(`/quality/delete/${qrunId}`)
+    await loadQRuns()
+  } catch (err) {
+    console.error('Fehler beim Löschen des QRuns:', err)
+    alert('Löschen fehlgeschlagen.')
+  }
+}
+
+
+
 </script>
 
 <template>
@@ -98,7 +113,13 @@ onBeforeUnmount(() => {
               </span>
             </div>
             <div>Start: {{ new Date(qrun.started_at).toLocaleString('de-DE') }}</div>
-            <div v-if="qrun.finished_at">Ende: {{ new Date(qrun.finished_at).toLocaleString('de-DE') }}</div>
+            <div v-if="qrun.finished_at">
+              Dauer: {{
+                Math.round(
+                  (new Date(qrun.finished_at) - new Date(qrun.started_at)) / 60000
+                )
+              }} Minuten
+            </div>
           </div>
 
           <!-- kein @click.stop hier -->
@@ -116,7 +137,10 @@ onBeforeUnmount(() => {
 
         <div v-if="expandedQRunId === qrun.id" class="border-t border-gray-200">
            <div class="bg-white px-4 py-2">
-            <QPlanList :qrun="qrun.id" />
+            <QPlanList
+              :qrun="qrun.id"
+              @refreshParent="loadQRuns"
+            />
           </div>
         </div>
 
