@@ -103,12 +103,7 @@ onBeforeUnmount(() => {
 
           <!-- kein @click.stop hier -->
           <div class="basis-[5%] flex-shrink-0 flex flex-col gap-2 items-end ml-4">
-            <button
-              @click.stop="handleRerun(qrun.id)"
-              class="..."
-            >
-              ↩️
-            </button>
+
             <button
               @click.stop="handleDelete(qrun.id)"
               class="..."

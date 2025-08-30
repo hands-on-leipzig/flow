@@ -109,7 +109,7 @@ async function startRerun() {
           class="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
           title="Neuen QRun mit diesen Plänen starten"
         >
-          🔁 ReRun mit gefilterten Plänen
+          🔁 ReRun für die angezeigten Plänen
         </button>
       </div>
 
@@ -184,24 +184,28 @@ async function startRerun() {
 
           <div>{{ qplan.c_teams }}</div>
 
+          <!-- Q1: Transfer -->
           <div class="flex items-center gap-1">
             <span>{{ ampelfarbeQ1Q4(qplan.q1_ok_count, qplan.c_teams) }}</span>
             <span>{{ qplan.q1_ok_count ?? '–' }}</span>
           </div>
 
+          <!-- Q4: Testrunde -->
+          <div class="flex items-center gap-1">
+            <span>{{ ampelfarbeQ1Q4(qplan.q4_ok_count, qplan.c_teams) }}</span>
+            <span>{{ qplan.q4_ok_count ?? '–' }}</span>
+          </div>
+
+          <!-- Q2: Tische -->
           <div class="flex items-center gap-1">
             <span>{{ ampelfarbeQ2Q3(qplan.q2_ok_count, qplan.c_teams, qplan.j_lanes) }}</span>
             <span>{{ qplan.q2_ok_count ?? '–' }}</span>
           </div>
 
+          <!-- Q3: Teams -->
           <div class="flex items-center gap-1">
             <span>{{ ampelfarbeQ2Q3(qplan.q3_ok_count, qplan.c_teams, qplan.j_lanes) }}</span>
             <span>{{ qplan.q3_ok_count ?? '–' }}</span>
-          </div>
-
-          <div class="flex items-center gap-1">
-            <span>{{ ampelfarbeQ1Q4(qplan.q4_ok_count, qplan.c_teams) }}</span>
-            <span>{{ qplan.q4_ok_count ?? '–' }}</span>
           </div>
 
           <div class="flex items-center gap-2">
