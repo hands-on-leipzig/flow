@@ -102,7 +102,17 @@ function openPreview(planId) {
             class="accent-gray-600"
             title="Nur Pläne anzeigen, bei denen Q1 nicht ok ist"
           />
-          <span>Q1 Transfer</span>
+          <span>Transfer</span>
+        </div>
+
+        <div class="flex items-center gap-1">  
+          <input
+            type="checkbox"
+            v-model="filterQ[4].value"
+            class="accent-gray-600"
+            title="Nur Pläne anzeigen, bei denen Q4 nicht ok ist"
+          />
+          <span>Testrunde</span>
         </div>
 
         <div class="flex items-center gap-1">
@@ -113,7 +123,7 @@ function openPreview(planId) {
             class="accent-gray-600"
             title="Nur Pläne anzeigen, bei denen Q2 nicht ok ist"
           />
-          <span>Q2 Tische</span>
+          <span>Tische</span>
         </div>
 
         <div class="flex items-center gap-1">
@@ -124,21 +134,12 @@ function openPreview(planId) {
             class="accent-gray-600"
             title="Nur Pläne anzeigen, bei denen Q3 nicht ok ist"
           />
-          <span>Q3 Teams</span>
+          <span>Teams</span>
         </div>
 
-        <div class="flex items-center gap-1">
-          
-          <input
-            type="checkbox"
-            v-model="filterQ[4].value"
-            class="accent-gray-600"
-            title="Nur Pläne anzeigen, bei denen Q4 nicht ok ist"
-          />
-          <span>Q4 Testrunde</span>
-        </div>
 
-        <div>Q5 Abstand</div>
+
+        <div>Abstand</div>
       </div>
 
       <!-- Datenzeilen -->

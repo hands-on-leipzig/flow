@@ -52,7 +52,7 @@ const matchesByRound = (round) => {
       <div class="flex flex-row justify-between items-start gap-4">
         <!-- Linker Block: Timing -->
         <div class="basis-[20%] flex-shrink-0 overflow-x-auto">
-          <div class="text-sm font-semibold text-gray-600 mb-1">Timing</div>
+          <div class="text-sm font-semibold text-gray-600 mb-1">Transfer</div>
           <table class="table-auto text-sm border-collapse">
             <thead class="bg-gray-100">
               <tr>
@@ -87,7 +87,7 @@ const matchesByRound = (round) => {
 
         <!-- Mittlerer Block: Tisch-Zuordnung -->
         <div class="basis-[30%] flex-shrink-0 overflow-x-auto">
-          <div class="text-sm font-semibold text-gray-600 mb-1">Tische und Team gegenüber</div>
+          <div class="text-sm font-semibold text-gray-600 mb-1">Testrunde, Tische und Teams gegenüber</div>
           <table class="table-auto text-sm border-collapse">
             <thead class="bg-gray-100">
               <tr>
