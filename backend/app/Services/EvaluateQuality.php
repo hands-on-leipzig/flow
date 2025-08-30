@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use PhpParser\Node\Expr\FuncCall;
 
 class EvaluateQuality
 {
@@ -50,7 +51,7 @@ class EvaluateQuality
         ];
     }
 
-    public function generateQPlans(int $runId): void
+    public function generateQPlansFromSelection(int $runId): void
     {
         Log::info("Erzeugung der qPlans für Run ID $runId startet.");
 
@@ -185,6 +186,58 @@ class EvaluateQuality
 
         Log::info("ExecuteQPlan Job für Run ID $runId dispatcht");
 */
+    }
+
+    public function generateQPlansFromQPlans(int $newRunId, array $planIds)
+    {
+        foreach ($planIds as $planId) {
+            $original = QPlan::find($planId);
+
+            if (!$original) {
+                Log::warning("QPlan $planId nicht gefunden, wird übersprungen.");
+                continue;
+            }
+
+            // Plan-Datensatz kopieren
+            $originalPlan = Plan::find($original->plan);
+            if (!$originalPlan) {
+                Log::warning("Plan {$original->plan} nicht gefunden, QPlan $planId wird übersprungen.");
+                continue;
+            }
+
+            $planCopy = $originalPlan->replicate();
+            $planCopy->save();
+
+            // QPlan-Datensatz kopieren und mit neuem Plan verknüpfen
+            $copy = $original->replicate();
+            $copy->q_run = $newRunId;
+            $copy->plan = $planCopy->id;
+
+            // Q-Werte nullen
+            $copy->q1_ok_count = null;
+            $copy->q2_ok_count = null;
+            $copy->q3_ok_count = null;
+            $copy->q4_ok_count = null;
+            $copy->q5_idle_avg = null;
+            $copy->q5_idle_stddev = null;
+            $copy->calculated = 0;
+
+            $copy->save();
+
+            // Parameterwerte kopieren
+            $paramValues = PlanParamValue::where('plan', $originalPlan->id)->get();
+
+            foreach ($paramValues as $param) {
+                $newParam = $param->replicate();
+                $newParam->plan = $planCopy->id;
+                $newParam->save();
+            }
+        }
+
+        // qplans_total setzen
+        QRun::where('id', $newRunId)->update([
+            'qplans_total' => QPlan::where('q_run', $newRunId)->count(),
+        ]);
     }
 
     private function isPlanSupported(MSupportedPlan $plan, array $selection): bool

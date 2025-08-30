@@ -115,7 +115,8 @@ async function startRerun() {
 
 
       <!-- Tabellenkopf -->
-      <div class="grid grid-cols-7 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
+      <div class="grid grid-cols-8 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
+        <div>Plan</div>
         <div>Name</div>
         <div>Teamanzahl</div>
         <div class="flex items-center gap-1">
@@ -164,10 +165,11 @@ async function startRerun() {
         class="border-b border-gray-100"
       >
         <div
-          class="grid grid-cols-7 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
+          class="grid grid-cols-8 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
           @click="toggleExpanded(qplan.id)"
         >
           <div class="flex items-center gap-2">
+            <span>{{ qplan.plan }}</span>
             <button
               @click.stop="openPreview(qplan.plan)"
               class="text-blue-600 hover:text-blue-800"
@@ -175,6 +177,8 @@ async function startRerun() {
             >
               🧾 
             </button>
+          </div>
+          <div class="flex items-center gap-2">
             <span>{{ qplan.name || `#${qplan.plan}` }}</span>
           </div>
 
