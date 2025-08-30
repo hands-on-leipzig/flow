@@ -2,10 +2,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\ExecuteQRun;
+use App\Services\EvaluateQuality;
+
 use App\Models\QRun;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 
 class QualityController extends Controller
@@ -24,7 +26,7 @@ class QualityController extends Controller
             return response()->json(['error' => 'Validation failed', 'details' => $e->errors()], 422);
         }
 
-        $runId = DB::table('q_run')->insertGetId([
+        $qRunId = DB::table('q_run')->insertGetId([
             'name' => $payload['name'],
             'comment' => $payload['comment'] ?? null,
             'selection' => json_encode($payload['selection']),
@@ -32,25 +34,67 @@ class QualityController extends Controller
             'status' => 'pending',
         ]);
 
-        // Job dispatchen (asynchron)
-        ExecuteQRun::dispatch($runId);
+        // Dispatch Job to generate QPlans async
+        \App\Jobs\GenerateQPlansFromSelection::dispatch($qRunId);
+
+        Log::info("GenerateQPlansFromSelection Job für Run ID $qRunId dispatcht");
 
         return response()->json([
-            'status' => 'started',
-            'run_id' => $runId,
+            'status' => 'queued',
+            'run_id' => $qRunId,
+        ]);
+    }
+
+    public function rerunQPlans(Request $request)
+    {
+        $planIds = $request->input('plan_ids');
+
+        if (empty($planIds) || !is_array($planIds)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Keine QPlan-IDs übergeben.',
+            ], 400);
+        }
+
+        $firstQPlan = DB::table('q_plan')->where('id', $planIds[0])->first();
+
+        if (!$firstQPlan) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Erster QPlan nicht gefunden.',
+            ], 404);
+        }
+
+        $originalRunId = $firstQPlan->q_run;
+
+        $newRunId = DB::table('q_run')->insertGetId([
+            'name' => "Rerun für $originalRunId (gefiltert)",
+            'comment' => null,
+            'selection' => null,
+            'started_at' => now(),
+            'status' => 'pending',
+        ]);
+
+        \App\Jobs\GenerateQPlansFromQPlans::dispatch($newRunId, $planIds);
+
+        Log::info("GenerateQPlansFromQPlans Job für Run ID $newRunId dispatcht");
+
+        return response()->json([
+            'status' => 'queued',
+            'run_id' => $newRunId,
         ]);
     }
 
     public function listQRuns()
     {
-        $runs = QRun::orderBy('id', 'desc')->get();
+        $qruns = QRun::orderBy('id', 'desc')->get();
 
-        $hasRunning = $runs->contains(function ($run) {
-            return $run->status === 'running';
+        $hasRunning = $qruns->contains(function ($qrun) {
+            return $qrun->status === 'running';
         });
 
         return response()->json([
-            'runs' => $runs,
+            'qruns' => $qruns,
             'has_running' => $hasRunning,
         ]);
     }
@@ -126,4 +170,19 @@ class QualityController extends Controller
             'match_summary' => $summary,
         ]);
     }
+
+    public function deleteQRun(int $qRunId)
+    {
+        $deleted = DB::table('q_run')->where('id', $qRunId)->delete();
+
+        if ($deleted) {
+            Log::info("QRun $qRunId gelöscht.");
+            return response()->json(['status' => 'deleted']);
+        } else {
+            Log::warning("QRun $qRunId konnte nicht gelöscht werden.");
+            return response()->json(['status' => 'not_found'], 404);
+        }
+    }
+
+
 }

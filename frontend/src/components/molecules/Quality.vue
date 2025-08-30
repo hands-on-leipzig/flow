@@ -6,8 +6,8 @@ import QRunList from '@/components/atoms/QRunList.vue'
 
 const reload = ref(0)
 
-const minTeams = ref(8)
-const maxTeams = ref(8)
+const minTeams = ref(4)
+const maxTeams = ref(25)
 
 const juryLanes = ref({
   lane_1: true,
@@ -19,7 +19,7 @@ const juryLanes = ref({
 
 const tables = ref({
   tables_2: true,
-  tables_4: false,
+  tables_4: true,
 })
 
 const juryRounds = ref({
@@ -28,15 +28,15 @@ const juryRounds = ref({
   rounds_6: true,
 })
 
-const runName = ref('')
-const runComment = ref('')
+const qrunName = ref('')
+const qrunComment = ref('')
 
 const isValid = computed(() => {
   const atLeastOneLane = Object.values(juryLanes.value).some(v => v)
   const atLeastOneTable = Object.values(tables.value).some(v => v)
   const atLeastOneRound = Object.values(juryRounds.value).some(v => v)
   const validTeamRange = minTeams.value >= 4 && maxTeams.value <= 25 && minTeams.value <= maxTeams.value
-  const hasName = runName.value.trim().length > 0
+  const hasName = qrunName.value.trim().length > 0
   return atLeastOneLane && atLeastOneTable && atLeastOneRound && validTeamRange && hasName
 })
 
@@ -56,12 +56,12 @@ const startVolumeTest = () => {
   }
 
   const payload = {
-    name: runName.value.trim(),
-    comment: runComment.value.trim(),
+    name: qrunName.value.trim(),
+    comment: qrunComment.value.trim(),
     selection,
   }
 
-  axios.post('/quality/runs', payload)
+  axios.post('/quality/qrun', payload)
     .then(() => {
       reload.value++  // 🔁 Trigger Liste neu laden
     })
@@ -94,8 +94,8 @@ const startVolumeTest = () => {
         v-model:jury-lanes="juryLanes"
         v-model:tables="tables"
         v-model:jury-rounds="juryRounds"
-        v-model:run-name="runName"
-        v-model:run-comment="runComment"
+        v-model:qrun-name="qrunName"
+        v-model:qrun-comment="qrunComment"
         :is-valid="isValid"
         @start="startVolumeTest"
         @refresh="reload++" 

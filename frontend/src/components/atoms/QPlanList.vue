@@ -4,7 +4,7 @@ import axios from 'axios'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 
 const props = defineProps({
-  runId: {
+  qrun: {
     type: Number,
     required: true,
   },
@@ -36,7 +36,7 @@ const loadPlans = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await axios.get(`/quality/plans/${props.runId}`)
+    const response = await axios.get(`/quality/qplans/${props.qrun}`)
     plansRaw.value = response.data
   } catch (err) {
     console.error('Fehler beim Laden der QPlans', err)
@@ -46,7 +46,7 @@ const loadPlans = async () => {
   }
 }
 
-watch(() => props.runId, loadPlans, { immediate: true })
+watch(() => props.qrun, loadPlans, { immediate: true })
 
 function ampelfarbeQ1Q4(ok, teams) {
   return ok === teams ? '🟢' : '🔴'
@@ -81,126 +81,149 @@ function openPreview(planId) {
   window.open(`/preview/${planId}`, '_blank', 'noopener')
 }
 
+const emit = defineEmits(['refreshParent'])
+
+async function startRerun() {
+  const ids = plans.value.map(p => p.id)
+  try {
+    const response = axios.post('/quality/rerun', { plan_ids: ids })
+    console.log('ReRun erfolgreich:', response.data)
+    emit('refreshParent')
+    // Optional: Erfolgsmeldung, Redirect etc.
+  } catch (err) {
+    console.error('Fehler beim ReRun:', err)
+    alert('Fehler beim Starten des ReRuns.')
+  }
+}
+
+
 </script>
 
 <template>
   <div class="ml-4 mt-2 border-l-2 border-gray-300 pl-4">
-    <div v-if="loading" class="text-gray-500 text-sm">Lade Pläne …</div>
+    <div v-if="loading" class="text-gray-500 text-sm">Lade QPläne …</div>
     <div v-else-if="error" class="text-red-500 text-sm">{{ error }}</div>
-    <div v-else-if="plans.length === 0" class="text-gray-400 text-sm">Keine Pläne gefunden.</div>
+    <div v-else-if="plans.length === 0" class="text-gray-400 text-sm">Keine QPläne gefunden.</div>
     <div v-else>
-      <!-- Tabellenkopf mit Checkboxen in Q1–Q4 -->
-      <div class="grid grid-cols-7 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
+
+      <div class="flex justify-end mb-2">
+        <button
+          @click.stop="startRerun"
+          class="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
+          title="Neuen QRun mit diesen Plänen starten"
+        >
+          🔁 ReRun für die angezeigten Plänen
+        </button>
+      </div>
+
+
+      <!-- Tabellenkopf -->
+      <div class="grid grid-cols-8 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
+        <div>Plan</div>
         <div>Name</div>
         <div>Teamanzahl</div>
-
         <div class="flex items-center gap-1">
-          
           <input
             type="checkbox"
             v-model="filterQ[1].value"
             class="accent-gray-600"
-            title="Nur Pläne anzeigen, bei denen Q1 nicht ok ist"
+            title="Nur QPläne anzeigen, bei denen Q1 nicht ok ist"
           />
           <span>Transfer</span>
         </div>
-
         <div class="flex items-center gap-1">  
           <input
             type="checkbox"
             v-model="filterQ[4].value"
             class="accent-gray-600"
-            title="Nur Pläne anzeigen, bei denen Q4 nicht ok ist"
+            title="Nur QPläne anzeigen, bei denen Q4 nicht ok ist"
           />
           <span>Testrunde</span>
         </div>
-
         <div class="flex items-center gap-1">
-          
           <input
             type="checkbox"
             v-model="filterQ[2].value"
             class="accent-gray-600"
-            title="Nur Pläne anzeigen, bei denen Q2 nicht ok ist"
+            title="Nur QPläne anzeigen, bei denen Q2 nicht ok ist"
           />
           <span>Tische</span>
         </div>
-
         <div class="flex items-center gap-1">
-          
           <input
             type="checkbox"
             v-model="filterQ[3].value"
             class="accent-gray-600"
-            title="Nur Pläne anzeigen, bei denen Q3 nicht ok ist"
+            title="Nur QPläne anzeigen, bei denen Q3 nicht ok ist"
           />
           <span>Teams</span>
         </div>
-
-
-
         <div>Abstand</div>
       </div>
 
-      <!-- Datenzeilen -->
+      <!-- QPlan-Zeilen -->
       <div
-        v-for="plan in plans"
-        :key="plan.id"
+        v-for="qplan in plans"
+        :key="qplan.id"
         class="border-b border-gray-100"
+      >
+        <div
+          class="grid grid-cols-8 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
+          @click="toggleExpanded(qplan.id)"
         >
-          <div
-              class="grid grid-cols-7 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
-              @click="toggleExpanded(plan.id)"
+          <div class="flex items-center gap-2">
+            <span>{{ qplan.plan }}</span>
+            <button
+              @click.stop="openPreview(qplan.plan)"
+              class="text-blue-600 hover:text-blue-800"
+              title="Vorschau öffnen"
             >
-            <div class="flex items-center gap-2">
-              <button
-                @click.stop="openPreview(plan.plan)"
-                class="text-blue-600 hover:text-blue-800"
-                title="Vorschau öffnen"
-              >
               🧾 
-              </button>
-              <span>{{ plan.name || `#${plan.plan}` }}</span>
-            </div>
-
-          <div>{{ plan.c_teams }}</div>
-
-          <div class="flex items-center gap-1">
-            <span>{{ ampelfarbeQ1Q4(plan.q1_ok_count, plan.c_teams) }}</span>
-            <span>{{ plan.q1_ok_count ?? '–' }}</span>
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <span>{{ qplan.name || `#${qplan.plan}` }}</span>
           </div>
 
+          <div>{{ qplan.c_teams }}</div>
+
+          <!-- Q1: Transfer -->
           <div class="flex items-center gap-1">
-            <span>{{ ampelfarbeQ2Q3(plan.q2_ok_count, plan.c_teams, plan.j_lanes) }}</span>
-            <span>{{ plan.q2_ok_count ?? '–' }}</span>
+            <span>{{ ampelfarbeQ1Q4(qplan.q1_ok_count, qplan.c_teams) }}</span>
+            <span>{{ qplan.q1_ok_count ?? '–' }}</span>
           </div>
 
+          <!-- Q4: Testrunde -->
           <div class="flex items-center gap-1">
-            <span>{{ ampelfarbeQ2Q3(plan.q3_ok_count, plan.c_teams, plan.j_lanes) }}</span>
-            <span>{{ plan.q3_ok_count ?? '–' }}</span>
+            <span>{{ ampelfarbeQ1Q4(qplan.q4_ok_count, qplan.c_teams) }}</span>
+            <span>{{ qplan.q4_ok_count ?? '–' }}</span>
           </div>
 
+          <!-- Q2: Tische -->
           <div class="flex items-center gap-1">
-            <span>{{ ampelfarbeQ1Q4(plan.q4_ok_count, plan.c_teams) }}</span>
-            <span>{{ plan.q4_ok_count ?? '–' }}</span>
+            <span>{{ ampelfarbeQ2Q3(qplan.q2_ok_count, qplan.c_teams, qplan.j_lanes) }}</span>
+            <span>{{ qplan.q2_ok_count ?? '–' }}</span>
+          </div>
+
+          <!-- Q3: Teams -->
+          <div class="flex items-center gap-1">
+            <span>{{ ampelfarbeQ2Q3(qplan.q3_ok_count, qplan.c_teams, qplan.j_lanes) }}</span>
+            <span>{{ qplan.q3_ok_count ?? '–' }}</span>
           </div>
 
           <div class="flex items-center gap-2">
-            <div class="w-3 h-3 rounded-sm" :style="{ backgroundColor: farbeQ5Idle(plan.q5_idle_avg, plan.c_teams) }"></div>
-            <span class="flex items-center gap-1">{{ plan.q5_idle_avg?.toFixed(2) ?? '–' }}</span>
-            <div class="w-3 h-3 rounded-sm" :style="{ backgroundColor: farbeQ5Stddev(plan.q5_idle_stddev) }"></div>
-            <span class="flex items-center gap-1">{{ plan.q5_idle_stddev?.toFixed(2) ?? '–' }}</span>
+            <div class="w-3 h-3 rounded-sm" :style="{ backgroundColor: farbeQ5Idle(qplan.q5_idle_avg, qplan.c_teams) }"></div>
+            <span class="flex items-center gap-1">{{ qplan.q5_idle_avg?.toFixed(2) ?? '–' }}</span>
+            <div class="w-3 h-3 rounded-sm" :style="{ backgroundColor: farbeQ5Stddev(qplan.q5_idle_stddev) }"></div>
+            <span class="flex items-center gap-1">{{ qplan.q5_idle_stddev?.toFixed(2) ?? '–' }}</span>
           </div>
         </div>
 
-
         <!-- Akkordeon für Details -->
-        <div v-if="expandedPlanId === plan.id" class="bg-gray-50 px-2 py-1 border-t border-gray-200">
-          <QPlanDetails :planId="plan.id" />
+        <div v-if="expandedPlanId === qplan.id" class="bg-gray-50 px-2 py-1 border-t border-gray-200">
+          <QPlanDetails :planId="qplan.id" />
         </div>
-        
       </div>
-
     </div>
   </div>
 </template>

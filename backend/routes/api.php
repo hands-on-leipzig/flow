@@ -105,10 +105,12 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Quality controller routes
     Route::prefix('quality')->group(function () {
-        Route::post('/runs', [QualityController::class, 'startQRun']);                   // Start eines neuen Runs
-        Route::get('/runs', [QualityController::class, 'listQRuns']);                    // Alle Runs auflisten
-        Route::get('/plans/{runId}', [QualityController::class, 'listQPlans']);          // Alle Pläne zu einem Run
-        Route::get('/details/{planId}', [QualityController::class, 'getQPlanDetails']);  // Einzelplan-Details
+        Route::post('/qrun', [QualityController::class, 'startQRun']);                   // Start eines neuen Runs
+        Route::get('/qruns', [QualityController::class, 'listQRuns']);                    // Alle Runs auflisten
+        Route::get('/qplans/{qRunId}', [QualityController::class, 'listQPlans']);          // Alle Pläne zu einem Run
+        Route::get('/details/{qPlanId}', [QualityController::class, 'getQPlanDetails']);  // Einzelplan-Details
+        Route::post('/rerun', [QualityController::class, 'rerunQPlans']);
+        Route::delete('/delete/{qRunId}', [QualityController::class, 'deleteQRun']);        // Löschen eines Runs und aller zugehörigen Pläne
     });
 
     

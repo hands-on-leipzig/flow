@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use PhpParser\Node\Expr\FuncCall;
 
 class EvaluateQuality
 {
@@ -50,9 +51,12 @@ class EvaluateQuality
         ];
     }
 
-    public function generateQPlans(int $runId): void
+    public function generateQPlansFromSelection(int $runId): void
     {
-        Log::info("Ertzeugung der qPlans für Run ID $runId startet.");
+        $RP_NAME = '!!! QPlan RP - nur für den Qualitätstest verwendet !!!';
+        $EVENT_NAME = '!!! QPlan Event - nur für den Qualitätstest verwendet !!!';
+       
+        Log::info("Erzeugung der qPlans für Run ID $runId startet.");
 
         // Read q_run (Name + Selection)
         $qRun = DB::table('q_run')->where('id', $runId)->first();
@@ -61,7 +65,7 @@ class EvaluateQuality
             throw new \Exception("q_run with ID $runId not found");
         }
 
-        $runName = $qRun->name;
+        
 
         try {
             $selection = json_decode($qRun->selection, true, 512, JSON_THROW_ON_ERROR);
@@ -72,22 +76,36 @@ class EvaluateQuality
         // Get all allowed parameters once to be used in the loop below
         $parameters = MParameter::all()->keyBy('name');
 
-        // Create one event (linked to this q_run)
+        // Sicherstellen, dass der spezielle Regionalpartner existiert
+        $regionalPartner = DB::table('regional_partner')->where('name', $RP_NAME)->first();
 
-        $regionalPartnerId = DB::table('regional_partner')->value('id');
-        $seasonId = DB::table('m_season')->value('id');
+        if (!$regionalPartner) {
+            $regionalPartnerId = DB::table('regional_partner')->insertGetId([
+                'name' => $RP_NAME,
+                'region' => 0,
+            ]);
+            Log::info("RP für Qualitätstest neu angelegt mit ID $regionalPartnerId");
+        } else {
+            $regionalPartnerId = $regionalPartner->id;
+        }
 
-        $event = Event::create([
-            'name' => "QRun $runId: $runName",
-            'regional_partner' => $regionalPartnerId,
-            'level' => 1,
-            'season' => $seasonId,
-            'date' => Carbon::today(),
-            'days' => 1,
-            
-        ]);
+        // Sicherstellen, dass das spezielle Event existiert
+        $event = DB::table('event')->where('name', $EVENT_NAME)->first();
 
-        Log::info("Event erstellt mit ID {$event->id} für Run ID $runId");
+        if (!$event) {
+            $seasonId = DB::table('m_season')->value('id');
+            $eventId = DB::table('event')->insertGetId([
+                'name' => $EVENT_NAME,
+                'regional_partner' => $regionalPartnerId,
+                'level' => 1,
+                'season' => $seasonId,
+                'date' => Carbon::today(),
+                'days' => 1,
+            ]);
+            Log::info("Event für Qualitätstest neu angelegt mit ID $eventId");
+        } else {
+            $eventId = $event->id;
+        }
 
         // Read m_supported_plan and filter by selection
         $supportedPlans = MSupportedPlan::where('first_program', 3)->get();
@@ -99,14 +117,14 @@ class EvaluateQuality
 
             $rounds = (int) ceil($plan->teams / $plan->lanes);
 
-            // Two version: with and without robot check
+            // Two versions: with and without robot check
             foreach ([0, 1] as $robotCheck) {
                 $suffix = $robotCheck === 1 ? ' RC an' : ' RC aus';
 
                 // Create a new plan and get its ID
                 $newPlan = Plan::create([
                     'name' => "{$plan->teams}-{$plan->lanes}-{$plan->tables} ({$rounds}){$suffix}",
-                    'event_id' => $event->id,
+                    'event' => $eventId,
                     'created' => now(),
                     'last_change' => now(),
                 ]);
@@ -178,11 +196,58 @@ class EvaluateQuality
             'qplans_total' => $qPlansTotal,
         ]);
 
-        // Dispatch the job to generate plans for this run
-        \App\Jobs\ExecuteQPlan::dispatch($runId);
+    }
 
-        Log::info("ExecuteQPlan Job für Run ID $runId dispatcht");
+    public function generateQPlansFromQPlans(int $newRunId, array $planIds)
+    {
+        foreach ($planIds as $planId) {
+            $original = QPlan::find($planId);
 
+            if (!$original) {
+                Log::warning("QPlan $planId nicht gefunden, wird übersprungen.");
+                continue;
+            }
+
+            // Plan-Datensatz kopieren
+            $originalPlan = Plan::find($original->plan);
+            if (!$originalPlan) {
+                Log::warning("Plan {$original->plan} nicht gefunden, QPlan $planId wird übersprungen.");
+                continue;
+            }
+
+            $planCopy = $originalPlan->replicate();
+            $planCopy->save();
+
+            // QPlan-Datensatz kopieren und mit neuem Plan verknüpfen
+            $copy = $original->replicate();
+            $copy->q_run = $newRunId;
+            $copy->plan = $planCopy->id;
+
+            // Q-Werte nullen
+            $copy->q1_ok_count = null;
+            $copy->q2_ok_count = null;
+            $copy->q3_ok_count = null;
+            $copy->q4_ok_count = null;
+            $copy->q5_idle_avg = null;
+            $copy->q5_idle_stddev = null;
+            $copy->calculated = 0;
+
+            $copy->save();
+
+            // Parameterwerte kopieren
+            $paramValues = PlanParamValue::where('plan', $originalPlan->id)->get();
+
+            foreach ($paramValues as $param) {
+                $newParam = $param->replicate();
+                $newParam->plan = $planCopy->id;
+                $newParam->save();
+            }
+        }
+
+        // qplans_total setzen
+        QRun::where('id', $newRunId)->update([
+            'qplans_total' => QPlan::where('q_run', $newRunId)->count(),
+        ]);
     }
 
     private function isPlanSupported(MSupportedPlan $plan, array $selection): bool
