@@ -53,6 +53,9 @@ class EvaluateQuality
 
     public function generateQPlansFromSelection(int $runId): void
     {
+        $RP_NAME = '!!! QPlan RP - nur für den Qualitätstest verwendet !!!';
+        $EVENT_NAME = '!!! QPlan Event - nur für den Qualitätstest verwendet !!!';
+       
         Log::info("Erzeugung der qPlans für Run ID $runId startet.");
 
         // Read q_run (Name + Selection)
@@ -62,7 +65,7 @@ class EvaluateQuality
             throw new \Exception("q_run with ID $runId not found");
         }
 
-        $runName = $qRun->name;
+        
 
         try {
             $selection = json_decode($qRun->selection, true, 512, JSON_THROW_ON_ERROR);
@@ -74,11 +77,11 @@ class EvaluateQuality
         $parameters = MParameter::all()->keyBy('name');
 
         // Sicherstellen, dass der spezielle Regionalpartner existiert
-        $regionalPartner = DB::table('regional_partner')->where('name', '!!! Q RP - nur für den Qualitätstest verwendet !!!')->first();
+        $regionalPartner = DB::table('regional_partner')->where('name', $RP_NAME)->first();
 
         if (!$regionalPartner) {
             $regionalPartnerId = DB::table('regional_partner')->insertGetId([
-                'name' => '!!! QPlan RP - nur für den Qualitätstest verwendet !!!',
+                'name' => $RP_NAME,
                 'region' => 0,
             ]);
             Log::info("RP für Qualitätstest neu angelegt mit ID $regionalPartnerId");
@@ -87,12 +90,12 @@ class EvaluateQuality
         }
 
         // Sicherstellen, dass das spezielle Event existiert
-        $event = DB::table('event')->where('name', '!!! Q Event - nur für den Qualitätstest verwendet !!!')->first();
+        $event = DB::table('event')->where('name', $EVENT_NAME)->first();
 
         if (!$event) {
             $seasonId = DB::table('m_season')->value('id');
             $eventId = DB::table('event')->insertGetId([
-                'name' => '!!! QPlan Event - nur für den Qualitätstest verwendet !!!',
+                'name' => $EVENT_NAME,
                 'regional_partner' => $regionalPartnerId,
                 'level' => 1,
                 'season' => $seasonId,
