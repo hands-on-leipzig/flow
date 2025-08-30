@@ -73,22 +73,36 @@ class EvaluateQuality
         // Get all allowed parameters once to be used in the loop below
         $parameters = MParameter::all()->keyBy('name');
 
-        // Create one event (linked to this q_run)
+        // Sicherstellen, dass der spezielle Regionalpartner existiert
+        $regionalPartner = DB::table('regional_partner')->where('name', '!!! Q RP - nur für den Qualitätstest verwendet !!!')->first();
 
-        $regionalPartnerId = DB::table('regional_partner')->value('id');
-        $seasonId = DB::table('m_season')->value('id');
+        if (!$regionalPartner) {
+            $regionalPartnerId = DB::table('regional_partner')->insertGetId([
+                'name' => '!!! QPlan RP - nur für den Qualitätstest verwendet !!!',
+                'region' => 0,
+            ]);
+            Log::info("RP für Qualitätstest neu angelegt mit ID $regionalPartnerId");
+        } else {
+            $regionalPartnerId = $regionalPartner->id;
+        }
 
-        $event = Event::create([
-            'name' => "QRun $runId: $runName",
-            'regional_partner' => $regionalPartnerId,
-            'level' => 1,
-            'season' => $seasonId,
-            'date' => Carbon::today(),
-            'days' => 1,
-            
-        ]);
+        // Sicherstellen, dass das spezielle Event existiert
+        $event = DB::table('event')->where('name', '!!! Q Event - nur für den Qualitätstest verwendet !!!')->first();
 
-        Log::info("Event erstellt mit ID {$event->id} für Run ID $runId");
+        if (!$event) {
+            $seasonId = DB::table('m_season')->value('id');
+            $eventId = DB::table('event')->insertGetId([
+                'name' => '!!! QPlan Event - nur für den Qualitätstest verwendet !!!',
+                'regional_partner' => $regionalPartnerId,
+                'level' => 1,
+                'season' => $seasonId,
+                'date' => Carbon::today(),
+                'days' => 1,
+            ]);
+            Log::info("Event für Qualitätstest neu angelegt mit ID $eventId");
+        } else {
+            $eventId = $event->id;
+        }
 
         // Read m_supported_plan and filter by selection
         $supportedPlans = MSupportedPlan::where('first_program', 3)->get();
@@ -100,14 +114,14 @@ class EvaluateQuality
 
             $rounds = (int) ceil($plan->teams / $plan->lanes);
 
-            // Two version: with and without robot check
+            // Two versions: with and without robot check
             foreach ([0, 1] as $robotCheck) {
                 $suffix = $robotCheck === 1 ? ' RC an' : ' RC aus';
 
                 // Create a new plan and get its ID
                 $newPlan = Plan::create([
                     'name' => "{$plan->teams}-{$plan->lanes}-{$plan->tables} ({$rounds}){$suffix}",
-                    'event_id' => $event->id,
+                    'event' => $eventId,
                     'created' => now(),
                     'last_change' => now(),
                 ]);
@@ -179,13 +193,6 @@ class EvaluateQuality
             'qplans_total' => $qPlansTotal,
         ]);
 
-/* ALT
-
-        // Dispatch the job to generate plans for this run
-        \App\Jobs\ExecuteQPlan::dispatch($runId);
-
-        Log::info("ExecuteQPlan Job für Run ID $runId dispatcht");
-*/
     }
 
     public function generateQPlansFromQPlans(int $newRunId, array $planIds)
