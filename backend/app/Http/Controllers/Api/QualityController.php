@@ -170,4 +170,19 @@ class QualityController extends Controller
             'match_summary' => $summary,
         ]);
     }
+
+    public function deleteQRun(int $qRunId)
+    {
+        $deleted = DB::table('q_run')->where('id', $qRunId)->delete();
+
+        if ($deleted) {
+            Log::info("QRun $qRunId gelöscht.");
+            return response()->json(['status' => 'deleted']);
+        } else {
+            Log::warning("QRun $qRunId konnte nicht gelöscht werden.");
+            return response()->json(['status' => 'not_found'], 404);
+        }
+    }
+
+
 }

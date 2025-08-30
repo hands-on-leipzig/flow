@@ -81,11 +81,14 @@ function openPreview(planId) {
   window.open(`/preview/${planId}`, '_blank', 'noopener')
 }
 
+const emit = defineEmits(['refreshParent'])
+
 async function startRerun() {
   const ids = plans.value.map(p => p.id)
   try {
     const response = axios.post('/quality/rerun', { plan_ids: ids })
     console.log('ReRun erfolgreich:', response.data)
+    emit('refreshParent')
     // Optional: Erfolgsmeldung, Redirect etc.
   } catch (err) {
     console.error('Fehler beim ReRun:', err)
