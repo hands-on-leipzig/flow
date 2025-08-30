@@ -43,14 +43,14 @@ class QualityController extends Controller
 
     public function listQRuns()
     {
-        $runs = QRun::orderBy('id', 'desc')->get();
+        $qruns = QRun::orderBy('id', 'desc')->get();
 
-        $hasRunning = $runs->contains(function ($run) {
-            return $run->status === 'running';
+        $hasRunning = $qruns->contains(function ($qrun) {
+            return $qrun->status === 'running';
         });
 
         return response()->json([
-            'runs' => $runs,
+            'qruns' => $qruns,
             'has_running' => $hasRunning,
         ]);
     }
