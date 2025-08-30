@@ -81,6 +81,19 @@ function openPreview(planId) {
   window.open(`/preview/${planId}`, '_blank', 'noopener')
 }
 
+async function startRerun() {
+  const ids = plans.value.map(p => p.id)
+  try {
+    const response = axios.post('/quality/rerun', { plan_ids: ids })
+    console.log('ReRun erfolgreich:', response.data)
+    // Optional: Erfolgsmeldung, Redirect etc.
+  } catch (err) {
+    console.error('Fehler beim ReRun:', err)
+    alert('Fehler beim Starten des ReRuns.')
+  }
+}
+
+
 </script>
 
 <template>
@@ -89,6 +102,18 @@ function openPreview(planId) {
     <div v-else-if="error" class="text-red-500 text-sm">{{ error }}</div>
     <div v-else-if="plans.length === 0" class="text-gray-400 text-sm">Keine QPläne gefunden.</div>
     <div v-else>
+
+      <div class="flex justify-end mb-2">
+        <button
+          @click.stop="startRerun"
+          class="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
+          title="Neuen QRun mit diesen Plänen starten"
+        >
+          🔁 ReRun mit gefilterten Plänen
+        </button>
+      </div>
+
+
       <!-- Tabellenkopf -->
       <div class="grid grid-cols-7 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
         <div>Name</div>

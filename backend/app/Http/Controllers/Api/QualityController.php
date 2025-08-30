@@ -3,9 +3,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\ExecuteQRun;
+use App\Services\EvaluateQuality;
+
 use App\Models\QRun;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 
 class QualityController extends Controller
@@ -24,7 +27,7 @@ class QualityController extends Controller
             return response()->json(['error' => 'Validation failed', 'details' => $e->errors()], 422);
         }
 
-        $runId = DB::table('q_run')->insertGetId([
+        $qRun = DB::table('q_run')->insertGetId([
             'name' => $payload['name'],
             'comment' => $payload['comment'] ?? null,
             'selection' => json_encode($payload['selection']),
@@ -32,14 +35,39 @@ class QualityController extends Controller
             'status' => 'pending',
         ]);
 
+/* alt
+
         // Job dispatchen (asynchron)
-        ExecuteQRun::dispatch($runId);
+        ExecuteQRun::dispatch($qRun); */
+
+// neu
+
+        // Create all QPlans for this run (synchronously)
+        $qPlans = new EvaluateQuality();
+        $qPlans->generateQPlans($qRun);
+
+        // Dispatch the job to generate plans for this run
+        \App\Jobs\ExecuteQPlan::dispatch($qRun);
+
+        Log::info("ExecuteQPlan Job für Run ID $qRun dispatcht");
 
         return response()->json([
             'status' => 'started',
-            'run_id' => $runId,
+            'run_id' => $qRun,
         ]);
     }
+
+    public function rerunFromQPlans(Request $request)
+    {
+
+
+       return response()->json([
+            'status' => 'started',
+            'run_id' => 1,
+        ]);
+
+    }
+
 
     public function listQRuns()
     {

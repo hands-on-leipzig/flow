@@ -52,7 +52,7 @@ class EvaluateQuality
 
     public function generateQPlans(int $runId): void
     {
-        Log::info("Ertzeugung der qPlans für Run ID $runId startet.");
+        Log::info("Erzeugung der qPlans für Run ID $runId startet.");
 
         // Read q_run (Name + Selection)
         $qRun = DB::table('q_run')->where('id', $runId)->first();
@@ -178,11 +178,13 @@ class EvaluateQuality
             'qplans_total' => $qPlansTotal,
         ]);
 
+/* ALT
+
         // Dispatch the job to generate plans for this run
         \App\Jobs\ExecuteQPlan::dispatch($runId);
 
         Log::info("ExecuteQPlan Job für Run ID $runId dispatcht");
-
+*/
     }
 
     private function isPlanSupported(MSupportedPlan $plan, array $selection): bool
