@@ -5,8 +5,8 @@ const props = defineProps({
   juryLanes: Object,
   tables: Object,
   juryRounds: Object,
-  runName: String,
-  runComment: String,
+  qrunName: String,
+  qrunComment: String,
   isValid: Boolean,
 })
 
@@ -16,12 +16,11 @@ const emit = defineEmits([
   'update:juryLanes',
   'update:tables',
   'update:juryRounds',
-  'update:runName',
-  'update:runComment',
+  'update:qrunName',
+  'update:qrunComment',
   'start',
-  'refresh', // ← HIER
+  'refresh',
 ])
-
 </script>
 
 <template>
@@ -29,12 +28,12 @@ const emit = defineEmits([
     <div class="flex flex-wrap items-end gap-6">
       <!-- Name -->
       <div>
-        <label class="block font-semibold mb-1">Name für den Run</label>
+        <label class="block font-semibold mb-1">Name für den QRun</label>
         <input
           type="text"
           class="border rounded px-2 py-1 w-64"
-          :value="runName"
-          @input="emit('update:runName', $event.target.value)"
+          :value="qrunName"
+          @input="emit('update:qrunName', $event.target.value)"
           placeholder="z. B. letzter Test für heute"
         />
       </div>
@@ -145,9 +144,9 @@ const emit = defineEmits([
         <textarea
           rows="2"
           class="border rounded px-2 py-1 w-full"
-          :value="runComment"
-          @input="emit('update:runComment', $event.target.value)"
-          placeholder="Notizen zum Run …"
+          :value="qrunComment"
+          @input="emit('update:qrunComment', $event.target.value)"
+          placeholder="Notizen zum QRun …"
         />
       </div>
 
@@ -164,12 +163,11 @@ const emit = defineEmits([
         <button
           class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-3 py-2 rounded"
           title="Liste neu laden"
-          @click="$emit('refresh')"
+          @click="emit('refresh')"
         >
           🔄 Refresh
         </button>
-</div>
-
+      </div>
     </div>
   </div>
 </template>
