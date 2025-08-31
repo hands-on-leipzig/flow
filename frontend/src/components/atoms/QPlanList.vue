@@ -101,21 +101,21 @@ async function startRerun() {
 
 <template>
   <div class="ml-4 mt-2 border-l-2 border-gray-300 pl-4">
+
     <div v-if="loading" class="text-gray-500 text-sm">Lade QPläne …</div>
     <div v-else-if="error" class="text-red-500 text-sm">{{ error }}</div>
-    <div v-else-if="plans.length === 0" class="text-gray-400 text-sm">Keine QPläne gefunden.</div>
     <div v-else>
-
-      <div class="flex justify-end mb-2">
+      
+      <!-- Button nur wenn Pläne vorhanden -->
+      <div v-if="plans.length > 0" class="flex justify-end mb-2">
         <button
           @click.stop="startRerun"
           class="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
           title="Neuen QRun mit diesen Plänen starten"
         >
-          🔁 ReRun für die angezeigten Plänen
+          🔁 ReRun für die angezeigten Pläne
         </button>
       </div>
-
 
       <!-- Tabellenkopf -->
       <div class="grid grid-cols-8 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
@@ -161,6 +161,9 @@ async function startRerun() {
         <div>Abstand</div>
       </div>
 
+    <!-- Kein Plan -->
+      <div v-if="plans.length === 0" class="text-gray-400 text-sm">Keine passende QPläne gefunden.</div>  
+    
       <!-- QPlan-Zeilen -->
       <div
         v-for="qplan in plans"

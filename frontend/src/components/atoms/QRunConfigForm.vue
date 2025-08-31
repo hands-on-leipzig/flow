@@ -165,7 +165,7 @@ const emit = defineEmits([
           title="Liste neu laden"
           @click="emit('refresh')"
         >
-          🔄 Refresh
+          🔄 Aktualisieren
         </button>
       </div>
     </div>

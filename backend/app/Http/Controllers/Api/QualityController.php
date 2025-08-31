@@ -26,12 +26,15 @@ class QualityController extends Controller
             return response()->json(['error' => 'Validation failed', 'details' => $e->errors()], 422);
         }
 
+        $host = gethostname();
+
         $qRunId = DB::table('q_run')->insertGetId([
             'name' => $payload['name'],
             'comment' => $payload['comment'] ?? null,
             'selection' => json_encode($payload['selection']),
             'started_at' => now(),
             'status' => 'pending',
+            'host' => $host,
         ]);
 
         // Dispatch Job to generate QPlans async
@@ -66,13 +69,15 @@ class QualityController extends Controller
         }
 
         $originalRunId = $firstQPlan->q_run;
+        $host = gethostname();
 
         $newRunId = DB::table('q_run')->insertGetId([
-            'name' => "Rerun für $originalRunId (gefiltert)",
+            'name' => "ReRun für $originalRunId (gefiltert)",
             'comment' => null,
             'selection' => null,
             'started_at' => now(),
             'status' => 'pending',
+            'host' => $host,
         ]);
 
         \App\Jobs\GenerateQPlansFromQPlans::dispatch($newRunId, $planIds);

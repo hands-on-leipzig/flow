@@ -82,6 +82,7 @@ async function handleDelete(qrunId) {
           <!-- Spalte 1: Name + Kommentar -->
           <div class="basis-[35%] flex-shrink-0">
             <div class="font-bold text-lg"> {{ qrun.id }} {{ qrun.name }}</div>
+            <div class="text-xs text-gray-400 italic"> {{ qrun.host || 'unknown' }} </div>
             <div class="text-sm text-gray-600 whitespace-pre-line">{{ qrun.comment || '—' }}</div>
           </div>
 
