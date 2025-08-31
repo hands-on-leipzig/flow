@@ -34,7 +34,7 @@ class GeneratePlanJob implements ShouldQueue
         // sleep(45); // Platzhalter für echten Prozess
 
         // Status auf "ready" setzen
-        $plan->generator_status = 'ready';
+        $plan->generator_status = 'done';
         $plan->save();
     }
 }

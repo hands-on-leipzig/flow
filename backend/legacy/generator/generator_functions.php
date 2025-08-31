@@ -1,4 +1,5 @@
 <?php
+use Illuminate\Support\Facades\Log;
 
 require_once 'generator_db.php';
 
@@ -72,6 +73,8 @@ function g_debug_timing($text, $c_block = 0, $r_start_shift = 0) {
 function g_debug_log($parameter) {
 
     global $DEBUG;
+
+    Log::debug("Generator DEBUG-Level:" . $DEBUG . " ". $parameter. "=" . gp($parameter));
 
     error_log("DEBUG" . $DEBUG . " ". $parameter. "=" . gp($parameter));
 

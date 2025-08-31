@@ -240,7 +240,7 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
 
   while (Date.now() - start < timeoutMs) {
     const res = await axios.get(`/plans/${planId}/status`)
-    if (res.data.status === 'ready') return
+    if (res.data.status === 'done') return
     await new Promise(resolve => setTimeout(resolve, intervalMs))
   }
 
@@ -471,7 +471,7 @@ onMounted(async () => {
     </div>
 
     <div class="flex-grow overflow-hidden">
-      <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-gray-600">
+      <div v-if="isGenerating" class="flex items-center justify-start h-full flex-col text-gray-600">
         <LoaderFlow/>
         <LoaderText/>
       </div>
