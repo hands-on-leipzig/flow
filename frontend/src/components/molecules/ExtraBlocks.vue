@@ -47,24 +47,24 @@ const hasPendingSaves = computed(() => pendingSaves.value.size > 0)
 function scheduleSave(block: ExtraBlock) {
   // Use a unique key for each block
   const key = block.id ? `id-${block.id}` : `temp-${JSON.stringify(block)}`
-  
+
   // Add/update the pending save
-  pendingSaves.value.set(key, { ...block })
-  
+  pendingSaves.value.set(key, {...block})
+
   // Clear existing timeout
   if (saveTimeoutId.value) {
     clearTimeout(saveTimeoutId.value)
   }
-  
+
   // Schedule new save
   saveTimeoutId.value = setTimeout(() => {
     // Get all pending saves
     const saves = Array.from(pendingSaves.value.values())
-    
+
     // Clear pending saves
     pendingSaves.value.clear()
     saveTimeoutId.value = null
-    
+
     // Save all blocks
     saves.forEach(block => saveBlockImmediate(block))
   }, DEBOUNCE_DELAY)
@@ -76,11 +76,11 @@ function flushPendingSaves() {
     clearTimeout(saveTimeoutId.value)
     saveTimeoutId.value = null
   }
-  
+
   if (pendingSaves.value.size > 0) {
     const saves = Array.from(pendingSaves.value.values())
     pendingSaves.value.clear()
-    
+
     saves.forEach(block => saveBlockImmediate(block))
   }
 }
@@ -100,15 +100,6 @@ async function loadBlocks() {
   const {data} = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`)
   const rows = Array.isArray(data) ? data : []
   blocks.value.splice(0, blocks.value.length, ...rows)
-}
-
-async function loadAll() {
-  loading.value = true
-  try {
-    await loadBlocks()
-  } finally {
-    loading.value = false
-  }
 }
 
 onMounted(() => {
@@ -200,11 +191,12 @@ function labelForProgram(v: number | null | 0) {
 <template>
   <div class="space-y-8">
     <!-- Pending saves indicator -->
-    <div v-if="hasPendingSaves" class="flex items-center gap-2 text-orange-600 text-sm bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
+    <div v-if="hasPendingSaves"
+         class="flex items-center gap-2 text-orange-600 text-sm bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
       <div class="w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
       <span>Änderungen werden in Kürze gespeichert...</span>
     </div>
-    
+
     <!-- CUSTOM: blocks without insert_point -->
     <div class="bg-white shadow-sm rounded-xl border border-gray-200">
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
