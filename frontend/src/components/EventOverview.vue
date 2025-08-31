@@ -3,6 +3,7 @@ import {ref, onMounted, computed} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import dayjs from "dayjs";
+import ExtraBlocks from "@/components/molecules/ExtraBlocks.vue";
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -26,15 +27,7 @@ onMounted(async () => {
   await fetchTableNames()
 })
 
-const updateEventField = async (field, value) => {
-  try {
-    await axios.put(`/events/${event.value?.id}`, {
-      [field]: value
-    })
-  } catch (e) {
-    console.error('WLAN update failed:', e)
-  }
-}
+
 
 const tableNames = ref(['', '', '', ''])
 
@@ -117,50 +110,59 @@ const updateTableName = async () => {
           </div>
         </div>
         <div class="p-4 border rounded shadow">
-          <h2 class="text-lg font-semibold mb-2">WLAN Zugangsdaten</h2>
-          <div class="grid grid-cols-2 gap-4" v-if="event">
+          <h2 class="text-lg font-semibold mb-2">Bezeichnung der Robot-Game-Tische</h2>
+          <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm text-gray-700 mb-1">SSID</label>
+              <label class="block text-sm text-gray-700 mb-1">Tisch 1</label>
               <input
-                  v-model="event.wifi_ssid"
-                  @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
+                  v-model="tableNames[0]"
+                  @blur="updateTableName"
                   class="w-full border px-3 py-1 rounded text-sm"
                   type="text"
-                  placeholder="z. B. TH_EVENT_WLAN"
+                  placeholder="leer lassen für >>Tisch 1<<"
               />
             </div>
             <div>
-              <label class="block text-sm text-gray-700 mb-1">Passwort</label>
+              <label class="block text-sm text-gray-700 mb-1">Tisch 2</label>
               <input
-                  v-model="event.wifi_password"
-                  @blur="updateEventField('wifi_password', event.wifi_password)"
+                  v-model="tableNames[1]"
+                  @blur="updateTableName"
                   class="w-full border px-3 py-1 rounded text-sm"
                   type="text"
-                  placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
+                  placeholder="leer lassen für >>Tisch 2<<"
+              />
+            </div>
+            <div>
+              <label class="block text-sm text-gray-700 mb-1">Tisch 3</label>
+              <input
+                  v-model="tableNames[2]"
+                  @blur="updateTableName"
+                  class="w-full border px-3 py-1 rounded text-sm"
+                  type="text"
+                  placeholder="leer lassen für >>Tisch 3<<"
+              />
+            </div>
+            <div>
+              <label class="block text-sm text-gray-700 mb-1">Tisch 4</label>
+              <input
+                  v-model="tableNames[3]"
+                  @blur="updateTableName"
+                  class="w-full border px-3 py-1 rounded text-sm"
+                  type="text"
+                  placeholder="leer lassen für >>Tisch 4<<"
               />
             </div>
             
           </div>
         </div>
 
-        <!-- Neue Kiste für Robot-Game-Tische -->
-        <div class="p-4 border rounded shadow">
-          <h2 class="text-lg font-semibold mb-2">Bezeichnung der Robot-Game-Tische</h2>
-          <div class="grid grid-cols-2 gap-4">
-            <div v-for="(name, index) in tableNames" :key="index">
-              <label class="block text-sm text-gray-700 mb-1">Tisch {{ index + 1 }}</label>
-              <input
-                v-model="tableNames[index]"
-                @blur="updateTableName"
-                class="w-full border px-3 py-1 rounded text-sm"
-                type="text"
-                :placeholder='"leer lassen für \"Tisch " + (index + 1) + "\""'
-              />
-            </div>
-          </div>
-        </div>
 
-        
+
+        <!-- Zusatzblöcke (spans 2 columns on the right) -->
+        <div class="p-4 border rounded shadow col-span-2">
+          <h2 class="text-lg font-semibold mb-2">Zusatzblöcke</h2>
+          <ExtraBlocks :plan-id="event?.id ?? null" />
+        </div>
 
       </div>
     </div>

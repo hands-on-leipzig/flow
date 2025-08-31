@@ -7,6 +7,8 @@ export type Parameter = {
     type?: string
     context?: string
     first_program?: number | null
+    sequence?: number
+    program_name?: string
 }
 
 export type ParameterCondition = {

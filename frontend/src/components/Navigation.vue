@@ -17,7 +17,7 @@ const tabs = [
   {name: 'Veranstaltung', path: '/event'},
   {name: 'Ablauf', path: '/schedule'},
   {name: 'Teams', path: '/teams'},
-  {name: 'Orte', path: '/rooms'},
+  {name: 'Räume', path: '/rooms'},
   {name: 'Logos', path: '/logos'},
   {name: 'Veröffentlichung', path: '/publish'},
 ]

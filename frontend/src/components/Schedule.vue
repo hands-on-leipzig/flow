@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
+import {computed, onMounted, onUnmounted, ref} from 'vue'
 import axios from 'axios'
 import ParameterField from "@/components/molecules/ParameterField.vue"
-
 import {useEventStore} from '@/stores/event'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import TimeSettings from "@/components/molecules/TimeSettings.vue";
@@ -10,7 +9,11 @@ import ExploreSettings from "@/components/molecules/ExploreSettings.vue";
 import ChallengeSettings from "@/components/molecules/ChallengeSettings.vue";
 import Preview from "@/components/molecules/Preview.vue";
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
-import LoaderText from "@/components/atoms/LoaderText.vue"; 
+import LoaderText from "@/components/atoms/LoaderText.vue";
+import InsertBlocks from "@/components/molecules/InsertBlocks.vue";
+import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex'
+import FllEvent from "@/models/FllEvent";
+import {Parameter, ParameterCondition} from "@/models/Parameter"
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
@@ -21,10 +24,6 @@ const inputName = ref('')
 const plans = ref<any[]>([])
 const selectedPlanId = ref<number | null>(null)
 const loading = ref(true)
-import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex'
-import ExtraBlocks from "@/components/molecules/ExtraBlocks.vue";
-import FllEvent from "@/models/FllEvent";
-import {Parameter, ParameterCondition} from "@/models/Parameter"
 
 const SPECIAL_KEYS = new Set([
   'e1_teams', 'e2_teams',
@@ -32,7 +31,7 @@ const SPECIAL_KEYS = new Set([
   'e_mode',
   'e1_lanes', 'e2_lanes'
 ])
-const isSpecial = (p: any) => SPECIAL_KEYS.has((p.name || '').toLowerCase())
+const isSpecial = (p: Parameter) => SPECIAL_KEYS.has((p.name || '').toLowerCase())
 
 const paramMap = computed<Record<number, Parameter>>(() => {
   const map: Record<number, Parameter> = {}
@@ -114,12 +113,12 @@ const showChallenge = ref(true)
 
 const expertParams = computed(() =>
     parameters.value
-        .filter((p: any) => p.context === 'expert')
-        .sort((a: any, b: any) => (a.first_program || 0) - (b.first_program || 0))
+        .filter((p: Parameter) => p.context === 'expert')
+        .sort((a: Parameter, b: Parameter) => (a.first_program || 0) - (b.first_program || 0))
 )
 
 const finaleParams = computed(() =>
-    parameters.value.filter((p: any) =>
+    parameters.value.filter((p: Parameter) =>
         p.context === 'finale' &&
         !isTimeParam(p) &&
         !isSpecial(p) &&
@@ -208,7 +207,7 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   try {
     // 1. Speichern der Parameter (schnell)
     await axios.post(`/plans/${selectedPlanId.value}/parameters`, {
-      parameters: params.map(({ name, value }) => {
+      parameters: params.map(({name, value}) => {
         const p = paramMapByName.value[name]
         return {
           id: p?.id,
@@ -249,7 +248,7 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
 }
 
 // Legacy function - kept for backward compatibility but not used in new batch system
-const updateParam = async (param: any) => {
+const updateParam = async (param: Parameter) => {
   console.warn('updateParam called directly - this should not happen in new batch system')
   // This function is kept for backward compatibility but should not be used
   // All updates should go through handleParamUpdate for batching
@@ -257,20 +256,45 @@ const updateParam = async (param: any) => {
 
 const expertParamsGrouped = computed(() => {
   return parameters.value
-      .filter((p: any) => p.context === 'expert')
-      .sort((a: any, b: any) => (a.sequence ?? 0) - (b.sequence ?? 0))
-      .reduce((acc: any, param: any) => {
+      .filter((p: Parameter) => p.context === 'expert')
+      .sort((a: Parameter, b: Parameter) => (a.sequence ?? 0) - (b.sequence ?? 0))
+      .reduce((acc: Record<string, Parameter[]>, param: Parameter) => {
         const key = param.program_name || 'Unassigned'
         if (!acc[key]) acc[key] = []
         acc[key].push(param)
         return acc
-      }, {})
+      }, {} as Record<string, Parameter[]>)
 })
 
 async function getOrCreatePlan() {
   if (!selectedEvent.value) return
+  const res = await axios.get(`/events/${selectedEvent.value.id}/plans`)
+  plans.value = res.data
+  if (plans.value.length > 0) {
+    selectedPlanId.value = plans.value[0].id
+    await fetchParams(selectedPlanId.value as number)
+
+  } else {
+    const newPlanId = await createDefaultPlan()
+    if (newPlanId) {
+      const newPlan = {id: newPlanId, name: 'Standard-Zeitplan', is_chosen: true}
+      plans.value.push(newPlan)
+      selectedPlanId.value = newPlanId
+      await fetchParams(newPlanId)
+
+    }
+  }
+}
 
   try {
+    const response = await axios.post(`/plans`, {
+      event: selectedEvent?.value?.id,
+      name: 'Zeitplan'
+    })
+    return response.data.id
+  } catch (e) {
+    console.error('Fehler beim Erstellen des Plans', e)
+    return null
   
     const res = await axios.get(`/plans/event/${selectedEvent.value.id}`)
     const plan = res.data
@@ -285,8 +309,6 @@ async function getOrCreatePlan() {
     selectedPlanId.value = plan.id
     await fetchParams(plan.id)
 
-  } catch (err) {
-    console.error('Fehler beim Erstellen oder Initialisieren des Plans:', err)
   }
 }
 
@@ -295,7 +317,7 @@ const toggle = (id: string) => {
   openGroup.value = openGroup.value === id ? null : id
 }
 
-function isTimeParam(param: any) {
+function isTimeParam(param: Parameter) {
   return (
       (param.type === 'time' || (param.name && param.name.toLowerCase().includes('duration'))) &&
       param.context !== 'expert'
@@ -401,7 +423,7 @@ onMounted(async () => {
                     :disabled="disabledMap[param.id]"
                     :with-label="true"
                     :horizontal="true"
-                    @update="(param) => handleParamUpdate({name: param.name, value: param.value})"
+                    @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
                 />
               </template>
             </div>
@@ -428,7 +450,7 @@ onMounted(async () => {
                   :disabled="disabledMap[param.id]"
                   :with-label="true"
                   :horizontal="true"
-                  @update="(param) => handleParamUpdate({name: param.name, value: param.value})"
+                                      @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
               />
             </template>
           </div>
@@ -446,7 +468,7 @@ onMounted(async () => {
       </button>
       <transition name="fade">
         <div v-if="openGroup === 'extras'" class="p-4">
-          <ExtraBlocks
+          <InsertBlocks
               :plan-id="selectedPlanId as number"
               :event-level="selectedEvent?.level ?? null"
           />
@@ -455,9 +477,9 @@ onMounted(async () => {
     </div>
 
     <div class="flex-grow overflow-hidden">
-      <div v-if="isGenerating" class="flex items-center justify-start h-full flex-col text-gray-600">
-        <LoaderFlow />
-        <LoaderText />
+      <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-gray-600">
+        <LoaderFlow/>
+        <LoaderText/>
       </div>
       <Preview
           v-else-if="selectedPlanId"
