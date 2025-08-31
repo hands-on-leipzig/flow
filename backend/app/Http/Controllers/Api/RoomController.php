@@ -20,6 +20,7 @@ class RoomController extends Controller
 
         $roomTypes = MRoomType::with('group')
             ->where('level', '<=', $event->level)
+            ->orderBy('sequence')
             ->get()
             ->map(function ($type) use ($programsByName) {
                 $group = $type->group;
