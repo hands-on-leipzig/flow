@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 
 class EventController extends Controller
@@ -97,8 +96,6 @@ class EventController extends Controller
     public function getTableNames($event)
     {
 
-        Log::info($event);
-
         $tables = TableEvent::where('event', $event)
             ->orderBy('table_number')
             ->get(['table_number', 'table_name']);
@@ -110,7 +107,6 @@ class EventController extends Controller
 
     public function updateTableNames(Request $request, $event)
     {
-        Log::info("Payload empfangen für Event $event", ['payload' => $request->all()]);
 
         $tables = $request->input('table_names'); 
 
@@ -135,8 +131,6 @@ class EventController extends Controller
                 ]);
             }
         });
-
-        log::info("Table names updated successfully for event ID: $event");
 
         return response()->json(['success' => true]);
     }
