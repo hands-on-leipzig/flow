@@ -295,7 +295,7 @@ async function getOrCreatePlan() {
       return
     }
 
-    await axios.get(`/plans/${plan.id}/copy-default`)
+    // await axios.get(`/plans/${plan.id}/copy-default`)
 
     plans.value = [plan]
     selectedPlanId.value = plan.id

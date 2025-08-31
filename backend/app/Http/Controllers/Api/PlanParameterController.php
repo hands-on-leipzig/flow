@@ -48,13 +48,6 @@ class PlanParameterController extends Controller
         $plan = Plan::find($planId);
         $event = Event::find($plan->event);
 
-        // Check if we have any parameter values for this plan
-        $hasParamValues = PlanParamValue::where('plan', $planId)->exists();
-
-        if (!$hasParamValues) {
-            return $this->insertParamsFirst($planId);
-        }
-
         // Fetch all parameters using Eloquent relationships
         $parameters = MParameter::with(['planParamValues' => function($query) use ($planId) {
                 $query->where('plan', $planId);
@@ -76,7 +69,7 @@ class PlanParameterController extends Controller
                 unset($param->planParamValues, $param->firstProgram);
 
                 return $param;
-            });
+        });
 
         $filtered = $parameters->filter(function ($param) use ($event) {
             if ($param->level > $event->level) return false;
@@ -160,24 +153,5 @@ class PlanParameterController extends Controller
         // return response()->json(['status' => 'ok']);
     }
 
-    public function insertParamsFirst($planId): JsonResponse
-    {
-        $parameters = MParameter::select('id', 'value')->get();
-
-        $insertData = [];
-        foreach ($parameters as $param) {
-            $insertData[] = [
-                'plan' => $planId,
-                'parameter' => $param->id,
-                'set_value' => $param->value,
-            ];
-        }
-
-        if (!empty($insertData)) {
-            PlanParamValue::insert($insertData);
-        }
-
-        return response()->json($planId, 201);
-    }
 }
 
