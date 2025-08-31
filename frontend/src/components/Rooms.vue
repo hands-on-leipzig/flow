@@ -260,7 +260,7 @@ const cancelDeleteRoom = () => {
         </button>
 
         <transition name="accordion">
-          <div v-if="expandedGroups.has(group.id)" class="overflow-hidden">
+            <div v-if="expandedGroups.has(group.id)" class="overflow-hidden">
             <draggable
                 :list="roomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
                 group="roomtypes"

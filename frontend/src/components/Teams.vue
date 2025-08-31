@@ -3,7 +3,7 @@
 import TeamList from "@/components/molecules/TeamList.vue";
 import {computed, onMounted, ref} from "vue";
 import axios from "axios";
-import {useEventStore} from "@/stores/event.js";
+import {useEventStore} from "@/stores/event";
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
