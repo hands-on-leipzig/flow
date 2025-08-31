@@ -31,6 +31,9 @@ class EventController extends Controller
         switch ($user->is_admin) {
             case 0:
                 $regionalPartners = $user->regionalPartners()
+                    ->whereHas('events', function ($query) use ($season) {
+                        $query->where('season', $season->id);
+                    })
                     ->with(['events' => function ($query) use ($season) {
                         $query->where('season', $season->id)
                             ->orderBy('date')
@@ -39,7 +42,7 @@ class EventController extends Controller
                     ->get();
                 break;
             case 1:
-                $regionalPartners = RegionalPartner::all()->sortBy('name');
+                $regionalPartners = RegionalPartner::orderBy('name')->get();
                 break;
         }
 
@@ -65,6 +68,8 @@ class EventController extends Controller
                             'id' => $event->levelRel?->id,
                             'name' => $event->levelRel?->name,
                         ],
+                        'event_explore' => $event->event_explore,
+                        'event_challenge' => $event->event_challenge,
                     ];
                 }),
             ];
