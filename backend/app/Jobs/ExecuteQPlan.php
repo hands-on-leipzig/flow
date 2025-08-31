@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\QPlan;
 use App\Models\QRun;
 use App\Services\EvaluateQuality;
+use Carbon\Carbon;
 
 class ExecuteQPlan implements ShouldQueue
 {
@@ -30,13 +31,17 @@ class ExecuteQPlan implements ShouldQueue
     {
         Log::info("ExecuteQPlan gestartet für Run ID {$this->runId}");
 
+        QRun::where('id', $this->runId)->update([
+                'status' => 'running',
+            ]);
+
         $qPlan = QPlan::where('q_run', $this->runId)
             ->where('calculated', false)
             ->first();
 
         if (!$qPlan) {
             QRun::where('id', $this->runId)->update([
-                'finished_at' => now(),
+                'finished_at' => Carbon::now(),
                 'status' => 'done',
             ]);
 

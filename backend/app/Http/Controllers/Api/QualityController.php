@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Services\EvaluateQuality;
 
 use App\Models\QRun;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -26,12 +27,15 @@ class QualityController extends Controller
             return response()->json(['error' => 'Validation failed', 'details' => $e->errors()], 422);
         }
 
+        $host = gethostname();
+
         $qRunId = DB::table('q_run')->insertGetId([
             'name' => $payload['name'],
             'comment' => $payload['comment'] ?? null,
             'selection' => json_encode($payload['selection']),
-            'started_at' => now(),
+            'started_at' => Carbon::now(),
             'status' => 'pending',
+            'host' => $host,
         ]);
 
         // Dispatch Job to generate QPlans async
@@ -66,13 +70,15 @@ class QualityController extends Controller
         }
 
         $originalRunId = $firstQPlan->q_run;
+        $host = gethostname();
 
         $newRunId = DB::table('q_run')->insertGetId([
-            'name' => "Rerun für $originalRunId (gefiltert)",
+            'name' => "ReRun für $originalRunId (gefiltert)",
             'comment' => null,
             'selection' => null,
-            'started_at' => now(),
+            'started_at' => Carbon::now(),
             'status' => 'pending',
+            'host' => $host,
         ]);
 
         \App\Jobs\GenerateQPlansFromQPlans::dispatch($newRunId, $planIds);

@@ -108,7 +108,11 @@ class EvaluateQuality
         }
 
         // Read m_supported_plan and filter by selection
-        $supportedPlans = MSupportedPlan::where('first_program', 3)->get();
+        $supportedPlans = MSupportedPlan::where('first_program', 3)
+            ->orderBy('teams')
+            ->orderBy('lanes')
+            ->orderBy('tables')
+            ->get();
 
         foreach ($supportedPlans as $plan) {
             if (!$this->isPlanSupported($plan, $selection)) {
@@ -125,8 +129,8 @@ class EvaluateQuality
                 $newPlan = Plan::create([
                     'name' => "{$plan->teams}-{$plan->lanes}-{$plan->tables} ({$rounds}){$suffix}",
                     'event' => $eventId,
-                    'created' => now(),
-                    'last_change' => now(),
+                    'created' => Carbon::now(),
+                    'last_change' => Carbon::now(),
                 ]);
 
                 $planId = $newPlan->id;
