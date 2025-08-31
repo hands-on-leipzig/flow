@@ -470,7 +470,7 @@ onMounted(async () => {
     </div>
 
     <div class="flex-grow overflow-hidden">
-      <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-gray-600">
+      <div v-if="isGenerating" class="flex items-center justify-start h-full flex-col text-gray-600">
         <LoaderFlow/>
         <LoaderText/>
       </div>
