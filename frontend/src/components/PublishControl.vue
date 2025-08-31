@@ -1,10 +1,11 @@
-<script setup>
+<script setup lang="ts">
 
 import {ref, computed} from 'vue'
 import {useEventStore} from '@/stores/event'
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import Card from "@/components/atoms/Card.vue";
+import axios from 'axios';
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -41,6 +42,16 @@ const printSchedule = () => {
 }
 const printNameTags = () => {
   window.open(`/events/${event.value?.id}/print/nametags`, '_blank')
+}
+
+const updateEventField = async (field: string, value: any) => {
+  try {
+    await axios.put(`/events/${event.value?.id}`, {
+      [field]: value
+    })
+  } catch (e) {
+    console.error('WLAN update failed:', e)
+  }
 }
 </script>
 
@@ -103,6 +114,33 @@ const printNameTags = () => {
           <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded" @click="downloadScheduleQr">
             PDF exportieren
           </button>
+        </div>
+      </div>
+
+      <!-- WiFi Credentials Card -->
+      <div class="rounded-xl shadow bg-white p-4 flex flex-col">
+        <h2 class="text-lg font-semibold mb-2">WLAN Zugangsdaten</h2>
+        <div class="grid grid-cols-2 gap-4" v-if="event">
+          <div>
+            <label class="block text-sm text-gray-700 mb-1">SSID</label>
+            <input
+                v-model="event.wifi_ssid"
+                @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
+                class="w-full border px-3 py-1 rounded text-sm"
+                type="text"
+                placeholder="z. B. TH_EVENT_WLAN"
+            />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700 mb-1">Passwort</label>
+            <input
+                v-model="event.wifi_password"
+                @blur="updateEventField('wifi_password', event.wifi_password)"
+                class="w-full border px-3 py-1 rounded text-sm"
+                type="text"
+                placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
+            />
+          </div>
         </div>
       </div>
     </div>
