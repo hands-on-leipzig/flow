@@ -5,9 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Services\PreviewMatrix;
+use App\Jobs\GeneratePlanJob;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -63,18 +62,38 @@ class PlanController extends Controller
 
     */
 
+
     public function generate($planId): JsonResponse
+    {
+        log::info("Generate for plan ID {$planId}");
+
+        
+        $plan = Plan::find($planId);
+        if (!$plan) {
+            return response()->json(['error' => 'Plan not found'], 404);
+        }
+
+        
+        // Setze generator_status auf "running"
+        $plan->generator_status = 'running';
+        $plan->save();
+
+        // Job dispatchen
+        GeneratePlanJob::dispatch($planId);
+
+        return response()->json(['message' => 'Generation dispatched']);
+    }
+
+    public function status($planId): JsonResponse
     {
         $plan = Plan::find($planId);
         if (!$plan) {
             return response()->json(['error' => 'Plan not found'], 404);
         }
 
-        return response()->json($plan, 201); // TODO
-
-        // Hier würde die Logik zur Generierung des Plans implementiert werden.
-        // Zum Beispiel könnte
+        return response()->json(['status' => $plan->generator_status]);
     }
+
 
 
     //

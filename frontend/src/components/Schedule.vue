@@ -205,9 +205,8 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   if (!selectedPlanId.value) return
 
   loading.value = true
-  isGenerating.value = true
-
   try {
+    // 1. Speichern der Parameter (schnell)
     await axios.post(`/plans/${selectedPlanId.value}/parameters`, {
       parameters: params.map(({ name, value }) => {
         const p = paramMapByName.value[name]
@@ -217,14 +216,36 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
         }
       })
     })
-
-    if (afterUpdate) await afterUpdate()
   } catch (error) {
-    console.error('Error updating parameters:', error)
-  } finally {
+    console.error('Error saving parameters:', error)
     loading.value = false
-    isGenerating.value = false
+    return
   }
+  loading.value = false
+
+  // 2. Jetzt starten wir den langen Prozess
+  isGenerating.value = true
+  try {
+    await axios.post(`/plans/${selectedPlanId.value}/generate`) // Job starten
+    await pollUntilReady(selectedPlanId.value)                  // Warten, bis fertig
+  } catch (error) {
+    console.error('Error during generation:', error)
+  } finally {
+    isGenerating.value = false
+    if (afterUpdate) await afterUpdate()
+  }
+}
+
+async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 1000) {
+  const start = Date.now()
+
+  while (Date.now() - start < timeoutMs) {
+    const res = await axios.get(`/plans/${planId}/status`)
+    if (res.data.status === 'ready') return
+    await new Promise(resolve => setTimeout(resolve, intervalMs))
+  }
+
+  throw new Error('Timeout: Plan generation took too long')
 }
 
 // Legacy function - kept for backward compatibility but not used in new batch system
