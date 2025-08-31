@@ -205,9 +205,8 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   if (!selectedPlanId.value) return
 
   loading.value = true
-  isGenerating.value = true
-
   try {
+    // 1. Speichern der Parameter (schnell)
     await axios.post(`/plans/${selectedPlanId.value}/parameters`, {
       parameters: params.map(({ name, value }) => {
         const p = paramMapByName.value[name]
@@ -217,14 +216,36 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
         }
       })
     })
-
-    if (afterUpdate) await afterUpdate()
   } catch (error) {
-    console.error('Error updating parameters:', error)
-  } finally {
+    console.error('Error saving parameters:', error)
     loading.value = false
-    isGenerating.value = false
+    return
   }
+  loading.value = false
+
+  // 2. Jetzt starten wir den langen Prozess
+  isGenerating.value = true
+  try {
+    await axios.post(`/plans/${selectedPlanId.value}/generate`) // Job starten
+    await pollUntilReady(selectedPlanId.value)                  // Warten, bis fertig
+  } catch (error) {
+    console.error('Error during generation:', error)
+  } finally {
+    isGenerating.value = false
+    if (afterUpdate) await afterUpdate()
+  }
+}
+
+async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 1000) {
+  const start = Date.now()
+
+  while (Date.now() - start < timeoutMs) {
+    const res = await axios.get(`/plans/${planId}/status`)
+    if (res.data.status === 'done') return
+    await new Promise(resolve => setTimeout(resolve, intervalMs))
+  }
+
+  throw new Error('Timeout: Plan generation took too long')
 }
 
 // Legacy function - kept for backward compatibility but not used in new batch system
@@ -246,36 +267,26 @@ const expertParamsGrouped = computed(() => {
       }, {})
 })
 
-async function fetchPlans() {
+async function getOrCreatePlan() {
   if (!selectedEvent.value) return
-  const res = await axios.get(`/events/${selectedEvent.value.id}/plans`)
-  plans.value = res.data
-  if (plans.value.length > 0) {
-    selectedPlanId.value = plans.value[0].id
-    await fetchParams(selectedPlanId.value as number)
-   
-  } else {
-    const newPlanId = await createDefaultPlan()
-    if (newPlanId) {
-      const newPlan = {id: newPlanId, name: 'Standard-Zeitplan', is_chosen: true}
-      plans.value.push(newPlan)
-      selectedPlanId.value = newPlanId
-      await fetchParams(newPlanId)
-      
-    }
-  }
-}
 
-const createDefaultPlan = async () => {
   try {
-    const response = await axios.post(`/plans`, {
-      event: selectedEvent.value.id,
-      name: 'Zeitplan'
-    })
-    return response.data.id
-  } catch (e) {
-    console.error('Fehler beim Erstellen des Plans', e)
-    return null
+  
+    const res = await axios.get(`/plans/event/${selectedEvent.value.id}`)
+    const plan = res.data
+    if (!plan || !plan.id) {
+      console.error('Plan konnte nicht erstellt werden oder fehlt')
+      return
+    }
+
+    // await axios.get(`/plans/${plan.id}/copy-default`)
+
+    plans.value = [plan]
+    selectedPlanId.value = plan.id
+    await fetchParams(plan.id)
+
+  } catch (err) {
+    console.error('Fehler beim Erstellen oder Initialisieren des Plans:', err)
   }
 }
 
@@ -303,7 +314,7 @@ onMounted(async () => {
     console.error('No selected event could be loaded.')
     return
   }
-  await fetchPlans()
+  await getOrCreatePlan()
 
   const {data} = await axios.get('/parameter/lanes-options')
   const rows: LaneRow[] = Array.isArray(data?.rows) ? data.rows : data
@@ -444,7 +455,7 @@ onMounted(async () => {
     </div>
 
     <div class="flex-grow overflow-hidden">
-      <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-gray-600">
+      <div v-if="isGenerating" class="flex items-center justify-start h-full flex-col text-gray-600">
         <LoaderFlow />
         <LoaderText />
       </div>
@@ -453,7 +464,7 @@ onMounted(async () => {
           :plan-id="selectedPlanId as number"
           initial-view="roles"
       />
-</div>
+    </div>
 
   </div>
 </template>
