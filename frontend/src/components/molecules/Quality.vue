@@ -63,7 +63,9 @@ const startVolumeTest = () => {
 
   axios.post('/quality/qrun', payload)
     .then(() => {
-      reload.value++  // 🔁 Trigger Liste neu laden
+      reload.value++  
+      qrunName.value = ''
+      qrunComment.value = ''
     })
     .catch(error => {
       if (error.response) {
