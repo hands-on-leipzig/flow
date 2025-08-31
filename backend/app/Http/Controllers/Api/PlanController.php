@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
+use App\Models\MSupportedPlan;
+use App\Models\PlanParamValue;
 use App\Services\PreviewMatrix;
 use App\Jobs\GeneratePlanJob;
 use Illuminate\Http\JsonResponse;
@@ -36,32 +38,42 @@ class PlanController extends Controller
             'public' => false
         ]);
 
+        // TODO
+        // Hier sollten e_teams und c_teams mit den geplanten Werten aus DRAHT befüllt werden.
+        
+        $e_teams = 6; // TODO aus DRAHT
+        $c_teams = 12;  // TODO aus DRAHT
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 6],   // e_teams
+            ['set_value' => $e_teams]
+        );
+        
+
+        // Minimale parameter für einen gültigen Plan
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 22],    // c_teams
+            ['set_value' => $c_teams]
+        );
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 23],    // j_lanes
+            ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes')]
+        );
+        
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 24],  // r_tables
+            ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables')]
+        );
+
+
+
         return response()->json([
             'id' => $newId,
             'name' => 'Zeitplan'
         ]);
     }
-
-    /* alt
-
-    public function create(Request $request): JsonResponse
-    {
-        Log::debug($request->all());
-        $validated = $request->validate([
-            'event' => 'required|exists:event,id',
-            'name' => 'required|string|max:255',
-        ]);
-        $validated['created'] = Carbon::now();
-        $validated['last_change'] = Carbon::now();
-        $plan = Plan::create($validated);
-
-        (new PlanParameterController)->insertParamsFirst($plan->id);
-
-        return response()->json($plan, 201);
-    }
-
-    */
-
 
     public function generate($planId): JsonResponse
     {
