@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
+import {computed, onMounted, onUnmounted, ref} from 'vue'
 import axios from 'axios'
 import ParameterField from "@/components/molecules/ParameterField.vue"
 
@@ -10,7 +10,7 @@ import ExploreSettings from "@/components/molecules/ExploreSettings.vue";
 import ChallengeSettings from "@/components/molecules/ChallengeSettings.vue";
 import Preview from "@/components/molecules/Preview.vue";
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
-import LoaderText from "@/components/atoms/LoaderText.vue"; 
+import LoaderText from "@/components/atoms/LoaderText.vue";
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
@@ -209,7 +209,7 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 
   try {
     await axios.post(`/plans/${selectedPlanId.value}/parameters`, {
-      parameters: params.map(({ name, value }) => {
+      parameters: params.map(({name, value}) => {
         const p = paramMapByName.value[name]
         return {
           id: p?.id,
@@ -253,7 +253,7 @@ async function fetchPlans() {
   if (plans.value.length > 0) {
     selectedPlanId.value = plans.value[0].id
     await fetchParams(selectedPlanId.value as number)
-   
+
   } else {
     const newPlanId = await createDefaultPlan()
     if (newPlanId) {
@@ -261,7 +261,7 @@ async function fetchPlans() {
       plans.value.push(newPlan)
       selectedPlanId.value = newPlanId
       await fetchParams(newPlanId)
-      
+
     }
   }
 }
@@ -269,7 +269,7 @@ async function fetchPlans() {
 const createDefaultPlan = async () => {
   try {
     const response = await axios.post(`/plans`, {
-      event: selectedEvent.value.id,
+      event: selectedEvent?.value?.id,
       name: 'Zeitplan'
     })
     return response.data.id
@@ -390,7 +390,7 @@ onMounted(async () => {
                     :disabled="disabledMap[param.id]"
                     :with-label="true"
                     :horizontal="true"
-                    @update="(param) => handleParamUpdate({name: param.name, value: param.value})"
+                    @update="(param: any) => handleParamUpdate({name: param.name, value: param.value})"
                 />
               </template>
             </div>
@@ -417,7 +417,7 @@ onMounted(async () => {
                   :disabled="disabledMap[param.id]"
                   :with-label="true"
                   :horizontal="true"
-                  @update="(param) => handleParamUpdate({name: param.name, value: param.value})"
+                  @update="(param: any) => handleParamUpdate({name: param.name, value: param.value})"
               />
             </template>
           </div>
@@ -445,15 +445,15 @@ onMounted(async () => {
 
     <div class="flex-grow overflow-hidden">
       <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-gray-600">
-        <LoaderFlow />
-        <LoaderText />
+        <LoaderFlow/>
+        <LoaderText/>
       </div>
       <Preview
           v-else-if="selectedPlanId"
           :plan-id="selectedPlanId as number"
           initial-view="roles"
       />
-</div>
+    </div>
 
   </div>
 </template>
