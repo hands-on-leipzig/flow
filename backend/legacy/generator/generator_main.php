@@ -31,7 +31,7 @@ function g_generator($plan_id) {
     global $DEBUG;                      // Debug level. 0 = off
 
     // !!!! TODEL
-    $DEBUG = 3;                       
+    $DEBUG = 0;                       
 
     global $g_params;                   // Global array holding all parameters for the current plan
     $g_params = [];

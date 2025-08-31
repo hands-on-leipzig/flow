@@ -57,7 +57,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('plans')->group(function () { 
         Route::post('/create', [PlanController::class, 'create']);
         Route::get('/event/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); 
-        Route::get('/generate/{planId}', [PlanController::class, 'generate']);        
+        Route::post('/{planId}/generate', [PlanController::class, 'generate']);
+        Route::get('/{planId}/status', [PlanController::class, 'status']);    
         Route::get('/preview/{planId}/roles', [PlanController::class, 'previewRoles']);  
         Route::get('/preview/{planId}/teams', [PlanController::class, 'previewTeams']);  
         Route::get('/preview/{planId}/rooms', [PlanController::class, 'previewRooms']);
