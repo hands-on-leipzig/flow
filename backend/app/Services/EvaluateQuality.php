@@ -129,8 +129,8 @@ class EvaluateQuality
                 $newPlan = Plan::create([
                     'name' => "{$plan->teams}-{$plan->lanes}-{$plan->tables} ({$rounds}){$suffix}",
                     'event' => $eventId,
-                    'created' => now(),
-                    'last_change' => now(),
+                    'created' => Carbon::now(),
+                    'last_change' => Carbon::now(),
                 ]);
 
                 $planId = $newPlan->id;
