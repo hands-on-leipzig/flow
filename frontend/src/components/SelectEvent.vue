@@ -32,7 +32,7 @@ async function selectEvent(eventId, regionalPartnerId) {
 
 <template>
   <div class="p-6 overflow-y-auto max-h-screen max-w-screen">
-    <h1 class="text-2xl font-bold mb-4">Wettbewerb wählen</h1>
+    <h1 class="text-2xl font-bold mb-4">Veranstaltung wählen</h1>
 
     <div v-if="loading" class="flex justify-center">
       <LoaderFlow/>
@@ -47,10 +47,33 @@ async function selectEvent(eventId, regionalPartnerId) {
             class="p-4 bg-white shadow rounded hover:bg-gray-100 cursor-pointer"
             @click="selectEvent(event.id, rp.regional_partner.id)"
         >
-          <h3 class="font-medium text-lg">{{ event.name }}</h3>
-          <p class="text-sm text-gray-500">{{ dayjs(event.date).format('dddd, DD.MM.YYYY') }}</p>
-          <p class="text-sm text-gray-500">{{ event.level.name }}</p>
-          <p class="text-sm text-gray-500">{{ event.season.name }} ({{ event.season.year }})</p>
+
+          <!-- Flex-Container: Text links, zwei Bilder rechts -->
+          <div class="flex justify-between items-start">
+            <!-- Linker Bereich: Text -->
+            <div>
+              <h3 class="font-medium text-lg">{{ event.name }}</h3>
+              <p class="text-sm text-gray-500">{{ dayjs(event.date).format('dddd, DD.MM.YYYY') }}</p>
+              <p class="text-sm text-gray-500">{{ event.level.name }}</p>
+              <p class="text-sm text-gray-500">{{ event.season.name }} ({{ event.season.year }})</p>
+            </div>
+
+            <!-- Rechter Bereich: Bilder nebeneinander, bedingt sichtbar -->
+            <div class="flex ml-4 space-x-2">
+              <img
+                v-if="event.event_explore !== null"
+                src="@/assets/FLL_Explore.png"
+                alt="Logo Explore"
+                class="w-20 h-20 flex-shrink-0"
+              />
+              <img
+                v-if="event.event_challenge !== null"
+                src="@/assets/FLL_Challenge.png"
+                alt="Logo Challenge"
+                class="w-20 h-20 flex-shrink-0"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

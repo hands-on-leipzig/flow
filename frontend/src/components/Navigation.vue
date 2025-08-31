@@ -63,20 +63,24 @@ function goTo(tab) {
     </div>
     <Menu as="div" class="relative inline-block text-left">
       <MenuButton
-          class="inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
-        Mehr
+      class="inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
+      Mehr
       </MenuButton>
-      <MenuItems
-          class="absolute right-0 z-10 mt-2 w-40 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+      <MenuItems class="absolute right-0 z-10 mt-2 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none w-fit">
         <div class="py-1">
           <MenuItem>
-            <button @click="router.push({ path: 'events' })"
-                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-              Event wählen
+            <button
+              @click="router.push({ path: 'events' })"
+              class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left whitespace-nowrap"
+            >
+              Veranstaltung wechseln
             </button>
           </MenuItem>
           <MenuItem>
-            <button @click="logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+            <button
+              @click="logout"
+              class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left whitespace-nowrap"
+            >
               Logout
             </button>
           </MenuItem>
