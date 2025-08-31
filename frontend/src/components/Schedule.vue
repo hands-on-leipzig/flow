@@ -21,7 +21,7 @@ const parameters = ref<Parameter[]>([])
 
 
 const inputName = ref('')
-const plans = ref<any[]>([])
+const plans = ref<Array<{id: number, name: string, is_chosen?: boolean}>>([])
 const selectedPlanId = ref<number | null>(null)
 const loading = ref(true)
 
@@ -286,6 +286,7 @@ async function getOrCreatePlan() {
   }
 }
 
+const createDefaultPlan = async () => {
   try {
     const response = await axios.post(`/plans`, {
       event: selectedEvent?.value?.id,
@@ -295,20 +296,6 @@ async function getOrCreatePlan() {
   } catch (e) {
     console.error('Fehler beim Erstellen des Plans', e)
     return null
-  
-    const res = await axios.get(`/plans/event/${selectedEvent.value.id}`)
-    const plan = res.data
-    if (!plan || !plan.id) {
-      console.error('Plan konnte nicht erstellt werden oder fehlt')
-      return
-    }
-
-    // await axios.get(`/plans/${plan.id}/copy-default`)
-
-    plans.value = [plan]
-    selectedPlanId.value = plan.id
-    await fetchParams(plan.id)
-
   }
 }
 
