@@ -57,6 +57,16 @@ const updateEventField = async (field: string, value: any) => {
 function copyUrl(url) {
   navigator.clipboard.writeText(url);
 }
+
+const updateEventField = async (field: string, value: any) => {
+  try {
+    await axios.put(`/events/${event.value?.id}`, {
+      [field]: value
+    })
+  } catch (e) {
+    console.error('WLAN update failed:', e)
+  }
+}
 </script>
 
 <template>
