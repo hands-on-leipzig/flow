@@ -21,7 +21,7 @@ const parameters = ref<Parameter[]>([])
 
 
 const inputName = ref('')
-const plans = ref<Array<{id: number, name: string, is_chosen?: boolean}>>([])
+const plans = ref<Array<{ id: number, name: string, is_chosen?: boolean }>>([])
 const selectedPlanId = ref<number | null>(null)
 const loading = ref(true)
 
@@ -268,12 +268,11 @@ const expertParamsGrouped = computed(() => {
 
 async function getOrCreatePlan() {
   if (!selectedEvent.value) return
-  const res = await axios.get(`/events/${selectedEvent.value.id}/plans`)
+  const res = await axios.get(`/plans/event/${selectedEvent.value.id}`)
   plans.value = res.data
-  if (plans.value.length > 0) {
-    selectedPlanId.value = plans.value[0].id
+  if (plans.value.id > 0) {
+    selectedPlanId.value = plans.value.id
     await fetchParams(selectedPlanId.value as number)
-
   } else {
     const newPlanId = await createDefaultPlan()
     if (newPlanId) {
@@ -437,7 +436,7 @@ onMounted(async () => {
                   :disabled="disabledMap[param.id]"
                   :with-label="true"
                   :horizontal="true"
-                                      @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
+                  @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
               />
             </template>
           </div>
