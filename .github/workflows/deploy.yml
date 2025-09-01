@@ -41,7 +41,13 @@ jobs:
           rm -rf backend/public/build
           rm -f backend/public/index.html
           cp -r frontend/dist/* backend/public/
-      # Deploy to server via rsync
+      - name: Copy output to Laravel public dir
+        run: |
+          rm -rf backend/public/output
+          mkdir -p backend/public/output
+          cp -r output/* backend/public/output/
+          chmod +x backend/public/output/zeitplan.cgi || true
+          chmod +x backend/public/output/namensschilder.cgi || true
       - name: Rsync backend to server
         run: |
           mkdir -p ~/.ssh
