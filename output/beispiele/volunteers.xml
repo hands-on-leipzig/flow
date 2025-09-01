@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<volunteers offset="0">
+    <volunteer>
+        <vorname>Max</vorname>
+        <nachname>Mustermann</nachname>
+        <rolle>Juror</rolle>
+        <kategorie></kategorie>
+        <competition></competition>
+    </volunteer>
+    <volunteer>
+        <vorname>Elfriede</vorname>
+        <nachname>Etikett</nachname>
+        <rolle>Gutachterin</rolle>
+        <kategorie></kategorie>
+        <competition></competition>
+    </volunteer>
+    <volunteer>
+        <vorname>Robert</vorname>
+        <nachname>Gäm</nachname>
+        <rolle>Schiedsrichter</rolle>
+        <kategorie></kategorie>
+        <competition></competition>
+    </volunteer>
+    <volunteer>
+        <vorname>Tina</vorname>
+        <nachname>Test</nachname>
+        <rolle>Catering</rolle>
+        <kategorie></kategorie>
+        <competition></competition>
+    </volunteer>
+</volunteers>

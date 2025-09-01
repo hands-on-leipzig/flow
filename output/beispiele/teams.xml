@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<teams offset="0">
+    <team>
+        <competition>Explore</competition>
+        <name>Lego-Löwen</name>
+        <mitglieder>
+            <mitglied>
+                <vorname>Heinz</vorname>
+                <nachname>Brüller</nachname>
+            </mitglied>
+            <mitglied>
+                <vorname>Heidi</vorname>
+                <nachname>Heinemann</nachname>
+            </mitglied>
+        </mitglieder>
+    </team>
+    <team>
+        <competition>Challenge</competition>
+        <name>ABCrobotX</name>
+        <mitglieder>
+            <mitglied>
+                <vorname>Gustav</vorname>
+                <nachname>Gans</nachname>
+            </mitglied>
+            <mitglied>
+                <vorname>Minnie</vorname>
+                <nachname>Maus</nachname>
+            </mitglied>
+        </mitglieder>
+    </team>
+</teams>
