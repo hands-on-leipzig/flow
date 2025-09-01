@@ -82,7 +82,7 @@ function g_debug_log($level, $point, $parameter = "") {
         Log::debug("Generator " . $point);
 
     } else {
-        Log::debug("Generator " . $point . " ". $parameter. "=" . gp($parameter));
+        Log::debug("Generator " . $point . " ". $parameter. "=" . pp($parameter));
 
     }  
 
