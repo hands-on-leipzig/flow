@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<event>
+    <logo_path><!--zeitplan:logo_path--></logo_path>
+    <qrcode><!--zeitplan:qrcode--></qrcode>
+    <level><!--zeitplan:level_name--></level>
+    <region><!--zeitplan:regionalpartner_region--></region>
+    <regionalpartner><!--zeitplan:regionalpartner_name--></regionalpartner>
+    <date><!--zeitplan:event_date--></date>
+    
+    <start><!--zeitplan:event_start--></start>
+    <end><!--zeitplan:event_end--></end>
+    
+    <role><!--zeitplan:role--></role>
+    <competition><!--zeitplan:first_program_name--></competition>
+    <title_background_color><!--zeitplan:first_program_color_hex--></title_background_color>
+    <title_logo><!--zeitplan:first_program_logo_white--></title_logo>
+    <plan_last_change><!--zeitplan:plan_last_change--></plan_last_change>
+    
+    <days>
+    <!--zeitplan:detailplan-->
+    </days>
+    
+    <!-- fuer Tagesplan -->
+    <columns>
+        <column><number>1</number><topic>Allgemein</topic><heading>Alle</heading></column><!-- all -->
+        <column><number>2</number><topic>Challenge</topic><heading>FIRST LEGO League Challenge</heading></column><!-- challenge -->
+        <column><number>3</number><topic>Robot-Game</topic><heading>FIRST LEGO League Challenge - Robot Game</heading></column><!-- robot game -->
+        <column><number>4</number><topic>Explore</topic><heading>FIRST LEGO League Explore</heading></column><!-- explore -->
+    </columns>
+</event>
