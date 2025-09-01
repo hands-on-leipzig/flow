@@ -12,3 +12,5 @@ function pp(string $key): mixed
 {
     return PlanParameter::get($key);
 }
+
+?>

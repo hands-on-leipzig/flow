@@ -7,13 +7,54 @@ use Illuminate\Support\Facades\DB;
 class PlanParameter
 {
     private array $params = [];
+    private static ?self $instance = null;
 
-    public function __construct(private readonly int $planId)
+    public static function load(int $planId): void
     {
-        $this->load();
+        self::$instance = new self($planId);
     }
 
-    private function load(): void
+    public static function get(string $key): mixed
+    {
+        if (!self::$instance) {
+            throw new \RuntimeException("PlanParameter not loaded.");
+        }
+
+        return self::$instance->getValue($key);
+    }
+
+    public static function add(string $key, mixed $value, string $type = 'string'): void
+    {
+        if (!self::$instance) {
+            throw new \RuntimeException("PlanParameter not loaded.");
+        }
+
+        self::$instance->addInternal($key, $value, $type);
+    }
+
+    private function __construct(private readonly int $planId)
+    {
+        $this->init();
+    }
+
+    private function getValue(string $key): mixed
+    {
+        if (!array_key_exists($key, $this->params)) {
+            throw new \RuntimeException("Parameter '{$key}' not found.");
+        }
+
+        return $this->params[$key]['value'];
+    }
+
+    private function addInternal(string $key, mixed $value, string $type): void
+    {
+        $this->params[$key] = [
+            'value' => $this->cast($value, $type),
+            'type' => $type,
+        ];
+    }
+
+    private function init(): void
     {
         $base = DB::table('m_parameter')
             ->select('id', 'name', 'type', 'value')
@@ -37,8 +78,6 @@ class PlanParameter
             ];
         }
 
-        $this->load();
-
         $eventId = DB::table('plan')
             ->where('id', $this->planId)
             ->value('event');
@@ -56,36 +95,10 @@ class PlanParameter
             throw new \RuntimeException("Event-ID {$eventId} nicht gefunden.");
         }
 
-        $this->add('g_level', $event->level, 'integer');
-        $this->add('g_date', $event->date, 'date');
-        $this->add('g_days', $event->days, 'integer');
-        $this->add('g_finale', ((int)$event->level === 3), 'boolean');
-    }
-
-    public function get(string $name): mixed
-    {
-        if (!array_key_exists($name, $this->params)) {
-            throw new \RuntimeException("Parameter '{$name}' not found.");
-        }
-
-        return $this->params[$name]['value'];
-    }
-
-    public function getType(string $name): string
-    {
-        if (!array_key_exists($name, $this->params)) {
-            throw new \RuntimeException("Parameter '{$name}' not found.");
-        }
-
-        return $this->params[$name]['type'];
-    }
-
-    public function add(string $name, mixed $value, string $type = 'string'): void
-    {
-        $this->params[$name] = [
-            'value' => $this->cast($value, $type),
-            'type' => $type,
-        ];
+        $this->addInternal('g_level', $event->level, 'integer');
+        $this->addInternal('g_date', $event->date, 'date');
+        $this->addInternal('g_days', $event->days, 'integer');
+        $this->addInternal('g_finale', ((int)$event->level === 3), 'boolean');
     }
 
     private function cast(mixed $value, ?string $type): mixed
@@ -101,3 +114,5 @@ class PlanParameter
         };
     }
 }
+
+?>
