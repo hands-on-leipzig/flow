@@ -18,6 +18,8 @@ const teamsDiffer = ref(false)
 const showDiffModal = ref(false)
 const colour = props.program === 'explore' ? 'green' : 'red';
 
+const ignoredTeamNumbers = ref(new Set())
+
 watch(() => props.teams, (newVal) => {
   teamList.value = [...newVal]
 })
@@ -65,14 +67,16 @@ const mergedTeams = computed(() => {
     const local = localMap.get(number)
     const draht = drahtMap.get(number)
 
-    let status = 'match'
-    if (local && draht) {
-      status = local.name !== draht.name ? 'conflict' : 'match'
-    } else if (draht && !local) {
-      status = 'new'
-    } else if (local && !draht) {
-      status = 'missing'
-    }
+  let status = 'match'
+  if (ignoredTeamNumbers.value.has(number)) {
+    status = 'ignored'
+  } else if (local && draht) {
+    status = local.name !== draht.name ? 'conflict' : 'match'
+  } else if (draht && !local) {
+    status = 'new'
+  } else if (local && !draht) {
+    status = 'missing'
+  }
 
     result.push({number, local, draht, status})
   })
@@ -83,7 +87,7 @@ const mergedTeams = computed(() => {
 const statusLabels = {
   match: '✔ Identisch',
   conflict: '⚠ Unterschied',
-  new: '➕ Nur bei HandsOn',
+  new: '➕ Nur angemeldet',
   missing: '❌ Nur in FLOW'
 }
 
@@ -123,7 +127,12 @@ const applyDrahtTeam = async (team) => {
 
 const ignoreDiff = (team) => {
   // Mark as resolved but not updated
-  team.status = 'ignored'
+  ignoredTeamNumbers.value.add(team.number)
+
+  const hasRemainingDiffs = mergedTeams.value.some(t => t.status !== 'match' && t.status !== 'ignored')
+  if (!hasRemainingDiffs) {
+    showDiffModal.value = false
+  }
 }
 
 const showSyncPrompt = computed(() =>
@@ -152,26 +161,26 @@ onMounted(async () => {
           v-if="program === 'explore'"
           src="@/assets/FLL_Explore.png"
           alt="Logo Explore"
-          class="w-6 h-6 flex-shrink-0"
+          class="w-10 h-10 flex-shrink-0"
         />
         <img
           v-else-if="program === 'challenge'"
           src="@/assets/FLL_Challenge.png"
           alt="Logo Challenge"
-          class="w-6 h-6 flex-shrink-0"
+          class="w-10 h-10 flex-shrink-0"
         />
       <div>
         <h3 class="text-lg font-semibold capitalize">
           <span class="italic">FIRST</span> LEGO League {{ program }}
         </h3>
-        <p class="text-sm text-gray-500">Geplant: xx</p>
+        <p class="text-sm text-gray-500">Geplant: ??</p>
       </div>
       </div>
       <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
         Die Daten in FLOW weichen von denen der Anmeldung ab.
         <button class="text-sm text-yellow-600" @click="showDiffModal = !showDiffModal">
-          Unterschiede {{ showDiffModal ? 'ausblenden' : 'anzeigen' }}
-          ({{ mergedTeams.filter(t => t.status !== 'match').length }})
+          Unterschiede anzeigen
+          ({{ mergedTeams.filter(t => !['match', 'ignored'].includes(t.status)).length }})
         </button>
       </div>
       <draggable
@@ -222,7 +231,7 @@ onMounted(async () => {
 
         <div class="space-y-4">
           <div
-              v-for="team in mergedTeams.filter(t => t.status !== 'match')"
+              v-for="team in mergedTeams.filter(t => t.status !== 'match' && t.status !== 'ignored')"
               :key="team.number"
               class="rounded-md p-4 border-l-4 bg-gray-50"
               :class="{
