@@ -651,14 +651,10 @@ function c_presentations () {
 
 function c_briefings($t, $c_day) {           
 
-    global $DEBUG;
-
     global $r_time;
     global $j_time;
 
-    if($DEBUG >= 2){
-        echo "<h3>Briefings - Challenge</h3>";
-    }
+    g_debug_log(1, "Challenge briefings");
 
     // $t is start of opening. Backwards calcuations are done relative to this time.
 
@@ -732,12 +728,9 @@ function c_briefings($t, $c_day) {
 
 function r_final_round($team_count) {
 
-    global $DEBUG;
     global $r_time;
 
-    if($DEBUG >= 3) {
-        echo "<h4>Round game - final " . $team_count. " teams</h3>";
-    }
+    g_debug_log(1, "Robot Game final round with " . $team_count . " teams");
 
     switch($team_count) {
 

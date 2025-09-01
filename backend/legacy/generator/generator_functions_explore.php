@@ -10,13 +10,10 @@ require_once 'generator_db.php';
 // FLL Explore briefings
 function e_briefings($t, $group) {
 
-    global $DEBUG;
     global $e_time;
 
-    if ($DEBUG >= 2) {
-        echo "<h3>Explore - briefings</h3>";
-    }
 
+    g_debug_log(1, "Explore briefings");
 
     // $t is the start of the opening ceremony
 
@@ -61,12 +58,9 @@ function e_briefings($t, $group) {
 // FLL Explore judging plan
 function e_judging($group) {
 
-    global $DEBUG;
     global $e_time;
 
-    if ($DEBUG >= 2) {
-        echo "<h3>Explore - judging</h3>";
-    }
+    g_debug_log(2, "Explore judging");
     
     // Build the plan
 
@@ -134,23 +128,15 @@ function e_judging($group) {
 //
 function e_decoupled($g_event_date) {
 
-    global $DEBUG;
+
     global $e_time;
 
     if (gp("e1_teams") > 0) {
 
-        if($DEBUG >= 1) {
-
-            g_debug_log("e1_teams");
-            g_debug_log("e1_lanes");
-            g_debug_log("e1_rounds");
-
-            echo "<h2>Explore decoupled - group 1</h2>";
-            echo "e1 teams: " . gp("e1_teams") . "<br>";
-            echo "e1 lanes: " . gp("e1_lanes") . "<br>";
-            echo "e1 rounds: " . gp("e1_rounds") . "<br>";
-            echo "<br>";
-        }
+        g_debug_log(1, "Explore decoupled group 1");
+        g_debug_log(2, "Explore", "e1_teams");
+        g_debug_log(2, "Explore", "e1_lanes");
+        g_debug_log(2, "Explore", "e1_rounds");
 
         // Check if the plan is supported. Die if not.
         db_check_supported_plan(
@@ -201,18 +187,10 @@ function e_decoupled($g_event_date) {
 
     if(gp("e2_teams") > 0) {
 
-        if($DEBUG >= 1) {
-
-            g_debug_log("e2_teams");
-            g_debug_log("e2_lanes");
-            g_debug_log("e2_rounds");
-
-            echo "<h2>Explore decoupled - group 2</h2>";
-            echo "e2 teams: " . gp("e2_teams") . "<br>";
-            echo "e2 lanes: " . gp("e2_lanes") . "<br>";
-            echo "e2 rounds: " . gp("e2_rounds") . "<br>";
-            echo "<br>";
-        }
+        g_debug_log(1, "Explore decoupled group 2");  
+        g_debug_log(2, "Explore", "e2_teams");
+        g_debug_log(2, "Explore", "e2_lanes");
+        g_debug_log(2, "Explore", "e2_rounds");
 
         // Check if the plan is supported. Die if not.
         db_check_supported_plan(
@@ -260,9 +238,7 @@ function e_decoupled($g_event_date) {
     
     } else {
 
-        if($DEBUG >= 1){
-            echo "<h2>Explore decoupled - no group 2</h2>";
-        }
+        g_debug_log(1, "Explore decoupled no group 2");
     }
 
 } 
@@ -271,7 +247,6 @@ function e_decoupled($g_event_date) {
 
 function e_integrated() {
 
-    global $DEBUG;
     global $r_time;
     global $e_time; 
 
@@ -305,26 +280,18 @@ function e_integrated() {
             // Buffer to get Explore people out of the way
             g_add_minutes($r_time, gp("e_ready_awards"));          // TODO different parameters "to e and back to c"
 
-            if($DEBUG >= 1){
-                echo "<h2>Explore - no afternoon batch</h2>";
-            }
-            break; 
+
+            g_debug_log(1, "Explore no afternoon batch");
+
 
         case ID_E_AFTERNOON:
             // FLL Explore afternoon batch > opening, briefings, judging
 
-            if($DEBUG >= 1) {
 
-                g_debug_log("e2_teams");
-                g_debug_log("e2_lanes");
-                g_debug_log("e2_rounds");
-
-                echo "<h2>Explore - afternoon batch</h2>";
-                echo "e2 teams: " . gp("e2_teams") . "<br>";
-                echo "e2 lanes: " . gp("e2_lanes") . "<br>";
-                echo "e2 rounds: " . gp("e2_rounds") . "<br>";
-                echo "<br>";
-            }               
+            g_debug_log(1, "Explore afternoon batch");
+            g_debug_log(2, "Explore", "e2_teams");
+            g_debug_log(2, "Explore", "e2_lanes");
+            g_debug_log(2, "Explore", "e2_rounds:");   
 
             // Check if the plan is supported. Die if not.
             db_check_supported_plan(
@@ -374,10 +341,9 @@ function e_integrated() {
         case ID_E_DECOUPLED_AFTERNOON:
         case ID_E_DECOUPLED_BOTH:
 
-            if($DEBUG >= 1){
-                echo "<h2>Explore - no afternoon batch</h2>";
-            }
-            break;
+
+            g_debug_log(1, "Explore no afternoon batch");
+
     }
 
 }

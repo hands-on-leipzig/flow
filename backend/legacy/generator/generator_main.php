@@ -42,27 +42,18 @@ function g_generator($plan_id) {
     
     add_param("g_plan", $plan_id, "integer");   
 
-    if($DEBUG >= 1){
-        g_debug_log("g_plan");
-        echo "<h2>Plan</h2>";
-        echo "g_plan: " . gp("g_plan") . " <a href='https://dev.planning.hands-on-technology.org/generator/generator_day_plan.php?plan=" . gp("g_plan")  ."' target='plan'>Day Plan</a>"
-             . " <a href='https://dev.planning.hands-on-technology.org/generator/extra/generator_show_plan_raw.php?plan=" . gp("g_plan")  ."' target='act'>Activities</a><br>";
-    }
-
+    g_debug_log(1, "Start", "g_plan");
+    
     // Core data that cannot be touched by the organizer
 
     db_get_from_plan();                 // Get the event ID from the plan   
-    db_get_from_event();                // Get the date, number of days and flag for final from DB
+    db_get_from_event();                // Get the date, number of days and level from DB
     $g_event_date = new DateTime(gp("g_event_date"));    
         
     // Parameters that can be set by the organizer
     db_get_parameters();                // Get all parameters for the plan
 
-    if($DEBUG >= 1){
-        g_debug_log("e_mode");
-        echo "<h2>Mode</h2>";
-        echo "e mode: " . gp("e_mode") . "<br>";
-    }
+    g_debug_log(1, "Start", "e_mode");
 
     // Derrived values that are calculated from the parameters
 
@@ -141,27 +132,16 @@ function g_generator($plan_id) {
         // FLL Challenge (with our without FLL Explore)
         // ***********************************************************************************
 
-        if ($DEBUG >= 1) {
+        g_debug_log(2, "Challenge", "c_teams");
+        g_debug_log(2, "Challenge", "j_lanes");
+        g_debug_log(2, "Challenge", "j_rounds");
+        g_debug_log(2, "Challenge", "r_tables");
+        g_debug_log(2, "Challenge", "r_robot_check");
+        g_debug_log(2, "Challenge", "r_matches_per_round");
+        g_debug_log(2, "Challenge", "r_need_volunteer");
+        g_debug_log(2, "Challenge", "r_asym");
 
-            g_debug_log("c_teams");
-            g_debug_log("j_lanes");
-            g_debug_log("j_rounds");
-            g_debug_log("r_tables");
-            g_debug_log("r_robot_check");
-            g_debug_log("r_matches_per_round");
-            g_debug_log("r_need_volunteer");
-            g_debug_log("r_asym");
 
-            echo "<h2>Challenge</h2>";
-            echo "c teams: " . gp("c_teams") . "<br>";
-            echo "j lanes: " . gp("j_lanes") . "<br>";
-            echo "j rounds: " . gp("j_rounds") . "<br>";
-            echo "r tables: " . gp("r_tables") . "<br>";
-            echo "r robot check: " . (gp("r_robot_check") ? 'Yes' : 'No') . "<br>";
-            echo "RG matches per round: " . gp("r_matches_per_round") . "<br>";
-            echo "RG need volunteer: " . (gp("r_need_volunteer") ? 'Yes' : 'No') . "<br>";
-            echo "RG asymmetric: " . (gp("r_asym") ? 'Yes' : 'No') . "<br>";
-        }
 
         // Check if the plan is supported. Die if not.
         db_check_supported_plan(
@@ -224,9 +204,7 @@ function g_generator($plan_id) {
         if (gp("e_mode") == ID_E_MORNING) {
             // joint opening  
             
-            if($DEBUG >= 2){
-                echo "<h3>Opening - joint</h3>";
-            }
+            g_debug_log(1, "Opening joint");
 
             db_insert_activity_group(ID_ATD_OPENING);
             db_insert_activity(ID_ATD_OPENING, $c_time, gp("g_duration_opening"));        
@@ -237,9 +215,7 @@ function g_generator($plan_id) {
         } else {
             // FLL Challenge only during the morning
 
-            if($DEBUG >= 2){
-                echo "<h3>Opening - Challenge only</h3>";
-            }
+            g_debug_log(1, "Opening Challenge only");
 
             db_insert_activity_group(ID_ATD_C_OPENING);
             db_insert_activity(ID_ATD_C_OPENING, $c_time, gp("c_duration_opening"));
@@ -266,18 +242,12 @@ function g_generator($plan_id) {
 
             // Add briefings
             e_briefings($t, 1);
-        
-            if($DEBUG >= 1) {
-                g_debug_log("e1_teams");
-                g_debug_log("e1_lanes");
-                g_debug_log("e1_rounds");
 
-                echo "<h2>Explore - morning batch</h2>";
-                echo "e1 teams: " . gp("e1_teams") . "<br>";
-                echo "e1 lanes: " . gp("e1_lanes") . "<br>";
-                echo "e1 rounds: " . gp("e1_rounds") . "<br>";
-                echo "<br>";
-            }
+            g_debug_log(1, "Explore morning");
+
+            g_debug_log(2, "Explore morning", "e1_teams");
+            g_debug_log(2, "Explore morning", "e1_lanes");
+            g_debug_log(2, "Explore morning", "e1_rounds");
 
             // Check if the plan is supported. Die if not.
             db_check_supported_plan(
@@ -305,9 +275,7 @@ function g_generator($plan_id) {
         
         } else {
 
-            if($DEBUG >= 1){
-                echo "<h2>Explore - no morning batch</h2>";
-            }
+        g_debug_log(1, "Explore no morning batch");
 
         } // FLL Explore morning batch
 
@@ -330,7 +298,7 @@ function g_generator($plan_id) {
         $c_block = 0;
         $r_start_shift = 0;
 
-        g_debug_timing("Los geht's", $c_block, $r_start_shift);
+        // g_debug_timing("Los geht's", $c_block, $r_start_shift);
 
         // For judging team number are used in increasing order
         // $j_t is the first team in the block. The lane number is added to this.
@@ -403,23 +371,23 @@ function g_generator($plan_id) {
 
             // Note: No need to consider robot check!
             // It delays the match start, but the teams have be there ealier for exactly the same amount of time.
-
+/*
             if ($DEBUG >= 99) {
                 // echo "j_t4j: " . $j_t4j . "<br>";
                 echo "r_mb : " . $r_mb . " // ";
                 echo "r_t2m: " . $r_t2m . "<br>";
             }
-
+*/
             // Compare time away for judging and expectations from robotgame
             // Factor in the current difference between robot game and judging
             $r_start_shift = $j_t4j - $r_t2m - g_diff_in_minutes($r_time, $j_time);
-
+/*
             if ($DEBUG >= 99) {
                 echo "j_t4j: " . $j_t4j . "<br>";
                 echo "r_t2m: " . $r_t2m . "<br>";
                 echo "r_start_shift: " . $r_start_shift . "<br>";
             }
-
+*/
             // Delay robot game if needed
             if ( $r_start_shift > 0) {
                 g_add_minutes($r_time, $r_start_shift);
@@ -465,7 +433,7 @@ function g_generator($plan_id) {
             // First team to start with in next block
             $j_t += gp("j_lanes");
 
-            g_debug_timing("Nach Judging", $c_block, $r_start_shift);
+            // g_debug_timing("Nach Judging", $c_block, $r_start_shift);
 
             switch($c_block) {                // TODO for the Finale the mapping is different because TRs are on the day before
 
@@ -507,7 +475,7 @@ function g_generator($plan_id) {
 
             }
 
-            g_debug_timing("Nach Robot Game", $c_block, $r_start_shift);
+            // g_debug_timing("Nach Robot Game", $c_block, $r_start_shift);
          
         }
 
@@ -530,7 +498,7 @@ function g_generator($plan_id) {
 
 */
 
-        g_debug_timing("Forschung Vorher", $c_block, $r_start_shift);
+        // g_debug_timing("Forschung Vorher", $c_block, $r_start_shift);
 
         // All judging and robot game actions done, but not necessarily in sync
         
@@ -702,9 +670,7 @@ function g_generator($plan_id) {
 
             // Joint with Explore
 
-            if($DEBUG >= 2) {
-                echo "<h3>Awards - joint</h3>";
-            }
+            g_debug_log(1, "Awards joint");
 
             db_insert_activity_group(ID_ATD_AWARDS);
             db_insert_activity(ID_ATD_AWARDS, $c_time, gp("g_duration_awards") );
@@ -714,9 +680,7 @@ function g_generator($plan_id) {
 
             // Only Challenge
 
-            if($DEBUG >= 2) {
-                echo "<h3>Awards - Challenge only</h3>";
-            }
+            g_debug_log(1, "Awards Challenge only");
 
             db_insert_activity_group(ID_ATD_C_AWARDS);
             db_insert_activity(ID_ATD_C_AWARDS, $c_time, gp("c_duration_awards"));
@@ -731,9 +695,9 @@ function g_generator($plan_id) {
         if (gp("e_mode") == ID_E_DECOUPLED_MORNING || gp("e_mode") == ID_E_DECOUPLED_AFTERNOON || gp("e_mode") == ID_E_DECOUPLED_BOTH) {
             e_decoupled($g_event_date);
         } else {
-            if($DEBUG >= 1){
-                echo "<h2>Expore - no decoupled groups</h2>";
-            }
+            
+            g_debug_log(1, "Expore no decoupled groups");
+
         }
 
         // -----------------------------------------------------------------------------------
@@ -757,22 +721,14 @@ function g_generator($plan_id) {
         // FLL Explore without FLL Challenge
         // ***********************************************************************************
 
-        if($DEBUG >= 1) {
-            echo "<h2>FLL Explore only</h2>";
-        }
+        g_debug_log(1, "FLL Explore only");
 
         e_decoupled($g_event_date);
 
 
     } // End of main branch
 
-
-    if($DEBUG >= 1) {
-        echo "<h2>End of plan</h2>";
-        echo "g plan: " . gp("g_plan") . " <a href='https://dev.planning.hands-on-technology.org/generator/generator_day_plan.php?plan=" . gp("g_plan")  ."' target='_new'>Day Plan</a>"
-            . " <a href='https://dev.planning.hands-on-technology.org/generator/extra/generator_show_plan_raw.php?plan=" . gp("g_plan")  ."' target='_new'>Activities</a><br>";
-        echo  $c_time->format('d.m.Y H:i') . " <br>";                      // TODO: max of e_time and c_time
-    }
+    g_debug_log(1, "End of plan");
 
     // Add all free blocks. Timing does not matter, becuase these are parallel to other activities
     db_insert_free_activities();
