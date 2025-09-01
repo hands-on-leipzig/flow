@@ -57,7 +57,6 @@ function g_generator($plan_id) {
     if (pp("c_teams") > 0) {
         
         PlanParameter::add("j_rounds", ceil(pp("c_teams") / pp("j_lanes")), "integer");                // Number of jury rounds in the schedule: Minimum 4 for 3x Robot Game + Test Round. Maximum 6 for fully utilized jury
-
         PlanParameter::add("r_matches_per_round", ceil(pp("c_teams") / 2), "integer");                                          // need one match per two teams
         PlanParameter::add("r_need_volunteer", pp("r_matches_per_round") != pp("c_teams") / 2, "boolean");                      // uneven number of teams --> "need a volunteer without scoring"
         PlanParameter::add("r_asym", pp("r_tables") == 4 && ((pp("c_teams") % 4 == 1) || (pp("c_teams") % 4 == 2)), "boolean"); // 4 tables, but not multiple of 4 --> table 3/4 ends before 1/2);
@@ -73,7 +72,6 @@ function g_generator($plan_id) {
     }
 
     // Other global variables
-
     global $g_activity_group;           // Same for the db ID of current activit group   
 
 
@@ -391,7 +389,7 @@ function g_generator($plan_id) {
             }
 
             // Calculate a4j for concept 1
-            // This data will be used above for the NEXT block
+            // This data will be used ABOVE for the NEXT block
 
             // number of matches before all teams are ready to leave
             $r_mb = ceil(pp("j_lanes") / 2);
@@ -475,25 +473,6 @@ function g_generator($plan_id) {
             // g_debug_timing("Nach Robot Game", $c_block, $r_start_shift);
          
         }
-
-/*   OLD CODE TODEL
-
-
-                   
-            // Four teams is extra specical. One round of robot game is too short to match to judging
-            if (pp("c_teams") == 4) {
-                switch ($c_block) {
-                    case 2:
-                        g_add_minutes($j_next, 25);
-                        break;
-                    case 4:
-                        g_add_minutes($j_next, 10);
-                        break;
-                }
-            }
-
-
-*/
 
         // g_debug_timing("Forschung Vorher", $c_block, $r_start_shift);
 
