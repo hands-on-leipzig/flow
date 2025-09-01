@@ -43,7 +43,16 @@ class EventController extends Controller
                     ->get();
                 break;
             case 1:
-                $regionalPartners = RegionalPartner::orderBy('name')->get();
+                $regionalPartners = RegionalPartner::whereHas('events', function ($query) use ($season) {
+                        $query->where('season', $season->id);
+                    })
+                    ->with(['events' => function ($query) use ($season) {
+                        $query->where('season', $season->id)
+                            ->orderBy('date')
+                            ->with(['seasonRel', 'levelRel']);
+                    }])
+                    ->orderBy('name')
+                    ->get();
                 break;
         }
         ini_set('max_execution_time', 300);
