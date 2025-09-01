@@ -39,7 +39,7 @@ use Netcity::Datum;
 # Config-Datei einbinden
 #########################################################
 #read_config 'config.cgi' => my %config;
-read_config '../.env' => my %config;
+read_config '../../.env' => my %config;
 
 # query-Objekt initialisieren
 my $query_cgi = new CGI;
