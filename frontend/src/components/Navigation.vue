@@ -61,6 +61,8 @@ function goTo(tab) {
     <div>
       {{ eventStore.selectedEvent?.level_rel.name }}
       {{ eventStore.selectedEvent?.name }}
+      am
+      {{ dayjs(eventStore.selectedEvent?.date).format('dddd, DD.MM.YYYY') }}
     </div>
     <Menu as="div" class="relative inline-block text-left">
       <MenuButton
