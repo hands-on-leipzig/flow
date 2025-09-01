@@ -352,15 +352,15 @@ function g_generator($plan_id) {
 
             // calculate time to START of match
             if (pp("r_tables") == 2) {
-                // matches start in sequence
-                $r_t2m = $r_mb * $r_duration;
+                // matches START in sequence
+                $r_t2m = ($r_mb - 1) * $r_duration;
 
             } else {
-                // matches start alternating with respective delay between starts                  
+                // matches START alternating with respective delay between STARTs                  
                 if ($r_mb % 2 === 0) {
-                    $r_t2m = ($r_mb) / 2 * $r_duration;
+                    $r_t2m = ($r_mb / 2 - 1) * $r_duration + pp("r_duration_next_start");
                 } else {   
-                    $r_t2m = ($r_mb - 1) / 2 * $r_duration + pp("r_duration_next_start");
+                    $r_t2m = ($r_mb - 1) / 2 * $r_duration ;
                 }    
             }
 
@@ -394,16 +394,16 @@ function g_generator($plan_id) {
             // number of matches before all teams are ready to leave
             $r_mb = ceil(pp("j_lanes") / 2);
 
-            // calculate time to END of the match            TODO same code as above only for different variable
+            // calculate time to END of the match            
             if (pp("r_tables") == 2) {
-                // matches start in sequence
+                // matches END in sequence
                 $r_a4j = $r_mb * $r_duration;
             } else {
-                // matches start alternating with respective delay between starts                  
+                // matches END alternating with respective delay between ENDs                  
                 if ($r_mb % 2 === 0) {
-                    $r_a4j = ($r_mb) / 2 * $r_duration;
+                    $r_a4j = $r_mb / 2 * $r_duration + pp("r_duration_next_start");;
                 } else {   
-                    $r_a4j = ($r_mb - 1) / 2 * $r_duration + pp("r_duration_next_start");
+                    $r_a4j = ($r_mb + 1) / 2 * $r_duration ;
                 }    
             }
 
