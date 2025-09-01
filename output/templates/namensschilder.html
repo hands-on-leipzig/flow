@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="de">
+	<head>
+    	<meta charset="utf-8">
+    	<meta name="viewport" content="width=device-width, initial-scale=1">
+    	<title>FIRST LEGO League</title>
+    	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    	<!--
+    	<link rel="stylesheet" href="5_3/jk.css">
+    	-->
+    	<link rel="stylesheet" href="5_3/sticky-footer-navbar.css">
+  	</head>
+  	<body>
+
+	<header>
+  	<!-- Fixed navbar -->
+  		<nav class="navbar navbar-expand-md navbar-light fixed-top bg-light">
+   		<div class="container">
+      		<div class="collapse navbar-collapse" id="navbarCollapse">
+      			<a class="navbar-brand" href="#"><!--<img src="grafx/logo.png" style="height:40px">--><strong><em>FIRST</em> LEGO League Aufkleber</strong></a>
+        			<ul class="navbar-nav me-auto mb-2 mb-md-0">
+        				<!--
+         			<li class="nav-item">
+            			<a class="nav-link active" aria-current="page" href="#">Menüpunkt 1</a>
+          			</li>
+          			<li class="nav-item">
+            			<a class="nav-link" href="#">Menüpunkt 2</a>
+          			</li>
+          			-->
+        			</ul>
+      		</div>
+      		<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+        			<span class="navbar-toggler-icon"></span>
+      		</button>
+    		</div>
+  		</nav>
+	</header>
+
+	<!-- Begin page content -->
+	<main class="flex-shrink-0">
+		
+		<div class="container text-center" style="margin-top:100px">
+
+			<h2>Derzeit noch im experimentellen TEST-Stadium!</h2>
+
+			<p>Als Datenquelle dient jeweils eine XML-Datei. Ihr könnt Euch die Beispieldatei herunter laden und nach eigenen Bedürfnissen anpassen. Oder Ihr verwendet den Export bereits existierender Daten - z.B. "Teammitglieder als XML herunterladen" auf der Veranstaltungsseite des FLOW-Backends.</p>
+		
+			<h3>Aufkleber für Volunteers</h3>
+		
+			<form class="row g-3" action="namensschilder.cgi" enctype="multipart/form-data" method="post" target="_blank">
+				<input type="hidden" name="typ" value="volunteers">
+				<div class="mb-3">
+					<label for="xml_upload" class="form-label">XML-Datei</label>
+					<input class="form-control" type="file" name="xml_upload" id="xml_upload">
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" name="rp_logo" id="rp_logo" value="x">
+					<label for="rp_logo" class="form-check-label">RP-Logo</label>
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="radio" name="layout" id="volunteer_layout_1" value="namensschild">
+					<label for="volunteer_layout_1" class="form-check-label">Namensschild</label>
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="radio" name="layout" id="volunteer_layout_2" value="becher">
+					<label for="volunteer_layout_2" class="form-check-label">Becher</label>
+				</div>
+				<div class="mb-3">
+				Wird keine Datei hochgeladen, wird <a href="beispiele/volunteers.xml" target="_blank">volunteers.xml</a> als Beispieldatei verwendet.
+				Diese Datei soll künftig aus den Daten aus HERO erstellt werden können.
+				</div>
+				<button type="submit" class="btn btn-primary">Absenden</button>
+			</form>
+			
+			<h3 style="margin-top:50px">Aufkleber für Teams</h3>
+		
+			<form class="row g-3" action="namensschilder.cgi" enctype="multipart/form-data" method="post" target="_blank">
+				<input type="hidden" name="typ" value="teams">
+				<div class="mb-3">
+					<label for="xml_upload" class="form-label">XML-Datei</label>
+					<input class="form-control" type="file" name="xml_upload" id="xml_upload">
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" name="rp_logo" id="rp_logo" value="x">
+					<label for="rp_logo" class="form-check-label">RP-Logo</label>
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="radio" name="output" id="output_1" value="aufkleber">
+					<label for="output_1" class="form-check-label">Aufkleber</label>
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="radio" name="output" id="output_2" value="texte">
+					<label for="output_2" class="form-check-label">Texte</label>
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="radio" name="layout" id="layout_1" value="namensschild">
+					<label for="layout_1" class="form-check-label">Namensschild</label>
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="radio" name="layout" id="layout_2" value="becher">
+					<label for="layout_2" class="form-check-label">Becher</label>
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="radio" name="layout" id="layout_3" value="teamschilder">
+					<label for="layout_3" class="form-check-label">Teamschilder</label>
+				</div>
+				<div class="mb-3">
+				Wird keine Datei hochgeladen, wird <a href="beispiele/teams.xml" target="_blank">teams.xml</a> als Beispieldatei verwendet.
+				Diese Datei bekommt Ihr aus der Teamliste in der Veranstaltung.
+				</div>
+				<button type="submit" class="btn btn-primary">Absenden</button>
+			</form>
+		
+		</div>
+		
+		<div class="container" style="margin-bottom:200px">
+			&nbsp;
+		</div>
+  		
+	</main>
+
+	<!--
+	<footer class="footer mt-auto py-3 bg-light">
+  		<div class="container">
+    		<span class="text-muted"><em>FIRST</em> LEGO League Braunschweig</span>
+  		</div>
+	</footer>
+	-->
+    
+	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+ 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+ 	
+  	</body>
+</html>
