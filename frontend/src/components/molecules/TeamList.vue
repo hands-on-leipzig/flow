@@ -204,11 +204,12 @@ onMounted(async () => {
             <span class="text-sm w-12 text-gray-500">{{ team.team_number_hot }}</span>
 
             <!-- Eingabefeld -->
-            <input
-                v-model="team.name"
-                @blur="updateTeamName(team)"
-                :class="'flex-1 bg-transparent border-b border-'+colour+'-300 focus:outline-none text-sm'"
-            />
+<input
+  v-model="team.name"
+  @blur="updateTeamName(team)"
+  class="editable-input flex-1 text-sm"
+/>
+            
 
             <!-- Drag-Handle -->
             <span class="drag-handle cursor-move text-gray-500"><IconDraggable/></span>
@@ -221,7 +222,7 @@ onMounted(async () => {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
     >
       <div class="bg-white w-full max-w-4xl max-h-[80vh] overflow-y-auto rounded-lg shadow-lg p-6 relative">
-        <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Unterschiede zwischen FLOW und der Anmeldung</h2>
+        <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Abweichungen zwischen FLOW und der Anmeldung</h2>
         <button
             class="absolute top-3 right-3 text-gray-500 hover:text-black"
             @click="showDiffModal = false"
@@ -301,3 +302,21 @@ onMounted(async () => {
 }
 </style>
 
+<style scoped>
+.editable-input {
+  border: none;
+  border-bottom: 1px dashed transparent;
+  background-color: transparent;
+  transition: border-color 0.2s ease;
+}
+
+.editable-input:hover {
+  border-bottom: 1px dashed #999;
+  cursor: text;
+}
+
+.editable-input:focus {
+  border-bottom: 1px solid #3b82f6; /* Tailwind: blue-500 */
+  outline: none;
+}
+</style>
