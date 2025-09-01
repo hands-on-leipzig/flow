@@ -138,12 +138,13 @@ function e_decoupled($g_event_date) {
         g_debug_log(2, "Explore", "e1_lanes");
         g_debug_log(2, "Explore", "e1_rounds");
 
-        // Check if the plan is supported. Die if not.
-        db_check_supported_plan(
+        // Check if the plan is supported. 
+        if(!db_check_supported_plan(
             ID_FP_EXPLORE,
             gp("e1_teams"), 
-            gp("e1_lanes") 
-        );
+            gp("e1_lanes") ) ) {
+             throw new RuntimeException('Unsupported Explore plan '. gp("e1_teams") . '-'. gp("e1_lanes"));
+        } 
 
         // Get date and time for FLL Explore
         $e_time = clone $g_event_date;
@@ -192,12 +193,13 @@ function e_decoupled($g_event_date) {
         g_debug_log(2, "Explore", "e2_lanes");
         g_debug_log(2, "Explore", "e2_rounds");
 
-        // Check if the plan is supported. Die if not.
-        db_check_supported_plan(
+        // Check if the plan is supported. 
+        if(!db_check_supported_plan(
             ID_FP_EXPLORE,
             gp("e2_teams"), 
-            gp("e2_lanes") 
-        );
+            gp("e2_lanes") ) ) {
+             throw new RuntimeException('Unsupported Explore plan '. gp("e2_teams") . '-'. gp("e2_lanes"));
+        }         
 
         // Get date and time for FLL Explore
         $e_time = clone $g_event_date;
@@ -293,12 +295,13 @@ function e_integrated() {
             g_debug_log(2, "Explore", "e2_lanes");
             g_debug_log(2, "Explore", "e2_rounds:");   
 
-            // Check if the plan is supported. Die if not.
-            db_check_supported_plan(
+            // Check if the plan is supported. 
+            if(!db_check_supported_plan(
                 ID_FP_EXPLORE,
                 gp("e2_teams"), 
-                gp("e2_lanes") 
-            );
+                gp("e2_lanes") ) ) {
+                throw new RuntimeException('Unsupported Explore plan '. gp("e2_teams") . '-'. gp("e2_lanes"));
+            }    
 
             //TODO this should be as LATE as possible to keep the day short for the younger kids
 

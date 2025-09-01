@@ -243,22 +243,20 @@ function db_get_from_event()
 
 }
 
-function db_check_supported_plan($first_program, $teams, $lanes, $tables = NULL)
+function db_check_supported_plan($first_program, $teams, $lanes, $tables = null): bool
 {
     $q = DB::table('m_supported_plan')
         ->where('first_program', $first_program)
         ->where('teams', $teams)
         ->where('lanes', $lanes);
 
-    if ($tables === NULL) {
+    if (is_null($tables)) {
         $q->whereNull('tables');
     } else {
         $q->where('tables', $tables);
     }
 
-    if (!$q->exists()) {
-        die("No supported plan found for the given parameters.");
-    }
+    return $q->exists();
 }
 
 function db_insert_activity_group($activity_type_detail)

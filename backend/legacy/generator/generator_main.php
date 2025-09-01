@@ -141,15 +141,14 @@ function g_generator($plan_id) {
         g_debug_log(2, "Challenge", "r_need_volunteer");
         g_debug_log(2, "Challenge", "r_asym");
 
-
-
-        // Check if the plan is supported. Die if not.
-        db_check_supported_plan(
+        // Check if the plan is supported. 
+        if(!db_check_supported_plan(
             ID_FP_CHALLENGE,
             gp("c_teams"), 
-            gp("j_lanes"),  
-            gp("r_tables"), 
-        );
+            gp("j_lanes"),
+            gp("r_tables") ) ) {
+             throw new RuntimeException('Unsupported Challenge plan '. gp("c_teams") . '-'. gp("j_lanes") . '-' .gp("r_tables"));
+        }    
 
         // combine event date with start time of opening depending on the combination of FLL Challenge and FLL Explore
 
@@ -249,12 +248,13 @@ function g_generator($plan_id) {
             g_debug_log(2, "Explore morning", "e1_lanes");
             g_debug_log(2, "Explore morning", "e1_rounds");
 
-            // Check if the plan is supported. Die if not.
-            db_check_supported_plan(
+            // Check if the plan is supported. 
+            if(!db_check_supported_plan(
                 ID_FP_EXPLORE,
                 gp("e1_teams"), 
-                gp("e1_lanes") 
-            );
+                gp("e1_lanes") ) ) {
+                throw new RuntimeException('Unsupported Explore plan '. gp("e1_teams") . '-'. gp("e1_lanes"));
+            } 
 
             // Full FLL Explore schedule for group 1
             e_judging(1);
