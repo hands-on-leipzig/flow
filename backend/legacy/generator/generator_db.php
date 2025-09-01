@@ -3,30 +3,6 @@
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-// <-- new
-
-// ***********************************************************************************
-// DB abstraction layer (now using Laravel DB facade)
-// ***********************************************************************************
-
-/**
- * Legacy no-op: leave in place so legacy code can still call it.
- */
-function db_connect_persistent()
-{
-    // No-op. We rely on Laravel's DB connection pool.
-    // Keep $g_db for legacy compatibility if any function checks it exists.
-    global $g_db;
-    $g_db = true;
-}
-
-/**
- * Legacy no-op: leave in place so legacy code can still call it.
- */
-function db_disconnect_persistent()
-{
-    // No-op. Let Laravel manage connections.
-}
 
 // ***********************************************************************************
 // Constants: Database IDs for ease of use
@@ -170,7 +146,7 @@ define('ID_E_DECOUPLED_BOTH', 5);
  */
 function db_get_parameters()
 {
-    global $DEBUG, $g_params;
+    global $g_params;
 
     // 1) base parameters (with type + default value)
     $base = [];
@@ -202,16 +178,6 @@ function db_get_parameters()
             'value' => $p['value'],
             'type' => $p['type'],
         ];
-    }
-
-    if (($DEBUG ?? 0) >= 4) {
-        ksort($g_params);
-        echo "<h3>Parameter</h3><pre>";
-        foreach ($g_params as $name => $data) {
-            $val = var_export($data['value'], true);
-            echo sprintf("%-30s | %-8s | %s\n", $name, $data['type'], $val);
-        }
-        echo "</pre>";
     }
 }
 
@@ -251,25 +217,19 @@ function add_param($name, $value, $type = 'string')
 
 function db_get_from_plan()
 {
-    global $DEBUG;
 
     $planId = gp('g_plan');
     $row = DB::table('plan')->select('event')->where('id', $planId)->first();
 
     if ($row) {
         add_param('g_event', (int)$row->event, 'integer');
-        if (($DEBUG ?? 0) >= 3) {
-            echo "<h4>From plan</h4>";
-            echo "g event: " . gp("g_event");
-        }
-    } else {
+
         echo "<h3>No data found for plan ID " . gp("g_plan") . "</h3>";
     }
 }
 
 function db_get_from_event()
 {
-    global $DEBUG;
 
     $row = DB::table('event')->select('date', 'days', 'level')->where('id', gp('g_event'))->first();
 
@@ -281,12 +241,6 @@ function db_get_from_event()
     add_param('g_days', $days, 'integer');
     add_param('g_finale', $level === 3, 'boolean');
 
-    if (($DEBUG ?? 0) >= 3) {
-        echo "<h4>From event</h4>";
-        echo "g event date: " . gp("g_event_date") . "<br>";
-        echo "g days: " . gp("g_days") . "<br>";
-        echo "g finale: " . (gp("g_finale") ? 'true' : 'false') . "<br>";
-    }
 }
 
 function db_check_supported_plan($first_program, $teams, $lanes, $tables = NULL)
