@@ -18,6 +18,8 @@ import Teams from "@/components/Teams.vue";
 import VueKonva from "vue-konva";
 import EditSlide from "@/components/EditSlide.vue";
 import Preview from "@/components/molecules/Preview.vue";
+import VueKonva from "vue-konva";
+import EditSlide from "@/components/EditSlide.vue";
 
 keycloak.init({onLoad: 'login-required'}).then(authenticated => {
     if (!authenticated) {
@@ -70,6 +72,7 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
         {path: '/publish', component: PublishControl},
         {path: '/admin', component: Admin},
         {path: '/preview/:planId', component: Preview, props: true},
+        {path: '/editSlide', component: EditSlide}
     ]
 
     const router = createRouter({

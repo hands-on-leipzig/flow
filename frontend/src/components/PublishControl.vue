@@ -57,6 +57,10 @@ const updateEventField = async (field: string, value: any) => {
     console.error('WLAN update failed:', e)
   }
 }
+
+function copyUrl(url) {
+  navigator.clipboard.writeText(url);
+}
 </script>
 
 <template>
