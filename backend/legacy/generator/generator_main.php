@@ -40,14 +40,14 @@ function g_generator($plan_id) {
     // !!!! TODEL
     $DEBUG = 2;                       
     
-    g_debug_log(1, "Start", "g_plan");
+    g_debug_log(1, "Start " . $plan_id);
 
     // Read all parameters for the plan. Access is via pp("parameter_name")
     PlanParameter::load($plan_id);
 
     g_debug_log(1, "Plan parameters read");
     
-    $g_event_date = new DateTime(pp("g_event_date"));            
+    $g_event_date = new DateTime(pp("g_date"));            
 
     g_debug_log(1, "Start", "e_mode");
 

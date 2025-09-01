@@ -56,6 +56,8 @@ class PlanParameter
 
     private function init(): void
     {
+        $this->addInternal('g_plan', $this->planId, 'integer');
+
         $base = DB::table('m_parameter')
             ->select('id', 'name', 'type', 'value')
             ->get()
