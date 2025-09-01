@@ -145,13 +145,30 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="max-h-[50vh] overflow-y-auto">
+  <div class="overflow-y-auto max-h-[80vh] lg:max-h-none">
     <div class="p-4 border rounded shadow">
-      <div class="flex justify-between items-center mb-2">
-        <h3 class="text-lg font-semibold capitalize">{{ program }}</h3>
+      <div class="flex items-center gap-2 mb-2">
+        <img
+          v-if="program === 'explore'"
+          src="@/assets/FLL_Explore.png"
+          alt="Logo Explore"
+          class="w-6 h-6 flex-shrink-0"
+        />
+        <img
+          v-else-if="program === 'challenge'"
+          src="@/assets/FLL_Challenge.png"
+          alt="Logo Challenge"
+          class="w-6 h-6 flex-shrink-0"
+        />
+      <div>
+        <h3 class="text-lg font-semibold capitalize">
+          <span class="italic">FIRST</span> LEGO League {{ program }}
+        </h3>
+        <p class="text-sm text-gray-500">Geplant: xx</p>
+      </div>
       </div>
       <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
-        Die Teamdaten der Anmeldung weichen von den Daten in FLOW ab.
+        Die Daten in FLOW weichen von denen der Anmeldung ab.
         <button class="text-sm text-yellow-600" @click="showDiffModal = !showDiffModal">
           Unterschiede {{ showDiffModal ? 'ausblenden' : 'anzeigen' }}
           ({{ mergedTeams.filter(t => t.status !== 'match').length }})
@@ -167,16 +184,24 @@ onMounted(async () => {
           drag-class="drag-dragging"
           animation="150"
       >
-        <template #item="{element: team}">
+        <template #item="{element: team, index}">
           <li
               :class="'bg-'+colour+'-100 rounded px-3 py-1 mb-1 flex justify-between items-center gap-2'"
           >
-            <span class="text-sm">{{ team.team_number_hot }}</span>
+            <!-- Neue Positionsspalte -->
+            <span class="w-8 text-right text-sm text-black">T{{ String(index + 1).padStart(2, '0') }}</span>
+
+            <!-- Teamnummer (grau) -->
+            <span class="text-sm w-12 text-gray-500">{{ team.team_number_hot }}</span>
+
+            <!-- Eingabefeld -->
             <input
                 v-model="team.name"
                 @blur="updateTeamName(team)"
                 :class="'flex-1 bg-transparent border-b border-'+colour+'-300 focus:outline-none text-sm'"
             />
+
+            <!-- Drag-Handle -->
             <span class="drag-handle cursor-move text-gray-500"><IconDraggable/></span>
           </li>
         </template>
@@ -187,8 +212,7 @@ onMounted(async () => {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
     >
       <div class="bg-white w-full max-w-4xl max-h-[80vh] overflow-y-auto rounded-lg shadow-lg p-6 relative">
-        <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Unterschiede zwischen gespeicherten Daten und
-          Draht</h2>
+        <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Unterschiede zwischen FLOW und der Anmeldung</h2>
         <button
             class="absolute top-3 right-3 text-gray-500 hover:text-black"
             @click="showDiffModal = false"
@@ -221,13 +245,13 @@ onMounted(async () => {
       </span>
             </div>
 
-            <div class="grid grid-cols-2 gap-4 text-sm text-gray-700">
+            <div class="grid grid-cols-2 gap-4 text-sm text-black">
               <div>
                 <div class="text-gray-500">FLOW:</div>
                 <div>{{ team.local?.name || '–' }}</div>
               </div>
               <div>
-                <div class="text-gray-500">HandsOn:</div>
+                <div class="text-gray-500">Anmeldung:</div>
                 <div>{{ team.draht?.name || '–' }}</div>
               </div>
             </div>
