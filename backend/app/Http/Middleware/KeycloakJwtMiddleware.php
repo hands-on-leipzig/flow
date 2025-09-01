@@ -55,6 +55,7 @@ class KeycloakJwtMiddleware
 
             Auth::login($user);
             $roles = $claims['resource_access']->flow->roles ?? [];
+            Log::debug($roles);
             $env = App::environment();
             $path = $request->path();
 
@@ -72,7 +73,7 @@ class KeycloakJwtMiddleware
             Log::debug(str_starts_with($path, 'admin'));
             // Admin route restriction
             if (str_starts_with($path, 'api/admin')) {
-                if (!in_array('flow-admin', $roles)) {
+                if (!in_array('flow_admin', $roles)) {
                     return response()->json(['error' => 'Forbidden - admin role required'], 403);
                 }
             }

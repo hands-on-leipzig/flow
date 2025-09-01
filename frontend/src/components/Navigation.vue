@@ -20,6 +20,7 @@ const tabs = [
   {name: 'Räume', path: '/rooms'},
   {name: 'Logos', path: '/logos'},
   {name: 'Veröffentlichung', path: '/publish'},
+  {name: 'Admin', path: '/admin'},
 ]
 const selectedTab = ref('Schedule')
 const router = useRouter()
@@ -63,23 +64,24 @@ function goTo(tab) {
     </div>
     <Menu as="div" class="relative inline-block text-left">
       <MenuButton
-      class="inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
-      Mehr
+          class="inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
+        Mehr
       </MenuButton>
-      <MenuItems class="absolute right-0 z-10 mt-2 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none w-fit">
+      <MenuItems
+          class="absolute right-0 z-10 mt-2 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none w-fit">
         <div class="py-1">
           <MenuItem>
             <button
-              @click="router.push({ path: 'events' })"
-              class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left whitespace-nowrap"
+                @click="router.push({ path: 'events' })"
+                class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left whitespace-nowrap"
             >
               Veranstaltung wechseln
             </button>
           </MenuItem>
           <MenuItem>
             <button
-              @click="logout"
-              class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left whitespace-nowrap"
+                @click="logout"
+                class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left whitespace-nowrap"
             >
               Logout
             </button>
