@@ -10,22 +10,19 @@ require_once 'generator_db.php';
 // FLL Explore briefings
 function e_briefings($t, $group) {
 
-    global $DEBUG;
     global $e_time;
 
-    if ($DEBUG >= 2) {
-        echo "<h3>Explore - briefings</h3>";
-    }
 
+    g_debug_log(1, "Explore briefings");
 
     // $t is the start of the opening ceremony
 
     if($group == 1) {
-        $d_t = gp("e1_duration_briefing_t");
-        $d_j = gp("e1_duration_briefing_j");
+        $d_t = pp("e1_duration_briefing_t");
+        $d_j = pp("e1_duration_briefing_j");
     } else {
-        $d_t = gp("e2_duration_briefing_t");
-        $d_j = gp("e2_duration_briefing_j");
+        $d_t = pp("e2_duration_briefing_t");
+        $d_j = pp("e2_duration_briefing_j");
     }
 
 
@@ -34,26 +31,26 @@ function e_briefings($t, $group) {
     // Briefing is before opening on main day. No choice for organizer.
 
     db_insert_activity_group(ID_ATD_E_COACH_BRIEFING);
-    db_insert_activity(ID_ATD_E_COACH_BRIEFING, g_shift_minutes($t, -1 * ($d_t + gp("e_ready_opening"))), $d_t);    
+    db_insert_activity(ID_ATD_E_COACH_BRIEFING, g_shift_minutes($t, -1 * ($d_t + pp("e_ready_opening"))), $d_t);    
 
     // FLL Explore Judges
 
-    if (!gp("e_briefing_after_opening_j")) {
+    if (!pp("e_briefing_after_opening_j")) {
 
-        db_insert_activity(ID_ATD_E_JUDGE_BRIEFING,g_shift_minutes($t, -1 * ($d_j + gp("e_ready_opening"))), $d_j);    
+        db_insert_activity(ID_ATD_E_JUDGE_BRIEFING,g_shift_minutes($t, -1 * ($d_j + pp("e_ready_opening"))), $d_j);    
 
     } else {
 
-        g_add_minutes($e_time, gp("e_ready_briefing"));
+        g_add_minutes($e_time, pp("e_ready_briefing"));
         db_insert_activity(ID_ATD_E_JUDGE_BRIEFING, $e_time, $d_j); 
         
         // move time forward
-        g_add_minutes($e_time, gp("j_duration_briefing"));   
+        g_add_minutes($e_time, pp("j_duration_briefing"));   
 
     }
 
     // Buffer between opening (or briefing respectively) and first action for teams and judges
-    g_add_minutes($e_time, gp("e_ready_action"));
+    g_add_minutes($e_time, pp("e_ready_action"));
 
 }
 
@@ -61,12 +58,9 @@ function e_briefings($t, $group) {
 // FLL Explore judging plan
 function e_judging($group) {
 
-    global $DEBUG;
     global $e_time;
 
-    if ($DEBUG >= 2) {
-        echo "<h3>Explore - judging</h3>";
-    }
+    g_debug_log(2, "Explore judging");
     
     // Build the plan
 
@@ -74,17 +68,17 @@ function e_judging($group) {
     db_insert_activity_group(ID_ATD_E_JUDGING_PACKAGE);
 
     if ($group == 1) {
-        $lanes = gp("e1_lanes");
-        $rounds = gp("e1_rounds");
-        $teams = gp("e1_teams");
+        $lanes = pp("e1_lanes");
+        $rounds = pp("e1_rounds");
+        $teams = pp("e1_teams");
         $t_offset = 0; // No offset for group 1
         $j_offset = 0; // No offset for group 1
     } else {
-        $lanes = gp("e2_lanes");
-        $rounds = gp("e2_rounds");
-        $teams = gp("e2_teams");
-        $t_offset = gp("e1_teams") ; // Numbering for teams for group 2 continue from group 1 to avoid confusion
-        $j_offset = gp("e1_lanes") ; // Numbering for lanes for group 2 continue from group 1 to avoid confusion  
+        $lanes = pp("e2_lanes");
+        $rounds = pp("e2_rounds");
+        $teams = pp("e2_teams");
+        $t_offset = pp("e1_teams") ; // Numbering for teams for group 2 continue from group 1 to avoid confusion
+        $j_offset = pp("e1_lanes") ; // Numbering for lanes for group 2 continue from group 1 to avoid confusion  
     }
 
 
@@ -100,11 +94,11 @@ function e_judging($group) {
 
             // Not all lanes may be full
             if ($e_t <= $teams) {
-                db_insert_activity(ID_ATD_E_WITH_TEAM, $e_time, gp("e_duration_with_team"), $e_l + $j_offset, $e_t + $t_offset);
+                db_insert_activity(ID_ATD_E_WITH_TEAM, $e_time, pp("e_duration_with_team"), $e_l + $j_offset, $e_t + $t_offset);
             }
         
         }
-        g_add_minutes($e_time, gp("e_duration_with_team"));        
+        g_add_minutes($e_time, pp("e_duration_with_team"));        
 
         // Judges alone do the scoring
 
@@ -113,15 +107,15 @@ function e_judging($group) {
 
             // Not all lanes may be full
             if ($e_t <= $teams) {
-                db_insert_activity(ID_ATD_E_SCORING, $e_time, gp("e_duration_scoring"), $e_l + $j_offset, $e_t + $t_offset);
+                db_insert_activity(ID_ATD_E_SCORING, $e_time, pp("e_duration_scoring"), $e_l + $j_offset, $e_t + $t_offset);
             }
         }
         
-        g_add_minutes($e_time, gp("e_duration_scoring"));
+        g_add_minutes($e_time, pp("e_duration_scoring"));
 
         // Short break, but not after last team
         if ($e_r < $rounds) {
-            g_add_minutes($e_time, gp("e_duration_break"));
+            g_add_minutes($e_time, pp("e_duration_break"));
         }
     }
 
@@ -134,34 +128,27 @@ function e_judging($group) {
 //
 function e_decoupled($g_event_date) {
 
-    global $DEBUG;
+
     global $e_time;
 
-    if (gp("e1_teams") > 0) {
+    if (pp("e1_teams") > 0) {
 
-        if($DEBUG >= 1) {
+        g_debug_log(1, "Explore decoupled group 1");
+        g_debug_log(2, "Explore", "e1_teams");
+        g_debug_log(2, "Explore", "e1_lanes");
+        g_debug_log(2, "Explore", "e1_rounds");
 
-            g_debug_log("e1_teams");
-            g_debug_log("e1_lanes");
-            g_debug_log("e1_rounds");
-
-            echo "<h2>Explore decoupled - group 1</h2>";
-            echo "e1 teams: " . gp("e1_teams") . "<br>";
-            echo "e1 lanes: " . gp("e1_lanes") . "<br>";
-            echo "e1 rounds: " . gp("e1_rounds") . "<br>";
-            echo "<br>";
-        }
-
-        // Check if the plan is supported. Die if not.
-        db_check_supported_plan(
+        // Check if the plan is supported. 
+        if(!db_check_supported_plan(
             ID_FP_EXPLORE,
-            gp("e1_teams"), 
-            gp("e1_lanes") 
-        );
+            pp("e1_teams"), 
+            pp("e1_lanes") ) ) {
+             throw new RuntimeException('Unsupported Explore plan '. pp("e1_teams") . '-'. pp("e1_lanes"));
+        } 
 
         // Get date and time for FLL Explore
         $e_time = clone $g_event_date;
-        list($hours, $minutes) = explode(':', gp("e1_start_opening"));
+        list($hours, $minutes) = explode(':', pp("e1_start_opening"));
         $e_time->setTime((int)$hours, (int)$minutes); 
 
         // Catch the time for the opening
@@ -169,8 +156,8 @@ function e_decoupled($g_event_date) {
 
         // Opening   
         db_insert_activity_group(ID_ATD_E_OPENING);
-        db_insert_activity(ID_ATD_E_OPENING, $e_time, gp("e1_duration_opening"));
-        g_add_minutes($e_time, gp("e1_duration_opening"));
+        db_insert_activity(ID_ATD_E_OPENING, $e_time, pp("e1_duration_opening"));
+        g_add_minutes($e_time, pp("e1_duration_opening"));
         
         // Briefings for FLL Explore independent group 1
         e_briefings($t, 1); // Briefings
@@ -179,51 +166,44 @@ function e_decoupled($g_event_date) {
         e_judging(1);
 
         // Buffer before all judges meet for deliberations
-        g_add_minutes($e_time, gp("e_ready_deliberations"));
+        g_add_minutes($e_time, pp("e_ready_deliberations"));
 
         // Deliberations
         db_insert_activity_group(ID_ATD_E_DELIBERATIONS);
-        db_insert_activity(ID_ATD_E_DELIBERATIONS, $e_time, gp("e1_duration_deliberations"), 0, 0);
-        g_add_minutes($e_time, gp("e1_duration_deliberations"));
+        db_insert_activity(ID_ATD_E_DELIBERATIONS, $e_time, pp("e1_duration_deliberations"), 0, 0);
+        g_add_minutes($e_time, pp("e1_duration_deliberations"));
 
         // Awards
 
         // Get ready e.g. judges get on stage
-        g_add_minutes($e_time, gp("e_ready_awards"));
+        g_add_minutes($e_time, pp("e_ready_awards"));
 
         // Add FLL Explore Awards
         db_insert_activity_group(ID_ATD_E_AWARDS);
-        db_insert_activity(ID_ATD_E_AWARDS, $e_time, gp("e1_duration_awards"));
-        g_add_minutes($e_time, gp("e1_duration_awards"));
+        db_insert_activity(ID_ATD_E_AWARDS, $e_time, pp("e1_duration_awards"));
+        g_add_minutes($e_time, pp("e1_duration_awards"));
     
     } // e1_teams > 0
 
 
-    if(gp("e2_teams") > 0) {
+    if(pp("e2_teams") > 0) {
 
-        if($DEBUG >= 1) {
+        g_debug_log(1, "Explore decoupled group 2");  
+        g_debug_log(2, "Explore", "e2_teams");
+        g_debug_log(2, "Explore", "e2_lanes");
+        g_debug_log(2, "Explore", "e2_rounds");
 
-            g_debug_log("e2_teams");
-            g_debug_log("e2_lanes");
-            g_debug_log("e2_rounds");
-
-            echo "<h2>Explore decoupled - group 2</h2>";
-            echo "e2 teams: " . gp("e2_teams") . "<br>";
-            echo "e2 lanes: " . gp("e2_lanes") . "<br>";
-            echo "e2 rounds: " . gp("e2_rounds") . "<br>";
-            echo "<br>";
-        }
-
-        // Check if the plan is supported. Die if not.
-        db_check_supported_plan(
+        // Check if the plan is supported. 
+        if(!db_check_supported_plan(
             ID_FP_EXPLORE,
-            gp("e2_teams"), 
-            gp("e2_lanes") 
-        );
+            pp("e2_teams"), 
+            pp("e2_lanes") ) ) {
+             throw new RuntimeException('Unsupported Explore plan '. pp("e2_teams") . '-'. pp("e2_lanes"));
+        }         
 
         // Get date and time for FLL Explore
         $e_time = clone $g_event_date;
-        list($hours, $minutes) = explode(':', gp("e2_start_opening"));
+        list($hours, $minutes) = explode(':', pp("e2_start_opening"));
         $e_time->setTime((int)$hours, (int)$minutes); 
 
         // Catch the time for the opening
@@ -231,8 +211,8 @@ function e_decoupled($g_event_date) {
 
         // Opening   
         db_insert_activity_group(ID_ATD_E_OPENING);
-        db_insert_activity(ID_ATD_E_OPENING, $e_time, gp("e2_duration_opening"));
-        g_add_minutes($e_time, gp("e2_duration_opening"));
+        db_insert_activity(ID_ATD_E_OPENING, $e_time, pp("e2_duration_opening"));
+        g_add_minutes($e_time, pp("e2_duration_opening"));
         
         // Briefings for FLL Explore independent group 2
         e_briefings($t, 2); // Briefings
@@ -241,28 +221,26 @@ function e_decoupled($g_event_date) {
         e_judging(2);
 
         // Buffer before all judges meet for deliberations
-        g_add_minutes($e_time, gp("e_ready_deliberations"));
+        g_add_minutes($e_time, pp("e_ready_deliberations"));
 
         // Deliberations
         db_insert_activity_group(ID_ATD_E_DELIBERATIONS);
-        db_insert_activity(ID_ATD_E_DELIBERATIONS, $e_time, gp("e2_duration_deliberations"), 0, 0);
-        g_add_minutes($e_time, gp("e2_duration_deliberations"));
+        db_insert_activity(ID_ATD_E_DELIBERATIONS, $e_time, pp("e2_duration_deliberations"), 0, 0);
+        g_add_minutes($e_time, pp("e2_duration_deliberations"));
 
         // Awards
 
         // Get ready e.g. judges get on stage
-        g_add_minutes($e_time, gp("e_ready_awards"));
+        g_add_minutes($e_time, pp("e_ready_awards"));
 
         // Add FLL Explore Awards
         db_insert_activity_group(ID_ATD_E_AWARDS);
-        db_insert_activity(ID_ATD_E_AWARDS, $e_time, gp("e2_duration_awards"));
-        g_add_minutes($e_time, gp("e2_duration_awards"));
+        db_insert_activity(ID_ATD_E_AWARDS, $e_time, pp("e2_duration_awards"));
+        g_add_minutes($e_time, pp("e2_duration_awards"));
     
     } else {
 
-        if($DEBUG >= 1){
-            echo "<h2>Explore decoupled - no group 2</h2>";
-        }
+        g_debug_log(1, "Explore decoupled no group 2");
     }
 
 } 
@@ -271,13 +249,12 @@ function e_decoupled($g_event_date) {
 
 function e_integrated() {
 
-    global $DEBUG;
     global $r_time;
     global $e_time; 
 
     // handle integrated Explore activities 
 
-    switch(gp("e_mode")) {
+    switch(pp("e_mode")) {
 
         case ID_E_MORNING:
             // FLL Explore morning batch > awards ceremony
@@ -288,50 +265,43 @@ function e_integrated() {
             }
 
             // Get ready e.g. judges get on stage, RG teams and referees move away ... 
-            g_add_minutes($e_time, gp("e_ready_awards"));                                           // TODO different parameters "to e and back to c"
+            g_add_minutes($e_time, pp("e_ready_awards"));                                           // TODO different parameters "to e and back to c"
 
             // Add FLL Explore Awards
             db_insert_activity_group(ID_ATD_E_AWARDS);
-            db_insert_activity(ID_ATD_E_AWARDS, $e_time, gp("e1_duration_awards"));
-            g_add_minutes($e_time, gp("e1_duration_awards"));
+            db_insert_activity(ID_ATD_E_AWARDS, $e_time, pp("e1_duration_awards"));
+            g_add_minutes($e_time, pp("e1_duration_awards"));
             
             // Earliest to go back to Robot Game same buffer as before awards
-            g_add_minutes($e_time, gp("e_ready_awards"));
+            g_add_minutes($e_time, pp("e_ready_awards"));
 
             // FLL Explore morning batch is over here.
 
             // Robot Game can continue afterwards
             $r_time = clone $e_time;
             // Buffer to get Explore people out of the way
-            g_add_minutes($r_time, gp("e_ready_awards"));          // TODO different parameters "to e and back to c"
+            g_add_minutes($r_time, pp("e_ready_awards"));          // TODO different parameters "to e and back to c"
 
-            if($DEBUG >= 1){
-                echo "<h2>Explore - no afternoon batch</h2>";
-            }
-            break; 
+
+            g_debug_log(1, "Explore no afternoon batch");
+
 
         case ID_E_AFTERNOON:
             // FLL Explore afternoon batch > opening, briefings, judging
 
-            if($DEBUG >= 1) {
 
-                g_debug_log("e2_teams");
-                g_debug_log("e2_lanes");
-                g_debug_log("e2_rounds");
+            g_debug_log(1, "Explore afternoon batch");
+            g_debug_log(2, "Explore", "e2_teams");
+            g_debug_log(2, "Explore", "e2_lanes");
+            g_debug_log(2, "Explore", "e2_rounds:");   
 
-                echo "<h2>Explore - afternoon batch</h2>";
-                echo "e2 teams: " . gp("e2_teams") . "<br>";
-                echo "e2 lanes: " . gp("e2_lanes") . "<br>";
-                echo "e2 rounds: " . gp("e2_rounds") . "<br>";
-                echo "<br>";
-            }               
-
-            // Check if the plan is supported. Die if not.
-            db_check_supported_plan(
+            // Check if the plan is supported. 
+            if(!db_check_supported_plan(
                 ID_FP_EXPLORE,
-                gp("e2_teams"), 
-                gp("e2_lanes") 
-            );
+                pp("e2_teams"), 
+                pp("e2_lanes") ) ) {
+                throw new RuntimeException('Unsupported Explore plan '. pp("e2_teams") . '-'. pp("e2_lanes"));
+            }    
 
             //TODO this should be as LATE as possible to keep the day short for the younger kids
 
@@ -339,32 +309,32 @@ function e_integrated() {
             $e_time = clone $r_time;
 
             // Get ready e.g. judges get on stage, RG teams and refree move away ... 
-            g_add_minutes($e_time, gp("e_ready_awards"));          // TODO different parameters "to e and back to c"
+            g_add_minutes($e_time, pp("e_ready_awards"));          // TODO different parameters "to e and back to c"
             
             // Capture the time for the opening
             $t = clone $e_time;
 
             // FLL Explore afternoon Opening
             db_insert_activity_group(ID_ATD_E_OPENING);
-            db_insert_activity(ID_ATD_E_OPENING, $e_time, gp("e2_duration_opening"));
-            g_add_minutes($e_time, gp("e2_duration_opening"));
+            db_insert_activity(ID_ATD_E_OPENING, $e_time, pp("e2_duration_opening"));
+            g_add_minutes($e_time, pp("e2_duration_opening"));
 
             // Robot Game can continue afterwards
             $r_time = clone $e_time;
             // Buffer to get Explore people out of the way
-            g_add_minutes($r_time, gp("e_ready_awards"));          // TODO different parameters "to e and back to c"
+            g_add_minutes($r_time, pp("e_ready_awards"));          // TODO different parameters "to e and back to c"
 
             e_briefings($t, 2); // Briefings for Explore afternoon batch
 
             e_judging(2); // Full FLL Explore schedule for afternoon batch
 
             // Buffer before all judges meet for deliberations
-            g_add_minutes($e_time, gp("e_ready_deliberations"));
+            g_add_minutes($e_time, pp("e_ready_deliberations"));
 
             // Deliberations
             db_insert_activity_group(ID_ATD_E_DELIBERATIONS);
-            db_insert_activity(ID_ATD_E_DELIBERATIONS, $e_time, gp("e2_duration_deliberations"), 0, 0);
-            g_add_minutes($e_time, gp("e2_duration_deliberations"));
+            db_insert_activity(ID_ATD_E_DELIBERATIONS, $e_time, pp("e2_duration_deliberations"), 0, 0);
+            g_add_minutes($e_time, pp("e2_duration_deliberations"));
 
             // FLL Explore afternoon is done             
             // Wait for the joint awards ceremony
@@ -374,10 +344,9 @@ function e_integrated() {
         case ID_E_DECOUPLED_AFTERNOON:
         case ID_E_DECOUPLED_BOTH:
 
-            if($DEBUG >= 1){
-                echo "<h2>Explore - no afternoon batch</h2>";
-            }
-            break;
+
+            g_debug_log(1, "Explore no afternoon batch");
+
     }
 
 }

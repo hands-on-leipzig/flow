@@ -170,6 +170,7 @@ class EvaluateQuality
 
 
                 // Create the corresponding q_plan entry
+                // All params are only for documentation
                 $qPlan = QPlan::create([
                     'plan' => $planId,
                     'q_run' => $runId,

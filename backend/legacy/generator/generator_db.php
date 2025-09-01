@@ -3,30 +3,6 @@
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-// <-- new
-
-// ***********************************************************************************
-// DB abstraction layer (now using Laravel DB facade)
-// ***********************************************************************************
-
-/**
- * Legacy no-op: leave in place so legacy code can still call it.
- */
-function db_connect_persistent()
-{
-    // No-op. We rely on Laravel's DB connection pool.
-    // Keep $g_db for legacy compatibility if any function checks it exists.
-    global $g_db;
-    $g_db = true;
-}
-
-/**
- * Legacy no-op: leave in place so legacy code can still call it.
- */
-function db_disconnect_persistent()
-{
-    // No-op. Let Laravel manage connections.
-}
 
 // ***********************************************************************************
 // Constants: Database IDs for ease of use
@@ -164,147 +140,22 @@ define('ID_E_DECOUPLED_BOTH', 5);
 // Reading from and adding to db tables (now via Laravel DB)
 // ***********************************************************************************
 
-/**
- * Load all parameters for a given plan into global $g_params.
- * (signatures preserved; uses DB facade)
- */
-function db_get_parameters()
-{
-    global $DEBUG, $g_params;
 
-    // 1) base parameters (with type + default value)
-    $base = [];
-    $rows = DB::table('m_parameter')->select('id', 'name', 'type', 'value')->get();
-    foreach ($rows as $row) {
-        $base[$row->id] = [
-            'name' => $row->name,
-            'type' => $row->type,
-            'value' => cast_value($row->value, $row->type),
-        ];
-    }
 
-    // 2) overlay plan-specific values
-    $planId = gp('g_plan');
-    $over = DB::table('plan_param_value')
-        ->select('parameter', 'set_value')
-        ->where('plan', $planId)
-        ->get();
-
-    foreach ($over as $r) {
-        if (isset($base[$r->parameter])) {
-            $base[$r->parameter]['value'] = cast_value($r->set_value, $base[$r->parameter]['type']);
-        }
-    }
-
-    // 3) fill $g_params keyed by name
-    foreach ($base as $p) {
-        $g_params[$p['name']] = [
-            'value' => $p['value'],
-            'type' => $p['type'],
-        ];
-    }
-
-    if (($DEBUG ?? 0) >= 4) {
-        ksort($g_params);
-        echo "<h3>Parameter</h3><pre>";
-        foreach ($g_params as $name => $data) {
-            $val = var_export($data['value'], true);
-            echo sprintf("%-30s | %-8s | %s\n", $name, $data['type'], $val);
-        }
-        echo "</pre>";
-    }
-}
-
-function cast_value($rawValue, $type)
-{
-    if ($rawValue === null) return null;
-
-    switch ($type) {
-        case 'integer':
-            return (int)$rawValue;
-        case 'decimal':
-            return (float)$rawValue;
-        case 'boolean':
-            return ($rawValue == '1');
-        case 'time':
-        case 'date':
-            return $rawValue; // keep string
-        default:
-            return (string)$rawValue;
-    }
-}
-
-function gp($name)
-{
-    global $g_params;
-    if (!isset($g_params[$name])) {
-        die("Error: Parameter '{$name}' not found.");
-    }
-    return $g_params[$name]['value'];
-}
-
-function add_param($name, $value, $type = 'string')
-{
-    global $g_params;
-    $g_params[$name] = ['value' => $value, 'type' => $type];
-}
-
-function db_get_from_plan()
-{
-    global $DEBUG;
-
-    $planId = gp('g_plan');
-    $row = DB::table('plan')->select('event')->where('id', $planId)->first();
-
-    if ($row) {
-        add_param('g_event', (int)$row->event, 'integer');
-        if (($DEBUG ?? 0) >= 3) {
-            echo "<h4>From plan</h4>";
-            echo "g event: " . gp("g_event");
-        }
-    } else {
-        echo "<h3>No data found for plan ID " . gp("g_plan") . "</h3>";
-    }
-}
-
-function db_get_from_event()
-{
-    global $DEBUG;
-
-    $row = DB::table('event')->select('date', 'days', 'level')->where('id', gp('g_event'))->first();
-
-    $date = $row->date ?? '';
-    $days = (int)($row->days ?? 0);
-    $level = (int)($row->level ?? 0);
-
-    add_param('g_event_date', $date, 'date');
-    add_param('g_days', $days, 'integer');
-    add_param('g_finale', $level === 3, 'boolean');
-
-    if (($DEBUG ?? 0) >= 3) {
-        echo "<h4>From event</h4>";
-        echo "g event date: " . gp("g_event_date") . "<br>";
-        echo "g days: " . gp("g_days") . "<br>";
-        echo "g finale: " . (gp("g_finale") ? 'true' : 'false') . "<br>";
-    }
-}
-
-function db_check_supported_plan($first_program, $teams, $lanes, $tables = NULL)
+function db_check_supported_plan($first_program, $teams, $lanes, $tables = null): bool
 {
     $q = DB::table('m_supported_plan')
         ->where('first_program', $first_program)
         ->where('teams', $teams)
         ->where('lanes', $lanes);
 
-    if ($tables === NULL) {
+    if (is_null($tables)) {
         $q->whereNull('tables');
     } else {
         $q->where('tables', $tables);
     }
 
-    if (!$q->exists()) {
-        die("No supported plan found for the given parameters.");
-    }
+    return $q->exists();
 }
 
 function db_insert_activity_group($activity_type_detail)
@@ -312,7 +163,7 @@ function db_insert_activity_group($activity_type_detail)
     global $g_activity_group;
 
     $id = DB::table('activity_group')->insertGetId([
-        'plan' => gp('g_plan'),
+        'plan' => pp('g_plan'),
         'activity_type_detail' => $activity_type_detail,
     ]);
 
@@ -486,7 +337,7 @@ function db_get_duration_inserted_activity($insert_point)
 {
     $row = DB::table('extra_block')
         ->select('buffer_before', 'duration', 'buffer_after')
-        ->where('plan', gp('g_plan'))
+        ->where('plan', pp('g_plan'))
         ->where('insert_point', $insert_point)
         ->first();
 
@@ -502,7 +353,7 @@ function db_insert_extra_activity($activity_type_detail, $time, $insert_point)
     // Read extra block
     $row = DB::table('extra_block')
         ->select('id', 'buffer_before', 'duration', 'buffer_after')
-        ->where('plan', gp('g_plan'))
+        ->where('plan', pp('g_plan'))
         ->where('insert_point', $insert_point)
         ->first();
 
@@ -540,7 +391,7 @@ function db_insert_free_activities()
     // Free blocks with fixed times
     $rows = DB::table('extra_block')
         ->select('id', 'first_program', 'start', 'end')
-        ->where('plan', gp('g_plan'))
+        ->where('plan', pp('g_plan'))
         ->whereNotNull('start')
         ->get();
 
@@ -600,19 +451,19 @@ function g_insert_point($id)
         switch ($id) {
             case ID_IP_RG_1:
             case ID_IP_RG_3:
-                g_add_minutes($time, gp('r_duration_break'));
+                g_add_minutes($time, pp('r_duration_break'));
                 break;
 
             case ID_IP_RG_2:
-                g_add_minutes($time, gp('r_duration_lunch'));
+                g_add_minutes($time, pp('r_duration_lunch'));
                 break;
 
             case ID_IP_PRESENTATIONS:
-                g_add_minutes($time, gp('c_ready_presentations'));
+                g_add_minutes($time, pp('c_ready_presentations'));
                 break;
 
             case ID_IP_AWARDS:
-                g_add_minutes($time, gp('c_ready_awards'));
+                g_add_minutes($time, pp('c_ready_awards'));
                 break;
         }
     }
