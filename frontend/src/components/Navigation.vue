@@ -59,7 +59,7 @@ function goTo(tab) {
       </TabGroup>
     </div>
     <div>
-      {{ eventStore.selectedEvent?.level_rel.name }}
+      {{ eventStore.selectedEvent?.level_rel?.name }}
       {{ eventStore.selectedEvent?.name }}
       am
       {{ dayjs(eventStore.selectedEvent?.date).format('dddd, DD.MM.YYYY') }}

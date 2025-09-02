@@ -3,6 +3,7 @@ import {ImageSlideContent} from "./imageSlideContent";
 import {RobotGameSlideContent} from "./robotGameSlideContent";
 import {UrlSlideContent} from "./urlSlideContent";
 import {PhotoSlideContent} from "./photoSlideContent";
+import {FabricSlideContent} from "./fabricSlideContent";
 
 export class Slide {
 
@@ -34,6 +35,9 @@ export class Slide {
                     case "PhotoSlideContent":
                         content = new PhotoSlideContent();
                         break;
+                    case "FabricSlideContent":
+                        content = new FabricSlideContent(obj['content'].json);
+                        break;
                     default:
                         console.error("Unknown slide content type: " + obj['content'].type);
                         content = null;
@@ -43,7 +47,7 @@ export class Slide {
         });
     }
 
-    public static fromObject(obj: Slide): Slide {
+    public static fromObject(obj: any): Slide {
         let content: SlideContent;
 
         // @ts-ignore
@@ -60,6 +64,9 @@ export class Slide {
                     break;
                 case "PhotoSlideContent":
                     content = new PhotoSlideContent();
+                    break;
+                case "FabricSlideContent":
+                    content = new FabricSlideContent(obj.content.json);
                     break;
                 default:
                     console.error("Unknown slide content type: " + obj.content.type);
