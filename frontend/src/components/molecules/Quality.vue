@@ -28,6 +28,8 @@ const juryRounds = ref({
   rounds_6: true,
 })
 
+const robotCheck = ref(1)  
+
 const qrunName = ref('')
 const qrunComment = ref('')
 
@@ -53,6 +55,7 @@ const startVolumeTest = () => {
     jury_rounds: Object.entries(juryRounds.value)
       .filter(([_, v]) => v)
       .map(([k]) => Number(k.split('_')[1])),
+    robot_check: robotCheck.value,
   }
 
   const payload = {
