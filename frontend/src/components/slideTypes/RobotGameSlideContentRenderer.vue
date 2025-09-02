@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {RobotGameSlideContent} from '../../model/robotGameSlideContent.js';
+import {RobotGameSlideContent} from '../../models/robotGameSlideContent.js';
 import api from "../../services/api.js";
 import {onMounted, onUnmounted, ref, computed} from "vue";
 

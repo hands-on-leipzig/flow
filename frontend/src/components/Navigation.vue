@@ -58,7 +58,7 @@ function goTo(tab) {
       </TabGroup>
     </div>
     <div>
-      {{ eventStore.selectedEvent?.level_rel.name }}
+      {{ eventStore.selectedEvent?.level_rel?.name }}
       {{ eventStore.selectedEvent?.name }}
     </div>
     <Menu as="div" class="relative inline-block text-left">
