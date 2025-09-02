@@ -105,13 +105,14 @@ const startVolumeTest = () => {
         v-model:jury-lanes="juryLanes"
         v-model:tables="tables"
         v-model:jury-rounds="juryRounds"
+        v-model:robot-check="robotCheck"
         v-model:qrun-name="qrunName"
         v-model:qrun-comment="qrunComment"
         :is-valid="isValid"
         @start="startVolumeTest"
         @refresh="reload++" 
       />
-    </div>
+    </div> 
 
     <!-- Scrollbarer Bereich darunter -->
     <div class="flex-1 overflow-y-auto p-4">
