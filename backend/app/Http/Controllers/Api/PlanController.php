@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\MSupportedPlan;
 use App\Models\PlanParamValue;
 use App\Services\PreviewMatrix;
+use App\Services\GeneratePlan;
 use App\Jobs\GeneratePlanJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -75,25 +76,37 @@ class PlanController extends Controller
         ]);
     }
 
-    public function generate($planId): JsonResponse
+    public function generate($planId, $async = false): JsonResponse
     {
-        log::info("Generate for plan ID {$planId}");
-
         
         $plan = Plan::find($planId);
         if (!$plan) {
             return response()->json(['error' => 'Plan not found'], 404);
         }
 
-        
-        // Setze generator_status auf "running"
         $plan->generator_status = 'running';
         $plan->save();
 
-        // Job dispatchen
-        GeneratePlanJob::dispatch($planId);
+        if ($async) {
+        
+            log::info("Generate async for plan ID {$planId}");
+            
+            GeneratePlanJob::dispatch($planId);
 
-        return response()->json(['message' => 'Generation dispatched']);
+            return response()->json(['message' => 'Generation dispatched']);
+
+        } else {
+
+            log::info("Generate sync for plan ID {$planId}");
+
+            GeneratePlan::run($plan->id);
+            
+            $plan->generator_status = 'done';
+            $plan->save();
+
+            return response()->json(['message' => 'Generation done']);    
+        }    
+
     }
 
     public function status($planId): JsonResponse
