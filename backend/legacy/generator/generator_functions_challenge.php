@@ -179,10 +179,10 @@ function r_create_match_plan() {
 
     // Sequence of matches is correct, but the table assigment must be copied from RG1 to TR
 
-    if(pp("j_lanes") == 2 || pp("j_lanes") == 4) {
+    if(pp("j_lanes") == 2 || pp("j_lanes") == 4 || pp("r_tables") == 2) {
 
         // 2 and 4 lanes correspond to 2 teams per match
-        // Easy!
+        // 2 tables make no issues
 
         for ($match0 = 1; $match0 <= pp("r_matches_per_round"); $match0++) {
         
@@ -200,11 +200,33 @@ function r_create_match_plan() {
             foreach ($r_match_plan as &$match) {
                 if ($match['round'] === 0 && $match['match'] === $match0) {
                     $match['table_1'] = $m1['table_1'];
+         //           $match['table_2'] = $m1['table_2'];
+                    break;
+                }
+            }
+            unset($match); // Referenz freigeben
+
+
+            $team = $m0['team_2'];
+
+            // Finde das Match in Runde 1, in dem team_2 gleich ist
+            $m1 = collect($r_match_plan)->first(fn($m) => $m['round'] === 1 && $m['team_2'] === $team);
+            if (!$m1) continue;
+
+            // Passe Tische in Runde 0 an
+            foreach ($r_match_plan as &$match) {
+                if ($match['round'] === 0 && $match['match'] === $match0) {
+         //           $match['table_1'] = $m1['table_1'];
                     $match['table_2'] = $m1['table_2'];
                     break;
                 }
             }
             unset($match); // Referenz freigeben
+
+
+
+
+
         }
 
     }
