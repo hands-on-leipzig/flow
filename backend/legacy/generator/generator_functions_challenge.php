@@ -200,33 +200,11 @@ function r_create_match_plan() {
             foreach ($r_match_plan as &$match) {
                 if ($match['round'] === 0 && $match['match'] === $match0) {
                     $match['table_1'] = $m1['table_1'];
-         //           $match['table_2'] = $m1['table_2'];
-                    break;
-                }
-            }
-            unset($match); // Referenz freigeben
-
-
-            $team = $m0['team_2'];
-
-            // Finde das Match in Runde 1, in dem team_2 gleich ist
-            $m1 = collect($r_match_plan)->first(fn($m) => $m['round'] === 1 && $m['team_2'] === $team);
-            if (!$m1) continue;
-
-            // Passe Tische in Runde 0 an
-            foreach ($r_match_plan as &$match) {
-                if ($match['round'] === 0 && $match['match'] === $match0) {
-         //           $match['table_1'] = $m1['table_1'];
                     $match['table_2'] = $m1['table_2'];
                     break;
                 }
             }
             unset($match); // Referenz freigeben
-
-
-
-
-
         }
 
     }
