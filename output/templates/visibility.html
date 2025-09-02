@@ -1,0 +1,65 @@
+<!--template:master=master-->
+
+<script>
+    function toggle_visibility(role, activity_type_detail) {
+        var datastring = 'action=toggle_visibility_ajax&role=' + role + '&activity_type_detail=' + activity_type_detail; 
+        $.ajax({
+            type: "POST",
+            url: "visibility.cgi",
+            data: datastring,
+            cache: false,
+            dataType: "html",
+            success: function(data){
+                //vorlage = JSON.parse(data);
+                //$('#betreff').val(vorlage.betreff);
+                 //$("#inhalt").val(vorlage.inhalt);
+
+                 //$("#mitarbeiterliste").html(data);
+            }
+        });
+    }
+</script>
+
+<table class="table table-bordered table-hover table-striped-columns">
+<!--microsite:liste-->
+</table>
+
+<!-- Modal -->
+<div class="modal fade" id="visibility" tabindex="-1" aria-labelledby="visibility-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="visibility-label">Visibility</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container" style="margin-top:10px">
+                    Sichbarkeit bzgl.<br>
+                    Rolle <strong><span id="role"></span></strong><br>
+                    und<br>
+                    Activity <strong><span id="activity_type_detail"></span></strong><br>
+                    ändern?
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                <button type="button" id="button_toggle_visibility" class="btn btn-primary" data-bs-dismiss="modal">Setzen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    function toggle_visibility_modal(role, role_name, activity_type_detail, activity_type_detail_name) {
+        $('#role').html(role_name);
+        $('#activity_type_detail').html(activity_type_detail_name);
+        $('#visibility').modal('show');
+        $('#button_toggle_visibility').attr('onclick', 'toggle_visibility('+role+','+activity_type_detail+');');
+    }
+</script>
+
+<script>
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+</script>
