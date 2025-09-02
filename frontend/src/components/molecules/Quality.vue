@@ -28,6 +28,11 @@ const juryRounds = ref({
   rounds_6: true,
 })
 
+const robotCheck = ref({
+  rc_off: true,
+  rc_on: false,
+})
+
 const qrunName = ref('')
 const qrunComment = ref('')
 
@@ -37,7 +42,8 @@ const isValid = computed(() => {
   const atLeastOneRound = Object.values(juryRounds.value).some(v => v)
   const validTeamRange = minTeams.value >= 4 && maxTeams.value <= 25 && minTeams.value <= maxTeams.value
   const hasName = qrunName.value.trim().length > 0
-  return atLeastOneLane && atLeastOneTable && atLeastOneRound && validTeamRange && hasName
+  const atLeastOneRC = Object.values(robotCheck.value).some(v => v)
+  return atLeastOneLane && atLeastOneTable && atLeastOneRound && atLeastOneRC && validTeamRange && hasName
 })
 
 const startVolumeTest = () => {
@@ -45,14 +51,17 @@ const startVolumeTest = () => {
     min_teams: minTeams.value,
     max_teams: maxTeams.value,
     jury_lanes: Object.entries(juryLanes.value)
-      .filter(([_, v]) => v)
-      .map(([k]) => Number(k.split('_')[1])),
+        .filter(([_, v]) => v)
+        .map(([k]) => Number(k.split('_')[1])),
     tables: Object.entries(tables.value)
-      .filter(([_, v]) => v)
-      .map(([k]) => Number(k.split('_')[1])),
+        .filter(([_, v]) => v)
+        .map(([k]) => Number(k.split('_')[1])),
     jury_rounds: Object.entries(juryRounds.value)
-      .filter(([_, v]) => v)
-      .map(([k]) => Number(k.split('_')[1])),
+        .filter(([_, v]) => v)
+        .map(([k]) => Number(k.split('_')[1])),
+    robot_check: Object.entries(robotCheck.value)
+        .filter(([_, v]) => v)
+        .map(([k]) => Number(k.split('_')[1])),
   }
 
   const payload = {
@@ -62,27 +71,27 @@ const startVolumeTest = () => {
   }
 
   axios.post('/quality/qrun', payload)
-    .then(() => {
-      reload.value++  
-      qrunName.value = ''
-      qrunComment.value = ''
-    })
-    .catch(error => {
-      if (error.response) {
-        const status = error.response.status
-        const data = error.response.data
+      .then(() => {
+        reload.value++
+        qrunName.value = ''
+        qrunComment.value = ''
+      })
+      .catch(error => {
+        if (error.response) {
+          const status = error.response.status
+          const data = error.response.data
 
-        if (status === 429 && data.error) {
-          alert(data.error)
+          if (status === 429 && data.error) {
+            alert(data.error)
+          } else {
+            console.error('Backend-Antwort:', status, data)
+            alert('Ein Fehler ist aufgetreten. Bitte prüfe die Eingaben.')
+          }
         } else {
-          console.error('Backend-Antwort:', status, data)
-          alert('Ein Fehler ist aufgetreten. Bitte prüfe die Eingaben.')
+          console.error('Netzwerk-Fehler:', error)
+          alert('Keine Verbindung zum Server.')
         }
-      } else {
-        console.error('Netzwerk-Fehler:', error)
-        alert('Keine Verbindung zum Server.')
-      }
-    })
+      })
 }
 </script>
 
@@ -91,16 +100,16 @@ const startVolumeTest = () => {
     <!-- Eingabebereich: bleibt oben fix -->
     <div class="sticky top-0 z-10 bg-white border-b p-4">
       <QRunConfigForm
-        v-model:min-teams="minTeams"
-        v-model:max-teams="maxTeams"
-        v-model:jury-lanes="juryLanes"
-        v-model:tables="tables"
-        v-model:jury-rounds="juryRounds"
-        v-model:qrun-name="qrunName"
-        v-model:qrun-comment="qrunComment"
-        :is-valid="isValid"
-        @start="startVolumeTest"
-        @refresh="reload++" 
+          v-model:min-teams="minTeams"
+          v-model:max-teams="maxTeams"
+          v-model:jury-lanes="juryLanes"
+          v-model:tables="tables"
+          v-model:jury-rounds="juryRounds"
+          v-model:qrun-name="qrunName"
+          v-model:qrun-comment="qrunComment"
+          :is-valid="isValid"
+          @start="startVolumeTest"
+          @refresh="reload++"
       />
     </div>
 

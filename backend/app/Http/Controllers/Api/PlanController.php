@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\MSupportedPlan;
 use App\Models\PlanParamValue;
 use App\Services\PreviewMatrix;
+use App\Services\GeneratePlan;
 use App\Jobs\GeneratePlanJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +41,7 @@ class PlanController extends Controller
 
         // TODO
         // Hier sollten e_teams und c_teams mit den geplanten Werten aus DRAHT befüllt werden.
-        
+
         $e_teams = 6; // TODO aus DRAHT
         $c_teams = 12;  // TODO aus DRAHT
 
@@ -48,7 +49,7 @@ class PlanController extends Controller
             ['plan' => $newId, 'parameter' => 6],   // e_teams
             ['set_value' => $e_teams]
         );
-        
+
 
         // Minimale parameter für einen gültigen Plan
 
@@ -61,7 +62,7 @@ class PlanController extends Controller
             ['plan' => $newId, 'parameter' => 23],    // j_lanes
             ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes')]
         );
-        
+
         PlanParamValue::updateOrCreate(
             ['plan' => $newId, 'parameter' => 24],  // r_tables
             ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables')]
@@ -75,25 +76,37 @@ class PlanController extends Controller
         ]);
     }
 
-    public function generate($planId): JsonResponse
+    public function generate($planId, $async = false): JsonResponse
     {
-        log::info("Generate for plan ID {$planId}");
 
-        
         $plan = Plan::find($planId);
         if (!$plan) {
             return response()->json(['error' => 'Plan not found'], 404);
         }
 
-        
-        // Setze generator_status auf "running"
         $plan->generator_status = 'running';
         $plan->save();
 
-        // Job dispatchen
-        GeneratePlanJob::dispatch($planId);
+        if ($async) {
 
-        return response()->json(['message' => 'Generation dispatched']);
+            log::info("Generate async for plan ID {$planId}");
+
+            GeneratePlanJob::dispatch($planId);
+
+            return response()->json(['message' => 'Generation dispatched']);
+
+        } else {
+
+            log::info("Generate sync for plan ID {$planId}");
+
+            GeneratePlan::run($plan->id);
+
+            $plan->generator_status = 'done';
+            $plan->save();
+
+            return response()->json(['message' => 'Generation done']);
+        }
+
     }
 
     public function status($planId): JsonResponse
@@ -110,7 +123,7 @@ class PlanController extends Controller
 
     //
     // Preview in frontend
-    // 
+    //
 
     public function previewRoles(int $plan, PreviewMatrix $builder)
     {
@@ -159,7 +172,7 @@ class PlanController extends Controller
      * @return \Illuminate\Support\Collection
      */
     private function fetchActivities(int $plan, bool $includeRooms = false)
-    
+
     {
         // Map configured "free" constants to numeric IDs (defensive)
         $freeIds = array_values(array_filter(array_map(function ($c) {
@@ -183,14 +196,14 @@ class PlanController extends Controller
 
         if ($includeRooms) {
             $q->leftJoin('m_room_type as rt', 'a.room_type', '=', 'rt.id')
-            ->leftJoin('room_type_room as rtr', function ($j) {
-                $j->on('rtr.room_type', '=', 'a.room_type')
-                    ->on('rtr.event', '=', 'p.event');
-            })
-            ->leftJoin('room as r', function ($j) {
-                $j->on('r.id', '=', 'rtr.room')
-                    ->on('r.event', '=', 'p.event');
-            });
+                ->leftJoin('room_type_room as rtr', function ($j) {
+                    $j->on('rtr.room_type', '=', 'a.room_type')
+                        ->on('rtr.event', '=', 'p.event');
+                })
+                ->leftJoin('room as r', function ($j) {
+                    $j->on('r.id', '=', 'rtr.room')
+                        ->on('r.event', '=', 'p.event');
+                });
         }
 
         $select = '
@@ -222,7 +235,7 @@ class PlanController extends Controller
         // Nur für Rooms nach rt/r sortieren – sonst existieren die Aliase nicht
         if ($includeRooms) {
             $q->orderBy('rt.sequence')
-            ->orderBy('r.name');
+                ->orderBy('r.name');
         }
 
         return $q->orderBy('a.start')->selectRaw($select)->get();
@@ -235,7 +248,7 @@ class PlanController extends Controller
     function activities($planId): JsonResponse
     {
 
-        // TODO: 
+        // TODO:
         $activities = $this->fetchActivities($planId, includeRooms: true);
         return response()->json($activities);
     }

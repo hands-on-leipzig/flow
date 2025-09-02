@@ -29,11 +29,7 @@ class GeneratePlanJob implements ShouldQueue
         $plan->save();
 
         GeneratePlan::run($plan->id);
-        
-        // 👉 hier deine Generator-Logik einbauen
-        // sleep(45); // Platzhalter für echten Prozess
 
-        // Status auf "ready" setzen
         $plan->generator_status = 'done';
         $plan->save();
     }

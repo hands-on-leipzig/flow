@@ -20,42 +20,12 @@ use PhpParser\Node\Expr\FuncCall;
 
 class EvaluateQuality
 {
-    // For debugging: Dump all relevant activities for a given plan TODEL
- 
-    public function debugDump(int $qPlanId): array
-    {
-        // Load evaluation base data
-        $activities = $this->prepareEvaluationData($qPlanId);
-
-        // Calculate the Qs
-        $this->calculateQ1($qPlanId, $activities);
-        $this->calculateQ2($qPlanId);
-        $this->calculateQ3($qPlanId);
-        $this->calculateQ4($qPlanId);
-        $this->calculateQ5($qPlanId);
-
-        // Load all q_plan_team entries for the given q_plan_id
-        $teams = QPlanTeam::where('q_plan', $qPlanId)->get();
-
-        // Load all q_plan_match entries for the given q_plan_id
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
-            ->orderBy('round')
-            ->orderBy('match_no')
-            ->get();
-
-        return [
-            'q_plan_team' => $teams->map(fn($t) => $t->toArray())->all(),
-            'q_plan_match' => $matches->map(fn($m) => (array) $m)->all(),
-            'activities' => $activities->toArray(),
-        ];
-    }
 
     public function generateQPlansFromSelection(int $runId): void
     {
         $RP_NAME = '!!! QPlan RP - nur für den Qualitätstest verwendet !!!';
         $EVENT_NAME = '!!! QPlan Event - nur für den Qualitätstest verwendet !!!';
-       
+
         Log::info("Erzeugung der qPlans für Run ID $runId startet.");
 
         // Read q_run (Name + Selection)
@@ -65,7 +35,7 @@ class EvaluateQuality
             throw new \Exception("q_run with ID $runId not found");
         }
 
-        
+
 
         try {
             $selection = json_decode($qRun->selection, true, 512, JSON_THROW_ON_ERROR);
@@ -93,7 +63,9 @@ class EvaluateQuality
         $event = DB::table('event')->where('name', $EVENT_NAME)->first();
 
         if (!$event) {
-            $seasonId = DB::table('m_season')->value('id');
+            $seasonId = DB::table('m_season')
+                ->orderByDesc('year')
+                ->value('id');
             $eventId = DB::table('event')->insertGetId([
                 'name' => $EVENT_NAME,
                 'regional_partner' => $regionalPartnerId,
@@ -170,6 +142,7 @@ class EvaluateQuality
 
 
                 // Create the corresponding q_plan entry
+                // All params are only for documentation
                 $qPlan = QPlan::create([
                     'plan' => $planId,
                     'q_run' => $runId,
@@ -189,9 +162,9 @@ class EvaluateQuality
                     'q5_idle_stddev' => null,
                 ]);
 
-                        
+
             } // End foreach robot check yes/no
-             
+
         }  // End foreach supported plan
 
         // Update q_run with the total number of q_plans created
@@ -276,7 +249,7 @@ class EvaluateQuality
             in_array($tables, $tableOptions) &&
             in_array($rounds, $juryRounds);
     }
-        
+
 
 
     /**
@@ -285,7 +258,7 @@ class EvaluateQuality
     public function evaluate(int $qPlanId): void
     {
         $activities = $this->prepareEvaluationData($qPlanId);
-   
+
         $this->calculateQ1($qPlanId, $activities);
         $this->calculateQ2($qPlanId);
         $this->calculateQ3($qPlanId);
@@ -306,7 +279,7 @@ class EvaluateQuality
         }
 
         $this->evaluate($qPlan->id);
-}
+    }
 
     /**
      * Load all relevant activities for a given plan, including joins to group and type info.
@@ -315,29 +288,29 @@ class EvaluateQuality
     {
         // Fetch the plan ID from q_plan
         $planId = DB::table('q_plan')
-        ->where('id', $qPlanId)
-        ->value('plan');
-        
+            ->where('id', $qPlanId)
+            ->value('plan');
+
         // Fetch activities related to the given q_plan
-       $activities = Activity::query()
-        ->select([
-            'activity.start',
-            'activity.end',
-            'activity.jury_lane',
-            'activity.jury_team',
-            'activity.table_1',
-            'activity.table_1_team',
-            'activity.table_2',
-            'activity.table_2_team',
-            'activity.activity_type_detail as activity_atd',
-            'activity_group.activity_type_detail as activity_group_atd',
-        ])
-        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-        ->where('activity_group.plan', $planId)
-        ->whereIn('activity_group.activity_type_detail', [8, 9, 10, 11, 20])
-        ->whereIn('activity.activity_type_detail', [15, 16, 17])
-        ->orderBy('activity.start')
-        ->get();
+        $activities = Activity::query()
+            ->select([
+                'activity.start',
+                'activity.end',
+                'activity.jury_lane',
+                'activity.jury_team',
+                'activity.table_1',
+                'activity.table_1_team',
+                'activity.table_2',
+                'activity.table_2_team',
+                'activity.activity_type_detail as activity_atd',
+                'activity_group.activity_type_detail as activity_group_atd',
+            ])
+            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+            ->where('activity_group.plan', $planId)
+            ->whereIn('activity_group.activity_type_detail', [8, 9, 10, 11, 20])
+            ->whereIn('activity.activity_type_detail', [15, 16, 17])
+            ->orderBy('activity.start')
+            ->get();
 
         // Delete all previous entries for this q_plan in q_plan_team
         DB::table('q_plan_team')->where('q_plan', $qPlanId)->delete();
@@ -350,7 +323,7 @@ class EvaluateQuality
             DB::table('q_plan_team')->insert([
                 'q_plan' => $qPlanId,
                 'team' => $team,
-                
+
                 'q1_ok' => 0,
                 'q1_transition_1_2' => 0,
                 'q1_transition_2_3' => 0,
@@ -362,9 +335,9 @@ class EvaluateQuality
 
                 'q3_ok' => 0,
                 'q3_teams' => 0,
-                
+
                 'q4_ok' => 0,
-                
+
                 'q5_idle_0_1' => 0,
                 'q5_idle_1_2' => 0,
                 'q5_idle_2_3' => 0,
@@ -644,7 +617,7 @@ class EvaluateQuality
 
         DB::table('q_plan')
             ->where('id', $qPlanId)
-            ->update(['q4_ok_count' => $ok_count]);        
+            ->update(['q4_ok_count' => $ok_count]);
     }
 
     /**

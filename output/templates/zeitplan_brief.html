@@ -19,25 +19,25 @@
     <div class="col-12">
         <p style="text-align:center; font-size:clamp(35px, 10vw, 90px); font-weight:bold; color:#24355C">
             <!--zeitplan:role-->
-        </p>
-    </div>
+</p>
+</div>
 </div>
 -->
 
 <div class="modal" tabindex="-1" id="modal_qrcode">
     <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Zeitplan</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Zeitplan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <img src='data:image/png;base64,<!--zeitplan:qrcode-->' width=100%>
+            </div>
         </div>
-        <div class="modal-body">
-            <img src='data:image/png;base64,<!--zeitplan:qrcode-->' width=100%>
-        </div>
-      </div>
     </div>
-  </div>
- 
+</div>
+
 
 <div class="row row-cols-2 row-cols-md-4 g-2" id="navigation" style="padding-top:10px; padding-bottom:10px">
     <div class="col text-center">
@@ -68,7 +68,7 @@
 </div>
 
 <div class="row">
-    <div class="col-6"><span class="fw-lighter"><span data-bs-toggle="popover" data-bs-placement="top" data-bs-html="true" data-bs-content='&lt;strong&gt;Entwicklung&lt;/strong&gt;&lt;br/&gt;Hendrik Madeya&lt;br/&gt;Thomas Madeya&lt;br/&gt;Michael Mertens&lt;br/&gt;Jakub Stribrny&lt;br/&gt;&lt;br/&gt;&lt;strong&gt;Impressum&lt;br/&gt;&lt;/strong&gt;HANDS on TECHNOLOGY e.V.&lt;br&gt;Plautstraße 80&lt;br&gt;04179 Leipzig&lt;br&gt;Deutschland&lt;br&gt;&lt;br&gt;Telefon: +49 (0)341-246 1583&lt;br&gt;E-Mail: &lt;a href="mailto:info@hands-on-technology.org"&gt;info@hands-on-technology.org&lt;/a&gt;&lt;br&gt;Website: &lt;a href="www.hands-on-technology.org" target="_blank"&gt;www.hands-on-technology.org&lt;/a&gt;&lt;br&gt;&lt;br&gt;Registergericht Leipzig: VR 3683&lt;br&gt;USt-ID: DE 228402267&lt;br&gt;Vorstandsvorsitzende: Irmgard Rothkirch&lt;br&gt;Stellvertretender Vorstand: Armin Gardeia&lt;br&gt;Geschäftsführung: Stefanie Sieber, Susanne Voigt'><i class="bi-info-square"></i></span></span></div>
+    <div class="col-6"><span class="fw-lighter"><span data-bs-toggle="popover" data-bs-placement="top" data-bs-html="true" data-bs-content='&lt;strong&gt;Entwicklung&lt;/strong&gt;&lt;br/&gt;Hendrik Madeya&lt;br/&gt;Thomas Madeya&lt;br/&gt;Michael Mertens&lt;br/&gt;Jakub Stribrny&lt;br/&gt;Lucas Welscher&lt;br/&gt;&lt;br/&gt;&lt;strong&gt;Impressum&lt;br/&gt;&lt;/strong&gt;HANDS on TECHNOLOGY e.V.&lt;br&gt;Plautstraße 80&lt;br&gt;04179 Leipzig&lt;br&gt;Deutschland&lt;br&gt;&lt;br&gt;Telefon: +49 (0)341-246 1583&lt;br&gt;E-Mail: &lt;a href="mailto:info@hands-on-technology.org"&gt;info@hands-on-technology.org&lt;/a&gt;&lt;br&gt;Website: &lt;a href="www.hands-on-technology.org" target="_blank"&gt;www.hands-on-technology.org&lt;/a&gt;&lt;br&gt;&lt;br&gt;Registergericht Leipzig: VR 3683&lt;br&gt;USt-ID: DE 228402267&lt;br&gt;Vorstandsvorsitzender: Jakub Stribrny&lt;br&gt;Stellvertretender Vorstand: Fabian Schmidtchen&lt;br&gt;Geschäftsführung: Stefanie Sieber, Susanne Voigt'><i class="bi-info-square"></i></span></span></div>
     <div class="col-6 text-end"><span class="fw-lighter"><i class="bi-calendar-week"></i> <!--zeitplan:plan_last_change--></span></div>
 </div>
 
@@ -76,7 +76,7 @@
     (function() {
         const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
         const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
-        
+
         //location.href='#detailplan';
         location.href='#<!--zeitplan:actual_activity_group_id-->';
     })();

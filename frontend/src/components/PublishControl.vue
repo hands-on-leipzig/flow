@@ -44,10 +44,6 @@ const printNameTags = () => {
   window.open(`/events/${event.value?.id}/print/nametags`, '_blank')
 }
 
-function copyUrl(url) {
-  navigator.clipboard.writeText(url);
-}
-
 const updateEventField = async (field: string, value: any) => {
   try {
     await axios.put(`/events/${event.value?.id}`, {
