@@ -22,10 +22,7 @@ class EvaluateQuality
 {
 
     public function generateQPlansFromSelection(int $runId): void
-    {
-        $RP_NAME = '!!! QPlan RP - nur für den Qualitätstest verwendet !!!';
-        $EVENT_NAME = '!!! QPlan Event - nur für den Qualitätstest verwendet !!!';
-       
+    {       
         Log::info("Erzeugung der qPlans für Run ID $runId startet.");
 
         // Read q_run (Name + Selection)
@@ -34,8 +31,6 @@ class EvaluateQuality
         if (!$qRun) {
             throw new \Exception("q_run with ID $runId not found");
         }
-
-        
 
         try {
             $selection = json_decode($qRun->selection, true, 512, JSON_THROW_ON_ERROR);
@@ -46,38 +41,8 @@ class EvaluateQuality
         // Get all allowed parameters once to be used in the loop below
         $parameters = MParameter::all()->keyBy('name');
 
-        // Sicherstellen, dass der spezielle Regionalpartner existiert
-        $regionalPartner = DB::table('regional_partner')->where('name', $RP_NAME)->first();
-
-        if (!$regionalPartner) {
-            $regionalPartnerId = DB::table('regional_partner')->insertGetId([
-                'name' => $RP_NAME,
-                'region' => 0,
-            ]);
-            Log::info("RP für Qualitätstest neu angelegt mit ID $regionalPartnerId");
-        } else {
-            $regionalPartnerId = $regionalPartner->id;
-        }
-
-        // Sicherstellen, dass das spezielle Event existiert
-        $event = DB::table('event')->where('name', $EVENT_NAME)->first();
-
-        if (!$event) {
-            $seasonId = DB::table('m_season')
-                ->orderByDesc('year')
-                ->value('id');
-            $eventId = DB::table('event')->insertGetId([
-                'name' => $EVENT_NAME,
-                'regional_partner' => $regionalPartnerId,
-                'level' => 1,
-                'season' => $seasonId,
-                'date' => Carbon::today(),
-                'days' => 1,
-            ]);
-            Log::info("Event für Qualitätstest neu angelegt mit ID $eventId");
-        } else {
-            $eventId = $event->id;
-        }
+        // Create or get the special event for quality tests
+        $eventId = $this->getOrCreateQualityEventId();
 
         // Read m_supported_plan and filter by selection
         $supportedPlans = MSupportedPlan::where('first_program', 3)
@@ -203,6 +168,9 @@ class EvaluateQuality
             $copy->q_run = $newRunId;
             $copy->plan = $planCopy->id;
 
+            // Ensure the event id is valid. The old event might have been deleted.
+            $copy->event = $this->getOrCreateQualityEventId();
+
             // Q-Werte nullen
             $copy->q1_ok_count = null;
             $copy->q2_ok_count = null;
@@ -229,6 +197,49 @@ class EvaluateQuality
             'qplans_total' => QPlan::where('q_run', $newRunId)->count(),
         ]);
     }
+
+    private function getOrCreateQualityEventId(): int
+    {
+        $RP_NAME = '!!! QPlan RP - nur für den Qualitätstest verwendet !!!';
+        $EVENT_NAME = '!!! QPlan Event - nur für den Qualitätstest verwendet !!!';
+
+        // Regionalpartner prüfen oder anlegen
+        $regionalPartner = DB::table('regional_partner')->where('name', $RP_NAME)->first();
+
+        if (!$regionalPartner) {
+            $regionalPartnerId = DB::table('regional_partner')->insertGetId([
+                'name' => $RP_NAME,
+                'region' => 0,
+            ]);
+            Log::info("RP für Qualitätstest neu angelegt mit ID $regionalPartnerId");
+        } else {
+            $regionalPartnerId = $regionalPartner->id;
+        }
+
+        // Event prüfen oder anlegen
+        $event = DB::table('event')->where('name', $EVENT_NAME)->first();
+
+        if (!$event) {
+            $seasonId = DB::table('m_season')
+                ->orderByDesc('year')
+                ->value('id');
+
+            $eventId = DB::table('event')->insertGetId([
+                'name' => $EVENT_NAME,
+                'regional_partner' => $regionalPartnerId,
+                'level' => 1,
+                'season' => $seasonId,
+                'date' => Carbon::today(),
+                'days' => 1,
+            ]);
+            Log::info("Event für Qualitätstest neu angelegt mit ID $eventId");
+        } else {
+            $eventId = $event->id;
+        }
+
+        return $eventId;
+    }    
+
 
     private function isPlanSupported(MSupportedPlan $plan, array $selection): bool
     {
