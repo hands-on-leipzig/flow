@@ -38,16 +38,16 @@ function g_generator($plan_id) {
     global $DEBUG;                      // Debug level. 0 = off
 
     // !!!! TODEL
-    $DEBUG = 2;
-
+    $DEBUG = 0;                       
+    
     g_debug_log(1, "Start " . $plan_id);
 
     // Read all parameters for the plan. Access is via pp("parameter_name")
     PlanParameter::load($plan_id);
 
     g_debug_log(1, "Plan parameters read");
-
-    $g_event_date = new DateTime(pp("g_date"));
+    
+    $g_event_date = new DateTime(pp("g_date"));            
 
     g_debug_log(1, "Start", "e_mode");
 
@@ -55,7 +55,7 @@ function g_generator($plan_id) {
     // Tread them like any other parameter
 
     if (pp("c_teams") > 0) {
-
+        
         PlanParameter::add("j_rounds", ceil(pp("c_teams") / pp("j_lanes")), "integer");                // Number of jury rounds in the schedule: Minimum 4 for 3x Robot Game + Test Round. Maximum 6 for fully utilized jury
         PlanParameter::add("r_matches_per_round", ceil(pp("c_teams") / 2), "integer");                                          // need one match per two teams
         PlanParameter::add("r_need_volunteer", pp("r_matches_per_round") != pp("c_teams") / 2, "boolean");                      // uneven number of teams --> "need a volunteer without scoring"
@@ -64,35 +64,35 @@ function g_generator($plan_id) {
     }
 
     if( pp("e1_teams") > 0) {
-        PlanParameter::add("e1_rounds", ceil(pp("e1_teams") / pp("e1_lanes")), "integer");             // Number of jury rounds in the schedule:
+        PlanParameter::add("e1_rounds", ceil(pp("e1_teams") / pp("e1_lanes")), "integer");             // Number of jury rounds in the schedule: 
     }
-
+    
     if( pp("e2_teams") > 0) {
-        PlanParameter::add("e2_rounds", ceil(pp("e2_teams") / pp("e2_lanes")), "integer");             // Number of jury rounds in the schedule:
+        PlanParameter::add("e2_rounds", ceil(pp("e2_teams") / pp("e2_lanes")), "integer");             // Number of jury rounds in the schedule:      
     }
 
     // Other global variables
-    global $g_activity_group;           // Same for the db ID of current activit group
+    global $g_activity_group;           // Same for the db ID of current activit group   
 
 
     // ***********************************************************************************
     // Definition of variables with scope only for this main function
     // ***********************************************************************************
 
-    $c_day = 0;                         // [Temp] Current day of the event. 1 = first day, 2 = second day, etc.
-
+    $c_day = 0;                         // [Temp] Current day of the event. 1 = first day, 2 = second day, etc.  
+    
     global $c_time;
-    $c_time = new DateTime();           // [Temp] Current time for FLL Challenge
+    $c_time = new DateTime();           // [Temp] Current time for FLL Challenge    
 
     global $j_time;
-    $j_time = new DateTime();           // [Temp] Current time for judging in FLL Challenge
-
+    $j_time = new DateTime();           // [Temp] Current time for judging in FLL Challenge       
+    
     global $r_time;
-    $r_time = new DateTime();           // Current time for robot game in FLL Challenge
-
+    $r_time = new DateTime();           // Current time for robot game in FLL Challenge    
+    
     global $e_time;
     $e_time = new DateTime();           // [Temp] Current time for judging in FLL Explore
-
+    
     global $lc_time;
     $lc_time = new DateTime();          // [Temp] Current time for Live Challenge
 
@@ -102,7 +102,7 @@ function g_generator($plan_id) {
     // Main
     // ***********************************************************************************
 
-    /*
+    /* 
 
     Main branch: FLL Challenge yes or no determined by the number of teams.
 
@@ -136,14 +136,14 @@ function g_generator($plan_id) {
         g_debug_log(2, "Challenge", "r_need_volunteer");
         g_debug_log(2, "Challenge", "r_asym");
 
-        // Check if the plan is supported.
+        // Check if the plan is supported. 
         if(!db_check_supported_plan(
             ID_FP_CHALLENGE,
-            pp("c_teams"),
+            pp("c_teams"), 
             pp("j_lanes"),
             pp("r_tables") ) ) {
-            throw new RuntimeException('Unsupported Challenge plan '. pp("c_teams") . '-'. pp("j_lanes") . '-' .pp("r_tables"));
-        }
+             throw new RuntimeException('Unsupported Challenge plan '. pp("c_teams") . '-'. pp("j_lanes") . '-' .pp("r_tables"));
+        }    
 
         // combine event date with start time of opening depending on the combination of FLL Challenge and FLL Explore
 
@@ -153,9 +153,9 @@ function g_generator($plan_id) {
             // Save the day for Live Challenge
             $lc_time = clone $g_event_date;
 
-            // combine event date with start time of day 1
-            list($hours, $minutes) = explode(':', pp("f_start_day_1"));
-            $lc_time->setTime((int)$hours, (int)$minutes);
+            // combine event date with start time of day 1   
+            list($hours, $minutes) = explode(':', pp("f_start_day_1"));   
+            $lc_time->setTime((int)$hours, (int)$minutes);               
 
             // Add one day for the main action
             $g_event_date->modify('+1 day');
@@ -167,7 +167,7 @@ function g_generator($plan_id) {
 
             $c_day = 1; // Day 1 of the event
         }
-
+   
         if (pp("e_mode") == ID_E_MORNING) {
 
             // FLL Challenge and Explore combined during the morning
@@ -189,19 +189,19 @@ function g_generator($plan_id) {
 
 
         // -----------------------------------------------------------------------------------
-        // Challenge opening alone or joint with Explore
+        // Challenge opening alone or joint with Explore 
         // -----------------------------------------------------------------------------------
 
         // Save time to schedule briefings before opening
-        $t = clone $c_time;
+        $t = clone $c_time; 
 
         if (pp("e_mode") == ID_E_MORNING) {
-            // joint opening
-
+            // joint opening  
+            
             g_debug_log(1, "Opening joint");
 
             db_insert_activity_group(ID_ATD_OPENING);
-            db_insert_activity(ID_ATD_OPENING, $c_time, pp("g_duration_opening"));
+            db_insert_activity(ID_ATD_OPENING, $c_time, pp("g_duration_opening"));        
             g_add_minutes($j_time, pp("g_duration_opening"));
             g_add_minutes($r_time, pp("g_duration_opening"));
             g_add_minutes($e_time, pp("g_duration_opening"));
@@ -215,18 +215,18 @@ function g_generator($plan_id) {
             db_insert_activity(ID_ATD_C_OPENING, $c_time, pp("c_duration_opening"));
             g_add_minutes($j_time, pp("c_duration_opening"));
             g_add_minutes($r_time, pp("c_duration_opening"));
-
+            
         }
-
+              
         // -----------------------------------------------------------------------------------
         // Briefings before or after opening
         // -----------------------------------------------------------------------------------
 
         // Add briefings
         c_briefings($t, $c_day);
-
+    
         // -----------------------------------------------------------------------------------
-        // FLL Explore integrated during the morning
+        // FLL Explore integrated during the morning 
         // -----------------------------------------------------------------------------------
         // Start with FLL Explore, because awards ceremony is between FLL Challenge robot game rounds
         // Therefore, FLL Explore timing needs to be calculate first!
@@ -243,13 +243,13 @@ function g_generator($plan_id) {
             g_debug_log(2, "Explore morning", "e1_lanes");
             g_debug_log(2, "Explore morning", "e1_rounds");
 
-            // Check if the plan is supported.
+            // Check if the plan is supported. 
             if(!db_check_supported_plan(
                 ID_FP_EXPLORE,
-                pp("e1_teams"),
+                pp("e1_teams"), 
                 pp("e1_lanes") ) ) {
                 throw new RuntimeException('Unsupported Explore plan '. pp("e1_teams") . '-'. pp("e1_lanes"));
-            }
+            } 
 
             // Full FLL Explore schedule for group 1
             e_judging(1);
@@ -266,11 +266,11 @@ function g_generator($plan_id) {
             // Awards for FLL Explore is next:
             // This would be the earliest time for FLL Explore awards
             // However, robot game may not have finished yet.
-            // Thus the timing is determined further down
-
+            // Thus the timing is determined further down 
+        
         } else {
 
-            g_debug_log(1, "Explore no morning batch");
+        g_debug_log(1, "Explore no morning batch");
 
         } // FLL Explore morning batch
 
@@ -279,7 +279,7 @@ function g_generator($plan_id) {
         // -----------------------------------------------------------------------------------
         // Robot Game and Judging run parallel in sync
 
-
+        
         // Create the robot game match plan
         r_create_match_plan();
 
@@ -321,10 +321,10 @@ function g_generator($plan_id) {
             // Calculate forward from start of the round:
             // 1 or 2 lanes = 1 match
             // 3 or 4 lanes = 2 matches
-            // 5 or 5 lanes = 3 matches
+            // 5 or 5 lanes = 3 matches 
 
             // The calculation of a4j = available for judging is done after the start of robot game is determined below
-            // Here the value of the last block is used.
+            // Here the value of the last block is used.    
 
             // Delay judging if needed
             if (g_diff_in_minutes($j_time_earliest, $j_time) > 0) {
@@ -338,17 +338,17 @@ function g_generator($plan_id) {
             // Calculate backwards from end of the round:
             // 1 or 2 lanes = 1 match
             // 3 or 4 lanes = 2 matches
-            // 5 or 5 lanes = 3 matches
+            // 5 or 5 lanes = 3 matches 
 
             // number of matches before teams must be back from judging
             if ( $c_block == pp("j_rounds") && (pp("c_teams") % pp("j_lanes")) <> 0) {
 
-                // not all lanes filled in last round of judging
-                $r_mb = pp("r_matches_per_round") - ceil((pp("c_teams") % pp("j_lanes")) / 2);
+                    // not all lanes filled in last round of judging
+                    $r_mb = pp("r_matches_per_round") - ceil((pp("c_teams") % pp("j_lanes")) / 2);
 
-            } else {
-                $r_mb = pp("r_matches_per_round") - ceil(pp("j_lanes") / 2);
-            }
+                } else {
+                    $r_mb = pp("r_matches_per_round") - ceil(pp("j_lanes") / 2);         
+                }       
 
             // calculate time to START of match
             if (pp("r_tables") == 2) {
@@ -356,33 +356,33 @@ function g_generator($plan_id) {
                 $r_t2m = ($r_mb - 1) * $r_duration;
 
             } else {
-                // matches START alternating with respective delay between STARTs
+                // matches START alternating with respective delay between STARTs                  
                 if ($r_mb % 2 === 0) {
                     $r_t2m = ($r_mb / 2 - 1) * $r_duration + pp("r_duration_next_start");
-                } else {
+                } else {   
                     $r_t2m = ($r_mb - 1) / 2 * $r_duration ;
-                }
+                }    
             }
 
             // Note: No need to consider robot check!
             // It delays the match start, but the teams have be there ealier for exactly the same amount of time.
-            /*
-                        if ($DEBUG >= 99) {
-                            // echo "j_t4j: " . $j_t4j . "<br>";
-                            echo "r_mb : " . $r_mb . " // ";
-                            echo "r_t2m: " . $r_t2m . "<br>";
-                        }
-            */
+/*
+            if ($DEBUG >= 99) {
+                // echo "j_t4j: " . $j_t4j . "<br>";
+                echo "r_mb : " . $r_mb . " // ";
+                echo "r_t2m: " . $r_t2m . "<br>";
+            }
+*/
             // Compare time away for judging and expectations from robotgame
             // Factor in the current difference between robot game and judging
             $r_start_shift = $j_t4j - $r_t2m - g_diff_in_minutes($r_time, $j_time);
-            /*
-                        if ($DEBUG >= 99) {
-                            echo "j_t4j: " . $j_t4j . "<br>";
-                            echo "r_t2m: " . $r_t2m . "<br>";
-                            echo "r_start_shift: " . $r_start_shift . "<br>";
-                        }
-            */
+/*
+            if ($DEBUG >= 99) {
+                echo "j_t4j: " . $j_t4j . "<br>";
+                echo "r_t2m: " . $r_t2m . "<br>";
+                echo "r_start_shift: " . $r_start_shift . "<br>";
+            }
+*/
             // Delay robot game if needed
             if ( $r_start_shift > 0) {
                 g_add_minutes($r_time, $r_start_shift);
@@ -394,17 +394,17 @@ function g_generator($plan_id) {
             // number of matches before all teams are ready to leave
             $r_mb = ceil(pp("j_lanes") / 2);
 
-            // calculate time to END of the match
+            // calculate time to END of the match            
             if (pp("r_tables") == 2) {
                 // matches END in sequence
                 $r_a4j = $r_mb * $r_duration;
             } else {
-                // matches END alternating with respective delay between ENDs
+                // matches END alternating with respective delay between ENDs                  
                 if ($r_mb % 2 === 0) {
                     $r_a4j = $r_mb / 2 * $r_duration + pp("r_duration_next_start");;
-                } else {
+                } else {   
                     $r_a4j = ($r_mb + 1) / 2 * $r_duration ;
-                }
+                }    
             }
 
             // Robot check shifts everything, but just once.
@@ -440,13 +440,13 @@ function g_generator($plan_id) {
                 case 2:
                     if ( pp("j_rounds") == 4) {
                         r_insert_one_round(1);
-                    }
+                    } 
                     break;
 
                 case 3:
                     if ( pp("j_rounds") == 4) {
                         r_insert_one_round(2);
-
+  
                     } else {
                         r_insert_one_round(1);
                     }
@@ -471,13 +471,13 @@ function g_generator($plan_id) {
             }
 
             // g_debug_timing("Nach Robot Game", $c_block, $r_start_shift);
-
+         
         }
 
         // g_debug_timing("Forschung Vorher", $c_block, $r_start_shift);
 
         // All judging and robot game actions done, but not necessarily in sync
-
+        
         // No need to wait for judges filling sheets after teams have left
         $c_time = clone $j_time;
         g_add_minutes($c_time, - pp("j_duration_scoring"));
@@ -487,7 +487,7 @@ function g_generator($plan_id) {
             $c_time = clone $r_time;
         }
 
-        // FLL Challenge judging and RG is done.
+        // FLL Challenge judging and RG is done. 
 
         // -----------------------------------------------------------------------------------
         // FLL Challenge: Everything after judging / robot game rounds
@@ -501,7 +501,7 @@ function g_generator($plan_id) {
 
         // -----------------------------------------------------------------------------------
         // FLL Challenge: Deliberations
-        // -----------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------   
 
         // Move to judges main room
         g_add_minutes($j_time, pp("j_ready_deliberations"));
@@ -510,7 +510,7 @@ function g_generator($plan_id) {
         db_insert_activity_group(ID_ATD_C_DELIBERATIONS);
         db_insert_activity(ID_ATD_C_DELIBERATIONS, $j_time, pp("j_duration_deliberations"));
         g_add_minutes($j_time, pp("j_duration_deliberations"));
-
+        
         // -----------------------------------------------------------------------------------
         // Special for D-A-CH finale Siegen 2025: Move the next to another day. TODO
         // -----------------------------------------------------------------------------------
@@ -518,38 +518,38 @@ function g_generator($plan_id) {
         if (pp("g_finale") && pp("g_days") == 3) {
 
             // Debriefing for referees
-            g_add_minutes($r_time, pp("r_duration_break"));
+            g_add_minutes($r_time, pp("r_duration_break")); 
             db_insert_activity_group(ID_ATD_R_REFEREE_DEBRIEFING);
             db_insert_activity(ID_ATD_R_REFEREE_DEBRIEFING, $r_time, pp("r_duration_debriefing"), 0, 0, 0, 0, 0, 0);
 
             // Move to next day
 
             list($hours, $minutes) = explode(':', pp("f_start_opening_day_3"));
-            $c_time->setTime((int)$hours, (int)$minutes);
+            $c_time->setTime((int)$hours, (int)$minutes); 
             $c_time->modify('+1 day');
 
             // Additional short referee briefing
             $t = clone $c_time;
-            g_add_minutes($t, -1 * (pp("r_duration_briefing_2") + pp("c_ready_opening")));
+            g_add_minutes($t, -1 * (pp("r_duration_briefing_2") + pp("c_ready_opening")));    
             db_insert_activity_group(ID_ATD_R_REFEREE_BRIEFING);
-            db_insert_activity(ID_ATD_R_REFEREE_BRIEFING, $t, pp("r_duration_briefing_2"));
-
+            db_insert_activity(ID_ATD_R_REFEREE_BRIEFING, $t, pp("r_duration_briefing_2"));    
+            
             // Small opening day 3
             db_insert_activity_group(ID_ATD_C_OPENING_DAY_3);
             db_insert_activity(ID_ATD_C_OPENING_DAY_3, $c_time, pp("f_duration_opening_day_3"));
-            g_add_minutes($c_time, pp("f_duration_opening_day_3"));
+            g_add_minutes($c_time, pp("f_duration_opening_day_3"));  
 
             // Buffer between opening and first action for teams and judges
             g_add_minutes($c_time, pp("f_ready_action_day_3"));
 
-        }
+        } 
 
         // -----------------------------------------------------------------------------------
         // FLL Challenge: Research presentations on stage
-        // -----------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------      
 
         // Organizer may chose not to show any presentations.
-        // They can also decide to show them at the end
+        // They can also decide to show them at the end 
 
         if (pp("c_presentations") == 0 || pp("c_presentations_last")) {
 
@@ -571,20 +571,20 @@ function g_generator($plan_id) {
             g_add_minutes($c_time, pp("c_ready_presentations"));
 
             // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
-            $r_time = clone $c_time;
+            $r_time = clone $c_time;   
 
         }
 
         // Additional 5 minutes to show who advances and for those teams to get ready
         g_add_minutes($r_time, pp("r_duration_results"));
-
+        
         // -----------------------------------------------------------------------------------
         /// Robot-game final rounds
-        // -----------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------    
 
         // Create inserted block or planned delay.
         g_insert_point(ID_IP_RG_FINAL_ROUNDS);
-
+        
         // The DACH Finale is the only event running the round of best 16
         if(pp("g_finale") && pp("c_teams") >= 16) {
             r_final_round(16);
@@ -599,11 +599,11 @@ function g_generator($plan_id) {
         r_final_round(4);
 
 
-        // Create inserted block or planned delay.
+        // Create inserted block or planned delay. 
         g_insert_point(ID_IP_RG_LAST_MATCHES);
 
         // Final matches
-        r_final_round(2);
+        r_final_round(2);   
 
         // back to only one action a time
         $c_time = clone $r_time;
@@ -611,7 +611,7 @@ function g_generator($plan_id) {
 
         // -----------------------------------------------------------------------------------
         // FLL Challenge: Research presentations on stage
-        // -----------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------  
 
         if ( pp("c_presentations") > 0 && pp("c_presentations_last") ) {
             // Create inserted block or planned delay.
@@ -623,23 +623,23 @@ function g_generator($plan_id) {
 
         // -----------------------------------------------------------------------------------
         // Awards
-        // -----------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------  
 
         // FLL Challenge
         // Deliberations might have taken longer, which is unlikely
         if (g_diff_in_minutes($j_time, $c_time) > 0) {
             $c_time = clone $j_time;
-        }
+        } 
 
         // Create inserted block or planned delay.
         g_insert_point(ID_IP_AWARDS);
 
         // FLL Explore
         // Deliberations might have taken longer. Which is rather theroritical ...
-        if (pp("e_mode") == ID_E_AFTERNOON && g_diff_in_minutes($e_time, $c_time) > 0 ) {
+        if (pp("e_mode") == ID_E_AFTERNOON && g_diff_in_minutes($e_time, $c_time) > 0 ) {                       
             $c_time = clone $e_time;
-        }
-
+        } 
+  
         // Awards
 
         if (pp("e_mode") == ID_E_AFTERNOON) {
@@ -663,7 +663,7 @@ function g_generator($plan_id) {
             g_add_minutes($c_time, pp("c_duration_awards"));
 
         }
-
+        
         // -----------------------------------------------------------------------------------
         // FLL Explore decoupled from FLL Challenge
         // -----------------------------------------------------------------------------------
@@ -671,25 +671,25 @@ function g_generator($plan_id) {
         if (pp("e_mode") == ID_E_DECOUPLED_MORNING || pp("e_mode") == ID_E_DECOUPLED_AFTERNOON || pp("e_mode") == ID_E_DECOUPLED_BOTH) {
             e_decoupled($g_event_date);
         } else {
-
+            
             g_debug_log(1, "Expore no decoupled groups");
 
         }
 
         // -----------------------------------------------------------------------------------
         // Finale has an extra day for Live Challenge and RG test rounds
-        // -----------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------  
+        
+        if (pp("g_finale")) {  
 
-        if (pp("g_finale")) {
-
-            // Only for the D-A-CH final we run the Live Challenge
+             // Only for the D-A-CH final we run the Live Challenge
             // This is done on the day before the regular event
             // Teams get extra time with the same judges they meet during the regular event
             // In parallel test rounds for robot game are run
 
             g_finale(); // TODO: Add parameters for the finale
 
-        } // Finale
+        } // Finale 
 
     } else {
 
@@ -709,7 +709,7 @@ function g_generator($plan_id) {
     // Add all free blocks. Timing does not matter, becuase these are parallel to other activities
     db_insert_free_activities();
 
-} // function generator()
+} // function generator() 
 
 
 
