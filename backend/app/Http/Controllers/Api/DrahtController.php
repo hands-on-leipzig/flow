@@ -85,50 +85,104 @@ class DrahtController extends Controller
 
     public function getAllEventsAndTeams(int $seasonId)
     {
-        $res = $this->makeDrahtCall("/handson/flow/events");
-        if ($res->ok()) {
-            ini_set('max_execution_time', 300);
-            $events = $res->json();
-            DB::transaction(function () use ($seasonId, $events) {
-                $eventIds = Event::where('season', $seasonId)->pluck('id');
+        $response = $this->makeDrahtCall("/handson/flow/events");
+        
+        if (!$response->ok()) {
+            return response()->json(['error' => 'Failed to fetch events from Draht API'], 500);
+        }
+
+        ini_set('max_execution_time', 300);
+        $eventsData = $response->json();
+
+        DB::transaction(function () use ($seasonId, $eventsData) {
+            $eventIds = Event::where('season', $seasonId)->pluck('id');
+            
+            if ($eventIds->isNotEmpty()) {
                 DB::statement("SET foreign_key_checks=0");
+                Team::whereIn('event', $eventIds)->delete();
                 Event::whereIn('id', $eventIds)->delete();
-                $teamsToDelete = Team::whereIn('event', $eventIds)->pluck('id');
-                Team::whereIn('event', $teamsToDelete)->delete();
                 DB::statement("SET foreign_key_checks=1");
-                foreach ($events as $eventData) {
-                    $regional_partner = RegionalPartner::where("dolibarr_id", $eventData["region"])->first();
-                    $event = new Event();
-                    $event->name = $eventData['name'];
-                    $event->date = date('Y-m-d', (int)$eventData['date']);
-                    $event->enddate = date('Y-m-d', (int)$eventData['enddate']);
-                    $event->season = $seasonId;
-                    $event->days = ($eventData['date'] && $eventData['enddate']) ? ((new \DateTime)->setTimestamp((int)$eventData['date'])->diff((new \DateTime)->setTimestamp((int)$eventData['enddate']))->days + 1) : 1;
-                    $event->regional_partner = $regional_partner ? $regional_partner->id : NULL;
-                    $event->level = $eventData["level"];
-                    switch ((int)$eventData["first_program"]) {
-                        case 2:
-                            $event->event_explore = $eventData["id"];
-                            break;
-                        case 3:
-                            $event->event_challenge = $eventData["id"];
-                            break;
+            }
+
+            foreach ($eventsData as $eventData) {
+                $regionalPartner = RegionalPartner::where('dolibarr_id', $eventData['region'])->first();
+                $firstProgram = (int)$eventData['first_program'];
+                
+                $days = 1;
+                if ($eventData['date'] && $eventData['enddate']) {
+                    $startDate = (new \DateTime)->setTimestamp((int)$eventData['date']);
+                    $endDate = (new \DateTime)->setTimestamp((int)$eventData['enddate']);
+                    $days = $startDate->diff($endDate)->days + 1;
+                }
+
+                $existingEvent = Event::where('regional_partner', $regionalPartner?->id)
+                    ->where('date', date('Y-m-d', (int)$eventData['date']))
+                    ->where('season', $seasonId)
+                    ->where(function ($query) use ($firstProgram) {
+                        if ($firstProgram === 2) {
+                            $query->whereNull('event_explore');
+                        } elseif ($firstProgram === 3) {
+                            $query->whereNull('event_challenge');
+                        }
+                    })
+                    ->first();
+
+                if ($existingEvent) {
+                    $updateData = [];
+                    
+                    if ($firstProgram === 2) {
+                        $updateData['event_explore'] = $eventData['id'];
+                    } elseif ($firstProgram === 3) {
+                        $updateData['event_challenge'] = $eventData['id'];
                     }
-                    $event->save();
+                    
+                    if (empty($existingEvent->name) && !empty($eventData['name'])) {
+                        $updateData['name'] = $eventData['name'];
+                    }
+                    if (empty($existingEvent->enddate) && $eventData['enddate']) {
+                        $updateData['enddate'] = date('Y-m-d', (int)$eventData['enddate']);
+                        $updateData['days'] = $days;
+                    }
+                    if (empty($existingEvent->level) && $eventData['level']) {
+                        $updateData['level'] = $eventData['level'];
+                    }
+                    
+                    $existingEvent->update($updateData);
+                    $event = $existingEvent;
+                } else {
+                    $eventAttributes = [
+                        'name' => $eventData['name'],
+                        'date' => date('Y-m-d', (int)$eventData['date']),
+                        'enddate' => date('Y-m-d', (int)$eventData['enddate']),
+                        'season' => $seasonId,
+                        'days' => $days,
+                        'regional_partner' => $regionalPartner?->id,
+                        'level' => $eventData['level'],
+                    ];
+                    match ($firstProgram) {
+                        2 => $eventAttributes['event_explore'] = $eventData['id'],
+                        3 => $eventAttributes['event_challenge'] = $eventData['id'],
+                        default => null
+                    };
 
-                    if (!array_key_exists('teams', $eventData)) continue;
+                    $event = Event::create($eventAttributes);
+                }
 
-                    foreach ($eventData['teams'] as $teamData) {
-                        Team::create([
+                if (isset($eventData['teams']) && is_array($eventData['teams'])) {
+                    $teamsToCreate = collect($eventData['teams'])->map(function ($teamData) use ($event) {
+                        return [
                             'event' => $event->id,
                             'name' => $teamData['name'],
                             'team_number_hot' => $teamData['team_number_hot'],
                             'first_program' => $teamData['first_program'],
-                        ]);
-                    }
+                        ];
+                    });
+
+                    Team::insert($teamsToCreate->toArray());
                 }
-            });
-        }
-        return response()->json(['status' => 200]);
+            }
+        });
+
+        return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);
     }
 }

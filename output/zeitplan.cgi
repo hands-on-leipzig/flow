@@ -6,12 +6,6 @@ use DBI;
 use CGI ':standard';
 use CGI::Carp qw ( fatalsToBrowser carpout);
 use Encode;
-use DateTime;
-use DateTime::Format::DateParse;
-use DateTime::Locale;
-#use DateTime::Locale::de_DE; # veraltet...
-
-my $loc = DateTime::Locale->load('de_DE');
 
 
 # selbst nachinstallierte Module einbinden
@@ -19,6 +13,13 @@ my $loc = DateTime::Locale->load('de_DE');
 use lib "/usr/home/handsb/.linuxbrew/Cellar/perl/5.38.2_1/lib/perl5/site_perl/5.38";
 use Config::Std;
 #use Config::Tiny;
+use DateTime;
+use DateTime::Format::DateParse;
+use DateTime::Locale;
+#use DateTime::Locale::de_DE; # veraltet...
+
+my $loc = DateTime::Locale->load('de_DE');
+
 
 #########################################################
 # Eigenes Error-Log fuer PERL
