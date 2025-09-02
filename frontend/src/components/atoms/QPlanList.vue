@@ -113,7 +113,7 @@ async function startRerun() {
           class="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
           title="Neuen QRun mit diesen Plänen starten"
         >
-          🔁 ReRun für die angezeigten Pläne
+          🔁 ReRun für die {{ plans.length }} angezeigten Pläne
         </button>
       </div>
 

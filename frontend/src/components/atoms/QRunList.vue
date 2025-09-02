@@ -79,28 +79,20 @@ async function handleDelete(qrunId) {
           class="flex p-4 items-start hover:bg-gray-100 cursor-pointer"
           @click="toggleExpanded(qrun.id)"
         >
-          <!-- Spalte 1: Name + Kommentar -->
-          <div class="basis-[35%] flex-shrink-0">
+          <!-- Spalte 1: Name -->
+          <div class="basis-[20%] flex-shrink-0">
             <div class="font-bold text-lg"> {{ qrun.id }} {{ qrun.name }}</div>
             <div class="text-xs text-gray-400 italic"> {{ qrun.host || 'unknown' }} </div>
+          </div>
+
+          <!-- Spalte 2: Kommentar -->
+          <div class="basis-[55%] flex-shrink-0">
             <div class="text-sm text-gray-600 whitespace-pre-line">{{ qrun.comment || '—' }}</div>
           </div>
 
-          <!-- Spalte 2: Teams + Runden -->
-          <div class="basis-[20%] flex-shrink-0 text-sm text-gray-600 space-y-1">
-            <div><strong>Teams:</strong> {{ qrun.selection.min_teams ?? '?' }}–{{ qrun.selection.max_teams ?? '?' }}</div>
-            <div><strong>Runden:</strong> {{ qrun.selection.jury_rounds?.join(', ') ?? '?' }}</div>
-          </div>
-
-          <!-- Spalte 3: Spuren + Tische -->
-          <div class="basis-[20%] flex-shrink-0 text-sm text-gray-600 space-y-1">
-            <div><strong>Spuren:</strong> {{ qrun.selection.jury_lanes?.join(', ') ?? '?' }}</div>
-            <div><strong>Tische:</strong> {{ qrun.selection.tables?.join(', ') ?? '?' }}</div>
-          </div>
-
-          <!-- Spalte 4: QPlans + Status + Start/Ende -->
-          <div class="basis-[20%] flex-shrink-0 text-right text-sm space-y-1">
-            <div class="flex justify-end items-center gap-2">
+          <!-- Spalte 3: QPlans + Status + Start/Ende -->
+          <div class="basis-[15%] flex-shrink-0 text-left text-sm space-y-1">
+            <div class="flex justify-start items-center gap-2">
               <div>QPlans: {{ qrun.qplans_calculated }} / {{ qrun.qplans_total }}</div>
               <span
                 class="inline-block rounded px-2 py-0.5 text-white text-xs"
@@ -113,26 +105,26 @@ async function handleDelete(qrunId) {
                 {{ qrun.status }}
               </span>
             </div>
+
             <div>Start: {{ new Date(qrun.started_at).toLocaleString('de-DE') }}</div>
-            <div v-if="qrun.finished_at">
-              Dauer: {{
-                Math.round(
-                  (new Date(qrun.finished_at) - new Date(qrun.started_at)) / 60000
-                )
-              }} Minuten
+
+            <div>
+              Dauer:
+              <template v-if="qrun.finished_at">
+                {{
+                  Math.round(
+                    (new Date(qrun.finished_at) - new Date(qrun.started_at)) / 60000
+                  )
+                }} Minuten
+              </template>
+              <template v-else>... läuft noch ...</template>
             </div>
           </div>
 
           <!-- kein @click.stop hier -->
-          <div class="basis-[5%] flex-shrink-0 flex flex-col gap-2 items-end ml-4">
-
-            <button
-              @click.stop="handleDelete(qrun.id)"
-              class="..."
-            >
-              🗑️
-            </button>
-          </div>
+        <div class="basis-[10%] flex-shrink-0 flex items-center justify-center ml-4">
+          <button @click.stop="handleDelete(qrun.id)">🗑️</button>
+        </div>
 
         </div>
 

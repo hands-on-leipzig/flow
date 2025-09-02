@@ -30,7 +30,7 @@ const juryRounds = ref({
 
 const robotCheck = ref({
   rc_off: true,
-  rc_on: true,
+  rc_on: false,
 })
 
 const qrunName = ref('')
@@ -93,6 +93,17 @@ const startVolumeTest = () => {
       }
     })
 }
+
+/*
+
+import { onMounted } from 'vue'
+
+onMounted(() => {
+  setInterval(() => {
+    reload.value++
+  }, 30_000) // 30 Sekunden
+}) */
+
 </script>
 
 <template>

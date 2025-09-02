@@ -73,7 +73,7 @@ class EvaluateQuality
 
                 $planId = $newPlan->id;
 
-                Log::info("qRun $runId: Plan $planId ({$newPlan->name}) created");
+                Log::info("qRun $runId: Plan $planId {$newPlan->name} created");
 
                 // Add the parameter values for this plan
                 PlanParamValue::create([

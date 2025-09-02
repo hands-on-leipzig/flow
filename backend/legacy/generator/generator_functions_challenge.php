@@ -1,6 +1,7 @@
 <?php
-
+use Illuminate\Support\Facades\Log;
 require_once 'generator_db.php';
+
 
 
 // ***********************************************************************************
@@ -90,52 +91,54 @@ function r_create_match_plan() {
     // - preserve the table assignments
     // - shift matches "backwards" to fit judging round 1
 
-    // TODO Treat TR differently to ensure matches are on same table as RG1
-    
     for ($round = 0; $round <= 3; $round++) {
         
         // Fill the lines from bottom to top
         // Start with adding teams that are scheduled for judging first. They will be last in the RG round.
         // Add all other teams in decreasing order. Flip from 0 to highest team-number.
 
-        switch (pp("j_rounds")) {
-      
-            case 4:
-                if ($round < 3) {
-                    $team = pp("j_lanes") * ($round + 1);
-                } else {
-                    // not all lanes may be filled in last judging round
-                    $team = pp("c_teams");
-                }
-                break;   
-
-            case 5:
-                if ($round < 3) {
-                    $team = pp("j_lanes") * ($round + 2);
-                } else {
-                    // not all lanes may be filled in last judging round
-                    $team = pp("c_teams");
-                }
-                break;   
-
-            case 6:
-                $team = pp("j_lanes") * ($round + 2);
-                
-                // not all lanes may be filled in last judging round, 
-                // but that does not matter with six rounds, because robot game is aligned with judging 5
-                
-        } 
-
-        // If we have an odd number of teams, we start with the empty team                     
-        if ($team == pp("c_teams") && pp("r_need_volunteer")) {
-            $team = pp("c_teams") + 1; 
-        }
-
-        // TODO Treat TR differently to ensure matches are on same table as RG1
+       
         if ($round == 0) {
+        
+             // TR is easy: Teams starting with judging are last in TR
             $team = pp("j_lanes");
-        }
+        
+        } else {
+         
+            switch (pp("j_rounds")) {
+        
+                case 4:
+                    if ($round < 3) {
+                        $team = pp("j_lanes") * ($round + 1);
+                    } else {
+                        // not all lanes may be filled in last judging round
+                        $team = pp("c_teams");
+                    }
+                    break;   
 
+                case 5:
+                    if ($round < 3) {
+                        $team = pp("j_lanes") * ($round + 2);
+                    } else {
+                        // not all lanes may be filled in last judging round
+                        $team = pp("c_teams");
+                    }
+                    break;   
+
+                case 6:
+                    $team = pp("j_lanes") * ($round + 2);
+                    
+                    // not all lanes may be filled in last judging round, 
+                    // but that does not matter with six rounds, because robot game is aligned with judging 5
+                    
+            } 
+
+            // If we have an odd number of teams, we start with the empty team                     
+            if ($team == pp("c_teams") && pp("r_need_volunteer")) {
+                $team = pp("c_teams") + 1; 
+            }
+
+        } 
 
         // fill the match-plan for the round starting with the last match, then going backwards
         // Start with just 2 tables. Distribution to 4 tables is done afterwards.
@@ -151,8 +154,13 @@ function r_create_match_plan() {
 
         } // for $match n to 1
 
+
+
+
         // With four tables move every second line to the other pair.
         if (pp("r_tables") == 4) {
+
+
 
             foreach ($r_match_plan as &$r_m) {
 
@@ -164,7 +172,42 @@ function r_create_match_plan() {
             }
         }
 
-    } // for $rounds 1 to 3 
+    } // for $rounds 0 to 3 
+
+    // Ensure that matches in TR are on the same tables as in RG1  
+    // This quality measure Q2
+
+    // Sequence of matches is correct, but the table assigment must be copied from RG1 to TR
+
+    if(pp("j_lanes") == 2 || pp("j_lanes") == 4) {
+
+        // 2 and 4 lanes correspond to 2 teams per match
+        // Easy!
+
+        for ($match0 = 1; $match0 <= pp("r_matches_per_round"); $match0++) {
+        
+            // Finde das Match in Runde 0 mit Matchnummer $match0
+            $m0 = collect($r_match_plan)->first(fn($m) => $m['round'] === 0 && $m['match'] === $match0);
+            if (!$m0) continue;
+
+            $team = $m0['team_1'];
+
+            // Finde das Match in Runde 1, in dem team_1 gleich ist
+            $m1 = collect($r_match_plan)->first(fn($m) => $m['round'] === 1 && $m['team_1'] === $team);
+            if (!$m1) continue;
+
+            // Passe Tische in Runde 0 an
+            foreach ($r_match_plan as &$match) {
+                if ($match['round'] === 0 && $match['match'] === $match0) {
+                    $match['table_1'] = $m1['table_1'];
+                    $match['table_2'] = $m1['table_2'];
+                    break;
+                }
+            }
+            unset($match); // Referenz freigeben
+        }
+
+    }
 
 
     // Build TR from RG1
