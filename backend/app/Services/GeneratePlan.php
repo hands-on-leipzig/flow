@@ -3,14 +3,13 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
-use Illuminate\Support\Facades\Log;
+use Symfony\Component\Finder\Glob;  
 
 class GeneratePlan
 {
     public static function run(int $planId): void
     {
-        // Alte Aktivitäten löschen
+        // Lösche zugehörige Gruppen und Aktivitäten
         $groupIds = DB::table('activity_group')
             ->where('plan', $planId)
             ->pluck('id');
@@ -25,12 +24,6 @@ class GeneratePlan
 
         // Generator starten
         require_once base_path("legacy/generator/generator_main.php");
-
-        try {
-            g_generator($planId);
-        } catch (RuntimeException $e) {
-            Log::error("Fehler beim Generieren des Plans {$planId}: " . $e->getMessage());
-            throw new \Exception("Plan konnte nicht erzeugt werden: " . $e->getMessage());
-        }
+        g_generator($planId);
     }
 }

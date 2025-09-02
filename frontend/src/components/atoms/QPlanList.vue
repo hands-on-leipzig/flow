@@ -81,6 +81,22 @@ function openPreview(planId) {
   window.open(`/preview/${planId}`, '_blank', 'noopener')
 }
 
+const emit = defineEmits(['refreshParent'])
+
+async function startRerun() {
+  const ids = plans.value.map(p => p.id)
+  try {
+    const response = axios.post('/quality/rerun', { plan_ids: ids })
+    console.log('ReRun erfolgreich:', response.data)
+    emit('refreshParent')
+    // Optional: Erfolgsmeldung, Redirect etc.
+  } catch (err) {
+    console.error('Fehler beim ReRun:', err)
+    alert('Fehler beim Starten des ReRuns.')
+  }
+}
+
+
 </script>
 
 <template>
@@ -89,7 +105,7 @@ function openPreview(planId) {
     <div v-if="loading" class="text-gray-500 text-sm">Lade QPläne …</div>
     <div v-else-if="error" class="text-red-500 text-sm">{{ error }}</div>
     <div v-else>
-
+      
       <!-- Button nur wenn Pläne vorhanden -->
       <div v-if="plans.length > 0" class="flex justify-end mb-2">
         <button
@@ -115,7 +131,7 @@ function openPreview(planId) {
           />
           <span>Transfer</span>
         </div>
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-1">  
           <input
             type="checkbox"
             v-model="filterQ[4].value"
@@ -146,30 +162,31 @@ function openPreview(planId) {
       </div>
 
     <!-- Kein Plan -->
-      <div v-if="plans.length === 0" class="text-gray-400 text-sm">Keine passende QPläne gefunden.</div>
-
+      <div v-if="plans.length === 0" class="text-gray-400 text-sm">Keine passende QPläne gefunden.</div>  
+    
       <!-- QPlan-Zeilen -->
       <div
         v-for="qplan in plans"
         :key="qplan.id"
         class="border-b border-gray-100"
+      >
+        <div
+          class="grid grid-cols-8 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
+          @click="toggleExpanded(qplan.id)"
         >
-          <div
-              class="grid grid-cols-7 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
-              @click="toggleExpanded(plan.id)"
+          <div class="flex items-center gap-2">
+            <span>{{ qplan.plan }}</span>
+            <button
+              @click.stop="openPreview(qplan.plan)"
+              class="text-blue-600 hover:text-blue-800"
+              title="Vorschau öffnen"
             >
-            <div class="flex items-center gap-2">
-              <button
-                @click.stop="openPreview(plan.plan)"
-                class="text-blue-600 hover:text-blue-800"
-                title="Vorschau öffnen"
-              >
-              🧾
-              </button>
-              <span>{{ plan.name || `#${plan.plan}` }}</span>
-            </div>
-
-          <div>{{ plan.c_teams }}</div>
+              🧾 
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <span>{{ qplan.name || `#${qplan.plan}` }}</span>
+          </div>
 
           <div>{{ qplan.c_teams }}</div>
 
@@ -205,14 +222,11 @@ function openPreview(planId) {
           </div>
         </div>
 
-
         <!-- Akkordeon für Details -->
         <div v-if="expandedPlanId === qplan.id" class="bg-gray-50 px-2 py-1 border-t border-gray-200">
           <QPlanDetails :planId="qplan.id" />
         </div>
-
       </div>
-
     </div>
   </div>
 </template>

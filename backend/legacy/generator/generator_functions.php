@@ -70,20 +70,12 @@ function g_debug_timing($text, $c_block = 0, $r_start_shift = 0) {
     }
 }
 
-function g_debug_log($level, $point, $parameter = "") {
+function g_debug_log($parameter) {
 
     global $DEBUG;
 
-    if($level > $DEBUG ) {
-        return;
-    }
+    Log::debug("Generator DEBUG-Level:" . $DEBUG . " ". $parameter. "=" . gp($parameter));
 
-    if ($parameter == "") {
-        Log::debug("Generator " . $point);
-
-    } else {
-        Log::debug("Generator " . $point . " ". $parameter. "=" . pp($parameter));
-
-    }  
+    error_log("DEBUG" . $DEBUG . " ". $parameter. "=" . gp($parameter));
 
 }

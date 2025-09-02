@@ -28,11 +28,6 @@ const juryRounds = ref({
   rounds_6: true,
 })
 
-const robotCheck = ref({
-  rc_off: true,
-  rc_on: false,
-})
-
 const qrunName = ref('')
 const qrunComment = ref('')
 
@@ -42,8 +37,7 @@ const isValid = computed(() => {
   const atLeastOneRound = Object.values(juryRounds.value).some(v => v)
   const validTeamRange = minTeams.value >= 4 && maxTeams.value <= 25 && minTeams.value <= maxTeams.value
   const hasName = qrunName.value.trim().length > 0
-  const atLeastOneRC = Object.values(robotCheck.value).some(v => v)
-  return atLeastOneLane && atLeastOneTable && atLeastOneRound && atLeastOneRC && validTeamRange && hasName
+  return atLeastOneLane && atLeastOneTable && atLeastOneRound && validTeamRange && hasName
 })
 
 const startVolumeTest = () => {
@@ -57,9 +51,6 @@ const startVolumeTest = () => {
       .filter(([_, v]) => v)
       .map(([k]) => Number(k.split('_')[1])),
     jury_rounds: Object.entries(juryRounds.value)
-      .filter(([_, v]) => v)
-      .map(([k]) => Number(k.split('_')[1])),
-    robot_check: Object.entries(robotCheck.value)
       .filter(([_, v]) => v)
       .map(([k]) => Number(k.split('_')[1])),
   }

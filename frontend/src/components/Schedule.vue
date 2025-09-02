@@ -21,7 +21,7 @@ const parameters = ref<Parameter[]>([])
 
 
 const inputName = ref('')
-const plans = ref<Array<{ id: number, name: string, is_chosen?: boolean }>>([])
+const plans = ref<Array<{id: number, name: string, is_chosen?: boolean}>>([])
 const selectedPlanId = ref<number | null>(null)
 const loading = ref(true)
 
@@ -268,11 +268,12 @@ const expertParamsGrouped = computed(() => {
 
 async function getOrCreatePlan() {
   if (!selectedEvent.value) return
-  const res = await axios.get(`/plans/event/${selectedEvent.value.id}`)
+  const res = await axios.get(`/events/${selectedEvent.value.id}/plans`)
   plans.value = res.data
-  if (plans.value.id > 0) {
-    selectedPlanId.value = plans.value.id
+  if (plans.value.length > 0) {
+    selectedPlanId.value = plans.value[0].id
     await fetchParams(selectedPlanId.value as number)
+
   } else {
     const newPlanId = await createDefaultPlan()
     if (newPlanId) {
@@ -285,23 +286,16 @@ async function getOrCreatePlan() {
   }
 }
 
+const createDefaultPlan = async () => {
   try {
-
-    const res = await axios.get(`/plans/event/${selectedEvent?.value?.id}`)
-    const plan = res.data
-    if (!plan || !plan.id) {
-      console.error('Plan konnte nicht erstellt werden oder fehlt')
-      return
-    }
-
-    await axios.get(`/plans/${plan.id}/copy-default`)
-
-    plans.value = [plan]
-    selectedPlanId.value = plan.id
-    await fetchParams(plan.id)
-
-  } catch (err) {
-    console.error('Fehler beim Erstellen oder Initialisieren des Plans:', err)
+    const response = await axios.post(`/plans`, {
+      event: selectedEvent?.value?.id,
+      name: 'Zeitplan'
+    })
+    return response.data.id
+  } catch (e) {
+    console.error('Fehler beim Erstellen des Plans', e)
+    return null
   }
 }
 
@@ -443,7 +437,7 @@ onMounted(async () => {
                   :disabled="disabledMap[param.id]"
                   :with-label="true"
                   :horizontal="true"
-                  @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
+                                      @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
               />
             </template>
           </div>

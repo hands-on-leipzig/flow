@@ -8,7 +8,6 @@ const props = defineProps({
   qrunName: String,
   qrunComment: String,
   isValid: Boolean,
-  robotCheck: Object,
 })
 
 const emit = defineEmits([
@@ -17,13 +16,11 @@ const emit = defineEmits([
   'update:juryLanes',
   'update:tables',
   'update:juryRounds',
-  'update:robotCheck',
   'update:qrunName',
   'update:qrunComment',
   'start',
-  'refresh', // ← HIER
+  'refresh',
 ])
-
 </script>
 
 <template>
@@ -141,29 +138,6 @@ const emit = defineEmits([
         </div>
       </div>
 
-      <!-- Robot-Check -->
-      <div>
-        <label class="block font-semibold mb-1">Robot-Check</label>
-        <div class="flex gap-4">
-          <label class="flex items-center gap-1">
-            <input
-              type="checkbox"
-              :checked="robotCheck.rc_off"
-              @change="emit('update:robotCheck', { ...robotCheck, rc_off: $event.target.checked })"
-            />
-            ❌ Aus
-          </label>
-          <label class="flex items-center gap-1">
-            <input
-              type="checkbox"
-              :checked="robotCheck.rc_on"
-              @change="emit('update:robotCheck', { ...robotCheck, rc_on: $event.target.checked })"
-            />
-            ✅ An
-          </label>
-        </div>
-      </div>
-
       <!-- Kommentar -->
       <div class="w-full">
         <label class="block font-semibold mb-1">Kommentar (optional)</label>
@@ -189,12 +163,11 @@ const emit = defineEmits([
         <button
           class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-3 py-2 rounded"
           title="Liste neu laden"
-          @click="$emit('refresh')"
+          @click="emit('refresh')"
         >
-          🔄 Refresh
+          🔄 Aktualisieren
         </button>
-</div>
-
+      </div>
     </div>
   </div>
 </template>

@@ -1,12 +1,11 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\MSeason;
 use App\Models\RegionalPartner;
-use App\Models\TableEvent;
+use App\Models\TableEvent; 
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -43,19 +42,10 @@ class EventController extends Controller
                     ->get();
                 break;
             case 1:
-                $regionalPartners = RegionalPartner::whereHas('events', function ($query) use ($season) {
-                        $query->where('season', $season->id);
-                    })
-                    ->with(['events' => function ($query) use ($season) {
-                        $query->where('season', $season->id)
-                            ->orderBy('date')
-                            ->with(['seasonRel', 'levelRel']);
-                    }])
-                    ->orderBy('name')
-                    ->get();
+                $regionalPartners = RegionalPartner::orderBy('name')->get();
                 break;
         }
-        ini_set('max_execution_time', 300);
+
         return $regionalPartners->map(function ($rp) {
             return [
                 'regional_partner' => [
@@ -105,6 +95,9 @@ class EventController extends Controller
     }
 
 
+
+
+
     public function getTableNames($event)
     {
 
@@ -120,17 +113,17 @@ class EventController extends Controller
     public function updateTableNames(Request $request, $event)
     {
 
-        $tables = $request->input('table_names');
+        $tables = $request->input('table_names'); 
 
         if (!is_array($tables)) {
             return response()->json(['error' => 'Ungültiges Format'], 422);
         }
 
         DB::transaction(function () use ($tables, $event) {
-
+            
             TableEvent::where('event', $event)->delete();
 
-
+            
             foreach ($tables as $entry) {
                 if (!isset($entry['table_number']) || !isset($entry['table_name'])) {
                     continue;

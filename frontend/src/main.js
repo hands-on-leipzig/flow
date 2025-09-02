@@ -16,7 +16,6 @@ import PublishControl from "@/components/PublishControl.vue";
 import Admin from "@/components/Admin.vue";
 import Teams from "@/components/Teams.vue";
 import Preview from "@/components/molecules/Preview.vue";
-import VueKonva from "vue-konva";
 import FabricEditor from "@/components/FabricEditor.vue";
 import SlideContentRenderer from "@/components/slideTypes/SlideContentRenderer.vue"
 
@@ -40,8 +39,6 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
 
     const app = createApp(App)
     const pinia = createPinia()
-
-    app.use(VueKonva);
 
     axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL
     axios.defaults.withCredentials = true
