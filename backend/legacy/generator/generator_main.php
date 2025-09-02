@@ -38,7 +38,7 @@ function g_generator($plan_id) {
     global $DEBUG;                      // Debug level. 0 = off
 
     // !!!! TODEL
-    $DEBUG = 2;                       
+    $DEBUG = 0;                       
     
     g_debug_log(1, "Start " . $plan_id);
 

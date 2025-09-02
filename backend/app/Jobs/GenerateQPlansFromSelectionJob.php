@@ -10,7 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class GenerateQPlansFromSelection implements ShouldQueue
+class GenerateQPlansFromSelectionJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -23,12 +23,13 @@ class GenerateQPlansFromSelection implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info("Starte GenerateQPlansFromSelection für QRun ID {$this->qRunId}");
+        Log::info("qRun {$this->qRunId}: Start asynchronous creation of qPlans");
 
         $service = new EvaluateQuality();
         $service->generateQPlansFromSelection($this->qRunId);
 
-        Log::info("QPlans aus Selection für QRun ID {$this->qRunId} erzeugt – starte ExecuteQPlan");
-        ExecuteQPlan::dispatch($this->qRunId);
+        Log::info("qRun {$this->qRunId}: Start asynchronous qRun");
+
+        \App\Jobs\ExecuteQPlanJob::dispatch($this->qRunId);
     }
 }

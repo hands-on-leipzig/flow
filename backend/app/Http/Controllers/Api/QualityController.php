@@ -2,7 +2,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\EvaluateQuality;
 
 use App\Models\QRun;
 use Carbon\Carbon;
@@ -38,10 +37,9 @@ class QualityController extends Controller
             'host' => $host,
         ]);
 
-        // Dispatch Job to generate QPlans async
-        \App\Jobs\GenerateQPlansFromSelection::dispatch($qRunId);
+        \App\Jobs\GenerateQPlansFromSelectionJob::dispatch($qRunId);
 
-        Log::info("GenerateQPlansFromSelection Job für Run ID $qRunId dispatcht");
+        Log::info("qRun $qRunId: generation of qPlans from selection dispatched");
 
         return response()->json([
             'status' => 'queued',
@@ -81,9 +79,9 @@ class QualityController extends Controller
             'host' => $host,
         ]);
 
-        \App\Jobs\GenerateQPlansFromQPlans::dispatch($newRunId, $planIds);
+        \App\Jobs\GenerateQPlansFromQPlansJob::dispatch($newRunId, $planIds);
 
-        Log::info("GenerateQPlansFromQPlans Job für Run ID $newRunId dispatcht");
+        Log::info("qRun $newRunId: copying of qPlans dispatched");
 
         return response()->json([
             'status' => 'queued',
@@ -182,10 +180,10 @@ class QualityController extends Controller
         $deleted = DB::table('q_run')->where('id', $qRunId)->delete();
 
         if ($deleted) {
-            Log::info("QRun $qRunId gelöscht.");
+            Log::info("qRun $qRunId deleted.");
             return response()->json(['status' => 'deleted']);
         } else {
-            Log::warning("QRun $qRunId konnte nicht gelöscht werden.");
+            Log::warning("qRun $qRunId could not be deleted.");
             return response()->json(['status' => 'not_found'], 404);
         }
     }

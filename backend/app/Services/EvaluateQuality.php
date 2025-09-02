@@ -23,8 +23,6 @@ class EvaluateQuality
 
     public function generateQPlansFromSelection(int $runId): void
     {       
-        Log::info("Erzeugung der qPlans für Run ID $runId startet.");
-
         // Read q_run (Name + Selection)
         $qRun = DB::table('q_run')->where('id', $runId)->first();
 
@@ -75,7 +73,7 @@ class EvaluateQuality
 
                 $planId = $newPlan->id;
 
-                Log::info("qPlan erstellt mit ID $planId ({$newPlan->name}) für Run ID $runId");
+                Log::info("Plan $planId ({$newPlan->name}) created for qRun $runId");
 
                 // Add the parameter values for this plan
                 PlanParamValue::create([
@@ -161,15 +159,18 @@ class EvaluateQuality
             }
 
             $planCopy = $originalPlan->replicate();
+
+            // Ensure the event id is valid. The old event might have been deleted.
+            $planCopy->event = $this->getOrCreateQualityEventId();
             $planCopy->save();
+
+            Log::info("Plan {$planCopy->id}  copied from {$originalPlan->id} for qRun $newRunId");
 
             // QPlan-Datensatz kopieren und mit neuem Plan verknüpfen
             $copy = $original->replicate();
             $copy->q_run = $newRunId;
             $copy->plan = $planCopy->id;
 
-            // Ensure the event id is valid. The old event might have been deleted.
-            $copy->event = $this->getOrCreateQualityEventId();
 
             // Q-Werte nullen
             $copy->q1_ok_count = null;
@@ -211,7 +212,7 @@ class EvaluateQuality
                 'name' => $RP_NAME,
                 'region' => 0,
             ]);
-            Log::info("RP für Qualitätstest neu angelegt mit ID $regionalPartnerId");
+            Log::info("Q-RP created with ID $regionalPartnerId");
         } else {
             $regionalPartnerId = $regionalPartner->id;
         }
@@ -232,7 +233,7 @@ class EvaluateQuality
                 'date' => Carbon::today(),
                 'days' => 1,
             ]);
-            Log::info("Event für Qualitätstest neu angelegt mit ID $eventId");
+            Log::info("Q-Event created with ID $eventId");
         } else {
             $eventId = $event->id;
         }

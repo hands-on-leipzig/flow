@@ -8,12 +8,13 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Api\PlanController;
 use App\Models\QPlan;
 use App\Models\QRun;
 use App\Services\EvaluateQuality;
 use Carbon\Carbon;
 
-class ExecuteQPlan implements ShouldQueue
+class ExecuteQPlanJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -29,7 +30,6 @@ class ExecuteQPlan implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info("ExecuteQPlan gestartet für Run ID {$this->runId}");
 
         QRun::where('id', $this->runId)->update([
                 'status' => 'running',
@@ -45,17 +45,21 @@ class ExecuteQPlan implements ShouldQueue
                 'status' => 'done',
             ]);
 
-            Log::info("Quality Run ID {$this->runId} berechnet.");
+            Log::info("qRun {$this->runId} done.");
             return;
         }
 
         $planId = $qPlan->plan;
-
-        Log::info("Generierung plan ID $planId für QPlan ID {$qPlan->id} startet");
-
+/*
         $startLevel = ob_get_level();
         ob_start();
+*/
+        Log::info("qPlan {$qPlan->id}: dispatch creation of plan $planId");
 
+        $pc = new PlanController();
+        $pc->generate($planId, true);
+
+/*
         try {
             require_once base_path("legacy/generator/generator_main.php");
             $GLOBALS['DEBUG'] = 0;
@@ -75,9 +79,9 @@ class ExecuteQPlan implements ShouldQueue
             while (ob_get_level() > $startLevel) {
                 ob_end_clean();
             }
-        }
+        }      */
 
-        Log::info("Evaluierung Quality für QPlan ID {$qPlan->id} startet");
+        Log::info("qPlan {$qPlan->id}: dispatch of quality evaluation for plan $planId");
 
         $evaluator = new EvaluateQuality();
         $evaluator->evaluatePlanId($planId);
@@ -86,8 +90,8 @@ class ExecuteQPlan implements ShouldQueue
         QPlan::where('id', $qPlan->id)->update(['calculated' => true]);
         QRun::where('id', $this->runId)->increment('qplans_calculated');
 
-        Log::info("Plan $planId evaluiert, QPlan {$qPlan->id} abgehakt.");
+        Log::info("qPlan {$qPlan->id}: evaluation done");
 
-        ExecuteQPlan::dispatch($this->runId);
+        ExecuteQPlanJob::dispatch($this->runId);
     }
 }
