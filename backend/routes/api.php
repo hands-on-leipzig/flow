@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\ExtraBlockController;
@@ -23,7 +24,7 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
     ]);
 });
 
-
+Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getSlideshowsForEvent']);
 
 
 Route::middleware(['keycloak'])->group(function () {
@@ -54,16 +55,16 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     // Plan controller
-    Route::prefix('plans')->group(function () { 
+    Route::prefix('plans')->group(function () {
         Route::post('/create', [PlanController::class, 'create']);
-        Route::get('/event/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); 
+        Route::get('/event/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']);
         Route::post('/{planId}/generate', [PlanController::class, 'generate']);
-        Route::get('/{planId}/status', [PlanController::class, 'status']);    
-        Route::get('/preview/{planId}/roles', [PlanController::class, 'previewRoles']);  
-        Route::get('/preview/{planId}/teams', [PlanController::class, 'previewTeams']);  
+        Route::get('/{planId}/status', [PlanController::class, 'status']);
+        Route::get('/preview/{planId}/roles', [PlanController::class, 'previewRoles']);
+        Route::get('/preview/{planId}/teams', [PlanController::class, 'previewTeams']);
         Route::get('/preview/{planId}/rooms', [PlanController::class, 'previewRooms']);
-        Route::get('/activities/{planId}', [PlanController::class, 'activities']);     
-    });    
+        Route::get('/activities/{planId}', [PlanController::class, 'activities']);
+    });
 
     // PlanParameter controller
 //    Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
@@ -82,6 +83,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/events/{event}', [EventController::class, 'update']);
     Route::get('/events/{event}/table-names', [EventController::class, 'getTableNames']);
     Route::put('/events/{id}/table-names', [EventController::class, 'updateTableNames']);
+    Route::get('/events/{event}/slide/{slide}', [EventController::class, 'getSlide']);
+    Route::put('/events/{event}/slide/{slide}', [EventController::class, 'updateSlide']);
 
     // Team controller
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
@@ -116,7 +119,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
 
-    // Quality controller 
+    // Quality controller
     Route::prefix('quality')->group(function () {
         Route::post('/qrun', [QualityController::class, 'startQRun']);                   // Start eines neuen Runs
         Route::get('/qruns', [QualityController::class, 'listQRuns']);                    // Alle Runs auflisten
@@ -126,4 +129,4 @@ Route::middleware(['keycloak'])->group(function () {
         Route::delete('/delete/{qRunId}', [QualityController::class, 'deleteQRun']);        // Löschen eines Runs und aller zugehörigen Pläne
     });
 
- });
+});

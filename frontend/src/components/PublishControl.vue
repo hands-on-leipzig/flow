@@ -6,6 +6,7 @@ import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import Card from "@/components/atoms/Card.vue";
 import axios from 'axios';
+import SlideThumb from "@/components/SlideThumb.vue";
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -167,6 +168,16 @@ function copyUrl(url) {
                 <path d="M10 1.5v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1A.5.5 0 0 1 5.5 1h5a.5.5 0 0 1 .5.5zM5 2v1h6V2H5zm-1 2.5V14a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5V3.5a.5.5 0 0 0-.5-.5h-1v1a.5.5 0 0 1-.5.5h-5A.5.5 0 0 1 5 4.5v-1h-1a.5.5 0 0 0-.5.5z"/>
               </svg>
             </button>
+          </div>
+          <div v-for="slideshow in event?.slideshows">
+            <span class="font-bold">{{ slideshow.name }}</span>
+            <div class="flex items-center gap-2">
+              <div v-for="slide in slideshow.slides" key="slideshow.id">
+                <router-link :to="`/editSlide/${slide.id}`">
+                  <SlideThumb :slide="slide" class="w-24 h-16 border rounded" @click=""/>
+                </router-link>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -1,10 +1,10 @@
-<script setup>
-import {Slide as Slide} from "../model/slide.ts";
-import SlideContentRenderer from "./slides/SlideContentRenderer.vue";
+<script setup lang="ts">
+import {Slide as Slide} from "../models/slide.js";
+import SlideContentRenderer from "./slideTypes/SlideContentRenderer.vue";
 
-const props = defineProps({
+const props = defineProps<{
   slide: Slide
-});
+}>();
 
 const emit = defineEmits(['deleteSlide']);
 const componentSlide = Slide.fromObject(props.slide)
@@ -12,12 +12,11 @@ const componentSlide = Slide.fromObject(props.slide)
 
 <template>
   <div class="slide-thumb">
-    <span class="button-row"><fa :icon="['fas', 'trash-can']" @click="emit('deleteSlide');"></fa></span>
+    <!--<span class="button-row"><fa :icon="['fas', 'trash-can']" @click="emit('deleteSlide');"></fa></span> -->
     <div class="thumb">
-      <SlideContentRenderer :slide="componentSlide"></SlideContentRenderer>
+      <SlideContentRenderer :slide="componentSlide" :preview="true"></SlideContentRenderer>
     </div>
-    <span>{{ slide.content.type}}</span>
-    <span>{{ slide.title }}</span>
+    <span>{{ slide.name }}</span>
   </div>
 </template>
 
@@ -27,7 +26,7 @@ const componentSlide = Slide.fromObject(props.slide)
   flex-direction: column;
   position: relative;
   background-color: cornflowerblue;
-  width: 18rem;
+  width: 16rem;
   height: 11rem;
   margin: .5rem;
   cursor: grab;

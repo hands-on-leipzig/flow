@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import {Canvas, Rect, Textbox} from 'fabric'
-import {onMounted, onBeforeUnmount, reactive, shallowRef} from 'vue';
+import {onMounted, onBeforeUnmount, reactive, shallowRef, computed, watch} from 'vue';
 import SvgIcon from '@jamescoyle/vue-icon';
-import { mdiFormatText, mdiRectangle, mdiContentSave } from '@mdi/js';
+import {mdiFormatText, mdiRectangle, mdiContentSave} from '@mdi/js';
+import {useEventStore} from "@/stores/event";
+import {Slide} from "@/models/slide";
+import FllEvent from "@/models/FllEvent";
+import axios from "axios";
 
 // Ideen und TODOS
 // Resize
@@ -13,10 +17,22 @@ import { mdiFormatText, mdiRectangle, mdiContentSave } from '@mdi/js';
 
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 450;
-const ASPECT_RATIO = DEFAULT_WIDTH / DEFAULT_HEIGHT;
+
+const props = defineProps<{
+  slideshowId: Number,
+  slideId: Number,
+}>();
+
+const eventStore = useEventStore();
+const event = computed<FllEvent>(() => eventStore.selectedEvent);
+const slide = shallowRef<Slide | null>(null);
+
+watch(slide, (newSlide) => {
+  paintSlide(newSlide);
+});
 
 const canvasEl = shallowRef(null);
-let canvas;
+let canvas: Canvas;
 
 const toolbarState = reactive({
   type: 'none', // 'none', 'text', 'shape', 'image'
@@ -24,6 +40,15 @@ const toolbarState = reactive({
 });
 
 onMounted(() => {
+  console.log(event.value.id, event.value.slideshows);
+  const slideshow = event.value?.slideshows?.find(s => s.id === props.slideshowId);
+  console.log(event.value.slideshows, slideshow);
+  const slide = slideshow?.slides?.find(s => s.id === props.slideId) || null;
+  console.log(slide, slideshow);
+  if (slide) {
+    paintSlide(slide);
+  }
+
   canvas = new Canvas(canvasEl.value, {
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
@@ -37,29 +62,20 @@ onMounted(() => {
   canvas.on('selection:cleared', updateToolbar);
 });
 
-onBeforeUnmount(() => {
-  if (canvasEl.value) {
-    // canvasEl.value.dispose();
-    canvasEl.value = null;
+onMounted(loadSlide);
+
+async function loadSlide() {
+  const response = await axios.get(`events/${event.value.id}/slide/${props.slideId}`)
+  if (response && response.data) {
+    slide.value = Slide.fromObject(response.data);
   }
-});
+}
 
-function resizeCanvas() {
-  const container = canvasEl.parentNode;
-
-  // Fit canvas width to container width
-  const containerWidth = container.offsetWidth;
-  const canvasWidth = containerWidth;
-  const canvasHeight = containerWidth / ASPECT_RATIO;
-
-  canvas.setWidth(canvasWidth);
-  canvas.setHeight(canvasHeight);
-
-  const scaleX = canvasWidth / DEFAULT_WIDTH;
-  const scaleY = canvasHeight / DEFAULT_HEIGHT;
-  const scale = Math.min(scaleX, scaleY);
-
-  canvasEl.value.setZoom(scale);
+function paintSlide(slide: Slide) {
+  canvas.clear();
+  canvas.loadFromJSON(slide.content.json).then(() => {
+    canvas.requestRenderAll();
+  });
 }
 
 function addRect() {
@@ -145,7 +161,19 @@ function triggerRender() {
 }
 
 function saveJson() {
-  const json = canvas.toJSON();
+  const json = JSON.stringify(canvas.toJSON());
+  if (slide.value) {
+    slide.value.content.json = json;
+    const content = JSON.stringify(slide.value.content.toJSON());
+    console.log('Saving slide:', slide.value);
+    axios.put(`events/${event.value.id}/slide/${slide.value.id}`, {
+      content: content
+    }).then(response => {
+      console.log('Slide saved:', response.data);
+    }).catch(error => {
+      console.error('Error saving slide:', error);
+    });
+  }
   console.log(JSON.stringify(json));
 }
 </script>
@@ -166,7 +194,7 @@ function saveJson() {
       <!-- Text property toolbar -->
       Font Size:
       <input type="number" v-model.number="toolbarState.object.fontSize" v-on:change="triggerRender"
-             class="w-16 px-1 py-0.5 border border-gray-300 rounded ml-2" />
+             class="w-16 px-1 py-0.5 border border-gray-300 rounded ml-2"/>
       <button v-on:click="makeBold" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-bold"
               :class="{ 'bg-gray-400': toolbarState.object.fontWeight === 'bold' }">B
       </button>
@@ -174,12 +202,15 @@ function saveJson() {
               :class="{ 'bg-gray-400': toolbarState.object.fontStyle === 'italic' }">I
       </button>
       <button v-on:click="makeUnderline" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2"
-              :class="{ 'bg-gray-400': toolbarState.object.underline }">U</button>
-      <input type="color" class="px-2 py-1 rounded ml-2" :value="toolbarState.object.fill" @input="onFillChange($event.target.value)"/>
+              :class="{ 'bg-gray-400': toolbarState.object.underline }">U
+      </button>
+      <input type="color" class="px-2 py-1 rounded ml-2" :value="toolbarState.object.fill"
+             @input="onFillChange($event.target.value)"/>
     </div>
     <div v-else-if="toolbarState.type === 'shape'" class="inline-block ml-4">
       <!-- Shape Toolbar -->
-      <input type="color" class="px-2 py-1 rounded ml-2" :value="toolbarState.object.fill" @input="onFillChange($event.target.value)"/>
+      <input type="color" class="px-2 py-1 rounded ml-2" :value="toolbarState.object.fill"
+             @input="onFillChange($event.target.value)"/>
     </div>
     <canvas ref="canvasEl" class="border border-grey rounded"></canvas>
   </div>

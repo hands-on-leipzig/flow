@@ -10,7 +10,6 @@ onMounted(async () => {
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
-
 })
 
 const tabs = [

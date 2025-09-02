@@ -8,12 +8,12 @@ import {FabricSlideContent} from "./fabricSlideContent";
 export class Slide {
 
     public id: number;
-    public title: string;
+    public name: string;
     public content: SlideContent;
 
-    constructor(id: number, title: string, content: SlideContent) {
+    constructor(id: number, name: string, content: SlideContent) {
         this.id = id;
-        this.title = title;
+        this.name = name;
         this.content = content;
     }
 
@@ -43,7 +43,7 @@ export class Slide {
                         content = null;
                 }
             }
-            return new Slide(obj['id'], obj['title'], content);
+            return new Slide(obj['id'], obj['name'], content);
         });
     }
 
@@ -52,27 +52,30 @@ export class Slide {
 
         // @ts-ignore
         if (obj.content) {
-            switch (obj.content.type) {
+            const c = JSON.parse(obj.content);
+            console.log(c.type, c.json);
+            switch (c.type) {
                 case "ImageSlideContent":
-                    content = new ImageSlideContent(obj.content.imageUrl);
+                    content = new ImageSlideContent(c.imageUrl);
                     break;
                 case "RobotGameSlideContent":
                     content = new RobotGameSlideContent();
                     break;
                 case "UrlSlideContent":
-                    content = new UrlSlideContent(obj.content.url);
+                    content = new UrlSlideContent(c.url);
                     break;
                 case "PhotoSlideContent":
                     content = new PhotoSlideContent();
                     break;
                 case "FabricSlideContent":
-                    content = new FabricSlideContent(obj.content.json);
+                    content = new FabricSlideContent(c.json);
                     break;
                 default:
-                    console.error("Unknown slide content type: " + obj.content.type);
+                    console.error("Unknown slide content type: " + c.type);
                     content = null;
             }
+            console.log(content);
         }
-        return new Slide(obj.id, obj.title, content);
+        return new Slide(obj.id, obj.name, content);
     }
 }

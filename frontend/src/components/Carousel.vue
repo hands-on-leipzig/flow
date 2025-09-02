@@ -1,14 +1,11 @@
-<script setup>
-import '@splidejs/vue-splide/css';
+<script setup lang="ts">
 import {inject, onMounted, reactive, ref} from "vue";
-import SlideContentRenderer from "./slides/SlideContentRenderer.vue";
-import api from "../services/api.js";
-import {Slide} from "../model/slide.js";
-import {ImageSlideContent} from "../model/imageSlideContent.js";
-import {RobotGameSlideContent} from "../model/robotGameSlideContent.js";
-import {UrlSlideContent} from "../model/urlSlideContent.js";
-import {PhotoSlideContent} from "../model/photoSlideContent.js";
+import SlideContentRenderer from "./slideTypes/SlideContentRenderer.vue";
+import {Slide} from "../models/slide.js";
+import axios from "axios";
 
+// TODO Socket injector
+/*
 const socket = inject('websocket');
 socket.registerClient();
 socket.addListener((msg) => {
@@ -16,7 +13,7 @@ socket.addListener((msg) => {
     slide.value = Slide.fromObject(msg.slide);
     showSlide.value = true
   }
-});
+}); */
 
 function getFormattedDateTime() {
   const now = new Date();
@@ -35,6 +32,10 @@ function getFormattedDateTime() {
   return `${year}-${month}-${day}+${hours}:${minutes}`;
 }
 
+const props = defineProps<{
+  eventId: Number
+}>();
+
 let settings = reactive({
   transitionTime: 15,
   transitionEffect: "fade",
@@ -42,54 +43,30 @@ let settings = reactive({
 
 let loaded = ref(false)
 
-function getSlide(slide) {
-  let types = {
-    image: new ImageSlideContent("").toJSON().type,
-    rg: new RobotGameSlideContent().toJSON().type,
-    url: new UrlSlideContent("").toJSON().type,
-    photo: new PhotoSlideContent("").toJSON().type
-  }
-
-  let content = JSON.parse(slide.content)
-  switch (content.type) {
-    case types.image:
-      return new Slide(slide.id, slide.title, new ImageSlideContent(content.url))
-    case types.rg:
-      return new Slide(slide.id, slide.title, new RobotGameSlideContent())
-    case types.url:
-      return new Slide(slide.id, slide.title, new UrlSlideContent(content.url))
-    case types.photo:
-      return new Slide(slide.id, slide.title, new PhotoSlideContent())
-  }
-}
-
 let slide = ref()
 let showSlide = ref(false)
 let slideKey = ref(1)
 
 async function fetchSlides() {
-  /*const response = await api.get("/api/events/1/slides")
+  const response = await axios.get("/carousel/1/slideshows");
   if (response && response.data) {
-    slides = []
-    for (let slide of response.data) {
-      slides.push(getSlide(slide))
+    const slides = [];
+    for (let slide of response.data.slides) {
+      slides.push(Slide.fromObject(slide));
     }
-    loaded.value = false
-    setTimeout(function () {
-      loaded.value = true
-    }, 1000)
-    slideKey.value++
-  }*/
-  loaded.value = true;
-  showSlide.value = true;
-  const content = new RobotGameSlideContent();
-  content.highlightColor = '#F78B1F';
-  slide.value = new Slide(1, "Test-Scores", content);
+
+    console.log(slides);
+    if (slides.length > 0) {
+      slide.value = slides[0];
+      showSlide.value = true;
+    }
+  }
 }
 
 async function fetchSettings() {
+  // TODO
   try {
-    const response = await api.get("/api/events/1/settings")
+    const response = await axios.get(`/carousel/${props.eventId}/settings`)
     if (response && response.data) {
       Object.keys(settings).forEach((key) => {
         settings[key] = response.data[key]
@@ -101,9 +78,9 @@ async function fetchSettings() {
 }
 
 function startFetchingSlides() {
-  setInterval(function () {
+  /*setInterval(function () {
     fetchSlides()
-  }, 300000)
+  }, 300000)*/
 }
 
 onMounted(fetchSettings)
