@@ -73,7 +73,7 @@ class EvaluateQuality
 
                 $planId = $newPlan->id;
 
-                Log::info("Plan $planId ({$newPlan->name}) created for qRun $runId");
+                Log::info("qRun $runId: Plan $planId ({$newPlan->name}) created");
 
                 // Add the parameter values for this plan
                 PlanParamValue::create([
@@ -164,7 +164,7 @@ class EvaluateQuality
             $planCopy->event = $this->getOrCreateQualityEventId();
             $planCopy->save();
 
-            Log::info("Plan {$planCopy->id}  copied from {$originalPlan->id} for qRun $newRunId");
+            Log::info("qRun $newRunId: Plan {$planCopy->id} copied from {$originalPlan->id}");
 
             // QPlan-Datensatz kopieren und mit neuem Plan verknüpfen
             $copy = $original->replicate();

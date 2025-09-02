@@ -25,12 +25,12 @@ class GenerateQPlansFromQPlansJob implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info("qRun {$this->newRunId}: Start asynchronous copy of qPlans");
+        // Log::info("qRun {$this->newRunId}: Start asynchronous copy of qPlans");
 
         $qPlans = new EvaluateQuality();
         $qPlans->generateQPlansFromQPlans($this->newRunId, $this->planIds);
 
-        Log::info("qRun {$this->newRunId}: Start asynchronous qRun");
+        Log::info("qRun {$this->newRunId}: Execution dispatched");
         
         \App\Jobs\ExecuteQPlanJob::dispatch($this->newRunId);
 

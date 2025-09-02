@@ -45,43 +45,18 @@ class ExecuteQPlanJob implements ShouldQueue
                 'status' => 'done',
             ]);
 
-            Log::info("qRun {$this->runId} done.");
+            Log::info("qRun {$this->runId}: done");
             return;
         }
 
         $planId = $qPlan->plan;
-/*
-        $startLevel = ob_get_level();
-        ob_start();
-*/
-        Log::info("qPlan {$qPlan->id}: dispatch creation of plan $planId");
+
+        Log::info("qPlan {$qPlan->id}: creation of plan $planId dispatched");
 
         $pc = new PlanController();
         $pc->generate($planId, true);
 
-/*
-        try {
-            require_once base_path("legacy/generator/generator_main.php");
-            $GLOBALS['DEBUG'] = 0;
-
-            if (function_exists('g_generator')) {
-                g_generator($planId);
-            } else {
-                Log::warning('g_generator() not found', ['planId' => $planId]);
-            }
-        } catch (\Throwable $e) {
-            Log::error('GeneratePlan failed', [
-                'planId' => $planId,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        } finally {
-            while (ob_get_level() > $startLevel) {
-                ob_end_clean();
-            }
-        }      */
-
-        Log::info("qPlan {$qPlan->id}: dispatch of quality evaluation for plan $planId");
+        // Log::info("qPlan {$qPlan->id}: dispatch of quality evaluation for plan $planId");
 
         $evaluator = new EvaluateQuality();
         $evaluator->evaluatePlanId($planId);
