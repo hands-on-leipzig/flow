@@ -94,7 +94,10 @@ class EvaluateQuality
             $rounds = (int) ceil($plan->teams / $plan->lanes);
 
             // Two versions: with and without robot check
-            foreach ([0, 1] as $robotCheck) {
+            $robotCheckOptions = $selection['robot_check'] ?? ['off', 'on'];
+
+            foreach ($robotCheckOptions as $rc) {
+                $robotCheck = $rc === 'on' ? 1 : 0;
                 $suffix = $robotCheck === 1 ? ' RC an' : ' RC aus';
 
                 // Create a new plan and get its ID
