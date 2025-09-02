@@ -22,16 +22,67 @@ const filterQ = {
   4: ref(false),
 }
 
+const filterRounds = {
+  4: ref(true),
+  5: ref(true),
+  6: ref(true),
+}
+
+const filterLanes = {
+  1: ref(true),
+  2: ref(true),
+  3: ref(true),
+  4: ref(true),
+  5: ref(true),
+}
+
+const filterTables = {
+  2: ref(true),
+  4: ref(true),
+}
+
+const filterAsym = {
+  1: ref(true),
+  0: ref(true),
+}
+
 const plans = computed(() => {
   return plansRaw.value.filter(plan => {
-    return [1, 2, 3, 4].every(q => {
+    // Q-Checks
+    const qFilterOk = [1, 2, 3, 4].every(q => {
       if (!filterQ[q].value) return true
       const ok = plan[`q${q}_ok_count`]
       return ok < plan.c_teams
     })
+
+    // Jury-Spuren
+    const lanesActive = Object.entries(filterLanes)
+      .filter(([_, refVal]) => refVal.value)
+      .map(([lane]) => Number(lane))
+    const laneFilterOk = lanesActive.length === 0 || lanesActive.includes(plan.j_lanes)
+
+    // Jury-Runden
+    const roundsActive = Object.entries(filterRounds)
+      .filter(([_, refVal]) => refVal.value)
+      .map(([r]) => Number(r))
+    const roundFilterOk = roundsActive.length === 0 || roundsActive.includes(plan.j_rounds)
+
+    // RG-Tische
+    const tablesActive = Object.entries(filterTables)
+      .filter(([_, refVal]) => refVal.value)
+      .map(([t]) => Number(t))
+    const tableFilterOk = tablesActive.length === 0 || tablesActive.includes(plan.r_tables)
+
+    // RG asym (Ja/Nein)
+    const asymActive = Object.entries(filterAsym)
+      .filter(([_, refVal]) => refVal.value)
+      .map(([a]) => Number(a))
+    const asymFilterOk = asymActive.length === 0 || asymActive.includes(plan.r_asym)
+
+    // Kombiniert
+    return qFilterOk && laneFilterOk && roundFilterOk && tableFilterOk && asymFilterOk
   })
 })
-
 const loadPlans = async () => {
   loading.value = true
   error.value = null
@@ -107,15 +158,111 @@ async function startRerun() {
     <div v-else>
       
       <!-- Button nur wenn Pläne vorhanden -->
-      <div v-if="plans.length > 0" class="flex justify-end mb-2">
-        <button
-          @click.stop="startRerun"
-          class="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
-          title="Neuen QRun mit diesen Plänen starten"
-        >
-          🔁 ReRun für die {{ plans.length }} angezeigten Pläne
-        </button>
+      <div v-if="plans.length > 0" class="flex justify-between items-center mb-2">
+
+      <!-- Filter-Kiste: Jury-Runden -->
+      <div class="border border-gray-300 rounded-md p-3 bg-white shadow-sm flex justify-between items-center mb-2">
+        
+        <!-- Label-Teil -->
+        <div class="text-sm font-medium text-gray-700">
+          Jury-Runden:
+        </div>
+
+        <!-- Checkboxen -->
+        <div class="flex items-center gap-3 ml-4">
+          <label
+            v-for="round in [4,5,6]"
+            :key="round"
+            class="flex items-center gap-1 text-sm text-gray-600"
+          >
+            <input
+              type="checkbox"
+              v-model="filterRounds[round].value"
+              class="accent-gray-600"
+            />
+            {{ round }}
+          </label>
+        </div>
+
       </div>
+
+
+      <!-- Filter-Kiste: Jury-Spuren -->
+      <div class="border border-gray-300 rounded-md p-3 bg-white shadow-sm flex justify-between items-center mb-2">
+        
+        <!-- Label-Teil -->
+        <div class="text-sm font-medium text-gray-700">
+          Jury-Spuren:
+        </div>
+
+        <!-- Checkboxen -->
+        <div class="flex items-center gap-3 ml-4">
+          <label
+            v-for="lane in [1,2,3,4,5]"
+            :key="lane"
+            class="flex items-center gap-1 text-sm text-gray-600"
+          >
+            <input
+              type="checkbox"
+              v-model="filterLanes[lane].value"
+              class="accent-gray-600"
+            />
+            {{ lane }}
+          </label>
+        </div>
+
+      </div>
+
+      <!-- Filter-Kiste: RG-Tische -->
+      <div class="border border-gray-300 rounded-md p-3 bg-white shadow-sm flex justify-between items-center mb-2">
+        
+        <!-- Label-Teil -->
+        <div class="text-sm font-medium text-gray-700">
+          RG-Tische:
+        </div>
+
+        <!-- Checkboxen -->
+        <div class="flex items-center gap-3 ml-4">
+          <label
+            v-for="t in [2, 4]"
+            :key="t"
+            class="flex items-center gap-1 text-sm text-gray-600"
+          >
+            <input
+              type="checkbox"
+              v-model="filterTables[t].value"
+              class="accent-gray-600"
+            />
+            {{ t }}
+          </label>
+        </div>
+
+      </div>
+
+      <!-- Filter-Kiste: RG asym -->
+      <div class="border border-gray-300 rounded-md p-3 bg-white shadow-sm flex justify-between items-center mb-2">
+        <div class="text-sm text-gray-600 mr-6">RG asym:</div>
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-1 text-sm text-gray-600">
+            <input type="checkbox" v-model="filterAsym[1].value" class="accent-gray-600" />
+            Ja
+          </label>
+          <label class="flex items-center gap-1 text-sm text-gray-600">
+            <input type="checkbox" v-model="filterAsym[0].value" class="accent-gray-600" />
+            Nein
+          </label>
+        </div>
+      </div>
+
+      <!-- Button rechts außen -->
+      <button
+        @click.stop="startRerun"
+        class="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
+        title="Neuen QRun mit diesen Plänen starten"
+      >
+        🔁 ReRun für {{ plans.length }} Pläne
+      </button>
+</div>
 
       <!-- Tabellenkopf -->
       <div class="grid grid-cols-8 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">

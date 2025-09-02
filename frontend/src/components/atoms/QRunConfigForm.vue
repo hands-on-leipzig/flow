@@ -66,7 +66,7 @@ const emit = defineEmits([
 
       <!-- Jury Runden -->
       <div>
-        <label class="block font-semibold mb-1">Anzahl Jury-Runden</label>
+        <label class="block font-semibold mb-1">Jury-Runden</label>
         <div class="flex gap-4">
           <label class="flex items-center gap-1">
             <input
@@ -119,7 +119,7 @@ const emit = defineEmits([
 
       <!-- Table Types -->
       <div>
-        <label class="block font-semibold mb-1">Anzahl RG-Tische</label>
+        <label class="block font-semibold mb-1">RG-Tische</label>
         <div class="flex gap-4">
           <label class="flex items-center gap-1">
             <input

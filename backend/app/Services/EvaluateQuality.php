@@ -117,6 +117,7 @@ class EvaluateQuality
                     'r_tables' => $plan->tables ?? 0,
                     'j_lanes' => $plan->lanes,
                     'j_rounds' => $rounds,
+                    'r_asym' => ($plan->tables == 4 && ($plan->teams % 4 == 1 || $plan->teams % 4 == 2)) ? 1 : 0,
                     'r_robot_check' => $robotCheck,
                     'r_duration_robot_check' => 0,
                     'c_duration_transfer' => $parameters['c_duration_transfer']->value,
