@@ -89,7 +89,7 @@ class PlanController extends Controller
 
         if ($async) {
         
-            log::info("Generate async for plan ID {$planId}");
+            log::info("Plan {$planId}: Generation dispatched");
             
             GeneratePlanJob::dispatch($planId);
 
@@ -97,7 +97,7 @@ class PlanController extends Controller
 
         } else {
 
-            log::info("Generate sync for plan ID {$planId}");
+            log::info("Plan {$planId}: Generation started");
 
             GeneratePlan::run($plan->id);
             

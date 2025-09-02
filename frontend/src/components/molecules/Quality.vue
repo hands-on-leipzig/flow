@@ -30,7 +30,7 @@ const juryRounds = ref({
 
 const robotCheck = ref({
   rc_off: true,
-  rc_on: false,
+  rc_on: true,
 })
 
 const qrunName = ref('')
@@ -61,7 +61,7 @@ const startVolumeTest = () => {
       .map(([k]) => Number(k.split('_')[1])),
     robot_check: Object.entries(robotCheck.value)
       .filter(([_, v]) => v)
-      .map(([k]) => Number(k.split('_')[1])),
+      .map(([k]) => k.split('_')[1])
   }
 
   const payload = {
@@ -105,13 +105,14 @@ const startVolumeTest = () => {
         v-model:jury-lanes="juryLanes"
         v-model:tables="tables"
         v-model:jury-rounds="juryRounds"
+        v-model:robot-check="robotCheck"
         v-model:qrun-name="qrunName"
         v-model:qrun-comment="qrunComment"
         :is-valid="isValid"
         @start="startVolumeTest"
         @refresh="reload++" 
       />
-    </div>
+    </div> 
 
     <!-- Scrollbarer Bereich darunter -->
     <div class="flex-1 overflow-y-auto p-4">

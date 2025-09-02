@@ -10,7 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class GenerateQPlansFromQPlans implements ShouldQueue
+class GenerateQPlansFromQPlansJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -25,12 +25,14 @@ class GenerateQPlansFromQPlans implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info("Asynchrones Generieren von QPlans für neuen Run {$this->newRunId} gestartet (" . count($this->planIds) . " Pläne)");
+        // Log::info("qRun {$this->newRunId}: Start asynchronous copy of qPlans");
 
         $qPlans = new EvaluateQuality();
         $qPlans->generateQPlansFromQPlans($this->newRunId, $this->planIds);
 
-        \App\Jobs\ExecuteQPlan::dispatch($this->newRunId);
-        Log::info("Job GenerateQPlansFromQPlans abgeschlossen. ExecuteQPlan für Run {$this->newRunId} wurde dispatcht.");
+        Log::info("qRun {$this->newRunId}: Execution dispatched");
+        
+        \App\Jobs\ExecuteQPlanJob::dispatch($this->newRunId);
+
     }
 }
