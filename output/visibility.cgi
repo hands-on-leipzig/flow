@@ -7,6 +7,12 @@ use CGI ':standard';
 use CGI::Carp qw ( fatalsToBrowser carpout );
 use Encode;
 
+# selbst nachinstallierte Module einbinden
+# hierzu Pfad erweitern auf entspr. Verzeichnis (hier bei Hetzner)
+use lib "/usr/home/handsb/.linuxbrew/Cellar/perl/5.38.2_1/lib/perl5/site_perl/5.38";
+use Config::Std;
+
+
 #########################################################
 # Eigenes Error-Log fuer PERL
 #########################################################
