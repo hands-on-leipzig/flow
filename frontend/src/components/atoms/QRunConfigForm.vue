@@ -8,6 +8,7 @@ const props = defineProps({
   qrunName: String,
   qrunComment: String,
   isValid: Boolean,
+  robotCheck: Object,
 })
 
 const emit = defineEmits([
@@ -16,6 +17,7 @@ const emit = defineEmits([
   'update:juryLanes',
   'update:tables',
   'update:juryRounds',
+  'update:robotCheck',
   'update:qrunName',
   'update:qrunComment',
   'start',
@@ -134,6 +136,29 @@ const emit = defineEmits([
               @change="emit('update:tables', { ...tables, tables_4: $event.target.checked })"
             />
             4
+          </label>
+        </div>
+      </div>
+
+      <!-- Robot-Check -->
+      <div>
+        <label class="block font-semibold mb-1">Robot-Check</label>
+        <div class="flex gap-4">
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              :checked="robotCheck.rc_off"
+              @change="emit('update:robotCheck', { ...robotCheck, rc_off: $event.target.checked })"
+            />
+            ❌ Aus
+          </label>
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              :checked="robotCheck.rc_on"
+              @change="emit('update:robotCheck', { ...robotCheck, rc_on: $event.target.checked })"
+            />
+            ✅ An
           </label>
         </div>
       </div>

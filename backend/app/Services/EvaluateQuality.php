@@ -20,36 +20,6 @@ use PhpParser\Node\Expr\FuncCall;
 
 class EvaluateQuality
 {
-    // For debugging: Dump all relevant activities for a given plan TODEL
- 
-    public function debugDump(int $qPlanId): array
-    {
-        // Load evaluation base data
-        $activities = $this->prepareEvaluationData($qPlanId);
-
-        // Calculate the Qs
-        $this->calculateQ1($qPlanId, $activities);
-        $this->calculateQ2($qPlanId);
-        $this->calculateQ3($qPlanId);
-        $this->calculateQ4($qPlanId);
-        $this->calculateQ5($qPlanId);
-
-        // Load all q_plan_team entries for the given q_plan_id
-        $teams = QPlanTeam::where('q_plan', $qPlanId)->get();
-
-        // Load all q_plan_match entries for the given q_plan_id
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
-            ->orderBy('round')
-            ->orderBy('match_no')
-            ->get();
-
-        return [
-            'q_plan_team' => $teams->map(fn($t) => $t->toArray())->all(),
-            'q_plan_match' => $matches->map(fn($m) => (array) $m)->all(),
-            'activities' => $activities->toArray(),
-        ];
-    }
 
     public function generateQPlansFromSelection(int $runId): void
     {
@@ -93,7 +63,9 @@ class EvaluateQuality
         $event = DB::table('event')->where('name', $EVENT_NAME)->first();
 
         if (!$event) {
-            $seasonId = DB::table('m_season')->value('id');
+            $seasonId = DB::table('m_season')
+                ->orderByDesc('year')
+                ->value('id');
             $eventId = DB::table('event')->insertGetId([
                 'name' => $EVENT_NAME,
                 'regional_partner' => $regionalPartnerId,
