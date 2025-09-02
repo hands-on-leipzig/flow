@@ -8,7 +8,7 @@ const props = defineProps({
   qrunName: String,
   qrunComment: String,
   isValid: Boolean,
-  robotCheck: Number
+  robotCheck: Object,
 })
 
 const emit = defineEmits([
@@ -146,21 +146,19 @@ const emit = defineEmits([
         <div class="flex gap-4">
           <label class="flex items-center gap-1">
             <input
-              type="radio"
-              name="robotCheck"
-              :checked="props.robotCheck === 1"
-              @change="emit('update:robotCheck', 1)"
+              type="checkbox"
+              :checked="robotCheck.rc_off"
+              @change="emit('update:robotCheck', { ...robotCheck, rc_off: $event.target.checked })"
             />
-            an
+            ❌ Aus
           </label>
           <label class="flex items-center gap-1">
             <input
-              type="radio"
-              name="robotCheck"
-              :checked="props.robotCheck === 0"
-              @change="emit('update:robotCheck', 0)"
+              type="checkbox"
+              :checked="robotCheck.rc_on"
+              @change="emit('update:robotCheck', { ...robotCheck, rc_on: $event.target.checked })"
             />
-            aus
+            ✅ An
           </label>
         </div>
       </div>
