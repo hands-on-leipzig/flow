@@ -19,25 +19,25 @@
     <div class="col-12">
         <p style="text-align:center; font-size:clamp(35px, 10vw, 90px); font-weight:bold; color:#24355C">
             <!--zeitplan:role-->
-</p>
-</div>
+        </p>
+    </div>
 </div>
 -->
 
 <div class="modal" tabindex="-1" id="modal_qrcode">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Zeitplan</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <img src='data:image/png;base64,<!--zeitplan:qrcode-->' width=100%>
-            </div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Zeitplan</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+        <div class="modal-body">
+            <img src='data:image/png;base64,<!--zeitplan:qrcode-->' width=100%>
+        </div>
+      </div>
     </div>
-</div>
-
+  </div>
+ 
 
 <div class="row row-cols-2 row-cols-md-4 g-2" id="navigation" style="padding-top:10px; padding-bottom:10px">
     <div class="col text-center">
@@ -76,7 +76,7 @@
     (function() {
         const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
         const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
-
+        
         //location.href='#detailplan';
         location.href='#<!--zeitplan:actual_activity_group_id-->';
     })();

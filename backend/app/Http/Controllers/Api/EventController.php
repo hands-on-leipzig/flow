@@ -44,8 +44,8 @@ class EventController extends Controller
                 break;
             case 1:
                 $regionalPartners = RegionalPartner::whereHas('events', function ($query) use ($season) {
-                    $query->where('season', $season->id);
-                })
+                        $query->where('season', $season->id);
+                    })
                     ->with(['events' => function ($query) use ($season) {
                         $query->where('season', $season->id)
                             ->orderBy('date')

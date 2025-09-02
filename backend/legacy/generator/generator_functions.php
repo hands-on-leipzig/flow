@@ -12,7 +12,7 @@ require_once 'generator_functions_finale.php';
 // Useful functions
 // ***********************************************************************************
 
-// Handling time objects
+// Handling time objects   
 
 // Function to add minutes to the time (modifies original)
 function g_add_minutes(DateTime $time, $minutes) {
@@ -60,7 +60,7 @@ function g_diff_in_minutes(DateTime $time1, DateTime $time2) {
 
 // Debug output
 function g_debug_timing($text, $c_block = 0, $r_start_shift = 0) {
-
+        
     global $DEBUG;
     global $j_time;
     global $r_time;
@@ -84,6 +84,6 @@ function g_debug_log($level, $point, $parameter = "") {
     } else {
         Log::debug("Generator " . $point . " ". $parameter. "=" . pp($parameter));
 
-    }
+    }  
 
 }

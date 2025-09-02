@@ -29,7 +29,7 @@ class GeneratePlanJob implements ShouldQueue
         $plan->save();
 
         GeneratePlan::run($plan->id);
-
+       
         $plan->generator_status = 'done';
         $plan->save();
     }
