@@ -282,9 +282,9 @@ function e_integrated() {
             // Buffer to get Explore people out of the way
             g_add_minutes($r_time, pp("e_ready_awards"));          // TODO different parameters "to e and back to c"
 
-
             g_debug_log(1, "Explore no afternoon batch");
 
+            break;
 
         case ID_E_AFTERNOON:
             // FLL Explore afternoon batch > opening, briefings, judging
