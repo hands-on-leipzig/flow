@@ -94,7 +94,7 @@ onMounted(fetchSlides)
 </script>
 
 <template>
-  <SlideContentRenderer v-if="showSlide === true" :slide="slide" class="slide"/>
+  <SlideContentRenderer v-if="showSlide === true" :slide="slide" class=""/>
   <!-- <footer>
     <div>
       <img :src="logo1_cut" alt="logo">
@@ -134,11 +134,8 @@ footer img {
 }
 
 .slide {
-  width: 100%;
-  height: 100vh;
-  position: relative;
-  margin: 0;
-  padding: 0;
+  /*display: flex;*/
+
   overflow: hidden;
   cursor: none;
 }

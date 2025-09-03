@@ -42,14 +42,5 @@ const componentName = computed(() => {
 </script>
 
 <template>
-  <div class="slide-content">
-    <component :is="componentName" :content="props.slide.content" :preview="props.preview"></component>
-  </div>
+  <component :is="componentName" :content="props.slide.content" :preview="props.preview"></component>
 </template>
-
-<style scoped>
-.slide-content {
-  height: 100%;
-  overflow: hidden;
-}
-</style>

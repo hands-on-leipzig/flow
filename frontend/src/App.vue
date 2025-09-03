@@ -25,7 +25,7 @@ onMounted(() => {
   <div class="h-screen flex flex-col w-full font-sans" :class="{ 'px-10': showNavigation }">
     <Navigation v-if="showNavigation"/>
 
-    <router-view class="flex-1 overflow-hidden shadow-lg"/>
+    <router-view class="flex-1 shadow-lg"/>
   </div>
 </template>
 

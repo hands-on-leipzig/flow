@@ -39,28 +39,32 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
-    if (to.meta.requiresAuth) {
-        keycloak.init({onLoad: 'login-required'}).then(authenticated => {
-            if (!authenticated) {
-                window.location.reload()
-            }
-
-            // save token to use with axios
-            localStorage.setItem('kc_token', keycloak.token)
-
-            // refresh token periodically
-            setInterval(() => {
-                keycloak.updateToken(60).then(refreshed => {
-                    if (refreshed) {
-                        localStorage.setItem('kc_token', keycloak.token)
-                    }
-                })
-            }, 10000);
-            next();
-        });
-    } else {
+    if (!to.meta?.requiresAuth) {
         next();
+        return;
     }
+    if (keycloak.authenticated) {
+        next();
+        return;
+    }
+    keycloak.init({onLoad: 'login-required'}).then(authenticated => {
+        if (!authenticated) {
+            window.location.reload()
+        }
+
+        // save token to use with axios
+        localStorage.setItem('kc_token', keycloak.token)
+
+        // refresh token periodically
+        setInterval(() => {
+            keycloak.updateToken(60).then(refreshed => {
+                if (refreshed) {
+                    localStorage.setItem('kc_token', keycloak.token)
+                }
+            })
+        }, 10000);
+        next();
+    });
 });
 
 const app = createApp(App)

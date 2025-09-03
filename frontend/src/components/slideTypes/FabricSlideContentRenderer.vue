@@ -31,11 +31,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <canvas ref="canvas"></canvas>
-  </div>
+    <canvas ref="canvas" class="content"></canvas>
 </template>
 
 <style scoped>
-
+.content {
+  width: 100%;
+  height: auto;
+}
 </style>
