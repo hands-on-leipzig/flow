@@ -13,6 +13,7 @@ class Slide extends Model
     protected $fillable = [
         'id',
         'name',
+        'type',
         'content',
         'slideshow_id',
     ];

@@ -10,11 +10,11 @@ export class Slide {
 
     public id: number;
     public name: string;
+    public type: string;
     public content: SlideContent;
 
-    constructor(id: number, name: string, content: SlideContent) {
-        this.id = id;
-        this.name = name;
+    constructor(data: any, content: SlideContent) {
+        Object.assign(this, data);
         this.content = content;
     }
 
@@ -23,31 +23,29 @@ export class Slide {
 
         // @ts-ignore
         if (obj.content) {
-            const c = JSON.parse(obj.content);
-            switch (c.type) {
-                case "ImageSlideContent":
-                    content = new ImageSlideContent(c.imageUrl);
-                    break;
-                case "RobotGameSlideContent":
-                    content = new RobotGameSlideContent();
-                    break;
-                case "UrlSlideContent":
-                    content = new UrlSlideContent(c.url);
-                    break;
-                case "PhotoSlideContent":
-                    content = new PhotoSlideContent();
-                    break;
-                case "FabricSlideContent":
-                    content = new FabricSlideContent(c.json);
-                    break;
-                case "PublicPlanSlideContent":
-                    content = new PublicPlanSlideContent(c.planId, c.hours);
-                    break;
-                default:
-                    console.error("Unknown slide content type: " + c.type);
-                    content = null;
-            }
+            content = this.getContentFromType(obj);
         }
-        return new Slide(obj.id, obj.name, content);
+        return new Slide(obj, content);
+    }
+
+    private static getContentFromType(data: any): SlideContent {
+        const content = JSON.parse(data.content);
+        switch (data.type) {
+            case "ImageSlideContent":
+                return new ImageSlideContent(content.imageUrl);
+            case "RobotGameSlideContent":
+                return new RobotGameSlideContent();
+            case "UrlSlideContent":
+                return new UrlSlideContent(content.url);
+            case "PhotoSlideContent":
+                return new PhotoSlideContent();
+            case "FabricSlideContent":
+                return new FabricSlideContent(content.json);
+            case "PublicPlanSlideContent":
+                return new PublicPlanSlideContent(content.planId, content.hours, content.role);
+            default:
+                console.error("Unknown slide content type: " + data.type);
+                return null;
+        }
     }
 }

@@ -27,7 +27,10 @@ function getFormattedDateTime() {
 const planUrl = computed(() => {
   const baseUrl = 'https://dev.flow.hands-on-technology.org/output/zeitplan.cgi';
   const now = getFormattedDateTime();
-  const url = baseUrl + `?output=slide&plan=${props.content.planId}&hours=${props.content.hours}&brief=no&role=14`
+  const url = baseUrl + `?output=slide&plan=${props.content.planId}`
+      + `&hours=${props.content.hours}`
+      + `&role=${props.content.role}`
+      + `&brief=no`
       + '&now=2026-02-27+12:00'; // <-- testing
   console.log(url);
   return url;

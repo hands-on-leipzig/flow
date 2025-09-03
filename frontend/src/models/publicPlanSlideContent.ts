@@ -6,10 +6,16 @@ export class PublicPlanSlideContent extends SlideContent {
     // Wie viele Stunden nach vorne soll geschaut werden
     public hours: number;
 
-    constructor(planId: number, hours: number) {
+    // 14: Besucher Allgemein
+    // 6: Besucher Challenge
+    // 10: Besucher Explore
+    public role: number;
+
+    constructor(planId: number, hours: number, role: number = 14) {
         super();
         this.planId = planId;
         this.hours = hours;
+        this.role = role;
     }
 
     public toJSON(): object {
@@ -17,6 +23,7 @@ export class PublicPlanSlideContent extends SlideContent {
             type: "PublicPlanSlideContent",
             planId: this.planId,
             hours: this.hours,
+            role: this.role
         };
     }
 }

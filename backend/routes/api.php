@@ -24,6 +24,7 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
     ]);
 });
 
+// Public Carousel route
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getSlideshowsForEvent']);
 
 
@@ -83,8 +84,12 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/events/{event}', [EventController::class, 'update']);
     Route::get('/events/{event}/table-names', [EventController::class, 'getTableNames']);
     Route::put('/events/{id}/table-names', [EventController::class, 'updateTableNames']);
-    Route::get('/events/{event}/slide/{slide}', [EventController::class, 'getSlide']);
-    Route::put('/events/{event}/slide/{slide}', [EventController::class, 'updateSlide']);
+
+    // Carousel controller
+    // TODO remove eventid?
+    Route::get('/events/{event}/slide/{slide}', [CarouselController::class, 'getSlide']);
+    Route::put('/events/{event}/slide/{slide}', [CarouselController::class, 'updateSlide']);
+    Route::put('/events/{event}/slideshow/{slideshow}/updateOrder', [CarouselController::class, 'updateSlideshowOrder']);
 
     // Team controller
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);

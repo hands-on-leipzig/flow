@@ -24,6 +24,6 @@ class SlideShow extends Model
 
     public function slides()
     {
-        return $this->hasMany(Slide::class, 'slideshow_id');
+        return $this->hasMany(Slide::class, 'slideshow_id')->orderBy('order');
     }
 }

@@ -7,63 +7,12 @@ import api from '../services/api';
 import {UrlSlideContent} from "../model/urlSlideContent.js";
 import ChooseSlideType from "./ChooseSlideType.vue";
 
-const KEYCLOAK_URL = "https://sso.hands-on-technology.org";
-const REALM = "master";
-const CLIENT_ID = "kiosk";
-const REDIRECT_URI = encodeURIComponent("https://kiosk.hands-on-technology.org/auth");
-
-const redirectToKeycloak = () => {
-  window.location.href = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/auth?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${REDIRECT_URI}`;
-};
-
 let newSlide = ref(false)
-
-function isValidJwt(token) {
-  if (!token) return false;
-
-  try {
-    // Split the token into parts
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return false;
-
-    // Decode the payload
-    const payload = JSON.parse(atob(payloadBase64));
-
-    // Check for expiration timestamp (exp)
-    const expiration = payload.exp * 1000; // Convert to milliseconds
-    const now = Date.now();
-
-    return expiration > now;
-  } catch (e) {
-    console.error("Invalid JWT token:", e.message);
-    return false;
-  }
-}
-
-// Check if user is logged in
-const checkAuth = () => {
-  if (document.location.host === "localhost:5173") return true;
-  const token = localStorage.getItem("jwt_token");
-  if (!token || !isValidJwt(token)) {
-    redirectToKeycloak();
-  }
-};
-
-checkAuth();
-
 //const socket = inject('websocket');
 //const slides = socket.slides;
 
 function addSlide() {
   slides.push(new Slide(slides.length + 1, "randomName", new UrlSlideContent("url")));
-}
-
-async function updateOrder() {
-  let d = new FormData
-  d.set("slides", JSON.stringify(slides))
-  const response = await api.post("/api/events/1/slides-order", d)
-  slidesKey.value++
-  //console.log("Updated order:", slides); // Logs new order for debugging
 }
 
 const slidesKey = ref(1)
@@ -339,15 +288,6 @@ select:hover {
 .add-slide:hover {
   background-color: #45a049;
   transform: scale(1.1);
-}
-
-.draggable-list {
-  display: flex;
-  flex-wrap: wrap;
-  padding: 20px;
-  gap: 10px;
-  background: #2e2e2e;
-  border-radius: 12px;
 }
 
 .slide-thumb {

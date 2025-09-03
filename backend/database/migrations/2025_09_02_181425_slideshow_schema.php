@@ -23,7 +23,9 @@ return new class extends Migration {
             $table->id();
 
             $table->string('name');
+            $table->string('type');
             $table->json('content');
+            $table->integer('order')->default(0);
             $table->unsignedBigInteger('slideshow_id');
             $table->foreign('slideshow_id')->references('id')->on('slideshow')->onDelete('cascade');
         });
