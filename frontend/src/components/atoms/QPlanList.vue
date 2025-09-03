@@ -163,33 +163,6 @@ async function startRerun() {
         <!-- Linker Teil: Filter-Kisten -->
         <div class="flex flex-wrap gap-4">
 
-          <!-- Filter-Kiste: Jury-Runden -->
-          <div class="border border-gray-300 rounded-md p-3 bg-white shadow-sm flex justify-between items-center mb-2">
-            
-            <!-- Label-Teil -->
-            <div class="text-sm font-medium text-gray-700">
-              Jury-Runden:
-            </div>
-
-            <!-- Checkboxen -->
-            <div class="flex items-center gap-3 ml-4">
-              <label
-                v-for="round in [4,5,6]"
-                :key="round"
-                class="flex items-center gap-1 text-sm text-gray-600"
-              >
-                <input
-                  type="checkbox"
-                  v-model="filterRounds[round].value"
-                  class="accent-gray-600"
-                />
-                {{ round }}
-              </label>
-            </div>
-
-          </div>
-
-
           <!-- Filter-Kiste: Jury-Spuren -->
           <div class="border border-gray-300 rounded-md p-3 bg-white shadow-sm flex justify-between items-center mb-2">
             
@@ -239,6 +212,31 @@ async function startRerun() {
                 {{ t }}
               </label>
             </div>
+          </div>
+
+          <!-- Filter-Kiste: Jury-Runden -->
+          <div class="border border-gray-300 rounded-md p-3 bg-white shadow-sm flex justify-between items-center mb-2">
+            
+            <!-- Label-Teil -->
+            <div class="text-sm font-medium text-gray-700">
+              Jury-Runden:
+            </div>
+
+            <!-- Checkboxen -->
+            <div class="flex items-center gap-3 ml-4">
+              <label
+                v-for="round in [4,5,6]"
+                :key="round"
+                class="flex items-center gap-1 text-sm text-gray-600"
+              >
+                <input
+                  type="checkbox"
+                  v-model="filterRounds[round].value"
+                  class="accent-gray-600"
+                />
+                {{ round }}
+              </label>
+            </div>
 
           </div>
 
@@ -273,10 +271,14 @@ async function startRerun() {
 
       </div>
       <!-- Tabellenkopf -->
-      <div class="grid grid-cols-8 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
+      <div class="grid grid-cols-12 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
         <div>Plan</div>
-        <div>Name</div>
-        <div>Teamanzahl</div>
+        <div>Teams</div>
+        <div>Spuren</div>
+        <div>RG-Tische</div>
+        <div>Runden</div>
+        <div>RG asym</div>
+        <div>Robot check</div>
         <div class="flex items-center gap-1">
           <input
             type="checkbox"
@@ -316,7 +318,7 @@ async function startRerun() {
         <div>Abstand</div>
       </div>
 
-    <!-- Kein Plan -->
+      <!-- Kein Plan -->
       <div v-if="plans.length === 0" class="text-gray-400 text-sm">Keine passende QPläne gefunden.</div>  
     
       <!-- QPlan-Zeilen -->
@@ -326,7 +328,7 @@ async function startRerun() {
         class="border-b border-gray-100"
       >
         <div
-          class="grid grid-cols-8 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
+          class="grid grid-cols-12 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
           @click="toggleExpanded(qplan.id)"
         >
           <div class="flex items-center gap-2">
@@ -339,11 +341,13 @@ async function startRerun() {
               🧾 
             </button>
           </div>
-          <div class="flex items-center gap-2">
-            <span>{{ qplan.name || `#${qplan.plan}` }}</span>
-          </div>
-
           <div>{{ qplan.c_teams }}</div>
+          <div>{{ qplan.j_lanes }}</div>
+          <div>{{ qplan.r_tables }}</div>
+          <div>{{ qplan.j_rounds }}</div>
+          <div>{{ qplan.r_asym }}</div>
+          <div>{{ qplan.r_robot_check }}</div>
+          
 
           <!-- Q1: Transfer -->
           <div class="flex items-center gap-1">

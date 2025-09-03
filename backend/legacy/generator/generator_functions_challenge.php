@@ -2,8 +2,6 @@
 use Illuminate\Support\Facades\Log;
 require_once 'generator_db.php';
 
-
-
 // ***********************************************************************************
 // Challenge functions
 // ***********************************************************************************
@@ -31,52 +29,7 @@ function r_get_next_team(&$team) {
     }
 } 
 
-function r_add_match($round, $match, $team_1, $team_2, $table_1 = 1, $table_2 = 2) {
-
-    // Add a match to the match plan array 
-    // Table default to 1 and 2 as this the most common use case
-
-    global $r_match_plan;
-
-    $r_match_plan[] = [
-        'round' => $round,
-        'match' => $match,
-        'table_1' => $table_1,  // Default to 1 if not provided
-        'table_2' => $table_2,  // Default to 2 if not provided
-        'team_1' => ($team_1 > pp("c_teams")) ? 0 : $team_1,      // Change volunteer from pp("c_teams")+1 to 0
-        'team_2' => ($team_2 > pp("c_teams")) ? 0 : $team_2,      // Change volunteer from pp("c_teams")+1 to 0
-    ];
-}
     
-function r_add_test_match($m0, $m1) {
-
-    // Build matches in TR from RG1
-    
-    global $r_match_plan;
-
-    // Loop through the match plan to find the specific match in round 1 with match number $m1
-    foreach ($r_match_plan as $item) {
-        if ($item['round'] == 1 && $item['match'] == $m1) {
-
-            // Create a new entry by copying values from the found match
-            $new_match = [
-                'round' => 0,                     // Set the new round to 0
-                'match' => $m0,                   // Set the match number to $m0
-                'table_1' => $item['table_1'],    // Copy table_1 from the existing match
-                'table_2' => $item['table_2'],    // Copy table_2 from the existing match
-                'team_1' => ($item['team_1'] > pp("c_teams")) ? 0 : $item['team_1'],      // Copy team_1 from the existing match. Volunteer not needed.
-                'team_2' => ($item['team_2'] > pp("c_teams")) ? 0 : $item['team_2'],      // Copy team_2 from the existing match. Volunteer not needed.
-            ];
-
-            // Add the new match to the match plan array
-            $r_match_plan[] = $new_match;
-            
-            // As only one match is added, break the loop
-            break;
-        }
-    }
-}
- 
 function r_create_match_plan() {
 
     // Create the robot game match plan regardless of the number of tables and timing
@@ -150,17 +103,19 @@ function r_create_match_plan() {
             $team_1 = $team;
             r_get_next_team($team);
 
-            r_add_match($round, $match, $team_1, $team_2); 
+            $r_match_plan[] = [
+                'round' => $round,
+                'match' => $match,
+                'table_1' => 1,  
+                'table_2' => 2,  
+                'team_1' => ($team_1 > pp("c_teams")) ? 0 : $team_1,      // Change volunteer from pp("c_teams")+1 to 0
+                'team_2' => ($team_2 > pp("c_teams")) ? 0 : $team_2,      // Change volunteer from pp("c_teams")+1 to 0
+            ];
 
         } // for $match n to 1
 
-
-
-
         // With four tables move every second line to the other pair.
         if (pp("r_tables") == 4) {
-
-
 
             foreach ($r_match_plan as &$r_m) {
 
@@ -174,118 +129,92 @@ function r_create_match_plan() {
 
     } // for $rounds 0 to 3 
 
-    // Ensure that matches in TR are on the same tables as in RG1  
-    // This quality measure Q2
+    // Now, ensure that matches in TR are on the same tables as in RG1  
+    // This is quality measure Q2
 
-    // Sequence of matches is correct, but the table assigment must be copied from RG1 to TR
+    // Sequence of matches in TR is already correct, but the table assigment must be copied from RG1 to TR
 
-    if(pp("j_lanes") == 2 || pp("j_lanes") == 4 || pp("r_tables") == 2) {
+    if ( (pp("j_lanes") % 2 === 1) && pp("r_tables") == 4  && pp("j_rounds") == 4 )  {
+        
+        // Special case where lanes are (1,3,5), 4 tables and 4 judging rounds
+        // Q2 not met, but match plan for TR works! 
+        // Hits 8 configuations as of Sep 3, 2025
+        // TODO
 
-        // 2 and 4 lanes correspond to 2 teams per match
-        // 2 tables make no issues
+    } else {
 
         for ($match0 = 1; $match0 <= pp("r_matches_per_round"); $match0++) {
-        
-            // Finde das Match in Runde 0 mit Matchnummer $match0
-            $m0 = collect($r_match_plan)->first(fn($m) => $m['round'] === 0 && $m['match'] === $match0);
-            if (!$m0) continue;
 
-            $team = $m0['team_1'];
-
-            // Finde das Match in Runde 1, in dem team_1 gleich ist
-            $m1 = collect($r_match_plan)->first(fn($m) => $m['round'] === 1 && $m['team_1'] === $team);
-            if (!$m1) continue;
-
-            // Passe Tische in Runde 0 an
             foreach ($r_match_plan as &$match) {
                 if ($match['round'] === 0 && $match['match'] === $match0) {
-                    $match['table_1'] = $m1['table_1'];
-                    $match['table_2'] = $m1['table_2'];
-                    break;
+                    $team1 = $match['team_1'];
+                    $team2 = $match['team_2'];
+
+                    // Search for Team 1 in Round 1
+                    $m1 = collect($r_match_plan)->first(function ($m) use ($team1) {
+                        return $m['round'] === 1 && ($m['team_1'] === $team1 || $m['team_2'] === $team1);
+                    });
+                    if ($m1) {
+                        $match['table_1'] = ($m1['team_1'] === $team1) ? $m1['table_1'] : $m1['table_2'];
+                    }
+
+                    // Search for Team 2 in Round 1
+                    $m2 = collect($r_match_plan)->first(function ($m) use ($team2) {
+                        return $m['round'] === 1 && ($m['team_1'] === $team2 || $m['team_2'] === $team2);
+                    });
+                    if ($m2) {
+                        $match['table_2'] = ($m2['team_1'] === $team2) ? $m2['table_1'] : $m2['table_2'];
+                    }
+
+                    break; // 
                 }
             }
-            unset($match); // Referenz freigeben
         }
+        unset($match);
 
-    }
-
-
-    // Build TR from RG1
-
-    /* TODO 
-
-    // Calculate the shift needed backwards from RG1 to TR
-    // 
-    // Four judging rounds: shift once               
-    //   2 lanes: two teams -> one match
-    //   3 lanes: three teams -> two match
-    //   4 lanes: four teams -> two matches
-    //   5 lanes: fives teams -> three matches
-    //
-    // Five or six judging rounds: shift twice, because there is no robot game linked to judging round two
-    //   2 lanes: two teams -> two matches
-    //   3 lanes: three teams -> three matches
-    //   4 lanes: four teams -> four matches
-    //   ...
-
-    if (pp("j_rounds") == 4) {
-        $r_shift = ceil(pp("j_lanes") / 2);                  // TODO old code treated one lane differently
-    } else {
-        $r_shift = pp("j_lanes");
-    }
-    
-    // Prepare to adjust asymmetric RGs
-    $r_empty_match = 0;
-
-    // Iterate through each match
-    for ($match = 1; $match <= pp("r_matches_per_round"); $match++) {
-
-         TODO
-
-
-        // For four tables with asymmetric robot games, we need to do more to prevent the same pair of tables being used twice
-        //
-        // The issue only happens if pp("r_asym") is true
-        // This means pp("c_teams") = 10, 14, 18, 22 or 26 teams (or one team less)
-        //
-        // pp("c_teams")  pp("j_rounds")  pp("j_lanes")   Match to add the empty game
-        //   10         5        2            3
-        //   14         5        3            4
-        //   18         6        3            4
-        //   18         5        4            5
-        //   22         6        4            5
-        //   25         5        5            6
-        //
-        // --> match = pp("j_lanes") + 1
-        //
-        // Solution is to add an empty match
-        // This increases the duration of TR by 10 minutes. This is handled when creating the full-day plan
-
-        if (pp("r_asym") && $match == pp("j_lanes") + 1) {
-            // Add a break = do nothing and move to the next match
-            // Set $r_empty_match to 1 to move all other matches down
-            $r_empty_match = 1;
-            r_add_match(0, $match, 0, 0 );
+        if ( pp('r_asym') ) {
             
-        }
-            TODO 
+            // For four tables with asymmetric robot games, we need to do more to prevent the same pair of tables being used twice
+            //
+            // The issue only happens if r_asym is true
+            // This means c_teams = 10, 14, 18, 22 or 26 teams (or one team less)
 
-        if ($match - $r_shift > 0) {
-            // Shift matches down from the top of RG1
-            r_add_test_match($match + $r_empty_match, $match - $r_shift);
-            
-        } else {
-            // Cycle matches up from the bottom of RG1
-            r_add_test_match($match + $r_empty_match, $match - $r_shift + pp("r_matches_per_round"));
-        }
+            // Solution is to add an empty match at tables 3+4 after j_lanes matches
+            // This increases the duration of TR by 10 minutes. This is handled when creating the full-day plan
 
-    } // for matches 1 to n
+            // Neue Liste aufbauen
+            $newList = [];
 
+            foreach ($r_match_plan as $entry) {
 
-    */
+                // Change only TR only 
+                if ($entry['round'] === 0) {
+                 
+                    if ($entry['match'] > pp("j_lanes")) {
+                        // Shift match number for all afterwards
+                        $entry['match'] += 1;
+                    }
+                } 
 
-    
-}
+                // copy all modified or unmodified entries
+                $newList[] = $entry;
+                    
+            }
+
+            // Insert new match after j_lanes matches
+            $newList[] = [
+                'round' => 0,
+                'match' => pp("j_lanes") + 1,
+                'table_1' => 3,
+                'table_2' => 4,
+                'team_1' => 0,
+                'team_2' => 0,
+            ];
+            $r_match_plan = $newList;
+
+        } 
+    }   
+}   
 
 // Add activity for one match to the database considering robot check and number of tables
 function r_insert_one_match($r_time, $duration, $table_1, $team_1, $table_2, $team_2, $robot_check) {
@@ -305,9 +234,6 @@ function r_insert_one_match($r_time, $duration, $table_1, $team_1, $table_2, $te
     }
 
     db_insert_activity(ID_ATD_R_MATCH, $time, $duration,  0, 0, $table_1, $team_1, $table_2, $team_2);
-    g_add_minutes($time, $duration);
-
-    return $time;
 
 }
 
@@ -361,7 +287,7 @@ function r_insert_one_round($round) {
             // add activities for one match. This includes robot check, if selected by organizer
             r_insert_one_match($r_time, $duration, $match['table_1'], $match['team_1'], $match['table_2'], $match['team_2'], pp("r_robot_check"));
         }
-
+        
         if (pp("r_tables") == 2) {              
             
             //Next match has to wait until this match is over

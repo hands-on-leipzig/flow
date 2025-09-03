@@ -64,37 +64,6 @@ const emit = defineEmits([
         </div>
       </div>
 
-      <!-- Jury Runden -->
-      <div>
-        <label class="block font-semibold mb-1">Jury-Runden</label>
-        <div class="flex gap-4">
-          <label class="flex items-center gap-1">
-            <input
-              type="checkbox"
-              :checked="juryRounds.rounds_4"
-              @change="emit('update:juryRounds', { ...juryRounds, rounds_4: $event.target.checked })"
-            />
-            4
-          </label>
-          <label class="flex items-center gap-1">
-            <input
-              type="checkbox"
-              :checked="juryRounds.rounds_5"
-              @change="emit('update:juryRounds', { ...juryRounds, rounds_5: $event.target.checked })"
-            />
-            5
-          </label>
-          <label class="flex items-center gap-1">
-            <input
-              type="checkbox"
-              :checked="juryRounds.rounds_6"
-              @change="emit('update:juryRounds', { ...juryRounds, rounds_6: $event.target.checked })"
-            />
-            6
-          </label>
-        </div>
-      </div>
-
       <!-- Jury Lanes -->
       <div>
         <label class="block font-semibold mb-1">Jury-Spuren</label>
@@ -139,6 +108,38 @@ const emit = defineEmits([
           </label>
         </div>
       </div>
+
+      <!-- Jury Runden -->
+      <div>
+        <label class="block font-semibold mb-1">Jury-Runden</label>
+        <div class="flex gap-4">
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              :checked="juryRounds.rounds_4"
+              @change="emit('update:juryRounds', { ...juryRounds, rounds_4: $event.target.checked })"
+            />
+            4
+          </label>
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              :checked="juryRounds.rounds_5"
+              @change="emit('update:juryRounds', { ...juryRounds, rounds_5: $event.target.checked })"
+            />
+            5
+          </label>
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              :checked="juryRounds.rounds_6"
+              @change="emit('update:juryRounds', { ...juryRounds, rounds_6: $event.target.checked })"
+            />
+            6
+          </label>
+        </div>
+      </div>
+
 
       <!-- Robot-Check -->
       <div>
