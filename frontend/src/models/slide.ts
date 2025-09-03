@@ -4,6 +4,7 @@ import {RobotGameSlideContent} from "./robotGameSlideContent";
 import {UrlSlideContent} from "./urlSlideContent";
 import {PhotoSlideContent} from "./photoSlideContent";
 import {FabricSlideContent} from "./fabricSlideContent";
+import {PublicPlanSlideContent} from "./publicPlanSlideContent";
 
 export class Slide {
 
@@ -15,36 +16,6 @@ export class Slide {
         this.id = id;
         this.name = name;
         this.content = content;
-    }
-
-    public static fromArray(arr: object[]): Slide[] {
-        return arr.map(obj => {
-            let content: SlideContent;
-
-            if (obj['content']) {
-                switch (obj['content'].type) {
-                    case "ImageSlideContent":
-                        content = new ImageSlideContent(obj['content'].imageUrl);
-                        break;
-                    case "RobotGameSlideContent":
-                        content = new RobotGameSlideContent();
-                        break;
-                    case "UrlSlideContent":
-                        content = new UrlSlideContent(obj['content'].url);
-                        break;
-                    case "PhotoSlideContent":
-                        content = new PhotoSlideContent();
-                        break;
-                    case "FabricSlideContent":
-                        content = new FabricSlideContent(obj['content'].json);
-                        break;
-                    default:
-                        console.error("Unknown slide content type: " + obj['content'].type);
-                        content = null;
-                }
-            }
-            return new Slide(obj['id'], obj['name'], content);
-        });
     }
 
     public static fromObject(obj: any): Slide {
@@ -68,6 +39,9 @@ export class Slide {
                     break;
                 case "FabricSlideContent":
                     content = new FabricSlideContent(c.json);
+                    break;
+                case "PublicPlanSlideContent":
+                    content = new PublicPlanSlideContent(c.planId, c.hours);
                     break;
                 default:
                     console.error("Unknown slide content type: " + c.type);

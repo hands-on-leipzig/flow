@@ -15,23 +15,6 @@ socket.addListener((msg) => {
   }
 }); */
 
-function getFormattedDateTime() {
-  const now = new Date();
-
-  now.setDate(29)
-
-  // Get date components
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are 0-based
-  const day = String(now.getDate()).padStart(2, '0');
-
-  // Get time components
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-
-  return `${year}-${month}-${day}+${hours}:${minutes}`;
-}
-
 const props = defineProps<{
   eventId: Number
 }>();
@@ -39,7 +22,6 @@ const props = defineProps<{
 let loaded = ref(false)
 
 let slideshow = ref(null)
-let slide = ref(null)
 let showSlide = ref(false)
 let slideKey = ref(0)
 
@@ -53,7 +35,6 @@ async function fetchSlides() {
       }
       resShow.slides = slides;
       slideshow.value = resShow;
-      slide.value = slides[0];
       showSlide.value = !!slides[0];
     }
 
@@ -68,8 +49,6 @@ async function fetchSlides() {
         i = 0;
       }
       slideKey.value = i;
-      slide.value = slideshow.value.slides[i];
-      console.log(slide.value);
     }, (slideshow.value.transition_time ?? 15) * 1000);
   }
 }
@@ -86,7 +65,9 @@ onMounted(fetchSlides)
 </script>
 
 <template>
-  <SlideContentRenderer v-if="showSlide === true" :slide="slide" class="" :preview="false"/>
+  <div v-if="showSlide" v-for="(slide, index) in slideshow?.slides" class="h-screen w-full" v-show="index === slideKey">
+    <SlideContentRenderer :slide="slide" :preview="false"/>
+  </div>
   <!-- <footer>
     <div>
       <img :src="logo1_cut" alt="logo">
@@ -123,12 +104,5 @@ footer div {
 
 footer img {
   max-height: 9vh;
-}
-
-.slide {
-  /*display: flex;*/
-
-  overflow: hidden;
-  cursor: none;
 }
 </style>

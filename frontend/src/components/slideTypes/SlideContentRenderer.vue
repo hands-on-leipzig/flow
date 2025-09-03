@@ -11,6 +11,8 @@ import {PhotoSlideContent} from "../../models/photoSlideContent.js";
 import PhotoSlideContentRenderer from "./PhotoSlideContentRenderer.vue";
 import {FabricSlideContent} from "../../models/fabricSlideContent.js";
 import FabricSlideContentRenderer from "./FabricSlideContentRenderer.vue";
+import {PublicPlanSlideContent} from "@/models/publicPlanSlideContent";
+import PublicPlanSlideContentRenderer from "@/components/slideTypes/PublicPlanSlideContentRenderer.vue";
 
 const props = withDefaults(defineProps<{
   slide: Slide,
@@ -31,8 +33,10 @@ const componentName = computed(() => {
     return PhotoSlideContentRenderer;
   } else if (content instanceof FabricSlideContent) {
     return FabricSlideContentRenderer;
+  } else if (content instanceof PublicPlanSlideContent) {
+    return PublicPlanSlideContentRenderer;
   }
-  // TODO: Add renderers for other subtypes (RobotGameScore, FlowView, etc)
+  console.warn("Missing renderer for slide content type:", content);
   return null;
 })
 </script>
