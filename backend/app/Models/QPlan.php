@@ -21,6 +21,7 @@ class QPlan extends Model
         'r_tables',
         'j_lanes',
         'j_rounds',
+        'r_asym',
         'r_robot_check',
         'r_duration_robot_check',
         'c_duration_transfer',

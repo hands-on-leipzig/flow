@@ -12,6 +12,7 @@ use App\Jobs\GeneratePlanJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class PlanController extends Controller
 {
@@ -34,8 +35,8 @@ class PlanController extends Controller
         $newId = DB::table('plan')->insertGetId([
             'name' => 'Zeitplan',
             'event' => $eventId,
-            'created' => now(),
-            'last_change' => now(),
+            'created' => Carbon::now(),
+            'last_change' => Carbon::now(),
             'public' => false
         ]);
 
@@ -86,6 +87,14 @@ class PlanController extends Controller
 
         $plan->generator_status = 'running';
         $plan->save();
+
+        // Note the start
+        DB::table('s_generator')->insertGetId([
+            'plan' => $planId,
+            'start' => \Carbon\Carbon::now(),
+            'mode' => $async ? 'job' : 'direct',
+        ]);
+
 
         if ($async) {
         

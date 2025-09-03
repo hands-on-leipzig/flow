@@ -64,9 +64,54 @@ const emit = defineEmits([
         </div>
       </div>
 
+      <!-- Jury Lanes -->
+      <div>
+        <label class="block font-semibold mb-1">Jury-Spuren</label>
+        <div class="flex flex-wrap gap-2">
+          <label
+            v-for="i in 5"
+            :key="'lane_' + i"
+            class="flex items-center gap-1"
+          >
+            <input
+              type="checkbox"
+              :checked="juryLanes['lane_' + i]"
+              @change="emit('update:juryLanes', {
+                ...juryLanes,
+                ['lane_' + i]: $event.target.checked
+              })"
+            />
+            {{ i }}
+          </label>
+        </div>
+      </div>
+
+      <!-- Table Types -->
+      <div>
+        <label class="block font-semibold mb-1">RG-Tische</label>
+        <div class="flex gap-4">
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              :checked="tables.tables_2"
+              @change="emit('update:tables', { ...tables, tables_2: $event.target.checked })"
+            />
+            2
+          </label>
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              :checked="tables.tables_4"
+              @change="emit('update:tables', { ...tables, tables_4: $event.target.checked })"
+            />
+            4
+          </label>
+        </div>
+      </div>
+
       <!-- Jury Runden -->
       <div>
-        <label class="block font-semibold mb-1">Anzahl Jury-Runden</label>
+        <label class="block font-semibold mb-1">Jury-Runden</label>
         <div class="flex gap-4">
           <label class="flex items-center gap-1">
             <input
@@ -95,50 +140,6 @@ const emit = defineEmits([
         </div>
       </div>
 
-      <!-- Jury Lanes -->
-      <div>
-        <label class="block font-semibold mb-1">Jury-Spuren</label>
-        <div class="flex flex-wrap gap-2">
-          <label
-            v-for="i in 5"
-            :key="'lane_' + i"
-            class="flex items-center gap-1"
-          >
-            <input
-              type="checkbox"
-              :checked="juryLanes['lane_' + i]"
-              @change="emit('update:juryLanes', {
-                ...juryLanes,
-                ['lane_' + i]: $event.target.checked
-              })"
-            />
-            {{ i }}
-          </label>
-        </div>
-      </div>
-
-      <!-- Table Types -->
-      <div>
-        <label class="block font-semibold mb-1">Anzahl RG-Tische</label>
-        <div class="flex gap-4">
-          <label class="flex items-center gap-1">
-            <input
-              type="checkbox"
-              :checked="tables.tables_2"
-              @change="emit('update:tables', { ...tables, tables_2: $event.target.checked })"
-            />
-            2
-          </label>
-          <label class="flex items-center gap-1">
-            <input
-              type="checkbox"
-              :checked="tables.tables_4"
-              @change="emit('update:tables', { ...tables, tables_4: $event.target.checked })"
-            />
-            4
-          </label>
-        </div>
-      </div>
 
       <!-- Robot-Check -->
       <div>
