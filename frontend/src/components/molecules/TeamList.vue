@@ -204,11 +204,11 @@ onMounted(async () => {
             <span class="text-sm w-12 text-gray-500">{{ team.team_number_hot }}</span>
 
             <!-- Eingabefeld -->
-<input
-  v-model="team.name"
-  @blur="updateTeamName(team)"
-  class="editable-input flex-1 text-sm"
-/>
+          <input
+            v-model="team.name"
+            @blur="updateTeamName(team)"
+            class="editable-input flex-1 text-sm"
+          />
             
 
             <!-- Drag-Handle -->
