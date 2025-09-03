@@ -332,6 +332,11 @@ onMounted(async () => {
 
 <template>
   <div class="h-screen p-6 flex flex-col space-y-5">
+    <div>
+      <a target="_blank" :href="'https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=' + selectedPlanId">
+        Link zum öPlan: https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan={{ selectedPlanId }}
+      </a>
+    </div>
     <!-- Pending parameter updates indicator -->
     <div v-if="hasPendingParamUpdates"
          class="flex items-center gap-2 text-orange-600 text-sm bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
