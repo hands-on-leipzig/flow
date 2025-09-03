@@ -13,8 +13,9 @@ return new class extends Migration {
         Schema::create('slideshow', function (Blueprint $table) {
             $table->id();
 
-            $table->json('name');
+            $table->string('name');
             $table->unsignedInteger('event');
+            $table->integer('transition_time')->default(15);
             $table->foreign('event')->references('id')->on('event');
         });
 
@@ -22,7 +23,7 @@ return new class extends Migration {
             $table->id();
 
             $table->string('name');
-            $table->text('content');
+            $table->json('content');
             $table->unsignedBigInteger('slideshow_id');
             $table->foreign('slideshow_id')->references('id')->on('slideshow')->onDelete('cascade');
         });

@@ -13,7 +13,7 @@ class CarouselController extends Controller
     {
         $slideshows = SlideShow::where('event', $eventId)
             ->with('slides')
-            ->findOrFail($eventId);
+            ->get();
 
         return response()->json($slideshows);
     }

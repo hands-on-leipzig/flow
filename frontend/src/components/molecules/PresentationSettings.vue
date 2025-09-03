@@ -5,6 +5,7 @@ import {useEventStore} from "@/stores/event";
 import {computed} from "vue";
 import SvgIcon from '@jamescoyle/vue-icon';
 import { mdiContentCopy } from '@mdi/js';
+import {FabricSlideContent} from "@/models/fabricSlideContent";
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
@@ -42,9 +43,10 @@ function copyUrl(url) {
       <summary class="font-bold">{{ slideshow.name }}</summary>
       <div class="flex items-center gap-2">
         <div v-for="slide in slideshow.slides" key="slideshow.id">
-          <router-link :to="`/editSlide/${slideshow.id}/${slide.id}`">
+          <router-link v-if="slide.content instanceof FabricSlideContent" :to="`/editSlide/${slideshow.id}/${slide.id}`">
             <SlideThumb :slide="slide" class="w-24 h-16 border rounded" @click=""/>
           </router-link>
+          <SlideThumb v-else :slide="slide" class="w-24 h-16 border rounded"/>
         </div>
       </div>
     </details>

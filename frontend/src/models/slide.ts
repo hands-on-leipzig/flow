@@ -53,7 +53,6 @@ export class Slide {
         // @ts-ignore
         if (obj.content) {
             const c = JSON.parse(obj.content);
-            console.log(c.type, c.json);
             switch (c.type) {
                 case "ImageSlideContent":
                     content = new ImageSlideContent(c.imageUrl);
@@ -74,7 +73,6 @@ export class Slide {
                     console.error("Unknown slide content type: " + c.type);
                     content = null;
             }
-            console.log(content);
         }
         return new Slide(obj.id, obj.name, content);
     }

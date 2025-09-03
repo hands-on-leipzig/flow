@@ -14,6 +14,7 @@ class SlideShow extends Model
         'id',
         'name',
         'event',
+        'transition_time',
     ];
 
     public function event()

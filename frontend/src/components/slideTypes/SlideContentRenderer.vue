@@ -19,10 +19,6 @@ const props = withDefaults(defineProps<{
   preview: false
 });
 
-onMounted(() => {
-  console.log(JSON.stringify(props.slide));
-})
-
 const componentName = computed(() => {
   const content = props.slide.content;
   if (content instanceof ImageSlideContent) {

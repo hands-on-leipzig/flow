@@ -36,44 +36,41 @@ const props = defineProps<{
   eventId: Number
 }>();
 
-let settings = reactive({
-  transitionTime: 15,
-  transitionEffect: "fade",
-})
-
 let loaded = ref(false)
 
-let slide = ref()
+let slideshow = ref(null)
+let slide = ref(null)
 let showSlide = ref(false)
-let slideKey = ref(1)
+let slideKey = ref(0)
 
 async function fetchSlides() {
-  const response = await axios.get("/carousel/1/slideshows");
+  const response = await axios.get(`/carousel/${props.eventId}/slideshows`);
   if (response && response.data) {
-    const slides = [];
-    for (let slide of response.data.slides) {
-      slides.push(Slide.fromObject(slide));
-    }
-
-    console.log(slides);
-    if (slides.length > 0) {
+    for (const resShow of response.data) {
+      const slides = [];
+      for (let slide of resShow.slides) {
+        slides.push(Slide.fromObject(slide));
+      }
+      resShow.slides = slides;
+      slideshow.value = resShow;
       slide.value = slides[0];
-      showSlide.value = true;
+      showSlide.value = !!slides[0];
     }
-  }
-}
 
-async function fetchSettings() {
-  // TODO
-  try {
-    const response = await axios.get(`/carousel/${props.eventId}/settings`)
-    if (response && response.data) {
-      Object.keys(settings).forEach((key) => {
-        settings[key] = response.data[key]
-      })
-    }
-  } catch (error) {
-    console.log("Error fetching settings: ", error.message)
+    console.log(slideshow.value.transition_time);
+
+    setInterval(() => {
+      if (!slideshow.value?.slides?.length) {
+        return;
+      }
+      let i = slideKey.value + 1;
+      if (i >= slideshow.value.slides.length) {
+        i = 0;
+      }
+      slideKey.value = i;
+      slide.value = slideshow.value.slides[i];
+      console.log(slide.value);
+    }, (slideshow.value.transition_time ?? 15) * 1000);
   }
 }
 
@@ -83,18 +80,13 @@ function startFetchingSlides() {
   }, 300000)*/
 }
 
-onMounted(fetchSettings)
 onMounted(startFetchingSlides)
 onMounted(fetchSlides)
-/*onMounted(setInterval(function() {
-  location.reload()
-}, 300000))
-*/
 
 </script>
 
 <template>
-  <SlideContentRenderer v-if="showSlide === true" :slide="slide" class=""/>
+  <SlideContentRenderer v-if="showSlide === true" :slide="slide" class="" :preview="false"/>
   <!-- <footer>
     <div>
       <img :src="logo1_cut" alt="logo">
