@@ -343,12 +343,18 @@ function g_generator($plan_id) {
             // number of matches before teams must be back from judging
             if ( $c_block == pp("j_rounds") && (pp("c_teams") % pp("j_lanes")) <> 0) {
 
-                    // not all lanes filled in last round of judging
-                    $r_mb = pp("r_matches_per_round") - ceil((pp("c_teams") % pp("j_lanes")) / 2);
+                // not all lanes filled in last round of judging
+                $r_mb = pp("r_matches_per_round") - ceil((pp("c_teams") % pp("j_lanes")) / 2);
 
-                } else {
-                    $r_mb = pp("r_matches_per_round") - ceil(pp("j_lanes") / 2);         
-                }       
+            } else {
+                $r_mb = pp("r_matches_per_round") - ceil(pp("j_lanes") / 2);         
+            }       
+
+            // If asymmetrical match plan, one empty match is added into the test round.
+            // This is adds on match to the calulation
+            if ($c_block == 1 && pp("r_asym")) {
+                $r_mb++;
+            }
 
             // calculate time to START of match
             if (pp("r_tables") == 2) {

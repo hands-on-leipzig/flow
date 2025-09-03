@@ -54,7 +54,7 @@ class ExecuteQPlanJob implements ShouldQueue
         Log::info("qPlan {$qPlan->id}: creation of plan $planId dispatched");
 
         $pc = new PlanController();
-        $pc->generate($planId, true);
+        $pc->generate($planId, false);   // run synchronously as part of this job
 
         // Log::info("qPlan {$qPlan->id}: dispatch of quality evaluation for plan $planId");
 
