@@ -369,20 +369,21 @@ onMounted(async () => {
       <transition name="fade">
         <div v-if="openGroup === 'general'" class="p-4">
           <div class="grid grid-cols-3 gap-4 mt-4">
-            <ChallengeSettings
-                :parameters="parameters"
-                :show-challenge="showChallenge"
-                :lanes-index="lanesIndex"
-                @toggle-show="(v) => showChallenge = v"
-                @update-param="handleParamUpdate"
-            />
-            <ExploreSettings
+              <ExploreSettings
                 :parameters="parameters"
                 :show-explore="showExplore"
                 @toggle-show="(v) => showExplore = v"
                 :lanes-index="lanesIndex"
                 @update-param="handleParamUpdate"
             />
+              <ChallengeSettings
+                :parameters="parameters"
+                :show-challenge="showChallenge"
+                :lanes-index="lanesIndex"
+                @toggle-show="(v) => showChallenge = v"
+                @update-param="handleParamUpdate"
+            />
+
             <TimeSettings
                 :parameters="parameters"
                 :visibilityMap="visibilityMap"
