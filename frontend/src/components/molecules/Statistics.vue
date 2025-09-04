@@ -2,6 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 
+import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
+
 const data = ref(null)
 const loading = ref(true)
 const error = ref(null)
@@ -97,30 +99,6 @@ function shouldShowEvent(index) {
 
 const getPlanCount = (eventId) => {
   return flattenedRows.value.filter(r => r.event_id === eventId && r.plan_id !== null).length
-}
-
-function formatDateTime(datetimeString) {
-  if (!datetimeString) return ''
-  const date = new Date(datetimeString)
-  if (isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat(navigator.language, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(date)
-}
-function formatDateOnly(dateString) {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat(navigator.language, {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).format(date)
 }
 
 </script>
