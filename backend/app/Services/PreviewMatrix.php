@@ -100,7 +100,7 @@ public function buildRolesMatrix(Collection $activities): array
         }
     }
 
-    // 3b) TABLE-Rollen: pro Programm indexweise RC→RG→(andere) je Tisch
+    // 3b) TABLE-Rollen: in 2er-Blöcken RC→…→RG pro Programm
     foreach (['E', 'C'] as $progLetter) {
         if (empty($tablesUsed)) {
             continue;
@@ -109,7 +109,7 @@ public function buildRolesMatrix(Collection $activities): array
         $rcRole = $tableRolesByProg[$progLetter]['RC'] ?? null;
         $rgRole = $tableRolesByProg[$progLetter]['RG'] ?? null;
 
-        // „Andere“ table-basierte Rollen stabil in Originalreihenfolge
+        // „Andere“ table-basierte Rollen stabil in Originalreihenfolge (ohne RC/RG)
         $otherTableRoles = [];
         foreach ($roles as $r) {
             $pL = ((int)$r->first_program === 2) ? 'E' : 'C';
@@ -121,27 +121,41 @@ public function buildRolesMatrix(Collection $activities): array
             $otherTableRoles[] = [$r, $sk];
         }
 
-        foreach ($tablesUsed as $t) {
+        // In 2er-Blöcke schneiden: [t1,t2], [t3,t4], ...
+        $blocks = array_chunk($tablesUsed, 2);
+
+        foreach ($blocks as $block) {
+            // 1) RC für alle Tische im Block
             if ($rcRole) {
                 $titleBase = (string)($rcRole->name_short ?: $rcRole->name);
-                $addHeader([
-                    'key'   => strtolower($progLetter) . '_RC' . 't' . $t, // e.g. c_RCt1
-                    'title' => "{$titleBase}{$t}",
-                ]);
+                foreach ($block as $t) {
+                    $addHeader([
+                        'key'   => strtolower($progLetter) . '_RC' . 't' . $t, // z. B. c_RCt1
+                        'title' => "{$titleBase}{$t}",
+                    ]);
+                }
             }
+
+            // 2) RG für alle Tische im Block
             if ($rgRole) {
                 $titleBase = (string)($rgRole->name_short ?: $rgRole->name);
-                $addHeader([
-                    'key'   => strtolower($progLetter) . '_RG' . 't' . $t, // e.g. c_RGt1
-                    'title' => "{$titleBase}{$t}",
-                ]);
+                foreach ($block as $t) {
+                    $addHeader([
+                        'key'   => strtolower($progLetter) . '_RG' . 't' . $t, // z. B. c_RGt1
+                        'title' => "{$titleBase}{$t}",
+                    ]);
+                }
             }
+
+            // 3) Andere table-basierte Rollen (falls vorhanden) für die Tische im Block
             foreach ($otherTableRoles as [$r, $sk]) {
                 $titleBase = (string)($r->name_short ?: $r->name);
-                $addHeader([
-                    'key'   => strtolower($progLetter) . '_' . $sk . 't' . $t,
-                    'title' => "{$titleBase}{$t}",
-                ]);
+                foreach ($block as $t) {
+                    $addHeader([
+                        'key'   => strtolower($progLetter) . '_' . $sk . 't' . $t,
+                        'title' => "{$titleBase}{$t}",
+                    ]);
+                }
             }
         }
     }
