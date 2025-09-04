@@ -124,6 +124,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/details/{qPlanId}', [QualityController::class, 'getQPlanDetails']);  // Einzelplan-Details
         Route::post('/rerun', [QualityController::class, 'rerunQPlans']);
         Route::delete('/delete/{qRunId}', [QualityController::class, 'deleteQRun']);        // Löschen eines Runs und aller zugehörigen Pläne
+        Route::delete('/compress/{qRunId}', [QualityController::class, 'compressQRun']);    // Löschen nur der zugehörigen Pläne
     });
 
     // Statistic controller 
