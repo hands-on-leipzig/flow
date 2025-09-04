@@ -10,6 +10,8 @@ class GeneratePlan
 {
     public static function run(int $planId): void
     {
+        /* not needed anymore, because of cascading delete 
+
         // Remove existing activities
         $groupIds = DB::table('activity_group')
             ->where('plan', $planId)
@@ -17,7 +19,9 @@ class GeneratePlan
 
         DB::table('activity')
             ->whereIn('activity_group', $groupIds)
-            ->delete();
+            ->delete();            
+
+        --- */    
 
         DB::table('activity_group')
             ->where('plan', $planId)

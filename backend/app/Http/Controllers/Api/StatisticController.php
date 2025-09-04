@@ -29,6 +29,8 @@ class StatisticController extends Controller
                 'event.name as event_name',
                 'event.date as event_date',
                 'event.season as event_season_id',
+                'event.event_explore as event_explore', 
+                'event.event_challenge as event_challenge',
 
                 // Season
                 'm_season.id as season_id',
@@ -93,6 +95,8 @@ class StatisticController extends Controller
                     'event_id' => $row->event_id,
                     'event_name' => $row->event_name,
                     'event_date' => $row->event_date,
+                    'event_explore' => $row->event_explore,
+                    'event_challenge' => $row->event_challenge,
                     'plans' => [],
                 ];
             }
@@ -136,40 +140,157 @@ class StatisticController extends Controller
             })
             ->all();
 
-// Kommentieren (einfachste Lösung)
- // \Log::debug('StatisticsController: plans_by_season JSON', ['seasons' => $seasons]);
-
-// Oder: Nur Metadaten loggen
-\Log::debug('StatisticsController: plans_by_season JSON summary', [
-    'season_count' => count($seasons),
-    'plan_count' => collect($seasons)->flatMap(fn($s) =>
-        collect($s['partners'])->flatMap(fn($p) =>
-            collect($p['events'])->flatMap(fn($e) => $e['plans'])
-        )
-    )->count(),
-]);
-
         return response()->json([
             'seasons' => $seasons,
         ]);
     }
 
 
-/*
-        $genStatsRaw = DB::table('s_generator')
-            ->whereIn('plan', $plansWithEvent->pluck('plan_id'))
-            ->whereNotNull('start')
-            ->whereNotNull('end')
-            ->select(
-                'plan',
-                DB::raw('COUNT(*) as count'),
-                DB::raw('ROUND(AVG(TIMESTAMPDIFF(SECOND, start, end)), 2) as avg_seconds'),
-                DB::raw('MIN(TIMESTAMPDIFF(SECOND, start, end)) as min_seconds'),
-                DB::raw('MAX(TIMESTAMPDIFF(SECOND, start, end)) as max_seconds')
-            )
-            ->groupBy('plan')
-            ->get()
-            ->keyBy('plan');
-*/
+    public function totals(): JsonResponse
+    {
+        // Saisons laden (sortiert)
+        $seasons = DB::table('m_season')
+            ->select('id', 'name as season_name', 'year as season_year')
+            ->orderBy('year')
+            ->get();
 
+        $resultSeasons = [];
+
+        foreach ($seasons as $season) {
+            $sid = $season->id;
+
+            // --- RP: total (alle RPs, unabhängig von Saison) ---
+            $rpTotal = DB::table('regional_partner')->count();      
+
+            // --- RP: mit mind. einem Event in der Saison ---
+            $rpWithEvents = DB::table('event')
+                ->where('event.season', $sid)
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+                ->distinct('event.regional_partner')
+                ->count('event.regional_partner');
+
+            // --- Events: total & Plan-Verteilung & ungültige RP-Refs ---
+            $eventsTotal = DB::table('event')->where('season', $sid)->count();
+
+            // Events je Plan-Anzahl (0/1/mehr)
+            $eventPlanCounts = DB::table('event')
+                ->leftJoin('plan', 'plan.event', '=', 'event.id')
+                ->where('event.season', $sid)
+                ->groupBy('event.id')
+                ->selectRaw('event.id, COUNT(plan.id) as plan_count')
+                ->pluck('plan_count');
+
+            $withZeroPlans      = $eventPlanCounts->filter(fn ($c) => $c == 0)->count();
+            $withOnePlan        = $eventPlanCounts->filter(fn ($c) => $c == 1)->count();
+            $withMultiplePlans  = $eventPlanCounts->filter(fn ($c) => $c > 1)->count();
+            $withPlan = $withOnePlan + $withMultiplePlans;
+
+            // Events mit ungültigem RP (Left Join → RP fehlt)
+            $invalidEventRp = DB::table('event')
+                ->leftJoin('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+                ->where('event.season', $sid)
+                ->whereNull('regional_partner.id')
+                ->count('event.id');
+
+            // --- Plans in der Saison ---
+            $plansTotal = DB::table('plan')
+                ->join('event', 'event.id', '=', 'plan.event')
+                ->where('event.season', $sid)
+                ->count('plan.id');
+
+            // --- Activity Groups in der Saison ---
+            $activityGroupsTotal = DB::table('activity_group')
+                ->join('plan', 'plan.id', '=', 'activity_group.plan')
+                ->join('event', 'event.id', '=', 'plan.event')
+                ->where('event.season', $sid)
+                ->count('activity_group.id');
+
+            // --- Activities in der Saison ---
+            $activitiesTotal = DB::table('activity')
+                ->join('activity_group', 'activity_group.id', '=', 'activity.activity_group')
+                ->join('plan', 'plan.id', '=', 'activity_group.plan')
+                ->join('event', 'event.id', '=', 'plan.event')
+                ->where('event.season', $sid)
+                ->count('activity.id');
+
+            $resultSeasons[] = [
+                'season_id'    => $season->id,
+                'season_name'  => $season->season_name,
+                'season_year'  => $season->season_year,
+                'rp' => [
+                    'total'        => $rpTotal,       // <— NEU
+                    'with_events'  => $rpWithEvents,
+                ],
+                'events' => [
+                    'total'                => $eventsTotal,
+                    'with_zero_plans'      => $withZeroPlans,
+                    'with_one_plan'        => $withOnePlan,
+                    'with_multiple_plans'  => $withMultiplePlans,
+                    'with_plan'            => $withPlan,   // <— NEU (Summe)
+                    'invalid_partner_refs' => $invalidEventRp,
+                ],
+                'plans' => [
+                    'total' => $plansTotal,
+                ],
+                'activity_groups' => [
+                    'total' => $activityGroupsTotal,
+                ],
+                'activities' => [
+                    'total' => $activitiesTotal,
+                ],
+            ];
+        }
+
+        // --- Globale Waisen (saisonunabhängig) ---
+
+        $eventsOrphans = DB::table('event')
+            ->leftJoin('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+            ->where(function ($q) {
+                $q->whereNull('event.regional_partner')      // FK fehlt
+                ->orWhereNull('regional_partner.id');      // ungültige Referenz
+            })
+            ->count('event.id');
+
+        $plansOrphans = DB::table('plan')
+            ->leftJoin('event', 'event.id', '=', 'plan.event')
+            ->where(function ($q) {
+                $q->whereNull('plan.event')                  // FK fehlt
+                ->orWhereNull('event.id');                 // ungültige Referenz
+            })
+            ->count('plan.id');
+        
+        $agOrphans = DB::table('activity_group')
+            ->leftJoin('plan', 'plan.id', '=', 'activity_group.plan')
+            ->where(function ($q) {
+                $q->whereNull('activity_group.plan')         // FK fehlt
+                ->orWhereNull('plan.id');                  // ungültige Referenz
+            })
+            ->count('activity_group.id');
+
+        $actOrphans = DB::table('activity')
+            ->leftJoin('activity_group', 'activity_group.id', '=', 'activity.activity_group')
+            ->where(function ($q) {
+                $q->whereNull('activity.activity_group')   // FK fehlt
+                ->orWhereNull('activity_group.id');      // ungültige Referenz
+            })
+            ->count('activity.id');
+
+        return response()->json([
+            'seasons' => $resultSeasons,
+            'global_orphans' => [
+                'events' => [
+                    'orphans' => $eventsOrphans,
+                ],
+                'plans' => [
+                    'orphans' => $plansOrphans,
+                ],
+                'activity_groups' => [
+                    'orphans' => $agOrphans,
+                ],
+                'activities' => [
+                    'orphans' => $actOrphans,
+                ],
+            ],
+        ]);
+    }
 }
