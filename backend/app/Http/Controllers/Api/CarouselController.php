@@ -86,4 +86,23 @@ class CarouselController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function addSlide(Request $request, $slideshowId)
+    {
+        $fields = [
+            'name',
+            'type',
+            'content',
+            'order',
+        ];
+
+        $data = $request->only($fields);
+        $data['slideshow_id'] = $slideshowId;
+
+        // TODO Validierung (Type korrekt) und Rechte-Check
+
+        $slide = Slide::create($data);
+
+        return response()->json(['success' => true, 'slide' => $slide]);
+    }
+
 }

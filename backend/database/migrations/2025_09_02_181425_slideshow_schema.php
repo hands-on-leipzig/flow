@@ -13,7 +13,7 @@ return new class extends Migration {
         Schema::create('slideshow', function (Blueprint $table) {
             $table->id();
 
-            $table->string('name');
+            $table->string('name')->nullable(true);
             $table->unsignedInteger('event');
             $table->integer('transition_time')->default(15);
             $table->foreign('event')->references('id')->on('event');

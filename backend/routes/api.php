@@ -90,6 +90,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/slides/{slide}', [CarouselController::class, 'updateSlide']);
     Route::delete('/slides/{slide}', [CarouselController::class, 'deleteSlide']);
     Route::put('/slideshow/{slideshow}/updateOrder', [CarouselController::class, 'updateSlideshowOrder']);
+    Route::put('/slideshow/{slideshow}/add', [CarouselController::class, 'addSlide']);
 
     // Team controller
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);

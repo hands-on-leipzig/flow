@@ -45,4 +45,9 @@ export class Slide {
                 return null;
         }
     }
+
+    public static createNewSlide(type: string): Slide {
+        const content = Slide.getContentFromType({type, content: "{}"});
+        return new Slide({type}, content);
+    }
 }

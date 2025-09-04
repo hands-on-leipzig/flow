@@ -15,6 +15,7 @@ class Slide extends Model
         'name',
         'type',
         'content',
+        'order',
         'slideshow_id',
     ];
 

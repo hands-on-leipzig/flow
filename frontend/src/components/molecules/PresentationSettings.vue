@@ -8,6 +8,7 @@ import SvgIcon from '@jamescoyle/vue-icon';
 import {mdiContentCopy} from '@mdi/js';
 import {Slideshow} from "@/models/slideshow";
 import axios from "axios";
+import {Slide} from "@/models/slide";
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
@@ -16,6 +17,14 @@ const carouselLink = computed(() => {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
 });
 const slidesKey = ref(1);
+
+const slideType = ref("");
+const slideTypes = [
+  { value: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse' },
+  { value: 'PublicPlanSlideContent', label: 'Öffentlicher Zeitplan' },
+  { value: 'UrlSlideContent', label: 'Externer Inhalt (URL)' },
+  { value: 'FabricSlideContent', label: 'Eigener Inhalt' },
+];
 
 async function updateOrder(slideshow: Slideshow) {
   const slideIds = slideshow.slides.map(slide => slide.id);
@@ -34,6 +43,35 @@ function deleteSlide(slideshow: Slideshow, slideId: number) {
   const index = slideshow.slides.findIndex(s => s.id === slideId);
   if (index !== -1) {
     slideshow.slides.splice(index, 1);
+  }
+}
+
+async function addSlide(slideshow: Slideshow) {
+  if (slideType.value) {
+    let newSlide = Slide.createNewSlide(slideType.value);
+
+    // TODO
+    if (slideType.value === 'PublicPlanSlideContent') {
+      newSlide.name = 'Öffentlicher Zeitplan';
+      console.log(event.value);
+      newSlide.content.planId = 8457; // TODO
+    } else if (slideType.value === 'RobotGameSlideContent') {
+      newSlide.name = 'Robot-Game-Ergebnisse';
+    } else if (slideType.value === 'UrlSlideContent') {
+      newSlide.name = 'Externer Inhalt';
+    } else if (slideType.value === 'FabricSlideContent') {
+      newSlide.name = 'Eigener Inhalt';
+    }
+
+    const content = JSON.stringify(newSlide.content.toJSON());
+    newSlide = { ...newSlide, content, order: slideshow.slides.length + 1 };
+    try {
+      const response = await axios.put(`slideshow/${slideshow.id}/add`, newSlide);
+      console.log(response.data.slide);
+      slideshow.slides.push(response.data.slide);
+    } catch (e) {
+      console.error(e);
+    }
   }
 }
 
@@ -64,14 +102,20 @@ function copyUrl(url) {
     </div>
     <details v-for="(slideshow, index) in event?.slideshows" :open="index === 0">
       <summary class="font-bold">{{ slideshow.name }}</summary>
+      <select v-model="slideType">
+        <option v-for="type of slideTypes" :id="type.value" v-text="type.label" :value="type.value"></option>
+      </select>
+      <button
+          class="my-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
+          @click="addSlide(slideshow)">
+        + Folie hinzufügen
+      </button>
       <draggable v-model="slideshow.slides" :key="slidesKey"
                  class="draggable-list flex items-center flex-wrap flex-row gap-2" ghost-class="ghost" group="slides"
                  item-key="id"
                  @end="updateOrder(slideshow)">
         <template #item="{ element }">
-          <router-link :to="`/editSlide/${element.id}`">
             <SlideThumb :slide="element" class="border rounded" @deleteSlide="deleteSlide(slideshow, element.id)"/>
-          </router-link>
         </template>
       </draggable>
     </details>

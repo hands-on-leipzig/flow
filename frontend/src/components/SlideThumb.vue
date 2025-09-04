@@ -35,7 +35,7 @@ const componentSlide = Slide.fromObject(props.slide)
     <div class="thumb">
       <SlideContentRenderer :slide="componentSlide" :preview="true"></SlideContentRenderer>
     </div>
-    <span>{{ slide.name }}</span>
+    <span class="pr-2">{{ slide.name }}</span>
   </div>
 </template>
 
