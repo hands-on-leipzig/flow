@@ -173,13 +173,7 @@ class PlanController extends Controller
         return response()->json($matrix);
     }
 
-    /**
-     * Build the base activities query used by all views.
-     *
-     * @param int $plan
-     * @param bool $includeRooms If true, joins/selects room type fields as well.
-     * @return \Illuminate\Support\Collection
-     */
+
     private function fetchActivities(int $plan, bool $includeRooms = false)
     
     {
@@ -217,6 +211,7 @@ class PlanController extends Controller
 
         $select = '
             a.id as activity_id,
+            ag.id as activity_group_id,
             a.start as start_time,
             a.`end` as end_time,
             COALESCE(peb.name, atd.name_preview) as activity_name,
@@ -254,12 +249,45 @@ class PlanController extends Controller
     // Detailed activities list
     //
 
-    function activities($planId): JsonResponse
+    public function activities(int $planId): \Illuminate\Http\JsonResponse
     {
+        // Aktivitäten laden (ohne Räume)
+        $rows = $this->fetchActivities($planId, false);
 
-        // TODO: 
-        $activities = $this->fetchActivities($planId, includeRooms: true);
-        return response()->json($activities);
+        // Nach Activity-Group gruppieren
+        $groups = [];
+        foreach ($rows as $row) {
+            $gid = $row->activity_group_id ?? null;
+
+            if (!isset($groups[$gid])) {
+                $groups[$gid] = [
+                    'activity_group_id' => $gid,
+                    'activities' => [],
+                ];
+            }
+
+            $groups[$gid]['activities'][] = [
+                'activity_id'      => $row->activity_id,
+                'start_time'       => $row->start_time,   // ISO/DB-Format; Frontend formatiert
+                'end_time'         => $row->end_time,
+                'program'          => $row->program_name, // z.B. CHALLENGE / EXPLORE (falls befüllt)
+                'activity_name'    => $row->activity_name,
+                'lane'             => $row->lane,
+                'team'             => $row->team,
+                'table_1'          => $row->table_1,
+                'table_1_team'     => $row->table_1_team,
+                'table_2'          => $row->table_2,
+                'table_2_team'     => $row->table_2_team,
+            ];
+        }
+
+        // Indexe bereinigen
+        $groups = array_values($groups);
+
+        return response()->json([
+            'plan_id' => $planId,
+            'groups'  => $groups,
+        ]);
     }
 
 }
