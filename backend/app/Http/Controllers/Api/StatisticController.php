@@ -29,6 +29,8 @@ class StatisticController extends Controller
                 'event.name as event_name',
                 'event.date as event_date',
                 'event.season as event_season_id',
+                'event.event_explore as event_explore', 
+                'event.event_challenge as event_challenge',
 
                 // Season
                 'm_season.id as season_id',
@@ -93,6 +95,8 @@ class StatisticController extends Controller
                     'event_id' => $row->event_id,
                     'event_name' => $row->event_name,
                     'event_date' => $row->event_date,
+                    'event_explore' => $row->event_explore,
+                    'event_challenge' => $row->event_challenge,
                     'plans' => [],
                 ];
             }

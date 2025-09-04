@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{
   initialView?: 'roles' | 'teams' | 'rooms'
   reload?: number
 }>(), {
-  initialView: 'teams',
+  initialView: 'roles',
 })
 
 // Fallback: Wenn planId nicht direkt als Prop übergeben wurde (z. B. über Router), nimm's aus der URL

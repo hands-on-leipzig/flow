@@ -14,8 +14,8 @@ onMounted(async () => {
     const res = await axios.get('/stats/plans')
     data.value = res.data
     if (data.value?.seasons?.length > 0) {
-      const first = data.value.seasons[0]
-      selectedSeasonKey.value = `${first.season_year}-${first.season_name}`
+      const last = data.value.seasons[data.value.seasons.length - 1]
+      selectedSeasonKey.value = `${last.season_year}-${last.season_name}`
     }
   } catch (e) {
     error.value = 'Fehler beim Laden der Statistiken.'
@@ -73,7 +73,9 @@ const flattenedRows = computed(() => {
           plan_id: plan.plan_id,
           plan_created: plan.plan_created,
           plan_last_change: plan.plan_last_change,
-          generator_stats: plan.generator_stats ?? null, // <-- HIER
+          generator_stats: plan.generator_stats ?? null,
+          event_explore: event.event_explore,
+          event_challenge: event.event_challenge, 
         })
       }
     }
@@ -101,6 +103,9 @@ const getPlanCount = (eventId) => {
   return flattenedRows.value.filter(r => r.event_id === eventId && r.plan_id !== null).length
 }
 
+function openPreview(planId) {
+  window.open(`/preview/${planId}`, '_blank', 'noopener')
+}
 </script>
 
 <template>
@@ -110,7 +115,6 @@ const getPlanCount = (eventId) => {
     <div v-else>
       <!-- Season Filter -->
       <div class="mb-6">
-        <div class="text-lg font-bold mb-2">Saison auswählen:</div>
         <div class="flex flex-wrap gap-4">
           <label
             v-for="season in data.seasons"
@@ -197,14 +201,39 @@ const getPlanCount = (eventId) => {
               </span>
               {{ row.event_name }}
               <span class="text-gray-500">({{ formatDateOnly(row.event_date) }})</span>
+              <span class="inline-flex items-center space-x-1 ml-2">
+                <img
+                  v-if="row.event_explore"
+                  src="@/assets/FLL_Explore.png"
+                  alt="Explore"
+                  class="w-5 h-5 inline-block"
+                />
+                <img
+                  v-if="row.event_challenge"
+                  src="@/assets/FLL_Challenge.png"
+                  alt="Challenge"
+                  class="w-5 h-5 inline-block"
+                />
+              </span>
             </template>
             <template v-else>
               &nbsp;
             </template>
           </td>
 
-          <!-- Plan ID -->
-          <td class="px-3 py-2 text-gray-400">{{ row.plan_id }}</td>
+          <!-- Plan ID + Button -->
+          <td class="px-3 py-2 text-gray-400">
+            {{ row.plan_id }}
+            <template v-if="row.plan_id">
+              <button
+                class="ml-2 text-blue-600 hover:text-blue-800"
+                title="Vorschau öffnen"
+                @click="openPreview(row.plan_id)"
+              >
+                🧾
+              </button>
+            </template>
+          </td>
 
           <!-- Plan Created -->
           <td class="px-3 py-2">{{ formatDateTime(row.plan_created) }}</td>
