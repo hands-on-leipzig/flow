@@ -1,20 +1,23 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
 const data = ref(null)
 const loading = ref(true)
 const error = ref(null)
 
-// Offene IDs je Ebene
-const openSeason = ref(null)
-const openPartner = ref(null)
-const openEvent = ref(null)
+const selectedSeasonKey = ref(null)
 
 onMounted(async () => {
   try {
     const res = await axios.get('/stats/plans')
     data.value = res.data
+
+    // Erste Season automatisch auswählen
+    if (data.value?.seasons?.length > 0) {
+      const first = data.value.seasons[0]
+      selectedSeasonKey.value = `${first.season_year}-${first.season_name}`
+    }
   } catch (e) {
     error.value = 'Fehler beim Laden der Daten.'
     console.error(e)
@@ -23,20 +26,35 @@ onMounted(async () => {
   }
 })
 
-function toggleSeason(seasonKey) {
-  openSeason.value = openSeason.value === seasonKey ? null : seasonKey
-  openPartner.value = null
-  openEvent.value = null
-}
+const filteredPlans = computed(() => {
+  if (!data.value || !selectedSeasonKey.value) return []
 
-function togglePartner(partnerId) {
-  openPartner.value = openPartner.value === partnerId ? null : partnerId
-  openEvent.value = null
-}
+  const season = data.value.seasons.find(
+    s => `${s.season_year}-${s.season_name}` === selectedSeasonKey.value
+  )
+  if (!season) return []
 
-function toggleEvent(eventId) {
-  openEvent.value = openEvent.value === eventId ? null : eventId
-}
+  const rows = []
+
+  for (const partner of season.partners) {
+    for (const event of partner.events) {
+      for (const plan of event.plans) {
+        rows.push({
+          partner_id: partner.partner_id,
+          partner_name: partner.partner_name,
+          event_id: event.event_id,
+          event_name: event.event_name,
+          event_date: event.event_date,
+          plan_id: plan.plan_id,
+          plan_created: plan.plan_created,
+          plan_last_change: plan.plan_last_change
+        })
+      }
+    }
+  }
+
+  return rows
+})
 </script>
 
 <template>
@@ -44,70 +62,60 @@ function toggleEvent(eventId) {
     <div v-if="loading" class="text-gray-500">Lade Daten …</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
-      <div
-        v-for="season in data.seasons"
-        :key="`${season.season_year}-${season.season_name}`"
-        class="mb-8"
-      >
-        <h2
-          class="text-2xl font-bold mb-4 cursor-pointer"
-          @click="toggleSeason(`${season.season_year}-${season.season_name}`)"
-        >
-          Saison {{ season.season_year }} – {{ season.season_name }} — {{ season.partners.length }} RPs
-        </h2>
-
-        <div v-if="openSeason === `${season.season_year}-${season.season_name}`">
-          <div
-            v-for="partner in season.partners"
-            :key="partner.partner_id"
-            class="mb-6 border rounded p-4 bg-white shadow-sm"
+      <!-- Season Filter -->
+      <div class="mb-6">
+        <div class="text-lg font-bold mb-2">Saison auswählen:</div>
+        <div class="flex flex-wrap gap-4">
+          <label
+            v-for="season in data.seasons"
+            :key="`${season.season_year}-${season.season_name}`"
+            class="cursor-pointer"
           >
-            <h3
-              class="text-lg font-bold mb-2 cursor-pointer"
-              @click="togglePartner(partner.partner_id)"
-            >
-              {{ partner.partner_name }} — {{ partner.events.length }} Events
-            </h3>
-
-            <div v-if="openPartner === partner.partner_id">
-              <div
-                v-for="event in partner.events"
-                :key="event.event_id"
-                class="mb-4 pl-4 border-l-2 border-gray-300"
-              >
-                <div
-                  class="text-sm font-semibold cursor-pointer"
-                  @click="toggleEvent(event.event_id)"
-                >
-                  {{ event.event_name }} — {{ event.event_date }} — {{ event.plans.length }} Plans
-                </div>
-
-                <div v-if="openEvent === event.event_id" class="mt-2">
-                  <div v-if="event.plans.length > 0" class="space-y-2">
-                    <div
-                      v-for="plan in event.plans"
-                      :key="plan.plan_id"
-                      class="text-sm text-gray-700 border p-2 rounded bg-gray-50"
-                    >
-                      <div>
-                        <strong>Plan:</strong> {{ plan.plan_name }} (ID: {{ plan.plan_id }})
-                      </div>
-                      <div><strong>Status:</strong> {{ plan.generator_status }}</div>
-                      <div class="text-gray-500 text-xs">
-                        Erstellt: {{ plan.plan_created }} <br />
-                        Letzte Änderung: {{ plan.plan_last_change }}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div v-else class="text-sm text-gray-400 italic">
-                    Kein Plan vorhanden.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            <input
+              type="radio"
+              :value="`${season.season_year}-${season.season_name}`"
+              v-model="selectedSeasonKey"
+              class="mr-1"
+            />
+            {{ season.season_year }} – {{ season.season_name }}
+          </label>
         </div>
+      </div>
+
+      <!-- Tabelle -->
+      <table class="min-w-full text-sm border border-gray-300 bg-white">
+        <thead class="bg-gray-100 text-left">
+          <tr>
+            <th class="px-3 py-2">RP</th>
+            <th class="px-3 py-2">Partner</th>
+            <th class="px-3 py-2">Event</th>
+            <th class="px-3 py-2">Eventname</th>
+            <th class="px-3 py-2">Plan</th>
+            <th class="px-3 py-2">Erstellt</th>
+            <th class="px-3 py-2">Letzte Änderung</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="row in filteredPlans"
+            :key="`${row.partner_id}-${row.event_id}-${row.plan_id}`"
+            class="border-t border-gray-200 hover:bg-gray-50"
+          >
+            <td class="px-3 py-2 text-gray-400">{{ row.partner_id }}</td>
+            <td class="px-3 py-2">{{ row.partner_name }}</td>
+            <td class="px-3 py-2 text-gray-400">{{ row.event_id }}</td>
+            <td class="px-3 py-2">
+              {{ row.event_name }} <span class="text-gray-500">({{ row.event_date }})</span>
+            </td>
+            <td class="px-3 py-2 text-gray-400">{{ row.plan_id }}</td>
+            <td class="px-3 py-2">{{ row.plan_created }}</td>
+            <td class="px-3 py-2">{{ row.plan_last_change }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div v-if="filteredPlans.length === 0" class="mt-4 text-gray-500 italic">
+        Keine Pläne in dieser Saison.
       </div>
     </div>
   </div>

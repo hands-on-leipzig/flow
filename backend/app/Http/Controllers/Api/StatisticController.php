@@ -39,7 +39,6 @@ class StatisticController extends Controller
                 'plan.name as plan_name',
                 'plan.created as plan_created',
                 'plan.last_change as plan_last_change',
-                'plan.generator_status',
             ])
             ->get();
 
@@ -88,7 +87,6 @@ class StatisticController extends Controller
                     'plan_name' => $row->plan_name,
                     'plan_created' => $row->plan_created,
                     'plan_last_change' => $row->plan_last_change,
-                    'generator_status' => $row->generator_status,
                 ];
             }
         }
@@ -121,7 +119,7 @@ class StatisticController extends Controller
             ->all();
 
         // Debug-Ausgabe
-        \Log::debug('StatisticsController: plans_by_season JSON', ['seasons' => $seasons]);
+     //   \Log::debug('StatisticsController: plans_by_season JSON', ['seasons' => $seasons]);
 
         return response()->json([
             'seasons' => $seasons,
