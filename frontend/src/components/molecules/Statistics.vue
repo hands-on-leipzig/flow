@@ -247,7 +247,7 @@ function formatNumber(num) {
             <span class="font-semibold">{{ formatNumber(seasonTotals.plans_total) }}</span>
           </div>
           <div class="flex justify-between text-gray-700">
-            <span>Activity-Gruppen | Activities</span>
+            <span>Activity Groups | Activities</span>
             <span class="font-semibold">
               {{ formatNumber(seasonTotals.activity_groups_total) }} | {{ formatNumber(seasonTotals.activities_total) }}
             </span>

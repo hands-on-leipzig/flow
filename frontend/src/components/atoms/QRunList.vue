@@ -3,6 +3,8 @@ import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import QPlanList from './QPlanList.vue'
 import axios from 'axios'
 
+import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
+
 const props = defineProps({
   reload: { type: Number, required: false, default: 0 },
 })
@@ -113,17 +115,18 @@ async function handleCompress(qrunId) {
             <div class="flex justify-end items-center gap-2">
               <div>QPlans: {{ qrun.qplans_calculated }} / {{ qrun.qplans_total }}</div>
               <span
-                class="inline-block rounded px-2 py-0.5 text-white text-xs"
+                class="inline-block rounded px-2 py-0.5 text-xs"
                 :class="{
-                  'bg-gray-400': qrun.status === 'pending',
-                  'bg-yellow-500': qrun.status === 'running',
-                  'bg-green-600': qrun.status === 'done',
+                  'bg-gray-400 text-white': qrun.status === 'pending',
+                  'bg-yellow-500 text-white': qrun.status === 'running',
+                  'bg-green-600 text-white': qrun.status === 'done',
+                  'bg-white text-gray-700 border border-gray-300': qrun.status === 'compressed',
                 }"
               >
                 {{ qrun.status }}
-              </span>
+              </span>            
             </div>
-            <div>Start: {{ new Date(qrun.started_at).toLocaleString('de-DE') }}</div>
+            <div>Start: {{ formatDateTime(qrun.started_at) }}</div>
             <div v-if="qrun.finished_at">
               Dauer: {{
                 Math.round(
