@@ -177,14 +177,65 @@ class QualityController extends Controller
 
     public function deleteQRun(int $qRunId)
     {
+        // 1. Alle Plan-IDs finden, die zu den qPlans unter diesem qRun gehören
+        $planIds = DB::table('q_plan')
+            ->where('q_run', $qRunId)
+            ->whereNotNull('plan')
+            ->pluck('plan')
+            ->unique()
+            ->all();
+
+        // 2. Zuerst die Pläne löschen (die löschen durch FK ihre abhängigen Daten mit)
+        if (!empty($planIds)) {
+            DB::table('plan')->whereIn('id', $planIds)->delete();
+            Log::info("qRun $qRunId: Plans deleted " . implode(',', $planIds));
+        }
+
+        // 3. Danach den qRun löschen (dies löscht auch alle qPlans + Matches + Teams über FK)
         $deleted = DB::table('q_run')->where('id', $qRunId)->delete();
 
         if ($deleted) {
-            Log::info("qRun $qRunId deleted.");
+            Log::info("qRun $qRunId: deleted");
             return response()->json(['status' => 'deleted']);
         } else {
-            Log::warning("qRun $qRunId could not be deleted.");
+            Log::warning("qRun $qRunId: not found");
             return response()->json(['status' => 'not_found'], 404);
+        }
+    }
+
+
+    public function compressQRun(int $qRunId)
+    {
+        try {
+            // 1. Alle Plan-IDs holen
+            $planIds = DB::table('q_plan')
+                ->where('q_run', $qRunId)
+                ->whereNotNull('plan')
+                ->pluck('plan')
+                ->unique();
+
+            // 2. Pläne löschen
+            if ($planIds->isNotEmpty()) {
+                DB::table('plan')->whereIn('id', $planIds)->delete();
+                Log::info("qRun $qRunId: plans deleted " . implode(',', $planIds->toArray()));
+            }
+
+            // 3. q_plan.plan auf NULL setzen
+            DB::table('q_plan')
+                ->where('q_run', $qRunId)
+                ->update(['plan' => null]);
+
+            // 4. Status vom q_run auf archived setzen
+            DB::table('q_run')
+                ->where('id', $qRunId)
+                ->update(['status' => 'compressed']);
+
+            Log::info("qRun $qRunId: compressed.");
+
+            return response()->json(['status' => 'compressed']);
+        } catch (\Exception $e) {
+            Log::error("compressQRun($qRunId) failed: " . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 

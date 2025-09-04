@@ -332,14 +332,19 @@ async function startRerun() {
           @click="toggleExpanded(qplan.id)"
         >
           <div class="flex items-center gap-2">
-            <span>{{ qplan.plan }}</span>
-            <button
-              @click.stop="openPreview(qplan.plan)"
-              class="text-blue-600 hover:text-blue-800"
-              title="Vorschau öffnen"
-            >
-              🧾 
-            </button>
+            <template v-if="qplan.plan && qplan.plan !== 0">
+              <span>{{ qplan.plan }}</span>
+              <button
+                @click.stop="openPreview(qplan.plan)"
+                class="text-blue-600 hover:text-blue-800"
+                title="Vorschau öffnen"
+              >
+                🧾
+              </button>
+            </template>
+            <template v-else>
+              <span>---</span>
+            </template>
           </div>
           <div>{{ qplan.c_teams }}</div>
           <div>{{ qplan.j_lanes }}</div>
