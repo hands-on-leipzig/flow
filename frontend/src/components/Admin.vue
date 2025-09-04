@@ -3,6 +3,7 @@ import {ref, watch} from 'vue'
 import axios from 'axios'
 import Multiselect from '@vueform/multiselect'
 import Quality from '@/components/molecules/Quality.vue'
+import Statistics from '@/components/molecules/Statistics.vue'
 import '@vueform/multiselect/themes/default.css'
 
 const activeTab = ref('conditions')
@@ -100,6 +101,14 @@ fetchConditions()
         📈 Plan-Qualität
       </button>
 
+      <button
+        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+        :class="{ 'bg-white font-semibold shadow': activeTab === 'statistics' }"
+        @click="activeTab = 'statistics'"
+      >
+        📊 Statistiken
+      </button>
+
     </div>
 
     <div class="flex-1 p-6 overflow-auto">
@@ -182,6 +191,11 @@ fetchConditions()
       <div v-if="activeTab === 'quality'">
         <h2 class="text-xl font-bold mb-4">Plan-Qualität</h2>
         <quality />
+      </div>
+
+      <div v-if="activeTab === 'statistics'">
+        <h2 class="text-xl font-bold mb-4">Statistiken</h2>
+        <statistics />
       </div>
 
     </div>
