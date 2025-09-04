@@ -99,6 +99,30 @@ const getPlanCount = (eventId) => {
   return flattenedRows.value.filter(r => r.event_id === eventId && r.plan_id !== null).length
 }
 
+function formatDateTime(datetimeString) {
+  if (!datetimeString) return ''
+  const date = new Date(datetimeString)
+  if (isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(navigator.language, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+function formatDateOnly(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(navigator.language, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(date)
+}
+
 </script>
 
 <template>
@@ -194,7 +218,7 @@ const getPlanCount = (eventId) => {
                 </template>
               </span>
               {{ row.event_name }}
-              <span class="text-gray-500">({{ row.event_date }})</span>
+              <span class="text-gray-500">({{ formatDateOnly(row.event_date) }})</span>
             </template>
             <template v-else>
               &nbsp;
@@ -205,10 +229,10 @@ const getPlanCount = (eventId) => {
           <td class="px-3 py-2 text-gray-400">{{ row.plan_id }}</td>
 
           <!-- Plan Created -->
-          <td class="px-3 py-2">{{ row.plan_created }}</td>
+          <td class="px-3 py-2">{{ formatDateTime(row.plan_created) }}</td>
 
           <!-- Plan Last Change -->
-          <td class="px-3 py-2">{{ row.plan_last_change }}</td>
+          <td class="px-3 py-2">{{ formatDateTime(row.plan_last_change) }}</td>
   
           <!-- Generator Stats -->
           <td class="px-3 py-2 text-right">
