@@ -93,6 +93,11 @@ function shouldShowEvent(index) {
     current.event_id !== previous.event_id
   )
 }
+
+const getPlanCount = (eventId) => {
+  return flattenedRows.value.filter(r => r.event_id === eventId && r.plan_id !== null).length
+}
+
 </script>
 
 <template>
@@ -172,7 +177,22 @@ function shouldShowEvent(index) {
           <!-- Event Name + Date -->
           <td class="px-3 py-2">
             <template v-if="shouldShowEvent(index)">
-              {{ row.event_name }} <span class="text-gray-500">({{ row.event_date }})</span>
+              <span class="mr-2">
+                <template v-if="row.plan_id === null">
+                  <!-- ⬜️  Kein Plan -->
+                  ⬜️ 
+                </template>
+                <template v-else-if="getPlanCount(row.event_id) === 1">
+                  <!-- ✅ Genau ein Plan -->
+                  ✅
+                </template>
+                <template v-else>
+                  <!-- ⚠️ Mehrere Pläne -->
+                  ⚠️
+                </template>
+              </span>
+              {{ row.event_name }}
+              <span class="text-gray-500">({{ row.event_date }})</span>
             </template>
             <template v-else>
               &nbsp;
