@@ -159,6 +159,9 @@ class StatisticController extends Controller
         foreach ($seasons as $season) {
             $sid = $season->id;
 
+            // --- RP: total (alle RPs, unabhängig von Saison) ---
+            $rpTotal = DB::table('regional_partner')->count();      
+
             // --- RP: mit mind. einem Event in der Saison ---
             $rpWithEvents = DB::table('event')
                 ->where('event.season', $sid)
@@ -180,6 +183,7 @@ class StatisticController extends Controller
             $withZeroPlans      = $eventPlanCounts->filter(fn ($c) => $c == 0)->count();
             $withOnePlan        = $eventPlanCounts->filter(fn ($c) => $c == 1)->count();
             $withMultiplePlans  = $eventPlanCounts->filter(fn ($c) => $c > 1)->count();
+            $withPlan = $withOnePlan + $withMultiplePlans;
 
             // Events mit ungültigem RP (Left Join → RP fehlt)
             $invalidEventRp = DB::table('event')
@@ -214,14 +218,16 @@ class StatisticController extends Controller
                 'season_name'  => $season->season_name,
                 'season_year'  => $season->season_year,
                 'rp' => [
-                    'with_events' => $rpWithEvents,
+                    'total'        => $rpTotal,       // <— NEU
+                    'with_events'  => $rpWithEvents,
                 ],
                 'events' => [
-                    'total'               => $eventsTotal,
-                    'with_zero_plans'     => $withZeroPlans,
-                    'with_one_plan'       => $withOnePlan,
-                    'with_multiple_plans' => $withMultiplePlans,
-                    'invalid_partner_refs'=> $invalidEventRp,
+                    'total'                => $eventsTotal,
+                    'with_zero_plans'      => $withZeroPlans,
+                    'with_one_plan'        => $withOnePlan,
+                    'with_multiple_plans'  => $withMultiplePlans,
+                    'with_plan'            => $withPlan,   // <— NEU (Summe)
+                    'invalid_partner_refs' => $invalidEventRp,
                 ],
                 'plans' => [
                     'total' => $plansTotal,

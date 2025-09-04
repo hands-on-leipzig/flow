@@ -53,13 +53,20 @@ const seasonTotals = computed(() => {
     activity_groups_total: 0,
     activities_total: 0,
   }
-
   if (!totals.value?.seasons || !selectedSeasonKey.value) return ZERO
-
   const s = totals.value.seasons.find(
     t => `${t.season_year}-${t.season_name}` === selectedSeasonKey.value
   )
-  return s?.totals ?? ZERO
+  if (!s) return ZERO
+  return {
+    rp_total: s.rp?.total ?? 0,
+    rp_with_events: s.rp?.with_events ?? 0,
+    events_total: s.events?.total ?? 0,
+    events_with_plan: s.events?.with_plan ?? 0,   // nutzt neues Feld
+    plans_total: s.plans?.total ?? 0,
+    activity_groups_total: s.activity_groups?.total ?? 0,
+    activities_total: s.activities?.total ?? 0,
+  }
 })
 
 const orphans = computed(() => ({
