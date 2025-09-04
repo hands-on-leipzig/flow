@@ -10,146 +10,180 @@ class PreviewMatrix
     /**
      * Build roles matrix based on DB (m_role + m_visibility).
      */
-    public function buildRolesMatrix(Collection $activities): array
-    {
-        // --- 1. Load roles and visibility map
-        $roles = DB::table('m_role')
-            ->whereNotNull('first_program')
-            ->where('preview_matrix', 1)
-            ->orderBy('first_program')
-            ->orderBy('sequence')
-            ->get();
+public function buildRolesMatrix(Collection $activities): array
+{
+    // 1) Rollen & Visibility
+    $roles = DB::table('m_role')
+        ->whereNotNull('first_program')
+        ->where('preview_matrix', 1)
+        ->orderBy('first_program')
+        ->orderBy('sequence')
+        ->get();
 
-        $visibility = DB::table('m_visibility')->get(); // role_id + atd_id
+    $visibility = DB::table('m_visibility')->get(); // role_id + atd_id
 
-        if ($activities->isEmpty() || $roles->isEmpty()) {
-            return [
-                'headers' => [['key' => 'time', 'title' => 'Zeit']],
-                'rows'    => [['separator' => true]],
-            ];
-        }
+    if ($activities->isEmpty() || $roles->isEmpty()) {
+        return [
+            'headers' => [['key' => 'time', 'title' => 'Zeit']],
+            'rows'    => [['separator' => true]],
+        ];
+    }
 
-        // --- 2. Determine lane/table usage from activities
-        $exLaneMax = (int)($activities->where('program_name', 'EXPLORE')->pluck('lane')->filter()->max() ?? 0);
-        $chLaneMax = (int)($activities->where('program_name', 'CHALLENGE')->pluck('lane')->filter()->max() ?? 0);
+    // 2) Ableitungen aus echten Activities
+    $exLaneMax = (int)($activities->where('program_name', 'EXPLORE')->pluck('lane')->filter()->max() ?? 0);
+    $chLaneMax = (int)($activities->where('program_name', 'CHALLENGE')->pluck('lane')->filter()->max() ?? 0);
 
-        $tablesUsed = collect([1,2,3,4])->filter(function ($t) use ($activities) {
-            return $activities->contains(fn($a) => ((int)$a->table_1 === $t) || ((int)$a->table_2 === $t));
-        })->values()->all();
+    $tablesUsed = collect([1,2,3,4])->filter(function ($t) use ($activities) {
+        return $activities->contains(fn($a) => ((int)$a->table_1 === $t) || ((int)$a->table_2 === $t));
+    })->values()->all();
 
-        
+    // NEU: „Teams vorhanden?“ je Programm (für programmunabhängige Blöcke)
+    $exTeamMax = (int) max(
+        (int)($activities->where('program_name','EXPLORE')->pluck('team')->filter()->max() ?? 0),
+        (int)($activities->where('program_name','EXPLORE')->pluck('table_1_team')->filter()->max() ?? 0),
+        (int)($activities->where('program_name','EXPLORE')->pluck('table_2_team')->filter()->max() ?? 0)
+    );
+    $chTeamMax = (int) max(
+        (int)($activities->where('program_name','CHALLENGE')->pluck('team')->filter()->max() ?? 0),
+        (int)($activities->where('program_name','CHALLENGE')->pluck('table_1_team')->filter()->max() ?? 0),
+        (int)($activities->where('program_name','CHALLENGE')->pluck('table_2_team')->filter()->max() ?? 0)
+    );
 
-        // --- 3. Build headers dynamically
-        $headers = [['key'=>'time','title'=>'Zeit']];
+    // 3) Bucketing (mit usedKeys + headerMeta)
+    $bucket     = [];
+    $usedKeys   = [];   // key => true
+    $headerMeta = [];   // key => "Titel"
 
-        foreach ($roles as $role) {
+    $pushWithMeta = function(string $key, string $title, \Carbon\Carbon $start, \Carbon\Carbon $end, string $text) use (&$bucket, &$usedKeys, &$headerMeta) {
+        $this->push($bucket, $key, $start, $end, $text);
+        $usedKeys[$key]   = true;
+        $headerMeta[$key] = $title;
+    };
+
+    foreach ($activities as $a) {
+        $atd = (int)$a->activity_type_detail_id;
+        $visibleRoles = $visibility->where('activity_type_detail', $atd);
+
+        foreach ($visibleRoles as $vr) {
+            $role = $roles->firstWhere('id', $vr->role);
+            if (!$role) continue;
+
             $progLetter = ((int)$role->first_program === 2) ? 'E' : 'C';
-            $shortName  = strtoupper(substr($role->name, 0, 2)); 
-            $titleBase  = (string)$role->name_short;             
+            $shortName  = strtoupper(substr($role->name, 0, 2));
+            $titleBase  = (string)$role->name_short;
+
+            $start = Carbon::parse($a->start_time)->startOfMinute();
+            $end   = Carbon::parse($a->end_time)->startOfMinute();
+
+            $baseText = (string)$a->activity_name;
 
             if ($role->differentiation_parameter === 'lane') {
-                $laneMax = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
-                for ($i = 1; $i <= $laneMax; $i++) {
-                    $headers[] = [
-                        'key'   => strtolower($progLetter).'_'.$shortName.$i, 
-                        'title' => "{$titleBase}{$i}",                        
-                    ];
-                }
-            } elseif ($role->differentiation_parameter === 'table') {
-                foreach ($tablesUsed as $t) {
-                    $headers[] = [
-                        'key'   => strtolower($progLetter).'_'.$shortName.'t'.$t, 
-                        'title' => "{$titleBase}{$t}",                          
-                    ];
-                }
-            } else {
-                $headers[] = [
-                    'key'   => strtolower($progLetter).'_'.$shortName, 
-                    'title' => $titleBase,                             
-                ];
-            }
-        }
+                $lane = (int)($a->lane ?? 0);
+                $teamNo = (int)($a->team ?? 0);
+                $text = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
 
-        $headerKeys = array_map(fn($h) => $h['key'], $headers);
-
-        // --- 4. Bucket activities per visibility
-        $bucket = [];
-        foreach ($activities as $a) {
-            $atd = (int)$a->activity_type_detail_id;
-            $visibleRoles = $visibility->where('activity_type_detail', $atd);
-
-            foreach ($visibleRoles as $vr) {
-                $role = $roles->firstWhere('id', $vr->role);
-                if (!$role) continue;
-
-                $progLetter = ((int)$role->first_program === 2) ? 'E' : 'C';
-                $shortName  = strtoupper(substr($role->name, 0, 2));
-
-                $start = Carbon::parse($a->start_time)->startOfMinute();
-                $end   = Carbon::parse($a->end_time)->startOfMinute();
-
-                $baseText = (string)$a->activity_name;
-
-                if ($role->differentiation_parameter === 'lane') {
-                    $lane = (int)($a->lane ?? 0);
-                    $teamNo = (int)($a->team ?? 0);
-                    $text = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
-                    $key  = strtolower($progLetter).'_'.$shortName.$lane;
-
-                    if ($lane > 0) {
-                        $this->push($bucket, $key, $start, $end, $text);
-                    } else {
-                        for ($i = 1; $i <= (($progLetter==='E')?$exLaneMax:$chLaneMax); $i++) {
-                            $this->push($bucket, strtolower($progLetter).'_'.$shortName.$i, $start, $end, $text);
-                        }
-                    }
-                } elseif ($role->differentiation_parameter === 'table') {
-                    // 1) Place on the explicitly assigned tables (if any)
-                    $pushed = false;
-                    foreach ([1, 2] as $ti) {
-                        $tNo = (int)($a->{'table_'.$ti} ?? 0);
-                        if ($tNo > 0) {
-                            $teamNo = (int)($a->{'table_'.$ti.'_team'} ?? 0);
-                            $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
-                            $key    = strtolower($progLetter).'_'.$shortName.'t'.$tNo;
-                            $this->push($bucket, $key, $start, $end, $text);
-                            $pushed = true;
-                        }
-                    }
-
-                    // 2) If no table is set → replicate across all used tables
-                    if (!$pushed) {
-                        $teamNo = (int)($a->team ?? 0); // generic fallback team number
-                        $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
-                        foreach ($tablesUsed as $t) {
-                            $key = strtolower($progLetter).'_'.$shortName.'t'.$t;
-                            $this->push($bucket, $key, $start, $end, $text);
-                        }
-                    }
-                } elseif ($role->differentiation_parameter === 'team') {
-                    // show only activities WITHOUT any team assignment
-                    $text = $baseText;
-                    $hasTeam =
-                        (int)($a->team ?? 0) > 0
-                        || (int)($a->table_1_team ?? 0) > 0
-                        || (int)($a->table_2_team ?? 0) > 0;
-
-                    if (!$hasTeam) {
-                        $key = strtolower($progLetter).'_'.$shortName; // same key as simple column
-                        $this->push($bucket, $key, $start, $end, $text);
-                    }
+                if ($lane > 0) {
+                    $key = strtolower($progLetter).'_'.$shortName.$lane;
+                    $pushWithMeta($key, "{$titleBase}{$lane}", $start, $end, $text);
                 } else {
-                    $text = $baseText;
-                    $key = strtolower($progLetter).'_'.$shortName;
-                    $this->push($bucket, $key, $start, $end, $text);
+                    $laneMax = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
+                    for ($i = 1; $i <= $laneMax; $i++) {
+                        $key = strtolower($progLetter).'_'.$shortName.$i;
+                        $pushWithMeta($key, "{$titleBase}{$i}", $start, $end, $text);
+                    }
                 }
+
+            } elseif ($role->differentiation_parameter === 'table') {
+                $pushed = false;
+                foreach ([1, 2] as $ti) {
+                    $tNo = (int)($a->{'table_'.$ti} ?? 0);
+                    if ($tNo > 0) {
+                        $teamNo = (int)($a->{'table_'.$ti.'_team'} ?? 0);
+                        $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
+                        $key    = strtolower($progLetter).'_'.$shortName.'t'.$tNo;
+                        $pushWithMeta($key, "{$titleBase}{$tNo}", $start, $end, $text);
+                        $pushed = true;
+                    }
+                }
+                if (!$pushed) {
+                    $teamNo = (int)($a->team ?? 0);
+                    $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
+                    foreach ($tablesUsed as $t) {
+                        $key = strtolower($progLetter).'_'.$shortName.'t'.$t;
+                        $pushWithMeta($key, "{$titleBase}{$t}", $start, $end, $text);
+                    }
+                }
+
+            } elseif ($role->differentiation_parameter === 'team') {
+                // nur Activities ohne Teamzuordnung
+                $hasTeam =
+                    (int)($a->team ?? 0) > 0
+                    || (int)($a->table_1_team ?? 0) > 0
+                    || (int)($a->table_2_team ?? 0) > 0;
+
+                if (!$hasTeam) {
+                    // Programmunabhängige Blocks: nur anzeigen, wenn dieses Programm Teams hat
+                    if ($progLetter === 'E' && $exTeamMax === 0) continue;
+                    if ($progLetter === 'C' && $chTeamMax === 0) continue;
+
+                    $key = strtolower($progLetter).'_'.$shortName;
+                    $pushWithMeta($key, $titleBase, $start, $end, $baseText);
+                }
+
+            } else {
+                // undifferenziert (z.B. Eröffnung/Briefing/Preisverleihung)
+                // Nur anzeigen, wenn das jeweilige Programm überhaupt Teams hat
+                if ($progLetter === 'E' && $exTeamMax === 0) continue;
+                if ($progLetter === 'C' && $chTeamMax === 0) continue;
+
+                $key = strtolower($progLetter).'_'.$shortName;
+                $pushWithMeta($key, $titleBase, $start, $end, $baseText);
             }
         }
-
-        // --- 5. Generate rows per active day (no giant gaps)
-        $rows = $this->buildRowsPerActiveDay($headers, $bucket);
-        return ['headers'=>$headers, 'rows'=>$rows];
     }
+
+    // 4) Headers NACH dem Bucketing – nur benutzte Keys
+    $headers = [['key' => 'time', 'title' => 'Zeit']];
+
+    foreach ($roles as $role) {
+        $progLetter = ((int)$role->first_program === 2) ? 'E' : 'C';
+        $shortName  = strtoupper(substr($role->name, 0, 2));
+        $titleBase  = (string)$role->name_short;
+        $prefix     = strtolower($progLetter).'_'.$shortName;
+
+        // Finde alle benutzten Keys mit diesem Prefix
+        $keysForRole = array_values(array_filter(array_keys($usedKeys), function ($k) use ($prefix) {
+            return str_starts_with($k, $prefix);
+        }));
+
+        if (empty($keysForRole)) {
+            continue; // für diese Rolle wurde nichts befüllt -> keine Spalte
+        }
+
+        // Sortierung je nach Differenzierung
+        if ($role->differentiation_parameter === 'lane') {
+            usort($keysForRole, function ($a, $b) {
+                return (int)preg_replace('/^\D+/', '', $a) <=> (int)preg_replace('/^\D+/', '', $b);
+            });
+        } elseif ($role->differentiation_parameter === 'table') {
+            usort($keysForRole, function ($a, $b) {
+                // …tN → N extrahieren
+                return (int)preg_replace('/^.*t/', '', $a) <=> (int)preg_replace('/^.*t/', '', $b);
+            });
+        } // sonst keine Sortierung nötig
+
+        foreach ($keysForRole as $k) {
+            $headers[] = [
+                'key'   => $k,
+                'title' => $headerMeta[$k] ?? $titleBase,
+            ];
+        }
+    }
+
+    // 5) Rows bauen
+    $rows = $this->buildRowsPerActiveDay($headers, $bucket);
+    return ['headers' => $headers, 'rows' => $rows];
+}
 
     private function emptyRow(Carbon $t, array $headerKeys): array
     {
