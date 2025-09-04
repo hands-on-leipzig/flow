@@ -12,28 +12,125 @@ class StatisticController extends Controller
 
     public function listPlans(): JsonResponse
     {
-        $plansWithEvent = DB::table('plan')
-            ->join('event', 'plan.event', '=', 'event.id')
-            ->join('regional_partner', 'event.regional_partner', '=', 'regional_partner.id')
+        // Alle relevanten Daten mit Joins abfragen
+        $records = DB::table('regional_partner')
+            ->leftJoin('event', 'event.regional_partner', '=', 'regional_partner.id')
+            ->leftJoin('plan', 'plan.event', '=', 'event.id')
+            ->join('m_season', 'event.season', '=', 'm_season.id')
             ->select([
-                'plan.id as plan_id',
-                'plan.name as plan_name',
-                'plan.created',
-                'plan.last_change',
-                'plan.event as event_id',
-                'plan.generator_status',
-
-                'event.id as event_id',
-                'event.name as event_name',
-                'event.date as event_date',
-                'event.season',
-
+                // RP
                 'regional_partner.id as partner_id',
                 'regional_partner.name as partner_name',
                 'regional_partner.region as partner_region',
+
+                // Event
+                'event.id as event_id',
+                'event.name as event_name',
+                'event.date as event_date',
+                'event.season as event_season_id',
+
+                // Season
+                'm_season.id as season_id',
+                'm_season.name as season_name',
+                'm_season.year as season_year',
+
+                // Plan
+                'plan.id as plan_id',
+                'plan.name as plan_name',
+                'plan.created as plan_created',
+                'plan.last_change as plan_last_change',
+                'plan.generator_status',
             ])
             ->get();
 
+        // Gruppieren
+        $groupedSeasons = [];
+
+        foreach ($records as $row) {
+            $seasonKey = $row->season_id;
+            $partnerKey = $row->partner_id;
+            $eventKey = $row->event_id;
+            $planKey = $row->plan_id;
+
+            // Season anlegen
+            if (!isset($groupedSeasons[$seasonKey])) {
+                $groupedSeasons[$seasonKey] = [
+                    'season_name' => $row->season_name,
+                    'season_year' => $row->season_year,
+                    'partners' => [],
+                ];
+            }
+
+            // Partner anlegen
+            if (!isset($groupedSeasons[$seasonKey]['partners'][$partnerKey])) {
+                $groupedSeasons[$seasonKey]['partners'][$partnerKey] = [
+                    'partner_id' => $row->partner_id,
+                    'partner_name' => $row->partner_name,
+                    'partner_region' => $row->partner_region,
+                    'events' => [],
+                ];
+            }
+
+            // Event anlegen
+            if ($row->event_id && !isset($groupedSeasons[$seasonKey]['partners'][$partnerKey]['events'][$eventKey])) {
+                $groupedSeasons[$seasonKey]['partners'][$partnerKey]['events'][$eventKey] = [
+                    'event_id' => $row->event_id,
+                    'event_name' => $row->event_name,
+                    'event_date' => $row->event_date,
+                    'plans' => [],
+                ];
+            }
+
+            // Plan anlegen
+            if ($row->plan_id) {
+                $groupedSeasons[$seasonKey]['partners'][$partnerKey]['events'][$eventKey]['plans'][] = [
+                    'plan_id' => $row->plan_id,
+                    'plan_name' => $row->plan_name,
+                    'plan_created' => $row->plan_created,
+                    'plan_last_change' => $row->plan_last_change,
+                    'generator_status' => $row->generator_status,
+                ];
+            }
+        }
+
+        // Sortieren: Season → Partner → Event → Plan
+        $seasons = collect($groupedSeasons)
+            ->sortBy('season_year')
+            ->values()
+            ->map(function ($season) {
+                $season['partners'] = collect($season['partners'])
+                    ->sortBy('partner_name')
+                    ->values()
+                    ->map(function ($partner) {
+                        $partner['events'] = collect($partner['events'])
+                            ->sortBy('event_date')
+                            ->values()
+                            ->map(function ($event) {
+                                $event['plans'] = collect($event['plans'])
+                                    ->sortByDesc('plan_last_change')
+                                    ->values()
+                                    ->all();
+                                return $event;
+                            })
+                            ->all();
+                        return $partner;
+                    })
+                    ->all();
+                return $season;
+            })
+            ->all();
+
+        // Debug-Ausgabe
+        \Log::debug('StatisticsController: plans_by_season JSON', ['seasons' => $seasons]);
+
+        return response()->json([
+            'seasons' => $seasons,
+        ]);
+    }
+
+    public function plansDetails(): JsonResponse
+    {
+/*
         $genStatsRaw = DB::table('s_generator')
             ->whereIn('plan', $plansWithEvent->pluck('plan_id'))
             ->whereNotNull('start')
@@ -48,65 +145,8 @@ class StatisticController extends Controller
             ->groupBy('plan')
             ->get()
             ->keyBy('plan');
-
-        // Struktur: season -> partner -> event -> plans
-        $groupedBySeason = [];
-
-        foreach ($plansWithEvent as $plan) {
-            $season = $plan->season;
-            $partnerId = $plan->partner_id;
-            $eventId = $plan->event_id;
-            $planId = $plan->plan_id;
-
-            if (!isset($groupedBySeason[$season])) {
-                $groupedBySeason[$season] = [
-                    'season' => $season,
-                    'partners' => [],
-                ];
-            }
-
-            if (!isset($groupedBySeason[$season]['partners'][$partnerId])) {
-                $groupedBySeason[$season]['partners'][$partnerId] = [
-                    'partner_id' => $partnerId,
-                    'partner_name' => $plan->partner_name,
-                    'partner_region' => $plan->partner_region,
-                    'events' => [],
-                ];
-            }
-
-            if (!isset($groupedBySeason[$season]['partners'][$partnerId]['events'][$eventId])) {
-                $groupedBySeason[$season]['partners'][$partnerId]['events'][$eventId] = [
-                    'event_id' => $eventId,
-                    'event_name' => $plan->event_name,
-                    'event_date' => $plan->event_date,
-                    'plans' => [],
-                ];
-            }
-
-            $groupedBySeason[$season]['partners'][$partnerId]['events'][$eventId]['plans'][] = [
-                'plan_id' => $planId,
-                'plan_name' => $plan->plan_name,
-                'created' => $plan->created,
-                'last_change' => $plan->last_change,
-                'generator_status' => $plan->generator_status,
-                'generator_stats' => $genStatsRaw[$planId] ?? null,
-            ];
-        }
-
-        // Alles in arrays umwandeln
-        $seasons = array_values(array_map(function ($seasonEntry) {
-            $seasonEntry['partners'] = array_values(array_map(function ($partner) {
-                $partner['events'] = array_values($partner['events']);
-                return $partner;
-            }, $seasonEntry['partners']));
-            return $seasonEntry;
-        }, $groupedBySeason));
-
-        \Log::debug('StatisticsController: grouped by season', ['seasons' => $seasons]);
-
-        return response()->json([
-            'seasons' => $seasons,
-        ]);
+*/
+        return response()->json(['message' => 'Not implemented'], 501);
     }
 
 }

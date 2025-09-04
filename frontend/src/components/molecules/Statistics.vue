@@ -16,15 +16,15 @@ onMounted(async () => {
     const res = await axios.get('/stats/plans')
     data.value = res.data
   } catch (e) {
-    error.value = 'Fehler beim Laden der Statistiken.'
+    error.value = 'Fehler beim Laden der Daten.'
     console.error(e)
   } finally {
     loading.value = false
   }
 })
 
-function toggleSeason(seasonId) {
-  openSeason.value = openSeason.value === seasonId ? null : seasonId
+function toggleSeason(seasonKey) {
+  openSeason.value = openSeason.value === seasonKey ? null : seasonKey
   openPartner.value = null
   openEvent.value = null
 }
@@ -44,20 +44,29 @@ function toggleEvent(eventId) {
     <div v-if="loading" class="text-gray-500">Lade Daten …</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
-      <div v-for="season in data.seasons" :key="season.season" class="mb-8">
-        <h2 class="text-xl font-bold mb-4">
-            Saison {{ season.season }} — {{ season.partners.length }} RPs
+      <div
+        v-for="season in data.seasons"
+        :key="`${season.season_year}-${season.season_name}`"
+        class="mb-8"
+      >
+        <h2
+          class="text-2xl font-bold mb-4 cursor-pointer"
+          @click="toggleSeason(`${season.season_year}-${season.season_name}`)"
+        >
+          Saison {{ season.season_year }} – {{ season.season_name }} — {{ season.partners.length }} RPs
         </h2>
 
-        <div v-if="openSeason === season.season">
+        <div v-if="openSeason === `${season.season_year}-${season.season_name}`">
           <div
             v-for="partner in season.partners"
             :key="partner.partner_id"
             class="mb-6 border rounded p-4 bg-white shadow-sm"
           >
-            <h3 class="text-lg font-bold mb-2 cursor-pointer"
-                @click="togglePartner(partner.partner_id)">
-            {{ partner.partner_name }}  — {{ partner.events.length }} Events
+            <h3
+              class="text-lg font-bold mb-2 cursor-pointer"
+              @click="togglePartner(partner.partner_id)"
+            >
+              {{ partner.partner_name }} — {{ partner.events.length }} Events
             </h3>
 
             <div v-if="openPartner === partner.partner_id">
@@ -66,9 +75,11 @@ function toggleEvent(eventId) {
                 :key="event.event_id"
                 class="mb-4 pl-4 border-l-2 border-gray-300"
               >
-                <div class="text-sm font-semibold cursor-pointer"
-                    @click="toggleEvent(event.event_id)">
-                {{ event.event_name }} — {{ event.event_date }} — {{ event.plans.length }} Plans
+                <div
+                  class="text-sm font-semibold cursor-pointer"
+                  @click="toggleEvent(event.event_id)"
+                >
+                  {{ event.event_name }} — {{ event.event_date }} — {{ event.plans.length }} Plans
                 </div>
 
                 <div v-if="openEvent === event.event_id" class="mt-2">
@@ -82,15 +93,9 @@ function toggleEvent(eventId) {
                         <strong>Plan:</strong> {{ plan.plan_name }} (ID: {{ plan.plan_id }})
                       </div>
                       <div><strong>Status:</strong> {{ plan.generator_status }}</div>
-                      <div v-if="plan.generator_stats">
-                        <strong>Generierungen:</strong> {{ plan.generator_stats.count }} <br />
-                        <strong>Laufzeit:</strong>
-                        ∅ {{ plan.generator_stats.avg_seconds }}s,
-                        min {{ plan.generator_stats.min_seconds }}s,
-                        max {{ plan.generator_stats.max_seconds }}s
-                      </div>
-                      <div v-else class="text-gray-400 italic">
-                        Keine Generator-Statistik verfügbar.
+                      <div class="text-gray-500 text-xs">
+                        Erstellt: {{ plan.plan_created }} <br />
+                        Letzte Änderung: {{ plan.plan_last_change }}
                       </div>
                     </div>
                   </div>
