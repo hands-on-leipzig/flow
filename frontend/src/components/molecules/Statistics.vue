@@ -5,15 +5,22 @@ import axios from 'axios'
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
 
 const data = ref(null)
+const totals = ref(null)
 const loading = ref(true)
 const error = ref(null)
 const selectedSeasonKey = ref(null)
 
 onMounted(async () => {
   try {
-    const res = await axios.get('/stats/plans')
-    data.value = res.data
+    const [plansRes, totalsRes] = await Promise.all([
+      axios.get('/stats/plans'),
+      axios.get('/stats/totals'),
+    ])
+    data.value = plansRes.data
+    totals.value = totalsRes.data
+
     if (data.value?.seasons?.length > 0) {
+      // Default: letzte Saison vorselektieren
       const last = data.value.seasons[data.value.seasons.length - 1]
       selectedSeasonKey.value = `${last.season_year}-${last.season_name}`
     }
@@ -24,6 +31,18 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+const orphans = computed(() => ({
+  events: totals.value?.global_orphans?.events?.orphans ?? 0,
+  plans: totals.value?.global_orphans?.plans?.orphans ?? 0,
+  ags: totals.value?.global_orphans?.activity_groups?.orphans ?? 0,
+  acts: totals.value?.global_orphans?.activities?.orphans ?? 0,
+}))
+
+const badgeClass = (n) =>
+  n > 0
+    ? 'bg-red-100 text-red-800 border border-red-300'
+    : 'bg-gray-100 text-gray-700 border border-gray-300'
 
 const flattenedRows = computed(() => {
   const season = data.value?.seasons.find(
@@ -41,9 +60,12 @@ const flattenedRows = computed(() => {
         event_id: null,
         event_name: null,
         event_date: null,
+        event_explore: null,
+        event_challenge: null,
         plan_id: null,
         plan_created: null,
         plan_last_change: null,
+        generator_stats: null,
       })
       continue
     }
@@ -56,9 +78,12 @@ const flattenedRows = computed(() => {
           event_id: event.event_id,
           event_name: event.event_name,
           event_date: event.event_date,
+          event_explore: event.event_explore,
+          event_challenge: event.event_challenge,
           plan_id: null,
           plan_created: null,
           plan_last_change: null,
+          generator_stats: null,
         })
         continue
       }
@@ -70,12 +95,12 @@ const flattenedRows = computed(() => {
           event_id: event.event_id,
           event_name: event.event_name,
           event_date: event.event_date,
+          event_explore: event.event_explore,
+          event_challenge: event.event_challenge,
           plan_id: plan.plan_id,
           plan_created: plan.plan_created,
           plan_last_change: plan.plan_last_change,
           generator_stats: plan.generator_stats ?? null,
-          event_explore: event.event_explore,
-          event_challenge: event.event_challenge, 
         })
       }
     }
@@ -113,6 +138,21 @@ function openPreview(planId) {
     <div v-if="loading" class="text-gray-500">Lade Daten …</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
+      <!-- Globale Orphans -->
+<div class="mb-4 flex flex-wrap items-center gap-3">
+  <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.events)]">
+    Events (ohne/ungültiger RP): {{ orphans.events }}
+  </div>
+  <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.plans)]">
+    Pläne (ohne/ungültiges Event): {{ orphans.plans }}
+  </div>
+  <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.ags)]">
+    ActGroups (ohne/ungültiger Plan): {{ orphans.ags }}
+  </div>
+  <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.acts)]">
+    Activities (ohne/ungültiger ActGroup): {{ orphans.acts }}
+  </div>
+</div>
       <!-- Season Filter -->
       <div class="mb-6">
         <div class="flex flex-wrap gap-4">
