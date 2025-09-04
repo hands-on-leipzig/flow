@@ -100,54 +100,74 @@ public function buildRolesMatrix(Collection $activities): array
         }
     }
 
-    // 3b) TABLE-Rollen: in 2er-Blöcken RC→…→RG pro Programm
-    foreach (['E', 'C'] as $progLetter) {
-        if (empty($tablesUsed)) {
-            continue;
+    // Erlaubte RC-Spalten pro Programm (nur wenn es echte RC-Aktivitäten gibt)
+    $rcAtdId = defined('ID_ATD_R_CHECK') ? (int) ID_ATD_R_CHECK : (int) config('atd.ids.robot_check', 0);
+
+    $rcTablesByProg = ['E' => [], 'C' => []];
+
+    foreach ($activities as $a) {
+        if ((int)$a->activity_type_detail_id !== $rcAtdId) {
+            continue; // kein Robot-Check
         }
+        // Programm ableiten
+        $p = strtoupper((string) $a->program_name) === 'EXPLORE' ? 'E' : 'C';
+
+        // Über beide Tabellenspalten gehen
+        foreach ([1, 2] as $ti) {
+            $t = (int) ($a->{'table_'.$ti} ?? 0);
+            if ($t > 0) {
+                $rcTablesByProg[$p][$t] = true; // Merken: in diesem Programm gab es RC auf Tisch t
+            }
+        }
+    }    
+
+    // 3b) TABLE-Rollen: in 2er-Blöcken RC→RG pro Programm
+    foreach (['E', 'C'] as $progLetter) {
+        if (empty($tablesUsed)) continue;
 
         $rcRole = $tableRolesByProg[$progLetter]['RC'] ?? null;
         $rgRole = $tableRolesByProg[$progLetter]['RG'] ?? null;
 
-        // „Andere“ table-basierte Rollen stabil in Originalreihenfolge (ohne RC/RG)
+        // andere table-basierte Rollen sammeln (ohne RC/RG) – unverändert
         $otherTableRoles = [];
         foreach ($roles as $r) {
             $pL = ((int)$r->first_program === 2) ? 'E' : 'C';
             if ($pL !== $progLetter) continue;
             if ($r->differentiation_parameter !== 'table') continue;
-
             $sk = strtoupper(substr((string)($r->name_short ?: $r->name), 0, 2));
             if ($sk === 'RC' || $sk === 'RG') continue;
             $otherTableRoles[] = [$r, $sk];
         }
 
-        // In 2er-Blöcke schneiden: [t1,t2], [t3,t4], ...
-        $blocks = array_chunk($tablesUsed, 2);
+        // Tische in 2er-Blöcke: [t1,t2], [t3,t4], ...
+        $blocks = array_chunk(array_values($tablesUsed), 2);
 
         foreach ($blocks as $block) {
-            // 1) RC für alle Tische im Block
+            // 1) RC-Spalten NUR, wenn es mindestens einen echten RC auf dem Tisch gab
             if ($rcRole) {
                 $titleBase = (string)($rcRole->name_short ?: $rcRole->name);
                 foreach ($block as $t) {
-                    $addHeader([
-                        'key'   => strtolower($progLetter) . '_RC' . 't' . $t, // z. B. c_RCt1
-                        'title' => "{$titleBase}{$t}",
-                    ]);
+                    if (!empty($rcTablesByProg[$progLetter][$t])) {
+                        $addHeader([
+                            'key'   => strtolower($progLetter) . '_RC' . 't' . $t,
+                            'title' => "{$titleBase}{$t}",
+                        ]);
+                    }
                 }
             }
 
-            // 2) RG für alle Tische im Block
+            // 2) RG-Spalten immer (so wie zuvor, nur blockweise)
             if ($rgRole) {
                 $titleBase = (string)($rgRole->name_short ?: $rgRole->name);
                 foreach ($block as $t) {
                     $addHeader([
-                        'key'   => strtolower($progLetter) . '_RG' . 't' . $t, // z. B. c_RGt1
+                        'key'   => strtolower($progLetter) . '_RG' . 't' . $t,
                         'title' => "{$titleBase}{$t}",
                     ]);
                 }
             }
 
-            // 3) Andere table-basierte Rollen (falls vorhanden) für die Tische im Block
+            // 3) weitere table-basierte Rollen (falls vorhanden)
             foreach ($otherTableRoles as [$r, $sk]) {
                 $titleBase = (string)($r->name_short ?: $r->name);
                 foreach ($block as $t) {
