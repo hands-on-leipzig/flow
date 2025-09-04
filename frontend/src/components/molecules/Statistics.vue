@@ -1,35 +1,30 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 
 const data = ref(null)
 const loading = ref(true)
 const error = ref(null)
-
 const selectedSeasonKey = ref(null)
 
 onMounted(async () => {
   try {
     const res = await axios.get('/stats/plans')
     data.value = res.data
-
-    // Erste Season automatisch auswählen
     if (data.value?.seasons?.length > 0) {
       const first = data.value.seasons[0]
       selectedSeasonKey.value = `${first.season_year}-${first.season_name}`
     }
   } catch (e) {
-    error.value = 'Fehler beim Laden der Daten.'
+    error.value = 'Fehler beim Laden der Statistiken.'
     console.error(e)
   } finally {
     loading.value = false
   }
 })
 
-const filteredPlans = computed(() => {
-  if (!data.value || !selectedSeasonKey.value) return []
-
-  const season = data.value.seasons.find(
+const flattenedRows = computed(() => {
+  const season = data.value?.seasons.find(
     s => `${s.season_year}-${s.season_name}` === selectedSeasonKey.value
   )
   if (!season) return []
@@ -37,7 +32,35 @@ const filteredPlans = computed(() => {
   const rows = []
 
   for (const partner of season.partners) {
+    if (!partner.events || partner.events.length === 0) {
+      rows.push({
+        partner_id: partner.partner_id,
+        partner_name: partner.partner_name,
+        event_id: null,
+        event_name: null,
+        event_date: null,
+        plan_id: null,
+        plan_created: null,
+        plan_last_change: null,
+      })
+      continue
+    }
+
     for (const event of partner.events) {
+      if (!event.plans || event.plans.length === 0) {
+        rows.push({
+          partner_id: partner.partner_id,
+          partner_name: partner.partner_name,
+          event_id: event.event_id,
+          event_name: event.event_name,
+          event_date: event.event_date,
+          plan_id: null,
+          plan_created: null,
+          plan_last_change: null,
+        })
+        continue
+      }
+
       for (const plan of event.plans) {
         rows.push({
           partner_id: partner.partner_id,
@@ -47,7 +70,7 @@ const filteredPlans = computed(() => {
           event_date: event.event_date,
           plan_id: plan.plan_id,
           plan_created: plan.plan_created,
-          plan_last_change: plan.plan_last_change
+          plan_last_change: plan.plan_last_change,
         })
       }
     }
@@ -58,16 +81,17 @@ const filteredPlans = computed(() => {
 
 function shouldShowPartner(index) {
   if (index === 0) return true
-  const prev = filteredPlans.value[index - 1]
-  const curr = filteredPlans.value[index]
-  return prev.partner_id !== curr.partner_id
+  return flattenedRows.value[index].partner_id !== flattenedRows.value[index - 1].partner_id
 }
 
 function shouldShowEvent(index) {
   if (index === 0) return true
-  const prev = filteredPlans.value[index - 1]
-  const curr = filteredPlans.value[index]
-  return prev.event_id !== curr.event_id
+  const current = flattenedRows.value[index]
+  const previous = flattenedRows.value[index - 1]
+  return (
+    current.partner_id !== previous.partner_id ||
+    current.event_id !== previous.event_id
+  )
 }
 </script>
 
@@ -110,64 +134,64 @@ function shouldShowEvent(index) {
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="(row, index) in filteredPlans"
-            :key="`${row.partner_id}-${row.event_id}-${row.plan_id}`"
-            class="border-t border-gray-200 hover:bg-gray-50"
-          >
-            <!-- RP ID -->
-            <td class="px-3 py-2 text-gray-400">
-              <template v-if="shouldShowPartner(index)">
-                {{ row.partner_id }}
-              </template>
-              <template v-else>
-                &nbsp;
-              </template>
-            </td>
+        <tr
+            v-for="(row, index) in flattenedRows"
+          :key="`${row.partner_id}-${row.event_id}-${row.plan_id}`"
+          class="border-t border-gray-200 hover:bg-gray-50"
+        >
+          <!-- RP ID -->
+          <td class="px-3 py-2 text-gray-400">
+            <template v-if="shouldShowPartner(index)">
+              {{ row.partner_id }}
+            </template>
+            <template v-else>
+              &nbsp;
+            </template>
+          </td>
 
-            <!-- RP Name -->
-            <td class="px-3 py-2">
-              <template v-if="shouldShowPartner(index)">
-                {{ row.partner_name }}
-              </template>
-              <template v-else>
-                &nbsp;
-              </template>
-            </td>
+          <!-- RP Name -->
+          <td class="px-3 py-2">
+            <template v-if="shouldShowPartner(index)">
+              {{ row.partner_name }}
+            </template>
+            <template v-else>
+              &nbsp;
+            </template>
+          </td>
 
-            <!-- Event ID -->
-            <td class="px-3 py-2 text-gray-400">
-              <template v-if="shouldShowEvent(index)">
-                {{ row.event_id }}
-              </template>
-              <template v-else>
-                &nbsp;
-              </template>
-            </td>
+          <!-- Event ID -->
+          <td class="px-3 py-2 text-gray-400">
+            <template v-if="shouldShowEvent(index)">
+              {{ row.event_id }}
+            </template>
+            <template v-else>
+              &nbsp;
+            </template>
+          </td>
 
-            <!-- Event Name + Date -->
-            <td class="px-3 py-2">
-              <template v-if="shouldShowEvent(index)">
-                {{ row.event_name }} <span class="text-gray-500">({{ row.event_date }})</span>
-              </template>
-              <template v-else>
-                &nbsp;
-              </template>
-            </td>
+          <!-- Event Name + Date -->
+          <td class="px-3 py-2">
+            <template v-if="shouldShowEvent(index)">
+              {{ row.event_name }} <span class="text-gray-500">({{ row.event_date }})</span>
+            </template>
+            <template v-else>
+              &nbsp;
+            </template>
+          </td>
 
-            <!-- Plan ID -->
-            <td class="px-3 py-2 text-gray-400">{{ row.plan_id }}</td>
+          <!-- Plan ID -->
+          <td class="px-3 py-2 text-gray-400">{{ row.plan_id }}</td>
 
-            <!-- Plan Created -->
-            <td class="px-3 py-2">{{ row.plan_created }}</td>
+          <!-- Plan Created -->
+          <td class="px-3 py-2">{{ row.plan_created }}</td>
 
-            <!-- Plan Last Change -->
-            <td class="px-3 py-2">{{ row.plan_last_change }}</td>
-          </tr>
-        </tbody>
+          <!-- Plan Last Change -->
+          <td class="px-3 py-2">{{ row.plan_last_change }}</td>
+        </tr>
+      </tbody>
       </table>
 
-      <div v-if="filteredPlans.length === 0" class="mt-4 text-gray-500 italic">
+      <div v-if="flattenedRows.length === 0" class="mt-4 text-gray-500 italic">
         Keine Pläne in dieser Saison.
       </div>
     </div>
