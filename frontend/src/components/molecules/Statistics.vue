@@ -32,6 +32,36 @@ onMounted(async () => {
   }
 })
 
+// Map für schnellen Zugriff auf Totals per "year-name"
+const totalsByKey = computed(() => {
+  const map = new Map()
+  if (!totals.value?.seasons) return map
+  for (const s of totals.value.seasons) {
+    map.set(`${s.season_year}-${s.season_name}`, s.totals ?? null)
+  }
+  return map
+})
+
+// ersetzt deine aktuelle seasonTotals-Definition
+const seasonTotals = computed(() => {
+  const ZERO = {
+    rp_total: 0,
+    rp_with_events: 0,
+    events_total: 0,
+    events_with_plan: 0,
+    plans_total: 0,
+    activity_groups_total: 0,
+    activities_total: 0,
+  }
+
+  if (!totals.value?.seasons || !selectedSeasonKey.value) return ZERO
+
+  const s = totals.value.seasons.find(
+    t => `${t.season_year}-${t.season_name}` === selectedSeasonKey.value
+  )
+  return s?.totals ?? ZERO
+})
+
 const orphans = computed(() => ({
   events: totals.value?.global_orphans?.events?.orphans ?? 0,
   plans: totals.value?.global_orphans?.plans?.orphans ?? 0,
@@ -139,38 +169,84 @@ function openPreview(planId) {
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
       <!-- Globale Orphans -->
-<div class="mb-4 flex flex-wrap items-center gap-3">
-  <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.events)]">
-    Events (ohne/ungültiger RP): {{ orphans.events }}
-  </div>
-  <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.plans)]">
-    Pläne (ohne/ungültiges Event): {{ orphans.plans }}
-  </div>
-  <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.ags)]">
-    ActGroups (ohne/ungültiger Plan): {{ orphans.ags }}
-  </div>
-  <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.acts)]">
-    Activities (ohne/ungültiger ActGroup): {{ orphans.acts }}
-  </div>
-</div>
-      <!-- Season Filter -->
-      <div class="mb-6">
-        <div class="flex flex-wrap gap-4">
-          <label
-            v-for="season in data.seasons"
-            :key="`${season.season_year}-${season.season_name}`"
-            class="cursor-pointer"
-          >
-            <input
-              type="radio"
-              :value="`${season.season_year}-${season.season_name}`"
-              v-model="selectedSeasonKey"
-              class="mr-1"
-            />
-            {{ season.season_year }} – {{ season.season_name }}
-          </label>
+      <div class="mb-4 flex flex-wrap items-center gap-3">
+        <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.events)]">
+          Events (ohne/ungültiger RP): {{ orphans.events }}
+        </div>
+        <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.plans)]">
+          Pläne (ohne/ungültiges Event): {{ orphans.plans }}
+        </div>
+        <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.ags)]">
+          ActGroups (ohne/ungültiger Plan): {{ orphans.ags }}
+        </div>
+        <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.acts)]">
+          Activities (ohne/ungültiger ActGroup): {{ orphans.acts }}
         </div>
       </div>
+            <!-- Season Filter -->
+            <div class="mb-6">
+              <div class="flex flex-wrap gap-4">
+                <label
+                  v-for="season in data.seasons"
+                  :key="`${season.season_year}-${season.season_name}`"
+                  class="cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    :value="`${season.season_year}-${season.season_name}`"
+                    v-model="selectedSeasonKey"
+                    class="mr-1"
+                  />
+                  {{ season.season_year }} – {{ season.season_name }}
+                </label>
+              </div>
+            </div>
+
+            <!-- Saison-Totals (3 Boxen) -->
+            <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Box 1: RP -->
+              <div class="bg-white border rounded shadow-sm p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-2">Regionalpartner</div>
+                <div class="flex items-baseline gap-2">
+                  <div class="text-2xl font-bold">{{ seasonTotals.rp_total }}</div>
+                  <div class="text-gray-500 text-sm">gesamt</div>
+                </div>
+                <div class="mt-1 text-gray-700">
+                  mit mind. einem Event:
+                  <span class="font-semibold">{{ seasonTotals.rp_with_events }}</span>
+                </div>
+              </div>
+
+              <!-- Box 2: Events -->
+              <div class="bg-white border rounded shadow-sm p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-2">Events</div>
+                <div class="flex items-baseline gap-2">
+                  <div class="text-2xl font-bold">{{ seasonTotals.events_total }}</div>
+                  <div class="text-gray-500 text-sm">gesamt</div>
+                </div>
+                <div class="mt-1 text-gray-700">
+                  mit mind. einem Plan:
+                  <span class="font-semibold">{{ seasonTotals.events_with_plan }}</span>
+                </div>
+              </div>
+
+              <!-- Box 3: Plan & Aktivitäten -->
+              <div class="bg-white border rounded shadow-sm p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-2">Plan & Aktivitäten</div>
+                <div class="flex items-center justify-between text-gray-700">
+                  <span>Pläne gesamt</span>
+                  <span class="font-semibold">{{ seasonTotals.plans_total }}</span>
+                </div>
+                <div class="flex items-center justify-between text-gray-700 mt-1">
+                  <span>Activity-Gruppen gesamt</span>
+                  <span class="font-semibold">{{ seasonTotals.activity_groups_total }}</span>
+                </div>
+                <div class="flex items-center justify-between text-gray-700 mt-1">
+                  <span>Activities gesamt</span>
+                  <span class="font-semibold">{{ seasonTotals.activities_total }}</span>
+                </div>
+              </div>
+            </div>
 
       <!-- Tabelle -->
       <table class="min-w-full text-sm border border-gray-300 bg-white">
