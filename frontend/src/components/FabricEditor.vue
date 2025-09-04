@@ -19,15 +19,10 @@ const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 450;
 
 const props = defineProps<{
-  slideshowId: Number,
-  slideId: Number,
+  slide: Slide
 }>();
 
-const eventStore = useEventStore();
-const event = computed<FllEvent>(() => eventStore.selectedEvent);
-const slide = shallowRef<Slide | null>(null);
-
-watch(slide, (newSlide) => {
+watch(props.slide, (newSlide) => {
   paintSlide(newSlide);
 });
 
@@ -40,20 +35,15 @@ const toolbarState = reactive({
 });
 
 onMounted(() => {
-  console.log(event.value.id, event.value.slideshows);
-  const slideshow = event.value?.slideshows?.find(s => s.id === props.slideshowId);
-  console.log(event.value.slideshows, slideshow);
-  const slide = slideshow?.slides?.find(s => s.id === props.slideId) || null;
-  console.log(slide, slideshow);
-  if (slide) {
-    paintSlide(slide);
-  }
-
   canvas = new Canvas(canvasEl.value, {
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
     backgroundColor: '#ffffff'
   });
+
+  if (props.slide) {
+    paintSlide(props.slide);
+  }
 
   canvas.on('selection:created', updateToolbar);
 
@@ -62,18 +52,10 @@ onMounted(() => {
   canvas.on('selection:cleared', updateToolbar);
 });
 
-onMounted(loadSlide);
-
-async function loadSlide() {
-  const response = await axios.get(`events/${event.value.id}/slide/${props.slideId}`)
-  if (response && response.data) {
-    slide.value = Slide.fromObject(response.data);
-  }
-}
-
 function paintSlide(slide: Slide) {
+  if (!canvas || !slide || !slide.content.background) return;
   canvas.clear();
-  canvas.loadFromJSON(slide.content.json).then(() => {
+  canvas.loadFromJSON(slide.content.background).then(() => {
     canvas.requestRenderAll();
   });
 }
@@ -162,11 +144,10 @@ function triggerRender() {
 
 function saveJson() {
   const json = JSON.stringify(canvas.toJSON());
-  if (slide.value) {
-    slide.value.content.json = json;
-    const content = JSON.stringify(slide.value.content.toJSON());
-    console.log('Saving slide:', slide.value);
-    axios.put(`events/${event.value.id}/slide/${slide.value.id}`, {
+  if (props.slide) {
+    props.slide.content.background = json;
+    const content = JSON.stringify(props.slide.content.toJSON());
+    axios.put(`slides/${props.slide.id}`, {
       content: content
     }).then(response => {
       console.log('Slide saved:', response.data);
@@ -179,7 +160,7 @@ function saveJson() {
 </script>
 
 <template>
-  <div class="inline-block p-4">
+  <div class="inline-block pt-4">
     <button @click="addRect"
             class="px-3 py-1 rounded bg-blue-500  hover:bg-blue-600">
       <svg-icon type="mdi" :path="mdiRectangle"></svg-icon>

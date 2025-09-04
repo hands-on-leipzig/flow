@@ -2,7 +2,6 @@ import {SlideContent} from "./slideContent";
 import {ImageSlideContent} from "./imageSlideContent";
 import {RobotGameSlideContent} from "./robotGameSlideContent";
 import {UrlSlideContent} from "./urlSlideContent";
-import {PhotoSlideContent} from "./photoSlideContent";
 import {FabricSlideContent} from "./fabricSlideContent";
 import {PublicPlanSlideContent} from "./publicPlanSlideContent";
 
@@ -32,17 +31,15 @@ export class Slide {
         const content = JSON.parse(data.content);
         switch (data.type) {
             case "ImageSlideContent":
-                return new ImageSlideContent(content.imageUrl);
+                return new ImageSlideContent(content);
             case "RobotGameSlideContent":
-                return new RobotGameSlideContent();
+                return new RobotGameSlideContent(content);
             case "UrlSlideContent":
-                return new UrlSlideContent(content.url);
-            case "PhotoSlideContent":
-                return new PhotoSlideContent();
+                return new UrlSlideContent(content);
             case "FabricSlideContent":
-                return new FabricSlideContent(content.json);
+                return new FabricSlideContent(content);
             case "PublicPlanSlideContent":
-                return new PublicPlanSlideContent(content.planId, content.hours, content.role);
+                return new PublicPlanSlideContent(content);
             default:
                 console.error("Unknown slide content type: " + data.type);
                 return null;

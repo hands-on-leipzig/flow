@@ -20,14 +20,12 @@ class CarouselController extends Controller
         return response()->json($slideshows);
     }
 
-    public function getSlide($event, $slide)
+    public function getSlide($slide)
     {
         $res = Slide::with('slideshow')
             ->findOrFail($slide);
 
-        if (!$res->slideshow || $res->slideshow->event != $event) {
-            return response()->json(['error' => 'Slide belongs to a differnt event'], 404);
-        }
+        // TODO Event check
 
         return response()->json($res);
     }
@@ -51,14 +49,14 @@ class CarouselController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function updateSlideshowOrder($event, $slideshowId, Request $request)
+    public function updateSlideshowOrder($slideshowId, Request $request)
     {
         $slideIds = $request->input('slide_ids');
         if (!is_array($slideIds) || empty($slideIds)) {
             return response()->json(['error' => 'slide_ids array required'], 400);
         }
 
-        $slideshow = SlideShow::where('id', $slideshowId)->where('event', $event)->first();
+        $slideshow = SlideShow::findOrFail($slideshowId);
         if (!$slideshow) {
             return response()->json(['error' => 'Slideshow not found for event'], 404);
         }
@@ -73,4 +71,19 @@ class CarouselController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function deleteSlide(Request $request, $slideId)
+    {
+        $slide = Slide::find($slideId);
+        if (!$slide) {
+            return response()->json(['error' => 'Slide nicht gefunden'], 404);
+        }
+
+        // TODO: Rechteprüfung
+
+        $slide->delete();
+
+        return response()->json(['success' => true]);
+    }
+
 }

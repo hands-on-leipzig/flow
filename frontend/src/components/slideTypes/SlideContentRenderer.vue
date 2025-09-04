@@ -7,8 +7,6 @@ import {Slide} from "../../models/slide.js";
 import {RobotGameSlideContent} from "../../models/robotGameSlideContent.js";
 import {UrlSlideContent} from "../../models/urlSlideContent.js";
 import UrlSlideContentRenderer from "./UrlSlideContentRenderer.vue";
-import {PhotoSlideContent} from "../../models/photoSlideContent.js";
-import PhotoSlideContentRenderer from "./PhotoSlideContentRenderer.vue";
 import {FabricSlideContent} from "../../models/fabricSlideContent.js";
 import FabricSlideContentRenderer from "./FabricSlideContentRenderer.vue";
 import {PublicPlanSlideContent} from "@/models/publicPlanSlideContent";
@@ -29,8 +27,6 @@ const componentName = computed(() => {
     return RobotGameSlideContentRenderer;
   } else if (content instanceof UrlSlideContent) {
     return UrlSlideContentRenderer;
-  } else if (content instanceof PhotoSlideContent) {
-    return PhotoSlideContentRenderer;
   } else if (content instanceof FabricSlideContent) {
     return FabricSlideContentRenderer;
   } else if (content instanceof PublicPlanSlideContent) {

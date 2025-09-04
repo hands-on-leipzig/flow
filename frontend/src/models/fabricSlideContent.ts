@@ -2,17 +2,15 @@ import {SlideContent} from "./slideContent";
 
 export class FabricSlideContent extends SlideContent {
 
-    public json: string;
-
-    constructor(json: string) {
+    constructor(data: object) {
         super();
-        this.json = json;
+        Object.assign(this, data);
     }
 
     public toJSON(): object {
         return {
             type: "FabricSlideContent",
-            json: this.json,
+            background: this.background,
         };
     }
 }

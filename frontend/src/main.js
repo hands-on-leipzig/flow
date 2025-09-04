@@ -16,8 +16,8 @@ import PublishControl from "@/components/PublishControl.vue";
 import Admin from "@/components/Admin.vue";
 import Teams from "@/components/Teams.vue";
 import Preview from "@/components/molecules/Preview.vue";
-import FabricEditor from "@/components/FabricEditor.vue";
 import Carousel from "@/components/Carousel.vue";
+import EditSlide from "@/components/EditSlide.vue";
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true},
@@ -30,7 +30,7 @@ const routes = [
     {path: '/publish', component: PublishControl, meta: {requiresAuth: true}},
     {path: '/admin', component: Admin, meta: {requiresAuth: true}},
     {path: '/preview/:planId', component: Preview, props: true, meta: {requiresAuth: true}},
-    {path: '/editSlide/:slideshowId/:slideId', component: FabricEditor, props: true, meta: {requiresAuth: true}},
+    {path: '/editSlide/:slideId', component: EditSlide, props: true, meta: {requiresAuth: true}},
 ];
 
 const router = createRouter({

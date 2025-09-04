@@ -8,6 +8,11 @@ export class RobotGameSlideContent extends SlideContent {
     public footerImages: string[] = [];
     public highlightColor: string = '#F78B1F';
 
+    constructor(data: object) {
+        super();
+        Object.assign(this, data);
+    }
+
     public toJSON(): object {
         return {
             type: "RobotGameSlideContent",
@@ -15,7 +20,8 @@ export class RobotGameSlideContent extends SlideContent {
             teamsPerPage: this.teamsPerPage,
             showFooter: this.showFooter,
             footerImages: this.footerImages,
-            highlightColor: this.highlightColor
+            highlightColor: this.highlightColor,
+            background: this.background
         };
     }
 }

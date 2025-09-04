@@ -21,13 +21,20 @@ async function updateOrder(slideshow: Slideshow) {
   const slideIds = slideshow.slides.map(slide => slide.id);
 
   try {
-    await axios.put(`/events/${event.value.id}/slideshow/${slideshow.id}/updateOrder`, {
+    await axios.put(`/slideshow/${slideshow.id}/updateOrder`, {
       slide_ids: slideIds
     });
   } catch (e) {
     console.error(e);
   }
   console.log('update order');
+}
+
+function deleteSlide(slideshow: Slideshow, slideId: number) {
+  const index = slideshow.slides.findIndex(s => s.id === slideId);
+  if (index !== -1) {
+    slideshow.slides.splice(index, 1);
+  }
 }
 
 function copyUrl(url) {
@@ -62,10 +69,9 @@ function copyUrl(url) {
                  item-key="id"
                  @end="updateOrder(slideshow)">
         <template #item="{ element }">
-          <router-link v-if="element.type === 'FabricSlideContent'" :to="`/editSlide/${slideshow.id}/${element.id}`">
-            <SlideThumb :slide="element" class="w-24 h-16 border rounded" @click=""/>
+          <router-link :to="`/editSlide/${element.id}`">
+            <SlideThumb :slide="element" class="border rounded" @deleteSlide="deleteSlide(slideshow, element.id)"/>
           </router-link>
-          <SlideThumb v-else :slide="element" class="w-24 h-16 border rounded" @click=""/>
         </template>
       </draggable>
     </details>

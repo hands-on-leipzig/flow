@@ -11,11 +11,9 @@ export class PublicPlanSlideContent extends SlideContent {
     // 10: Besucher Explore
     public role: number;
 
-    constructor(planId: number, hours: number, role: number = 14) {
+    constructor(data: object) {
         super();
-        this.planId = planId;
-        this.hours = hours;
-        this.role = role;
+        Object.assign(this, data);
     }
 
     public toJSON(): object {
@@ -23,7 +21,8 @@ export class PublicPlanSlideContent extends SlideContent {
             type: "PublicPlanSlideContent",
             planId: this.planId,
             hours: this.hours,
-            role: this.role
+            role: this.role,
+            background: this.background
         };
     }
 }

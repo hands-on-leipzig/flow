@@ -4,9 +4,9 @@ export class ImageSlideContent extends SlideContent {
 
     public imageUrl: {};
 
-    constructor(imageUrl: {},) {
+    constructor(data: object) {
         super();
-        this.imageUrl = imageUrl;
+        Object.assign(this, data);
     }
 
     public toJSON(): object {

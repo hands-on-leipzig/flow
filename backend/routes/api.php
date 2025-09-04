@@ -86,10 +86,10 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/events/{id}/table-names', [EventController::class, 'updateTableNames']);
 
     // Carousel controller
-    // TODO remove eventid?
-    Route::get('/events/{event}/slide/{slide}', [CarouselController::class, 'getSlide']);
-    Route::put('/events/{event}/slide/{slide}', [CarouselController::class, 'updateSlide']);
-    Route::put('/events/{event}/slideshow/{slideshow}/updateOrder', [CarouselController::class, 'updateSlideshowOrder']);
+    Route::get('/slides/{slide}', [CarouselController::class, 'getSlide']);
+    Route::put('/slides/{slide}', [CarouselController::class, 'updateSlide']);
+    Route::delete('/slides/{slide}', [CarouselController::class, 'deleteSlide']);
+    Route::put('/slideshow/{slideshow}/updateOrder', [CarouselController::class, 'updateSlideshowOrder']);
 
     // Team controller
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);

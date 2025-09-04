@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {shallowRef, onMounted} from 'vue';
 import {StaticCanvas} from 'fabric';
-import {FabricSlideContent} from "../../models/fabricSlideContent.js";
+import {SlideContent} from "@/models/slideContent";
 
 const props = withDefaults(defineProps<{
-  content: FabricSlideContent,
+  content: SlideContent,
   preview: Boolean
 }>(), {
   preview: false
@@ -23,7 +23,7 @@ onMounted(() => {
     backgroundColor: '#ffffff'
   });
   c.setZoom(zoom);
-  c.loadFromJSON(props.content.json).then(() => {
+  c.loadFromJSON(props.content.background).then(() => {
     c.requestRenderAll();
   });
 });

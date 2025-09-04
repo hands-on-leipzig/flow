@@ -4,9 +4,9 @@ export class UrlSlideContent extends SlideContent {
 
     public url: string;
 
-    constructor(url: string,) {
+    constructor(data: object)  {
         super();
-        this.url = url;
+        Object.assign(this, data);
     }
 
     public toJSON(): object {
