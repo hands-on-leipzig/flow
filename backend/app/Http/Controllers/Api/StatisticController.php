@@ -17,6 +17,7 @@ class StatisticController extends Controller
             ->leftJoin('event', 'event.regional_partner', '=', 'regional_partner.id')
             ->leftJoin('plan', 'plan.event', '=', 'event.id')
             ->join('m_season', 'event.season', '=', 'm_season.id')
+            ->where('regional_partner.id', '!=', 98)                    // Test-RP ausschließen. TODO
             ->select([
                 // RP
                 'regional_partner.id as partner_id',
