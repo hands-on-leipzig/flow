@@ -71,6 +71,7 @@ const flattenedRows = computed(() => {
           plan_id: plan.plan_id,
           plan_created: plan.plan_created,
           plan_last_change: plan.plan_last_change,
+          generator_stats: plan.generator_stats ?? null, // <-- HIER
         })
       }
     }
@@ -136,6 +137,7 @@ const getPlanCount = (eventId) => {
             <th class="px-3 py-2">Plan</th>
             <th class="px-3 py-2">Erstellt</th>
             <th class="px-3 py-2">Letzte Änderung</th>
+            <th class="px-3 py-2">Generierungen</th>
           </tr>
         </thead>
         <tbody>
@@ -207,7 +209,19 @@ const getPlanCount = (eventId) => {
 
           <!-- Plan Last Change -->
           <td class="px-3 py-2">{{ row.plan_last_change }}</td>
+  
+          <!-- Generator Stats -->
+          <td class="px-3 py-2 text-right">
+            <template v-if="row.plan_id && row.generator_stats !== null">
+              {{ row.generator_stats }}
+            </template>
+            <template v-else>
+              –
+            </template>
+          </td>     
+
         </tr>
+
       </tbody>
       </table>
 

@@ -43,6 +43,22 @@ class StatisticController extends Controller
             ])
             ->get();
 
+        // Plan-IDs sammeln
+        $planIds = $records->pluck('plan_id')->filter()->unique();
+
+        // Generator-Stats abrufen
+        $genStatsRaw = DB::table('s_generator')
+            ->whereIn('plan', $planIds)
+            ->whereNotNull('start')
+            ->whereNotNull('end')
+            ->select(
+                'plan',
+                DB::raw('COUNT(*) as count')
+            )
+            ->groupBy('plan')
+            ->get()
+            ->keyBy('plan');
+                
         // Gruppieren
         $groupedSeasons = [];
 
@@ -88,6 +104,7 @@ class StatisticController extends Controller
                     'plan_name' => $row->plan_name,
                     'plan_created' => $row->plan_created,
                     'plan_last_change' => $row->plan_last_change,
+                    'generator_stats' => $genStatsRaw[$row->plan_id]->count ?? null,
                 ];
             }
         }
@@ -119,16 +136,25 @@ class StatisticController extends Controller
             })
             ->all();
 
-        // Debug-Ausgabe
-     //   \Log::debug('StatisticsController: plans_by_season JSON', ['seasons' => $seasons]);
+// Kommentieren (einfachste Lösung)
+ // \Log::debug('StatisticsController: plans_by_season JSON', ['seasons' => $seasons]);
+
+// Oder: Nur Metadaten loggen
+\Log::debug('StatisticsController: plans_by_season JSON summary', [
+    'season_count' => count($seasons),
+    'plan_count' => collect($seasons)->flatMap(fn($s) =>
+        collect($s['partners'])->flatMap(fn($p) =>
+            collect($p['events'])->flatMap(fn($e) => $e['plans'])
+        )
+    )->count(),
+]);
 
         return response()->json([
             'seasons' => $seasons,
         ]);
     }
 
-    public function plansDetails(): JsonResponse
-    {
+
 /*
         $genStatsRaw = DB::table('s_generator')
             ->whereIn('plan', $plansWithEvent->pluck('plan_id'))
@@ -145,7 +171,5 @@ class StatisticController extends Controller
             ->get()
             ->keyBy('plan');
 */
-        return response()->json(['message' => 'Not implemented'], 501);
-    }
 
 }
