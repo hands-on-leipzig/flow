@@ -55,6 +55,20 @@ const filteredPlans = computed(() => {
 
   return rows
 })
+
+function shouldShowPartner(index) {
+  if (index === 0) return true
+  const prev = filteredPlans.value[index - 1]
+  const curr = filteredPlans.value[index]
+  return prev.partner_id !== curr.partner_id
+}
+
+function shouldShowEvent(index) {
+  if (index === 0) return true
+  const prev = filteredPlans.value[index - 1]
+  const curr = filteredPlans.value[index]
+  return prev.event_id !== curr.event_id
+}
 </script>
 
 <template>
@@ -97,18 +111,57 @@ const filteredPlans = computed(() => {
         </thead>
         <tbody>
           <tr
-            v-for="row in filteredPlans"
+            v-for="(row, index) in filteredPlans"
             :key="`${row.partner_id}-${row.event_id}-${row.plan_id}`"
             class="border-t border-gray-200 hover:bg-gray-50"
           >
-            <td class="px-3 py-2 text-gray-400">{{ row.partner_id }}</td>
-            <td class="px-3 py-2">{{ row.partner_name }}</td>
-            <td class="px-3 py-2 text-gray-400">{{ row.event_id }}</td>
-            <td class="px-3 py-2">
-              {{ row.event_name }} <span class="text-gray-500">({{ row.event_date }})</span>
+            <!-- RP ID -->
+            <td class="px-3 py-2 text-gray-400">
+              <template v-if="shouldShowPartner(index)">
+                {{ row.partner_id }}
+              </template>
+              <template v-else>
+                &nbsp;
+              </template>
             </td>
+
+            <!-- RP Name -->
+            <td class="px-3 py-2">
+              <template v-if="shouldShowPartner(index)">
+                {{ row.partner_name }}
+              </template>
+              <template v-else>
+                &nbsp;
+              </template>
+            </td>
+
+            <!-- Event ID -->
+            <td class="px-3 py-2 text-gray-400">
+              <template v-if="shouldShowEvent(index)">
+                {{ row.event_id }}
+              </template>
+              <template v-else>
+                &nbsp;
+              </template>
+            </td>
+
+            <!-- Event Name + Date -->
+            <td class="px-3 py-2">
+              <template v-if="shouldShowEvent(index)">
+                {{ row.event_name }} <span class="text-gray-500">({{ row.event_date }})</span>
+              </template>
+              <template v-else>
+                &nbsp;
+              </template>
+            </td>
+
+            <!-- Plan ID -->
             <td class="px-3 py-2 text-gray-400">{{ row.plan_id }}</td>
+
+            <!-- Plan Created -->
             <td class="px-3 py-2">{{ row.plan_created }}</td>
+
+            <!-- Plan Last Change -->
             <td class="px-3 py-2">{{ row.plan_last_change }}</td>
           </tr>
         </tbody>
