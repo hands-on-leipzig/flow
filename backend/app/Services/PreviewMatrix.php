@@ -49,201 +49,201 @@ public function buildRolesMatrix(Collection $activities): array
         (int)($activities->where('program_name','CHALLENGE')->pluck('table_2_team')->filter()->max() ?? 0)
     );
 
-// --- 3. Build headers dynamically (interleaved RC/RG per table)
-$headers  = [['key' => 'time', 'title' => 'Zeit']];
-$usedKeys = []; // zur Sicherheit: Duplikate verhindern
-$headerMeta = []; // <-- ergänzen: Titel je Key mitführen
-$addHeader = function (array $h) use (&$headers, &$usedKeys) {
-    if (!isset($h['key']) || !isset($h['title'])) {
-        return;
-    }
-    if (!isset($usedKeys[$h['key']])) {
-        $headers[] = $h;
-        $usedKeys[$h['key']] = true;
-    }
-};
-
-// tablesUsed sortiert/unique (falls nicht schon vorher geschehen)
-$tablesUsed = array_values(array_unique($tablesUsed));
-sort($tablesUsed);
-
-// Rollen vorsortieren in Eimer
-$tableRolesByProg = [ 'E' => [], 'C' => [] ]; // z.B. ['RC' => $roleObj, 'RG' => $roleObj, ...]
-$laneRoles        = [];                       // [[$progLetter, $role, $shortKey], ...]
-$simpleRoles      = [];                       // [[$progLetter, $role, $shortKey], ...]
-
-foreach ($roles as $role) {
-    $progLetter = ((int)$role->first_program === 2) ? 'E' : 'C';
-    // shortKey aus name_short (wenn vorhanden), sonst aus name
-    $baseShort  = (string)($role->name_short ?: $role->name);
-    $shortKey   = strtoupper(substr($baseShort, 0, 2));
-
-    if ($role->differentiation_parameter === 'lane') {
-        $laneRoles[] = [$progLetter, $role, $shortKey];
-    } elseif ($role->differentiation_parameter === 'table') {
-        $tableRolesByProg[$progLetter][$shortKey] = $role;
-    } else {
-        $simpleRoles[] = [$progLetter, $role, $shortKey];
-    }
-}
-
-// 3a) LANE-Rollen (E/C separat, Anzahl je Programm)
-foreach ($laneRoles as [$progLetter, $role, $shortKey]) {
-    $titleBase = (string)($role->name_short ?: $role->name);
-    $laneMax   = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
-
-    for ($i = 1; $i <= $laneMax; $i++) {
-        $addHeader([
-            'key'   => strtolower($progLetter) . '_' . $shortKey . $i, // e.g. c_RC1
-            'title' => "{$titleBase}{$i}",
-        ]);
-    }
-}
-
-// 3b) TABLE-Rollen: pro Programm indexweise RC→RG→(andere) je Tisch
-foreach (['E', 'C'] as $progLetter) {
-    if (empty($tablesUsed)) {
-        continue;
-    }
-
-    $rcRole = $tableRolesByProg[$progLetter]['RC'] ?? null;
-    $rgRole = $tableRolesByProg[$progLetter]['RG'] ?? null;
-
-    // „Andere“ table-basierte Rollen stabil in Originalreihenfolge
-    $otherTableRoles = [];
-    foreach ($roles as $r) {
-        $pL = ((int)$r->first_program === 2) ? 'E' : 'C';
-        if ($pL !== $progLetter) continue;
-        if ($r->differentiation_parameter !== 'table') continue;
-
-        $sk = strtoupper(substr((string)($r->name_short ?: $r->name), 0, 2));
-        if ($sk === 'RC' || $sk === 'RG') continue;
-        $otherTableRoles[] = [$r, $sk];
-    }
-
-    foreach ($tablesUsed as $t) {
-        if ($rcRole) {
-            $titleBase = (string)($rcRole->name_short ?: $rcRole->name);
-            $addHeader([
-                'key'   => strtolower($progLetter) . '_RC' . 't' . $t, // e.g. c_RCt1
-                'title' => "{$titleBase}{$t}",
-            ]);
+    // --- 3. Build headers dynamically (interleaved RC/RG per table)
+    $headers  = [['key' => 'time', 'title' => 'Zeit']];
+    $usedKeys = []; // zur Sicherheit: Duplikate verhindern
+    $headerMeta = []; // <-- ergänzen: Titel je Key mitführen
+    $addHeader = function (array $h) use (&$headers, &$usedKeys) {
+        if (!isset($h['key']) || !isset($h['title'])) {
+            return;
         }
-        if ($rgRole) {
-            $titleBase = (string)($rgRole->name_short ?: $rgRole->name);
-            $addHeader([
-                'key'   => strtolower($progLetter) . '_RG' . 't' . $t, // e.g. c_RGt1
-                'title' => "{$titleBase}{$t}",
-            ]);
+        if (!isset($usedKeys[$h['key']])) {
+            $headers[] = $h;
+            $usedKeys[$h['key']] = true;
         }
-        foreach ($otherTableRoles as [$r, $sk]) {
-            $titleBase = (string)($r->name_short ?: $r->name);
-            $addHeader([
-                'key'   => strtolower($progLetter) . '_' . $sk . 't' . $t,
-                'title' => "{$titleBase}{$t}",
-            ]);
-        }
-    }
-}
+    };
 
-// 3c) SIMPLE-Rollen (ohne lane/table)
-foreach ($simpleRoles as [$progLetter, $role, $shortKey]) {
-    $titleBase = (string)($role->name_short ?: $role->name);
-    $addHeader([
-        'key'   => strtolower($progLetter) . '_' . $shortKey,
-        'title' => $titleBase,
-    ]);
-}
+    // tablesUsed sortiert/unique (falls nicht schon vorher geschehen)
+    $tablesUsed = array_values(array_unique($tablesUsed));
+    sort($tablesUsed);
 
-// am Ende wie gehabt:
-$headerKeys = array_map(fn($h) => $h['key'], $headers);
+    // Rollen vorsortieren in Eimer
+    $tableRolesByProg = [ 'E' => [], 'C' => [] ]; // z.B. ['RC' => $roleObj, 'RG' => $roleObj, ...]
+    $laneRoles        = [];                       // [[$progLetter, $role, $shortKey], ...]
+    $simpleRoles      = [];                       // [[$progLetter, $role, $shortKey], ...]
 
-// ---- 4) Activities in Buckets einsortieren (NICHT $headers/$bucket resetten!)
-$bucket = [];  // nur hier initialisieren, nicht später überschreiben!
-
-foreach ($activities as $a) {
-    $atd = (int)$a->activity_type_detail_id;
-    $visibleRoles = $visibility->where('activity_type_detail', $atd);
-
-    foreach ($visibleRoles as $vr) {
-        $role = $roles->firstWhere('id', $vr->role);
-        if (!$role) continue;
-
+    foreach ($roles as $role) {
         $progLetter = ((int)$role->first_program === 2) ? 'E' : 'C';
+        // shortKey aus name_short (wenn vorhanden), sonst aus name
         $baseShort  = (string)($role->name_short ?: $role->name);
         $shortKey   = strtoupper(substr($baseShort, 0, 2));
 
-        $start = \Illuminate\Support\Carbon::parse($a->start_time)->startOfMinute();
-        $end   = \Illuminate\Support\Carbon::parse($a->end_time)->startOfMinute();
-        $baseText = (string)$a->activity_name;
-
         if ($role->differentiation_parameter === 'lane') {
-            $lane = (int)($a->lane ?? 0);
-            $teamNo = (int)($a->team ?? 0);
-            $text = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
-            if ($lane > 0) {
-                $key = strtolower($progLetter).'_'.$shortKey.$lane;
-                $this->push($bucket, $key, $start, $end, $text);
-            } else {
-                $laneMax = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
-                for ($i = 1; $i <= $laneMax; $i++) {
-                    $this->push($bucket, strtolower($progLetter).'_'.$shortKey.$i, $start, $end, $text);
-                }
-            }
-
+            $laneRoles[] = [$progLetter, $role, $shortKey];
         } elseif ($role->differentiation_parameter === 'table') {
-            $pushed = false;
-            foreach ([1,2] as $ti) {
-                $tNo = (int)($a->{'table_'.$ti} ?? 0);
-                if ($tNo > 0) {
-                    $teamNo = (int)($a->{'table_'.$ti.'_team'} ?? 0);
-                    $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
-                    $key    = strtolower($progLetter).'_'.$shortKey.'t'.$tNo;
-                    $this->push($bucket, $key, $start, $end, $text);
-                    $pushed = true;
-                }
-            }
-            if (!$pushed) {
-                $teamNo = (int)($a->team ?? 0);
-                $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
-                foreach ($tablesUsed as $t) {
-                    $key = strtolower($progLetter).'_'.$shortKey.'t'.$t;
-                    $this->push($bucket, $key, $start, $end, $text);
-                }
-            }
+            $tableRolesByProg[$progLetter][$shortKey] = $role;
+        } else {
+            $simpleRoles[] = [$progLetter, $role, $shortKey];
+        }
+    }
 
-        } elseif ($role->differentiation_parameter === 'team') {
-            $hasTeam =
-                (int)($a->team ?? 0) > 0 ||
-                (int)($a->table_1_team ?? 0) > 0 ||
-                (int)($a->table_2_team ?? 0) > 0;
-            if (!$hasTeam) {
+    // 3a) LANE-Rollen (E/C separat, Anzahl je Programm)
+    foreach ($laneRoles as [$progLetter, $role, $shortKey]) {
+        $titleBase = (string)($role->name_short ?: $role->name);
+        $laneMax   = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
+
+        for ($i = 1; $i <= $laneMax; $i++) {
+            $addHeader([
+                'key'   => strtolower($progLetter) . '_' . $shortKey . $i, // e.g. c_RC1
+                'title' => "{$titleBase}{$i}",
+            ]);
+        }
+    }
+
+    // 3b) TABLE-Rollen: pro Programm indexweise RC→RG→(andere) je Tisch
+    foreach (['E', 'C'] as $progLetter) {
+        if (empty($tablesUsed)) {
+            continue;
+        }
+
+        $rcRole = $tableRolesByProg[$progLetter]['RC'] ?? null;
+        $rgRole = $tableRolesByProg[$progLetter]['RG'] ?? null;
+
+        // „Andere“ table-basierte Rollen stabil in Originalreihenfolge
+        $otherTableRoles = [];
+        foreach ($roles as $r) {
+            $pL = ((int)$r->first_program === 2) ? 'E' : 'C';
+            if ($pL !== $progLetter) continue;
+            if ($r->differentiation_parameter !== 'table') continue;
+
+            $sk = strtoupper(substr((string)($r->name_short ?: $r->name), 0, 2));
+            if ($sk === 'RC' || $sk === 'RG') continue;
+            $otherTableRoles[] = [$r, $sk];
+        }
+
+        foreach ($tablesUsed as $t) {
+            if ($rcRole) {
+                $titleBase = (string)($rcRole->name_short ?: $rcRole->name);
+                $addHeader([
+                    'key'   => strtolower($progLetter) . '_RC' . 't' . $t, // e.g. c_RCt1
+                    'title' => "{$titleBase}{$t}",
+                ]);
+            }
+            if ($rgRole) {
+                $titleBase = (string)($rgRole->name_short ?: $rgRole->name);
+                $addHeader([
+                    'key'   => strtolower($progLetter) . '_RG' . 't' . $t, // e.g. c_RGt1
+                    'title' => "{$titleBase}{$t}",
+                ]);
+            }
+            foreach ($otherTableRoles as [$r, $sk]) {
+                $titleBase = (string)($r->name_short ?: $r->name);
+                $addHeader([
+                    'key'   => strtolower($progLetter) . '_' . $sk . 't' . $t,
+                    'title' => "{$titleBase}{$t}",
+                ]);
+            }
+        }
+    }
+
+    // 3c) SIMPLE-Rollen (ohne lane/table)
+    foreach ($simpleRoles as [$progLetter, $role, $shortKey]) {
+        $titleBase = (string)($role->name_short ?: $role->name);
+        $addHeader([
+            'key'   => strtolower($progLetter) . '_' . $shortKey,
+            'title' => $titleBase,
+        ]);
+    }
+
+    // am Ende wie gehabt:
+    $headerKeys = array_map(fn($h) => $h['key'], $headers);
+
+    // ---- 4) Activities in Buckets einsortieren (NICHT $headers/$bucket resetten!)
+    $bucket = [];  // nur hier initialisieren, nicht später überschreiben!
+
+    foreach ($activities as $a) {
+        $atd = (int)$a->activity_type_detail_id;
+        $visibleRoles = $visibility->where('activity_type_detail', $atd);
+
+        foreach ($visibleRoles as $vr) {
+            $role = $roles->firstWhere('id', $vr->role);
+            if (!$role) continue;
+
+            $progLetter = ((int)$role->first_program === 2) ? 'E' : 'C';
+            $baseShort  = (string)($role->name_short ?: $role->name);
+            $shortKey   = strtoupper(substr($baseShort, 0, 2));
+
+            $start = \Illuminate\Support\Carbon::parse($a->start_time)->startOfMinute();
+            $end   = \Illuminate\Support\Carbon::parse($a->end_time)->startOfMinute();
+            $baseText = (string)$a->activity_name;
+
+            if ($role->differentiation_parameter === 'lane') {
+                $lane = (int)($a->lane ?? 0);
+                $teamNo = (int)($a->team ?? 0);
+                $text = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
+                if ($lane > 0) {
+                    $key = strtolower($progLetter).'_'.$shortKey.$lane;
+                    $this->push($bucket, $key, $start, $end, $text);
+                } else {
+                    $laneMax = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
+                    for ($i = 1; $i <= $laneMax; $i++) {
+                        $this->push($bucket, strtolower($progLetter).'_'.$shortKey.$i, $start, $end, $text);
+                    }
+                }
+
+            } elseif ($role->differentiation_parameter === 'table') {
+                $pushed = false;
+                foreach ([1,2] as $ti) {
+                    $tNo = (int)($a->{'table_'.$ti} ?? 0);
+                    if ($tNo > 0) {
+                        $teamNo = (int)($a->{'table_'.$ti.'_team'} ?? 0);
+                        $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
+                        $key    = strtolower($progLetter).'_'.$shortKey.'t'.$tNo;
+                        $this->push($bucket, $key, $start, $end, $text);
+                        $pushed = true;
+                    }
+                }
+                if (!$pushed) {
+                    $teamNo = (int)($a->team ?? 0);
+                    $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
+                    foreach ($tablesUsed as $t) {
+                        $key = strtolower($progLetter).'_'.$shortKey.'t'.$t;
+                        $this->push($bucket, $key, $start, $end, $text);
+                    }
+                }
+
+            } elseif ($role->differentiation_parameter === 'team') {
+                $hasTeam =
+                    (int)($a->team ?? 0) > 0 ||
+                    (int)($a->table_1_team ?? 0) > 0 ||
+                    (int)($a->table_2_team ?? 0) > 0;
+                if (!$hasTeam) {
+                    $key = strtolower($progLetter).'_'.$shortKey;
+                    $this->push($bucket, $key, $start, $end, $baseText);
+                }
+
+            } else {
                 $key = strtolower($progLetter).'_'.$shortKey;
                 $this->push($bucket, $key, $start, $end, $baseText);
             }
-
-        } else {
-            $key = strtolower($progLetter).'_'.$shortKey;
-            $this->push($bucket, $key, $start, $end, $baseText);
         }
     }
-}
 
-// ---- 5) Leere Spalten entfernen – Reihenfolge der bereits interleaveten $headers beibehalten
-$activeKeys = array_keys($bucket);
-$finalHeaders = [];
-foreach ($headers as $h) {
-    if ($h['key'] === 'time' || in_array($h['key'], $activeKeys, true)) {
-        // Titel aus headerMeta absichern (falls gewünscht)
-        $h['title'] = $headerMeta[$h['key']] ?? $h['title'];
-        $finalHeaders[] = $h;
+    // ---- 5) Leere Spalten entfernen – Reihenfolge der bereits interleaveten $headers beibehalten
+    $activeKeys = array_keys($bucket);
+    $finalHeaders = [];
+    foreach ($headers as $h) {
+        if ($h['key'] === 'time' || in_array($h['key'], $activeKeys, true)) {
+            // Titel aus headerMeta absichern (falls gewünscht)
+            $h['title'] = $headerMeta[$h['key']] ?? $h['title'];
+            $finalHeaders[] = $h;
+        }
     }
-}
 
-// ---- 6) Rows bauen
-$rows = $this->buildRowsPerActiveDay($finalHeaders, $bucket);
-return ['headers' => $finalHeaders, 'rows' => $rows];
-}
+    // ---- 6) Rows bauen
+    $rows = $this->buildRowsPerActiveDay($finalHeaders, $bucket);
+    return ['headers' => $finalHeaders, 'rows' => $rows];
+    }
 
     private function emptyRow(Carbon $t, array $headerKeys): array
     {
