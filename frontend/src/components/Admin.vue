@@ -4,6 +4,7 @@ import axios from 'axios'
 import Multiselect from '@vueform/multiselect'
 import Quality from '@/components/molecules/Quality.vue'
 import Statistics from '@/components/molecules/Statistics.vue'
+import MParameter from '@/components/molecules/MParameter.vue'
 import '@vueform/multiselect/themes/default.css'
 
 const activeTab = ref('conditions')
@@ -109,6 +110,14 @@ fetchConditions()
         📊 Statistiken
       </button>
 
+      <button
+        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+        :class="{ 'bg-white font-semibold shadow': activeTab === 'mparameter' }"
+        @click="activeTab = 'mparameter'"
+      >
+        📝 m_parameter
+      </button>
+
     </div>
 
     <div class="flex-1 p-6 overflow-auto">
@@ -196,6 +205,11 @@ fetchConditions()
       <div v-if="activeTab === 'statistics'">
         <h2 class="text-xl font-bold mb-4">Statistiken</h2>
         <statistics />
+      </div>
+
+      <div v-if="activeTab === 'mparameter'">
+        <h2 class="text-xl font-bold mb-4">Tabelle m_parameter</h2>
+        <MParameter />
       </div>
 
     </div>
