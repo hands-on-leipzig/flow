@@ -14,7 +14,7 @@ const draftById = ref<Record<number, any>>({})
 const savingId = ref<number|null>(null)
 
 // Filter (Checkbox-Varianten)
-const filterContexts = ref<string[]>(['protected', 'input','expert'])
+const filterContexts = ref<string[]>(['input','expert'])
 const filterPrograms = ref<number[]>([0,2,3])   // 0=gemeinsam, 2=Explore, 3=Challenge
 const filterLevels   = ref<number[]>([1])
 
@@ -103,7 +103,7 @@ function discard(item:any) {
   }
 }
 
-// Speichern (PUT /params/{id})
+// Speichern 
 async function save(item) {
   const draft = draftById.value[item.id]
   if (!draft) return
@@ -122,7 +122,7 @@ async function save(item) {
   savingId.value = item.id
   try {
     const payload = { ...draft }
-    await axios.put(`/params/${item.id}`, payload)
+    await axios.post(`/params/${item.id}`, payload)
     // In Originalliste zurückschreiben
     Object.assign(item, payload)
   } catch (e) {
@@ -257,7 +257,7 @@ const programIcon = (fp: number | null | undefined) => {
                             <div class="font-medium truncate">
                             {{ item.name || '(ohne Name)' }}
                             <span class="ml-2 text-sm text-gray-500">
-                                {{ item.ui_label || '—' }}
+                                {{ item.ui_label || '—' }} = {{ item.value || '—' }} 
                             </span>
                             </div>
                         </div>
@@ -272,16 +272,33 @@ const programIcon = (fp: number | null | undefined) => {
 
                     <!-- Detailbereich (Edit) -->
                     <div v-if="expandedId === item.id" class="px-3 pb-3">
-                        <!-- Name / UI Label -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
+                        <!-- ID / Name / UI Label -->
+                        <div class="grid grid-cols-1 md:grid-cols-8 gap-3">
+                        <!-- ID -->
+                        <div class="md:col-span-1">
+                            <label class="block text-xs text-gray-500 mb-1">ID</label>
+                            <div class="w-full border rounded px-2 py-1 bg-gray-50 text-sm text-gray-700">
+                            {{ item.id }}
+                            </div>
+                        </div>
+
+                        <!-- Name -->
+                        <div class="md:col-span-3">
                             <label class="block text-xs text-gray-500 mb-1">Name</label>
-                            <input v-model="draftById[item.id].name" class="w-full border rounded px-2 py-1" />
-                            </div>
-                            <div>
+                            <input
+                            v-model="draftById[item.id].name"
+                            class="w-full border rounded px-2 py-1"
+                            />
+                        </div>
+
+                        <!-- UI Label -->
+                        <div class="md:col-span-4">
                             <label class="block text-xs text-gray-500 mb-1">UI Label</label>
-                            <input v-model="draftById[item.id].ui_label" class="w-full border rounded px-2 py-1" />
-                            </div>
+                            <input
+                            v-model="draftById[item.id].ui_label"
+                            class="w-full border rounded px-2 py-1"
+                            />
+                        </div>
                         </div>
 
                         <!-- Zwei Boxen nebeneinander -->
@@ -347,7 +364,7 @@ const programIcon = (fp: number | null | undefined) => {
                             <textarea v-model="draftById[item.id].ui_description" rows="3" class="w-full border rounded px-2 py-1"
                         
                             spellcheck="true"
-                            autocorrect="on"
+                            autocorrect="off"
                             autocomplete="on"
                         
                             ></textarea>
