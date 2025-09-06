@@ -9,6 +9,7 @@ const props = defineProps<{
   parameters: any[]
   showChallenge: boolean
   lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
+  supportedPlanData?: any[] | null
 }>()
 
 const emit = defineEmits<{
@@ -163,6 +164,20 @@ const isCurrentConfigSuggested = computed<boolean>(() => {
   return !!meta?.[lane]?.suggested
 })
 
+// Calculate min/max team counts from supported plan data
+const challengeTeamLimits = computed(() => {
+  if (!props.supportedPlanData) return { min: 1, max: 50 }
+  
+  const challengePlans = props.supportedPlanData.filter(plan => plan.first_program === 3)
+  if (challengePlans.length === 0) return { min: 1, max: 50 }
+  
+  const teamCounts = challengePlans.map(plan => plan.teams)
+  return {
+    min: Math.min(...teamCounts),
+    max: Math.max(...teamCounts)
+  }
+})
+
 </script>
 
 <template>
@@ -195,8 +210,8 @@ const isCurrentConfigSuggested = computed<boolean>(() => {
         <input
             class="mt-1 w-32 border rounded px-2 py-1"
             type="number"
-            :min="paramMapByName['c_teams']?.min"
-            :max="paramMapByName['c_teams']?.max"
+            :min="challengeTeamLimits.min"
+            :max="challengeTeamLimits.max"
             :value="paramMapByName['c_teams']?.value"
             @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
         />

@@ -9,6 +9,7 @@ const props = defineProps<{
   parameters: any[]
   showExplore: boolean
   lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
+  supportedPlanData?: any[] | null
 }>()
 
 const emit = defineEmits<{
@@ -287,6 +288,20 @@ const onUpdateE2 = (val: number) => {
     updateByName('e_teams', total)
   }
 }
+
+// Calculate min/max team counts from supported plan data
+const exploreTeamLimits = computed(() => {
+  if (!props.supportedPlanData) return { min: 1, max: 50 }
+  
+  const explorePlans = props.supportedPlanData.filter(plan => plan.first_program === 2)
+  if (explorePlans.length === 0) return { min: 1, max: 50 }
+  
+  const teamCounts = explorePlans.map(plan => plan.teams)
+  return {
+    min: Math.min(...teamCounts),
+    max: Math.max(...teamCounts)
+  }
+})
 </script>
 
 <template>
@@ -316,8 +331,8 @@ const onUpdateE2 = (val: number) => {
       <input
           class="mt-1 w-32 border rounded px-2 py-1"
           type="number"
-          :min="paramMapByName['e_teams']?.min"
-          :max="paramMapByName['e_teams']?.max"
+          :min="exploreTeamLimits.min"
+          :max="exploreTeamLimits.max"
           :value="paramMapByName['e_teams']?.value"
           @input="updateByName('e_teams', Number(($event.target as HTMLInputElement).value || 0))"
       />

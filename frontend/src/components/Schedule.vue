@@ -357,6 +357,7 @@ function isTimeParam(param: Parameter) {
 
 
 const lanesIndex = ref<LanesIndex | null>(null)
+const supportedPlanData = ref<any[] | null>(null)
 
 onMounted(async () => {
   openGroup.value = "general"
@@ -372,6 +373,7 @@ onMounted(async () => {
   const {data} = await axios.get('/parameter/lanes-options')
   const rows: LaneRow[] = Array.isArray(data?.rows) ? data.rows : data
   lanesIndex.value = buildLanesIndex(rows)
+  supportedPlanData.value = rows
 })
 </script>
 
@@ -426,12 +428,14 @@ onMounted(async () => {
                 :show-explore="showExplore"
                 @toggle-show="(v) => showExplore = v"
                 :lanes-index="lanesIndex"
+                :supported-plan-data="supportedPlanData"
                 @update-param="handleParamUpdate"
             />
             <ChallengeSettings
                 :parameters="parameters"
                 :show-challenge="showChallenge"
                 :lanes-index="lanesIndex"
+                :supported-plan-data="supportedPlanData"
                 @toggle-show="(v) => showChallenge = v"
                 @update-param="handleParamUpdate"
             />
