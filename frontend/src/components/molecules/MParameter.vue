@@ -116,13 +116,26 @@ function discard(item:any) {
 }
 
 // Speichern (PUT /params/{id})
-async function save(item:any) {
+async function save(item) {
   const draft = draftById.value[item.id]
   if (!draft) return
+
+  // Sicherheitsabfrage: Name geändert?
+  const nameChanged =
+    (item.name ?? '') !== (draft.name ?? '')
+
+  if (nameChanged) {
+    const ok = confirm(
+      `Der Name wurde geändert:\n\nAlt: "${item.name || '—'}"\nNeu: "${draft.name || '—'}"\n\nÄnderung wirklich speichern?`
+    )
+    if (!ok) return
+  }
+
   savingId.value = item.id
   try {
     const payload = { ...draft }
     await axios.put(`/params/${item.id}`, payload)
+    // In Originalliste zurückschreiben
     Object.assign(item, payload)
   } catch (e) {
     console.error('Update fehlgeschlagen', e)
@@ -230,154 +243,153 @@ const programIcon = (fp: number | null | undefined) => {
           chosen-class="drag-chosen"
           drag-class="drag-dragging"
           animation="150"
-        >
-          <template #item="{ element: item, index }">
-            <div v-if="filtered.includes(item)" class="border-b">
-              <!-- Kopfzeile (kompakt) -->
-              <div class="flex items-center gap-3 px-3 py-2">
-                <span class="w-8 text-right text-xs text-gray-500">#{{ item.sequence }}</span>
-                <span class="drag-handle cursor-move select-none">⋮⋮</span>
+           >
+            <template #item="{ element: item, index }">
+                <div v-if="filtered.includes(item)" class="border-b">
+                    <!-- Kopfzeile (kompakt) -->
+                    <div class="flex items-center gap-3 px-3 py-2">
+                        <span class="w-8 text-right text-xs text-gray-500">#{{ item.sequence }}</span>
+                        <span class="drag-handle cursor-move select-none">⋮⋮</span>
 
-                <!-- Fix breiter Kontext/Programm-Bereich -->
-                <div class="w-16 flex items-center">
-                <!-- schmaler vertikaler Farbstreifen -->
-                <span
-                    :class="['h-6 w-1 rounded-sm', contextBarClass(item.context)]"
-                    aria-hidden="true"
-                ></span>
+                        <!-- Fix breiter Kontext/Programm-Bereich -->
+                        <div class="w-16 flex items-center">
+                        <!-- schmaler vertikaler Farbstreifen -->
+                        <span
+                            :class="['h-6 w-1 rounded-sm', contextBarClass(item.context)]"
+                            aria-hidden="true"
+                        ></span>
 
-                <!-- Programm-Icon (optional, kein Text) -->
-                <img
-                    v-if="programIcon(item.first_program)"
-                    :src="programIcon(item.first_program)"
-                    alt=""
-                    class="ml-2 w-5 h-5 flex-shrink-0"
-                />
-                </div>
-
-                <div class="flex-1 min-w-0">
-                  <div class="font-medium truncate">
-                    {{ item.name || '(ohne Name)' }}
-                  
-                    {{ item.ui_label || '—' }} 
-                  </div>
-                </div>
-
-                <button
-                  class="text-sm px-2 py-1 rounded bg-gray-100 hover:bg-gray-200"
-                  @click="toggleExpand(item)"
-                >
-                  {{ expandedId === item.id ? 'Schließen' : 'Bearbeiten' }}
-                </button>
-              </div>
-
-              <!-- Detailbereich (Edit) -->
-              <div v-if="expandedId === item.id" class="px-3 pb-3">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <!-- Textfelder -->
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">Name</label>
-                    <input v-model="draftById[item.id].name" class="w-full border rounded px-2 py-1" />
-                  </div>
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">UI Label</label>
-                    <input v-model="draftById[item.id].ui_label" class="w-full border rounded px-2 py-1" />
-                  </div>
-                  <div class="md:col-span-2">
-                    <label class="block text-xs text-gray-500 mb-1">UI Beschreibung</label>
-                    <textarea v-model="draftById[item.id].ui_description" rows="2" class="w-full border rounded px-2 py-1"></textarea>
-                  </div>
-
-                  <!-- Radios: context -->
-                  <div>
-                    <div class="text-xs text-gray-500 mb-1">Context</div>
-                    <div class="flex flex-wrap gap-3">
-                      <label v-for="c in contexts" :key="c" class="text-sm">
-                        <input type="radio" :value="c" v-model="draftById[item.id].context" class="mr-1" />
-                        {{ c }}
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- Radios: type -->
-                  <div>
-                    <div class="text-xs text-gray-500 mb-1">Type</div>
-                    <div class="flex flex-wrap gap-3">
-                      <label v-for="t in types" :key="t" class="text-sm">
-                        <input type="radio" :value="t" v-model="draftById[item.id].type" class="mr-1" />
-                        {{ t }}
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- Numbers / Werte -->
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">Wert</label>
-                    <input v-model="draftById[item.id].value" class="w-full border rounded px-2 py-1" />
-                  </div>
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">Min</label>
-                    <input v-model="draftById[item.id].min" class="w-full border rounded px-2 py-1" />
-                  </div>
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">Max</label>
-                    <input v-model="draftById[item.id].max" class="w-full border rounded px-2 py-1" />
-                  </div>
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">Step</label>
-                    <input v-model="draftById[item.id].step" class="w-full border rounded px-2 py-1" />
-                  </div>
-
-                  <!-- Level -->
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">Level</label>
-                    <input type="number" v-model.number="draftById[item.id].level" class="w-full border rounded px-2 py-1" />
-                  </div>
-
-                  <!-- Radios: first_program -->
-                  <div>
-                    <div class="text-xs text-gray-500 mb-1">Programm</div>
-                    <div class="flex flex-wrap gap-3">
-                      <label v-for="p in programs" :key="p.value" class="text-sm">
-                        <input
-                          type="radio"
-                          :value="p.value"
-                          v-model="draftById[item.id].first_program"
-                          class="mr-1"
+                        <!-- Programm-Icon (optional, kein Text) -->
+                        <img
+                            v-if="programIcon(item.first_program)"
+                            :src="programIcon(item.first_program)"
+                            alt=""
+                            class="ml-2 w-5 h-5 flex-shrink-0"
                         />
-                        {{ p.label }}
-                      </label>
-                      <label class="text-sm">
-                        <input
-                          type="radio"
-                          :value="null"
-                          v-model="draftById[item.id].first_program"
-                          class="mr-1"
-                        />
-                        (keins)
-                      </label>
-                    </div>
-                  </div>
-                </div>
+                        </div>
 
-                <div class="mt-3 flex gap-2">
-                  <button
-                    class="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                    :disabled="savingId === item.id"
-                    @click="save(item)"
-                  >
-                    {{ savingId === item.id ? 'Speichern…' : 'Speichern' }}
-                  </button>
-                  <button
-                    class="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200"
-                    @click="discard(item)"
-                  >
-                    Verwerfen
-                  </button>
-                </div>
-              </div>
-            </div>
-          </template>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium truncate">
+                            {{ item.name || '(ohne Name)' }}
+                            <span class="ml-2 text-sm text-gray-500">
+                                {{ item.ui_label || '—' }}
+                            </span>
+                            </div>
+                        </div>
+
+                        <button
+                        class="text-sm px-2 py-1 rounded bg-gray-100 hover:bg-gray-200"
+                        @click="toggleExpand(item)"
+                        >
+                        {{ expandedId === item.id ? 'Schließen' : 'Bearbeiten' }}
+                        </button>
+                    </div>
+
+                    <!-- Detailbereich (Edit) -->
+                    <div v-if="expandedId === item.id" class="px-3 pb-3">
+                        <!-- Name / UI Label -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                            <label class="block text-xs text-gray-500 mb-1">Name</label>
+                            <input v-model="draftById[item.id].name" class="w-full border rounded px-2 py-1" />
+                            </div>
+                            <div>
+                            <label class="block text-xs text-gray-500 mb-1">UI Label</label>
+                            <input v-model="draftById[item.id].ui_label" class="w-full border rounded px-2 py-1" />
+                            </div>
+                        </div>
+
+                        <!-- Zwei Boxen nebeneinander -->
+                        <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Box 1: Context / Program / Level -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div>
+                                <label class="block text-xs text-gray-500 mb-1">Context</label>
+                                <select v-model="draftById[item.id].context" class="w-full border rounded px-2 py-1 bg-white text-sm text-gray-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                    <option v-for="c in contexts" :key="c" :value="c">{{ c }}</option>
+                                </select>
+                                </div>
+
+                                <div>
+                                <label class="block text-xs text-gray-500 mb-1">Program</label>
+                                <select v-model="draftById[item.id].first_program" class="w-full border rounded px-2 py-1 bg-white text-sm text-gray-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                    <option :value="null">(gemeinsam)</option>
+                                    <option :value="2">Explore</option>
+                                    <option :value="3">Challenge</option>
+                                </select>
+                                </div>
+
+                                <div>
+                                <label class="block text-xs text-gray-500 mb-1">Level</label>
+                                <select v-model.number="draftById[item.id].level" class="w-full border rounded px-2 py-1 bg-white text-sm text-gray-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                    <option :value="1">1</option>
+                                    <option :value="2">2</option>
+                                    <option :value="3">3</option>
+                                </select>
+                                </div>
+                            </div>
+
+                            <!-- Box 2: Type / Value / Min / Max / Step -->
+                            <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                                <div>
+                                <label class="block text-xs text-gray-500 mb-1">Type</label>
+                                <select v-model="draftById[item.id].type" class="w-full border rounded px-2 py-1 bg-white text-sm text-gray-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                    <option v-for="t in types" :key="t" :value="t">{{ t }}</option>
+                                </select>
+                                </div>
+                                <div>
+                                <label class="block text-xs text-gray-500 mb-1">Wert</label>
+                                <input v-model="draftById[item.id].value" class="w-full border rounded px-2 py-1" />
+                                </div>
+                                <div>
+                                <label class="block text-xs text-gray-500 mb-1">Min</label>
+                                <input v-model="draftById[item.id].min" class="w-full border rounded px-2 py-1" />
+                                </div>
+                                <div>
+                                <label class="block text-xs text-gray-500 mb-1">Max</label>
+                                <input v-model="draftById[item.id].max" class="w-full border rounded px-2 py-1" />
+                                </div>
+                                <div>
+                                <label class="block text-xs text-gray-500 mb-1">Step</label>
+                                <input v-model="draftById[item.id].step" class="w-full border rounded px-2 py-1" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- UI Beschreibung mit Spellcheck im Browser -->
+                        <div class="mt-3">
+                            <label class="block text-xs text-gray-500 mb-1">UI Beschreibung</label>
+                            <textarea v-model="draftById[item.id].ui_description" rows="3" class="w-full border rounded px-2 py-1"
+                        
+                            spellcheck="true"
+                            autocorrect="on"
+                            autocomplete="on"
+                        
+                            ></textarea>
+                        </div>
+
+                        <!-- Aktionen -->
+                        <div class="mt-3 flex gap-2">
+                            <button
+                            class="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                            :disabled="savingId === item.id"
+                            @click="save(item)"
+                            >
+                            {{ savingId === item.id ? 'Speichern…' : 'Speichern' }}
+                            </button>
+                            <button
+                            class="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200"
+                            @click="discard(item)"
+                            >
+                            Verwerfen
+                            </button>
+                        </div>
+                    </div>
+
+                </div> 
+
+            </template> 
+
         </draggable>
 
         <div v-if="filtered.length === 0 && !loading" class="px-4 py-6 text-gray-500">
