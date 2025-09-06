@@ -48,7 +48,7 @@ class TeamController extends Controller
 
     public function update(Request $request, Team $team)
     {
-        $data = $request->only(['id', 'name']);
+        $data = $request->only(['id', 'name', 'noshow']);
 
         if (!isset($data['id'])) {
             return $this->create($request);
@@ -62,6 +62,10 @@ class TeamController extends Controller
 
         if (isset($data['name'])) {
             $team->name = $data['name'];
+        }
+
+        if (isset($data['noshow'])) {
+            $team->noshow = $data['noshow'];
         }
 
         $team->save();

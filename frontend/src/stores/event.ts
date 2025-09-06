@@ -56,6 +56,20 @@ export const useEventStore = defineStore('event', {
                 event.hasTeamDiscrepancy = teamCounts.hasDiscrepancy
                 event.drahtCapacityExplore = teamCounts.exploreCapacity
                 event.drahtCapacityChallenge = teamCounts.challengeCapacity
+                
+                // Update store state using $patch for proper reactivity
+                if (this.selectedEvent && this.selectedEvent.id === event.id) {
+                    this.$patch({
+                        selectedEvent: {
+                            ...this.selectedEvent,
+                            drahtTeamsExplore: teamCounts.exploreCount,
+                            drahtTeamsChallenge: teamCounts.challengeCount,
+                            hasTeamDiscrepancy: teamCounts.hasDiscrepancy,
+                            drahtCapacityExplore: teamCounts.exploreCapacity,
+                            drahtCapacityChallenge: teamCounts.challengeCapacity
+                        }
+                    })
+                }
             } catch (error) {
                 console.error('Failed to load DRAHT team data:', error)
                 // Set defaults on error
@@ -64,10 +78,30 @@ export const useEventStore = defineStore('event', {
                 event.hasTeamDiscrepancy = false
                 event.drahtCapacityExplore = 0
                 event.drahtCapacityChallenge = 0
+                
+                // Update store state using $patch for proper reactivity
+                if (this.selectedEvent && this.selectedEvent.id === event.id) {
+                    this.$patch({
+                        selectedEvent: {
+                            ...this.selectedEvent,
+                            drahtTeamsExplore: 0,
+                            drahtTeamsChallenge: 0,
+                            hasTeamDiscrepancy: false,
+                            drahtCapacityExplore: 0,
+                            drahtCapacityChallenge: 0
+                        }
+                    })
+                }
             }
         },
         
         async refreshDrahtTeamData() {
+            if (this.selectedEvent) {
+                await this.loadDrahtTeamData(this.selectedEvent)
+            }
+        },
+        
+        async updateTeamDiscrepancyStatus() {
             if (this.selectedEvent) {
                 await this.loadDrahtTeamData(this.selectedEvent)
             }

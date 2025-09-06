@@ -23,13 +23,13 @@ export class DrahtService {
       
       const teamsExplore = Object.entries(data.teams_explore || {}).map(([id, team]: [string, any]) => ({
         id: Number(id),
-        number: id,
+        number: team.ref || id, // Use ref field from DRAHT API, fallback to id
         name: team.name
       }))
       
       const teamsChallenge = Object.entries(data.teams_challenge || {}).map(([id, team]: [string, any]) => ({
         id: Number(id),
-        number: id,
+        number: team.ref || id, // Use ref field from DRAHT API, fallback to id
         name: team.name
       }))
       

@@ -16,7 +16,7 @@ const localTeams = ref([])
 const teamList = ref([])
 const teamsDiffer = ref(false)
 const showDiffModal = ref(false)
-const colour = props.program === 'explore' ? 'green' : 'red';
+// No background color needed - using subtle grey instead
 
 const ignoredTeamNumbers = ref(new Set())
 
@@ -35,6 +35,8 @@ const onSort = async () => {
       program: props.program,
       order: payload
     })
+    // Refresh discrepancy status after team reordering
+    await eventStore.updateTeamDiscrepancyStatus()
   } catch (e) {
     console.error('Order update failed', e)
   }
@@ -47,8 +49,23 @@ const updateTeamName = async (team) => {
       number: team.number,
       name: team.name,
     })
+    // Refresh discrepancy status after team update
+    await eventStore.updateTeamDiscrepancyStatus()
   } catch (e) {
     console.error(`Failed to update team name for ${team.id}`, e)
+  }
+}
+
+const updateTeamNoshow = async (team) => {
+  try {
+    await axios.put(`/events/${event.value?.id}/teams`, {
+      id: team.id,
+      noshow: team.noshow ? 1 : 0,
+    })
+    // Refresh discrepancy status after team update
+    await eventStore.updateTeamDiscrepancyStatus()
+  } catch (e) {
+    console.error(`Failed to update team noshow for ${team.id}`, e)
   }
 }
 
@@ -154,7 +171,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="overflow-y-auto max-h-[80vh] lg:max-h-none">
+  <div class="overflow-y-auto max-h-[80vh] lg:max-h-none mx-4">
     <div class="p-4 border rounded shadow">
       <div class="flex items-center gap-2 mb-2">
         <img
@@ -197,7 +214,10 @@ onMounted(async () => {
       >
         <template #item="{element: team, index}">
           <li
-              :class="'bg-'+colour+'-100 rounded px-3 py-1 mb-1 flex justify-between items-center gap-2'"
+              :class="[
+                'bg-gray-50 rounded px-3 py-2 mb-1 flex justify-between items-center gap-2 transition-opacity',
+                team.noshow ? 'opacity-50' : 'opacity-100'
+              ]"
           >
             <!-- Neue Positionsspalte -->
             <span class="w-8 text-right text-sm text-black">T{{ String(index + 1).padStart(2, '0') }}</span>
@@ -206,12 +226,23 @@ onMounted(async () => {
             <span class="text-sm w-12 text-gray-500">{{ team.team_number_hot }}</span>
 
             <!-- Eingabefeld -->
-          <input
-            v-model="team.name"
-            @blur="updateTeamName(team)"
-            class="editable-input flex-1 text-sm"
-          />
+            <input
+              v-model="team.name"
+              @blur="updateTeamName(team)"
+              class="editable-input flex-1 text-sm px-2 py-1 border border-transparent rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors cursor-pointer"
+              placeholder="Click to edit team name"
+            />
             
+            <!-- No-Show Checkbox -->
+            <label class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                v-model="team.noshow"
+                @change="updateTeamNoshow(team)"
+                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span class="text-xs">No-Show</span>
+            </label>
 
             <!-- Drag-Handle -->
             <span class="drag-handle cursor-move text-gray-500"><IconDraggable/></span>
@@ -306,19 +337,28 @@ onMounted(async () => {
 
 <style scoped>
 .editable-input {
-  border: none;
-  border-bottom: 1px dashed transparent;
+  border: 1px solid transparent;
   background-color: transparent;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
 .editable-input:hover {
-  border-bottom: 1px dashed #999;
+  background: rgba(255, 255, 255, 0.8);
+  border-color: #d1d5db;
   cursor: text;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .editable-input:focus {
-  border-bottom: 1px solid #3b82f6; /* Tailwind: blue-500 */
+  background: white;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6, 0 2px 4px rgba(0, 0, 0, 0.1);
   outline: none;
+}
+
+.editable-input::placeholder {
+  color: #9ca3af;
+  font-style: italic;
 }
 </style>
