@@ -116,12 +116,6 @@ const fmtWith = (a: any) => {
     <div v-else-if="error" class="text-red-600">{{ error }}</div>
 
     <div v-else-if="result">
-      <div class="text-xs text-gray-500 mb-2">
-        Pivot: <code>{{ result.pivot_time_utc }}</code>
-        <template v-if="result.window_utc">
-          | Fenster: <code>{{ result.window_utc.from }}</code> → <code>{{ result.window_utc.to }}</code>
-        </template>
-      </div>
 
       <!-- Eine Spalte pro Activity-Group -->
       <div
@@ -135,12 +129,30 @@ const fmtWith = (a: any) => {
         >
           <!-- Group-Header -->
           <div class="px-3 py-2 bg-gray-50 border-b">
-            <div class="text-sm font-semibold truncate">
-              {{ g.group_meta?.name || ('Group #' + g.activity_group_id) }}
-            </div>
-            <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
-              <span v-if="g.group_meta?.first_program_name">{{ g.group_meta.first_program_name }}</span>
-              <span v-if="g.group_meta?.description" class="truncate">· {{ g.group_meta.description }}</span>
+            <div class="flex items-start gap-2">
+              <!-- Program Icon -->
+              <img
+                v-if="g.group_meta?.first_program_id === 2"
+                src="@/assets/FLL_Explore.png"
+                alt="Explore"
+                class="w-6 h-6 flex-shrink-0"
+              />
+              <img
+                v-else-if="g.group_meta?.first_program_id === 3"
+                src="@/assets/FLL_Challenge.png"
+                alt="Challenge"
+                class="w-6 h-6 flex-shrink-0"
+              />
+
+              <!-- Textbereich -->
+              <div class="flex-1">
+                <div class="text-sm font-semibold">
+                  {{ g.group_meta?.name || ('Group #' + g.activity_group_id) }}
+                </div>
+                <div v-if="g.group_meta?.description" class="text-xs text-gray-500 mt-0.5">
+                  {{ g.group_meta.description }}
+                </div>
+              </div>
             </div>
           </div>
 
