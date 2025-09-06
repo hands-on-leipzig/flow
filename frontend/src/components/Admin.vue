@@ -222,7 +222,7 @@ fetchConditions()
       </div>
       
       <div v-if="activeTab === 'nowandnext'">
-        <h2 class="text-xl font-bold mb-4">Tabelle m_parameter</h2>
+        <h2 class="text-xl font-bold mb-4">Was passiert gerade? Und was als nächstes?</h2>
         <NowAndNext />
       </div>
 
