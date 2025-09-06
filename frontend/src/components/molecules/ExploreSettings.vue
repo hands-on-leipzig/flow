@@ -9,6 +9,7 @@ const props = defineProps<{
   parameters: any[]
   showExplore: boolean
   lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
+  supportedPlanData?: any[] | null
 }>()
 
 const emit = defineEmits<{
@@ -36,6 +37,11 @@ function handleToggleChange(target: HTMLInputElement) {
     // Turn on explore - default to mode 1 (integrated AM) if currently off
     if (eMode.value === 0) {
       setMode(1)
+      // Set team count to minimum if it's currently 0
+      const minTeams = paramMapByName.value['e_teams']?.min || 1
+      if (eTeams.value === 0) {
+        updateByName('e_teams', minTeams)
+      }
     }
   } else {
     // Turn off explore - set to mode 0 and clear team counts
@@ -102,22 +108,14 @@ function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5) {
     updateByName('e2_teams', total)
     updateByName('e1_lanes', 0)
   } else if (mode === 5) {
-    // Separate split - initialize half split, lanes will be set by watchers
-    initHalfSplitIfNeeded()
-  }
-}
-
-
-function initHalfSplitIfNeeded() {
-  const total = eTeams.value
-  if (!total) return
-  const sum = e1Teams.value + e2Teams.value
-  if (sum !== total || (e1Teams.value === 0 && e2Teams.value === 0)) {
+    // Separate split - create half split immediately
     const half = Math.floor(total / 2)
     updateByName('e1_teams', half)
     updateByName('e2_teams', total - half)
   }
 }
+
+
 
 /** Keep user split when total changes **/
 watch(() => paramMapByName.value['e_teams']?.value, (newTotalRaw) => {
@@ -150,21 +148,10 @@ watch(() => paramMapByName.value['e_teams']?.value, (newTotalRaw) => {
     updateByName('e1_teams', 0)
     updateByName('e2_teams', total)
   } else if (eMode.value === 5) {
-    // Separate split - maintain proportion or reset to half
-    const e1P = paramMapByName.value['e1_teams']
-    const e2P = paramMapByName.value['e2_teams']
-    if (!e1P || !e2P) {
-      // Initialize half split
-      const half = Math.floor(total / 2)
-      updateByName('e1_teams', half)
-      updateByName('e2_teams', total - half)
-    } else {
-      // Maintain proportion
-      let e1 = Math.min(Number(e1P.value || 0), total)
-      let e2 = total - e1
-      updateByName('e1_teams', e1)
-      updateByName('e2_teams', e2)
-    }
+    // Separate split - always create proper half split
+    const half = Math.floor(total / 2)
+    updateByName('e1_teams', half)
+    updateByName('e2_teams', total - half)
   }
 })
 
@@ -301,6 +288,20 @@ const onUpdateE2 = (val: number) => {
     updateByName('e_teams', total)
   }
 }
+
+// Calculate min/max team counts from supported plan data
+const exploreTeamLimits = computed(() => {
+  if (!props.supportedPlanData) return { min: 1, max: 50 }
+  
+  const explorePlans = props.supportedPlanData.filter(plan => plan.first_program === 2)
+  if (explorePlans.length === 0) return { min: 1, max: 50 }
+  
+  const teamCounts = explorePlans.map(plan => plan.teams)
+  return {
+    min: Math.min(...teamCounts),
+    max: Math.max(...teamCounts)
+  }
+})
 </script>
 
 <template>
@@ -330,8 +331,8 @@ const onUpdateE2 = (val: number) => {
       <input
           class="mt-1 w-32 border rounded px-2 py-1"
           type="number"
-          :min="paramMapByName['e_teams']?.min"
-          :max="paramMapByName['e_teams']?.max"
+          :min="exploreTeamLimits.min"
+          :max="exploreTeamLimits.max"
           :value="paramMapByName['e_teams']?.value"
           @input="updateByName('e_teams', Number(($event.target as HTMLInputElement).value || 0))"
       />
@@ -461,7 +462,7 @@ const onUpdateE2 = (val: number) => {
     <!-- Two columns when independent (3, 4, or 5) -->
     <div v-if="hasExplore && isIndependent" class="mt-4 grid grid-cols-2 gap-8 text-gray-800">
       <!-- AM -->
-      <div :class="(eMode === 4) ? 'opacity-40 pointer-events-none' : ''">
+      <div :class="(eMode === 4 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
           Vormittag
         </div>
@@ -470,7 +471,7 @@ const onUpdateE2 = (val: number) => {
               v-for="n in allLaneOptions"
               :key="'e_lane_am_' + n"
               :value="n"
-              :disabled="!isExploreLaneAllowedAM(n)"
+              :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
               v-slot="{ checked, disabled }"
           >
             <button
@@ -490,7 +491,7 @@ const onUpdateE2 = (val: number) => {
       </div>
 
       <!-- PM -->
-      <div :class="(eMode === 3) ? 'opacity-40 pointer-events-none' : ''">
+      <div :class="(eMode === 3 || e2Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
           Nachmittag
         </div>
@@ -499,7 +500,7 @@ const onUpdateE2 = (val: number) => {
               v-for="n in allLaneOptions"
               :key="'e_lane_pm_' + n"
               :value="n"
-              :disabled="!isExploreLaneAllowedPM(n)"
+              :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
               v-slot="{ checked, disabled }"
           >
             <button

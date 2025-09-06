@@ -138,7 +138,12 @@ function updateByName(name: string, value: any) {
 // Batch parameter update system
 const pendingParamUpdates = ref<Record<string, any>>({})
 const paramUpdateTimeoutId = ref<NodeJS.Timeout | null>(null)
-const PARAM_DEBOUNCE_DELAY = 5000 // 5 seconds
+const PARAM_DEBOUNCE_DELAY = 2000
+
+// Toast notification system
+const showToast = ref(false)
+const progress = ref(100)
+const progressIntervalId = ref<NodeJS.Timeout | null>(null)
 
 // Track if there are pending parameter updates
 const hasPendingParamUpdates = computed(() => Object.keys(pendingParamUpdates.value).length > 0)
@@ -157,6 +162,10 @@ function handleParamUpdate(param: { name: string, value: any }) {
   // Add to pending updates
   pendingParamUpdates.value[param.name] = param.value
 
+  // Show toast and start progress animation
+  showToast.value = true
+  startProgressAnimation()
+
   // Clear existing timeout
   if (paramUpdateTimeoutId.value) {
     clearTimeout(paramUpdateTimeoutId.value)
@@ -168,12 +177,45 @@ function handleParamUpdate(param: { name: string, value: any }) {
   }, PARAM_DEBOUNCE_DELAY)
 }
 
+// Start progress animation
+function startProgressAnimation() {
+  // Reset progress
+  progress.value = 100
+
+  // Clear existing interval
+  if (progressIntervalId.value) {
+    clearInterval(progressIntervalId.value)
+  }
+
+  // Calculate step size (100 steps over the debounce delay)
+  const stepSize = 100 / (PARAM_DEBOUNCE_DELAY / 50) // Update every 50ms
+
+  progressIntervalId.value = setInterval(() => {
+    progress.value -= stepSize
+    if (progress.value <= 0) {
+      progress.value = 0
+      clearInterval(progressIntervalId.value!)
+      progressIntervalId.value = null
+    }
+  }, 50)
+}
+
 // Force immediate update of all pending parameter changes
 function flushParamUpdates() {
   if (paramUpdateTimeoutId.value) {
     clearTimeout(paramUpdateTimeoutId.value)
     paramUpdateTimeoutId.value = null
   }
+
+  // Clear progress animation
+  if (progressIntervalId.value) {
+    clearInterval(progressIntervalId.value)
+    progressIntervalId.value = null
+  }
+
+  // Hide toast
+  showToast.value = false
+  progress.value = 100
 
   if (Object.keys(pendingParamUpdates.value).length > 0) {
     const updates = {...pendingParamUpdates.value}
@@ -185,6 +227,9 @@ function flushParamUpdates() {
 
 // Cleanup on unmount
 onUnmounted(() => {
+  if (progressIntervalId.value) {
+    clearInterval(progressIntervalId.value)
+  }
   flushParamUpdates()
 })
 
@@ -312,6 +357,7 @@ function isTimeParam(param: Parameter) {
 
 
 const lanesIndex = ref<LanesIndex | null>(null)
+const supportedPlanData = ref<any[] | null>(null)
 
 onMounted(async () => {
   openGroup.value = "general"
@@ -327,6 +373,7 @@ onMounted(async () => {
   const {data} = await axios.get('/parameter/lanes-options')
   const rows: LaneRow[] = Array.isArray(data?.rows) ? data.rows : data
   lanesIndex.value = buildLanesIndex(rows)
+  supportedPlanData.value = rows
 })
 </script>
 
@@ -337,11 +384,18 @@ onMounted(async () => {
         Link zum öPlan: https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan={{ selectedPlanId }}
       </a>
     </div>
-    <!-- Pending parameter updates indicator -->
-    <div v-if="hasPendingParamUpdates"
-         class="flex items-center gap-2 text-orange-600 text-sm bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
-      <div class="w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
-      <span>Parameter-Änderungen werden in Kürze gespeichert...</span>
+
+    <!-- Toast notification for pending parameter updates -->
+    <div v-if="showToast"
+         class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
+      <div class="flex items-center gap-3">
+        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+        <span class="text-green-800 font-medium">Parameter-Änderungen werden gespeichert...</span>
+      </div>
+      <div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
+        <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
+             :style="{ width: progress + '%' }"></div>
+      </div>
     </div>
 
     <div v-if="false" class="flex items-center space-x-4">
@@ -369,17 +423,19 @@ onMounted(async () => {
       <transition name="fade">
         <div v-if="openGroup === 'general'" class="p-4">
           <div class="grid grid-cols-3 gap-4 mt-4">
-              <ExploreSettings
+            <ExploreSettings
                 :parameters="parameters"
                 :show-explore="showExplore"
                 @toggle-show="(v) => showExplore = v"
                 :lanes-index="lanesIndex"
+                :supported-plan-data="supportedPlanData"
                 @update-param="handleParamUpdate"
             />
-              <ChallengeSettings
+            <ChallengeSettings
                 :parameters="parameters"
                 :show-challenge="showChallenge"
                 :lanes-index="lanesIndex"
+                :supported-plan-data="supportedPlanData"
                 @toggle-show="(v) => showChallenge = v"
                 @update-param="handleParamUpdate"
             />
