@@ -3,11 +3,11 @@ import { ref } from 'vue'
 import axios from 'axios'
 
 // Inputs
-const planId = ref('')
-const usePoint = ref(false)
-const dateStr = ref('')   // YYYY-MM-DD
-const timeStr = ref('')   // HH:mm
-const intervalMin = ref(15)
+const planId = ref('9333')
+const usePoint = ref(true)
+const dateStr = ref('2026-01-16')   // YYYY-MM-DD
+const timeStr = ref('11:00')   // HH:mm
+const intervalMin = ref(60)
 
 // Output
 const loading = ref(false)
@@ -54,6 +54,25 @@ async function callNext() {
     loading.value = false
   }
 }
+
+
+// reine Anzeige-Helfer
+const fmtTime = (iso: string | null | undefined) => {
+  if (!iso) return '—'
+  const d = new Date(iso + (iso.endsWith('Z') ? '' : 'Z')) // robust ggü. fehlender Z
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleTimeString(navigator.language, { hour: '2-digit', minute: '2-digit' })
+}
+
+const fmtWith = (a: any) => {
+  const parts: string[] = []
+  if (a.lane) parts.push(`Lane ${a.lane}`)
+  if (a.team) parts.push(`Team ${String(a.team).padStart(2, '0')}`)
+  if (a.table_1) parts.push(`T${a.table_1}${a.table_1_team ? `→${a.table_1_team}` : ''}`)
+  if (a.table_2) parts.push(`T${a.table_2}${a.table_2_team ? `→${a.table_2_team}` : ''}`)
+  return parts.length ? parts.join(' · ') : '—'
+}
+
 </script>
 
 <template>
@@ -106,36 +125,71 @@ async function callNext() {
     <div v-else-if="result">
       <div class="text-xs text-gray-500 mb-2">
         Pivot: <code>{{ result.pivot_time_utc }}</code>
-        <template v-if="result.window_utc"> | Fenster: <code>{{ result.window_utc.from }}</code> → <code>{{ result.window_utc.to }}</code></template>
+        <template v-if="result.window_utc">
+          | Fenster: <code>{{ result.window_utc.from }}</code> → <code>{{ result.window_utc.to }}</code>
+        </template>
       </div>
 
-      <table class="min-w-full text-sm border border-gray-300 bg-white">
-        <thead class="bg-gray-100">
-          <tr>
-            <th class="px-2 py-1 text-left">Group</th>
-            <th class="px-2 py-1 text-left">Start</th>
-            <th class="px-2 py-1 text-left">Ende</th>
-            <th class="px-2 py-1 text-left">Programm</th>
-            <th class="px-2 py-1 text-left">Name</th>
-            <th class="px-2 py-1 text-left">Mit wem</th>
-          </tr>
-        </thead>
-        <tbody>
-          <template v-for="g in result.groups" :key="g.activity_group_id">
-            <tr v-for="a in g.activities" :key="a.activity_id" class="border-t">
-              <td class="px-2 py-1">{{ g.activity_group_id }}</td>
-              <td class="px-2 py-1">{{ a.start_time }}</td>
-              <td class="px-2 py-1">{{ a.end_time }}</td>
-              <td class="px-2 py-1">{{ a.program || '—' }}</td>
-              <td class="px-2 py-1">{{ a.activity_name }}</td>
-              <td class="px-2 py-1">{{ a.with || '—' }}</td>
-            </tr>
-          </template>
-          <tr v-if="!result.groups || result.groups.length === 0">
-            <td colspan="6" class="px-2 py-3 text-center text-gray-500">Keine passenden Aktivitäten.</td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- Eine Spalte pro Activity-Group -->
+      <div
+        class="grid gap-4"
+        style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));"
+      >
+        <div
+          v-for="g in (result.groups || [])"
+          :key="g.activity_group_id"
+          class="border rounded-lg bg-white shadow-sm overflow-hidden"
+        >
+          <!-- Group-Header -->
+          <div class="px-3 py-2 bg-gray-50 border-b">
+            <div class="text-sm font-semibold truncate">
+              {{ g.group_meta?.name || ('Group #' + g.activity_group_id) }}
+            </div>
+            <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+              <span v-if="g.group_meta?.first_program_name">{{ g.group_meta.first_program_name }}</span>
+              <span v-if="g.group_meta?.description" class="truncate">· {{ g.group_meta.description }}</span>
+            </div>
+          </div>
+
+          <!-- Activities der Gruppe -->
+          <ul class="divide-y">
+            <li
+              v-for="a in (g.activities || [])"
+              :key="a.activity_id"
+              class="px-3 py-2"
+            >
+              <div class="flex items-baseline justify-between gap-2">
+                <div class="text-sm font-medium truncate">
+                  {{ a.activity_name || a.meta?.name || ('Activity #' + a.activity_id) }}
+                </div>
+                <div class="text-xs text-gray-500 whitespace-nowrap">
+                  {{ fmtTime(a.start_time) }}–{{ fmtTime(a.end_time) }}
+                </div>
+              </div>
+
+              <div class="mt-0.5 text-xs text-gray-600 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                <span v-if="a.program">{{ a.program }}</span>
+                <span class="text-gray-400">•</span>
+                <span>{{ fmtWith(a) }}</span>
+              </div>
+
+              <!-- Optional: Activity-Meta aus atd -->
+              <div v-if="a.meta?.description" class="mt-1 text-xs text-gray-500 line-clamp-2">
+                {{ a.meta.description }}
+              </div>
+            </li>
+
+            <li v-if="!g.activities || g.activities.length === 0" class="px-3 py-3 text-xs text-gray-500">
+              Keine Aktivitäten in dieser Gruppe.
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
+        Keine passenden Aktivitäten.
+      </div>
     </div>
+    
   </div>
 </template>
