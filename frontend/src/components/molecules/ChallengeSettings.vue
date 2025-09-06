@@ -9,6 +9,7 @@ const props = defineProps<{
   parameters: any[]
   showChallenge: boolean
   lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
+  supportedPlanData?: any[] | null
 }>()
 
 const emit = defineEmits<{
@@ -25,6 +26,25 @@ const paramMapByName = computed<Record<string, any>>(
 // Simple parameter update - emit immediately to parent for batching
 function updateByName(name: string, value: any) {
   emit('update-param', {name, value})
+}
+
+function handleToggleChange(target: HTMLInputElement) {
+  const isChecked = target.checked
+  emit('toggle-show', isChecked)
+
+  // Update challenge parameters based on toggle state
+  if (isChecked) {
+    // Turn on challenge - set team count to minimum if it's currently 0
+    const minTeams = paramMapByName.value['c_teams']?.min || 1
+    if (cTeams.value === 0) {
+      updateByName('c_teams', minTeams)
+    }
+  } else {
+    // Turn off challenge - clear team count and related parameters
+    updateByName('c_teams', 0)
+    updateByName('r_tables', 0)
+    updateByName('j_lanes', 0)
+  }
 }
 
 // Inputs
@@ -136,6 +156,28 @@ const currentLaneNote = computed<string | undefined>(() => {
   return meta?.[lane]?.note
 })
 
+// Check if current configuration is suggested
+const isCurrentConfigSuggested = computed<boolean>(() => {
+  if (!props.lanesIndex || !cKey.value || !rTables.value) return false
+  const meta = props.lanesIndex.metaChallenge[cKey.value]
+  const lane = Number(paramMapByName.value['j_lanes']?.value || 0)
+  return !!meta?.[lane]?.suggested
+})
+
+// Calculate min/max team counts from supported plan data
+const challengeTeamLimits = computed(() => {
+  if (!props.supportedPlanData) return { min: 1, max: 50 }
+  
+  const challengePlans = props.supportedPlanData.filter(plan => plan.first_program === 3)
+  if (challengePlans.length === 0) return { min: 1, max: 50 }
+  
+  const teamCounts = challengePlans.map(plan => plan.teams)
+  return {
+    min: Math.min(...teamCounts),
+    max: Math.max(...teamCounts)
+  }
+})
+
 </script>
 
 <template>
@@ -149,7 +191,7 @@ const currentLaneNote = computed<string | undefined>(() => {
         <input
             type="checkbox"
             :checked="showChallenge"
-            @change="emit('toggle-show', ($event.target as HTMLInputElement).checked)"
+            @change="handleToggleChange($event.target as HTMLInputElement)"
             class="sr-only peer"
         >
         <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
@@ -168,8 +210,8 @@ const currentLaneNote = computed<string | undefined>(() => {
         <input
             class="mt-1 w-32 border rounded px-2 py-1"
             type="number"
-            :min="paramMapByName['c_teams']?.min"
-            :max="paramMapByName['c_teams']?.max"
+            :min="challengeTeamLimits.min"
+            :max="challengeTeamLimits.max"
             :value="paramMapByName['c_teams']?.value"
             @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
         />
@@ -243,9 +285,26 @@ const currentLaneNote = computed<string | undefined>(() => {
           Keine gültigen Spurenzahlen für die aktuelle Teamanzahl.
         </p>
 
-        <!-- Show the note for the current exact combo (only if tables are chosen) -->
-        <div v-if="currentLaneNote" class="mt-2 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded p-2">
-          {{ currentLaneNote }}
+        <!-- Show suggested banner -->
+        <div v-if="isCurrentConfigSuggested" class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-sm font-medium text-blue-800">Empfohlene Konfiguration</span>
+          </div>
+          <p class="text-xs text-blue-700 mt-1">Diese Einstellung wird für optimale Planung empfohlen.</p>
+        </div>
+
+        <!-- Show warning banner for notes -->
+        <div v-if="currentLaneNote" class="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-sm font-medium text-yellow-800">Hinweis</span>
+          </div>
+          <p class="text-xs text-yellow-700 mt-1">{{ currentLaneNote }}</p>
         </div>
       </div>
 
