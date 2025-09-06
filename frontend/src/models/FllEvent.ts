@@ -13,12 +13,31 @@ export default class FllEvent {
     qrcode: string | null
     wifi_ssid: string | null
     wifi_password: string | null
+    
+    // DRAHT team counts
+    drahtTeamsExplore: number
+    drahtTeamsChallenge: number
+    hasTeamDiscrepancy: boolean
+    
+    // DRAHT team capacity
+    drahtCapacityExplore: number
+    drahtCapacityChallenge: number
 
     constructor(data: any) {
         Object.assign(this, data)
+        // Initialize DRAHT team counts if not provided
+        this.drahtTeamsExplore = data.drahtTeamsExplore || 0
+        this.drahtTeamsChallenge = data.drahtTeamsChallenge || 0
+        this.hasTeamDiscrepancy = data.hasTeamDiscrepancy || false
+        this.drahtCapacityExplore = data.drahtCapacityExplore || 0
+        this.drahtCapacityChallenge = data.drahtCapacityChallenge || 0
     }
 
     isFinalEvent(): boolean {
         return this.level === 3
+    }
+    
+    getTotalDrahtTeams(): number {
+        return this.drahtTeamsExplore + this.drahtTeamsChallenge
     }
 }
