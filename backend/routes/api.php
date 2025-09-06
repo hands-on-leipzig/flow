@@ -111,9 +111,9 @@ Route::middleware(['keycloak'])->group(function () {
     Route::delete('/parameter/condition/{id}', [ParameterController::class, 'deleteCondition']);
 
     Route::prefix('params')->group(function () {
-        Route::get('/', [ParameterController::class, 'listMparameter']);              // Liste + Filter
-        Route::post('/{id}', [ParameterController::class, 'updateMparameter']);         // Einzelnes Update
-        Route::post('/reorder', [ParameterController::class, 'reorderMparameter']);    // Sequence speichern 
+        Route::get('/', [ParameterController::class, 'listMparameter']);              
+        Route::post('/reorder', [ParameterController::class, 'reorderMparameter']);  // !!! Reihenfolge in dieser Liste ist wichtig
+        Route::post('/{id}', [ParameterController::class, 'updateMparameter']);      
     });
 
     // DRAHT controller

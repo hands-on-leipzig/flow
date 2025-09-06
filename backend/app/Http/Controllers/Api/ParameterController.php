@@ -100,20 +100,77 @@ class ParameterController extends Controller
 
     public function reorderMparameter(Request $req)
     {
-        $payload = $req->validate([
-            // Array von IDs in der gewünschten Reihenfolge
-            'ordered_ids'   => 'required|array|min:1',
-            'ordered_ids.*' => 'integer',
+        // Erwartet: { order: [ { id, sequence }, ... ] }
+        $data = $req->validate([
+            'order' => 'required|array|min:1',
+            'order.*.id' => 'required|integer',
+            'order.*.sequence' => 'required|integer|min:1',
         ]);
 
-        // Sequence neu durchzählen (1..n)
-        DB::transaction(function () use ($payload) {
-            foreach ($payload['ordered_ids'] as $i => $id) {
-                DB::table('m_parameter')->where('id', $id)->update(['sequence' => $i + 1]);
+        // Payload normalisieren → Map: id => sequence
+        $payloadMap = collect($data['order'])
+            ->map(fn ($r) => ['id' => (int)$r['id'], 'sequence' => (int)$r['sequence']])
+            ->keyBy('id');
+
+        $ids = $payloadMap->keys()->all();
+
+        // Aktuelle Sequenzen der betroffenen IDs holen (einmalig)
+        $current = DB::table('m_parameter')
+            ->whereIn('id', $ids)
+            ->pluck('sequence', 'id'); // Map: id => sequence
+
+        // Nur geänderte Kandidaten herausfiltern
+        $changed = [];
+        foreach ($payloadMap as $id => $seq) {
+            if (!isset($current[$id])) {
+                // unbekannte ID ignorieren
+                continue;
+            }
+            if ((int)$current[$id] !== (int)$seq['sequence']) {
+                $changed[$id] = (int)$seq['sequence'];
+            }
+        }
+
+        if (empty($changed)) {
+            return response()->json([
+                'status'   => 'ok',
+                'updated'  => 0,
+                'skipped'  => count($ids),
+                'message'  => 'Keine Änderungen nötig.',
+            ]);
+        }
+
+        // Ein einziges Update mit CASE ... WHEN ... THEN ...
+        // Optional in Chunks, falls sehr groß
+        DB::transaction(function () use ($changed) {
+            $chunks = array_chunk($changed, 800, true); // 800 pro Statement ist konservativ
+            foreach ($chunks as $chunk) {
+                $ids = array_keys($chunk);
+
+                $caseParts = [];
+                foreach ($chunk as $id => $seq) {
+                    $caseParts[] = "WHEN {$id} THEN {$seq}";
+                }
+                $caseSql = implode(' ', $caseParts);
+                $idList  = implode(',', $ids);
+
+                $sql = "
+                    UPDATE m_parameter
+                    SET sequence = CASE id
+                        {$caseSql}
+                    END
+                    WHERE id IN ({$idList})
+                ";
+
+                DB::update($sql);
             }
         });
 
-        return response()->json(['status' => 'ok']);
+        return response()->json([
+            'status'  => 'ok',
+            'updated' => count($changed),
+            'skipped' => count($ids) - count($changed),
+        ]);
     }
 
 }
