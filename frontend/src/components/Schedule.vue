@@ -179,6 +179,30 @@ function handleParamUpdate(param: { name: string, value: any }) {
   }, PARAM_DEBOUNCE_DELAY)
 }
 
+// Handle block updates from InsertBlocks component
+function handleBlockUpdates(updates: Array<{name: string, value: any}>) {
+  console.log('Received block updates:', updates)
+  
+  // Add all block updates to pending parameter updates
+  updates.forEach(update => {
+    pendingParamUpdates.value[update.name] = update.value
+  })
+
+  // Show toast and start progress animation
+  showToast.value = true
+  startProgressAnimation()
+
+  // Clear existing timeout
+  if (paramUpdateTimeoutId.value) {
+    clearTimeout(paramUpdateTimeoutId.value)
+  }
+
+  // Schedule batch update
+  paramUpdateTimeoutId.value = setTimeout(() => {
+    flushParamUpdates()
+  }, PARAM_DEBOUNCE_DELAY)
+}
+
 // Start progress animation
 function startProgressAnimation() {
   // Reset progress
@@ -252,24 +276,47 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 
   loading.value = true
   try {
-    // 1. Speichern der Parameter (schnell)
-    await axios.post(`/plans/${selectedPlanId.value}/parameters`, {
-      parameters: params.map(({name, value}) => {
-        const p = paramMapByName.value[name]
-        return {
-          id: p?.id,
-          value: normalizeValue(value, p?.type)?.toString() ?? ''
-        }
+    // Separate parameter updates from block updates
+    const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
+    const blockUpdates = params.filter(p => p.name.startsWith('block_'))
+
+    // 1. Save parameters
+    if (paramUpdates.length > 0) {
+      await axios.post(`/plans/${selectedPlanId.value}/parameters`, {
+        parameters: paramUpdates.map(({name, value}) => {
+          const p = paramMapByName.value[name]
+          return {
+            id: p?.id,
+            value: normalizeValue(value, p?.type)?.toString() ?? ''
+          }
+        })
       })
-    })
+    }
+
+    // 2. Save block updates
+    if (blockUpdates.length > 0) {
+      // Group block updates by block ID
+      const updatesByBlock: Record<string, Record<string, any>> = {}
+      blockUpdates.forEach(({name, value}) => {
+        const [, blockId, field] = name.split('_', 3)
+        if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
+        updatesByBlock[blockId][field] = value
+      })
+
+      // Save each block
+      for (const [blockId, updates] of Object.entries(updatesByBlock)) {
+        const block = { id: parseInt(blockId), ...updates }
+        await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, block)
+      }
+    }
   } catch (error) {
-    console.error('Error saving parameters:', error)
+    console.error('Error saving parameters/blocks:', error)
     loading.value = false
     return
   }
   loading.value = false
 
-  // 2. Jetzt starten wir den langen Prozess
+  // 3. Start plan generation
   isGenerating.value = true
   try {
     await axios.post(`/plans/${selectedPlanId.value}/generate`) // Job starten
@@ -524,6 +571,7 @@ onMounted(async () => {
           <InsertBlocks
               :plan-id="selectedPlanId as number"
               :event-level="selectedEvent?.level ?? null"
+              :on-update="handleBlockUpdates"
           />
         </div>
       </transition>

@@ -36,6 +36,7 @@ type ExtraBlock = {
 const props = defineProps<{
   planId: number | null
   eventLevel?: number | null
+  onUpdate?: (updates: Array<{name: string, value: any}>) => void
 }>()
 
 const emit = defineEmits<{
@@ -53,25 +54,8 @@ const pendingUpdates = ref<Record<string, any>>({})
 const updateTimeoutId = ref<NodeJS.Timeout | null>(null)
 const UPDATE_DEBOUNCE_DELAY = 2000
 
-async function saveBlockDelayed(block: ExtraBlock) {
-  if (props.planId == null || !block.id) return
-  
-  saving.value = true
-  try {
-    const {data: saved} = await axios.post<ExtraBlock>(`/plans/${props.planId}/extra-blocks`, block)
-    if (saved?.id) {
-      const i = blocks.value.findIndex(b => b.id === saved.id)
-      if (i !== -1) blocks.value.splice(i, 1, saved)
-    }
-    emit('changed')
-  } catch (error) {
-    console.error('Error saving block:', error)
-  } finally {
-    saving.value = false
-  }
-}
-
 function scheduleUpdate(blockId: string, field: string, value: any) {
+  console.log('Scheduling block update:', { blockId, field, value })
   const key = `${blockId}_${field}`
   pendingUpdates.value[key] = value
 
@@ -86,7 +70,9 @@ function scheduleUpdate(blockId: string, field: string, value: any) {
   }, UPDATE_DEBOUNCE_DELAY)
 }
 
-async function flushUpdates() {
+function flushUpdates() {
+  console.log('Flushing block updates:', pendingUpdates.value)
+  
   if (updateTimeoutId.value) {
     clearTimeout(updateTimeoutId.value)
     updateTimeoutId.value = null
@@ -101,16 +87,29 @@ async function flushUpdates() {
       updatesByBlock[blockId][field] = value
     })
     
-    // Apply updates to blocks and save
+    console.log('Block updates grouped:', updatesByBlock)
+    
+    // Apply updates to blocks locally
     for (const [blockId, updates] of Object.entries(updatesByBlock)) {
       const block = blocks.value.find(b => b.id?.toString() === blockId)
       if (block) {
         Object.assign(block, updates)
-        await saveBlockDelayed(block)
       }
     }
     
+    // Convert to parameter-style updates for the parent
+    const updates = Object.entries(pendingUpdates.value).map(([key, value]) => {
+      const [blockId, field] = key.split('_', 2)
+      return { name: `block_${blockId}_${field}`, value }
+    })
+    
+    // Send to parent's update system
+    if (props.onUpdate) {
+      props.onUpdate(updates)
+    }
+    
     pendingUpdates.value = {}
+    emit('changed')
   }
 }
 
@@ -246,13 +245,21 @@ function onFixedNumInput(pointId: number, field: 'buffer_before' | 'duration' | 
   const v = Number((e.target as HTMLInputElement).value)
   const value = Number.isFinite(v) ? v : 0
   updateFixed(pointId, {[field]: value} as any)
-  scheduleUpdate(pointId.toString(), field, value)
+  
+  const block = fixedByPoint.value[pointId]
+  if (block?.id) {
+    scheduleUpdate(block.id.toString(), field, value)
+  }
 }
 
 function onFixedTextInput(pointId: number, field: 'name' | 'description' | 'link', e: Event) {
   const value = (e.target as HTMLInputElement).value
   updateFixed(pointId, {[field]: value} as any)
-  scheduleUpdate(pointId.toString(), field, value)
+  
+  const block = fixedByPoint.value[pointId]
+  if (block?.id) {
+    scheduleUpdate(block.id.toString(), field, value)
+  }
 }
 
 function onFixedBlur(pointId: number) {
