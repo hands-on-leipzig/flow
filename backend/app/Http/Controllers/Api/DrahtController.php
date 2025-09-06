@@ -30,6 +30,8 @@ class DrahtController extends Controller
             'information' => null,
             'teams_challenge' => [],
             'teams_explore' => [],
+            'capacity_challenge' => 0,
+            'capacity_explore' => 0,
         ];
 
 
@@ -42,6 +44,7 @@ class DrahtController extends Controller
                 $mergedData['contact'] = @unserialize($challenge['contact'] ?? null);
                 $mergedData['information'] = $challenge['information'] ?? null;
                 $mergedData['teams_challenge'] = $challenge['teams'] ?? [];
+                $mergedData['capacity_challenge'] = $challenge['capacity_teams'] ?? 0;
             }
         }
 
@@ -57,6 +60,7 @@ class DrahtController extends Controller
                 $mergedData['information'] ??= $explore['information'] ?? null;
 
                 $mergedData['teams_explore'] = $explore['teams'] ?? [];
+                $mergedData['capacity_explore'] = $explore['capacity_teams'] ?? 0;
             }
         }
 

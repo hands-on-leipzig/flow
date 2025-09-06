@@ -54,12 +54,16 @@ export const useEventStore = defineStore('event', {
                 event.drahtTeamsExplore = teamCounts.exploreCount
                 event.drahtTeamsChallenge = teamCounts.challengeCount
                 event.hasTeamDiscrepancy = teamCounts.hasDiscrepancy
+                event.drahtCapacityExplore = teamCounts.exploreCapacity
+                event.drahtCapacityChallenge = teamCounts.challengeCapacity
             } catch (error) {
                 console.error('Failed to load DRAHT team data:', error)
                 // Set defaults on error
                 event.drahtTeamsExplore = 0
                 event.drahtTeamsChallenge = 0
                 event.hasTeamDiscrepancy = false
+                event.drahtCapacityExplore = 0
+                event.drahtCapacityChallenge = 0
             }
         },
         

@@ -173,7 +173,9 @@ onMounted(async () => {
         <h3 class="text-lg font-semibold capitalize">
           <span class="italic">FIRST</span> LEGO League {{ program }}
         </h3>
-        <p class="text-sm text-gray-500">Geplant: ??</p>
+        <p class="text-sm text-gray-500">
+          Kapazität: {{ program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0 }}
+        </p>
       </div>
       </div>
       <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">

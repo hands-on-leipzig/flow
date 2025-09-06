@@ -18,6 +18,10 @@ export default class FllEvent {
     drahtTeamsExplore: number
     drahtTeamsChallenge: number
     hasTeamDiscrepancy: boolean
+    
+    // DRAHT team capacity
+    drahtCapacityExplore: number
+    drahtCapacityChallenge: number
 
     constructor(data: any) {
         Object.assign(this, data)
@@ -25,6 +29,8 @@ export default class FllEvent {
         this.drahtTeamsExplore = data.drahtTeamsExplore || 0
         this.drahtTeamsChallenge = data.drahtTeamsChallenge || 0
         this.hasTeamDiscrepancy = data.hasTeamDiscrepancy || false
+        this.drahtCapacityExplore = data.drahtCapacityExplore || 0
+        this.drahtCapacityChallenge = data.drahtCapacityChallenge || 0
     }
 
     isFinalEvent(): boolean {
