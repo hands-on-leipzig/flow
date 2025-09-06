@@ -112,8 +112,8 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::prefix('params')->group(function () {
         Route::get('/', [ParameterController::class, 'listMparameter']);              // Liste + Filter
-        Route::put('/{id}', [ParameterController::class, 'updateMparameter']);         // Einzelnes Update
-        Route::post('/reorder', [ParameterController::class, 'reorderMparameter']);    // Sequence speichern (Drag&Drop)
+        Route::post('/{id}', [ParameterController::class, 'updateMparameter']);         // Einzelnes Update
+        Route::post('/reorder', [ParameterController::class, 'reorderMparameter']);    // Sequence speichern 
     });
 
     // DRAHT controller

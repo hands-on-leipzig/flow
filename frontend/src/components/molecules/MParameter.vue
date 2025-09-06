@@ -22,11 +22,6 @@ const filterLevels   = ref<number[]>([1])
 const contexts = ['input', 'expert', 'protected']
 const types    = ['integer', 'decimal', 'time', 'date', 'boolean']
 // 0 = gemeinsam (leer), 2 = EXPLORE, 3 = CHALLENGE
-const programs = [
-  { value: 0, label: 'Gemeinsam' },
-  { value: 2, label: 'EXPLORE'  },
-  { value: 3, label: 'CHALLENGE' },
-]
 
 
 // Backend laden
@@ -46,11 +41,6 @@ async function load() {
 }
 onMounted(load)
 
-// Levels für Filter
-const levelOptions = computed(() => {
-  const set = new Set(items.value.map(i => i.level))
-  return Array.from(set).sort((a:any,b:any) => a - b)
-})
 
 // Gefilterte + sortierte Liste
 const filtered = computed(() => {
@@ -147,15 +137,12 @@ async function save(item) {
 
 // Drag&Drop – Reihenfolge sichern
 async function onSort() {
-  const payload = filtered.value.map((p, idx) => ({
-    id: p.id,
-    sequence: idx + 1,
-  }))
+  // globale Reihung (ohne Filter)
+  const payload = items.value.map((p, idx) => ({ id: p.id, sequence: idx + 1 }))
 
-  const mapSeq = new Map(payload.map(x => [x.id, x.sequence]))
+  // lokale Reihenfolge spiegeln
   items.value = items.value
-    .map(it => ({ ...it, sequence: mapSeq.get(it.id) ?? it.sequence }))
-    .sort((a,b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+    .map((it, idx) => ({ ...it, sequence: idx + 1 }))
 
   try {
     await axios.post('/params/reorder', { order: payload })
@@ -235,7 +222,7 @@ const programIcon = (fp: number | null | undefined) => {
         </div>
 
         <draggable
-          v-model="items"   <!-- wichtig: wir sortieren die Masterliste; Filter greifen über computed -->
+          v-model="items"   
           item-key="id"
           handle=".drag-handle"
           @end="onSort"
