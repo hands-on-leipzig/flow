@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class PlanController extends Controller
 {
@@ -289,5 +290,115 @@ class PlanController extends Controller
             'groups'  => $groups,
         ]);
     }
+
+    private function resolvePivotTime(Request $req): \Carbon\Carbon
+    {
+        // Server arbeitet in UTC; wir bleiben konsistent in UTC
+        $pit = trim((string)$req->query('point_in_time', ''));
+        if ($pit !== '') {
+            // akzeptiert z.B. "2025-09-04 13:15" oder ISO
+            return \Carbon\Carbon::parse($pit, 'UTC')->utc();
+        }
+        return \Carbon\Carbon::now('UTC');
+    }
+
+    /**
+     * Baut die Ausgabe "was – von wann bis wann – (wo) – mit wem" je Activity-Group.
+     * Rooms sind bewusst NICHT enthalten (laut Anforderung).
+     */
+    private function assembleHumanReadable(\Illuminate\Support\Collection $rows): array
+    {
+        $groups = [];
+        foreach ($rows as $row) {
+            $gid = $row->activity_group_id ?? null;
+
+            if (!isset($groups[$gid])) {
+                $groups[$gid] = [
+                    'activity_group_id' => $gid,
+                    'activities' => [],
+                ];
+            }
+
+            // „mit wem“ – Team/Lane/Table nett aufbereiten
+            $with = [];
+            if (!empty($row->team)) {
+                $with[] = 'Team ' . str_pad((string)$row->team, 2, '0', STR_PAD_LEFT);
+            }
+            if (!empty($row->lane)) {
+                $with[] = 'Lane ' . (int)$row->lane;
+            }
+            $tbits = [];
+            if (!empty($row->table_1)) {
+                $tbits[] = 'T' . (int)$row->table_1 . (empty($row->table_1_team) ? '' : ' (Team ' . (int)$row->table_1_team . ')');
+            }
+            if (!empty($row->table_2)) {
+                $tbits[] = 'T' . (int)$row->table_2 . (empty($row->table_2_team) ? '' : ' (Team ' . (int)$row->table_2_team . ')');
+            }
+            if ($tbits) $with[] = implode(', ', $tbits);
+
+            $groups[$gid]['activities'][] = [
+                'activity_id'   => $row->activity_id,
+                'start_time'    => $row->start_time,  // DB/ISO – Frontend formatiert
+                'end_time'      => $row->end_time,
+                'program'       => $row->program_name,  // e.g. CHALLENGE / EXPLORE
+                'activity_name' => $row->activity_name,
+                'with'          => $with ? implode(' · ', $with) : null,
+            ];
+        }
+        // Stabile Reihenfolge
+        return array_values($groups);
+    }
+
+    /**
+     * JETZT: start <= now AND end > now
+     * GET /plans/action-now/{planId}?point_in_time=YYYY-MM-DD HH:mm (optional)
+     */
+    public function actionNow(int $planId, Request $req): JsonResponse
+    {
+        $pivot = $this->resolvePivotTime($req); // UTC
+        $rows  = $this->fetchActivities($planId, false);
+
+        // filtern in PHP (einfach & klar); wenn gewünscht, kann man später in SQL filtern
+        $active = $rows->filter(function ($r) use ($pivot) {
+            return \Carbon\Carbon::parse($r->start_time, 'UTC') <= $pivot
+                && \Carbon\Carbon::parse($r->end_time, 'UTC')   >  $pivot;
+        });
+
+        return response()->json([
+            'plan_id'        => $planId,
+            'pivot_time_utc' => $pivot->toIso8601String(),
+            'groups'         => $this->assembleHumanReadable($active),
+        ]);
+    }
+
+    /**
+     * NÄCHSTE: start in (pivot, pivot+interval] Minuten
+     * GET /plans/action-next/{planId}?interval=15&point_in_time=...
+     */
+    public function actionNext(int $planId, Request $req): JsonResponse
+    {
+        $pivot    = $this->resolvePivotTime($req); // UTC
+        $interval = (int) $req->query('interval', 15);
+        $until    = $pivot->copy()->addMinutes(max(1, $interval));
+
+        $rows = $this->fetchActivities($planId, false);
+
+        $upcoming = $rows->filter(function ($r) use ($pivot, $until) {
+            $start = \Carbon\Carbon::parse($r->start_time, 'UTC');
+            return $start > $pivot && $start <= $until;
+        });
+
+        return response()->json([
+            'plan_id'        => $planId,
+            'pivot_time_utc' => $pivot->toIso8601String(),
+            'window_utc'     => ['from' => $pivot->toIso8601String(), 'to' => $until->toIso8601String()],
+            'interval_min'   => $interval,
+            'groups'         => $this->assembleHumanReadable($upcoming),
+        ]);
+    }
+
+
+
+
 
 }

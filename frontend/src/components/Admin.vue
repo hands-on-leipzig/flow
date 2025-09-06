@@ -5,6 +5,7 @@ import Multiselect from '@vueform/multiselect'
 import Quality from '@/components/molecules/Quality.vue'
 import Statistics from '@/components/molecules/Statistics.vue'
 import MParameter from '@/components/molecules/MParameter.vue'
+import NowAndNext from '@/components/molecules/NowAndNext.vue'
 import '@vueform/multiselect/themes/default.css'
 
 const activeTab = ref('conditions')
@@ -118,6 +119,14 @@ fetchConditions()
         📝 m_parameter
       </button>
 
+      <button
+        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+        :class="{ 'bg-white font-semibold shadow': activeTab === 'nowandnext' }"
+        @click="activeTab = 'nowandnext'"
+      >
+        Now and Next
+      </button>
+
     </div>
 
     <div class="flex-1 p-6 overflow-auto">
@@ -210,6 +219,11 @@ fetchConditions()
       <div v-if="activeTab === 'mparameter'">
         <h2 class="text-xl font-bold mb-4">Tabelle m_parameter</h2>
         <MParameter />
+      </div>
+      
+      <div v-if="activeTab === 'nowandnext'">
+        <h2 class="text-xl font-bold mb-4">Tabelle m_parameter</h2>
+        <NowAndNext />
       </div>
 
     </div>
