@@ -341,11 +341,14 @@ public function actionNow(int $planId, Request $req): JsonResponse
     return response()->json($this->groupActivitiesForApi($planId, $rows));
 }
 
-public function actionNext(int $planId, Request $req, int $intervalMinutes = 30): JsonResponse
+public function actionNext(int $planId, Request $req): JsonResponse
 {
     $pivot = $this->resolvePivotTime($req); // UTC
+
+    $interval = (int) $req->query('interval', 60);
+    
     $from  = (clone $pivot);
-    $to    = (clone $pivot)->addMinutes($intervalMinutes);
+    $to    = (clone $pivot)->addMinutes($interval);
 
     $rows = $this->fetchActivities(
         $planId,
@@ -364,16 +367,15 @@ public function actionNext(int $planId, Request $req, int $intervalMinutes = 30)
 }
 
 
- private function resolvePivotTime(Request $req): \Carbon\Carbon
-    {
-        // Server arbeitet in UTC; wir bleiben konsistent in UTC
-        $pit = trim((string)$req->query('point_in_time', ''));
-        if ($pit !== '') {
-            // akzeptiert z.B. "2025-09-04 13:15" oder ISO
-            return \Carbon\Carbon::parse($pit, 'UTC')->utc();
-        }
-        return \Carbon\Carbon::now('UTC');
+private function resolvePivotTime(Request $req): \Carbon\Carbon
+{
+    $pit = trim((string)$req->query('point_in_time', ''));
+    if ($pit !== '') {
+        // Explizit deutsche Zeitzone interpretieren (inkl. Sommer/Winterzeit)
+        return \Carbon\Carbon::parse($pit, 'Europe/Berlin')->utc();
     }
+    return \Carbon\Carbon::now('UTC');
+}
 
 /**
  * Gemeinsame Gruppierung + Ausgabeform für now/next.

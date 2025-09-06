@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import axios from 'axios'
 
+import { formatTimeOnly, formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
+
 // Inputs
 const planId = ref('9333')
 const usePoint = ref(true)
@@ -32,7 +34,7 @@ async function callNow() {
     result.value = data
   } catch (e) {
     console.error(e)
-    error.value = 'Fehler beim Abruf (NOW).'
+    error.value = 'Fehler beim Abruf von now()).'
   } finally {
     loading.value = false
   }
@@ -49,19 +51,10 @@ async function callNext() {
     result.value = data
   } catch (e) {
     console.error(e)
-    error.value = 'Fehler beim Abruf (NEXT).'
+    error.value = 'Fehler beim Abruf von next().'
   } finally {
     loading.value = false
   }
-}
-
-
-// reine Anzeige-Helfer
-const fmtTime = (iso: string | null | undefined) => {
-  if (!iso) return '—'
-  const d = new Date(iso + (iso.endsWith('Z') ? '' : 'Z')) // robust ggü. fehlender Z
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleTimeString(navigator.language, { hour: '2-digit', minute: '2-digit' })
 }
 
 const fmtWith = (a: any) => {
@@ -97,17 +90,17 @@ const fmtWith = (a: any) => {
           <input type="date" v-model="dateStr" class="border rounded px-2 py-1" />
         </div>
         <div>
-          <label class="block text-xs text-gray-500 mb-1">Uhrzeit</label>
+          <label class="block text-xs text-gray-500 mb-1">Uhrzeit (lokal)</label>
           <input type="time" v-model="timeStr" class="border rounded px-2 py-1" />
         </div>
       </div>
-
+     <button @click="callNow" class="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">
+          action_now()
+      </button>
       
 
       <div class="flex items-end gap-2">
-        <button @click="callNow" class="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">
-          action_now()
-        </button>
+   
         <div>
         <label class="block text-xs text-gray-500 mb-1">Intervall (min)</label>
         <input type="number" min="1" v-model.number="intervalMin" class="border rounded px-2 py-1 w-24" />
@@ -163,7 +156,7 @@ const fmtWith = (a: any) => {
                   {{ a.activity_name || a.meta?.name || ('Activity #' + a.activity_id) }}
                 </div>
                 <div class="text-xs text-gray-500 whitespace-nowrap">
-                  {{ fmtTime(a.start_time) }}–{{ fmtTime(a.end_time) }}
+                  {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
                 </div>
               </div>
 
@@ -190,6 +183,6 @@ const fmtWith = (a: any) => {
         Keine passenden Aktivitäten.
       </div>
     </div>
-    
+
   </div>
 </template>
