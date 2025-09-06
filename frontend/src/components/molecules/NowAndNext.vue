@@ -95,7 +95,7 @@ const fmtWith = (a: any) => {
         </div>
       </div>
      <button @click="callNow" class="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">
-          action_now()
+          actionNow
       </button>
       
 
@@ -106,7 +106,7 @@ const fmtWith = (a: any) => {
         <input type="number" min="1" v-model.number="intervalMin" class="border rounded px-2 py-1 w-24" />
       </div>
         <button @click="callNext" class="px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700">
-          action_next()
+          actionNext
         </button>
       </div>
     </div>
