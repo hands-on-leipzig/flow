@@ -1,6 +1,7 @@
 import {defineStore} from 'pinia'
 import axios from "axios"
 import FllEvent from "@/models/FllEvent"
+import {DrahtService} from "@/services/drahtService"
 
 interface EventStoreState {
   selectedEvent: FllEvent | null
@@ -16,7 +17,14 @@ export const useEventStore = defineStore('event', {
         async fetchSelectedEvent() {
             try {
                 const response = await axios.get<any>('/user/selected-event')
-                this.selectedEvent = new FllEvent(response.data)
+                const event = new FllEvent(response.data)
+                
+                // Fetch DRAHT team data
+                if (event.id) {
+                    await this.loadDrahtTeamData(event)
+                }
+                
+                this.selectedEvent = event
             } catch (error) {
                 console.error('Failed to fetch selected event', error)
             }
@@ -29,10 +37,36 @@ export const useEventStore = defineStore('event', {
 
                 // Also load the event object
                 const eventResponse = await axios.get<any>(`/api/events/${eventId}`)
-                this.selectedEvent = new FllEvent(eventResponse.data)
+                const event = new FllEvent(eventResponse.data)
+                
+                // Fetch DRAHT team data
+                await this.loadDrahtTeamData(event)
+                
+                this.selectedEvent = event
             } catch (error) {
                 console.error('Failed to update selected event', error)
             }
         },
+        
+        async loadDrahtTeamData(event: FllEvent) {
+            try {
+                const teamCounts = await DrahtService.getTeamCounts(event.id)
+                event.drahtTeamsExplore = teamCounts.exploreCount
+                event.drahtTeamsChallenge = teamCounts.challengeCount
+                event.hasTeamDiscrepancy = teamCounts.hasDiscrepancy
+            } catch (error) {
+                console.error('Failed to load DRAHT team data:', error)
+                // Set defaults on error
+                event.drahtTeamsExplore = 0
+                event.drahtTeamsChallenge = 0
+                event.hasTeamDiscrepancy = false
+            }
+        },
+        
+        async refreshDrahtTeamData() {
+            if (this.selectedEvent) {
+                await this.loadDrahtTeamData(this.selectedEvent)
+            }
+        }
     },
 })

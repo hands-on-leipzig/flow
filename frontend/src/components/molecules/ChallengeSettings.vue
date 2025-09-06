@@ -4,6 +4,7 @@ import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
+import {useEventStore} from '@/stores/event'
 
 const props = defineProps<{
   parameters: any[]
@@ -34,10 +35,14 @@ function handleToggleChange(target: HTMLInputElement) {
 
   // Update challenge parameters based on toggle state
   if (isChecked) {
-    // Turn on challenge - set team count to minimum if it's currently 0
+    // Use DRAHT team count as default if available, otherwise use min
+    const eventStore = useEventStore()
+    const drahtTeams = eventStore.selectedEvent?.drahtTeamsChallenge || 0
     const minTeams = paramMapByName.value['c_teams']?.min || 1
+    const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
+    
     if (cTeams.value === 0) {
-      updateByName('c_teams', minTeams)
+      updateByName('c_teams', defaultTeams)
     }
   } else {
     // Turn off challenge - clear team count and related parameters
@@ -227,7 +232,7 @@ const challengeTeamLimits = computed(() => {
               v-for="tb in [2,4]"
               :key="'tables_' + tb"
               :value="tb"
-              :disabled="tableVariantsForTeams.length && !tableVariantsForTeams.includes(tb)"
+              :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
               v-slot="{ checked, disabled }"
           >
             <button

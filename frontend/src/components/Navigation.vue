@@ -48,11 +48,16 @@ function goTo(tab) {
               v-for="tab in tabs"
               :key="tab.path"
               :to="tab.path"
-              class="px-4 py-2 rounded hover:bg-gray-100"
+              class="px-4 py-2 rounded hover:bg-gray-100 relative"
               :class="{ 'bg-gray-200 font-medium': isActive(tab.path) }"
               @click="goTo(tab.path)"
           >
             {{ tab.name }}
+             <div
+                 v-if="tab.path === '/teams' && eventStore.selectedEvent?.hasTeamDiscrepancy"
+                 class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+                 title="Team-Daten weichen von DRAHT ab"
+             ></div>
           </Tab>
 
         </TabList>

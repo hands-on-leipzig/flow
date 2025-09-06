@@ -41,11 +41,25 @@ class PlanController extends Controller
             'public' => false
         ]);
 
-        // TODO
-        // Hier sollten e_teams und c_teams mit den geplanten Werten aus DRAHT befüllt werden.
+        // Get DRAHT team counts for this event
+        $event = \App\Models\Event::find($eventId);
+        $e_teams = 0;
+        $c_teams = 0;
         
-        $e_teams = 6; // TODO aus DRAHT
-        $c_teams = 12;  // TODO aus DRAHT
+        if ($event) {
+            // Fetch DRAHT data for this event
+            $drahtController = new \App\Http\Controllers\Api\DrahtController();
+            $drahtData = $drahtController->show($event);
+            $data = $drahtData->getData(true);
+            
+            // Count teams from DRAHT
+            $e_teams = count($data->teams_explore ?? []);
+            $c_teams = count($data->teams_challenge ?? []);
+        }
+        
+        // Fallback to minimum values if no DRAHT data
+        if ($e_teams === 0) $e_teams = 1;
+        if ($c_teams === 0) $c_teams = 1;
 
         PlanParamValue::updateOrCreate(
             ['plan' => $newId, 'parameter' => 6],   // e_teams
