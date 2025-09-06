@@ -13,21 +13,27 @@ const props = defineProps({
   horizontal: {
     type: Boolean,
     default: false,
+  },
+  disabled: {
+    type: Boolean,
+    default: false,
   }
 })
 const emit = defineEmits(['update'])
 const showInfo = ref(false)
+const localValue = ref(props.param.value)
 
 watch(() => props.param.value, val => {
   localValue.value = val
 })
 
 const showDefaultValue = (param) => {
+  console.log('Parameter:', param.name, 'current:', param.value, 'default:', param.default_value)
   switch (param.type) {
     case 'boolean':
-      return param.value === 1 ? 'an' : 'aus'
+      return param.default_value === 1 ? 'an' : 'aus'
     default:
-      return param.value
+      return param.default_value
   }
 }
 
@@ -55,7 +61,9 @@ function emitChange() {
           :step="param.step"
           v-model="localValue"
           @change="emitChange"
+          :disabled="disabled"
           class="w-20 border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
+          :class="{ 'opacity-50 cursor-not-allowed': disabled }"
       />
 
       <div v-else-if="param.type === 'boolean'" class="w-20 flex items-center justify-center">
@@ -63,7 +71,9 @@ function emitChange() {
             type="checkbox"
             v-model="localValue"
             @change="emitChange"
+            :disabled="disabled"
             class="h-4 w-4 text-blue-600 border-gray-300 rounded"
+            :class="{ 'opacity-50 cursor-not-allowed': disabled }"
         />
       </div>
 
@@ -72,7 +82,9 @@ function emitChange() {
           type="date"
           v-model="localValue"
           @change="emitChange"
+          :disabled="disabled"
           class="border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
+          :class="{ 'opacity-50 cursor-not-allowed': disabled }"
       />
 
       <input
@@ -80,7 +92,9 @@ function emitChange() {
           type="time"
           v-model="localValue"
           @change="emitChange"
+          :disabled="disabled"
           class="border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
+          :class="{ 'opacity-50 cursor-not-allowed': disabled }"
       />
 
       <input
@@ -88,7 +102,9 @@ function emitChange() {
           type="text"
           v-model="localValue"
           @change="emitChange"
+          :disabled="disabled"
           class="border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
+          :class="{ 'opacity-50 cursor-not-allowed': disabled }"
       />
 
       <div v-if="!horizontal" class="text-gray-500 text-sm mt-1">

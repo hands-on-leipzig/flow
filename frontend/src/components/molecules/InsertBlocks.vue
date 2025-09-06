@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
@@ -36,6 +36,7 @@ type ExtraBlock = {
 const props = defineProps<{
   planId: number | null
   eventLevel?: number | null
+  onUpdate?: (updates: Array<{name: string, value: any}>) => void
 }>()
 
 const emit = defineEmits<{
@@ -47,6 +48,70 @@ const loading = ref(false)
 const saving = ref(false)
 const insertPoints = ref<InsertPoint[]>([])
 const blocks = ref<ExtraBlock[]>([])
+
+// --- Debounced update system ---
+const pendingUpdates = ref<Record<string, any>>({})
+const updateTimeoutId = ref<NodeJS.Timeout | null>(null)
+const UPDATE_DEBOUNCE_DELAY = 2000
+
+function scheduleUpdate(blockId: string, field: string, value: any) {
+  console.log('Scheduling block update:', { blockId, field, value })
+  const key = `${blockId}_${field}`
+  pendingUpdates.value[key] = value
+
+  // Clear existing timeout
+  if (updateTimeoutId.value) {
+    clearTimeout(updateTimeoutId.value)
+  }
+
+  // Schedule batch update
+  updateTimeoutId.value = setTimeout(() => {
+    flushUpdates()
+  }, UPDATE_DEBOUNCE_DELAY)
+}
+
+function flushUpdates() {
+  console.log('Flushing block updates:', pendingUpdates.value)
+  
+  if (updateTimeoutId.value) {
+    clearTimeout(updateTimeoutId.value)
+    updateTimeoutId.value = null
+  }
+
+  if (Object.keys(pendingUpdates.value).length > 0) {
+    // Group updates by block ID
+    const updatesByBlock: Record<string, Record<string, any>> = {}
+    Object.entries(pendingUpdates.value).forEach(([key, value]) => {
+      const [blockId, field] = key.split('_', 2)
+      if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
+      updatesByBlock[blockId][field] = value
+    })
+    
+    console.log('Block updates grouped:', updatesByBlock)
+    
+    // Apply updates to blocks locally
+    for (const [blockId, updates] of Object.entries(updatesByBlock)) {
+      const block = blocks.value.find(b => b.id?.toString() === blockId)
+      if (block) {
+        Object.assign(block, updates)
+      }
+    }
+    
+    // Convert to parameter-style updates for the parent
+    const updates = Object.entries(pendingUpdates.value).map(([key, value]) => {
+      const [blockId, field] = key.split('_', 2)
+      return { name: `block_${blockId}_${field}`, value }
+    })
+    
+    // Send to parent's update system
+    if (props.onUpdate) {
+      props.onUpdate(updates)
+    }
+    
+    pendingUpdates.value = {}
+    emit('changed')
+  }
+}
 
 // --- Loaders ---
 async function loadInsertPoints() {
@@ -170,26 +235,45 @@ async function removeBlock(id: number) {
   }
 }
 
-function updateFixed(pointId: number, patch: Partial<ExtraBlock>, save = false) {
+function updateFixed(pointId: number, patch: Partial<ExtraBlock>) {
   const b = fixedByPoint.value[pointId]
   if (!b) return
   Object.assign(b, patch)
-  if (save) saveBlockImmediate(b)
 }
 
 function onFixedNumInput(pointId: number, field: 'buffer_before' | 'duration' | 'buffer_after', e: Event) {
   const v = Number((e.target as HTMLInputElement).value)
-  updateFixed(pointId, {[field]: Number.isFinite(v) ? v : 0} as any)
+  const value = Number.isFinite(v) ? v : 0
+  updateFixed(pointId, {[field]: value} as any)
+  
+  const block = fixedByPoint.value[pointId]
+  if (block?.id) {
+    scheduleUpdate(block.id.toString(), field, value)
+  }
 }
 
 function onFixedTextInput(pointId: number, field: 'name' | 'description' | 'link', e: Event) {
-  updateFixed(pointId, {[field]: (e.target as HTMLInputElement).value} as any)
+  const value = (e.target as HTMLInputElement).value
+  updateFixed(pointId, {[field]: value} as any)
+  
+  const block = fixedByPoint.value[pointId]
+  if (block?.id) {
+    scheduleUpdate(block.id.toString(), field, value)
+  }
 }
 
 function onFixedBlur(pointId: number) {
-  const b = fixedByPoint.value[pointId]
-  if (b) saveBlockImmediate(b)
+  // Trigger immediate update on blur
+  flushUpdates()
 }
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (updateTimeoutId.value) {
+    clearTimeout(updateTimeoutId.value)
+  }
+  flushUpdates()
+})
 
 // Expose loadAll function to parent if needed
 defineExpose({
@@ -235,7 +319,8 @@ defineExpose({
           <td class="px-2 py-2 text-center">
             <input :disabled="!fixedByPoint[p.id]" :value="fixedByPoint[p.id]?.buffer_before ?? ''"
                    class="w-16 border rounded px-2 py-1 text-center"
-                   min="0"
+                   min="5"
+                   step="5"
                    type="number"
                    @change="onFixedBlur(p.id)"
                    @input="onFixedNumInput(p.id, 'buffer_before', $event)"
@@ -246,7 +331,8 @@ defineExpose({
           <td class="px-2 py-2 text-center">
             <input :disabled="!fixedByPoint[p.id]" :value="fixedByPoint[p.id]?.duration ?? ''"
                    class="w-16 border rounded px-2 py-1 text-center"
-                   min="0"
+                   min="5"
+                   step="5"
                    type="number"
                    @change="onFixedBlur(p.id)"
                    @input="onFixedNumInput(p.id, 'duration', $event)"
@@ -256,7 +342,8 @@ defineExpose({
           <td class="px-2 py-2 text-center">
             <input :disabled="!fixedByPoint[p.id]" :value="fixedByPoint[p.id]?.buffer_after ?? ''"
                    class="w-16 border rounded px-2 py-1 text-center"
-                   min="0"
+                   min="5"
+                   step="5"
                    type="number"
                    @change="onFixedBlur(p.id)"
                    @input="onFixedNumInput(p.id, 'buffer_after', $event)"

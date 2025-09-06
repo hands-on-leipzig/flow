@@ -3,7 +3,8 @@ import {computed, ref, UnwrapRef, watch} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import SplitBar from '@/components/atoms/SplitBar.vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
-import InfoPopover from "@/components/atoms/InfoPopover.vue";
+import InfoPopover from "@/components/atoms/InfoPopover.vue"
+import {useEventStore} from '@/stores/event'
 
 const props = defineProps<{
   parameters: any[]
@@ -37,11 +38,16 @@ function handleToggleChange(target: HTMLInputElement) {
     // Turn on explore - default to mode 1 (integrated AM) if currently off
     if (eMode.value === 0) {
       setMode(1)
-      // Set team count to minimum if it's currently 0
-      const minTeams = paramMapByName.value['e_teams']?.min || 1
-      if (eTeams.value === 0) {
-        updateByName('e_teams', minTeams)
-      }
+    }
+    
+    // Use DRAHT team count as default if available, otherwise use min
+    const eventStore = useEventStore()
+    const drahtTeams = eventStore.selectedEvent?.drahtTeamsExplore || 0
+    const minTeams = paramMapByName.value['e_teams']?.min || 1
+    const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
+    
+    if (eTeams.value === 0) {
+      updateByName('e_teams', defaultTeams)
     }
   } else {
     // Turn off explore - set to mode 0 and clear team counts

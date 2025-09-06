@@ -98,6 +98,8 @@ const fetchParams = async (planId: number) => {
     // Defensive: backend could send a single object or null
     parameters.value = Array.isArray(rawParams) ? rawParams : []
     displayConditions.value = Array.isArray(conditions) ? conditions : []
+    console.log('Fetched parameters:', parameters.value.length)
+    console.log('Expert parameters:', parameters.value.filter(p => p.context === 'expert').length)
   } catch (err) {
     console.error("Failed to fetch params or conditions:", err)
     parameters.value = []
@@ -161,6 +163,30 @@ function handleParamUpdate(param: { name: string, value: any }) {
 
   // Add to pending updates
   pendingParamUpdates.value[param.name] = param.value
+
+  // Show toast and start progress animation
+  showToast.value = true
+  startProgressAnimation()
+
+  // Clear existing timeout
+  if (paramUpdateTimeoutId.value) {
+    clearTimeout(paramUpdateTimeoutId.value)
+  }
+
+  // Schedule batch update
+  paramUpdateTimeoutId.value = setTimeout(() => {
+    flushParamUpdates()
+  }, PARAM_DEBOUNCE_DELAY)
+}
+
+// Handle block updates from InsertBlocks component
+function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
+  console.log('Received block updates:', updates)
+
+  // Add all block updates to pending parameter updates
+  updates.forEach(update => {
+    pendingParamUpdates.value[update.name] = update.value
+  })
 
   // Show toast and start progress animation
   showToast.value = true
@@ -250,24 +276,47 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 
   loading.value = true
   try {
-    // 1. Speichern der Parameter (schnell)
-    await axios.post(`/plans/${selectedPlanId.value}/parameters`, {
-      parameters: params.map(({name, value}) => {
-        const p = paramMapByName.value[name]
-        return {
-          id: p?.id,
-          value: normalizeValue(value, p?.type)?.toString() ?? ''
-        }
+    // Separate parameter updates from block updates
+    const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
+    const blockUpdates = params.filter(p => p.name.startsWith('block_'))
+
+    // 1. Save parameters
+    if (paramUpdates.length > 0) {
+      await axios.post(`/plans/${selectedPlanId.value}/parameters`, {
+        parameters: paramUpdates.map(({name, value}) => {
+          const p = paramMapByName.value[name]
+          return {
+            id: p?.id,
+            value: normalizeValue(value, p?.type)?.toString() ?? ''
+          }
+        })
       })
-    })
+    }
+
+    // 2. Save block updates
+    if (blockUpdates.length > 0) {
+      // Group block updates by block ID
+      const updatesByBlock: Record<string, Record<string, any>> = {}
+      blockUpdates.forEach(({name, value}) => {
+        const [, blockId, field] = name.split('_', 3)
+        if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
+        updatesByBlock[blockId][field] = value
+      })
+
+      // Save each block
+      for (const [blockId, updates] of Object.entries(updatesByBlock)) {
+        const block = {id: parseInt(blockId), ...updates}
+        await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, block)
+      }
+    }
   } catch (error) {
-    console.error('Error saving parameters:', error)
+    console.error('Error saving parameters/blocks:', error)
     loading.value = false
     return
   }
   loading.value = false
 
-  // 2. Jetzt starten wir den langen Prozess
+  // 3. Start plan generation
   isGenerating.value = true
   try {
     await axios.post(`/plans/${selectedPlanId.value}/generate`) // Job starten
@@ -300,8 +349,11 @@ const updateParam = async (param: Parameter) => {
 }
 
 const expertParamsGrouped = computed(() => {
-  return parameters.value
-      .filter((p: Parameter) => p.context === 'expert')
+  const expertParams = parameters.value.filter((p: Parameter) => p.context === 'expert')
+  console.log('Expert params found:', expertParams.length)
+  console.log('All parameters:', parameters.value.length)
+
+  return expertParams
       .sort((a: Parameter, b: Parameter) => (a.sequence ?? 0) - (b.sequence ?? 0))
       .reduce((acc: Record<string, Parameter[]>, param: Parameter) => {
         const key = param.program_name || 'Unassigned'
@@ -314,18 +366,18 @@ const expertParamsGrouped = computed(() => {
 async function getOrCreatePlan() {
   if (!selectedEvent.value) return
   const res = await axios.get(`/plans/event/${selectedEvent.value.id}`)
-  plans.value = res.data
-  if (plans.value.id > 0) {
-    selectedPlanId.value = plans.value.id
+  const planData = res.data
+  if (planData && planData.id) {
+    plans.value = [planData]
+    selectedPlanId.value = planData.id
     await fetchParams(selectedPlanId.value as number)
   } else {
     const newPlanId = await createDefaultPlan()
     if (newPlanId) {
       const newPlan = {id: newPlanId, name: 'Standard-Zeitplan', is_chosen: true}
-      plans.value.push(newPlan)
+      plans.value = [newPlan]
       selectedPlanId.value = newPlanId
       await fetchParams(newPlanId)
-
     }
   }
 }
@@ -392,10 +444,10 @@ onMounted(async () => {
         <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
         <span class="text-green-800 font-medium">Parameter-Änderungen werden gespeichert...</span>
       </div>
-      <div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
+      <!--<div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
         <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
              :style="{ width: progress + '%' }"></div>
-      </div>
+      </div>-->
     </div>
 
     <div v-if="false" class="flex items-center space-x-4">
@@ -519,6 +571,7 @@ onMounted(async () => {
           <InsertBlocks
               :plan-id="selectedPlanId as number"
               :event-level="selectedEvent?.level ?? null"
+              :on-update="handleBlockUpdates"
           />
         </div>
       </transition>

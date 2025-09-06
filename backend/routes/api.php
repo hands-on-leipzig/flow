@@ -68,6 +68,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/action/next/{planId}/{interval?}', [PlanController::class, 'actionNext']);
         Route::post('/{planId}/generate', [PlanController::class, 'generate']);
         Route::get('/{planId}/status', [PlanController::class, 'status']);
+        Route::post('/sync-team-plan/{eventId}', [PlanController::class, 'syncTeamPlanForEvent']); // Sync team_plan for existing plans
     });
 
 
@@ -100,6 +101,7 @@ Route::middleware(['keycloak'])->group(function () {
     // Team controller
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);
+    Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
 
     // Logo controller
     Route::get('/logos', [LogoController::class, 'index']);
