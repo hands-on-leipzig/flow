@@ -110,6 +110,12 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/parameter/condition/{id}', [ParameterController::class, 'updateCondition']);
     Route::delete('/parameter/condition/{id}', [ParameterController::class, 'deleteCondition']);
 
+    Route::prefix('params')->group(function () {
+        Route::get('/', [ParameterController::class, 'listMparameter']);              
+        Route::post('/reorder', [ParameterController::class, 'reorderMparameter']);  // !!! Reihenfolge in dieser Liste ist wichtig
+        Route::post('/{id}', [ParameterController::class, 'updateMparameter']);      
+    });
+
     // DRAHT controller
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
     // DRAHT admin routes
@@ -133,5 +139,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
     });
 
+
+    
 
  });
