@@ -163,24 +163,19 @@ const fmtWith = (a: any) => {
               :key="a.activity_id"
               class="px-3 py-2"
             >
-              <div class="flex items-baseline justify-between gap-2">
-                <div class="text-sm font-medium truncate">
-                  {{ a.activity_name || a.meta?.name || ('Activity #' + a.activity_id) }}
-                </div>
-                <div class="text-xs text-gray-500 whitespace-nowrap">
+              <!-- Zeile 1: Zeit groß, Name klein -->
+              <div class="flex items-baseline justify-between gap-3">
+                <div class="text-base font-semibold whitespace-nowrap">
                   {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
                 </div>
+                <div class="text-xs text-gray-600 truncate">
+                  {{ a.activity_name || a.meta?.name || ('Activity #' + a.activity_id) }}
+                </div>
               </div>
 
-              <div class="mt-0.5 text-xs text-gray-600 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                <span v-if="a.program">{{ a.program }}</span>
-                <span class="text-gray-400">•</span>
-                <span>{{ fmtWith(a) }}</span>
-              </div>
-
-              <!-- Optional: Activity-Meta aus atd -->
-              <div v-if="a.meta?.description" class="mt-1 text-xs text-gray-500 line-clamp-2">
-                {{ a.meta.description }}
+              <!-- Zeile 2: Team/Ort genauso groß wie Zeit -->
+              <div class="mt-0.5 text-base text-gray-700">
+                {{ fmtWith(a) }}
               </div>
             </li>
 
