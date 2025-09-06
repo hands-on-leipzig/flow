@@ -14,15 +14,13 @@ const draftById = ref<Record<number, any>>({})
 const savingId = ref<number|null>(null)
 
 // Filter (Checkbox-Varianten)
-const filterContexts = ref<string[]>(['input','expert','protected'])
+const filterContexts = ref<string[]>(['protected', 'input','expert'])
 const filterPrograms = ref<number[]>([0,2,3])   // 0=gemeinsam, 2=Explore, 3=Challenge
 const filterLevels   = ref<number[]>([1])
 
 // Hilfs-Optionen
-const contexts = ['input', 'expert', 'protected']
+const contexts = ['protected', 'input', 'expert']
 const types    = ['integer', 'decimal', 'time', 'date', 'boolean']
-// 0 = gemeinsam (leer), 2 = EXPLORE, 3 = CHALLENGE
-
 
 // Backend laden
 async function load() {
@@ -180,7 +178,7 @@ const programIcon = (fp: number | null | undefined) => {
     <div class="inline-flex items-center gap-3 px-3 py-2 border border-gray-300 rounded-md bg-white shadow-sm whitespace-nowrap">
         <div class="text-sm font-medium text-gray-700">Context:</div>
         <div class="flex items-center gap-3">
-        <label v-for="ctx in ['input','expert','protected']" :key="ctx" class="flex items-center gap-1 text-sm text-gray-600">
+        <label v-for="ctx in ['protected', 'input','expert',]" :key="ctx" class="flex items-center gap-1 text-sm text-gray-600">
             <input type="checkbox" v-model="filterContexts" :value="ctx" class="accent-gray-600" />
             {{ ctx }}
         </label>
