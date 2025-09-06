@@ -1,31 +1,33 @@
-<script setup>
+<script setup lang="ts">
 import draggable from 'vuedraggable'
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
-// Filter-Modelle
-const filterContext = ref('all')        // 'all' | 'input' | 'expert' | 'protected' | 'finale'
-const filterLevel = ref('all')          // 'all' | <zahl>
-const filterProgram = ref('all')        // 'all' | 1 (CHALLENGE) | 2 (EXPLORE)
-
 // Daten
-const items = ref([])                   // Originaldaten vom Backend
+const items = ref<any[]>([])          // Backend-Daten
 const loading = ref(true)
-const error = ref(null)
+const error = ref<string|null>(null)
 
 // UI-State
-const expandedId = ref(null)            // welche Zeile ist aufgeklappt
-const draftById = ref({})               // { [id]: { ...draft } } – Kopie für Edit
-const savingId = ref(null)              // zeigt "Speichern läuft" pro Zeile an
+const expandedId = ref<number|null>(null)
+const draftById = ref<Record<number, any>>({})
+const savingId = ref<number|null>(null)
+
+// Filter (Checkbox-Varianten)
+const filterContexts = ref<string[]>(['input','expert','protected'])
+const filterPrograms = ref<number[]>([0,2,3])   // 0=gemeinsam, 2=Explore, 3=Challenge
+const filterLevels   = ref<number[]>([1])
 
 // Hilfs-Optionen
-const contexts = ['input', 'expert', 'protected', 'finale']
-const types = ['integer', 'decimal', 'time', 'date', 'boolean']
-// Annahme: 1 = CHALLENGE, 2 = EXPLORE
+const contexts = ['input', 'expert', 'protected']
+const types    = ['integer', 'decimal', 'time', 'date', 'boolean']
+// 0 = gemeinsam (leer), 2 = EXPLORE, 3 = CHALLENGE
 const programs = [
-  { value: 1, label: 'CHALLENGE' },
-  { value: 2, label: 'EXPLORE' },
+  { value: 0, label: 'Gemeinsam' },
+  { value: 2, label: 'EXPLORE'  },
+  { value: 3, label: 'CHALLENGE' },
 ]
+
 
 // Backend laden
 async function load() {
@@ -33,10 +35,7 @@ async function load() {
   error.value = null
   try {
     const { data } = await axios.get('/params')
-    // Erwartete Form: Array von Parametern
-    // { id, name, ui_label, ui_description, context, level, type, value, min, max, step, first_program, sequence }
     items.value = Array.isArray(data) ? data : (data?.items ?? [])
-    // Nach sequence sortieren (failsafe)
     items.value.sort((a,b) => (a.sequence ?? 0) - (b.sequence ?? 0))
   } catch (e) {
     console.error(e)
@@ -45,42 +44,46 @@ async function load() {
     loading.value = false
   }
 }
-
 onMounted(load)
+
+// Levels für Filter
+const levelOptions = computed(() => {
+  const set = new Set(items.value.map(i => i.level))
+  return Array.from(set).sort((a:any,b:any) => a - b)
+})
 
 // Gefilterte + sortierte Liste
 const filtered = computed(() => {
   let list = [...items.value]
 
-  if (filterContext.value !== 'all') {
-    list = list.filter(i => i.context === filterContext.value)
-  }
-  if (filterLevel.value !== 'all') {
-    list = list.filter(i => String(i.level) === String(filterLevel.value))
-  }
-  if (filterProgram.value !== 'all') {
-    list = list.filter(i => String(i.first_program) === String(filterProgram.value))
-  }
+  // Context
+  list = filterContexts.value.length
+    ? list.filter(i => filterContexts.value.includes(i.context))
+    : []
 
-  // immer nach sequence
+  // Program (null/undefined => 0 = gemeinsam)
+  const norm = (fp: any) => (fp == null ? 0 : Number(fp))
+  list = filterPrograms.value.length
+    ? list.filter(i => filterPrograms.value.includes(norm(i.first_program)))
+    : []
+
+  // Level (Checkbox-Logik)
+  list = filterLevels.value.length
+    ? list.filter(i => filterLevels.value.includes(Number(i.level)))
+    : []
+
+  // Sortierung
   list.sort((a,b) => (a.sequence ?? 0) - (b.sequence ?? 0))
   return list
 })
 
-// Levels dynamisch aus Daten (für Filter)
-const levelOptions = computed(() => {
-  const set = new Set(items.value.map(i => i.level))
-  return Array.from(set).sort((a,b) => a - b)
-})
-
 // Aufklappen / Draft füllen
-function toggleExpand(item) {
+function toggleExpand(item:any) {
   if (expandedId.value === item.id) {
     expandedId.value = null
     return
   }
   expandedId.value = item.id
-  // Draft anlegen
   draftById.value[item.id] = {
     name: item.name ?? '',
     ui_label: item.ui_label ?? '',
@@ -96,8 +99,7 @@ function toggleExpand(item) {
   }
 }
 
-// Änderungen verwerfen → Draft aus Original wiederherstellen
-function discard(item) {
+function discard(item:any) {
   draftById.value[item.id] = {
     name: item.name ?? '',
     ui_label: item.ui_label ?? '',
@@ -114,14 +116,13 @@ function discard(item) {
 }
 
 // Speichern (PUT /params/{id})
-async function save(item) {
+async function save(item:any) {
   const draft = draftById.value[item.id]
   if (!draft) return
   savingId.value = item.id
   try {
     const payload = { ...draft }
     await axios.put(`/params/${item.id}`, payload)
-    // In Originalliste zurückschreiben
     Object.assign(item, payload)
   } catch (e) {
     console.error('Update fehlgeschlagen', e)
@@ -131,17 +132,13 @@ async function save(item) {
   }
 }
 
-// Drag&Drop – gleiche Technik wie im Beispiel
+// Drag&Drop – Reihenfolge sichern
 async function onSort() {
-  // neue Reihenfolge speichern: sequence = Index + 1
   const payload = filtered.value.map((p, idx) => ({
     id: p.id,
     sequence: idx + 1,
   }))
 
-  // Wir müssen auch die items.value (Masterliste) aktualisieren,
-  // damit Filterwechsel nicht die neue Reihenfolge verliert.
-  // Map neue Reihenfolge in items.value:
   const mapSeq = new Map(payload.map(x => [x.id, x.sequence]))
   items.value = items.value
     .map(it => ({ ...it, sequence: mapSeq.get(it.id) ?? it.sequence }))
@@ -152,39 +149,67 @@ async function onSort() {
   } catch (e) {
     console.error('Reihenfolge speichern fehlgeschlagen', e)
     alert('Reihenfolge konnte nicht gespeichert werden.')
-    // Optional: reload() um Serverzustand wiederherzustellen
-    // await load()
   }
+}
+
+// Farbstreifen nach context
+const contextBarClass = (ctx: string | null | undefined) => {
+  switch (ctx) {
+    case 'input':     return 'bg-white border border-gray-300';
+    case 'expert':    return 'bg-blue-500';
+    case 'protected': return 'bg-black';
+    default:          return 'bg-gray-200';
+  }
+}
+
+// Icon je first_program (1=CHALLENGE, 2=EXPLORE)
+const programIcon = (fp: number | null | undefined) => {
+  const v = fp == null ? 0 : Number(fp)
+  if (v === 2) return new URL('@/assets/FLL_Explore.png', import.meta.url).toString()
+  if (v === 3) return new URL('@/assets/FLL_Challenge.png', import.meta.url).toString()
+  return null // 0 (gemeinsam) → kein Icon
 }
 </script>
 
 <template>
   <div class="space-y-4">
-    <!-- Filter -->
-    <div class="flex flex-wrap gap-4 items-end">
-      <div>
-        <div class="text-xs text-gray-500 mb-1">Context</div>
-        <select v-model="filterContext" class="border rounded px-2 py-1">
-          <option value="all">Alle</option>
-          <option v-for="c in contexts" :key="c" :value="c">{{ c }}</option>
-        </select>
-      </div>
 
-      <div>
-        <div class="text-xs text-gray-500 mb-1">Level</div>
-        <select v-model="filterLevel" class="border rounded px-2 py-1">
-          <option value="all">Alle</option>
-          <option v-for="lvl in levelOptions" :key="lvl" :value="lvl">{{ lvl }}</option>
-        </select>
-      </div>
+    <!-- Filterleiste -->
+    <div class="flex flex-wrap items-center gap-3 mb-3">
+    <!-- Context -->
+    <div class="inline-flex items-center gap-3 px-3 py-2 border border-gray-300 rounded-md bg-white shadow-sm whitespace-nowrap">
+        <div class="text-sm font-medium text-gray-700">Context:</div>
+        <div class="flex items-center gap-3">
+        <label v-for="ctx in ['input','expert','protected']" :key="ctx" class="flex items-center gap-1 text-sm text-gray-600">
+            <input type="checkbox" v-model="filterContexts" :value="ctx" class="accent-gray-600" />
+            {{ ctx }}
+        </label>
+        </div>
+    </div>
 
-      <div>
-        <div class="text-xs text-gray-500 mb-1">Programm</div>
-        <select v-model="filterProgram" class="border rounded px-2 py-1">
-          <option value="all">Alle</option>
-          <option v-for="p in programs" :key="p.value" :value="p.value">{{ p.label }}</option>
-        </select>
-      </div>
+    <!-- Program -->
+    <div class="inline-flex items-center gap-3 px-3 py-2 border border-gray-300 rounded-md bg-white shadow-sm whitespace-nowrap">
+        <div class="text-sm font-medium text-gray-700">Programm:</div>
+        <div class="flex items-center gap-3">
+        <label v-for="prog in [{value:0,label:'gemeinsam'},{value:2,label:'Explore'},{value:3,label:'Challenge'}]"
+                :key="prog.value"
+                class="flex items-center gap-1 text-sm text-gray-600">
+            <input type="checkbox" v-model="filterPrograms" :value="prog.value" class="accent-gray-600" />
+            {{ prog.label }}
+        </label>
+        </div>
+    </div>
+
+    <!-- Level -->
+    <div class="inline-flex items-center gap-3 px-3 py-2 border border-gray-300 rounded-md bg-white shadow-sm whitespace-nowrap">
+        <div class="text-sm font-medium text-gray-700">Level:</div>
+        <div class="flex items-center gap-3">
+        <label v-for="lvl in [1,2,3]" :key="lvl" class="flex items-center gap-1 text-sm text-gray-600">
+            <input type="checkbox" v-model="filterLevels" :value="lvl" class="accent-gray-600" />
+            {{ lvl }}
+        </label>
+        </div>
+    </div>
     </div>
 
     <!-- Liste -->
@@ -213,12 +238,28 @@ async function onSort() {
                 <span class="w-8 text-right text-xs text-gray-500">#{{ item.sequence }}</span>
                 <span class="drag-handle cursor-move select-none">⋮⋮</span>
 
+                <!-- Fix breiter Kontext/Programm-Bereich -->
+                <div class="w-16 flex items-center">
+                <!-- schmaler vertikaler Farbstreifen -->
+                <span
+                    :class="['h-6 w-1 rounded-sm', contextBarClass(item.context)]"
+                    aria-hidden="true"
+                ></span>
+
+                <!-- Programm-Icon (optional, kein Text) -->
+                <img
+                    v-if="programIcon(item.first_program)"
+                    :src="programIcon(item.first_program)"
+                    alt=""
+                    class="ml-2 w-5 h-5 flex-shrink-0"
+                />
+                </div>
+
                 <div class="flex-1 min-w-0">
                   <div class="font-medium truncate">
                     {{ item.name || '(ohne Name)' }}
-                  </div>
-                  <div class="text-xs text-gray-500 truncate">
-                    {{ item.ui_label || '—' }} · {{ item.context }} · L{{ item.level }} · {{ item.type }} · {{ item.first_program || '—' }}
+                  
+                    {{ item.ui_label || '—' }} 
                   </div>
                 </div>
 
