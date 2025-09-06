@@ -57,13 +57,16 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('plans')->group(function () { 
         Route::post('/create', [PlanController::class, 'create']);
         Route::get('/event/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); 
-        Route::post('/{planId}/generate', [PlanController::class, 'generate']);
-        Route::get('/{planId}/status', [PlanController::class, 'status']);    
         Route::get('/preview/{planId}/roles', [PlanController::class, 'previewRoles']);  
         Route::get('/preview/{planId}/teams', [PlanController::class, 'previewTeams']);  
-        Route::get('/preview/{planId}/rooms', [PlanController::class, 'previewRooms']);
-        Route::get('/activities/{planId}', [PlanController::class, 'activities']);     
+        Route::get('/preview/{planId}/rooms', [PlanController::class, 'previewRooms']);         Route::get('/activities/{planId}', [PlanController::class, 'activities']);     
+        Route::get('/action-now/{planId}',  [PlanController::class, 'actionNow']);           // optional: ?point_in_time=YYYY-MM-DD HH:mm
+        Route::get('/action-next/{planId}', [PlanController::class, 'actionNext']);          // optional: ?interval=15&point_in_time=...
+        Route::get('/action/next/{planId}/{interval?}', [PlanController::class, 'actionNext']); 
+        Route::post('/{planId}/generate', [PlanController::class, 'generate']);
+        Route::get('/{planId}/status', [PlanController::class, 'status']);    
     });    
+
 
     // PlanParameter controller
 //    Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);

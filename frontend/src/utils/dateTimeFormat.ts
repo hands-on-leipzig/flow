@@ -14,6 +14,21 @@ function toDate(value: string | Date | null | undefined): Date | null {
 }
 
 /**
+ * Uhrzeit (HH:mm) in Browser-Lokale formatieren, 24h
+ * Erwartet UTC-Strings (z.B. "2025-09-04 07:06:46" oder ISO).
+ */
+export function formatTimeOnly(datetime: string | Date | null | undefined): string {
+  const date = toDate(datetime)
+  if (!date) return ''
+  return new Intl.DateTimeFormat(navigator.language, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+
+/**
  * Datum + Uhrzeit in Browser-Lokale formatieren, 24h
  * Erwartet UTC-Strings (z.B. "2025-09-04 07:06:46" oder ISO).
  */
