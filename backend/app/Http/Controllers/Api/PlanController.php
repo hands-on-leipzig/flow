@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class PlanController extends Controller
 {
@@ -174,10 +175,14 @@ class PlanController extends Controller
     }
 
 
-    private function fetchActivities(int $plan, bool $includeRooms = false)
-    
-    {
-        // Map configured "free" constants to numeric IDs (defensive)
+
+
+    private function fetchActivities(
+        int $plan,
+        bool $includeRooms = false,
+        bool $includeGroupMeta = false,
+        bool $includeActivityMeta = false
+    ) {
         $freeIds = array_values(array_filter(array_map(function ($c) {
             if (is_string($c) && defined($c)) return (int) constant($c);
             if (is_numeric($c)) return (int) $c;
@@ -186,13 +191,18 @@ class PlanController extends Controller
 
         $q = DB::table('activity as a')
             ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+            // Activity-ATD (haben wir bereits)
             ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
             ->leftJoin('m_first_program as fp', 'atd.first_program', '=', 'fp.id')
-            ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')   // wichtig für COALESCE(peb.name,…)
+            // Group-ATD nur bei Bedarf
+            ->when($includeGroupMeta, function ($qq) {
+                $qq->leftJoin('m_activity_type_detail as ag_atd', 'ag_atd.id', '=', 'ag.activity_type_detail')
+                ->leftJoin('m_first_program as ag_fp', 'ag_fp.id', '=', 'ag_atd.first_program');
+            })
+            ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
             ->join('plan as p', 'p.id', '=', 'ag.plan')
             ->where('ag.plan', $plan);
 
-        // <<< CRUCIAL: exclude "free" ATDs to keep raster small >>>
         if (!empty($freeIds)) {
             $q->whereNotIn('atd.id', $freeIds);
         }
@@ -209,6 +219,7 @@ class PlanController extends Controller
             });
         }
 
+        // Basisauswahl
         $select = '
             a.id as activity_id,
             ag.id as activity_group_id,
@@ -225,6 +236,7 @@ class PlanController extends Controller
             a.table_2_team as table_2_team
         ';
 
+        // Rooms optional
         if ($includeRooms) {
             $select .= ',
                 p.event as event_id,
@@ -236,15 +248,32 @@ class PlanController extends Controller
             ';
         }
 
-        // Nur für Rooms nach rt/r sortieren – sonst existieren die Aliase nicht
+        // Activity-ATD Metadaten optional (zusätzlich, ohne bestehende Aliase zu ändern)
+        if ($includeActivityMeta) {
+            $select .= ',
+                atd.name          as activity_atd_name,
+                atd.first_program as activity_first_program_id,
+                fp.name           as activity_first_program_name,
+                atd.description   as activity_description
+            ';
+        }
+
+        // Group-ATD Metadaten optional
+        if ($includeGroupMeta) {
+            $select .= ',
+                ag_atd.name          as group_atd_name,
+                ag_atd.first_program as group_first_program_id,
+                ag_fp.name           as group_first_program_name,
+                ag_atd.description   as group_description
+            ';
+        }
+
         if ($includeRooms) {
-            $q->orderBy('rt.sequence')
-            ->orderBy('r.name');
+            $q->orderBy('rt.sequence')->orderBy('r.name');
         }
 
         return $q->orderBy('a.start')->selectRaw($select)->get();
     }
-
     //
     // Detailed activities list
     //
@@ -289,5 +318,116 @@ class PlanController extends Controller
             'groups'  => $groups,
         ]);
     }
+
+  
+
+public function actionNow(int $planId, Request $req): JsonResponse
+{
+    $pivot = $this->resolvePivotTime($req); // UTC
+
+    $rows = $this->fetchActivities(
+        $planId,
+        includeRooms: false,
+        includeGroupMeta: true,
+        includeActivityMeta: true
+    );
+
+    // Filtern: start <= pivot AND end > pivot
+    $rows = $rows->filter(function ($r) use ($pivot) {
+        return Carbon::parse($r->start_time, 'UTC') <= $pivot
+            && Carbon::parse($r->end_time, 'UTC')   >  $pivot;
+    });
+
+    return response()->json($this->groupActivitiesForApi($planId, $rows));
+}
+
+public function actionNext(int $planId, Request $req): JsonResponse
+{
+    $pivot = $this->resolvePivotTime($req); // UTC
+
+    $interval = (int) $req->query('interval', 60);
+    
+    $from  = (clone $pivot);
+    $to    = (clone $pivot)->addMinutes($interval);
+
+    $rows = $this->fetchActivities(
+        $planId,
+        includeRooms: false,
+        includeGroupMeta: true,
+        includeActivityMeta: true
+    );
+
+    // Filtern: start in [from, to)
+    $rows = $rows->filter(function ($r) use ($from, $to) {
+        $s = Carbon::parse($r->start_time, 'UTC');
+        return $s >= $from && $s < $to;
+    });
+
+    return response()->json($this->groupActivitiesForApi($planId, $rows));
+}
+
+
+private function resolvePivotTime(Request $req): \Carbon\Carbon
+{
+    $pit = trim((string)$req->query('point_in_time', ''));
+    if ($pit !== '') {
+        // Explizit deutsche Zeitzone interpretieren (inkl. Sommer/Winterzeit)
+        return \Carbon\Carbon::parse($pit, 'Europe/Berlin')->utc();
+    }
+    return \Carbon\Carbon::now('UTC');
+}
+
+/**
+ * Gemeinsame Gruppierung + Ausgabeform für now/next.
+ */
+private function groupActivitiesForApi(int $planId, $rows): array
+{
+    $groups = [];
+    foreach ($rows as $row) {
+        $gid = $row->activity_group_id ?? null;
+
+        if (!isset($groups[$gid])) {
+            $groups[$gid] = [
+                'activity_group_id' => $gid,
+                'group_meta' => [
+                    'name'                   => $row->group_atd_name ?? null,
+                    'first_program_id'       => $row->group_first_program_id ?? null,
+                    'first_program_name'     => $row->group_first_program_name ?? null,
+                    'description'            => $row->group_description ?? null,
+                ],
+                'activities' => [],
+            ];
+        }
+
+        $groups[$gid]['activities'][] = [
+            'activity_id'      => $row->activity_id,
+            'start_time'       => $row->start_time,
+            'end_time'         => $row->end_time,
+            'activity_name'    => $row->activity_name,
+            // Activity-ATD-Meta:
+            'meta' => [
+                'name'               => $row->activity_atd_name ?? null,
+                'first_program_id'   => $row->activity_first_program_id ?? null,
+                'first_program_name' => $row->activity_first_program_name ?? null,
+                'description'        => $row->activity_description ?? null,
+            ],
+            'program'          => $row->program_name, // bleibt zur Abwärtskompatibilität
+            'lane'             => $row->lane,
+            'team'             => $row->team,
+            'table_1'          => $row->table_1,
+            'table_1_team'     => $row->table_1_team,
+            'table_2'          => $row->table_2,
+            'table_2_team'     => $row->table_2_team,
+        ];
+    }
+
+    return [
+        'plan_id' => $planId,
+        'groups'  => array_values($groups),
+    ];
+}
+
+
+
 
 }

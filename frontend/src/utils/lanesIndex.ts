@@ -6,6 +6,7 @@ export type LaneRow = {
     tables?: number | null;
     note?: string | null;
     recommended?: boolean | null;
+    suggested?: number | null;
 };
 
 export type LanesIndex = {
@@ -14,8 +15,8 @@ export type LanesIndex = {
     explore: Record<string, number[]>;   // key: `${teams}`
 
     // NEW: metadata per combo
-    metaChallenge: Record<string, Record<number, { note?: string; recommended?: boolean }>>;
-    metaExplore: Record<string, Record<number, { note?: string; recommended?: boolean }>>;
+    metaChallenge: Record<string, Record<number, { note?: string; recommended?: boolean; suggested?: boolean }>>;
+    metaExplore: Record<string, Record<number, { note?: string; recommended?: boolean; suggested?: boolean }>>;
 };
 
 export function buildLanesIndex(rows: LaneRow[]): LanesIndex {
@@ -31,6 +32,7 @@ export function buildLanesIndex(rows: LaneRow[]): LanesIndex {
             (metaChallenge[key] ||= {})[Number(r.lanes)] = {
                 note: r.note ?? undefined,
                 recommended: !!r.recommended,
+                suggested: !!(r.suggested ?? 0),
             };
         } else if (r.first_program === 2) {
             const key = `${r.teams}`;
@@ -38,6 +40,7 @@ export function buildLanesIndex(rows: LaneRow[]): LanesIndex {
             (metaExplore[key] ||= {})[Number(r.lanes)] = {
                 note: r.note ?? undefined,
                 recommended: !!r.recommended,
+                suggested: !!(r.suggested ?? 0),
             };
         }
     }

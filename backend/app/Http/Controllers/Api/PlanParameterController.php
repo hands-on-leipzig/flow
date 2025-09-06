@@ -131,27 +131,12 @@ class PlanParameterController extends Controller
             );
         }
 
-    /* Alt
-
-        $groupIds = DB::table('activity_group')
-            ->where('plan', $planId)
-            ->pluck('id');
-
-        DB::table('activity')
-            ->whereIn('activity_group', $groupIds)
-            ->delete();
-
-        DB::table('activity_group')
-            ->where('plan', $planId)
-            ->delete();
-
-        //\App\Jobs\GeneratePlan::dispatch($planId);
-        require_once base_path("legacy/generator/generator_main.php");
-        g_generator($planId);
-*/
         return response()->json(['status' => 'ok', 'queued' => true]);
         // return response()->json(['status' => 'ok']);
     }
+
+
+    
 
 }
 
