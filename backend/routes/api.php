@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LogoController;
 use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanController;
+use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
@@ -72,6 +73,7 @@ Route::middleware(['keycloak'])->group(function () {
 //    Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
+    
 
     // ExtraBlock controller
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
@@ -112,11 +114,12 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/parameter/condition', [ParameterController::class, 'addCondition']);
     Route::put('/parameter/condition/{id}', [ParameterController::class, 'updateCondition']);
     Route::delete('/parameter/condition/{id}', [ParameterController::class, 'deleteCondition']);
+    Route::get('/parameters/visibility', [ParameterController::class, 'visibilty']);
 
-    Route::prefix('params')->group(function () {
-        Route::get('/', [ParameterController::class, 'listMparameter']);              
-        Route::post('/reorder', [ParameterController::class, 'reorderMparameter']);  // !!! Reihenfolge in dieser Liste ist wichtig
-        Route::post('/{id}', [ParameterController::class, 'updateMparameter']);      
+    Route::prefix('mparams')->group(function () {
+        Route::get('/', [MParameterController::class, 'listMparameter']);              
+        Route::post('/reorder', [MParameterController::class, 'reorderMparameter']);  // !!! Reihenfolge in dieser Liste ist wichtig
+        Route::post('/{id}', [MParameterController::class, 'updateMparameter']);      
     });
 
     // DRAHT controller
