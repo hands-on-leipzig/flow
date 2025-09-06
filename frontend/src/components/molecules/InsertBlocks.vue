@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
@@ -47,6 +47,72 @@ const loading = ref(false)
 const saving = ref(false)
 const insertPoints = ref<InsertPoint[]>([])
 const blocks = ref<ExtraBlock[]>([])
+
+// --- Debounced update system ---
+const pendingUpdates = ref<Record<string, any>>({})
+const updateTimeoutId = ref<NodeJS.Timeout | null>(null)
+const UPDATE_DEBOUNCE_DELAY = 2000
+
+async function saveBlockDelayed(block: ExtraBlock) {
+  if (props.planId == null || !block.id) return
+  
+  saving.value = true
+  try {
+    const {data: saved} = await axios.post<ExtraBlock>(`/plans/${props.planId}/extra-blocks`, block)
+    if (saved?.id) {
+      const i = blocks.value.findIndex(b => b.id === saved.id)
+      if (i !== -1) blocks.value.splice(i, 1, saved)
+    }
+    emit('changed')
+  } catch (error) {
+    console.error('Error saving block:', error)
+  } finally {
+    saving.value = false
+  }
+}
+
+function scheduleUpdate(blockId: string, field: string, value: any) {
+  const key = `${blockId}_${field}`
+  pendingUpdates.value[key] = value
+
+  // Clear existing timeout
+  if (updateTimeoutId.value) {
+    clearTimeout(updateTimeoutId.value)
+  }
+
+  // Schedule batch update
+  updateTimeoutId.value = setTimeout(() => {
+    flushUpdates()
+  }, UPDATE_DEBOUNCE_DELAY)
+}
+
+async function flushUpdates() {
+  if (updateTimeoutId.value) {
+    clearTimeout(updateTimeoutId.value)
+    updateTimeoutId.value = null
+  }
+
+  if (Object.keys(pendingUpdates.value).length > 0) {
+    // Group updates by block ID
+    const updatesByBlock: Record<string, Record<string, any>> = {}
+    Object.entries(pendingUpdates.value).forEach(([key, value]) => {
+      const [blockId, field] = key.split('_', 2)
+      if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
+      updatesByBlock[blockId][field] = value
+    })
+    
+    // Apply updates to blocks and save
+    for (const [blockId, updates] of Object.entries(updatesByBlock)) {
+      const block = blocks.value.find(b => b.id?.toString() === blockId)
+      if (block) {
+        Object.assign(block, updates)
+        await saveBlockDelayed(block)
+      }
+    }
+    
+    pendingUpdates.value = {}
+  }
+}
 
 // --- Loaders ---
 async function loadInsertPoints() {
@@ -170,26 +236,37 @@ async function removeBlock(id: number) {
   }
 }
 
-function updateFixed(pointId: number, patch: Partial<ExtraBlock>, save = false) {
+function updateFixed(pointId: number, patch: Partial<ExtraBlock>) {
   const b = fixedByPoint.value[pointId]
   if (!b) return
   Object.assign(b, patch)
-  if (save) saveBlockImmediate(b)
 }
 
 function onFixedNumInput(pointId: number, field: 'buffer_before' | 'duration' | 'buffer_after', e: Event) {
   const v = Number((e.target as HTMLInputElement).value)
-  updateFixed(pointId, {[field]: Number.isFinite(v) ? v : 0} as any)
+  const value = Number.isFinite(v) ? v : 0
+  updateFixed(pointId, {[field]: value} as any)
+  scheduleUpdate(pointId.toString(), field, value)
 }
 
 function onFixedTextInput(pointId: number, field: 'name' | 'description' | 'link', e: Event) {
-  updateFixed(pointId, {[field]: (e.target as HTMLInputElement).value} as any)
+  const value = (e.target as HTMLInputElement).value
+  updateFixed(pointId, {[field]: value} as any)
+  scheduleUpdate(pointId.toString(), field, value)
 }
 
 function onFixedBlur(pointId: number) {
-  const b = fixedByPoint.value[pointId]
-  if (b) saveBlockImmediate(b)
+  // Trigger immediate update on blur
+  flushUpdates()
 }
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (updateTimeoutId.value) {
+    clearTimeout(updateTimeoutId.value)
+  }
+  flushUpdates()
+})
 
 // Expose loadAll function to parent if needed
 defineExpose({
@@ -235,7 +312,8 @@ defineExpose({
           <td class="px-2 py-2 text-center">
             <input :disabled="!fixedByPoint[p.id]" :value="fixedByPoint[p.id]?.buffer_before ?? ''"
                    class="w-16 border rounded px-2 py-1 text-center"
-                   min="0"
+                   min="5"
+                   step="5"
                    type="number"
                    @change="onFixedBlur(p.id)"
                    @input="onFixedNumInput(p.id, 'buffer_before', $event)"
@@ -246,7 +324,8 @@ defineExpose({
           <td class="px-2 py-2 text-center">
             <input :disabled="!fixedByPoint[p.id]" :value="fixedByPoint[p.id]?.duration ?? ''"
                    class="w-16 border rounded px-2 py-1 text-center"
-                   min="0"
+                   min="5"
+                   step="5"
                    type="number"
                    @change="onFixedBlur(p.id)"
                    @input="onFixedNumInput(p.id, 'duration', $event)"
@@ -256,7 +335,8 @@ defineExpose({
           <td class="px-2 py-2 text-center">
             <input :disabled="!fixedByPoint[p.id]" :value="fixedByPoint[p.id]?.buffer_after ?? ''"
                    class="w-16 border rounded px-2 py-1 text-center"
-                   min="0"
+                   min="5"
+                   step="5"
                    type="number"
                    @change="onFixedBlur(p.id)"
                    @input="onFixedNumInput(p.id, 'buffer_after', $event)"
