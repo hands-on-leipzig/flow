@@ -27,7 +27,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const { data } = await axios.get('/params')
+    const { data } = await axios.get('/mparams')
     items.value = Array.isArray(data) ? data : (data?.items ?? [])
     items.value.sort((a,b) => (a.sequence ?? 0) - (b.sequence ?? 0))
   } catch (e) {
@@ -122,7 +122,7 @@ async function save(item) {
   savingId.value = item.id
   try {
     const payload = { ...draft }
-    await axios.post(`/params/${item.id}`, payload)
+    await axios.post(`/mparams/${item.id}`, payload)
     // In Originalliste zurückschreiben
     Object.assign(item, payload)
   } catch (e) {
@@ -143,7 +143,7 @@ async function onSort() {
     .map((it, idx) => ({ ...it, sequence: idx + 1 }))
 
   try {
-    await axios.post('/params/reorder', { order: payload })
+    await axios.post('/mparams/reorder', { order: payload })
   } catch (e) {
     console.error('Reihenfolge speichern fehlgeschlagen', e)
     alert('Reihenfolge konnte nicht gespeichert werden.')

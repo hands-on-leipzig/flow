@@ -56,123 +56,98 @@ class ParameterController extends Controller
         return response()->json($options);
     }
 
-    //
-    // functions to edit m_parameters
-    //
 
-    public function listMparameter(Request $req)
+    public function visibility(): \Illuminate\Http\JsonResponse
     {
-        $q = DB::table('m_parameter')
-            ->select([
-                'id','name','context','level','type','value','min','max','step',
-                'first_program','sequence','ui_label','ui_description'
-            ])
-            ->orderBy('sequence');
+        // Alle 12 Felder
+        $fields = [
+            'c_start_opening', 'c_duration_opening', 'c_duration_awards',
+            'g_start_opening', 'g_duration_opening', 'g_duration_awards',
+            'e1_start_opening', 'e1_duration_opening', 'e1_duration_awards',
+            'e2_start_opening', 'e2_duration_opening', 'e2_duration_awards',
+        ];
 
-        if ($req->filled('context'))        $q->where('context', $req->string('context'));
-        if ($req->filled('level'))          $q->where('level',   $req->integer('level'));
-        if ($req->filled('first_program'))  $q->where('first_program', $req->integer('first_program'));
+        $matrix = [];
 
-        return response()->json(['items' => $q->get()]);
-    }
+        for ($e = 0; $e <= 5; $e++) {
+            for ($c = 0; $c <= 1; $c++) {
+                $key = "e{$e}_c{$c}";
 
-    public function updateMparameter(Request $req, int $id)
-    {
-        $data = $req->validate([
-            'name'           => 'nullable|string|max:255',
-            'ui_label'       => 'nullable|string|max:255',
-            'ui_description' => 'nullable|string',
-            'context'        => 'nullable|in:input,expert,protected,finale',
-            'level'          => 'required|integer',
-            'type'           => 'nullable|in:integer,decimal,time,date,boolean',
-            'first_program'  => 'nullable|integer',
-            'value'          => 'nullable|string|max:255',
-            'min'            => 'nullable|string|max:255',
-            'max'            => 'nullable|string|max:255',
-            'step'           => 'nullable|string|max:255',
-        ]);
+                // Standard: alles false
+                $entry = array_fill_keys($fields, ['editable' => false]);
 
-        DB::table('m_parameter')->where('id', $id)->update($data);
-        $row = DB::table('m_parameter')->where('id', $id)->first();
-
-        return response()->json($row);
-    }
-
-    public function reorderMparameter(Request $req)
-    {
-        // Erwartet: { order: [ { id, sequence }, ... ] }
-        $data = $req->validate([
-            'order' => 'required|array|min:1',
-            'order.*.id' => 'required|integer',
-            'order.*.sequence' => 'required|integer|min:1',
-        ]);
-
-        // Payload normalisieren → Map: id => sequence
-        $payloadMap = collect($data['order'])
-            ->map(fn ($r) => ['id' => (int)$r['id'], 'sequence' => (int)$r['sequence']])
-            ->keyBy('id');
-
-        $ids = $payloadMap->keys()->all();
-
-        // Aktuelle Sequenzen der betroffenen IDs holen (einmalig)
-        $current = DB::table('m_parameter')
-            ->whereIn('id', $ids)
-            ->pluck('sequence', 'id'); // Map: id => sequence
-
-        // Nur geänderte Kandidaten herausfiltern
-        $changed = [];
-        foreach ($payloadMap as $id => $seq) {
-            if (!isset($current[$id])) {
-                // unbekannte ID ignorieren
-                continue;
-            }
-            if ((int)$current[$id] !== (int)$seq['sequence']) {
-                $changed[$id] = (int)$seq['sequence'];
-            }
-        }
-
-        if (empty($changed)) {
-            return response()->json([
-                'status'   => 'ok',
-                'updated'  => 0,
-                'skipped'  => count($ids),
-                'message'  => 'Keine Änderungen nötig.',
-            ]);
-        }
-
-        // Ein einziges Update mit CASE ... WHEN ... THEN ...
-        // Optional in Chunks, falls sehr groß
-        DB::transaction(function () use ($changed) {
-            $chunks = array_chunk($changed, 800, true); // 800 pro Statement ist konservativ
-            foreach ($chunks as $chunk) {
-                $ids = array_keys($chunk);
-
-                $caseParts = [];
-                foreach ($chunk as $id => $seq) {
-                    $caseParts[] = "WHEN {$id} THEN {$seq}";
+                // Ungültige Kombinationen → alles false, fertig
+                if (in_array($e, [0,1,2]) && $c === 0) {
+                    $matrix[$key] = [
+                        'e_mode' => $e,
+                        'c_mode' => $c,
+                        'fields' => $entry,
+                    ];
+                    continue;
                 }
-                $caseSql = implode(' ', $caseParts);
-                $idList  = implode(',', $ids);
 
-                $sql = "
-                    UPDATE m_parameter
-                    SET sequence = CASE id
-                        {$caseSql}
-                    END
-                    WHERE id IN ({$idList})
-                ";
+                if ( $c === 1) {
+               
+                    switch ($e) {
+                        case 0:
+                        case 3:
+                        case 4:
+                        case 5:
 
-                DB::update($sql);
+                            foreach (['c_start_opening','c_duration_opening','c_duration_awards'] as $f) {
+                                $entry[$f]['editable'] = true;  
+                            }
+                            break;
+
+                        case 1:
+                            foreach (['g_start_opening','g_duration_opening','c_duration_awards', 'e1_duration_awards'] as $f) {
+                                $entry[$f]['editable'] = true;  
+                            }
+                            break;
+
+
+                        case 2:
+                            foreach (['c_start_opening','c_duration_opening','g_duration_awards', 'e2_duration_opening'] as $f) {
+                                $entry[$f]['editable'] = true;  
+                            }
+                            break;
+
+                    }
+                }    
+
+                switch ($e) {
+                    case 3:
+                        foreach (['e1_start_opening','e1_duration_opening','e1_duration_awards'] as $f) {
+                            $entry[$f]['editable'] = true;  
+                        }
+                        break;
+
+                    case 4:
+                        foreach (['e2_start_opening','e2_duration_opening','e2_duration_awards'] as $f) {
+                            $entry[$f]['editable'] = true;  
+                        }
+                        break;
+
+                    case 5:
+                        foreach (['e1_start_opening','e1_duration_opening','e1_duration_awards',
+                                  'e2_start_opening','e2_duration_opening','e2_duration_awards'] as $f) {
+                            $entry[$f]['editable'] = true;  
+                        }
+                        break;
+
+                }
+
+                // Möglicherweise noch Challenge dazu
+                
+                $matrix[$key] = [
+                    'e_mode' => $e,
+                    'c_mode' => $c,
+                    'fields' => $entry,
+                ];
             }
-        });
+        }
 
-        return response()->json([
-            'status'  => 'ok',
-            'updated' => count($changed),
-            'skipped' => count($ids) - count($changed),
-        ]);
+        return response()->json(['matrix' => $matrix]);
     }
 
 }
-
-

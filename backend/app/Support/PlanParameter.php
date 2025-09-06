@@ -54,31 +54,16 @@ class PlanParameter
         ];
     }
 
+    private function localTimeToUtc(string $hhmm, string $dateYmd): string
+    {
+        // z.B. $hhmm = "09:00", $dateYmd = "2026-01-16"
+        $dt = \Carbon\Carbon::createFromFormat('Y-m-d H:i', "{$dateYmd} {$hhmm}", 'Europe/Berlin');
+        return $dt->utc()->format('H:i'); // nur Uhrzeit in UTC zurückgeben
+    }
+
     private function init(): void
     {
         $this->addInternal('g_plan', $this->planId, 'integer');
-
-        $base = DB::table('m_parameter')
-            ->select('id', 'name', 'type', 'value')
-            ->get()
-            ->keyBy('id');
-
-        $overrides = DB::table('plan_param_value')
-            ->select('parameter', 'set_value')
-            ->where('plan', $this->planId)
-            ->get()
-            ->keyBy('parameter');
-
-        foreach ($base as $id => $row) {
-            $value = $overrides->has($id)
-                ? $overrides[$id]->set_value
-                : $row->value;
-
-            $this->params[$row->name] = [
-                'value' => $this->cast($value, $row->type),
-                'type' => $row->type,
-            ];
-        }
 
         $eventId = DB::table('plan')
             ->where('id', $this->planId)
@@ -101,6 +86,37 @@ class PlanParameter
         $this->addInternal('g_date', $event->date, 'date');
         $this->addInternal('g_days', $event->days, 'integer');
         $this->addInternal('g_finale', ((int)$event->level === 3), 'boolean');
+
+        $base = DB::table('m_parameter')
+            ->select('id', 'name', 'type', 'value')
+            ->get()
+            ->keyBy('id');
+
+        $overrides = DB::table('plan_param_value')
+            ->select('parameter', 'set_value')
+            ->where('plan', $this->planId)
+            ->get()
+            ->keyBy('parameter');
+
+        foreach ($base as $id => $row) {
+            // 1) Rohwert ermitteln (Override vor Default)
+            $raw = $overrides->has($id)
+                ? $overrides[$id]->set_value
+                : $row->value;
+
+            // 2) Falls Typ 'time' → lokale (Europe/Berlin) Uhrzeit am Event-Datum in UTC umrechnen
+            if ($row->type === 'time' && $raw !== null && $raw !== '') {
+                // $event->date ist oben bereits geladen (YYYY-MM-DD)
+                $raw = $this->localTimeToUtc((string) $raw, (string) $event->date);
+            }
+
+            // 3) Cast und in Params ablegen
+            $this->params[$row->name] = [
+                'value' => $this->cast($raw, $row->type),
+                'type'  => $row->type,
+            ];
+        }
+
     }
 
     private function cast(mixed $value, ?string $type): mixed
