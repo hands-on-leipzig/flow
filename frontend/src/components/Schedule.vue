@@ -180,9 +180,9 @@ function handleParamUpdate(param: { name: string, value: any }) {
 }
 
 // Handle block updates from InsertBlocks component
-function handleBlockUpdates(updates: Array<{name: string, value: any}>) {
+function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
   console.log('Received block updates:', updates)
-  
+
   // Add all block updates to pending parameter updates
   updates.forEach(update => {
     pendingParamUpdates.value[update.name] = update.value
@@ -305,7 +305,7 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 
       // Save each block
       for (const [blockId, updates] of Object.entries(updatesByBlock)) {
-        const block = { id: parseInt(blockId), ...updates }
+        const block = {id: parseInt(blockId), ...updates}
         await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, block)
       }
     }
@@ -352,7 +352,7 @@ const expertParamsGrouped = computed(() => {
   const expertParams = parameters.value.filter((p: Parameter) => p.context === 'expert')
   console.log('Expert params found:', expertParams.length)
   console.log('All parameters:', parameters.value.length)
-  
+
   return expertParams
       .sort((a: Parameter, b: Parameter) => (a.sequence ?? 0) - (b.sequence ?? 0))
       .reduce((acc: Record<string, Parameter[]>, param: Parameter) => {
@@ -444,10 +444,10 @@ onMounted(async () => {
         <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
         <span class="text-green-800 font-medium">Parameter-Änderungen werden gespeichert...</span>
       </div>
-      <div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
+      <!--<div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
         <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
              :style="{ width: progress + '%' }"></div>
-      </div>
+      </div>-->
     </div>
 
     <div v-if="false" class="flex items-center space-x-4">
