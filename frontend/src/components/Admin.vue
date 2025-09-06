@@ -124,7 +124,7 @@ fetchConditions()
         :class="{ 'bg-white font-semibold shadow': activeTab === 'nowandnext' }"
         @click="activeTab = 'nowandnext'"
       >
-        Now and Next
+        ⏰ Now and Next
       </button>
 
     </div>
