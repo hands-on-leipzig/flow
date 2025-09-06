@@ -98,6 +98,8 @@ const fetchParams = async (planId: number) => {
     // Defensive: backend could send a single object or null
     parameters.value = Array.isArray(rawParams) ? rawParams : []
     displayConditions.value = Array.isArray(conditions) ? conditions : []
+    console.log('Fetched parameters:', parameters.value.length)
+    console.log('Expert parameters:', parameters.value.filter(p => p.context === 'expert').length)
   } catch (err) {
     console.error("Failed to fetch params or conditions:", err)
     parameters.value = []
@@ -300,8 +302,11 @@ const updateParam = async (param: Parameter) => {
 }
 
 const expertParamsGrouped = computed(() => {
-  return parameters.value
-      .filter((p: Parameter) => p.context === 'expert')
+  const expertParams = parameters.value.filter((p: Parameter) => p.context === 'expert')
+  console.log('Expert params found:', expertParams.length)
+  console.log('All parameters:', parameters.value.length)
+  
+  return expertParams
       .sort((a: Parameter, b: Parameter) => (a.sequence ?? 0) - (b.sequence ?? 0))
       .reduce((acc: Record<string, Parameter[]>, param: Parameter) => {
         const key = param.program_name || 'Unassigned'
@@ -314,18 +319,18 @@ const expertParamsGrouped = computed(() => {
 async function getOrCreatePlan() {
   if (!selectedEvent.value) return
   const res = await axios.get(`/plans/event/${selectedEvent.value.id}`)
-  plans.value = res.data
-  if (plans.value.id > 0) {
-    selectedPlanId.value = plans.value.id
+  const planData = res.data
+  if (planData && planData.id) {
+    plans.value = [planData]
+    selectedPlanId.value = planData.id
     await fetchParams(selectedPlanId.value as number)
   } else {
     const newPlanId = await createDefaultPlan()
     if (newPlanId) {
       const newPlan = {id: newPlanId, name: 'Standard-Zeitplan', is_chosen: true}
-      plans.value.push(newPlan)
+      plans.value = [newPlan]
       selectedPlanId.value = newPlanId
       await fetchParams(newPlanId)
-
     }
   }
 }
