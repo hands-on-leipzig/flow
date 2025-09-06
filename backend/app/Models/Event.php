@@ -56,4 +56,9 @@ class Event extends Model
         return $this->hasMany(TableEvent::class, 'event');
     }
 
+    public function slideshows()
+    {
+        return $this->hasMany(SlideShow::class, 'event');
+    }
+
 }

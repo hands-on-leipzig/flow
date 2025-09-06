@@ -6,6 +6,7 @@ import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import Card from "@/components/atoms/Card.vue";
 import axios from 'axios';
+import PresentationSettings from "@/components/molecules/PresentationSettings.vue";
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -143,6 +144,11 @@ const updateEventField = async (field: string, value: any) => {
           </div>
         </div>
       </div>
+
+      <div class="rounded-xl shadow bg-white p-4 flex flex-col col-span-2">
+        <PresentationSettings />
+      </div>
+
     </div>
   </div>
 </template>

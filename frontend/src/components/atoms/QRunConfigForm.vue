@@ -151,7 +151,7 @@ const emit = defineEmits([
               :checked="robotCheck.rc_off"
               @change="emit('update:robotCheck', { ...robotCheck, rc_off: $event.target.checked })"
             />
-            Aus
+            ❌ Aus
           </label>
           <label class="flex items-center gap-1">
             <input
@@ -159,7 +159,7 @@ const emit = defineEmits([
               :checked="robotCheck.rc_on"
               @change="emit('update:robotCheck', { ...robotCheck, rc_on: $event.target.checked })"
             />
-            An
+            ✅ An
           </label>
         </div>
       </div>

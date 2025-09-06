@@ -1,3 +1,5 @@
+import {Slideshow} from "./slideshow";
+
 export default class FllEvent {
     id: number
     name: string | null
@@ -13,6 +15,7 @@ export default class FllEvent {
     qrcode: string | null
     wifi_ssid: string | null
     wifi_password: string | null
+    slideshows: Slideshow[] | null
 
     constructor(data: any) {
         Object.assign(this, data)
