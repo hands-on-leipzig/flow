@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\MSupportedPlan;
 use App\Models\PlanParamValue;
+use App\Models\Team;
+use App\Models\TeamPlan;
+use App\Models\FirstProgram;
 use App\Services\PreviewMatrix;
 use App\Services\GeneratePlan;
 use App\Jobs\GeneratePlanJob;
@@ -84,7 +87,8 @@ class PlanController extends Controller
             ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables')]
         );
 
-
+        // Populate team_plan table with all teams for this event
+        $this->populateTeamPlanForNewPlan($newId, $eventId);
 
         return response()->json([
             'id' => $newId,
@@ -441,7 +445,112 @@ private function groupActivitiesForApi(int $planId, $rows): array
     ];
 }
 
+    /**
+     * Populate team_plan table for a newly created plan
+     * Ensures every team for the event has an entry in team_plan
+     */
+    private function populateTeamPlanForNewPlan($planId, $eventId)
+    {
+        // Get all teams for this event
+        $teams = Team::where('event', $eventId)->get();
+        
+        if ($teams->isEmpty()) {
+            return; // No teams to add
+        }
 
+        // Group teams by program and assign order
+        $exploreTeams = $teams->where('first_program', 2)->values(); // Explore = 2
+        $challengeTeams = $teams->where('first_program', 3)->values(); // Challenge = 3
 
+        $teamPlanEntries = [];
+
+        // Add explore teams with order
+        foreach ($exploreTeams as $index => $team) {
+            $teamPlanEntries[] = [
+                'team' => $team->id,
+                'plan' => $planId,
+                'team_number_plan' => $index + 1,
+                'room' => null
+            ];
+        }
+
+        // Add challenge teams with order (continuing from explore teams)
+        $challengeStartOrder = $exploreTeams->count() + 1;
+        foreach ($challengeTeams as $index => $team) {
+            $teamPlanEntries[] = [
+                'team' => $team->id,
+                'plan' => $planId,
+                'team_number_plan' => $challengeStartOrder + $index,
+                'room' => null
+            ];
+        }
+
+        // Insert all team_plan entries
+        if (!empty($teamPlanEntries)) {
+            TeamPlan::insert($teamPlanEntries);
+        }
+    }
+
+    /**
+     * Ensure all teams for an event have entries in team_plan for existing plans
+     * This handles cases where teams were added after plan creation
+     */
+    public function syncTeamPlanForEvent($eventId)
+    {
+        $plans = Plan::where('event', $eventId)->get();
+        
+        if ($plans->isEmpty()) {
+            return; // No plans to sync
+        }
+
+        foreach ($plans as $plan) {
+            $this->syncTeamPlanForPlan($plan->id, $eventId);
+        }
+    }
+
+    /**
+     * Sync team_plan entries for a specific plan
+     */
+    private function syncTeamPlanForPlan($planId, $eventId)
+    {
+        // Get all teams for this event
+        $teams = Team::where('event', $eventId)->get();
+        
+        if ($teams->isEmpty()) {
+            return;
+        }
+
+        // Get existing team_plan entries for this plan
+        $existingTeamIds = TeamPlan::where('plan', $planId)
+            ->pluck('team')
+            ->toArray();
+
+        // Find teams that don't have team_plan entries
+        $missingTeams = $teams->whereNotIn('id', $existingTeamIds);
+
+        if ($missingTeams->isEmpty()) {
+            return; // All teams already have entries
+        }
+
+        // Get the highest current team_number_plan for this plan
+        $maxOrder = TeamPlan::where('plan', $planId)
+            ->max('team_number_plan') ?? 0;
+
+        // Add missing teams with sequential order
+        $teamPlanEntries = [];
+        foreach ($missingTeams as $index => $team) {
+            $teamPlanEntries[] = [
+                'team' => $team->id,
+                'plan' => $planId,
+                'team_number_plan' => $maxOrder + $index + 1,
+                'room' => null
+            ];
+        }
+
+        // Insert missing team_plan entries
+        if (!empty($teamPlanEntries)) {
+            TeamPlan::insert($teamPlanEntries);
+        }
+    }
 
 }
