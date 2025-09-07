@@ -23,12 +23,12 @@ function handleUpdate(param: any) {
 </script>
 
 <template>
-  <div :class="additionalClasses" class="p-2 border-t border-l border-gray-300">
+  <div :class="additionalClasses" class="p-2">
     <InfoPopover :text="param?.ui_description"/>
     <ParameterField
         v-if="param && visibilityMap[param.id]"
         :disabled="disabledMap[param.id]"
-        :horizontal="false"
+        :horizontal="true"
         :param="param"
         @update="handleUpdate"
     />
