@@ -8,6 +8,8 @@ const props = defineProps<{
   parameters: any[]
   visibilityMap: Record<string, boolean>
   disabledMap: Record<string, boolean>
+  showExplore?: boolean
+  showChallenge?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -45,12 +47,27 @@ function cellParam(prefix: 'g' | 'c' | 'e1' | 'e2', key: 'start_opening' | 'dura
 
 // Check if a field should be editable
 function isFieldEditable(prefix: 'g' | 'c' | 'e1' | 'e2', key: 'start_opening' | 'duration_opening' | 'duration_awards'): boolean {
+  // First check toggle state
+  if (prefix === 'c' && props.showChallenge === false) return false // Challenge disabled
+  if ((prefix === 'e1' || prefix === 'e2') && props.showExplore === false) return false // Explore disabled
+  
+  // Then check visibility matrix
   const fieldName = `${prefix}_${key}`
   return currentVisibility.value[fieldName]?.editable || false
 }
 
-// Check if a section should be shown (has at least one editable field)
+// Check if a section should be shown (has at least one editable field AND toggle is enabled)
 function shouldShowSection(prefix: 'g' | 'c' | 'e1' | 'e2'): boolean {
+  // First check toggle state
+  if (prefix === 'g') return true // Gemeinsam is always shown
+  if (prefix === 'c') {
+    if (props.showChallenge === false) return false // Challenge disabled
+  }
+  if (prefix === 'e1' || prefix === 'e2') {
+    if (props.showExplore === false) return false // Explore disabled
+  }
+  
+  // Then check if there are editable fields
   const fields = ['start_opening', 'duration_opening', 'duration_awards']
   return fields.some(field => isFieldEditable(prefix, field as any))
 }

@@ -115,7 +115,15 @@ const showChallenge = ref(true)
 
 const expertParams = computed(() =>
     parameters.value
-        .filter((p: Parameter) => p.context === 'expert')
+        .filter((p: Parameter) => {
+          if (p.context !== 'expert') return false
+          
+          // Filter based on toggle states
+          if (p.first_program === 2 && !showExplore.value) return false // Explore disabled
+          if (p.first_program === 3 && !showChallenge.value) return false // Challenge disabled
+          
+          return true
+        })
         .sort((a: Parameter, b: Parameter) => (a.first_program || 0) - (b.first_program || 0))
 )
 
@@ -349,11 +357,8 @@ const updateParam = async (param: Parameter) => {
 }
 
 const expertParamsGrouped = computed(() => {
-  const expertParams = parameters.value.filter((p: Parameter) => p.context === 'expert')
-  console.log('Expert params found:', expertParams.length)
-  console.log('All parameters:', parameters.value.length)
-
-  return expertParams
+  // Use the filtered expertParams instead of filtering again
+  return expertParams.value
       .sort((a: Parameter, b: Parameter) => (a.sequence ?? 0) - (b.sequence ?? 0))
       .reduce((acc: Record<string, Parameter[]>, param: Parameter) => {
         const key = param.program_name || 'Unassigned'
@@ -496,6 +501,8 @@ onMounted(async () => {
                 :parameters="parameters"
                 :visibilityMap="visibilityMap"
                 :disabledMap="disabledMap"
+                :show-explore="showExplore"
+                :show-challenge="showChallenge"
                 @update-param="handleParamUpdate"
             />
           </div>
@@ -572,6 +579,8 @@ onMounted(async () => {
               :plan-id="selectedPlanId as number"
               :event-level="selectedEvent?.level ?? null"
               :on-update="handleBlockUpdates"
+              :show-explore="showExplore"
+              :show-challenge="showChallenge"
           />
         </div>
       </transition>
