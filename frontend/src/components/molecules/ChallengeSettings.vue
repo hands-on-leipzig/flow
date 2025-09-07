@@ -33,6 +33,9 @@ function handleToggleChange(target: HTMLInputElement) {
   const isChecked = target.checked
   emit('toggle-show', isChecked)
 
+  // Update c_mode based on toggle state
+  updateByName('c_mode', isChecked ? 1 : 0)
+
   // Update challenge parameters based on toggle state
   if (isChecked) {
     // Use DRAHT team count as default if available, otherwise use min
@@ -208,7 +211,6 @@ const challengeTeamLimits = computed(() => {
 
     <template v-if="showChallenge">
       <div class="mb-3">
-        <label class="text-sm font-medium">Teams (Challenge)</label> &nbsp;
         <input
             class="mt-1 w-32 border rounded px-2 py-1"
             type="number"
@@ -217,12 +219,12 @@ const challengeTeamLimits = computed(() => {
             :value="paramMapByName['c_teams']?.value"
             @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
         />
+        <label class="text-sm font-medium px-2">Teams</label> &nbsp;
         <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
       </div>
 
       <div class="mb-3">
         <div class="flex items-center gap-2">
-          <span class="text-sm font-medium">Robot-Game mit</span>
           <RadioGroup v-model="rTablesProxy" class="flex gap-1">
             <RadioGroupOption
                 v-for="tb in [2,4]"
@@ -246,7 +248,7 @@ const challengeTeamLimits = computed(() => {
               </button>
             </RadioGroupOption>
           </RadioGroup>
-          <span class="text-sm font-medium">Tischen</span>
+          <span class="text-sm font-medium">Robot-Game Tische</span>
           <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
         </div>
       </div>
@@ -254,7 +256,6 @@ const challengeTeamLimits = computed(() => {
       <!-- Jury lanes -->
       <div class="mb-1">
         <div class="flex items-center gap-2">
-          <span class="text-sm font-medium">Jury</span>
           <RadioGroup v-model="jLanesProxy" class="flex gap-1">
             <RadioGroupOption
                 v-for="n in lanePalette"
@@ -282,7 +283,7 @@ const challengeTeamLimits = computed(() => {
             </RadioGroupOption>
           </RadioGroup>
 
-          <span class="text-sm font-medium">-spurig</span>
+          <span class="text-sm font-medium">Jurygruppe(n)</span>
           <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
         </div>
 

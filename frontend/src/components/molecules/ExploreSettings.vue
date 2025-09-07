@@ -39,13 +39,13 @@ function handleToggleChange(target: HTMLInputElement) {
     if (eMode.value === 0) {
       setMode(1)
     }
-    
+
     // Use DRAHT team count as default if available, otherwise use min
     const eventStore = useEventStore()
     const drahtTeams = eventStore.selectedEvent?.drahtTeamsExplore || 0
     const minTeams = paramMapByName.value['e_teams']?.min || 1
     const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
-    
+
     if (eTeams.value === 0) {
       updateByName('e_teams', defaultTeams)
     }
@@ -412,7 +412,6 @@ const exploreTeamLimits = computed(() => {
     <!-- INTEGRATED (1/2): inline lane selector bound to e1_lanes (allowed by total e_teams) -->
     <div v-if="hasExplore && isIntegrated" class="mt-4 flex">
       <div class="flex items-center gap-2">
-        <span class="text-sm font-medium">Jury</span>
         <RadioGroup v-model="integratedLanesProxy" class="flex gap-1">
           <RadioGroupOption
               v-for="n in allLaneOptions"
@@ -435,7 +434,7 @@ const exploreTeamLimits = computed(() => {
             </button>
           </RadioGroupOption>
         </RadioGroup>
-        <span class="text-sm font-medium">-spurig</span>
+        <span class="text-sm font-medium">Jurygruppen</span>
         <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
       </div>
     </div>
@@ -460,28 +459,31 @@ const exploreTeamLimits = computed(() => {
         <div class="text-sm font-medium mb-1">
           Vormittag
         </div>
-        <RadioGroup v-model="eLanesAMProxy" class="flex flex-wrap gap-2">
-          <RadioGroupOption
-              v-for="n in allLaneOptions"
-              :key="'e_lane_am_' + n"
-              :value="n"
-              :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
-              v-slot="{ checked, disabled }"
-          >
-            <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="[
-                checked ? 'ring-1 ring-gray-500' : '',
-                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-              ]"
-                :aria-disabled="disabled"
+        <div class="flex items-center gap-2">
+          <RadioGroup v-model="eLanesAMProxy" class="flex gap-1">
+            <RadioGroupOption
+                v-for="n in allLaneOptions"
+                :key="'e_lane_am_' + n"
+                :value="n"
+                :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
+                v-slot="{ checked, disabled }"
             >
-              {{ n }}-spurig
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
+              <button
+                  type="button"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :class="[
+                  checked ? 'ring-1 ring-gray-500' : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                ]"
+                  :aria-disabled="disabled"
+              >
+                {{ n }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
+          <span class="text-sm font-medium">Jurygruppen</span>
+        </div>
       </div>
 
       <!-- PM -->
@@ -489,28 +491,31 @@ const exploreTeamLimits = computed(() => {
         <div class="text-sm font-medium mb-1">
           Nachmittag
         </div>
-        <RadioGroup v-model="eLanesPMProxy" class="flex flex-wrap gap-2">
-          <RadioGroupOption
-              v-for="n in allLaneOptions"
-              :key="'e_lane_pm_' + n"
-              :value="n"
-              :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
-              v-slot="{ checked, disabled }"
-          >
-            <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="[
-                checked ? 'ring-1 ring-gray-500' : '',
-                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-              ]"
-                :aria-disabled="disabled"
+        <div class="flex items-center gap-2">
+          <RadioGroup v-model="eLanesPMProxy" class="flex gap-1">
+            <RadioGroupOption
+                v-for="n in allLaneOptions"
+                :key="'e_lane_pm_' + n"
+                :value="n"
+                :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
+                v-slot="{ checked, disabled }"
             >
-              {{ n }}-spurig
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
+              <button
+                  type="button"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :class="[
+                  checked ? 'ring-1 ring-gray-500' : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                ]"
+                  :aria-disabled="disabled"
+              >
+                {{ n }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
+          <span class="text-sm font-medium">Jurygruppen</span>
+        </div>
       </div>
     </div>
   </div>

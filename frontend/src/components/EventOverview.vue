@@ -1,5 +1,5 @@
-<script setup>
-import {ref, onMounted, computed} from 'vue'
+<script setup lang="ts">
+import {ref, onMounted, onUnmounted, computed} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import dayjs from "dayjs";
@@ -9,6 +9,139 @@ const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const challengeData = ref(null)
 const exploreData = ref(null)
+const planId = ref(null)
+
+// Debounced saving mechanism (same as Schedule.vue)
+const pendingUpdates = ref<Record<string, any>>({})
+const updateTimeoutId = ref<NodeJS.Timeout | null>(null)
+const DEBOUNCE_DELAY = 2000
+
+// Toast notification system
+const showToast = ref(false)
+const progress = ref(100)
+const progressIntervalId = ref<NodeJS.Timeout | null>(null)
+
+// Derive toggle states from parameters
+const showExplore = computed(() => {
+  // If we have parameters, check e_mode > 0
+  if (event.value?.parameters) {
+    const eMode = event.value.parameters.find(p => p.name === 'e_mode')
+    return eMode ? Number(eMode.value) > 0 : true
+  }
+  return true // Default to true if no parameters
+})
+
+const showChallenge = computed(() => {
+  // If we have parameters, check c_teams > 0
+  if (event.value?.parameters) {
+    const cTeams = event.value.parameters.find(p => p.name === 'c_teams')
+    return cTeams ? Number(cTeams.value) > 0 : true
+  }
+  return true // Default to true if no parameters
+})
+
+async function fetchPlanId() {
+  if (!event.value?.id) return
+  try {
+    const response = await axios.get(`/plans/event/${event.value.id}`)
+    planId.value = response.data.id
+  } catch (error) {
+    console.error('Error fetching plan ID:', error)
+  }
+}
+
+// Handle block updates from ExtraBlocks component
+function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
+  console.log('EventOverview: Received block updates:', updates)
+  
+  // Add all block updates to pending updates
+  updates.forEach(update => {
+    pendingUpdates.value[update.name] = update.value
+  })
+
+  console.log('EventOverview: Pending updates:', pendingUpdates.value)
+
+  // Show toast and start progress animation
+  showToast.value = true
+  console.log('EventOverview: showToast set to true')
+  startProgressAnimation()
+
+  // Clear existing timeout
+  if (updateTimeoutId.value) {
+    clearTimeout(updateTimeoutId.value)
+  }
+
+  // Schedule batch update
+  updateTimeoutId.value = setTimeout(() => {
+    flushUpdates()
+  }, DEBOUNCE_DELAY)
+}
+
+// Start progress animation
+function startProgressAnimation() {
+  // Reset progress
+  progress.value = 100
+
+  // Clear existing interval
+  if (progressIntervalId.value) {
+    clearInterval(progressIntervalId.value)
+  }
+
+  // Calculate step size (100 steps over the debounce delay)
+  const stepSize = 100 / (DEBOUNCE_DELAY / 50) // Update every 50ms
+
+  progressIntervalId.value = setInterval(() => {
+    progress.value -= stepSize
+    if (progress.value <= 0) {
+      progress.value = 0
+      clearInterval(progressIntervalId.value!)
+      progressIntervalId.value = null
+    }
+  }, 50)
+}
+
+// Force immediate update of all pending changes
+async function flushUpdates() {
+  console.log('EventOverview: flushUpdates called')
+  
+  if (updateTimeoutId.value) {
+    clearTimeout(updateTimeoutId.value)
+    updateTimeoutId.value = null
+  }
+
+  // Clear progress animation
+  if (progressIntervalId.value) {
+    clearInterval(progressIntervalId.value)
+    progressIntervalId.value = null
+  }
+
+  // Hide toast
+  showToast.value = false
+  console.log('EventOverview: showToast set to false')
+
+  // Process all pending updates
+  const updates = Object.entries(pendingUpdates.value)
+  if (updates.length === 0) return
+
+  console.log('Flushing updates:', updates)
+  
+  // Clear pending updates
+  pendingUpdates.value = {}
+
+  // Save each update to the database
+  try {
+    for (const [name, value] of updates) {
+      if (name === 'extra_block_update' && value) {
+        // Save extra block update
+        await axios.post(`/plans/${planId.value}/extra-blocks`, value)
+        console.log('Saved extra block:', value)
+      }
+      // Add more update types here as needed
+    }
+  } catch (error) {
+    console.error('Error saving updates:', error)
+  }
+}
 
 onMounted(async () => {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
@@ -24,7 +157,17 @@ onMounted(async () => {
   event.value.wifi_ssid ??= ''
   event.value.wifi_password ??= ''
 
-  await fetchTableNames()
+  await Promise.all([fetchTableNames(), fetchPlanId()])
+})
+
+onUnmounted(() => {
+  // Clean up timeouts and intervals
+  if (updateTimeoutId.value) {
+    clearTimeout(updateTimeoutId.value)
+  }
+  if (progressIntervalId.value) {
+    clearInterval(progressIntervalId.value)
+  }
 })
 
 
@@ -161,10 +304,29 @@ const updateTableName = async () => {
         <!-- Zusatzblöcke (spans 2 columns on the right) -->
         <div class="p-4 border rounded shadow col-span-2">
           <h2 class="text-lg font-semibold mb-2">Zusatzblöcke</h2>
-          <ExtraBlocks :plan-id="event?.id ?? null" />
+          <ExtraBlocks 
+            :plan-id="planId" 
+            :show-explore="showExplore"
+            :show-challenge="showChallenge"
+            :event-date="event?.date"
+            @block-update="handleBlockUpdates"
+          />
         </div>
 
       </div>
+    </div>
+  </div>
+
+  <!-- Toast notification (same as Schedule.vue) -->
+  <div v-if="showToast"
+       class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
+    <div class="flex items-center gap-3">
+      <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+      <span class="text-green-800 font-medium">Block-Änderungen werden gespeichert...</span>
+    </div>
+    <div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
+      <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
+           :style="{ width: progress + '%' }"></div>
     </div>
   </div>
 </template>

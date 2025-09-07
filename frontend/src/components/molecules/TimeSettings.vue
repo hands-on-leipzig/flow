@@ -50,7 +50,7 @@ function isFieldEditable(prefix: 'g' | 'c' | 'e1' | 'e2', key: 'start_opening' |
   // First check toggle state
   if (prefix === 'c' && props.showChallenge === false) return false // Challenge disabled
   if ((prefix === 'e1' || prefix === 'e2') && props.showExplore === false) return false // Explore disabled
-  
+
   // Then check visibility matrix
   const fieldName = `${prefix}_${key}`
   return currentVisibility.value[fieldName]?.editable || false
@@ -66,7 +66,7 @@ function shouldShowSection(prefix: 'g' | 'c' | 'e1' | 'e2'): boolean {
   if (prefix === 'e1' || prefix === 'e2') {
     if (props.showExplore === false) return false // Explore disabled
   }
-  
+
   // Then check if there are editable fields
   const fields = ['start_opening', 'duration_opening', 'duration_awards']
   return fields.some(field => isFieldEditable(prefix, field as any))
@@ -142,7 +142,7 @@ onMounted(async () => {
           </div>
           <!-- Row 1: Start Times -->
           <div v-if="hasAnyStartField()" class="grid grid-cols-4 gap-4 items-center">
-            <div class="text-right text-xs font-medium text-gray-500">Start</div>
+            <div class="text-right text-xs font-medium text-gray-500">Beginn<br>Eröffnung</div>
             <!-- Column 1: Explore Morning (e1) or Explore Afternoon (e2) if no e1 -->
             <div>
               <div v-if="isFieldEditable('e1', 'start_opening')">
@@ -189,7 +189,8 @@ onMounted(async () => {
             </div>
             <!-- Column 3: Challenge (c) if both e1 and e2 exist, or Gemeinsam (g) if no e1 -->
             <div>
-              <div v-if="isFieldEditable('c', 'start_opening') && isFieldEditable('e1', 'start_opening') && isFieldEditable('e2', 'start_opening')">
+              <div
+                  v-if="isFieldEditable('c', 'start_opening') && isFieldEditable('e1', 'start_opening') && isFieldEditable('e2', 'start_opening')">
                 <ParameterField
                     v-if="cellParam('c', 'start_opening') && visibilityMap[cellParam('c', 'start_opening').id]"
                     :disabled="disabledMap[cellParam('c', 'start_opening').id]"
@@ -213,7 +214,7 @@ onMounted(async () => {
 
           <!-- Row 2: Duration -->
           <div v-if="hasAnyDurationField()" class="grid grid-cols-4 gap-4 items-center">
-            <div class="text-right text-xs font-medium text-gray-500">Dauer</div>
+            <div class="text-right text-xs font-medium text-gray-500">Dauer<br>Eröffnung</div>
             <!-- Column 1: Explore Morning (e1) or Explore Afternoon (e2) if no e1 -->
             <div>
               <div v-if="isFieldEditable('e1', 'duration_opening')">
@@ -260,7 +261,8 @@ onMounted(async () => {
             </div>
             <!-- Column 3: Challenge (c) if both e1 and e2 exist, or Gemeinsam (g) if no e1 -->
             <div>
-              <div v-if="isFieldEditable('c', 'duration_opening') && isFieldEditable('e1', 'duration_opening') && isFieldEditable('e2', 'duration_opening')">
+              <div
+                  v-if="isFieldEditable('c', 'duration_opening') && isFieldEditable('e1', 'duration_opening') && isFieldEditable('e2', 'duration_opening')">
                 <ParameterField
                     v-if="cellParam('c', 'duration_opening') && visibilityMap[cellParam('c', 'duration_opening').id]"
                     :disabled="disabledMap[cellParam('c', 'duration_opening').id]"
@@ -284,7 +286,7 @@ onMounted(async () => {
 
           <!-- Row 3: Awards -->
           <div v-if="hasAnyAwardsField()" class="grid grid-cols-4 gap-4 items-center">
-            <div class="text-right text-xs font-medium text-gray-500">Preisverleihung</div>
+            <div class="text-right text-xs font-medium text-gray-500">Dauer<br>Preisverleihung</div>
             <!-- Column 1: Explore Morning (e1) or Explore Afternoon (e2) if no e1 -->
             <div>
               <div v-if="isFieldEditable('e1', 'duration_awards')">
@@ -331,7 +333,8 @@ onMounted(async () => {
             </div>
             <!-- Column 3: Challenge (c) if both e1 and e2 exist, or Gemeinsam (g) if no e1 -->
             <div>
-              <div v-if="isFieldEditable('c', 'duration_awards') && isFieldEditable('e1', 'duration_awards') && isFieldEditable('e2', 'duration_awards')">
+              <div
+                  v-if="isFieldEditable('c', 'duration_awards') && isFieldEditable('e1', 'duration_awards') && isFieldEditable('e2', 'duration_awards')">
                 <ParameterField
                     v-if="cellParam('c', 'duration_awards') && visibilityMap[cellParam('c', 'duration_awards').id]"
                     :disabled="disabledMap[cellParam('c', 'duration_awards').id]"
