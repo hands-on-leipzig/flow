@@ -39,13 +39,13 @@ function handleToggleChange(target: HTMLInputElement) {
     if (eMode.value === 0) {
       setMode(1)
     }
-
+    
     // Use DRAHT team count as default if available, otherwise use min
     const eventStore = useEventStore()
     const drahtTeams = eventStore.selectedEvent?.drahtTeamsExplore || 0
     const minTeams = paramMapByName.value['e_teams']?.min || 1
     const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
-
+    
     if (eTeams.value === 0) {
       updateByName('e_teams', defaultTeams)
     }
@@ -355,7 +355,7 @@ const exploreTeamLimits = computed(() => {
               :class="eMode === 1 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
               @click="setMode(1)"
           >
-            Vormittags
+            vormittags
           </button>
           <button
               type="button"
@@ -364,7 +364,7 @@ const exploreTeamLimits = computed(() => {
               :class="eMode === 2 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
               @click="setMode(2)"
           >
-            Nachmittags
+            nachmittags
           </button>
           <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
         </div>
@@ -379,7 +379,7 @@ const exploreTeamLimits = computed(() => {
               :class="eMode === 3 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
               @click="setMode(3)"
           >
-            Vormittags
+            vormittags
           </button>
           <button
               type="button"
@@ -388,7 +388,7 @@ const exploreTeamLimits = computed(() => {
               :class="eMode === 4 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
               @click="setMode(4)"
           >
-            Nachmittags
+            nachmittags
           </button>
           <button
               type="button"
@@ -397,7 +397,7 @@ const exploreTeamLimits = computed(() => {
               :class="eMode === 5 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
               @click="setMode(5)"
           >
-            Geteilt
+            geteilt
           </button>
         </div>
       </div>
