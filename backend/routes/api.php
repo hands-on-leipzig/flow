@@ -28,7 +28,6 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 // Public Carousel route
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getSlideshowsForEvent']);
 
-
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/selected-event', function (Request $request) {
@@ -62,8 +61,9 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/event/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']);
         Route::get('/preview/{planId}/roles', [PlanController::class, 'previewRoles']);
         Route::get('/preview/{planId}/teams', [PlanController::class, 'previewTeams']);
-        Route::get('/preview/{planId}/rooms', [PlanController::class, 'previewRooms']);         Route::get('/activities/{planId}', [PlanController::class, 'activities']);
-        Route::get('/action-now/{planId}',  [PlanController::class, 'actionNow']);           // optional: ?point_in_time=YYYY-MM-DD HH:mm
+        Route::get('/preview/{planId}/rooms', [PlanController::class, 'previewRooms']);
+        Route::get('/activities/{planId}', [PlanController::class, 'activities']);
+        Route::get('/action-now/{planId}', [PlanController::class, 'actionNow']);           // optional: ?point_in_time=YYYY-MM-DD HH:mm
         Route::get('/action-next/{planId}', [PlanController::class, 'actionNext']);          // optional: ?interval=15&point_in_time=...
         Route::get('/action/next/{planId}/{interval?}', [PlanController::class, 'actionNext']);
         Route::post('/{planId}/generate', [PlanController::class, 'generate']);
@@ -125,7 +125,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/parameter/condition', [ParameterController::class, 'addCondition']);
     Route::put('/parameter/condition/{id}', [ParameterController::class, 'updateCondition']);
     Route::delete('/parameter/condition/{id}', [ParameterController::class, 'deleteCondition']);
-    Route::get('/parameters/visibility', [ParameterController::class, 'visibilty']);
+    Route::get('/parameters/visibility', [ParameterController::class, 'visibility']);
 
     Route::prefix('mparams')->group(function () {
         Route::get('/', [MParameterController::class, 'listMparameter']);
@@ -157,3 +157,5 @@ Route::middleware(['keycloak'])->group(function () {
     });});
 
  });
+
+});

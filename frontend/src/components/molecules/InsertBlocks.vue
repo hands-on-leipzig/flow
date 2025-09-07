@@ -37,6 +37,8 @@ const props = defineProps<{
   planId: number | null
   eventLevel?: number | null
   onUpdate?: (updates: Array<{name: string, value: any}>) => void
+  showExplore?: boolean
+  showChallenge?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -167,6 +169,15 @@ watch(() => props.eventLevel, (lvl) => {
 
 // --- Fixed blocks (insert_point) ---
 const fixedBlocks = computed(() => blocks.value.filter(b => !!b.insert_point))
+
+// Filter insert points based on toggle states
+const visibleInsertPoints = computed(() => {
+  return insertPoints.value.filter(point => {
+    if (point.first_program === 2 && props.showExplore === false) return false // Explore disabled
+    if (point.first_program === 3 && props.showChallenge === false) return false // Challenge disabled
+    return true
+  })
+})
 
 // For quick lookup: insert_point -> block
 const fixedByPoint = computed<Record<number, ExtraBlock>>(() => {
@@ -301,7 +312,7 @@ defineExpose({
         </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-        <tr v-for="p in insertPoints" :key="p.id" class="border-b">
+        <tr v-for="p in visibleInsertPoints" :key="p.id" class="border-b">
           <td class="px-4 py-2">
             <label class="inline-flex items-center space-x-3">
               <ToggleSwitch

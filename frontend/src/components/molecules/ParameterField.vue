@@ -53,20 +53,26 @@ function emitChange() {
     </div>
 
     <div>
-      <input
-          v-if="param.type === 'integer' || param.type === 'decimal'"
-          type="number"
-          :min="param.min"
-          :max="param.max"
-          :step="param.step"
-          v-model="localValue"
-          @change="emitChange"
-          :disabled="disabled"
-          class="w-20 border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
-          :class="{ 'opacity-50 cursor-not-allowed': disabled }"
-      />
+      <!-- Number inputs with default value overlay -->
+      <div v-if="param.type === 'integer' || param.type === 'decimal'" class="relative">
+        <input
+            type="number"
+            :min="param.min"
+            :max="param.max"
+            :step="param.step"
+            v-model="localValue"
+            @change="emitChange"
+            :disabled="disabled"
+            class="w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
+            :class="{ 'opacity-50 cursor-not-allowed': disabled }"
+        />
+        <span v-if="showDefaultValue(param)" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+          {{ showDefaultValue(param) }}
+        </span>
+      </div>
 
-      <div v-else-if="param.type === 'boolean'" class="w-20 flex items-center justify-center">
+      <!-- Boolean inputs -->
+      <div v-else-if="param.type === 'boolean'" class="w-24 flex items-center justify-center">
         <input
             type="checkbox"
             v-model="localValue"
@@ -77,44 +83,49 @@ function emitChange() {
         />
       </div>
 
-      <input
-          v-else-if="param.type === 'date'"
-          type="date"
-          v-model="localValue"
-          @change="emitChange"
-          :disabled="disabled"
-          class="border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
-          :class="{ 'opacity-50 cursor-not-allowed': disabled }"
-      />
-
-      <input
-          v-else-if="param.type === 'time'"
-          type="time"
-          v-model="localValue"
-          @change="emitChange"
-          :disabled="disabled"
-          class="border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
-          :class="{ 'opacity-50 cursor-not-allowed': disabled }"
-      />
-
-      <input
-          v-else
-          type="text"
-          v-model="localValue"
-          @change="emitChange"
-          :disabled="disabled"
-          class="border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
-          :class="{ 'opacity-50 cursor-not-allowed': disabled }"
-      />
-
-      <div v-if="!horizontal" class="text-gray-500 text-sm mt-1">
-        ({{ showDefaultValue(param) }})
+      <!-- Date inputs with default value overlay -->
+      <div v-else-if="param.type === 'date'" class="relative">
+        <input
+            type="date"
+            v-model="localValue"
+            @change="emitChange"
+            :disabled="disabled"
+            class="w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
+            :class="{ 'opacity-50 cursor-not-allowed': disabled }"
+        />
+        <span v-if="showDefaultValue(param)" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+          {{ showDefaultValue(param) }}
+        </span>
       </div>
-    </div>
 
-    <span v-if="horizontal" class="text-gray-500 text-sm">
-      ({{ showDefaultValue(param) }})
-    </span>
+      <!-- Time inputs without default value overlay -->
+      <div v-else-if="param.type === 'time'" class="relative">
+        <input
+            type="time"
+            v-model="localValue"
+            @change="emitChange"
+            :disabled="disabled"
+            class="w-24 border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
+            :class="{ 'opacity-50 cursor-not-allowed': disabled }"
+        />
+      </div>
+
+      <!-- Text inputs with default value overlay -->
+      <div v-else class="relative">
+        <input
+            type="text"
+            v-model="localValue"
+            @change="emitChange"
+            :disabled="disabled"
+            class="w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
+            :class="{ 'opacity-50 cursor-not-allowed': disabled }"
+        />
+        <span v-if="showDefaultValue(param)" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+          {{ showDefaultValue(param) }}
+        </span>
+      </div>
+
+    </div>
   </div>
 </template>
 

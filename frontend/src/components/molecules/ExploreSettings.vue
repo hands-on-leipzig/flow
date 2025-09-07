@@ -39,13 +39,13 @@ function handleToggleChange(target: HTMLInputElement) {
     if (eMode.value === 0) {
       setMode(1)
     }
-    
+
     // Use DRAHT team count as default if available, otherwise use min
     const eventStore = useEventStore()
     const drahtTeams = eventStore.selectedEvent?.drahtTeamsExplore || 0
     const minTeams = paramMapByName.value['e_teams']?.min || 1
     const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
-    
+
     if (eTeams.value === 0) {
       updateByName('e_teams', defaultTeams)
     }
@@ -120,7 +120,6 @@ function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5) {
     updateByName('e2_teams', total - half)
   }
 }
-
 
 
 /** Keep user split when total changes **/
@@ -297,11 +296,11 @@ const onUpdateE2 = (val: number) => {
 
 // Calculate min/max team counts from supported plan data
 const exploreTeamLimits = computed(() => {
-  if (!props.supportedPlanData) return { min: 1, max: 50 }
-  
+  if (!props.supportedPlanData) return {min: 1, max: 50}
+
   const explorePlans = props.supportedPlanData.filter(plan => plan.first_program === 2)
-  if (explorePlans.length === 0) return { min: 1, max: 50 }
-  
+  if (explorePlans.length === 0) return {min: 1, max: 50}
+
   const teamCounts = explorePlans.map(plan => plan.teams)
   return {
     min: Math.min(...teamCounts),
@@ -331,9 +330,7 @@ const exploreTeamLimits = computed(() => {
     </div>
 
     <div v-if="hasExplore" class="mb-3">
-      <label class="text-sm font-medium">Anzahl Teams</label>
-      <InfoPopover :text="paramMapByName['e_teams']?.ui_description"/>
-      &nbsp;
+      <label class="text-sm font-medium">Anzahl Teams</label> &nbsp;
       <input
           class="mt-1 w-32 border rounded px-2 py-1"
           type="number"
@@ -342,80 +339,68 @@ const exploreTeamLimits = computed(() => {
           :value="paramMapByName['e_teams']?.value"
           @input="updateByName('e_teams', Number(($event.target as HTMLInputElement).value || 0))"
       />
-
+      <InfoPopover :text="paramMapByName['e_teams']?.ui_description"/>
     </div>
 
     <!-- Fancy e_mode selector -->
-    <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
     <div v-if="hasExplore">
-      <div class="grid grid-cols-1 gap-2 mb-4">
+      <div class="space-y-2 mb-4">
         <!-- Integrated with Challenge -->
-        <div class="rounded-lg border px-3 py-2 transition hover:border-gray-400"
-             :class="isIntegrated ? 'ring-2 ring-gray-500 border-gray-500' : 'border-gray-300'">
-          <div class="text-sm font-medium">Mit Challenge integriert</div>
-          <div class="flex gap-2 mt-2">
-            <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="eMode === 1 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-                @click="setMode(1)"
-            >
-              Vormittag
-            </button>
-            <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="eMode === 2 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-                @click="setMode(2)"
-            >
-              Nachmittag
-            </button>
-          </div>
-          <div class="text-xs text-gray-500 mt-1">Explore läuft zusammen mit Challenge.</div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-medium">Integriert in Challenge</span>
+          <button
+              type="button"
+              class="px-2 py-1 rounded-md border text-sm transition
+                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+              :class="eMode === 1 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+              @click="setMode(1)"
+          >
+            vormittags
+          </button>
+          <button
+              type="button"
+              class="px-2 py-1 rounded-md border text-sm transition
+                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+              :class="eMode === 2 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+              @click="setMode(2)"
+          >
+            nachmittags
+          </button>
+          <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
         </div>
 
         <!-- Independent from Challenge -->
-        <div class="rounded-lg border px-3 py-2 transition hover:border-gray-400"
-             :class="isIndependent ? 'ring-2 ring-gray-500 border-gray-500' : 'border-gray-300'">
-          <div class="text-sm font-medium">Von Challenge unabhängig</div>
-          <div class="flex gap-2 mt-2">
-            <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="eMode === 3 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-                @click="setMode(3)"
-            >
-              Vormittag
-            </button>
-            <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="eMode === 4 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-                @click="setMode(4)"
-            >
-              Nachmittag
-            </button>
-            <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="eMode === 5 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-                @click="setMode(5)"
-            >
-              Vor- und Nachmittag geteilt
-            </button>
-          </div>
-          <div class="text-xs text-gray-500 mt-1">Explore läuft unabhängig vom Challenge.</div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-medium">Getrennt von Challenge</span>
+          <button
+              type="button"
+              class="px-2 py-1 rounded-md border text-sm transition
+                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+              :class="eMode === 3 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+              @click="setMode(3)"
+          >
+            vormittags
+          </button>
+          <button
+              type="button"
+              class="px-2 py-1 rounded-md border text-sm transition
+                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+              :class="eMode === 4 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+              @click="setMode(4)"
+          >
+            nachmittags
+          </button>
+          <button
+              type="button"
+              class="px-2 py-1 rounded-md border text-sm transition
+                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+              :class="eMode === 5 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+              @click="setMode(5)"
+          >
+            geteilt
+          </button>
         </div>
       </div>
-      <span>
-        Jury-Spuren
-      </span>
-      <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
     </div>
 
     <!-- Message when explore is disabled -->
@@ -424,10 +409,10 @@ const exploreTeamLimits = computed(() => {
       <div class="text-sm">Aktivieren Sie den Schalter oben rechts, um Explore-Einstellungen zu konfigurieren.</div>
     </div>
 
-    <!-- INTEGRATED (1/2): centered lane selector bound to e1_lanes (allowed by total e_teams) -->
-    <div v-if="hasExplore && isIntegrated" class="mt-4 flex justify-center">
-      <div class="text-center">
-        <RadioGroup v-model="integratedLanesProxy" class="flex flex-wrap gap-2">
+    <!-- INTEGRATED (1/2): inline lane selector bound to e1_lanes (allowed by total e_teams) -->
+    <div v-if="hasExplore && isIntegrated" class="mt-4 flex">
+      <div class="flex items-center gap-2">
+        <RadioGroup v-model="integratedLanesProxy" class="flex gap-1">
           <RadioGroupOption
               v-for="n in allLaneOptions"
               :key="'e_lane_int_' + n"
@@ -437,18 +422,20 @@ const exploreTeamLimits = computed(() => {
           >
             <button
                 type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
+                class="px-2 py-1 rounded-md border text-sm transition
                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                 :class="[
-                checked ? 'ring-1 ring-gray-500' : '',
-                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-              ]"
+                  checked ? 'ring-1 ring-gray-500' : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                ]"
                 :aria-disabled="disabled"
             >
-              {{ n }}-spurig
+              {{ n }}
             </button>
           </RadioGroupOption>
         </RadioGroup>
+        <span class="text-sm font-medium">Jurygruppen</span>
+        <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
       </div>
     </div>
 
@@ -472,28 +459,31 @@ const exploreTeamLimits = computed(() => {
         <div class="text-sm font-medium mb-1">
           Vormittag
         </div>
-        <RadioGroup v-model="eLanesAMProxy" class="flex flex-wrap gap-2">
-          <RadioGroupOption
-              v-for="n in allLaneOptions"
-              :key="'e_lane_am_' + n"
-              :value="n"
-              :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
-              v-slot="{ checked, disabled }"
-          >
-            <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="[
-                checked ? 'ring-1 ring-gray-500' : '',
-                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-              ]"
-                :aria-disabled="disabled"
+        <div class="flex items-center gap-2">
+          <RadioGroup v-model="eLanesAMProxy" class="flex gap-1">
+            <RadioGroupOption
+                v-for="n in allLaneOptions"
+                :key="'e_lane_am_' + n"
+                :value="n"
+                :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
+                v-slot="{ checked, disabled }"
             >
-              {{ n }}-spurig
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
+              <button
+                  type="button"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :class="[
+                  checked ? 'ring-1 ring-gray-500' : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                ]"
+                  :aria-disabled="disabled"
+              >
+                {{ n }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
+          <span class="text-sm font-medium">Jurygruppen</span>
+        </div>
       </div>
 
       <!-- PM -->
@@ -501,28 +491,31 @@ const exploreTeamLimits = computed(() => {
         <div class="text-sm font-medium mb-1">
           Nachmittag
         </div>
-        <RadioGroup v-model="eLanesPMProxy" class="flex flex-wrap gap-2">
-          <RadioGroupOption
-              v-for="n in allLaneOptions"
-              :key="'e_lane_pm_' + n"
-              :value="n"
-              :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
-              v-slot="{ checked, disabled }"
-          >
-            <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="[
-                checked ? 'ring-1 ring-gray-500' : '',
-                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-              ]"
-                :aria-disabled="disabled"
+        <div class="flex items-center gap-2">
+          <RadioGroup v-model="eLanesPMProxy" class="flex gap-1">
+            <RadioGroupOption
+                v-for="n in allLaneOptions"
+                :key="'e_lane_pm_' + n"
+                :value="n"
+                :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
+                v-slot="{ checked, disabled }"
             >
-              {{ n }}-spurig
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
+              <button
+                  type="button"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :class="[
+                  checked ? 'ring-1 ring-gray-500' : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                ]"
+                  :aria-disabled="disabled"
+              >
+                {{ n }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
+          <span class="text-sm font-medium">Jurygruppen</span>
+        </div>
       </div>
     </div>
   </div>

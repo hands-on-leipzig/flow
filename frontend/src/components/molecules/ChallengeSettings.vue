@@ -33,6 +33,9 @@ function handleToggleChange(target: HTMLInputElement) {
   const isChecked = target.checked
   emit('toggle-show', isChecked)
 
+  // Update c_mode based on toggle state
+  updateByName('c_mode', isChecked ? 1 : 0)
+
   // Update challenge parameters based on toggle state
   if (isChecked) {
     // Use DRAHT team count as default if available, otherwise use min
@@ -40,7 +43,7 @@ function handleToggleChange(target: HTMLInputElement) {
     const drahtTeams = eventStore.selectedEvent?.drahtTeamsChallenge || 0
     const minTeams = paramMapByName.value['c_teams']?.min || 1
     const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
-    
+
     if (cTeams.value === 0) {
       updateByName('c_teams', defaultTeams)
     }
@@ -171,11 +174,11 @@ const isCurrentConfigSuggested = computed<boolean>(() => {
 
 // Calculate min/max team counts from supported plan data
 const challengeTeamLimits = computed(() => {
-  if (!props.supportedPlanData) return { min: 1, max: 50 }
-  
+  if (!props.supportedPlanData) return {min: 1, max: 50}
+
   const challengePlans = props.supportedPlanData.filter(plan => plan.first_program === 3)
-  if (challengePlans.length === 0) return { min: 1, max: 50 }
-  
+  if (challengePlans.length === 0) return {min: 1, max: 50}
+
   const teamCounts = challengePlans.map(plan => plan.teams)
   return {
     min: Math.min(...teamCounts),
@@ -207,11 +210,7 @@ const challengeTeamLimits = computed(() => {
     </div>
 
     <template v-if="showChallenge">
-      <!-- Teams -->
       <div class="mb-3">
-        <label class="text-sm font-medium">Teams (Challenge)</label>
-        <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
-        &nbsp;
         <input
             class="mt-1 w-32 border rounded px-2 py-1"
             type="number"
@@ -220,71 +219,73 @@ const challengeTeamLimits = computed(() => {
             :value="paramMapByName['c_teams']?.value"
             @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
         />
+        <label class="text-sm font-medium px-2">Teams</label> &nbsp;
+        <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
       </div>
 
-      <!-- Robot-Game tables (styled like n-spurig) -->
       <div class="mb-3">
-        <div class="text-sm font-medium mb-1">Robot-Game-Tische
+        <div class="flex items-center gap-2">
+          <RadioGroup v-model="rTablesProxy" class="flex gap-1">
+            <RadioGroupOption
+                v-for="tb in [2,4]"
+                :key="'tables_' + tb"
+                :value="tb"
+                :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
+                v-slot="{ checked, disabled }"
+            >
+              <button
+                  type="button"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :class="[
+                    checked ? 'ring-1 ring-gray-500' : '',
+                    disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                  ]"
+                  :aria-disabled="disabled"
+                  @click="!disabled && updateByName('r_tables', tb)"
+              >
+                {{ tb }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
+          <span class="text-sm font-medium">Robot-Game Tische</span>
           <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
         </div>
-        <RadioGroup v-model="rTablesProxy" class="flex flex-wrap gap-2">
-          <RadioGroupOption
-              v-for="tb in [2,4]"
-              :key="'tables_' + tb"
-              :value="tb"
-              :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
-              v-slot="{ checked, disabled }"
-          >
-            <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="[
-                checked ? 'ring-1 ring-gray-500' : '',
-                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-              ]"
-                :aria-disabled="disabled"
-                @click="!disabled && updateByName('r_tables', tb)"
-            >
-              {{ tb }} Tische
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
       </div>
 
       <!-- Jury lanes -->
       <div class="mb-1">
-        <div class="text-sm font-medium mb-1">
-          Jury-Spuren
+        <div class="flex items-center gap-2">
+          <RadioGroup v-model="jLanesProxy" class="flex gap-1">
+            <RadioGroupOption
+                v-for="n in lanePalette"
+                :key="'j_lane_' + n"
+                :value="n"
+                :disabled="!isLaneAllowed(n)"
+                v-slot="{ checked, disabled }"
+            >
+              <button
+                  type="button"
+                  class="relative px-2 py-1 rounded-md border text-sm transition
+                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :class="[
+                    checked ? 'ring-1 ring-gray-500 border-gray-500' : '',
+                    disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400',
+                    // highlight recommended
+                    (!disabled && isLaneRecommended(n)) ? 'after:absolute after:-top-2 ' +
+                     'after:-right-2 after:text-[10px] after:px-1.5 after:py-0.5 after:bg-emerald-100 ' +
+                      'after:text-emerald-700 after/rounded after:content-[\'Empfohlen\']' : ''
+                  ]"
+                  :aria-disabled="disabled"
+              >
+                {{ n }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
+
+          <span class="text-sm font-medium">Jurygruppe(n)</span>
           <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
         </div>
-
-        <RadioGroup v-model="jLanesProxy" class="flex flex-wrap gap-2">
-          <RadioGroupOption
-              v-for="n in lanePalette"
-              :key="'j_lane_' + n"
-              :value="n"
-              :disabled="!isLaneAllowed(n)"
-              v-slot="{ checked, disabled }"
-          >
-            <button
-                type="button"
-                class="relative px-3 py-1.5 rounded-md border text-sm transition
-                 focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="[
-            checked ? 'ring-1 ring-gray-500 border-gray-500' : '',
-            disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400',
-            // highlight recommended
-            (!disabled && isLaneRecommended(n)) ? 'after:absolute after:-top-2 ' +
-             'after:-right-2 after:text-[10px] after:px-1.5 after:py-0.5 after:bg-emerald-100 ' +
-              'after:text-emerald-700 after/rounded after:content-[\'Empfohlen\']' : ''
-            ]"
-                :aria-disabled="disabled"
-            >
-              {{ n }}-spurig
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
 
         <p v-if="cTeams && allowedJuryLanes.length === 0" class="text-xs text-gray-500 mt-1">
           Keine gültigen Spurenzahlen für die aktuelle Teamanzahl.
@@ -294,7 +295,9 @@ const challengeTeamLimits = computed(() => {
         <div v-if="isCurrentConfigSuggested" class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <div class="flex items-center gap-2">
             <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+              <path fill-rule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clip-rule="evenodd"/>
             </svg>
             <span class="text-sm font-medium text-blue-800">Empfohlene Konfiguration</span>
           </div>
@@ -305,7 +308,9 @@ const challengeTeamLimits = computed(() => {
         <div v-if="currentLaneNote" class="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div class="flex items-center gap-2">
             <svg class="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              <path fill-rule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clip-rule="evenodd"/>
             </svg>
             <span class="text-sm font-medium text-yellow-800">Hinweis</span>
           </div>
