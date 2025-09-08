@@ -58,13 +58,97 @@ async function callNext() {
 }
 
 const fmtWith = (a: any) => {
+  // Raumname (falls vorhanden – kommt, wenn includeRooms: true)
+  const roomName: string | null =
+    a?.room?.room_name ?? a?.room_name ?? null
+
+  const padTeam = (n: any) =>
+    typeof n === 'number' || /^\d+$/.test(String(n))
+      ? String(Number(n)).padStart(2, '0')
+      : String(n ?? '').trim()
+
+  const teamLabel = (name?: string | null, num?: any) => {
+    const nm = (name ?? '').trim()
+    if (nm) return nm
+    if (num != null && String(num).trim() !== '') return `Team ${padTeam(num)}`
+    return '' // nichts Sinnvolles vorhanden
+  }
+
+  // 1) LANE vorhanden → "Raum: Teamname" (fallback: "Lane X: Teamname")
+  if (a?.lane) {
+    const who = teamLabel(a?.team_name, a?.team)
+    if (!who) return roomName ? `${roomName}` : `Lane ${a.lane}`
+    return roomName ? `${roomName}: ${who}` : `Lane ${a.lane}: ${who}`
+  }
+
+  // 2) Keine Lane, aber Tische → "Name (Tisch x) : Name (Tisch y)"
   const parts: string[] = []
-  if (a.lane) parts.push(`Lane ${a.lane}`)
-  if (a.team) parts.push(`Team ${String(a.team).padStart(2, '0')}`)
-  if (a.table_1) parts.push(`T${a.table_1}${a.table_1_team ? `→${a.table_1_team}` : ''}`)
-  if (a.table_2) parts.push(`T${a.table_2}${a.table_2_team ? `→${a.table_2_team}` : ''}`)
-  return parts.length ? parts.join(' · ') : '—'
+
+  if (a?.table_1) {
+    const who1 = teamLabel(a?.table_1_team_name, a?.table_1_team)
+    const left = who1 || (a?.table_1_team ? `Team ${padTeam(a.table_1_team)}` : '')
+    parts.push(left ? `${left} (Tisch ${a.table_1})` : `Tisch ${a.table_1}`)
+  }
+  if (a?.table_2) {
+    const who2 = teamLabel(a?.table_2_team_name, a?.table_2_team)
+    const right = who2 || (a?.table_2_team ? `Team ${padTeam(a.table_2_team)}` : '')
+    parts.push(right ? `${right} (Tisch ${a.table_2})` : `Tisch ${a.table_2}`)
+  }
+
+  if (parts.length > 0) {
+    // gewünschter Trenner ist " : "
+    return parts.join(' : ')
+  }
+
+  // 3) Weder Lane noch Tisch → Raumname (oder "—")
+  return roomName || '—'
 }
+
+// bleibt wie gehabt – wird noch genutzt
+const padTeam = (n: any) =>
+  typeof n === 'number' || /^\d+$/.test(String(n))
+    ? String(Number(n)).padStart(2, '0')
+    : String(n ?? '').trim()
+
+const teamLabel = (name?: string | null, num?: any) => {
+  const nm = (name ?? '').trim()
+  if (nm) return nm
+  if (num != null && String(num).trim() !== '') return `Team ${padTeam(num)}`
+  return ''
+}
+
+// neu: zerlegt "mit wem/wo" in (rechts in Zeile 2) und (Teams in Zeile 3)
+const splitWith = (a: any) => {
+  const roomName: string | null = a?.room?.room_name ?? a?.room_name ?? null
+
+  // Lane-Fall
+  if (a?.lane) {
+    const right = roomName || `Lane ${a.lane}`
+    const bottom = teamLabel(a?.team_name, a?.team) || ''
+    return { right, bottom }
+  }
+
+  // Table-Fall
+  if (a?.table_1 || a?.table_2) {
+    const t1Right = a?.table_1 ? `Tisch ${a.table_1}` : ''
+    const t2Right = a?.table_2 ? `Tisch ${a.table_2}` : ''
+    const right = [t1Right, t2Right].filter(Boolean).join(' : ')
+
+    const t1Team = a?.table_1
+      ? (teamLabel(a?.table_1_team_name, a?.table_1_team) || (a?.table_1_team ? `Team ${padTeam(a.table_1_team)}` : ''))
+      : ''
+    const t2Team = a?.table_2
+      ? (teamLabel(a?.table_2_team_name, a?.table_2_team) || (a?.table_2_team ? `Team ${padTeam(a.table_2_team)}` : ''))
+      : ''
+    const bottom = [t1Team, t2Team].filter(Boolean).join(' : ')
+
+    return { right, bottom }
+  }
+
+  // Sonst: nur Raum rechts, keine Teams unten
+  return { right: roomName || '', bottom: '' }
+}
+
 
 </script>
 
@@ -155,34 +239,39 @@ const fmtWith = (a: any) => {
               </div>
             </div>
           </div>
+<!-- Activities der Gruppe -->
+<ul class="divide-y">
+  <li
+    v-for="a in (g.activities || [])"
+    :key="a.activity_id"
+    class="px-3 py-2"
+  >
+    <!-- Zeile 1: Activity-Name (kleiner) -->
+    <div class="text-sm text-gray-700 font-medium">
+      {{ a.meta?.name || a.activity_name || ('Activity #' + a.activity_id) }}
+    </div>
 
-          <!-- Activities der Gruppe -->
-          <ul class="divide-y">
-            <li
-              v-for="a in (g.activities || [])"
-              :key="a.activity_id"
-              class="px-3 py-2"
-            >
-              <!-- Zeile 1: Zeit groß, Name klein -->
-              <div class="flex items-baseline justify-between gap-3">
-                <div class="text-base font-semibold whitespace-nowrap">
-                  {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
-                </div>
-                <div class="text-xs text-gray-600 truncate">
-                  {{ a.meta?.name || a.activity_name || ('Activity #' + a.activity_id) }}
-                </div>
-              </div>
+    <!-- Zeile 2: Zeit fett links, rechts Ort/Tische nicht fett -->
+    <div class="mt-0.5 flex items-baseline justify-between gap-3">
+      <div class="text-base font-semibold whitespace-nowrap">
+        {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
+      </div>
+      <div class="text-base text-gray-700">
+        {{ splitWith(a).right }}
+      </div>
+    </div>
 
-              <!-- Zeile 2: Team/Ort genauso groß wie Zeit -->
-              <div class="mt-0.5 text-base text-gray-700">
-                {{ fmtWith(a) }}
-              </div>
-            </li>
+    <!-- Zeile 3: Teams (Lane: ein Team; Tables: Team A : Team B). Sonst leer -->
+    <div v-if="splitWith(a).bottom" class="mt-0.5 text-base text-gray-800">
+      {{ splitWith(a).bottom }}
+    </div>
+  </li>
 
-            <li v-if="!g.activities || g.activities.length === 0" class="px-3 py-3 text-xs text-gray-500">
-              Keine Aktivitäten in dieser Gruppe.
-            </li>
-          </ul>
+  <li v-if="!g.activities || g.activities.length === 0" class="px-3 py-3 text-xs text-gray-500">
+    Keine Aktivitäten in dieser Gruppe.
+  </li>
+</ul>
+
         </div>
       </div>
 

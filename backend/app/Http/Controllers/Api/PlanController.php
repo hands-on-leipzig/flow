@@ -389,9 +389,10 @@ class PlanController extends Controller
 
         $rows = $this->fetchActivities(
             $planId,
-            includeRooms: false,
+            includeRooms: true,
             includeGroupMeta: true,
-            includeActivityMeta: true
+            includeActivityMeta: true,
+            includeTeamNames: true
         );
 
         // Sichtbarkeit: nur ATDs, die für Rolle 14 (Publikum) erlaubt sind
@@ -423,9 +424,10 @@ class PlanController extends Controller
 
         $rows = $this->fetchActivities(
             $planId,
-            includeRooms: false,
+            includeRooms: true,
             includeGroupMeta: true,
-            includeActivityMeta: true
+            includeActivityMeta: true,
+            includeTeamNames: true
         );
 
         $allowedAtdIds = DB::table('m_visibility')
@@ -451,65 +453,83 @@ class PlanController extends Controller
     }
 
 
-private function resolvePivotTime(Request $req): \Carbon\Carbon
-{
-    $pit = trim((string)$req->query('point_in_time', ''));
-    if ($pit !== '') {
-        // Explizit deutsche Zeitzone interpretieren (inkl. Sommer/Winterzeit)
-        return \Carbon\Carbon::parse($pit, 'Europe/Berlin')->utc();
+    private function resolvePivotTime(Request $req): \Carbon\Carbon
+    {
+        $pit = trim((string)$req->query('point_in_time', ''));
+        if ($pit !== '') {
+            // Explizit deutsche Zeitzone interpretieren (inkl. Sommer/Winterzeit)
+            return \Carbon\Carbon::parse($pit, 'Europe/Berlin')->utc();
+        }
+        return \Carbon\Carbon::now('UTC');
     }
-    return \Carbon\Carbon::now('UTC');
-}
 
-/**
- * Gemeinsame Gruppierung + Ausgabeform für now/next.
- */
-private function groupActivitiesForApi(int $planId, $rows): array
-{
-    $groups = [];
-    foreach ($rows as $row) {
-        $gid = $row->activity_group_id ?? null;
+    /**
+     * Gemeinsame Gruppierung + Ausgabeform für now/next.
+     */
+    private function groupActivitiesForApi(int $planId, $rows): array
+    {
+        $groups = [];
+        foreach ($rows as $row) {
+            $gid = $row->activity_group_id ?? null;
 
-        if (!isset($groups[$gid])) {
-            $groups[$gid] = [
-                'activity_group_id' => $gid,
-                'group_meta' => [
-                    'name'                   => $row->group_atd_name ?? null,
-                    'first_program_id'       => $row->group_first_program_id ?? null,
-                    'first_program_name'     => $row->group_first_program_name ?? null,
-                    'description'            => $row->group_description ?? null,
+            if (!isset($groups[$gid])) {
+                $groups[$gid] = [
+                    'activity_group_id' => $gid,
+                    'group_meta' => [
+                        'name'               => $row->group_atd_name ?? null,
+                        'first_program_id'   => $row->group_first_program_id ?? null,
+                        'first_program_name' => $row->group_first_program_name ?? null,
+                        'description'        => $row->group_description ?? null,
+                    ],
+                    'activities' => [],
+                ];
+            }
+
+            $groups[$gid]['activities'][] = [
+                'activity_id'      => $row->activity_id,
+                'start_time'       => $row->start_time,
+                'end_time'         => $row->end_time,
+                'activity_name'    => $row->activity_name,
+
+                // Activity-ATD-Meta
+                'meta' => [
+                    'name'               => $row->activity_atd_name ?? null,
+                    'first_program_id'   => $row->activity_first_program_id ?? null,
+                    'first_program_name' => $row->activity_first_program_name ?? null,
+                    'description'        => $row->activity_description ?? null,
                 ],
-                'activities' => [],
+
+                // Basis
+                'program'          => $row->program_name,
+                'lane'             => $row->lane,
+                'team'             => $row->team,
+
+                // Robot-Game Tische + Teams
+                'table_1'              => $row->table_1,
+                'table_1_team'         => $row->table_1_team,
+                'table_2'              => $row->table_2,
+                'table_2_team'         => $row->table_2_team,
+
+                // NEU: Teamnamen (falls via fetchActivities(..., includeTeamNames: true) geladen)
+                'team_name'            => $row->team_name         ?? null,
+                'table_1_team_name'    => $row->table_1_team_name ?? null,
+                'table_2_team_name'    => $row->table_2_team_name ?? null,
+
+                // NEU: Raumdaten (falls via fetchActivities(..., includeRooms: true) geladen)
+                'room' => [
+                    'room_type_id'    => $row->room_type_id    ?? null,
+                    'room_type_name'  => $row->room_type_name  ?? null,
+                    'room_id'         => $row->room_id         ?? null,
+                    'room_name'       => $row->room_name       ?? null,
+                ],
             ];
         }
 
-        $groups[$gid]['activities'][] = [
-            'activity_id'      => $row->activity_id,
-            'start_time'       => $row->start_time,
-            'end_time'         => $row->end_time,
-            'activity_name'    => $row->activity_name,
-            // Activity-ATD-Meta:
-            'meta' => [
-                'name'               => $row->activity_atd_name ?? null,
-                'first_program_id'   => $row->activity_first_program_id ?? null,
-                'first_program_name' => $row->activity_first_program_name ?? null,
-                'description'        => $row->activity_description ?? null,
-            ],
-            'program'          => $row->program_name, // bleibt zur Abwärtskompatibilität
-            'lane'             => $row->lane,
-            'team'             => $row->team,
-            'table_1'          => $row->table_1,
-            'table_1_team'     => $row->table_1_team,
-            'table_2'          => $row->table_2,
-            'table_2_team'     => $row->table_2_team,
+        return [
+            'plan_id' => $planId,
+            'groups'  => array_values($groups),
         ];
     }
-
-    return [
-        'plan_id' => $planId,
-        'groups'  => array_values($groups),
-    ];
-}
 
     /**
      * Populate team_plan table for a newly created plan
