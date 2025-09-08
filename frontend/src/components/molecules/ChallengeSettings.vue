@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import {computed, ref, UnwrapRef, watch, watchEffect} from 'vue'
+import {computed, UnwrapRef, watch, watchEffect} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
-import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import {useEventStore} from '@/stores/event'
 
@@ -156,21 +155,35 @@ const isLaneRecommended = (lane: number) => {
   return !!meta?.[lane]?.recommended
 }
 
-// Note for the current EXACT combo (only when tables are chosen)
+// Note for the current EXACT combo from database data
 const currentLaneNote = computed<string | undefined>(() => {
-  if (!props.lanesIndex || !cKey.value || !rTables.value) return
-  const meta = props.lanesIndex.metaChallenge[cKey.value]
-  const lane = Number(paramMapByName.value['j_lanes']?.value || 0)
-  return meta?.[lane]?.note
+  if (!props.supportedPlanData || !cTeams.value || !rTables.value || !jLanesProxy.value) return
+  
+  const matchingPlan = props.supportedPlanData.find(plan => 
+    plan.first_program === 3 && 
+    plan.teams === cTeams.value && 
+    plan.tables === rTables.value && 
+    plan.lanes === jLanesProxy.value
+  )
+  
+  return matchingPlan?.note
 })
 
-// Check if current configuration is suggested
-const isCurrentConfigSuggested = computed<boolean>(() => {
-  if (!props.lanesIndex || !cKey.value || !rTables.value) return false
-  const meta = props.lanesIndex.metaChallenge[cKey.value]
-  const lane = Number(paramMapByName.value['j_lanes']?.value || 0)
-  return !!meta?.[lane]?.suggested
+// Get current configuration alert level from database data
+const currentConfigAlertLevel = computed<number>(() => {
+  if (!props.supportedPlanData || !cTeams.value || !rTables.value || !jLanesProxy.value) return 0
+  
+  const matchingPlan = props.supportedPlanData.find(plan => 
+    plan.first_program === 3 && 
+    plan.teams === cTeams.value && 
+    plan.tables === rTables.value && 
+    plan.lanes === jLanesProxy.value
+  )
+  
+  return matchingPlan?.alert_level || 0
 })
+
+
 
 // Calculate min/max team counts from supported plan data
 const challengeTeamLimits = computed(() => {
@@ -186,10 +199,32 @@ const challengeTeamLimits = computed(() => {
   }
 })
 
+// Alert level styling and messages
+const getAlertLevelStyle = (level: number) => {
+  switch (level) {
+    case 1: return 'border-2 border-green-500 ring-2 ring-green-500' // Recommended
+    case 2: return 'border-2 border-orange-500 ring-2 ring-orange-500' // Risk
+    case 3: return 'border-2 border-red-500 ring-2 ring-red-500' // High risk
+    default: return 'ring-1 ring-gray-500 border-gray-500' // OK
+  }
+}
+
+
+
+const getTeamInputStyle = (level: number) => {
+  switch (level) {
+    case 1: return 'border-green-500 focus:border-green-500 focus:ring-green-500'
+    case 2: return 'border-orange-500 focus:border-orange-500 focus:ring-orange-500'
+    case 3: return 'border-red-500 focus:border-red-500 focus:ring-red-500'
+    default: return 'border-gray-300 focus:border-gray-500 focus:ring-gray-500'
+  }
+}
+
+
 </script>
 
 <template>
-  <div class="p-4 border rounded shadow">
+  <div class="p-4 border rounded shadow relative">
     <div class="flex items-center justify-between mb-2">
       <div class="flex items-center gap-2">
         <h2 class="text-lg font-semibold">Challenge Einstellungen</h2>
@@ -210,16 +245,17 @@ const challengeTeamLimits = computed(() => {
     </div>
 
     <template v-if="showChallenge">
-      <div class="mb-3">
+      <div class="mb-3 flex items-center gap-2">
         <input
-            class="mt-1 w-32 border rounded px-2 py-1"
+            class="mt-1 w-32 border-2 rounded px-2 py-1 focus:outline-none focus:ring-2"
+            :class="getTeamInputStyle(currentConfigAlertLevel)"
             type="number"
             :min="challengeTeamLimits.min"
             :max="challengeTeamLimits.max"
             :value="paramMapByName['c_teams']?.value"
             @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
         />
-        <label class="text-sm font-medium px-2">Teams</label> &nbsp;
+        <label class="text-sm font-medium">Teams</label>
         <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
       </div>
 
@@ -238,7 +274,7 @@ const challengeTeamLimits = computed(() => {
                   class="px-2 py-1 rounded-md border text-sm transition
                        focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                   :class="[
-                    checked ? 'ring-1 ring-gray-500' : '',
+                    checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
                     disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                   ]"
                   :aria-disabled="disabled"
@@ -269,7 +305,7 @@ const challengeTeamLimits = computed(() => {
                   class="relative px-2 py-1 rounded-md border text-sm transition
                    focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                   :class="[
-                    checked ? 'ring-1 ring-gray-500 border-gray-500' : '',
+                    checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
                     disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400',
                     // highlight recommended
                     (!disabled && isLaneRecommended(n)) ? 'after:absolute after:-top-2 ' +
@@ -291,34 +327,20 @@ const challengeTeamLimits = computed(() => {
           Keine gültigen Spurenzahlen für die aktuelle Teamanzahl.
         </p>
 
-        <!-- Show suggested banner -->
-        <div v-if="isCurrentConfigSuggested" class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                    clip-rule="evenodd"/>
-            </svg>
-            <span class="text-sm font-medium text-blue-800">Empfohlene Konfiguration</span>
-          </div>
-          <p class="text-xs text-blue-700 mt-1">Diese Einstellung wird für optimale Planung empfohlen.</p>
-        </div>
-
-        <!-- Show warning banner for notes -->
-        <div v-if="currentLaneNote" class="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd"
-                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                    clip-rule="evenodd"/>
-            </svg>
-            <span class="text-sm font-medium text-yellow-800">Hinweis</span>
-          </div>
-          <p class="text-xs text-yellow-700 mt-1">{{ currentLaneNote }}</p>
-        </div>
       </div>
 
 
     </template>
+
+    <!-- Alert message banner -->
+    <div v-if="currentLaneNote && (currentConfigAlertLevel === 2 || currentConfigAlertLevel === 3)" 
+         class="mt-3 inline-flex items-center gap-1 px-2 py-1 rounded text-xs"
+         :class="{
+           'bg-orange-100/60 border border-orange-300/40 text-orange-700': currentConfigAlertLevel === 2,
+           'bg-red-100/60 border border-red-300/40 text-red-700': currentConfigAlertLevel === 3
+         }">
+      <span class="text-xs">⚠</span>
+      {{ currentLaneNote }}
+    </div>
   </div>
 </template>
