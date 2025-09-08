@@ -37,6 +37,26 @@ const showDefaultValue = (param) => {
   }
 }
 
+const isChangedFromDefault = (param) => {
+  if (param.default_value === null || param.default_value === undefined) return false
+
+  // Don't highlight time fields as they're configuration, not parameter changes
+  if (param.type === 'time') return false
+  console.log(param.name)
+  // Don't highlight team-related parameters as they're configuration, not parameter changes
+  if (param.name && param.name.toLowerCase().includes('team')) return false
+
+  switch (param.type) {
+    case 'boolean':
+      return param.value !== (param.default_value === 1)
+    case 'integer':
+    case 'decimal':
+      return Number(param.value) !== Number(param.default_value)
+    default:
+      return param.value !== param.default_value
+  }
+}
+
 function emitChange() {
   emit('update', {...props.param, value: localValue.value})
 }
@@ -64,9 +84,13 @@ function emitChange() {
             @change="emitChange"
             :disabled="disabled"
             class="w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
-            :class="{ 'opacity-50 cursor-not-allowed': disabled }"
+            :class="{ 
+              'opacity-50 cursor-not-allowed': disabled,
+              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
+            }"
         />
-        <span v-if="showDefaultValue(param)" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+        <span v-if="showDefaultValue(param)"
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
           {{ showDefaultValue(param) }}
         </span>
       </div>
@@ -79,7 +103,10 @@ function emitChange() {
             @change="emitChange"
             :disabled="disabled"
             class="h-4 w-4 text-blue-600 border-gray-300 rounded"
-            :class="{ 'opacity-50 cursor-not-allowed': disabled }"
+            :class="{ 
+              'opacity-50 cursor-not-allowed': disabled,
+              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
+            }"
         />
       </div>
 
@@ -91,9 +118,13 @@ function emitChange() {
             @change="emitChange"
             :disabled="disabled"
             class="w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
-            :class="{ 'opacity-50 cursor-not-allowed': disabled }"
+            :class="{ 
+              'opacity-50 cursor-not-allowed': disabled,
+              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
+            }"
         />
-        <span v-if="showDefaultValue(param)" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+        <span v-if="showDefaultValue(param)"
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
           {{ showDefaultValue(param) }}
         </span>
       </div>
@@ -106,7 +137,10 @@ function emitChange() {
             @change="emitChange"
             :disabled="disabled"
             class="w-24 border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
-            :class="{ 'opacity-50 cursor-not-allowed': disabled }"
+            :class="{ 
+              'opacity-50 cursor-not-allowed': disabled,
+              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
+            }"
         />
       </div>
 
@@ -118,9 +152,13 @@ function emitChange() {
             @change="emitChange"
             :disabled="disabled"
             class="w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
-            :class="{ 'opacity-50 cursor-not-allowed': disabled }"
+            :class="{ 
+              'opacity-50 cursor-not-allowed': disabled,
+              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
+            }"
         />
-        <span v-if="showDefaultValue(param)" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+        <span v-if="showDefaultValue(param)"
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
           {{ showDefaultValue(param) }}
         </span>
       </div>
