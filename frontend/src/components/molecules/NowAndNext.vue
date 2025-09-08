@@ -169,7 +169,7 @@ const fmtWith = (a: any) => {
                   {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
                 </div>
                 <div class="text-xs text-gray-600 truncate">
-                  {{ a.activity_name || a.meta?.name || ('Activity #' + a.activity_id) }}
+                  {{ a.meta?.name || a.activity_name || ('Activity #' + a.activity_id) }}
                 </div>
               </div>
 
