@@ -1,5 +1,5 @@
 <script setup>
-import {ref, watch} from 'vue'
+import {ref, watch, computed} from 'vue'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 
 const props = defineProps({
@@ -42,7 +42,7 @@ const isChangedFromDefault = (param) => {
 
   // Don't highlight time fields as they're configuration, not parameter changes
   if (param.type === 'time') return false
-  console.log(param.name)
+
   // Don't highlight team-related parameters as they're configuration, not parameter changes
   if (param.name && param.name.toLowerCase().includes('team')) return false
 
@@ -60,6 +60,25 @@ const isChangedFromDefault = (param) => {
 function emitChange() {
   emit('update', {...props.param, value: localValue.value})
 }
+
+function toggleValue() {
+  localValue.value = !localValue.value
+  emitChange()
+}
+
+const isDefaultValue = computed(() => {
+  if (props.param.default_value === null || props.param.default_value === undefined) return true
+
+  switch (props.param.type) {
+    case 'boolean':
+      return localValue.value === (props.param.default_value === 1)
+    case 'integer':
+    case 'decimal':
+      return Number(localValue.value) === Number(props.param.default_value)
+    default:
+      return localValue.value === props.param.default_value
+  }
+})
 </script>
 
 <template>
@@ -95,19 +114,53 @@ function emitChange() {
         </span>
       </div>
 
-      <!-- Boolean inputs -->
-      <div v-else-if="param.type === 'boolean'" class="w-24 flex items-center justify-center">
-        <input
-            type="checkbox"
-            v-model="localValue"
-            @change="emitChange"
-            :disabled="disabled"
-            class="h-4 w-4 text-blue-600 border-gray-300 rounded"
-            :class="{ 
-              'opacity-50 cursor-not-allowed': disabled,
-              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
-            }"
-        />
+      <!-- Boolean inputs - Fancy toggle -->
+      <div v-else-if="param.type === 'boolean'" class="flex items-center justify-center">
+        <div class="relative flex border border-gray-300 rounded overflow-hidden w-24"
+             :class="{
+               'border-gray-300': isDefaultValue,
+               'border-orange-500': !isDefaultValue,
+               'opacity-50 cursor-not-allowed': disabled
+             }">
+          <!-- Ja button -->
+          <button
+              type="button"
+              @click="!disabled && toggleValue()"
+              class="px-2 py-1 text-sm transition-all duration-150 flex-1"
+              :class="{
+                // When default value is selected: dark grey for selected, light grey for unselected
+                'bg-gray-700 text-white': localValue && isDefaultValue,
+                'bg-gray-200 text-gray-600': !localValue && isDefaultValue,
+                // When different from default: orange for selected, light orange for unselected
+                'bg-orange-100 text-orange-800': localValue && !isDefaultValue,
+                'bg-orange-50 text-orange-600': !localValue && !isDefaultValue,
+                'cursor-not-allowed': disabled
+              }"
+          >
+            Ja
+          </button>
+
+          <!-- Vertical separator -->
+          <div class="w-px bg-gray-300"></div>
+
+          <!-- Nein button -->
+          <button
+              type="button"
+              @click="!disabled && toggleValue()"
+              class="px-2 py-1 text-sm transition-all duration-150 flex-1"
+              :class="{
+                // When default value is selected: dark grey for selected, light grey for unselected
+                'bg-gray-700 text-white': !localValue && isDefaultValue,
+                'bg-gray-200 text-gray-600': localValue && isDefaultValue,
+                // When different from default: orange for selected, light orange for unselected
+                'bg-orange-100 text-orange-800': !localValue && !isDefaultValue,
+                'bg-orange-50 text-gray-600': localValue && !isDefaultValue,
+                'cursor-not-allowed': disabled
+              }"
+          >
+            Nein
+          </button>
+        </div>
       </div>
 
       <!-- Date inputs with default value overlay -->
