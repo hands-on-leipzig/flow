@@ -44,45 +44,82 @@ class PlanController extends Controller
             'public' => false
         ]);
 
-// DRAHT-Kapazitäten für dieses Event holen
-    $event   = \App\Models\Event::find($eventId);
+        // DRAHT-Kapazitäten für dieses Event holen
+        $event   = \App\Models\Event::find($eventId);
 
+        if ($event) {
+            $drahtController = new \App\Http\Controllers\Api\DrahtController();
+            $resp = $drahtController->show($event);
 
-    if ($event) {
-        $drahtController = new \App\Http\Controllers\Api\DrahtController();
-        $resp = $drahtController->show($event);
+            $data = $resp->getData(true);
 
-        $data = $resp->getData(true);
-
-        $e_teams = (int)($data['capacity_explore']);
-        $c_teams = (int)($data['capacity_challenge']);
-    
-    }else {
-    
-        // Fallbacks (Plan braucht min. 1 Team je Programm)
-        $e_teams = 1;
-        $c_teams = 4;
-    }
-
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 6],   // e_teams
-            ['set_value' => $e_teams]
-        );
-
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 22],    // c_teams
-            ['set_value' => $c_teams]
-        );
-
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 23],    // j_lanes
-            ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes')]
-        );
+            $e_teams = (int)($data['capacity_explore']);
+            $c_teams = (int)($data['capacity_challenge']);
         
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 24],  // r_tables
-            ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables')]
-        );
+        }else {
+        
+            // Fallbacks 
+            $e_teams = 1;
+            $c_teams = 4;
+        }
+
+        if ( $e_teams > 0 ) {
+
+            if ( $c_teams  == 0 ) {
+                PlanParamValue::updateOrCreate(
+                    ['plan' => $newId, 'parameter' => 7],   // e_mode standlone morning
+                    ['set_value' => 3]
+               );
+
+            } else {
+                PlanParamValue::updateOrCreate(
+                    ['plan' => $newId, 'parameter' => 7],   // e_mode integrated morning
+                    ['set_value' => 1]
+                );
+            }
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 6],   // e_teams
+                ['set_value' => $e_teams]
+            );
+
+        } else {
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 7],   // e_mode off
+                ['set_value' => 0]
+            );
+        }
+
+        if ( $c_teams > 0 ) { 
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 122],    // c_mode on
+                ['set_value' => 1]
+            );
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 22],    // c_teams
+                ['set_value' => $c_teams]
+            );
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 23],    // j_lanes
+                ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes')]
+            );
+            
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 24],  // r_tables
+                ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables')]
+            );
+            
+        } else {
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 122],    // c_mode off
+                ['set_value' => 0]
+            );
+        }
 
         // Populate team_plan table with all teams for this event
         $this->populateTeamPlanForNewPlan($newId, $eventId);
