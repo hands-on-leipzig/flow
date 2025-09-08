@@ -13,10 +13,21 @@ export const useEventStore = defineStore('event', {
         selectedEvent: null,
     }),
 
+    getters: {
+        getSelectedEvent: (state) => state.selectedEvent,
+    },
+
     actions: {
         async fetchSelectedEvent() {
             try {
                 const response = await axios.get<any>('/user/selected-event')
+                
+                // Check if there's actually an event selected
+                if (response.data.selected_event === null || !response.data.id) {
+                    this.selectedEvent = null
+                    return
+                }
+                
                 const event = new FllEvent(response.data)
                 
                 // Fetch DRAHT team data
@@ -27,6 +38,7 @@ export const useEventStore = defineStore('event', {
                 this.selectedEvent = event
             } catch (error) {
                 console.error('Failed to fetch selected event', error)
+                this.selectedEvent = null
             }
         },
 

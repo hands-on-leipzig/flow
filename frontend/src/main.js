@@ -43,11 +43,9 @@ keycloak.init({onLoad: 'login-required'}).then(authenticated => {
     
     app.config.globalProperties.$axios = axios
     axios.interceptors.request.use(config => {
-        // Ensure Content-Type is set for POST requests
-        if (config.method === "post") {
-            console.log("Interceptor: Setting Content-Type for POST request to:", config.url)
+        // Only set Content-Type for JSON requests, not FormData
+        if (config.method === "post" && !(config.data instanceof FormData)) {
             config.headers["Content-Type"] = "application/json"
-            console.log("Interceptor: Headers after setting:", config.headers)
         }
         const token = localStorage.getItem('kc_token')
         if (token) {
