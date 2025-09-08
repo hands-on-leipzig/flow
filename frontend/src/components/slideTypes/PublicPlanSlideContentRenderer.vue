@@ -134,13 +134,13 @@ onMounted(() => {
                 v-if="g.group_meta?.first_program_id === 2"
                 src="@/assets/FLL_Explore.png"
                 alt="Explore"
-                class="w-6 h-6 flex-shrink-0"
+                class="w-10 h-10 flex-shrink-0"
             />
             <img
                 v-else-if="g.group_meta?.first_program_id === 3"
                 src="@/assets/FLL_Challenge.png"
                 alt="Challenge"
-                class="w-6 h-6 flex-shrink-0"
+                class="w-10 h-10 flex-shrink-0"
             />
 
             <!-- Textbereich -->
