@@ -3,6 +3,7 @@ import {computed, onMounted, ref} from 'vue';
 import {PublicPlanSlideContent} from "@/models/publicPlanSlideContent";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
 import axios from "axios";
+import {formatTimeOnly} from "@/utils/dateTimeFormat";
 
 const props = withDefaults(defineProps<{
   content: PublicPlanSlideContent,
@@ -42,10 +43,9 @@ const planUrl = computed(() => {
   return url;
 });
 
-const data = "<html lang=\"de\"><head>\r\n\t\t<meta http-equiv=\"Content-Type\" content=\"text\/html; charset=utf-8\">\r\n\t\t<meta charset=\"utf-8\">\r\n\t\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n\t\t<meta name=\"description\" content=\"\">\r\n\t\t<meta name=\"author\" content=\"Hands on Technology e.V.\">\r\n\t\t<meta name=\"generator\" content=\"...\">\r\n\t\t<title>FLL Regionalwettbewerb Braunschweig<\/title>\r\n\t\t<link href=\"https:\/\/cdn.jsdelivr.net\/npm\/bootstrap@5.3.3\/dist\/css\/bootstrap.min.css\" rel=\"stylesheet\" integrity=\"sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH\" crossorigin=\"anonymous\">\r\n\t\t<style>\r\n\t\t\t.bd-placeholder-img{\r\n\t\t\t\t\tfont-size: 1.125rem;\r\n\t\t\t\t\ttext-anchor: middle;\r\n\t\t\t\t\t-webkit-user-select: none;\r\n\t\t\t\t\t-moz-user-select: none;\r\n\t\t\t\t\tuser-select: none;\r\n\t\t\t}\r\n                    \r\n\t\t\t@media (min-width : 768px){\r\n\t\t\t\t\t.bd-placeholder-img-lg{\r\n\t\t\t\t\t\tfont-size: 3.5rem;\r\n\t\t\t\t\t}\r\n\t\t\t}\r\n\t\t<\/style>\r\n\t\t<link rel=\"stylesheet\" href=\"https:\/\/cdn.jsdelivr.net\/npm\/bootstrap-icons@1.10.2\/font\/bootstrap-icons.css\">\r\n\t\t<!--\r\n\t\t<link href=\"css\/starter-template.css\" rel=\"stylesheet\">\r\n\t\t<link href=\"css\/fll.css\" rel=\"stylesheet\">\r\n\t\t-->\r\n\t\t<script src=\"https:\/\/code.jquery.com\/jquery-3.6.0.min.js\" integrity=\"sha256-\/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej\/m4=\" crossorigin=\"anonymous\"><\/script>\r\n\t\t<script src=\"https:\/\/code.jquery.com\/ui\/1.13.2\/jquery-ui.js\"><\/script>\r\n\t\t<script src=\"https:\/\/cdn.jsdelivr.net\/npm\/bootstrap@5.3.3\/dist\/js\/bootstrap.bundle.min.js\" integrity=\"sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz\" crossorigin=\"anonymous\"><\/script>\r\n\t<\/head>\r\n\t<body style=\"background: transparent\">\r\n\t\t<main class=\"flex-shrink-0\">\r\n\t\t\t<div class=\"container-fluid\">\r\n\t\t\t\t<!--\r\n\t\t\t\t<h1>FIRST LEGO League Zeitplan<\/h1>\r\n\t\t\t\t-->\r\n\t\t\t\t\r\n\t\t\t\t\r\n<div class=\"row\" style=\"padding-top:20px\">\r\n    <div class=\"col-12\">\r\n        <p style=\"text-align:center; font-size:clamp(15px, 6vw, 37px); font-weight:bold; color:#24355C\">\r\n            Programmpunkte, die gerade laufen oder in sp\u00E4testens 2 Stunden starten\r\n        <\/p>\r\n    <\/div>\r\n<\/div>\r\n\r\n\r\n<div class=\"container\" style=\"margin-top:30px\">\r\n    <div class=\"row row-cols-1 row-cols-md-4 g-4\">\r\n        <div class=\"col\" id=\"486989\">\r\n                                        <div class=\"card h-100\">\r\n                                            <div class=\"card-body text-center start-info rounded\" style=\"color:#ffffff; background-color:#ED1C24;\">\r\n                                                <div class=\"card-title\">\r\n                                                    <h5>Robot-Game Vorrunde 1<\/h5>\r\n                                                <\/div>\r\n                                                <div class=\"card-text\">\r\n                                                    <div class=\"fs-5 fw-bold\">12:00 - 12:35<\/div>[Robot-Game Bereich]\r\n                                                <\/div>\r\n                                            <\/div>\r\n                                        <\/div>\r\n                                    <\/div>\r\n                                   <div class=\"col\" id=\"486990\">\r\n                                        <div class=\"card h-100\">\r\n                                            <div class=\"card-body text-center start-info rounded\" style=\"color:#ffffff; background-color:#00A651;\">\r\n                                                <div class=\"card-title\">\r\n                                                    <h5>Preisverleihung<\/h5>\r\n                                                <\/div>\r\n                                                <div class=\"card-text\">\r\n                                                    <div class=\"fs-5 fw-bold\">12:40 - 13:10<\/div>[Preisverleihung]\r\n                                                <\/div>\r\n                                            <\/div>\r\n                                        <\/div>\r\n                                    <\/div>\r\n                                   <div class=\"col\" id=\"486991\">\r\n                                        <div class=\"card h-100\">\r\n                                            <div class=\"card-body text-center start-info rounded\" style=\"color:#ffffff; background-color:#ED1C24;\">\r\n                                                <div class=\"card-title\">\r\n                                                    <h5>Jury-Runde<\/h5>\r\n                                                <\/div>\r\n                                                <div class=\"card-text\">\r\n                                                    <div class=\"fs-5 fw-bold\">13:05 - 13:40<\/div>[Jurybewertung 1]<br>[Jurybewertung 2]<br>[Jurybewertung 3]\r\n                                                <\/div>\r\n                                            <\/div>\r\n                                        <\/div>\r\n                                    <\/div>\r\n                                   <div class=\"col\" id=\"486992\">\r\n                                        <div class=\"card h-100\">\r\n                                            <div class=\"card-body text-center start-info rounded\" style=\"color:#ffffff; background-color:#ED1C24;\">\r\n                                                <div class=\"card-title\">\r\n                                                    <h5>Robot-Game Vorrunde 2<\/h5>\r\n                                                <\/div>\r\n                                                <div class=\"card-text\">\r\n                                                    <div class=\"fs-5 fw-bold\">13:50 - 14:25<\/div>[Robot-Game Bereich]\r\n                                                <\/div>\r\n                                            <\/div>\r\n                                        <\/div>\r\n                                    <\/div>\r\n                                   \r\n    <\/div>\r\n<\/div>\r\n\r\n<div class=\"container\" style=\"margin-top:10px\">\r\n    &nbsp;\r\n<\/div>\r\n\r\n\r\n\t\t\t\t\r\n\t\t\t<\/div>\t\r\n\t\t<\/main>\r\n\t\r\n\r\n<\/body><\/html>";
-
 function buildPointInTimeParam() {
-  return { point_in_time: getFormattedDateTime() };
+  //return {point_in_time: getFormattedDateTime()};
+  return {point_in_time: '2026-02-27 12:00'}; // <-- testing
 }
 
 async function callNow() {
@@ -53,13 +53,59 @@ async function callNow() {
   result.value = null
   try {
     const params = buildPointInTimeParam()
-    const { data } = await axios.get(`/plans/action-now/${props.content.planId}`, { params })
+    const {data} = await axios.get(`https://dev.flow.hands-on-technology.org/api/plans/action-now/${props.content.planId}`, {params})
     result.value = data
   } catch (e) {
     console.error(e)
   } finally {
     loading.value = false
   }
+}
+
+// bleibt wie gehabt – wird noch genutzt
+const padTeam = (n: any) =>
+    typeof n === 'number' || /^\d+$/.test(String(n))
+        ? String(Number(n)).padStart(2, '0')
+        : String(n ?? '').trim()
+
+const teamLabel = (name?: string | null, num?: any) => {
+  const nm = (name ?? '').trim()
+  if (nm) return nm
+  if (num != null && String(num).trim() !== '') return `Team ${padTeam(num)}`
+  return ''
+}
+
+// neu: zerlegt "mit wem/wo" in (rechts in Zeile 2) und (Teams in Zeile 3)
+const splitWith = (a: any) => {
+  const roomName: string | null = a?.room?.room_name ?? a?.room_name ?? null
+
+
+  // Lane
+  if (a?.lane) {
+    const right = (a?.room?.room_name ?? a?.room_name ?? null) || `Lane ${a.lane}`
+    const bottom = teamLabel(a?.team_name, a?.team) || ''  // <-- team_name
+    return {right, bottom}
+  }
+
+  // Table-Fall
+  if (a?.table_1 || a?.table_2) {
+    const t1Right = a?.table_1 ? `Tisch ${a.table_1}` : ''
+    const t2Right = a?.table_2 ? `Tisch ${a.table_2}` : ''
+    const right = [t1Right, t2Right].filter(Boolean).join(' : ')
+
+    const t1Team = a?.table_1
+        ? (teamLabel(a?.table_1_team_name, a?.table_1_team) || (a?.table_1_team ? `Team ${padTeam(a.table_1_team)}` : ''))
+        : ''
+    const t2Team = a?.table_2
+        ? (teamLabel(a?.table_2_team_name, a?.table_2_team) || (a?.table_2_team ? `Team ${padTeam(a.table_2_team)}` : ''))
+        : ''
+    const bottom = [t1Team, t2Team].filter(Boolean).join(' : ')
+
+    return {right, bottom}
+  }
+
+  // Sonst: nur Raum rechts, keine Teams unten
+  return {right: roomName || '', bottom: ''}
 }
 
 onMounted(() => {
@@ -71,14 +117,91 @@ onMounted(() => {
 
 <template>
   <!-- <iframe :srcDoc="data" /> -->
-  <object :data="planUrl"/>
+  <!-- <object :data="planUrl"/> -->
+  <div v-if="result" class="result">
+    <!-- Eine Spalte pro Activity-Group -->
+    <div class="flex flex-row items-center justify-center min-h-screen">
+      <div
+          v-for="g in (result.groups || [])"
+          :key="g.activity_group_id"
+          class="border rounded-lg bg-white shadow-sm overflow-hidden"
+      >
+        <!-- Group-Header -->
+        <div class="px-3 py-2 bg-gray-50 border-b">
+          <div class="flex items-start gap-2">
+            <!-- Program Icon -->
+            <img
+                v-if="g.group_meta?.first_program_id === 2"
+                src="@/assets/FLL_Explore.png"
+                alt="Explore"
+                class="w-6 h-6 flex-shrink-0"
+            />
+            <img
+                v-else-if="g.group_meta?.first_program_id === 3"
+                src="@/assets/FLL_Challenge.png"
+                alt="Challenge"
+                class="w-6 h-6 flex-shrink-0"
+            />
+
+            <!-- Textbereich -->
+            <div class="flex-1">
+              <div class="text-sm font-semibold">
+                {{ g.group_meta?.name || ('Group #' + g.activity_group_id) }}
+              </div>
+              <div v-if="g.group_meta?.description" class="text-xs text-gray-500 mt-0.5">
+                {{ g.group_meta.description }}
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Activities der Gruppe -->
+        <ul class="divide-y">
+          <li
+              v-for="a in (g.activities || [])"
+              :key="a.activity_id"
+              class="px-3 py-2"
+          >
+            <!-- Zeile 1: Activity-Name (kleiner) -->
+            <div class="text-sm text-gray-700 font-medium">
+              {{ a.meta?.name || a.activity_name || ('Activity #' + a.activity_id) }}
+            </div>
+
+            <!-- Zeile 2: Zeit fett links, rechts Ort/Tische nicht fett -->
+            <div class="mt-0.5 flex items-baseline justify-between gap-3">
+              <div class="text-base font-semibold whitespace-nowrap">
+                {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
+              </div>
+              <div class="text-base text-gray-700">
+                {{ splitWith(a).right }}
+              </div>
+            </div>
+
+            <!-- Zeile 3: Teams (Lane: ein Team; Tables: Team A : Team B). Sonst leer -->
+            <div v-if="splitWith(a).bottom" class="mt-0.5 text-base text-gray-800">
+              {{ splitWith(a).bottom }}
+            </div>
+          </li>
+
+          <li v-if="!g.activities || g.activities.length === 0" class="px-3 py-3 text-xs text-gray-500">
+            Keine Aktivitäten in dieser Gruppe.
+          </li>
+        </ul>
+
+      </div>
+    </div>
+
+    <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
+      Keine passenden Aktivitäten.
+    </div>
+  </div>
+
   <FabricSlideContentRenderer v-if="props.content.background" class="background" :content="props.content"
                               :preview="props.preview"></FabricSlideContentRenderer>
   /
 </template>
 
 <style scoped>
-iframe, object {
+iframe, object, .result {
   width: 100%;
   height: 100%;
   margin: 0;
