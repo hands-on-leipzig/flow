@@ -376,6 +376,7 @@ class PlanController extends Controller
                 'activity_name'    => $row->activity_name,
                 'lane'             => $row->lane,
                 'team'             => $row->team,
+                'team_name'        => $row->jury_team_name,
                 'table_1'          => $row->table_1,
                 'table_1_team'     => $row->table_1_team,
                 'table_2'          => $row->table_2,
@@ -514,6 +515,7 @@ class PlanController extends Controller
                 'program'          => $row->program_name,
                 'lane'             => $row->lane,
                 'team'             => $row->team,
+                
 
                 // Robot-Game Tische + Teams
                 'table_1'              => $row->table_1,
@@ -522,7 +524,7 @@ class PlanController extends Controller
                 'table_2_team'         => $row->table_2_team,
 
                 // NEU: Teamnamen (falls via fetchActivities(..., includeTeamNames: true) geladen)
-                'team_name'            => $row->team_name         ?? null,
+                'team_name'            => $row->jury_team_name ?? null, 
                 'table_1_team_name'    => $row->table_1_team_name ?? null,
                 'table_2_team_name'    => $row->table_2_team_name ?? null,
 

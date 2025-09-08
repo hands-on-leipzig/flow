@@ -57,52 +57,7 @@ async function callNext() {
   }
 }
 
-const fmtWith = (a: any) => {
-  // Raumname (falls vorhanden – kommt, wenn includeRooms: true)
-  const roomName: string | null =
-    a?.room?.room_name ?? a?.room_name ?? null
 
-  const padTeam = (n: any) =>
-    typeof n === 'number' || /^\d+$/.test(String(n))
-      ? String(Number(n)).padStart(2, '0')
-      : String(n ?? '').trim()
-
-  const teamLabel = (name?: string | null, num?: any) => {
-    const nm = (name ?? '').trim()
-    if (nm) return nm
-    if (num != null && String(num).trim() !== '') return `Team ${padTeam(num)}`
-    return '' // nichts Sinnvolles vorhanden
-  }
-
-  // 1) LANE vorhanden → "Raum: Teamname" (fallback: "Lane X: Teamname")
-  if (a?.lane) {
-    const who = teamLabel(a?.team_name, a?.team)
-    if (!who) return roomName ? `${roomName}` : `Lane ${a.lane}`
-    return roomName ? `${roomName}: ${who}` : `Lane ${a.lane}: ${who}`
-  }
-
-  // 2) Keine Lane, aber Tische → "Name (Tisch x) : Name (Tisch y)"
-  const parts: string[] = []
-
-  if (a?.table_1) {
-    const who1 = teamLabel(a?.table_1_team_name, a?.table_1_team)
-    const left = who1 || (a?.table_1_team ? `Team ${padTeam(a.table_1_team)}` : '')
-    parts.push(left ? `${left} (Tisch ${a.table_1})` : `Tisch ${a.table_1}`)
-  }
-  if (a?.table_2) {
-    const who2 = teamLabel(a?.table_2_team_name, a?.table_2_team)
-    const right = who2 || (a?.table_2_team ? `Team ${padTeam(a.table_2_team)}` : '')
-    parts.push(right ? `${right} (Tisch ${a.table_2})` : `Tisch ${a.table_2}`)
-  }
-
-  if (parts.length > 0) {
-    // gewünschter Trenner ist " : "
-    return parts.join(' : ')
-  }
-
-  // 3) Weder Lane noch Tisch → Raumname (oder "—")
-  return roomName || '—'
-}
 
 // bleibt wie gehabt – wird noch genutzt
 const padTeam = (n: any) =>
@@ -121,10 +76,11 @@ const teamLabel = (name?: string | null, num?: any) => {
 const splitWith = (a: any) => {
   const roomName: string | null = a?.room?.room_name ?? a?.room_name ?? null
 
-  // Lane-Fall
+
+  // Lane
   if (a?.lane) {
-    const right = roomName || `Lane ${a.lane}`
-    const bottom = teamLabel(a?.team_name, a?.team) || ''
+    const right = (a?.room?.room_name ?? a?.room_name ?? null) || `Lane ${a.lane}`
+    const bottom = teamLabel(a?.team_name, a?.team) || ''  // <-- team_name
     return { right, bottom }
   }
 
@@ -149,6 +105,10 @@ const splitWith = (a: any) => {
   return { right: roomName || '', bottom: '' }
 }
 
+function openPreview(id: string | number) {
+  if (!id) return
+  window.open(`/preview/${id}`, '_blank', 'noopener')
+}
 
 </script>
 
@@ -158,9 +118,16 @@ const splitWith = (a: any) => {
     <div class="flex flex-wrap items-end gap-3">
       <div>
         <label class="block text-xs text-gray-500 mb-1">Plan ID</label>
-        <input v-model="planId" class="border rounded px-2 py-1 w-40" placeholder="z.B. 9255" />
+        <input v-model="planId" class="border rounded px-2 py-1 w-20" placeholder="z.B. 9255" />
       </div>
-
+      <button
+        v-if="planId"
+        class="mb-1 text-blue-600 hover:text-blue-800"
+        title="Vorschau öffnen"
+        @click="openPreview(planId)"
+      >
+        🧾
+      </button>
       <div class="flex items-center gap-2">
         <label class="text-sm">
           <input type="checkbox" v-model="usePoint" class="mr-1" />
