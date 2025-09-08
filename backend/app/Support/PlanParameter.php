@@ -54,13 +54,6 @@ class PlanParameter
         ];
     }
 
-    private function localTimeToUtc(string $hhmm, string $dateYmd): string
-    {
-        // z.B. $hhmm = "09:00", $dateYmd = "2026-01-16"
-        $dt = \Carbon\Carbon::createFromFormat('Y-m-d H:i', "{$dateYmd} {$hhmm}", 'Europe/Berlin');
-        return $dt->utc()->format('H:i'); // nur Uhrzeit in UTC zurückgeben
-    }
-
     private function init(): void
     {
         $this->addInternal('g_plan', $this->planId, 'integer');
@@ -99,18 +92,11 @@ class PlanParameter
             ->keyBy('parameter');
 
         foreach ($base as $id => $row) {
-            // 1) Rohwert ermitteln (Override vor Default)
+ 
             $raw = $overrides->has($id)
                 ? $overrides[$id]->set_value
                 : $row->value;
 
-            // 2) Falls Typ 'time' → lokale (Europe/Berlin) Uhrzeit am Event-Datum in UTC umrechnen
-            if ($row->type === 'time' && $raw !== null && $raw !== '') {
-                // $event->date ist oben bereits geladen (YYYY-MM-DD)
-                $raw = $this->localTimeToUtc((string) $raw, (string) $event->date);
-            }
-
-            // 3) Cast und in Params ablegen
             $this->params[$row->name] = [
                 'value' => $this->cast($raw, $row->type),
                 'type'  => $row->type,

@@ -376,7 +376,6 @@ class PlanController extends Controller
                 'activity_name'    => $row->activity_name,
                 'lane'             => $row->lane,
                 'team'             => $row->team,
-                'team_name'        => $row->jury_team_name,
                 'table_1'          => $row->table_1,
                 'table_1_team'     => $row->table_1_team,
                 'table_2'          => $row->table_2,
