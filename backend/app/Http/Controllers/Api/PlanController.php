@@ -44,33 +44,30 @@ class PlanController extends Controller
             'public' => false
         ]);
 
-        // Get DRAHT team counts for this event
-        $event = \App\Models\Event::find($eventId);
-        $e_teams = 0;
-        $c_teams = 0;
-        
-        if ($event) {
-            // Fetch DRAHT data for this event
-            $drahtController = new \App\Http\Controllers\Api\DrahtController();
-            $drahtData = $drahtController->show($event);
-            $data = $drahtData->getData(true);
-            
-            // Count teams from DRAHT
-            $e_teams = count($data->teams_explore ?? []);
-            $c_teams = count($data->teams_challenge ?? []);
-        }
-        
-        // Fallback to minimum values if no DRAHT data
-        if ($e_teams === 0) $e_teams = 1;
-        if ($c_teams === 0) $c_teams = 1;
+// DRAHT-Kapazitäten für dieses Event holen
+    $event   = \App\Models\Event::find($eventId);
+
+
+    if ($event) {
+        $drahtController = new \App\Http\Controllers\Api\DrahtController();
+        $resp = $drahtController->show($event);
+
+        $data = $resp->getData(true);
+
+        $e_teams = (int)($data['capacity_explore']);
+        $c_teams = (int)($data['capacity_challenge']);
+    
+    }else {
+    
+        // Fallbacks (Plan braucht min. 1 Team je Programm)
+        $e_teams = 1;
+        $c_teams = 4;
+    }
 
         PlanParamValue::updateOrCreate(
             ['plan' => $newId, 'parameter' => 6],   // e_teams
             ['set_value' => $e_teams]
         );
-        
-
-        // Minimale parameter für einen gültigen Plan
 
         PlanParamValue::updateOrCreate(
             ['plan' => $newId, 'parameter' => 22],    // c_teams
