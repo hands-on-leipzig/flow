@@ -376,7 +376,6 @@ class PlanController extends Controller
                 'activity_name'    => $row->activity_name,
                 'lane'             => $row->lane,
                 'team'             => $row->team,
-                'team_name'        => $row->jury_team_name,
                 'table_1'          => $row->table_1,
                 'table_1_team'     => $row->table_1_team,
                 'table_2'          => $row->table_2,
@@ -397,7 +396,7 @@ class PlanController extends Controller
 
     public function actionNow(int $planId, Request $req): JsonResponse
     {
-        $pivot = $this->resolvePivotTime($req); // UTC
+        $pivot = \Carbon\Carbon::parse($req->query('point_in_time', now()), 'Europe/Berlin');
 
         $rows = $this->fetchActivities(
             $planId,
@@ -420,8 +419,8 @@ class PlanController extends Controller
 
         // Zeitfilter: start <= pivot AND end > pivot
         $rows = $rows->filter(function ($r) use ($pivot) {
-            return \Carbon\Carbon::parse($r->start_time, 'UTC') <= $pivot
-                && \Carbon\Carbon::parse($r->end_time, 'UTC')   >  $pivot;
+            return \Carbon\Carbon::parse($r->start_time) <= $pivot
+                && \Carbon\Carbon::parse($r->end_time)   >  $pivot;
         });
 
         return response()->json($this->groupActivitiesForApi($planId, $rows));
@@ -429,7 +428,7 @@ class PlanController extends Controller
 
     public function actionNext(int $planId, Request $req): JsonResponse
     {
-        $pivot = $this->resolvePivotTime($req); // UTC
+        $pivot = \Carbon\Carbon::parse($req->query('point_in_time', now()), 'Europe/Berlin');
         $interval = (int) $req->query('interval', 30);
         $from = $pivot->copy();
         $to   = $pivot->copy()->addMinutes($interval);
@@ -452,27 +451,12 @@ class PlanController extends Controller
 
         // Zeitfenster: Start innerhalb [from, to)
         $rows = $rows->filter(function ($r) use ($from, $to) {
-            $s = \Carbon\Carbon::parse($r->start_time, 'UTC');
+            $s = \Carbon\Carbon::parse($r->start_time);
             return $s >= $from && $s < $to;
         });
 
-        return response()->json([
-            'plan_id'    => $planId,
-            'pivot_time_utc' => $pivot->toIso8601String(),
-            'window_utc' => ['from' => $from->toIso8601String(), 'to' => $to->toIso8601String()],
-            'groups'     => $this->groupActivitiesForApi($planId, $rows)['groups'],
-        ]);
-    }
-
-
-    private function resolvePivotTime(Request $req): \Carbon\Carbon
-    {
-        $pit = trim((string)$req->query('point_in_time', ''));
-        if ($pit !== '') {
-            // Explizit deutsche Zeitzone interpretieren (inkl. Sommer/Winterzeit)
-            return \Carbon\Carbon::parse($pit, 'Europe/Berlin')->utc();
-        }
-        return \Carbon\Carbon::now('UTC');
+        return response()->json($this->groupActivitiesForApi($planId, $rows));
+    
     }
 
     /**
