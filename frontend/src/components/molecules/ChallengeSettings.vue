@@ -46,6 +46,20 @@ function handleToggleChange(target: HTMLInputElement) {
     if (cTeams.value === 0) {
       updateByName('c_teams', defaultTeams)
     }
+    
+    // Auto-select robot game table
+    const currentTables = rTables.value
+    if (currentTables === 0) {
+      // Check which table options are available for the team count
+      const variants = tableVariantsForTeams.value
+      if (variants.length === 1) {
+        // Only one option available, select it
+        updateByName('r_tables', variants[0])
+      } else if (variants.length > 1) {
+        // Multiple options available, choose 2 (as requested)
+        updateByName('r_tables', 2)
+      }
+    }
   } else {
     // Turn off challenge - clear team count and related parameters
     updateByName('c_teams', 0)
