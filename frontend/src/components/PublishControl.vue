@@ -4,9 +4,8 @@ import {ref, computed} from 'vue'
 import {useEventStore} from '@/stores/event'
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
-import Card from "@/components/atoms/Card.vue";
 import axios from 'axios';
-import PresentationSettings from "@/components/molecules/PresentationSettings.vue";
+import {mdiContentCopy} from "@mdi/js";
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -16,6 +15,10 @@ const detailLevelLabel = computed(() => ['grob', 'mittel', 'fein'][detailLevel.v
 
 const tabs = ['Zeitpläne', 'Namensschilder', 'QR-Code WLAN', 'QR-Code Zeitplan']
 const activeTab = ref(tabs[0])
+
+const carouselLink = computed(() => {
+  return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
+});
 
 const downloadWifiQr = () => {
   window.open(`/events/${event.value?.id}/wifi-qr`, '_blank')
@@ -53,6 +56,10 @@ const updateEventField = async (field: string, value: any) => {
   } catch (e) {
     console.error('WLAN update failed:', e)
   }
+}
+
+function copyUrl(url) {
+  navigator.clipboard.writeText(url);
 }
 </script>
 
@@ -146,7 +153,30 @@ const updateEventField = async (field: string, value: any) => {
       </div>
 
       <div class="rounded-xl shadow bg-white p-4 flex flex-col col-span-2">
-        <PresentationSettings />
+        <h2 class="text-lg font-semibold mb-2">Präsentation</h2>
+        <span class="text-sm mt-2 text-gray-500 mb-4">
+          Halt die Teams am Wettbewerb immer auf dem Laufenden.
+          Hier kannst du Folien konfigurieren, die während des Wettbewerbs angezeigt werden.
+        </span>
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-break">Link zur öffentlichen Ansicht:
+              <a :href="carouselLink" target="_blank" rel="noopener noreferrer">{{ carouselLink }}</a>
+            </span>
+            <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                @click="copyUrl(carouselLink)"
+                title="Link kopieren"
+            >
+              <svg-icon type="mdi" :path="mdiContentCopy" size="16" class="ml-1 mt-1"></svg-icon>
+            </button>
+          </div>
+          <router-link to="/presentation" class="mt-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-400 text-white">
+            Präsentation bearbeiten
+          </router-link>
+        </div>
+
       </div>
 
     </div>

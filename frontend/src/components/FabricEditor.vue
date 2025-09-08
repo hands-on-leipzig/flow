@@ -52,6 +52,8 @@ onMounted(() => {
   canvas.on('selection:cleared', updateToolbar);
 });
 
+onMounted(loadFont);
+
 function paintSlide(slide: Slide) {
   if (!canvas || !slide || !slide.content.background) return;
   canvas.clear();
@@ -78,7 +80,7 @@ function addText() {
   const text = new Textbox("FLOW", {
     left: 100,
     top: 100,
-    fontFamily: 'Poppins-Regular',
+    fontFamily: 'Uniform',
     fontSize: 24,
     fill: '#000000',
     width: 200,
@@ -87,6 +89,17 @@ function addText() {
   canvas.add(text);
   canvas.setActiveObject(text);
   canvas.requestRenderAll();
+}
+
+function loadFont() {
+  const font = new FontFace('Uniform', 'url(/fonts/Uniform-Regular.otf)');
+  font.load().then(() => {
+    if (canvas) {
+      canvas.requestRenderAll();
+    }
+  }).catch((e) => {
+    console.error('Font loading failed', e);
+  });
 }
 
 function updateToolbar() {
@@ -198,5 +211,19 @@ function saveJson() {
 </template>
 
 <style scoped>
+
+@font-face {
+  font-family: 'Uniform';
+  src: url('/fonts/Uniform-Regular.otf') format('otf');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Uniform';
+  src: url('/fonts/Uniform-Bold.otf') format('otf');
+  font-weight: bold;
+  font-style: normal;
+}
 
 </style>

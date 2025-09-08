@@ -18,6 +18,7 @@ import Teams from "@/components/Teams.vue";
 import Preview from "@/components/molecules/Preview.vue";
 import Carousel from "@/components/Carousel.vue";
 import EditSlide from "@/components/EditSlide.vue";
+import PresentationSettings from "@/components/molecules/PresentationSettings.vue";
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true},
@@ -29,6 +30,7 @@ const routes = [
     {path: '/rooms', component: Rooms, meta: {requiresAuth: true}},
     {path: '/publish', component: PublishControl, meta: {requiresAuth: true}},
     {path: '/admin', component: Admin, meta: {requiresAuth: true}},
+    {path: '/presentation', component: PresentationSettings, meta: {requiresAuth: true}},
     {path: '/preview/:planId', component: Preview, props: true, meta: {requiresAuth: true}},
     {path: '/editSlide/:slideId', component: EditSlide, props: true, meta: {requiresAuth: true}},
 ];

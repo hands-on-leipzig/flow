@@ -14,8 +14,8 @@ const canvas = shallowRef(null);
 
 onMounted(() => {
 
-  const width = props.preview ? 256 : 1920;
-  const height = props.preview ? 144 : 1080;
+  const width = props.preview ? 238 : 1920;
+  const height = props.preview ? 134 : 1080;
   const zoom = props.preview ? 0.25 : 2;
   const c = new StaticCanvas(canvas.value, {
     width,
@@ -28,6 +28,15 @@ onMounted(() => {
   });
 });
 
+onMounted(loadFont);
+
+function loadFont() {
+  const font = new FontFace('Uniform', 'url(/fonts/Uniform-Regular.otf)');
+  font.load().catch((e) => {
+    console.error('Font loading failed', e);
+  });
+}
+
 </script>
 
 <template>
@@ -39,4 +48,19 @@ onMounted(() => {
   width: 100%;
   height: auto;
 }
+
+@font-face {
+  font-family: 'Uniform';
+  src: url('/fonts/Uniform-Regular.otf') format('otf');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Uniform';
+  src: url('/fonts/Uniform-Bold.otf') format('otf');
+  font-weight: bold;
+  font-style: normal;
+}
+
 </style>

@@ -45,7 +45,7 @@ const componentSlide = Slide.fromObject(props.slide)
   flex-direction: column;
   position: relative;
   background-color: cornflowerblue;
-  width: 16rem;
+  width: 15rem;
   height: 13rem;
   margin: .5rem;
   cursor: grab;

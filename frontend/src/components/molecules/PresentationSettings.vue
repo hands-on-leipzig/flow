@@ -20,10 +20,10 @@ const slidesKey = ref(1);
 
 const slideType = ref("");
 const slideTypes = [
-  { value: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse' },
-  { value: 'PublicPlanSlideContent', label: 'Öffentlicher Zeitplan' },
-  { value: 'UrlSlideContent', label: 'Externer Inhalt (URL)' },
-  { value: 'FabricSlideContent', label: 'Eigener Inhalt' },
+  {value: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse'},
+  {value: 'PublicPlanSlideContent', label: 'Öffentlicher Zeitplan'},
+  {value: 'UrlSlideContent', label: 'Externer Inhalt (URL)'},
+  {value: 'FabricSlideContent', label: 'Eigener Inhalt'},
 ];
 
 async function updateOrder(slideshow: Slideshow) {
@@ -64,7 +64,7 @@ async function addSlide(slideshow: Slideshow) {
     }
 
     const content = JSON.stringify(newSlide.content.toJSON());
-    newSlide = { ...newSlide, content, order: slideshow.slides.length + 1 };
+    newSlide = {...newSlide, content, order: slideshow.slides.length + 1};
     try {
       const response = await axios.put(`slideshow/${slideshow.id}/add`, newSlide);
       console.log(response.data.slide);
@@ -81,44 +81,42 @@ function copyUrl(url) {
 </script>
 
 <template>
-  <h2 class="text-lg font-semibold mb-2">Präsentation</h2> <!-- TODO was ist hier eine passende Überschrift? -->
-  <span class="text-sm mt-2 text-gray-500 mb-4">
-          Halt die Teams am Wettbewerb immer auf dem Laufenden.
-          Hier kannst du Folien konfigurieren, die während des Wettbewerbs angezeigt werden.
-        </span>
-  <div class="mb-4">
-    <div class="d-flex align-items-center gap-2">
+  <div class="rounded-xl shadow bg-white p-4 flex flex-col">
+    <h2 class="text-lg font-semibold mb-2">Präsentation</h2>
+    <div class="mb-4">
+      <div class="d-flex align-items-center gap-2">
             <span class="text-break">Link zur öffentlichen Ansicht:
               <a :href="carouselLink" target="_blank" rel="noopener noreferrer">{{ carouselLink }}</a>
             </span>
-      <button
-          type="button"
-          class="btn btn-outline-secondary btn-sm"
-          @click="copyUrl(carouselLink)"
-          title="Link kopieren"
-      >
-        <svg-icon type="mdi" :path="mdiContentCopy" size="16" class="ml-1 mt-1"></svg-icon>
-      </button>
-    </div>
-    <details v-for="(slideshow, index) in event?.slideshows" :open="index === 0">
-      <summary class="font-bold">{{ slideshow.name }}</summary>
-      <select v-model="slideType">
-        <option v-for="type of slideTypes" :id="type.value" v-text="type.label" :value="type.value"></option>
-      </select>
-      <button
-          class="my-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
-          @click="addSlide(slideshow)">
-        + Folie hinzufügen
-      </button>
-      <draggable v-model="slideshow.slides" :key="slidesKey"
-                 class="draggable-list flex items-center flex-wrap flex-row gap-2" ghost-class="ghost" group="slides"
-                 item-key="id"
-                 @end="updateOrder(slideshow)">
-        <template #item="{ element }">
+        <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            @click="copyUrl(carouselLink)"
+            title="Link kopieren"
+        >
+          <svg-icon type="mdi" :path="mdiContentCopy" size="16" class="ml-1 mt-1"></svg-icon>
+        </button>
+      </div>
+      <details v-for="(slideshow, index) in event?.slideshows" :open="index === 0">
+        <summary class="font-bold">{{ slideshow.name }}</summary>
+        <select v-model="slideType">
+          <option v-for="type of slideTypes" :id="type.value" v-text="type.label" :value="type.value"></option>
+        </select>
+        <button
+            class="my-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
+            @click="addSlide(slideshow)">
+          + Folie hinzufügen
+        </button>
+        <draggable v-model="slideshow.slides" :key="slidesKey"
+                   class="draggable-list flex items-center flex-wrap flex-row gap-2" ghost-class="ghost" group="slides"
+                   item-key="id"
+                   @end="updateOrder(slideshow)">
+          <template #item="{ element }">
             <SlideThumb :slide="element" class="border rounded" @deleteSlide="deleteSlide(slideshow, element.id)"/>
-        </template>
-      </draggable>
-    </details>
+          </template>
+        </draggable>
+      </details>
+    </div>
   </div>
 </template>
 
