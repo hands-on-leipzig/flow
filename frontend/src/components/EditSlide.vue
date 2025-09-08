@@ -74,10 +74,10 @@ function saveSlide() {
             <label class="text-sm font-medium">Sichtbare Programmpunkte</label>
             <InfoPopover text="Wähle aus, ob Programmpunkte aus Explore oder Challenge angezeigt werden sollen."/>
 
-            <div class="flex gap-2 mt-2">
+            <div class="flex gap-2 items-center">
               <button
                   type="button"
-                  class="px-3 py-1.5 rounded-md border text-sm transition
+                  class="px-2 py-1 rounded-md border text-sm transition
                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                   :class="slide.content.role == 14 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
                   @click="updateByName('role', 14)"

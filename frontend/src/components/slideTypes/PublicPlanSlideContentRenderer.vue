@@ -44,8 +44,8 @@ const planUrl = computed(() => {
 });
 
 function buildPointInTimeParam() {
-  //return {point_in_time: getFormattedDateTime()};
-  return {point_in_time: '2026-02-27 12:00'}; // <-- testing
+  //return {point_in_time: getFormattedDateTime(), role: props.content.role};
+  return {point_in_time: '2026-02-27 12:00', role: props.content.role}; // <-- testing
 }
 
 async function callNow() {
@@ -53,7 +53,7 @@ async function callNow() {
   result.value = null
   try {
     const params = buildPointInTimeParam()
-    const {data} = await axios.get(`https://dev.flow.hands-on-technology.org/api/plans/action-now/${props.content.planId}`, {params})
+    const {data} = await axios.get(`/plans/action-now/${props.content.planId}`, {params})
     result.value = data
   } catch (e) {
     console.error(e)
