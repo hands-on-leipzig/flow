@@ -57,13 +57,57 @@ async function callNext() {
   }
 }
 
-const fmtWith = (a: any) => {
-  const parts: string[] = []
-  if (a.lane) parts.push(`Lane ${a.lane}`)
-  if (a.team) parts.push(`Team ${String(a.team).padStart(2, '0')}`)
-  if (a.table_1) parts.push(`T${a.table_1}${a.table_1_team ? `→${a.table_1_team}` : ''}`)
-  if (a.table_2) parts.push(`T${a.table_2}${a.table_2_team ? `→${a.table_2_team}` : ''}`)
-  return parts.length ? parts.join(' · ') : '—'
+
+
+// bleibt wie gehabt – wird noch genutzt
+const padTeam = (n: any) =>
+  typeof n === 'number' || /^\d+$/.test(String(n))
+    ? String(Number(n)).padStart(2, '0')
+    : String(n ?? '').trim()
+
+const teamLabel = (name?: string | null, num?: any) => {
+  const nm = (name ?? '').trim()
+  if (nm) return nm
+  if (num != null && String(num).trim() !== '') return `Team ${padTeam(num)}`
+  return ''
+}
+
+// neu: zerlegt "mit wem/wo" in (rechts in Zeile 2) und (Teams in Zeile 3)
+const splitWith = (a: any) => {
+  const roomName: string | null = a?.room?.room_name ?? a?.room_name ?? null
+
+
+  // Lane
+  if (a?.lane) {
+    const right = (a?.room?.room_name ?? a?.room_name ?? null) || `Lane ${a.lane}`
+    const bottom = teamLabel(a?.team_name, a?.team) || ''  // <-- team_name
+    return { right, bottom }
+  }
+
+  // Table-Fall
+  if (a?.table_1 || a?.table_2) {
+    const t1Right = a?.table_1 ? `Tisch ${a.table_1}` : ''
+    const t2Right = a?.table_2 ? `Tisch ${a.table_2}` : ''
+    const right = [t1Right, t2Right].filter(Boolean).join(' : ')
+
+    const t1Team = a?.table_1
+      ? (teamLabel(a?.table_1_team_name, a?.table_1_team) || (a?.table_1_team ? `Team ${padTeam(a.table_1_team)}` : ''))
+      : ''
+    const t2Team = a?.table_2
+      ? (teamLabel(a?.table_2_team_name, a?.table_2_team) || (a?.table_2_team ? `Team ${padTeam(a.table_2_team)}` : ''))
+      : ''
+    const bottom = [t1Team, t2Team].filter(Boolean).join(' : ')
+
+    return { right, bottom }
+  }
+
+  // Sonst: nur Raum rechts, keine Teams unten
+  return { right: roomName || '', bottom: '' }
+}
+
+function openPreview(id: string | number) {
+  if (!id) return
+  window.open(`/preview/${id}`, '_blank', 'noopener')
 }
 
 </script>
@@ -74,9 +118,16 @@ const fmtWith = (a: any) => {
     <div class="flex flex-wrap items-end gap-3">
       <div>
         <label class="block text-xs text-gray-500 mb-1">Plan ID</label>
-        <input v-model="planId" class="border rounded px-2 py-1 w-40" placeholder="z.B. 9255" />
+        <input v-model="planId" class="border rounded px-2 py-1 w-20" placeholder="z.B. 9255" />
       </div>
-
+      <button
+        v-if="planId"
+        class="mb-1 text-blue-600 hover:text-blue-800"
+        title="Vorschau öffnen"
+        @click="openPreview(planId)"
+      >
+        🧾
+      </button>
       <div class="flex items-center gap-2">
         <label class="text-sm">
           <input type="checkbox" v-model="usePoint" class="mr-1" />
@@ -155,34 +206,39 @@ const fmtWith = (a: any) => {
               </div>
             </div>
           </div>
+<!-- Activities der Gruppe -->
+<ul class="divide-y">
+  <li
+    v-for="a in (g.activities || [])"
+    :key="a.activity_id"
+    class="px-3 py-2"
+  >
+    <!-- Zeile 1: Activity-Name (kleiner) -->
+    <div class="text-sm text-gray-700 font-medium">
+      {{ a.meta?.name || a.activity_name || ('Activity #' + a.activity_id) }}
+    </div>
 
-          <!-- Activities der Gruppe -->
-          <ul class="divide-y">
-            <li
-              v-for="a in (g.activities || [])"
-              :key="a.activity_id"
-              class="px-3 py-2"
-            >
-              <!-- Zeile 1: Zeit groß, Name klein -->
-              <div class="flex items-baseline justify-between gap-3">
-                <div class="text-base font-semibold whitespace-nowrap">
-                  {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
-                </div>
-                <div class="text-xs text-gray-600 truncate">
-                  {{ a.activity_name || a.meta?.name || ('Activity #' + a.activity_id) }}
-                </div>
-              </div>
+    <!-- Zeile 2: Zeit fett links, rechts Ort/Tische nicht fett -->
+    <div class="mt-0.5 flex items-baseline justify-between gap-3">
+      <div class="text-base font-semibold whitespace-nowrap">
+        {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
+      </div>
+      <div class="text-base text-gray-700">
+        {{ splitWith(a).right }}
+      </div>
+    </div>
 
-              <!-- Zeile 2: Team/Ort genauso groß wie Zeit -->
-              <div class="mt-0.5 text-base text-gray-700">
-                {{ fmtWith(a) }}
-              </div>
-            </li>
+    <!-- Zeile 3: Teams (Lane: ein Team; Tables: Team A : Team B). Sonst leer -->
+    <div v-if="splitWith(a).bottom" class="mt-0.5 text-base text-gray-800">
+      {{ splitWith(a).bottom }}
+    </div>
+  </li>
 
-            <li v-if="!g.activities || g.activities.length === 0" class="px-3 py-3 text-xs text-gray-500">
-              Keine Aktivitäten in dieser Gruppe.
-            </li>
-          </ul>
+  <li v-if="!g.activities || g.activities.length === 0" class="px-3 py-3 text-xs text-gray-500">
+    Keine Aktivitäten in dieser Gruppe.
+  </li>
+</ul>
+
         </div>
       </div>
 
