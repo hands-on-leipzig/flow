@@ -521,18 +521,54 @@ onMounted(async () => {
       <transition name="fade">
         <div v-if="openGroup === 'expert'" class="p-4">
           <div class="grid grid-cols-2 gap-6 max-h-[600px] overflow-y-auto">
-            <div v-for="(group, programName) in expertParamsGrouped" :key="programName">
-              <h4 class="text-md font-semibold mb-2">{{ programName }}</h4>
-              <template v-for="param in group" :key="param.id">
-                <ParameterField
-                    v-if="visibilityMap[param.id]"
-                    :param="param"
-                    :disabled="disabledMap[param.id]"
-                    :with-label="true"
-                    :horizontal="true"
-                    @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
-                />
-              </template>
+            <!-- Left column: Explore or turned off message -->
+            <div>
+              <h4 class="text-md font-semibold mb-2">Explore</h4>
+              <div v-if="showExplore">
+                <template v-for="(group, programName) in expertParamsGrouped" :key="programName">
+                  <template v-if="programName.toLowerCase().includes('explore')">
+                    <template v-for="param in group" :key="param.id">
+                      <ParameterField
+                          v-if="visibilityMap[param.id]"
+                          :param="param"
+                          :disabled="disabledMap[param.id]"
+                          :with-label="true"
+                          :horizontal="true"
+                          @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
+                      />
+                    </template>
+                  </template>
+                </template>
+              </div>
+              <div v-else class="text-center py-8 text-gray-500">
+                <div class="text-sm font-medium mb-1">Explore ist deaktiviert</div>
+                <div class="text-xs">Aktiviere Explore, um Expertenparameter zu konfigurieren.</div>
+              </div>
+            </div>
+
+            <!-- Right column: Challenge or turned off message -->
+            <div>
+              <h4 class="text-md font-semibold mb-2">Challenge</h4>
+              <div v-if="showChallenge">
+                <template v-for="(group, programName) in expertParamsGrouped" :key="programName">
+                  <template v-if="programName.toLowerCase().includes('challenge')">
+                    <template v-for="param in group" :key="param.id">
+                      <ParameterField
+                          v-if="visibilityMap[param.id]"
+                          :param="param"
+                          :disabled="disabledMap[param.id]"
+                          :with-label="true"
+                          :horizontal="true"
+                          @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
+                      />
+                    </template>
+                  </template>
+                </template>
+              </div>
+              <div v-else class="text-center py-8 text-gray-500">
+                <div class="text-sm font-medium mb-1">Challenge ist deaktiviert</div>
+                <div class="text-xs">Aktiviere Challenge, um Expertenparameter zu konfigurieren.</div>
+              </div>
             </div>
           </div>
         </div>
