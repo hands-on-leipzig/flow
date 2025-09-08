@@ -329,9 +329,20 @@ class PlanController extends Controller
             ';
         }
 
-        if ($includeRooms) {
-            $q->orderBy('rt.sequence')->orderBy('r.name');
-        }
+        // vor dem finalen orderBy einbauen:
+        $q->leftJoinSub(
+            DB::table('activity')
+            ->select('activity_group', DB::raw('MIN(start) as group_first_start'))
+            ->groupBy('activity_group'),
+            'ag_min',
+            'ag_min.activity_group',
+            '=',
+            'ag.id'
+        );
+
+        // und dann sortieren:
+        $q->orderBy('ag_min.group_first_start')
+        ->orderBy('a.start');
 
         return $q->orderBy('a.start')->selectRaw($select)->get();
     }
