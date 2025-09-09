@@ -65,7 +65,7 @@ class CarouselController extends Controller
 
         foreach ($slideIds as $order => $slideId) {
             Slide::where('id', $slideId)
-                ->where('slideshow_id', $slideshowId)
+                ->where('slideshow', $slideshowId)
                 ->update(['order' => $order]);
         }
 
@@ -96,7 +96,7 @@ class CarouselController extends Controller
         ];
 
         $data = $request->only($fields);
-        $data['slideshow_id'] = $slideshowId;
+        $data['slideshow'] = $slideshowId;
 
         // TODO Validierung (Type korrekt) und Rechte-Check
 

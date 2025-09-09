@@ -16,11 +16,11 @@ class Slide extends Model
         'type',
         'content',
         'order',
-        'slideshow_id',
+        'slideshow',
     ];
 
     public function slideshow()
     {
-        return $this->belongsTo(SlideShow::class, 'slideshow_id');
+        return $this->belongsTo(SlideShow::class, 'slideshow');
     }
 }

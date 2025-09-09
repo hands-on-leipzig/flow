@@ -3,7 +3,7 @@
 import draggable from "vuedraggable";
 import SlideThumb from "@/components/SlideThumb.vue";
 import {useEventStore} from "@/stores/event";
-import {computed, ref} from "vue";
+import {computed, onMounted, ref} from "vue";
 import SvgIcon from '@jamescoyle/vue-icon';
 import {mdiContentCopy} from '@mdi/js';
 import {Slideshow} from "@/models/slideshow";
@@ -12,6 +12,8 @@ import {Slide} from "@/models/slide";
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
+
+const slideshows = ref<Slideshow[]>([]);
 
 const carouselLink = computed(() => {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
@@ -25,6 +27,15 @@ const slideTypes = [
   {value: 'UrlSlideContent', label: 'Externer Inhalt (URL)'},
   {value: 'FabricSlideContent', label: 'Eigener Inhalt'},
 ];
+
+onMounted(loadSlideshows);
+
+async function loadSlideshows() {
+  const response = await axios.get(`/carousel/${event.value.id}/slideshows`);
+  if (response && response.data) {
+    slideshows.value = response.data;
+  }
+}
 
 async function updateOrder(slideshow: Slideshow) {
   const slideIds = slideshow.slides.map(slide => slide.id);
@@ -97,7 +108,7 @@ function copyUrl(url) {
           <svg-icon type="mdi" :path="mdiContentCopy" size="16" class="ml-1 mt-1"></svg-icon>
         </button>
       </div>
-      <details v-for="(slideshow, index) in event?.slideshows" :open="index === 0">
+      <details v-for="(slideshow, index) in slideshows" :open="index === 0">
         <summary class="font-bold">{{ slideshow.name }}</summary>
         <select v-model="slideType">
           <option v-for="type of slideTypes" :id="type.value" v-text="type.label" :value="type.value"></option>

@@ -21,18 +21,18 @@ import EditSlide from "@/components/EditSlide.vue";
 import PresentationSettings from "@/components/molecules/PresentationSettings.vue";
 
 const routes = [
-    {path: '/carousel/:eventId', component: Carousel, props: true},
-    {path: '/event', component: EventOverview, meta: {requiresAuth: true}},
-    {path: '/schedule', component: Schedule, meta: {requiresAuth: true}},
-    {path: '/teams', component: Teams, meta: {requiresAuth: true}},
-    {path: '/logos', component: Logos, meta: {requiresAuth: true}},
-    {path: '/events', component: SelectEvent, meta: {requiresAuth: true}},
-    {path: '/rooms', component: Rooms, meta: {requiresAuth: true}},
-    {path: '/publish', component: PublishControl, meta: {requiresAuth: true}},
-    {path: '/admin', component: Admin, meta: {requiresAuth: true}},
-    {path: '/presentation', component: PresentationSettings, meta: {requiresAuth: true}},
-    {path: '/preview/:planId', component: Preview, props: true, meta: {requiresAuth: true}},
-    {path: '/editSlide/:slideId', component: EditSlide, props: true, meta: {requiresAuth: true}},
+    {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
+    {path: '/event', component: EventOverview},
+    {path: '/schedule', component: Schedule},
+    {path: '/teams', component: Teams},
+    {path: '/logos', component: Logos},
+    {path: '/events', component: SelectEvent},
+    {path: '/rooms', component: Rooms},
+    {path: '/publish', component: PublishControl},
+    {path: '/admin', component: Admin},
+    {path: '/presentation', component: PresentationSettings},
+    {path: '/preview/:planId', component: Preview, props: true},
+    {path: '/editSlide/:slideId', component: EditSlide, props: true},
 ];
 
 const router = createRouter({
@@ -41,7 +41,7 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
-    if (!to.meta?.requiresAuth) {
+    if (to.meta?.public) {
         next();
         return;
     }

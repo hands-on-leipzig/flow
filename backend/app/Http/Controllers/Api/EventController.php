@@ -19,7 +19,7 @@ class EventController extends Controller
 {
     public function getEvent($id)
     {
-        $event = Event::with(['seasonRel', 'levelRel', 'tableNames', 'slideshows.slides'])->findOrFail($id);
+        $event = Event::with(['seasonRel', 'levelRel', 'tableNames'])->findOrFail($id);
         $event->wifi_password = isset($event->wifi_password) ? Crypt::decryptString($event->wifi_password) : "";
 
         return response()->json($event);
