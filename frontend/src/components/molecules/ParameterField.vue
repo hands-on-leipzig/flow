@@ -17,6 +17,10 @@ const props = defineProps({
   disabled: {
     type: Boolean,
     default: false,
+  },
+  compact: {
+    type: Boolean,
+    default: false,
   }
 })
 const emit = defineEmits(['update'])
@@ -84,14 +88,17 @@ const isDefaultValue = computed(() => {
 <template>
   <div
       class="flex items-center px-4 py-1 space-x-4 w-full hover:bg-gray-50 transition-colors duration-150 rounded"
-      :class="{ 'flex-col items-start space-x-0 space-y-1': !horizontal }"
+      :class="{ 
+        'flex-col items-start space-x-0 space-y-1': !horizontal,
+        'px-2 py-1': compact
+      }"
   >
-    <div class="flex items-center min-w-[25rem]" v-if="withLabel">
+    <div v-if="withLabel && !compact" class="flex items-center min-w-[25rem]">
       <span class="font-medium">{{ param.ui_label }}</span>
       <InfoPopover :text="param.ui_description"/>
     </div>
 
-    <div>
+    <div class="flex items-center gap-1">
       <!-- Number inputs with default value overlay -->
       <div v-if="param.type === 'integer' || param.type === 'decimal'" class="relative">
         <input
@@ -216,6 +223,8 @@ const isDefaultValue = computed(() => {
         </span>
       </div>
 
+      <!-- Info button for compact mode -->
+      <InfoPopover v-if="compact" :text="param.ui_description"/>
     </div>
   </div>
 </template>
