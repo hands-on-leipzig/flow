@@ -1,5 +1,5 @@
-<script setup lang="ts">
-import {ref, onMounted, onUnmounted, computed} from 'vue'
+<script lang="ts" setup>
+import {computed, onMounted, onUnmounted, ref} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import dayjs from "dayjs";
@@ -65,7 +65,7 @@ async function fetchPlanId() {
 // Handle block updates from ExtraBlocks component
 function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
   console.log('EventOverview: Received block updates:', updates)
-  
+
   // Add all block updates to pending updates
   updates.forEach(update => {
     pendingUpdates.value[update.name] = update.value
@@ -115,7 +115,7 @@ function startProgressAnimation() {
 // Force immediate update of all pending changes
 async function flushUpdates() {
   console.log('EventOverview: flushUpdates called')
-  
+
   if (updateTimeoutId.value) {
     clearTimeout(updateTimeoutId.value)
     updateTimeoutId.value = null
@@ -136,7 +136,7 @@ async function flushUpdates() {
   if (updates.length === 0) return
 
   console.log('Flushing updates:', updates)
-  
+
   // Clear pending updates
   pendingUpdates.value = {}
 
@@ -173,11 +173,11 @@ onMounted(async () => {
   teamStats.value = {
     explore: {
       capacity: drahtData.data.capacity_explore || 0,
-      registered: Array.isArray(drahtData.data.teams_explore) ? drahtData.data.teams_explore.length : 0
+      registered: drahtData.data.teams_explore ? Object.keys(drahtData.data.teams_explore).length : 0
     },
     challenge: {
       capacity: drahtData.data.capacity_challenge || 0,
-      registered: Array.isArray(drahtData.data.teams_challenge) ? drahtData.data.teams_challenge.length : 0
+      registered: drahtData.data.teams_challenge ? Object.keys(drahtData.data.teams_challenge).length : 0
     }
   }
 
@@ -251,15 +251,17 @@ const updateTableName = async () => {
           <div class="mt-3 pt-3 border-t border-gray-200">
             <h4 class="text-sm font-medium text-gray-700 mb-2">Team-Statistiken</h4>
             <div class="space-y-1 text-sm">
-              <div v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0" class="flex justify-between">
-                <span class="text-gray-600">Explore:</span>
+              <div v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0">
+                <span class="text-gray-600">Explore: </span>
                 <span class="font-medium">{{ teamStats.explore.registered }}/{{ teamStats.explore.capacity }}</span>
               </div>
-              <div v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0" class="flex justify-between">
-                <span class="text-gray-600">Challenge:</span>
+              <div v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0">
+                <span class="text-gray-600">Challenge: </span>
                 <span class="font-medium">{{ teamStats.challenge.registered }}/{{ teamStats.challenge.capacity }}</span>
               </div>
-              <div v-if="teamStats.explore.capacity === 0 && teamStats.explore.registered === 0 && teamStats.challenge.capacity === 0 && teamStats.challenge.registered === 0" class="text-gray-500 text-xs">
+              <div
+                  v-if="teamStats.explore.capacity === 0 && teamStats.explore.registered === 0 && teamStats.challenge.capacity === 0 && teamStats.challenge.registered === 0"
+                  class="text-gray-500 text-xs">
                 Keine Team-Daten verfügbar
               </div>
             </div>
@@ -300,43 +302,43 @@ const updateTableName = async () => {
               <label class="block text-sm text-gray-700 mb-1">Tisch 1</label>
               <input
                   v-model="tableNames[0]"
-                  @blur="updateTableName"
                   class="w-full border px-3 py-1 rounded text-sm"
-                  type="text"
                   placeholder="leer lassen für >>Tisch 1<<"
+                  type="text"
+                  @blur="updateTableName"
               />
             </div>
             <div>
               <label class="block text-sm text-gray-700 mb-1">Tisch 2</label>
               <input
                   v-model="tableNames[1]"
-                  @blur="updateTableName"
                   class="w-full border px-3 py-1 rounded text-sm"
-                  type="text"
                   placeholder="leer lassen für >>Tisch 2<<"
+                  type="text"
+                  @blur="updateTableName"
               />
             </div>
             <div>
               <label class="block text-sm text-gray-700 mb-1">Tisch 3</label>
               <input
                   v-model="tableNames[2]"
-                  @blur="updateTableName"
                   class="w-full border px-3 py-1 rounded text-sm"
-                  type="text"
                   placeholder="leer lassen für >>Tisch 3<<"
+                  type="text"
+                  @blur="updateTableName"
               />
             </div>
             <div>
               <label class="block text-sm text-gray-700 mb-1">Tisch 4</label>
               <input
                   v-model="tableNames[3]"
-                  @blur="updateTableName"
                   class="w-full border px-3 py-1 rounded text-sm"
-                  type="text"
                   placeholder="leer lassen für >>Tisch 4<<"
+                  type="text"
+                  @blur="updateTableName"
               />
             </div>
-            
+
           </div>
         </div>
 
@@ -345,10 +347,10 @@ const updateTableName = async () => {
         <div class="p-4 border rounded shadow col-span-2">
           <h2 class="text-lg font-semibold mb-2">Zusatzblöcke</h2>
           <ExtraBlocks
-              :plan-id="planId"
-              :show-explore="showExplore"
-              :show-challenge="showChallenge"
               :event-date="event?.date"
+              :plan-id="planId"
+              :show-challenge="showChallenge"
+              :show-explore="showExplore"
               @block-update="handleBlockUpdates"
           />
         </div>
@@ -365,8 +367,8 @@ const updateTableName = async () => {
       <span class="text-green-800 font-medium">Block-Änderungen werden gespeichert...</span>
     </div>
     <div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
-      <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
-           :style="{ width: progress + '%' }"></div>
+      <div :style="{ width: progress + '%' }"
+           class="bg-green-500 h-full transition-all duration-75 ease-linear"></div>
     </div>
   </div>
 </template>
