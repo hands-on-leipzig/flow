@@ -11,6 +11,18 @@ const challengeData = ref(null)
 const exploreData = ref(null)
 const planId = ref(null)
 
+// Team statistics from DRAHT data
+const teamStats = ref({
+  explore: {
+    capacity: 0,
+    registered: 0
+  },
+  challenge: {
+    capacity: 0,
+    registered: 0
+  }
+})
+
 // Debounced saving mechanism (same as Schedule.vue)
 const pendingUpdates = ref<Record<string, any>>({})
 const updateTimeoutId = ref<NodeJS.Timeout | null>(null)
@@ -53,7 +65,7 @@ async function fetchPlanId() {
 // Handle block updates from ExtraBlocks component
 function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
   console.log('EventOverview: Received block updates:', updates)
-  
+
   // Add all block updates to pending updates
   updates.forEach(update => {
     pendingUpdates.value[update.name] = update.value
@@ -103,7 +115,7 @@ function startProgressAnimation() {
 // Force immediate update of all pending changes
 async function flushUpdates() {
   console.log('EventOverview: flushUpdates called')
-  
+
   if (updateTimeoutId.value) {
     clearTimeout(updateTimeoutId.value)
     updateTimeoutId.value = null
@@ -124,7 +136,7 @@ async function flushUpdates() {
   if (updates.length === 0) return
 
   console.log('Flushing updates:', updates)
-  
+
   // Clear pending updates
   pendingUpdates.value = {}
 
@@ -157,6 +169,18 @@ onMounted(async () => {
   event.value.wifi_ssid ??= ''
   event.value.wifi_password ??= ''
 
+  // Extract team statistics from DRAHT data
+  teamStats.value = {
+    explore: {
+      capacity: drahtData.data.capacity_explore || 0,
+      registered: drahtData.data.teams_explore ? Object.keys(drahtData.data.teams_explore).length : 0
+    },
+    challenge: {
+      capacity: drahtData.data.capacity_challenge || 0,
+      registered: drahtData.data.teams_challenge ? Object.keys(drahtData.data.teams_challenge).length : 0
+    }
+  }
+
   await Promise.all([fetchTableNames(), fetchPlanId()])
 })
 
@@ -169,7 +193,6 @@ onUnmounted(() => {
     clearInterval(progressIntervalId.value)
   }
 })
-
 
 
 const tableNames = ref(['', '', '', ''])
@@ -223,6 +246,26 @@ const updateTableName = async () => {
           <p v-if="event?.days > 1">bis: {{ dayjs(event?.enddate).format('dddd, DD.MM.YYYY') }}</p>
           <p>Art: {{ event?.level_rel.name }}</p>
           <p>Saison: {{ event?.season_rel.name }}</p>
+
+          <!-- Team Statistics -->
+          <div class="mt-3 pt-3 border-t border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Team-Anmeldungen</h4>
+            <div class="space-y-1 text-sm">
+              <div v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0">
+                <span class="text-gray-600">Explore: </span>
+                <span class="font-medium">{{ teamStats.explore.registered }}/{{ teamStats.explore.capacity }}</span>
+              </div>
+              <div v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0">
+                <span class="text-gray-600">Challenge: </span>
+                <span class="font-medium">{{ teamStats.challenge.registered }}/{{ teamStats.challenge.capacity }}</span>
+              </div>
+              <div
+                  v-if="teamStats.explore.capacity === 0 && teamStats.explore.registered === 0 && teamStats.challenge.capacity === 0 && teamStats.challenge.registered === 0"
+                  class="text-gray-500 text-xs">
+                Keine Team-Daten verfügbar
+              </div>
+            </div>
+          </div>
         </div>
         <div class="p-4 border rounded shadow">
           <h3 class="font-semibold mb-2">Adresse</h3>
@@ -295,21 +338,20 @@ const updateTableName = async () => {
                   placeholder="leer lassen für >>Tisch 4<<"
               />
             </div>
-            
+
           </div>
         </div>
-
 
 
         <!-- Zusatzblöcke (spans 2 columns on the right) -->
         <div class="p-4 border rounded shadow col-span-2">
           <h2 class="text-lg font-semibold mb-2">Zusatzblöcke</h2>
-          <ExtraBlocks 
-            :plan-id="planId" 
-            :show-explore="showExplore"
-            :show-challenge="showChallenge"
-            :event-date="event?.date"
-            @block-update="handleBlockUpdates"
+          <ExtraBlocks
+              :plan-id="planId"
+              :show-explore="showExplore"
+              :show-challenge="showChallenge"
+              :event-date="event?.date"
+              @block-update="handleBlockUpdates"
           />
         </div>
 
