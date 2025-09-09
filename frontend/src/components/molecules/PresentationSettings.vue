@@ -31,7 +31,7 @@ const slideTypes = [
 onMounted(loadSlideshows);
 
 async function loadSlideshows() {
-  const response = await axios.get(`/carousel/${event.value.id}/slideshows`);
+  const response = await axios.get(`/carousel/${event.value?.id}/slideshows`);
   if (response && response.data) {
     slideshows.value = response.data;
   }
