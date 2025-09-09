@@ -35,7 +35,7 @@ const componentSlide = Slide.fromObject(props.slide)
     <div class="thumb">
       <SlideContentRenderer :slide="componentSlide" :preview="true"></SlideContentRenderer>
     </div>
-    <span class="pr-2">{{ slide.name }}</span>
+    <span class="p-2">{{ slide.name }}</span>
   </div>
 </template>
 
@@ -53,7 +53,7 @@ const componentSlide = Slide.fromObject(props.slide)
 
 .thumb {
   width: 16rem;
-  height: 9rem;
+  height: 8rem;
   background-color: lightblue;
 }
 
