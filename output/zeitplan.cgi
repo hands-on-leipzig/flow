@@ -502,17 +502,17 @@ sub get_zeitplan {
             if ($ENV{SERVER_NAME} eq "www.fll-braunschweig.de") {
                 $logo_path = "logos";
             }
-            elsif ($ENV{SERVER_NAME} eq "dev.planning.hands-on-technology.org") {
-                $logo_path = "/usr/home/handsb/public_html/dev-fll-planning/output/logos";
+            elsif ($ENV{SERVER_NAME} eq "dev.flow.hands-on-technology.org") {
+                $logo_path = "/usr/home/handsb/public_html/flow-dev/output/logos";
             }
-            elsif ($ENV{SERVER_NAME} eq "test.planning.hands-on-technology.org") {
-                $logo_path = "/usr/home/handsb/public_html/test-fll-planning/output/logos";
+            elsif ($ENV{SERVER_NAME} eq "test.flow.hands-on-technology.org") {
+                $logo_path = "/usr/home/handsb/public_html/flow-test/output/logos";
             }
-            elsif ($ENV{SERVER_NAME} eq "planning.hands-on-technology.org") {
-                $logo_path = "/usr/home/handsb/public_html/fll-planning/output/logos";
+            elsif ($ENV{SERVER_NAME} eq "flow.hands-on-technology.org") {
+                $logo_path = "/usr/home/handsb/public_html/flow/output/logos";
             }
             else {
-                $logo_path = "/usr/home/handsb/public_html/fll-planning/output/logos";
+                $logo_path = "/usr/home/handsb/public_html/flow/output/logos";
             }
 
             my $template_FH;
@@ -1949,17 +1949,17 @@ sub make_pdf {
     if ($ENV{SERVER_NAME} eq "www.fll-braunschweig.de") {
         $fop = "fop";
     }
-    elsif ($ENV{SERVER_NAME} eq "dev.planning.hands-on-technology.org") {
-        $fop = "/usr/home/handsb/public_html/dev-fll-planning/fop/fop/fop";        
+    elsif ($ENV{SERVER_NAME} eq "dev.flow.hands-on-technology.org") {
+        $fop = "/usr/home/handsb/public_html/flow-dev/fop/fop/fop";        
     }
-    elsif ($ENV{SERVER_NAME} eq "test.planning.hands-on-technology.org") {
-        $fop = "/usr/home/handsb/public_html/test-fll-planning/fop/fop/fop";        
+    elsif ($ENV{SERVER_NAME} eq "test.flow.hands-on-technology.org") {
+        $fop = "/usr/home/handsb/public_html/flow-test/fop/fop/fop";        
     }
-    elsif ($ENV{SERVER_NAME} eq "planning.hands-on-technology.org") {
-        $fop = "/usr/home/handsb/public_html/fll-planning/fop/fop/fop";
+    elsif ($ENV{SERVER_NAME} eq "flow.hands-on-technology.org") {
+        $fop = "/usr/home/handsb/public_html/flow/fop/fop/fop";
     }
     else {
-        $fop = "/usr/home/handsb/public_html/fll-planning/fop/fop/fop";
+        $fop = "/usr/home/handsb/public_html/flow/fop/fop/fop";
     }
 
     #system qq{/usr/home/handsb/public_html/dev-fll-planning/fop/fop/fop -xml $xmlfile -xsl $xslfile -pdf $pdffile}; # $parameter
