@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import axios from 'axios'
 
-import { formatTimeOnly, formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
+import { formatTimeOnly } from '@/utils/dateTimeFormat'
 
 // Inputs
 const planId = ref('9333')
@@ -221,7 +221,7 @@ function openPreview(id: string | number) {
     <!-- Zeile 2: Zeit fett links, rechts Ort/Tische nicht fett -->
     <div class="mt-0.5 flex items-baseline justify-between gap-3">
       <div class="text-base font-semibold whitespace-nowrap">
-        {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
+        {{ formatTimeOnly(a.start_time, true) }}–{{ formatTimeOnly(a.end_time, true) }}
       </div>
       <div class="text-base text-gray-700">
         {{ splitWith(a).right }}

@@ -44,48 +44,82 @@ class PlanController extends Controller
             'public' => false
         ]);
 
-        // Get DRAHT team counts for this event
-        $event = \App\Models\Event::find($eventId);
-        $e_teams = 0;
-        $c_teams = 0;
-        
+        // DRAHT-Kapazitäten für dieses Event holen
+        $event   = \App\Models\Event::find($eventId);
+
         if ($event) {
-            // Fetch DRAHT data for this event
             $drahtController = new \App\Http\Controllers\Api\DrahtController();
-            $drahtData = $drahtController->show($event);
-            $data = $drahtData->getData(true);
-            
-            // Count teams from DRAHT
-            $e_teams = count($data->teams_explore ?? []);
-            $c_teams = count($data->teams_challenge ?? []);
+            $resp = $drahtController->show($event);
+
+            $data = $resp->getData(true);
+
+            $e_teams = (int)($data['capacity_explore']);
+            $c_teams = (int)($data['capacity_challenge']);
+        
+        }else {
+        
+            // Fallbacks 
+            $e_teams = 1;
+            $c_teams = 4;
         }
-        
-        // Fallback to minimum values if no DRAHT data
-        if ($e_teams === 0) $e_teams = 1;
-        if ($c_teams === 0) $c_teams = 1;
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 6],   // e_teams
-            ['set_value' => $e_teams]
-        );
-        
+        if ( $e_teams > 0 ) {
 
-        // Minimale parameter für einen gültigen Plan
+            if ( $c_teams  == 0 ) {
+                PlanParamValue::updateOrCreate(
+                    ['plan' => $newId, 'parameter' => 7],   // e_mode standlone morning
+                    ['set_value' => 3]
+               );
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 22],    // c_teams
-            ['set_value' => $c_teams]
-        );
+            } else {
+                PlanParamValue::updateOrCreate(
+                    ['plan' => $newId, 'parameter' => 7],   // e_mode integrated morning
+                    ['set_value' => 1]
+                );
+            }
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 23],    // j_lanes
-            ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes')]
-        );
-        
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 24],  // r_tables
-            ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables')]
-        );
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 6],   // e_teams
+                ['set_value' => $e_teams]
+            );
+
+        } else {
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 7],   // e_mode off
+                ['set_value' => 0]
+            );
+        }
+
+        if ( $c_teams > 0 ) { 
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 122],    // c_mode on
+                ['set_value' => 1]
+            );
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 22],    // c_teams
+                ['set_value' => $c_teams]
+            );
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 23],    // j_lanes
+                ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes')]
+            );
+            
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 24],  // r_tables
+                ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables')]
+            );
+            
+        } else {
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 122],    // c_mode off
+                ['set_value' => 0]
+            );
+        }
 
         // Populate team_plan table with all teams for this event
         $this->populateTeamPlanForNewPlan($newId, $eventId);
@@ -376,7 +410,6 @@ class PlanController extends Controller
                 'activity_name'    => $row->activity_name,
                 'lane'             => $row->lane,
                 'team'             => $row->team,
-                'team_name'        => $row->jury_team_name,
                 'table_1'          => $row->table_1,
                 'table_1_team'     => $row->table_1_team,
                 'table_2'          => $row->table_2,
@@ -397,7 +430,7 @@ class PlanController extends Controller
 
     public function actionNow(int $planId, Request $req): JsonResponse
     {
-        $pivot = $this->resolvePivotTime($req); // UTC
+        $pivot = \Carbon\Carbon::parse($req->query('point_in_time', now()), 'Europe/Berlin');
 
         $rows = $this->fetchActivities(
             $planId,
@@ -426,8 +459,8 @@ class PlanController extends Controller
 
         // Zeitfilter: start <= pivot AND end > pivot
         $rows = $rows->filter(function ($r) use ($pivot) {
-            return \Carbon\Carbon::parse($r->start_time, 'UTC') <= $pivot
-                && \Carbon\Carbon::parse($r->end_time, 'UTC')   >  $pivot;
+            return \Carbon\Carbon::parse($r->start_time) <= $pivot
+                && \Carbon\Carbon::parse($r->end_time)   >  $pivot;
         });
 
         return response()->json($this->groupActivitiesForApi($planId, $rows));
@@ -435,7 +468,7 @@ class PlanController extends Controller
 
     public function actionNext(int $planId, Request $req): JsonResponse
     {
-        $pivot = $this->resolvePivotTime($req); // UTC
+        $pivot = \Carbon\Carbon::parse($req->query('point_in_time', now()), 'Europe/Berlin');
         $interval = (int) $req->query('interval', 30);
         $from = $pivot->copy();
         $to   = $pivot->copy()->addMinutes($interval);
@@ -458,27 +491,12 @@ class PlanController extends Controller
 
         // Zeitfenster: Start innerhalb [from, to)
         $rows = $rows->filter(function ($r) use ($from, $to) {
-            $s = \Carbon\Carbon::parse($r->start_time, 'UTC');
+            $s = \Carbon\Carbon::parse($r->start_time);
             return $s >= $from && $s < $to;
         });
 
-        return response()->json([
-            'plan_id'    => $planId,
-            'pivot_time_utc' => $pivot->toIso8601String(),
-            'window_utc' => ['from' => $from->toIso8601String(), 'to' => $to->toIso8601String()],
-            'groups'     => $this->groupActivitiesForApi($planId, $rows)['groups'],
-        ]);
-    }
-
-
-    private function resolvePivotTime(Request $req): \Carbon\Carbon
-    {
-        $pit = trim((string)$req->query('point_in_time', ''));
-        if ($pit !== '') {
-            // Explizit deutsche Zeitzone interpretieren (inkl. Sommer/Winterzeit)
-            return \Carbon\Carbon::parse($pit, 'Europe/Berlin')->utc();
-        }
-        return \Carbon\Carbon::now('UTC');
+        return response()->json($this->groupActivitiesForApi($planId, $rows));
+    
     }
 
     /**

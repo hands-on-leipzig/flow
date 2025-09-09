@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
+import { formatTimeOnly, formatDateTime } from '@/utils/dateTimeFormat'
 
 import {ref, watch, onMounted, computed} from 'vue'
 import axios from 'axios'
@@ -239,8 +239,8 @@ function setView(v: 'roles' | 'teams' | 'rooms' | 'activities') {
               <tbody>
                 <tr v-for="a in group.activities" :key="a.activity_id" class="border-t">
                   <td class="px-2 py-1 text-gray-500">{{ a.activity_id }}</td>
-                  <td class="px-2 py-1">{{ formatDateTime(a.start_time) }}</td>
-                  <td class="px-2 py-1">{{ formatDateTime(a.end_time) }}</td>
+                  <td class="px-2 py-1">{{ formatDateTime(a.start_time, true) }}</td>
+                  <td class="px-2 py-1">{{ formatTimeOnly(a.end_time, true) }}</td>
                   <td class="px-2 py-1">{{ a.program || '' }}</td>
                   <td class="px-2 py-1">{{ a.activity_name }}</td>
                   <td class="px-2 py-1">{{ a.lane ?? '' }}</td>
