@@ -2,7 +2,6 @@
 import {ref, onMounted, onUnmounted, computed, nextTick} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
-import IconAccordionArrow from '@/components/icons/IconAccordionArrow.vue'
 import draggable from 'vuedraggable'
 
 const eventStore = useEventStore()
@@ -63,14 +62,7 @@ const unassignRoomType = async (typeId) => {
   })
 }
 
-const expandedGroups = ref(new Set())
-const toggleGroup = (groupId) => {
-  if (expandedGroups.value.has(groupId)) {
-    expandedGroups.value.delete(groupId)
-  } else {
-    expandedGroups.value.add(groupId)
-  }
-}
+// Removed accordion functionality - all groups are always visible
 
 // 🔹 Ghost tile refs
 const newRoomName = ref('')
@@ -260,51 +252,35 @@ onUnmounted(() => {
       </ul>
     </div>
 
-    <!-- Assignment panel (unchanged) -->
+    <!-- Assignment panel -->
     <div>
       <h2 class="text-xl font-bold mb-4">Raumzuordnung</h2>
-      <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3"
-              @click="typeGroups.forEach(item => expandedGroups.add(item.id))">
-        Alle öffnen
-      </button>
-      &nbsp;
-      <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3" @click="expandedGroups.clear()">
-        Alle schließen
-      </button>
       <div
           v-for="group in typeGroups"
           :key="group.id"
           class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
       >
-        <button
-            class="w-full text-left text-lg font-semibold text-black flex justify-between items-center mb-2"
-            @click="toggleGroup(group.id)"
-        >
+        <div class="text-lg font-semibold text-black mb-3">
           {{ group.name }}
-          <span><IconAccordionArrow :opened="expandedGroups.has(group.id)"/></span>
-        </button>
+        </div>
 
-        <transition name="accordion">
-            <div v-if="expandedGroups.has(group.id)" class="overflow-hidden">
-            <draggable
-                :list="roomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
-                group="roomtypes"
-                item-key="id"
-                class="flex flex-wrap gap-2"
-                @start="isDragging = true"
-                @end="isDragging = false"
+        <draggable
+            :list="roomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
+            group="roomtypes"
+            item-key="id"
+            class="flex flex-wrap gap-2"
+            @start="isDragging = true"
+            @end="isDragging = false"
+        >
+          <template #item="{element}">
+            <span
+                :style="{ backgroundColor: getProgramColor(element), color: '#fff' }"
+                class="text-xs px-2 py-1 rounded-full cursor-move"
             >
-              <template #item="{element}">
-                <span
-                    :style="{ backgroundColor: getProgramColor(element), color: '#fff' }"
-                    class="text-xs px-2 py-1 rounded-full cursor-move"
-                >
-                  {{ element.name }}
-                </span>
-              </template>
-            </draggable>
-          </div>
-        </transition>
+              {{ element.name }}
+            </span>
+          </template>
+        </draggable>
       </div>
     </div>
   </div>
