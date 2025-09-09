@@ -10,6 +10,7 @@ const rooms = ref([])
 const roomTypes = ref([])
 const typeGroups = ref([])
 const assignments = ref({})
+const scheduleParameters = ref({})
 
 const dragOverRoomId = ref(null)
 const isDragging = ref(false)
@@ -19,14 +20,91 @@ const getProgramColor = (type) => {
   return type?.group?.program?.color || '#888888'
 }
 
+// Get current jury group counts from schedule parameters
+const challengeJuryGroups = computed(() => {
+  return Number(scheduleParameters.value['j_lanes'] || 0)
+})
+
+const exploreJuryGroupsAM = computed(() => {
+  return Number(scheduleParameters.value['e1_lanes'] || 0)
+})
+
+const exploreJuryGroupsPM = computed(() => {
+  return Number(scheduleParameters.value['e2_lanes'] || 0)
+})
+
+// Filter room types based on jury group configuration
+const filteredRoomTypes = computed(() => {
+  return roomTypes.value.filter(type => {
+    const groupName = type.group?.name?.toLowerCase() || ''
+    const typeName = type.name?.toLowerCase() || ''
+    
+    // Debug logging
+    console.log('Filtering room type:', {
+      name: type.name,
+      groupName: type.group?.name,
+      challengeJuryGroups: challengeJuryGroups.value,
+      exploreJuryGroupsAM: exploreJuryGroupsAM.value,
+      exploreJuryGroupsPM: exploreJuryGroupsPM.value
+    })
+    
+    // For jurybewertung (Challenge jury groups)
+    if (groupName.includes('jurybewertung') || groupName.includes('jury') || typeName.includes('jury')) {
+      const juryGroupNumber = extractJuryGroupNumber(type.name)
+      const shouldShow = juryGroupNumber <= challengeJuryGroups.value
+      console.log(`Challenge room ${type.name}: group ${juryGroupNumber} <= ${challengeJuryGroups.value} = ${shouldShow}`)
+      return shouldShow
+    }
+    
+    // For begutachtung (Explore jury groups)
+    if (groupName.includes('begutachtung') || groupName.includes('explore') || typeName.includes('begutachtung')) {
+      const juryGroupNumber = extractJuryGroupNumber(type.name)
+      const maxExploreGroups = Math.max(exploreJuryGroupsAM.value, exploreJuryGroupsPM.value)
+      const shouldShow = juryGroupNumber <= maxExploreGroups
+      console.log(`Explore room ${type.name}: group ${juryGroupNumber} <= ${maxExploreGroups} = ${shouldShow}`)
+      return shouldShow
+    }
+    
+    // For other room types, show all
+    console.log(`Other room ${type.name}: showing`)
+    return true
+  })
+})
+
+// Extract jury group number from room type name (e.g., "Jurygruppe 1" -> 1)
+const extractJuryGroupNumber = (name) => {
+  const match = name.match(/(\d+)/)
+  return match ? parseInt(match[1]) : 0
+}
+
 onMounted(async () => {
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
+  
+  // Fetch rooms and room types
   const {data} = await axios.get(`/events/${eventId.value}/rooms`)
   rooms.value = data.rooms
   roomTypes.value = data.roomTypes
   typeGroups.value = data.groups
+
+  // Fetch schedule parameters to get jury group configuration
+  try {
+    // Get the plan for this event
+    const {data: planData} = await axios.get(`/plans/event/${eventId.value}`)
+    
+    if (planData && planData.id) {
+      const {data: paramsData} = await axios.get(`/plans/${planData.id}/parameters`)
+      scheduleParameters.value = paramsData.reduce((acc, param) => {
+        if (param.name) {
+          acc[param.name] = param.value
+        }
+        return acc
+      }, {})
+    }
+  } catch (error) {
+    console.warn('Could not fetch schedule parameters:', error)
+  }
 
   const result = {}
   data.rooms.forEach(room => {
@@ -193,7 +271,7 @@ onUnmounted(() => {
                 }"
               >
                 <draggable
-                    :list="roomTypes.filter(t => assignments[t.id] === room.id)"
+                    :list="filteredRoomTypes.filter(t => assignments[t.id] === room.id)"
                     group="roomtypes"
                     item-key="id"
                     @add="event => handleDrop(event, room)"
@@ -265,7 +343,7 @@ onUnmounted(() => {
         </div>
 
         <draggable
-            :list="roomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
+            :list="filteredRoomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
             group="roomtypes"
             item-key="id"
             class="flex flex-wrap gap-2"
