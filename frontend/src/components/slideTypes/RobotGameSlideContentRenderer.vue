@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {RobotGameSlideContent} from '../../models/robotGameSlideContent.js';
-import api from "../../services/api.js";
 import {onMounted, onUnmounted, ref, computed} from "vue";
+import axios from "axios";
 
 type ScoresResponse = { name?: string, rounds?: RoundResponse }
 type RoundResponse = { [key: string]: TeamResponse }
@@ -122,7 +122,7 @@ function getRoundToShow(rounds: RoundResponse): TeamResponse {
 
 // Load data function
 function loadDACHData() {
-  api.get('/api/events/1/data/rg-scores')
+  axios.get('/api/events/1/data/rg-scores')
       .then((response) => {
         scores.value = response.data;
       })
