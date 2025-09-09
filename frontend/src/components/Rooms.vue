@@ -1,5 +1,5 @@
 <script setup>
-import {ref, onMounted, computed, nextTick} from 'vue'
+import {ref, onMounted, onUnmounted, computed, nextTick} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import IconAccordionArrow from '@/components/icons/IconAccordionArrow.vue'
@@ -78,14 +78,20 @@ const newRoomNote = ref('')
 const newRoomInput = ref(null)
 const newRoomNoteInput = ref(null)
 const isSaving = ref(false)
+const isCreatingRoom = ref(false)
+const newRoomCardRef = ref(null)
 
 const createRoom = async () => {
+  // Prevent multiple simultaneous room creations
+  if (isCreatingRoom.value) return
+  
   if (!newRoomName.value.trim() && !newRoomNote.value.trim()) {
     newRoomName.value = ''
     newRoomNote.value = ''
     return
   }
 
+  isCreatingRoom.value = true
   isSaving.value = true
   try {
     const {data} = await axios.post('/rooms', {
@@ -102,6 +108,7 @@ const createRoom = async () => {
     newRoomInput.value?.focus()
   } finally {
     isSaving.value = false
+    isCreatingRoom.value = false
   }
 }
 
@@ -136,6 +143,24 @@ const cancelDeleteRoom = () => {
   showDeleteModal.value = false
   roomToDelete.value = null
 }
+
+// Handle clicks outside the new room card
+const handleClickOutside = (event) => {
+  if (newRoomCardRef.value && !newRoomCardRef.value.contains(event.target)) {
+    // Only create room if there's content to save
+    if (newRoomName.value.trim() || newRoomNote.value.trim()) {
+      createRoom()
+    }
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <template>
@@ -205,7 +230,10 @@ const cancelDeleteRoom = () => {
         </li>
 
         <!-- Ghost tile -->
-        <li class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm">
+        <li 
+            ref="newRoomCardRef"
+            class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+        >
           <div class="mb-2">
             <input
                 ref="newRoomInput"
@@ -213,7 +241,6 @@ const cancelDeleteRoom = () => {
                 class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
                 placeholder="Neuer Raum"
                 @keyup.enter="createRoom"
-                @blur="createRoom"
                 :disabled="isSaving"
             />
           </div>
@@ -225,9 +252,7 @@ const cancelDeleteRoom = () => {
                   class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
                   placeholder="Navigationshinweis"
                   @keyup.enter="createRoom"
-                  @blur="createRoom"
                   :disabled="isSaving"
-                  @vue:mounted="nextTick(() => newRoomNoteInput?.focus())"
               />
             </div>
           </transition>
