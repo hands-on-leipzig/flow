@@ -1,7 +1,8 @@
 <script setup>
-import Navigation from "@/components/Navigation.vue";
-import {computed, onMounted} from "vue";
+import {computed, defineAsyncComponent, onMounted} from "vue";
 import {useRoute, useRouter} from "vue-router";
+
+const Navigation = defineAsyncComponent(() => import('@/components/Navigation.vue'));
 
 const PATHS_HIDE_NAVIGATION = [
   "/carousel"
