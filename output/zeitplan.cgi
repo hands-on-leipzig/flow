@@ -62,7 +62,7 @@ $sth = $dbh->prepare($query);
 $rv = $sth->execute;
 
 # Session Time-Zone setzen
-$query = qq{SET time_zone = 'Europe/Berlin'};
+$query = qq{SET SESSION time_zone = 'Europe/Berlin'};
 $sth = $dbh->prepare($query);
 $rv = $sth->execute;
 
