@@ -132,7 +132,7 @@ const isDefaultValue = computed(() => {
           <!-- Ja button -->
           <button
               type="button"
-              @click="!disabled && toggleValue()"
+              @click="!disabled && !localValue && toggleValue()"
               class="px-2 py-1 text-sm transition-all duration-150 flex-1"
               :class="{
                 // When default value is selected: dark grey for selected, light grey for unselected
@@ -141,7 +141,8 @@ const isDefaultValue = computed(() => {
                 // When different from default: orange for selected, light orange for unselected
                 'bg-orange-100 text-orange-800': localValue && !isDefaultValue,
                 'bg-orange-50 text-orange-600': !localValue && !isDefaultValue,
-                'cursor-not-allowed': disabled
+                'cursor-not-allowed': disabled || localValue,
+                'opacity-60': localValue && !disabled
               }"
           >
             Ja
@@ -153,7 +154,7 @@ const isDefaultValue = computed(() => {
           <!-- Nein button -->
           <button
               type="button"
-              @click="!disabled && toggleValue()"
+              @click="!disabled && localValue && toggleValue()"
               class="px-2 py-1 text-sm transition-all duration-150 flex-1"
               :class="{
                 // When default value is selected: dark grey for selected, light grey for unselected
@@ -162,7 +163,8 @@ const isDefaultValue = computed(() => {
                 // When different from default: orange for selected, light orange for unselected
                 'bg-orange-100 text-orange-800': !localValue && !isDefaultValue,
                 'bg-orange-50 text-gray-600': localValue && !isDefaultValue,
-                'cursor-not-allowed': disabled
+                'cursor-not-allowed': disabled || !localValue,
+                'opacity-60': !localValue && !disabled
               }"
           >
             Nein
