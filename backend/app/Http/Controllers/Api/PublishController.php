@@ -99,11 +99,11 @@ class PublishController extends Controller
         $logo = null;
         $logoPath = public_path("img/hot_logo_qr.png");
         if (file_exists($logoPath)) {
-            $logo = new Logo($logoPath, 50); // 50px breit
+            $logo = new Logo($logoPath, 100); // 50px breit
         }
 
         // QR-Code als Base64 generieren (inkl. Data-URL Prefix)
-        $result = $writer->write($qrCode);
+        $result = $writer->write($qrCode, $logo);
         $qrcode = 'data:image/png;base64,' . base64_encode($result->getString());
 
 
