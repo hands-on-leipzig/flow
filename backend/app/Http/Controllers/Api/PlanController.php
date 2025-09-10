@@ -44,24 +44,32 @@ class PlanController extends Controller
             'public' => false
         ]);
 
-        // DRAHT-Kapazitäten für dieses Event holen
-        $event   = \App\Models\Event::find($eventId);
+        // Get DRAHT team counts for this event
+        $event = \App\Models\Event::find($eventId);
+        $e_teams = 0;
+        $c_teams = 0;
 
         if ($event) {
             $drahtController = new \App\Http\Controllers\Api\DrahtController();
-            $resp = $drahtController->show($event);
+            $drahtData = $drahtController->show($event);
+            $data = $drahtData->getData(true);
 
-            $data = $resp->getData(true);
+            // Count teams from DRAHT
+            $e_teams = count($data->teams_explore ?? []);
+            $c_teams = count($data->teams_challenge ?? []);
+        
 
-            $e_teams = (int)($data['capacity_explore']);
-            $c_teams = (int)($data['capacity_challenge']);
-        
-        }else {
-        
-            // Fallbacks 
-            $e_teams = 1;
-            $c_teams = 4;
-        }
+            // Fallback to minimum values if no DRAHT data
+            if ($e_teams === 0) (int)($data['capacity_explore']);
+            if ($c_teams === 0) (int)($data['capacity_challenge']);
+         }
+        if ($e_teams === 0) 6;
+        if ($c_teams === 0) 8;
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 6],   // e_teams
+            ['set_value' => $e_teams]
+        );
 
         if ( $e_teams > 0 ) {
 
@@ -70,7 +78,6 @@ class PlanController extends Controller
                     ['plan' => $newId, 'parameter' => 7],   // e_mode standlone morning
                     ['set_value' => 3]
                );
-
             } else {
                 PlanParamValue::updateOrCreate(
                     ['plan' => $newId, 'parameter' => 7],   // e_mode integrated morning
@@ -132,7 +139,7 @@ class PlanController extends Controller
 
     public function generate($planId, $async = false): JsonResponse
     {
-        
+
         $plan = Plan::find($planId);
         if (!$plan) {
             return response()->json(['error' => 'Plan not found'], 404);
@@ -150,9 +157,9 @@ class PlanController extends Controller
 
 
         if ($async) {
-        
+
             log::info("Plan {$planId}: Generation dispatched");
-            
+
             GeneratePlanJob::dispatch($planId);
 
             return response()->json(['message' => 'Generation dispatched']);
@@ -162,12 +169,12 @@ class PlanController extends Controller
             log::info("Plan {$planId}: Generation started");
 
             GeneratePlan::run($plan->id);
-            
+
             $plan->generator_status = 'done';
             $plan->save();
 
-            return response()->json(['message' => 'Generation done']);    
-        }    
+            return response()->json(['message' => 'Generation done']);
+        }
 
     }
 
@@ -185,7 +192,7 @@ class PlanController extends Controller
 
     //
     // Preview in frontend
-    // 
+    //
 
     public function previewRoles(int $plan, PreviewMatrix $builder)
     {
@@ -387,6 +394,15 @@ class PlanController extends Controller
 
     public function activities(int $planId): \Illuminate\Http\JsonResponse
     {
+        // TODO do that in a standardized way and also reflect it in routes
+        // Check if user has admin role
+        $jwt = request()->attributes->get('jwt');
+        $roles = $jwt['resource_access']->flow->roles ?? [];
+
+        if (!in_array('flow-admin', $roles) && !in_array('flow_admin', $roles)) {
+            return response()->json(['error' => 'Forbidden - admin role required'], 403);
+        }
+
         // Aktivitäten laden (ohne Räume)
         $rows = $this->fetchActivities($planId, false);
 
@@ -426,7 +442,7 @@ class PlanController extends Controller
         ]);
     }
 
-  
+
 
     public function actionNow(int $planId, Request $req): JsonResponse
     {
@@ -446,26 +462,27 @@ class PlanController extends Controller
             $role = 14; // Default: Publikum
         }
 
-        // Sichtbarkeit: nur ATDs, die für Rolle 14 (Publikum) erlaubt sind
-        $allowedAtdIds = DB::table('m_visibility')
-            ->where('role', $role)
-            ->pluck('activity_type_detail')
-            ->unique()
-            ->all();
+      $interval = (int) $req->query('interval', 60);
 
-        $rows = $rows->filter(function ($r) use ($allowedAtdIds) {
-            return in_array((int)$r->activity_type_detail_id, $allowedAtdIds, true);
-        });
+      $from  = (clone $pivot);
+      $to    = (clone $pivot)->addMinutes($interval);
 
-        // Zeitfilter: start <= pivot AND end > pivot
-        $rows = $rows->filter(function ($r) use ($pivot) {
-            return \Carbon\Carbon::parse($r->start_time) <= $pivot
-                && \Carbon\Carbon::parse($r->end_time)   >  $pivot;
-        });
+      $rows = $this->fetchActivities(
+          $planId,
+          includeRooms: false,
+          includeGroupMeta: true,
+          includeActivityMeta: true
+      );
 
-        return response()->json($this->groupActivitiesForApi($planId, $rows));
+      // Filtern: start in [from, to)
+      $rows = $rows->filter(function ($r) use ($from, $to) {
+          $s = Carbon::parse($r->start_time, 'UTC');
+          return $s >= $from && $s < $to;
+      });
+
+      return response()->json($this->groupActivitiesForApi($planId, $rows));
     }
-
+  
     public function actionNext(int $planId, Request $req): JsonResponse
     {
         $pivot = \Carbon\Carbon::parse($req->query('point_in_time', now()), 'Europe/Berlin');
@@ -576,7 +593,7 @@ class PlanController extends Controller
     {
         // Get all teams for this event
         $teams = Team::where('event', $eventId)->get();
-        
+
         if ($teams->isEmpty()) {
             return; // No teams to add
         }
@@ -621,7 +638,7 @@ class PlanController extends Controller
     public function syncTeamPlanForEvent($eventId)
     {
         $plans = Plan::where('event', $eventId)->get();
-        
+
         if ($plans->isEmpty()) {
             return; // No plans to sync
         }
@@ -638,7 +655,7 @@ class PlanController extends Controller
     {
         // Get all teams for this event
         $teams = Team::where('event', $eventId)->get();
-        
+
         if ($teams->isEmpty()) {
             return;
         }

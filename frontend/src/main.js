@@ -72,24 +72,24 @@ router.beforeEach((to, from, next) => {
 const app = createApp(App)
 const pinia = createPinia()
 
+    axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL
+    axios.defaults.withCredentials = true
+    
+    app.config.globalProperties.$axios = axios
+    axios.interceptors.request.use(config => {
+        // Only set Content-Type for JSON requests, not FormData
+        if (config.method === "post" && !(config.data instanceof FormData)) {
+            config.headers["Content-Type"] = "application/json"
+        }
+        const token = localStorage.getItem('kc_token')
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`
+        }
+        return config
+    })
+
 axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL
 axios.defaults.withCredentials = true
-
-app.config.globalProperties.$axios = axios
-axios.interceptors.request.use(config => {
-    // Ensure Content-Type is set for POST requests
-    if (config.method === "post") {
-        console.log("Interceptor: Setting Content-Type for POST request to:", config.url)
-        config.headers["Content-Type"] = "application/json"
-        console.log("Interceptor: Headers after setting:", config.headers)
-    }
-    const token = localStorage.getItem('kc_token')
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-})
-
 
 dayjs.locale('de')
 

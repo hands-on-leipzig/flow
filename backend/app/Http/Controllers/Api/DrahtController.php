@@ -90,7 +90,7 @@ class DrahtController extends Controller
     public function getAllEventsAndTeams(int $seasonId)
     {
         $response = $this->makeDrahtCall("/handson/flow/events");
-        
+
         if (!$response->ok()) {
             return response()->json(['error' => 'Failed to fetch events from Draht API'], 500);
         }
@@ -100,7 +100,7 @@ class DrahtController extends Controller
 
         DB::transaction(function () use ($seasonId, $eventsData) {
             $eventIds = Event::where('season', $seasonId)->pluck('id');
-            
+
             if ($eventIds->isNotEmpty()) {
                 DB::statement("SET foreign_key_checks=0");
                 Team::whereIn('event', $eventIds)->delete();
@@ -111,7 +111,7 @@ class DrahtController extends Controller
             foreach ($eventsData as $eventData) {
                 $regionalPartner = RegionalPartner::where('dolibarr_id', $eventData['region'])->first();
                 $firstProgram = (int)$eventData['first_program'];
-                
+
                 $days = 1;
                 if ($eventData['date'] && $eventData['enddate']) {
                     $startDate = (new \DateTime)->setTimestamp((int)$eventData['date']);
@@ -133,13 +133,13 @@ class DrahtController extends Controller
 
                 if ($existingEvent) {
                     $updateData = [];
-                    
+
                     if ($firstProgram === 2) {
                         $updateData['event_explore'] = $eventData['id'];
                     } elseif ($firstProgram === 3) {
                         $updateData['event_challenge'] = $eventData['id'];
                     }
-                    
+
                     if (empty($existingEvent->name) && !empty($eventData['name'])) {
                         $updateData['name'] = $eventData['name'];
                     }
@@ -150,7 +150,7 @@ class DrahtController extends Controller
                     if (empty($existingEvent->level) && $eventData['level']) {
                         $updateData['level'] = $eventData['level'];
                     }
-                    
+
                     $existingEvent->update($updateData);
                     $event = $existingEvent;
                 } else {
