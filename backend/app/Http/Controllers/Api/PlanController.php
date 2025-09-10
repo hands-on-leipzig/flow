@@ -440,9 +440,15 @@ class PlanController extends Controller
             includeTeamNames: true
         );
 
+        // Erlaubte Rollen 14: Besucher Allgemein, 6: Besucher Challenge, 10: Besucher Explore
+        $role = $req->query('role', 14);
+        if (!is_numeric($role) || ((int)$role != 14 && (int)$role != 6 && (int)$role != 10)) {
+            $role = 14; // Default: Publikum
+        }
+
         // Sichtbarkeit: nur ATDs, die für Rolle 14 (Publikum) erlaubt sind
         $allowedAtdIds = DB::table('m_visibility')
-            ->where('role', 14)
+            ->where('role', $role)
             ->pluck('activity_type_detail')
             ->unique()
             ->all();
