@@ -19,7 +19,7 @@ const event = computed(() => eventStore.selectedEvent)
 const publicLink = ref("https://flow.hands-on-technology.org/braunschweig")
 
 // Slider
-const levels = ["Planung", "Stand nach Anmeldeschluss", "Überblick", "volle Details"]
+const levels = ["Planung", "Nach Anmeldeschluss", "Überblick über den Ablauf", "Alle Details"]
 const detailLevel = ref(0)
 
 // Kopieren / Öffnen
@@ -82,123 +82,201 @@ async function downloadPdf(dataUrl: string, filename: string) {
     <h1 class="text-2xl font-bold">Zugriff auf den Plan</h1>
 
     <!-- Online Box -->
-    <div class="rounded-xl shadow bg-white p-6 space-y-6">
-      <h2 class="text-lg font-semibold mb-2">Online</h2>
-      <p class="text-sm text-gray-600">
-        Dieser Link gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
-      </p>
+    <div class="rounded-xl shadow bg-white p-6 space-y-4">
+      <h2 class="text-lg font-semibold">Online – von der Planung bis zur Veranstaltung</h2>
 
-      <div class="flex items-center gap-2">
-        <span class="text-blue-600 underline">{{ publicLink }}</span>
-        <button @click="openLink" title="In neuem Fenster öffnen">🔗</button>
-        <button @click="copyLink" title="In Zwischenablage kopieren">📋</button>
+      <!-- Link prominent + Erklärung dezent dahinter -->
+      <div class="flex items-center gap-3">
+        <a
+          :href="publicLink"
+          target="_blank"
+          rel="noopener"
+          class="text-blue-600 underline font-medium text-base"
+        >
+          {{ publicLink }}
+        </a>
+        <span class="text-sm text-gray-600">
+          gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
+        </span>
       </div>
 
-      <!-- Slider -->
-      <div class="mt-4">
-        <input type="range" min="0" max="3" step="1" v-model="detailLevel" class="w-full accent-blue-600" />
-        <div class="text-center text-sm mt-2">
-          Aktuell: <strong>{{ levels[detailLevel] }}</strong>
+    
+<div class="flex items-start gap-6">
+  <!-- Radiobuttons links -->
+  <div class="flex flex-col space-y-3">
+    <h3 class="text-sm font-semibold mb-2">Detaillevel</h3>
+    <label
+      v-for="(label, idx) in levels"
+      :key="idx"
+      class="flex items-start gap-2 cursor-pointer"
+    >
+      <input
+        type="radio"
+        :value="idx"
+        v-model="detailLevel"
+        class="mt-1 accent-blue-600"
+      />
+      <span class="text-sm leading-tight">
+        {{ label.split(" ")[0] }} <br />
+        {{ label.split(" ").slice(1).join(" ") }}
+      </span>
+    </label>
+  </div>
+
+  <!-- Info-Kacheln rechts -->
+  <div class="flex-1">
+    <h3 class="text-sm font-semibold mb-2">Veröffentlichte Informationen</h3>
+    <div
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4"
+    >
+      <!-- Kachel 1 -->
+      <div class="rounded-lg border p-3 text-sm">
+        <div class="font-semibold mb-1">Datum</div>
+        <div>Mittwoch, 28.01.2026</div>
+        <div class="mt-2 font-semibold">Adresse</div>
+        <div class="whitespace-pre-line text-gray-700 text-xs">
+          ROBIGS c/o ROCARE GmbH  
+          Am Seitenkanal 8  
+          49811 Lingen (Ems)
+        </div>
+        <div class="mt-2 font-semibold">Kontakt</div>
+        <div class="text-xs">
+          Lena Helle<br />lhelle@rosen-group.com
         </div>
       </div>
 
-      <!-- Während der Veranstaltung -->
-      <div class="rounded-xl shadow bg-white p-6 space-y-6">
-        <h2 class="text-lg font-semibold mb-4">Während der Veranstaltung</h2>
-
-        <div class="flex flex-wrap items-start gap-6 justify-start">
-          <!-- 1: QR Plan PNG -->
-          <div class="flex flex-col items-center">
-            <img
-              v-if="qrPlanUrl"
-              :src="qrPlanUrl"
-              alt="QR Plan"
-              class="mx-auto w-28 h-28"
-            />
-            <button
-              v-if="qrPlanUrl"
-              class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-              @click="downloadPng(qrPlanUrl, 'plan.png')"
-            >
-              PNG
-            </button>
-          </div>
-
-          <!-- 2: Fake PDF Preview (Plan) -->
-          <div class="flex flex-col items-center">
-            <img
-              src="@/assets/fake/qr1.png"
-              alt="PDF Preview Plan"
-              class="mx-auto h-28 w-auto border"
-            />
-            <a :href="qr1Pdf" download="plan.pdf">
-              <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-            </a>
-          </div>
-
-          <!-- 3: WLAN Felder -->
-          <div class="rounded-xl shadow bg-white p-4 flex flex-col">
-            <h3 class="text-sm font-semibold mb-2">WLAN-Zugangsdaten</h3>
-            <div v-if="event" class="space-y-3">
-              <!-- SSID -->
-              <div class="flex items-center gap-3">
-                <label class="w-20 text-sm text-gray-700">SSID</label>
-                <input
-                  v-model="event.wifi_ssid"
-                  @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
-                  class="flex-1 border px-3 py-1 rounded text-sm"
-                  type="text"
-                  placeholder="z. B. TH_EVENT_WLAN"
-                />
-              </div>
-
-              <!-- Passwort -->
-              <div class="flex items-center gap-3">
-                <label class="w-20 text-sm text-gray-700">Passwort</label>
-                <input
-                  v-model="event.wifi_password"
-                  @blur="updateEventField('wifi_password', event.wifi_password)"
-                  class="flex-1 border px-3 py-1 rounded text-sm"
-                  type="text"
-                  placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
-                />
-              </div>
-            </div>
-          </div>  
-
-          <!-- 4: QR Wifi PNG -->
-          <div class="flex flex-col items-center">
-            <img
-              v-if="qrWifiUrl"
-              :src="qrWifiUrl"
-              alt="QR Wifi"
-              class="mx-auto w-28 h-28"
-            />
-            <button
-              v-if="qrWifiUrl"
-              class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-              @click="downloadPng(qrWifiUrl, 'wifi.png')"
-            >
-              PNG
-            </button>
-          </div>
-
-          <!-- 5: Fake PDF Preview (Plan + Wifi) -->
-          <div class="flex flex-col items-center">
-            <img
-              src="@/assets/fake/qr2.png"
-              alt="PDF Preview Wifi+Plan"
-              class="mx-auto h-28 w-auto border"
-            />
-            <a :href="qr2Pdf" download="wifi-plan.pdf">
-              <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-            </a>
-          </div>
-        </div>
+      <!-- Kachel 2 -->
+      <div class="rounded-lg border p-3 text-sm">
+        <div class="font-semibold mb-1">Teams</div>
+        <div>Explore: 5 / 12</div>
+        <div>Challenge: 12 / 16</div>
       </div>
 
+      <!-- Kachel 3 -->
+      <div class="rounded-lg border p-3 text-sm">
+        <div class="font-semibold mb-1">Explore Teams</div>
+        <div>Zwerge, Gurkentruppe</div>
+        <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
+        <div>Rocky, Ironman, Gandalf</div>
+      </div>
+
+      <!-- Kachel 4 -->
+      <div class="rounded-lg border p-3 text-sm">
+        <div class="font-semibold mb-1">Zeitplan</div>
+        <div>Briefings ab 8:30 Uhr</div>
+        <div>Eröffnung 9:00 Uhr</div>
+        <div>Ende 17:15 Uhr</div>
+      </div>
+
+      <!-- Kachel 5 -->
+      <div class="rounded-lg border p-3 text-sm">
+        <div class="font-semibold mb-1">Ablaufplan</div>
+        <div class="text-xs text-gray-600">mit allen Details</div>
+      </div>
+    </div>
+  </div>
+</div>
 
     </div>
+
+
+    <!-- Während der Veranstaltung -->
+    <div class="rounded-xl shadow bg-white p-6 space-y-6">
+      <h2 class="text-lg font-semibold mb-4">Während der Veranstaltung</h2>
+
+      <div class="flex flex-wrap items-start gap-6 justify-start">
+        <!-- 1: QR Plan PNG -->
+        <div class="flex flex-col items-center">
+          <img
+            v-if="qrPlanUrl"
+            :src="qrPlanUrl"
+            alt="QR Plan"
+            class="mx-auto w-28 h-28"
+          />
+          <button
+            v-if="qrPlanUrl"
+            class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+            @click="downloadPng(qrPlanUrl, 'plan.png')"
+          >
+            PNG
+          </button>
+        </div>
+
+        <!-- 2: Fake PDF Preview (Plan) -->
+        <div class="flex flex-col items-center">
+          <img
+            src="@/assets/fake/qr1.png"
+            alt="PDF Preview Plan"
+            class="mx-auto h-28 w-auto border"
+          />
+          <a :href="qr1Pdf" download="plan.pdf">
+            <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+          </a>
+        </div>
+
+        <!-- 3: WLAN Felder -->
+        <div class="rounded-xl shadow bg-white p-4 flex flex-col">
+          <h3 class="text-sm font-semibold mb-2">WLAN-Zugangsdaten</h3>
+          <div v-if="event" class="space-y-3">
+            <!-- SSID -->
+            <div class="flex items-center gap-3">
+              <label class="w-20 text-sm text-gray-700">SSID</label>
+              <input
+                v-model="event.wifi_ssid"
+                @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
+                class="flex-1 border px-3 py-1 rounded text-sm"
+                type="text"
+                placeholder="z. B. TH_EVENT_WLAN"
+              />
+            </div>
+
+            <!-- Passwort -->
+            <div class="flex items-center gap-3">
+              <label class="w-20 text-sm text-gray-700">Passwort</label>
+              <input
+                v-model="event.wifi_password"
+                @blur="updateEventField('wifi_password', event.wifi_password)"
+                class="flex-1 border px-3 py-1 rounded text-sm"
+                type="text"
+                placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
+              />
+            </div>
+          </div>
+        </div>  
+
+        <!-- 4: QR Wifi PNG -->
+        <div class="flex flex-col items-center">
+          <img
+            v-if="qrWifiUrl"
+            :src="qrWifiUrl"
+            alt="QR Wifi"
+            class="mx-auto w-28 h-28"
+          />
+          <button
+            v-if="qrWifiUrl"
+            class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+            @click="downloadPng(qrWifiUrl, 'wifi.png')"
+          >
+            PNG
+          </button>
+        </div>
+
+        <!-- 5: Fake PDF Preview (Plan + Wifi) -->
+        <div class="flex flex-col items-center">
+          <img
+            src="@/assets/fake/qr2.png"
+            alt="PDF Preview Wifi+Plan"
+            class="mx-auto h-28 w-auto border"
+          />
+          <a :href="qr2Pdf" download="wifi-plan.pdf">
+            <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+          </a>
+        </div>
+      </div>
+    </div>
+
+
+
 
     <!-- Offline Box -->
     <div class="rounded-xl shadow bg-white p-6 space-y-4">
