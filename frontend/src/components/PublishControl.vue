@@ -97,6 +97,10 @@ async function downloadPng(dataUrl: string, filename: string) {
 }
 
 
+const carouselLink = computed(() => {
+  return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
+});
+
 </script>
 
 <template>
@@ -353,6 +357,33 @@ async function downloadPng(dataUrl: string, filename: string) {
 
       </div>
     </div>
+
+     <div class="rounded-xl shadow bg-white p-4 flex flex-col col-span-2">
+        <h2 class="text-lg font-semibold mb-2">Präsentation</h2>
+        <span class="text-sm mt-2 text-gray-500 mb-4">
+          Halt die Teams am Wettbewerb immer auf dem Laufenden.
+          Hier kannst du Folien konfigurieren, die während des Wettbewerbs angezeigt werden.
+        </span>
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-break">Link zur öffentlichen Ansicht:
+              <a :href="carouselLink" target="_blank" rel="noopener noreferrer">{{ carouselLink }}</a>
+            </span>
+            <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                @click="copyUrl(carouselLink)"
+                title="Link kopieren"
+            >
+              <svg-icon type="mdi" :path="mdiContentCopy" size="16" class="ml-1 mt-1"></svg-icon>
+            </button>
+          </div>
+          <router-link to="/presentation" class="mt-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-400 text-white">
+            Präsentation bearbeiten
+          </router-link>
+        </div>
+
+      </div>
 
 
     <!-- Offline Box -->
