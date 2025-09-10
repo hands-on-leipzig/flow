@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import {Canvas, Rect, Textbox} from 'fabric'
-import {onMounted, onBeforeUnmount, reactive, shallowRef, computed, watch} from 'vue';
+import {Canvas, Rect, Textbox, FabricImage} from 'fabric'
+import {onMounted, reactive, shallowRef, watch} from 'vue';
 import SvgIcon from '@jamescoyle/vue-icon';
 import {mdiFormatText, mdiRectangle, mdiContentSave} from '@mdi/js';
-import {useEventStore} from "@/stores/event";
 import {Slide} from "@/models/slide";
-import FllEvent from "@/models/FllEvent";
 import axios from "axios";
 
 // Ideen und TODOS
@@ -43,6 +41,7 @@ onMounted(() => {
 
   if (props.slide) {
     paintSlide(props.slide);
+    addImage();
   }
 
   canvas.on('selection:created', updateToolbar);
@@ -72,6 +71,31 @@ function addRect() {
     height: 100
   });
   canvas.add(rect);
+  canvas.requestRenderAll();
+}
+
+async function addImage() {
+  if (!canvas) return;
+  const img = await FabricImage.fromURL('/background.png');
+
+  const canvasWidth = canvas.getWidth();
+  const canvasHeight = canvas.getHeight();
+
+  // Skalieren (ausfüllen)
+  const scale = Math.max(
+      canvasWidth / img.width,
+      canvasHeight / img.height
+  );
+  img.scaleX = scale;
+  img.scaleY = scale;
+
+  // Zentrieren
+  const imgWidth = img.width * img.scaleX;
+  const imgHeight = img.height * img.scaleY;
+  img.left = (canvasWidth - imgWidth) / 2;
+  img.top = (canvasHeight - imgHeight) / 2;
+
+  canvas.backgroundImage = img;
   canvas.requestRenderAll();
 }
 
