@@ -436,11 +436,6 @@ onMounted(async () => {
 
 <template>
   <div class="h-screen p-6 flex flex-col space-y-5">
-    <div>
-      <a target="_blank" :href="'https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=' + selectedPlanId">
-        Link zum öPlan: https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan={{ selectedPlanId }}
-      </a>
-    </div>
 
     <!-- Toast notification for pending parameter updates -->
     <div v-if="showToast"
@@ -633,7 +628,7 @@ onMounted(async () => {
           initial-view="roles"
       />
     </div>
-
+ 
   </div>
 </template>
 

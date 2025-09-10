@@ -3,7 +3,7 @@ import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import QPlanList from './QPlanList.vue'
 import axios from 'axios'
 
-import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
+import { formatDateTime } from '@/utils/dateTimeFormat'
 
 const props = defineProps({
   reload: { type: Number, required: false, default: 0 },
