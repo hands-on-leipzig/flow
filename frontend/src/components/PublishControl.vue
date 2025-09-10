@@ -331,15 +331,25 @@ async function downloadPng(dataUrl: string, filename: string) {
           </div>
         </div>
 
-<!-- Rechte Box: Präsentation -->
-<div class="w-80 rounded-xl shadow bg-white p-6 flex flex-col items-center">
-  <h3 class="text-lg font-semibold mb-4">Präsentation über Bildschirme</h3>
+        <!-- Rechte Box: Karussell -->
+        <div class="w-100 rounded-xl shadow bg-white p-6 flex flex-col items-center">
+          <h3 class="text-lg font-semibold mb-4">Präsentation über Bildschirme</h3>
+          
+          <img
+            src="@/assets/fake/Karussell.png"
+            alt="Karussell Vorschau"
+            class="h-28 w-auto border"
+          />
 
-  <!-- Platzhalter für Bild -->
-  <div class="w-full h-40 bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
-    <span class="text-sm">Bildvorschau</span>
-  </div>
-</div>
+          <div class="flex gap-3 mt-4">
+            <button class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300">
+              Anzeigen
+            </button>
+            <button class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300">
+              Konfigurieren
+            </button>
+          </div>
+        </div>
 
       </div>
     </div>
