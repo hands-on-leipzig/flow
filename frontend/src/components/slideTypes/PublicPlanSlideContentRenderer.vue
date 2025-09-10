@@ -32,7 +32,7 @@ function getFormattedDateTime() {
 }
 
 const planUrl = computed(() => {
-  const baseUrl = 'https://dev.flow.hands-on-technology.org/output/zeitplan.cgi';
+  const baseUrl = '/output/zeitplan.cgi';
   const now = getFormattedDateTime();
   const url = baseUrl + `?output=slide&plan=${props.content.planId}`
       + `&hours=${props.content.hours}`
@@ -193,10 +193,9 @@ onMounted(() => {
           </ul>
 
         </div>
-      </div>
-
-      <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
-        Keine passenden Aktivitäten.
+        <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
+          Keine passenden Aktivitäten.
+        </div>
       </div>
     </div>
   </div>
@@ -209,8 +208,6 @@ iframe, object, .result {
   margin: 0;
   overflow: hidden;
   background: transparent;
-  top: 0;
-  position: absolute;
 }
 
 .background {
@@ -222,6 +219,9 @@ iframe, object, .result {
 .preview {
   zoom: 0.25;
   height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .min-h-100 {
