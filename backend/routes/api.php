@@ -139,6 +139,10 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
 
+    // Publish controller
+    Route::prefix('publish')->group(function () {
+        Route::get('/link/{planId}', [PublishController::class, 'linkAndQRcode']);                    // Link und QR-Code holen, ggfs. generieren
+
     // Quality controller
     Route::prefix('quality')->group(function () {
         Route::post('/qrun', [QualityController::class, 'startQRun']);                   // Start eines neuen Runs
