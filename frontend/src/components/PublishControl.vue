@@ -315,7 +315,7 @@ async function downloadPng(dataUrl: string, filename: string) {
                   ?
                 </div>
               </template>
-            </div>
+            </div> 
 
             <!-- 5: Fake PDF Preview (Plan + Wifi) -->
             <div class="flex flex-col items-center">
