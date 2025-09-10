@@ -137,198 +137,212 @@ async function downloadPng(dataUrl: string, filename: string) {
       </div>
 
     
-<div class="flex items-start gap-6">
-  <!-- Radiobuttons links -->
-  <div class="flex flex-col space-y-3">
-    <label v-for="(label, idx) in levels" :key="idx" class="flex items-start gap-2 cursor-pointer">
-      <input
-        type="radio"
-        :value="idx"
-        v-model="detailLevel"
-        class="mt-1 accent-blue-600"
-      />
-      <span class="text-sm leading-tight">
-        {{ label.split(" ")[0] }} <br />
-        {{ label.split(" ").slice(1).join(" ") }}
-      </span>
-    </label>
-  </div>
-
-  <!-- Info-Kacheln rechts -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 flex-1">
-    <!-- Helper: Kachel-Wrapper -->
-    <template v-for="(card, idx) in 5" :key="idx">
-      <div
-        class="relative rounded-lg border p-3 text-sm"
-        :class="{
-          'opacity-100': isCardActive(idx + 1, detailLevel),
-          'opacity-50': !isCardActive(idx + 1, detailLevel),
-        }"
-      >
-        <!-- Icon oben rechts -->
-        <div class="absolute top-2 right-2">
-          <div
-            v-if="isCardActive(idx + 1, detailLevel)"
-            class="w-4 h-4 bg-green-500 text-white flex items-center justify-center rounded-sm text-xs"
-          >
-            ✓
-          </div>
-          <div
-            v-else
-            class="w-4 h-4 bg-gray-300 flex items-center justify-center rounded-sm"
-          ></div>
+      <div class="flex items-start gap-6">
+        <!-- Radiobuttons links -->
+        <div class="flex flex-col space-y-3">
+          <label v-for="(label, idx) in levels" :key="idx" class="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              :value="idx"
+              v-model="detailLevel"
+              class="mt-1 accent-blue-600"
+            />
+            <span class="text-sm leading-tight">
+              {{ label.split(" ")[0] }} <br />
+              {{ label.split(" ").slice(1).join(" ") }}
+            </span>
+          </label>
         </div>
 
-        <!-- Inhalt -->
-        <template v-if="idx === 0">
-          <div class="font-semibold mb-1">Datum</div>
-          <div>Mittwoch, 28.01.2026</div>
-          <div class="mt-2 font-semibold">Adresse</div>
-          <div class="whitespace-pre-line text-gray-700 text-xs">
-            ROBIGS c/o ROCARE GmbH  
-            Am Seitenkanal 8  
-            49811 Lingen (Ems)
-          </div>
-          <div class="mt-2 font-semibold">Kontakt</div>
-          <div class="text-xs">Lena Helle<br/>lhelle@rosen-group.com</div>
-        </template>
+        <!-- Info-Kacheln rechts -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 flex-1">
+          <!-- Helper: Kachel-Wrapper -->
+          <template v-for="(card, idx) in 5" :key="idx">
+            <div
+              class="relative rounded-lg border p-3 text-sm"
+              :class="{
+                'opacity-100': isCardActive(idx + 1, detailLevel),
+                'opacity-50': !isCardActive(idx + 1, detailLevel),
+              }"
+            >
+              <!-- Icon oben rechts -->
+              <div class="absolute top-2 right-2">
+                <div
+                  v-if="isCardActive(idx + 1, detailLevel)"
+                  class="w-4 h-4 bg-green-500 text-white flex items-center justify-center rounded-sm text-xs"
+                >
+                  ✓
+                </div>
+                <div
+                  v-else
+                  class="w-4 h-4 bg-gray-300 flex items-center justify-center rounded-sm"
+                ></div>
+              </div>
 
-        <template v-else-if="idx === 1">
-          <div class="font-semibold mb-1">Teams</div>
-          <div>Explore: 5 / 12</div>
-          <div>Challenge: 12 / 16</div>
-        </template>
+              <!-- Inhalt -->
+              <template v-if="idx === 0">
+                <div class="font-semibold mb-1">Datum</div>
+                <div>Mittwoch, 28.01.2026</div>
+                <div class="mt-2 font-semibold">Adresse</div>
+                <div class="whitespace-pre-line text-gray-700 text-xs">
+                  ROBIGS c/o ROCARE GmbH  
+                  Am Seitenkanal 8  
+                  49811 Lingen (Ems)
+                </div>
+                <div class="mt-2 font-semibold">Kontakt</div>
+                <div class="text-xs">Lena Helle<br/>lhelle@rosen-group.com</div>
+              </template>
 
-        <template v-else-if="idx === 2">
-          <div class="font-semibold mb-1">Explore Teams</div>
-          <div>Zwerge, Gurkentruppe</div>
-          <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
-          <div>Rocky, Ironman, Gandalf</div>
-        </template>
+              <template v-else-if="idx === 1">
+                <div class="font-semibold mb-1">Teams</div>
+                <div>Explore: 5 / 12</div>
+                <div>Challenge: 12 / 16</div>
+              </template>
 
-        <template v-else-if="idx === 3">
-          <div class="font-semibold mb-1">Zeitplan</div>
-          <div>Briefings ab 8:30 Uhr</div>
-          <div>Eröffnung 9:00 Uhr</div>
-          <div>Ende 17:15 Uhr</div>
-        </template>
+              <template v-else-if="idx === 2">
+                <div class="font-semibold mb-1">Explore Teams</div>
+                <div>Zwerge, Gurkentruppe</div>
+                <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
+                <div>Rocky, Ironman, Gandalf</div>
+              </template>
 
-        <template v-else-if="idx === 4">
-          <div class="font-semibold mb-1">Ablaufplan</div>
-          <div class="text-xs text-gray-600">mit allen Details</div>
-        </template>
+              <template v-else-if="idx === 3">
+                <div class="font-semibold mb-1">Zeitplan</div>
+                <div>Briefings ab 8:30 Uhr</div>
+                <div>Eröffnung 9:00 Uhr</div>
+                <div>Ende 17:15 Uhr</div>
+              </template>
+
+              <template v-else-if="idx === 4">
+                <div class="font-semibold mb-1">Ablaufplan</div>
+                <div class="text-xs text-gray-600">mit allen Details</div>
+              </template>
+            </div>
+          </template>
+        </div>
       </div>
-    </template>
-  </div>
-</div>
 
     </div>
 
 
     <!-- Während der Veranstaltung -->
-    <div class="rounded-xl shadow bg-white p-6 space-y-6">
+    <div>
       <h2 class="text-lg font-semibold mb-4">Während der Veranstaltung</h2>
 
-      <div class="flex flex-wrap items-start gap-6 justify-start">
-        <!-- 1: QR Plan PNG -->
-        <div class="flex flex-col items-center">
-          <img
-            v-if="qrPlanUrl"
-            :src="qrPlanUrl"
-            alt="QR Plan"
-            class="mx-auto w-28 h-28"
-          />
-          <button
-            v-if="qrPlanUrl"
-            class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-            @click="downloadPng(qrPlanUrl, 'plan.png')"
-          >
-            PNG
-          </button>
-        </div>
+      <div class="flex flex-col lg:flex-row gap-6">
+        <!-- Linke Box: fünf QR-Bereiche -->
+        <div class="flex-1 rounded-xl shadow bg-white p-6">
+          <h3 class="text-lg font-semibold mb-4">QR Codes & Downloads</h3>
 
-        <!-- 2: Fake PDF Preview (Plan) -->
-        <div class="flex flex-col items-center">
-          <img
-            src="@/assets/fake/qr1.png"
-            alt="PDF Preview Plan"
-            class="mx-auto h-28 w-auto border"
-          />
-          <a :href="qr1Pdf" download="plan.pdf">
-            <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-          </a>
-        </div>
-
-        <!-- 3: WLAN Felder -->
-        <div class="rounded-xl shadow bg-white p-4 flex flex-col">
-          <h3 class="text-sm font-semibold mb-2">WLAN-Zugangsdaten</h3>
-          <div v-if="event" class="space-y-3">
-            <!-- SSID -->
-            <div class="flex items-center gap-3">
-              <label class="w-20 text-sm text-gray-700">SSID</label>
-              <input
-                v-model="event.wifi_ssid"
-                @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
-                class="flex-1 border px-3 py-1 rounded text-sm"
-                type="text"
-                placeholder="z. B. TH_EVENT_WLAN"
+          <div class="flex flex-row flex-wrap gap-6 justify-start">
+            <!-- 1: QR Plan PNG -->
+            <div class="flex flex-col items-center">
+              <img
+                v-if="qrPlanUrl"
+                :src="qrPlanUrl"
+                alt="QR Plan"
+                class="mx-auto w-28 h-28"
               />
+              <button
+                v-if="qrPlanUrl"
+                class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+                @click="downloadPng(qrPlanUrl, 'plan.png')"
+              >
+                PNG
+              </button>
             </div>
 
-            <!-- Passwort -->
-            <div class="flex items-center gap-3">
-              <label class="w-20 text-sm text-gray-700">Passwort</label>
-              <input
-                v-model="event.wifi_password"
-                @blur="updateEventField('wifi_password', event.wifi_password)"
-                class="flex-1 border px-3 py-1 rounded text-sm"
-                type="text"
-                placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
+            <!-- 2: Fake PDF Preview (Plan) -->
+            <div class="flex flex-col items-center">
+              <img
+                src="@/assets/fake/qr1.png"
+                alt="PDF Preview Plan"
+                class="mx-auto h-28 w-auto border"
               />
+              <a :href="qr1Pdf" download="plan.pdf">
+                <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+              </a>
+            </div>
+
+            <!-- 3: WLAN Felder -->
+            <div class="rounded-xl shadow bg-white p-4 flex flex-col justify-center">
+              <h3 class="text-sm font-semibold mb-2">WLAN-Zugangsdaten</h3>
+              <div v-if="event" class="space-y-3">
+                <!-- SSID -->
+                <div class="flex items-center gap-3">
+                  <label class="w-20 text-sm text-gray-700">SSID</label>
+                  <input
+                    v-model="event.wifi_ssid"
+                    @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
+                    class="flex-1 border px-3 py-1 rounded text-sm"
+                    type="text"
+                    placeholder="z. B. TH_EVENT_WLAN"
+                  />
+                </div>
+                <!-- Passwort -->
+                <div class="flex items-center gap-3">
+                  <label class="w-20 text-sm text-gray-700">Passwort</label>
+                  <input
+                    v-model="event.wifi_password"
+                    @blur="updateEventField('wifi_password', event.wifi_password)"
+                    class="flex-1 border px-3 py-1 rounded text-sm"
+                    type="text"
+                    placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- 4: QR Wifi PNG -->
+            <div class="flex flex-col items-center">
+              <template v-if="qrWifiUrl">
+                <img
+                  :src="qrWifiUrl"
+                  alt="QR Wifi"
+                  class="mx-auto w-28 h-28"
+                />
+                <button
+                  class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+                  @click="downloadPng(qrWifiUrl, 'wifi.png')"
+                >
+                  PNG
+                </button>
+              </template>
+              <template v-else>
+                <div
+                  class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
+                >
+                  ?
+                </div>
+              </template>
+            </div>
+
+            <!-- 5: Fake PDF Preview (Plan + Wifi) -->
+            <div class="flex flex-col items-center">
+              <img
+                src="@/assets/fake/qr2.png"
+                alt="PDF Preview Wifi+Plan"
+                class="mx-auto h-28 w-auto border"
+              />
+              <a v-if="qrWifiUrl" :href="qr2Pdf" download="wifi-plan.pdf">
+                <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+              </a>
             </div>
           </div>
-        </div>  
-
-        <!-- 4: QR Wifi PNG -->
-        <div class="flex flex-col items-center">
-          <template v-if="qrWifiUrl">
-            <img
-              :src="qrWifiUrl"
-              alt="QR Wifi"
-              class="mx-auto w-28 h-28"
-            />
-            <button
-              class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-              @click="downloadPng(qrWifiUrl, 'wifi.png')"
-            >
-              PNG
-            </button>
-          </template>
-
-          <template v-else>
-            <div
-              class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
-            >
-              ?
-            </div>
-          </template>
         </div>
 
-        <!-- 5: Fake PDF Preview (Plan + Wifi) -->
-        <div class="flex flex-col items-center">
-          <img
-            src="@/assets/fake/qr2.png"
-            alt="PDF Preview Wifi+Plan"
-            class="mx-auto h-28 w-auto border"
-          />
-          <a v-if="qrWifiUrl" :href="qr2Pdf" download="wifi-plan.pdf">
-            <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-          </a>
-        </div>
+<!-- Rechte Box: Präsentation -->
+<div class="w-80 rounded-xl shadow bg-white p-6 flex flex-col items-center">
+  <h3 class="text-lg font-semibold mb-4">Präsentation über Bildschirme</h3>
+
+  <!-- Platzhalter für Bild -->
+  <div class="w-full h-40 bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
+    <span class="text-sm">Bildvorschau</span>
+  </div>
+</div>
+
       </div>
     </div>
-
-
 
 
     <!-- Offline Box -->
