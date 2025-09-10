@@ -6,14 +6,45 @@ import QRCode from "qrcode"
 import jsPDF from "jspdf"
 import axios from 'axios'
 
+
+
+// Store + Selected Event
+const eventStore = useEventStore()
+const event = computed(() => eventStore.selectedEvent)
+
+const planId = ref<number | null>(null)
+const loading = ref(false)
+const error = ref<string | null>(null)
+
+async function fetchPlanIdByEventId(eventId: number) {
+  loading.value = true
+  error.value = null
+  try {
+    const { data } = await axios.get(`/plans/event/${eventId}`)
+    planId.value = data?.id ?? null
+  } catch (e) {
+    console.error('Fehler beim Laden der Plan-ID:', e)
+    error.value = 'Plan-ID konnte nicht geladen werden'
+    planId.value = null
+  } finally {
+    loading.value = false
+  }
+}
+
+// Reaktiv laden, sobald/solange es eine Event-ID gibt
+watch(
+  () => event.value?.id,
+  (id) => {
+    if (id) fetchPlanIdByEventId(id)
+  },
+  { immediate: true } // triggert sofort und auch bei späterem Setzen
+)
+
 // Assets (Fake)
 import qr1Png from '@/assets/fake/qr1.png'
 import qr1Pdf from '@/assets/fake/qr1.pdf'
 import qr2Png from '@/assets/fake/qr2.png'
 import qr2Pdf from '@/assets/fake/qr2.pdf'
-
-const eventStore = useEventStore()
-const event = computed(() => eventStore.selectedEvent)
 
 // Fake Link
 const publicLink = ref("https://flow.hands-on-technology.org/braunschweig")
@@ -69,7 +100,16 @@ async function downloadPng(dataUrl: string, filename: string) {
 </script>
 
 <template>
+
   <div class="p-6 space-y-8">
+
+    <div>
+        <a target="_blank" :href="'https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=' + planId">
+          Link zum öPlan: https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan={{ planId }}
+        </a>
+    </div>
+
+  
     <h1 class="text-2xl font-bold">Zugriff auf den Plan</h1>
 
     <!-- Online Box -->
