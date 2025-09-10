@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 
-import {ref, computed} from 'vue'
-import {useEventStore} from '@/stores/event'
-import jsPDF from "jspdf";
-import QRCode from "qrcode";
-import axios from 'axios';
-import {mdiContentCopy} from "@mdi/js";
+import { useEventStore } from '@/stores/event'
+import QRCode from "qrcode"
+import jsPDF from "jspdf"
+import axios from 'axios'
 
 
 
@@ -18,42 +16,9 @@ const planId = ref<number | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const tabs = ['Zeitpläne', 'Namensschilder', 'QR-Code WLAN', 'QR-Code Zeitplan']
-const activeTab = ref(tabs[0])
-
-const carouselLink = computed(() => {
-  return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
-});
-
-const downloadWifiQr = () => {
-  window.open(`/events/${event.value?.id}/wifi-qr`, '_blank')
-}
-
-async function generateWifiPDF() {
-  const qrContent = `WIFI:T:WPA;S:${event.value.wifi_ssid};P:${event.value.wifi_password};;`
-  const qrDataUrl = await QRCode.toDataURL(qrContent)
-
-  const pdf = new jsPDF()
-  pdf.setFontSize(16)
-  pdf.text('WiFi QR Code', 20, 20)
-  pdf.addImage(qrDataUrl, 'PNG', 20, 30, 100, 100)
-  pdf.text(`SSID: ${event.value.wifi_ssid}`, 20, 140)
-  pdf.text(`Password: ${event.value.wifi_password}`, 20, 150)
-
-  window.open(pdf.output('bloburl'), '_blank')
-}
-
-const downloadScheduleQr = () => {
-  window.open(`/events/${event.value?.id}/schedule-qr`, '_blank')
-}
-const printSchedule = () => {
-  window.open(`/events/${event.value?.id}/print/schedule`, '_blank')
-}
-const printNameTags = () => {
-  window.open(`/events/${event.value?.id}/print/nametags`, '_blank')
-}
-
-const updateEventField = async (field: string, value: any) => {
+async function fetchPlanIdByEventId(eventId: number) {
+  loading.value = true
+  error.value = null
   try {
     const { data } = await axios.get(`/plans/event/${eventId}`)
     planId.value = data?.id ?? null
@@ -66,9 +31,76 @@ const updateEventField = async (field: string, value: any) => {
   }
 }
 
-function copyUrl(url) {
-  navigator.clipboard.writeText(url);
+// Reaktiv laden, sobald/solange es eine Event-ID gibt
+watch(
+  () => event.value?.id,
+  (id) => {
+    if (id) fetchPlanIdByEventId(id)
+  },
+  { immediate: true } // triggert sofort und auch bei späterem Setzen
+)
+
+// Assets (Fake)
+import qr1Png from '@/assets/fake/qr1.png'
+import qr1Pdf from '@/assets/fake/qr1.pdf'
+import qr2Png from '@/assets/fake/qr2.png'
+import qr2Pdf from '@/assets/fake/qr2.pdf'
+
+// Fake Link
+const publicLink = ref("https://flow.hands-on-technology.org/braunschweig")
+
+// Radio Buttons Detailstufe
+const levels = ["Planung", "Nach Anmeldeschluss", "Überblick zum Ablauf", "volle Details"]
+const detailLevel = ref(0)
+
+function isCardActive(card: number, level: number) {
+  if (card <= 2) return true        // Kachel 1,2 immer aktiv
+  if (card === 3 && level >= 1) return true
+  if (card === 4 && level >= 2) return true
+  if (card === 5 && level >= 3) return true
+  return false
 }
+
+// --- QR Codes ---
+const qrPlanUrl = ref("")
+const qrWifiUrl = ref("")
+
+async function generateQRCodes() {
+  qrPlanUrl.value = await QRCode.toDataURL(publicLink.value)
+  if (event.value?.wifi_ssid && event.value?.wifi_password) {
+    const qrContent = `WIFI:T:WPA;S:${event.value.wifi_ssid};P:${event.value.wifi_password};;`
+    qrWifiUrl.value = await QRCode.toDataURL(qrContent)
+  }
+}
+generateQRCodes()
+
+
+watch(
+  () => [event.value?.wifi_ssid, event.value?.wifi_password],
+  async ([ssid, pw]) => {
+    if (ssid && pw) {
+      const qrContent = `WIFI:T:WPA;S:${ssid};P:${pw};;`
+      qrWifiUrl.value = await QRCode.toDataURL(qrContent)
+    } else {
+      qrWifiUrl.value = ''
+    }
+  },
+  { immediate: true }
+)
+
+// --- Downloads ---
+async function downloadPng(dataUrl: string, filename: string) {
+  const a = document.createElement("a")
+  a.href = dataUrl
+  a.download = filename
+  a.click()
+}
+
+
+const carouselLink = computed(() => {
+  return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
+});
+
 </script>
 
 <template>
@@ -287,7 +319,7 @@ function copyUrl(url) {
                   ?
                 </div>
               </template>
-            </div> 
+            </div>
 
             <!-- 5: Fake PDF Preview (Plan + Wifi) -->
             <div class="flex flex-col items-center">
@@ -326,17 +358,7 @@ function copyUrl(url) {
       </div>
     </div>
 
-
-    <!-- Offline Box -->
-    <div class="rounded-xl shadow bg-white p-6 space-y-4">
-      <h2 class="text-lg font-semibold mb-2">Offline</h2>
-      <p class="text-sm text-gray-600">Hier kannst du vorbereitete Dokumente für den Druck exportieren.</p>
-      <div class="space-y-2">
-        <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded">Zeitpläne drucken</button>
-        <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded">Namensschilder drucken</button>
-      </div>
-
-      <div class="rounded-xl shadow bg-white p-4 flex flex-col col-span-2">
+     <div class="rounded-xl shadow bg-white p-4 flex flex-col col-span-2">
         <h2 class="text-lg font-semibold mb-2">Präsentation</h2>
         <span class="text-sm mt-2 text-gray-500 mb-4">
           Halt die Teams am Wettbewerb immer auf dem Laufenden.
@@ -363,10 +385,15 @@ function copyUrl(url) {
 
       </div>
 
+
+    <!-- Offline Box -->
+    <div class="rounded-xl shadow bg-white p-6 space-y-4">
+      <h2 class="text-lg font-semibold mb-2">Offline</h2>
+      <p class="text-sm text-gray-600">Hier kannst du vorbereitete Dokumente für den Druck exportieren.</p>
+      <div class="space-y-2">
+        <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded">Zeitpläne drucken</button>
+        <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded">Namensschilder drucken</button>
+      </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-
-</style>
