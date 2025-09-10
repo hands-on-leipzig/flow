@@ -5,6 +5,7 @@ import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
 import {ref, watch, onMounted, computed} from 'vue'
 import axios from 'axios'
 import { useRoute } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
 
 type Header = { key: string; title: string }
 type Cell = { render?: boolean; rowspan?: number; colspan?: number; text?: string }
@@ -17,6 +18,7 @@ type Row = {
 }
 
 const route = useRoute()
+const { isAdmin } = useAuth()
 
 const props = withDefaults(defineProps<{
   planId?: number
@@ -127,8 +129,9 @@ function setView(v: 'roles' | 'teams' | 'rooms' | 'activities') {
           @click="setView('rooms')"
         >Räume</button>
 
-        <!-- NEU: Aktivitäten -->
+        <!-- NEU: Aktivitäten - nur für Admins -->
         <button
+          v-if="isAdmin"
           class="px-3 py-1 text-sm border-l"
           :class="view === 'activities' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
           @click="setView('activities')"

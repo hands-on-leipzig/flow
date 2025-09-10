@@ -48,18 +48,18 @@ class PlanController extends Controller
         $event = \App\Models\Event::find($eventId);
         $e_teams = 0;
         $c_teams = 0;
-        
+
         if ($event) {
             // Fetch DRAHT data for this event
             $drahtController = new \App\Http\Controllers\Api\DrahtController();
             $drahtData = $drahtController->show($event);
             $data = $drahtData->getData(true);
-            
+
             // Count teams from DRAHT
             $e_teams = count($data->teams_explore ?? []);
             $c_teams = count($data->teams_challenge ?? []);
         }
-        
+
         // Fallback to minimum values if no DRAHT data
         if ($e_teams === 0) $e_teams = 1;
         if ($c_teams === 0) $c_teams = 1;
@@ -68,7 +68,7 @@ class PlanController extends Controller
             ['plan' => $newId, 'parameter' => 6],   // e_teams
             ['set_value' => $e_teams]
         );
-        
+
 
         // Minimale parameter für einen gültigen Plan
 
@@ -81,7 +81,7 @@ class PlanController extends Controller
             ['plan' => $newId, 'parameter' => 23],    // j_lanes
             ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes')]
         );
-        
+
         PlanParamValue::updateOrCreate(
             ['plan' => $newId, 'parameter' => 24],  // r_tables
             ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables')]
@@ -98,7 +98,7 @@ class PlanController extends Controller
 
     public function generate($planId, $async = false): JsonResponse
     {
-        
+
         $plan = Plan::find($planId);
         if (!$plan) {
             return response()->json(['error' => 'Plan not found'], 404);
@@ -116,9 +116,9 @@ class PlanController extends Controller
 
 
         if ($async) {
-        
+
             log::info("Plan {$planId}: Generation dispatched");
-            
+
             GeneratePlanJob::dispatch($planId);
 
             return response()->json(['message' => 'Generation dispatched']);
@@ -128,12 +128,12 @@ class PlanController extends Controller
             log::info("Plan {$planId}: Generation started");
 
             GeneratePlan::run($plan->id);
-            
+
             $plan->generator_status = 'done';
             $plan->save();
 
-            return response()->json(['message' => 'Generation done']);    
-        }    
+            return response()->json(['message' => 'Generation done']);
+        }
 
     }
 
@@ -151,7 +151,7 @@ class PlanController extends Controller
 
     //
     // Preview in frontend
-    // 
+    //
 
     public function previewRoles(int $plan, PreviewMatrix $builder)
     {
@@ -298,6 +298,15 @@ class PlanController extends Controller
 
     public function activities(int $planId): \Illuminate\Http\JsonResponse
     {
+        // TODO do that in a standardized way and also reflect it in routes
+        // Check if user has admin role
+        $jwt = request()->attributes->get('jwt');
+        $roles = $jwt['resource_access']->flow->roles ?? [];
+
+        if (!in_array('flow-admin', $roles) && !in_array('flow_admin', $roles)) {
+            return response()->json(['error' => 'Forbidden - admin role required'], 403);
+        }
+
         // Aktivitäten laden (ohne Räume)
         $rows = $this->fetchActivities($planId, false);
 
@@ -337,7 +346,7 @@ class PlanController extends Controller
         ]);
     }
 
-  
+
 
 public function actionNow(int $planId, Request $req): JsonResponse
 {
@@ -364,7 +373,7 @@ public function actionNext(int $planId, Request $req): JsonResponse
     $pivot = $this->resolvePivotTime($req); // UTC
 
     $interval = (int) $req->query('interval', 60);
-    
+
     $from  = (clone $pivot);
     $to    = (clone $pivot)->addMinutes($interval);
 
@@ -453,7 +462,7 @@ private function groupActivitiesForApi(int $planId, $rows): array
     {
         // Get all teams for this event
         $teams = Team::where('event', $eventId)->get();
-        
+
         if ($teams->isEmpty()) {
             return; // No teams to add
         }
@@ -498,7 +507,7 @@ private function groupActivitiesForApi(int $planId, $rows): array
     public function syncTeamPlanForEvent($eventId)
     {
         $plans = Plan::where('event', $eventId)->get();
-        
+
         if ($plans->isEmpty()) {
             return; // No plans to sync
         }
@@ -515,7 +524,7 @@ private function groupActivitiesForApi(int $planId, $rows): array
     {
         // Get all teams for this event
         $teams = Team::where('event', $eventId)->get();
-        
+
         if ($teams->isEmpty()) {
             return;
         }
