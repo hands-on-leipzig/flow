@@ -145,15 +145,15 @@ const carouselLink = computed(() => {
 
       <!-- Link prominent + Erklärung dezent dahinter -->
       <div class="flex items-center gap-3">
-<a
-  v-if="publishData?.link"
-  :href="publishData.link"
-  target="_blank"
-  rel="noopener"
-  class="text-blue-600 underline font-medium text-base"
->
-  {{ publishData.link }}
-</a>
+      <a
+        v-if="publishData?.link"
+        :href="publishData.link"
+        target="_blank"
+        rel="noopener"
+        class="text-blue-600 underline font-medium text-base"
+      >
+        {{ publishData.link }}
+      </a>
         <span class="text-sm text-gray-600">
           gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
         </span>
@@ -264,21 +264,21 @@ const carouselLink = computed(() => {
 
           <div class="flex flex-row flex-wrap gap-6 justify-start">
             <!-- 1: QR Plan PNG -->
-<div class="flex flex-col items-center">
-  <img
-    v-if="publishData?.qrcode"
-    :src="publishData.qrcode"
-    alt="QR Plan"
-    class="mx-auto w-28 h-28"
-  />
-  <button
-    v-if="publishData?.qrcode"
-    class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-    @click="downloadPng(publishData.qrcode, 'plan.png')"
-  >
-    PNG
-  </button>
-</div>
+            <div class="flex flex-col items-center">
+              <img
+                v-if="publishData?.qrcode"
+                :src="publishData.qrcode"
+                alt="QR Plan"
+                class="mx-auto w-28 h-28"
+              />
+              <button
+                v-if="publishData?.qrcode"
+                class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+                @click="downloadPng(publishData.qrcode, 'FLOW_QR_Code_Plan.png')"
+              >
+                PNG
+              </button>
+            </div>
 
             <!-- 2: Fake PDF Preview (Plan) -->
             <div class="flex flex-col items-center">
