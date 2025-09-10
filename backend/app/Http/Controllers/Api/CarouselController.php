@@ -105,4 +105,35 @@ class CarouselController extends Controller
         return response()->json(['success' => true, 'slide' => $slide]);
     }
 
+    public function generateSlideshow(Request $request, $eventId)
+    {
+        // TODO Eventid prüfen
+
+        $planId = $request->input('planId');
+        if (!$planId || !is_numeric($planId)) {
+            return response()->json(['error' => 'plan id required'], 400);
+        }
+
+        $slideshow = SlideShow::create([
+            'event' => $eventId,
+            'name' => 'Standard-Slideshow',
+            'transition_time' => 15,
+        ]);
+
+        $planId_json = ', "planId": ' . $planId;
+
+        $slide = Slide::create([
+            'name' => 'Öffentlicher Zeitplan',
+            'slideshow' => $slideshow->id,
+            'type' => 'PublicPlanSlideContent',
+            'content' => '{ "hours": 2 ' . $planId_json . '}',
+            'order' => 0,
+        ]);
+
+        $slideshow->slides = [$slide];
+
+        return response()->json(['success' => true, 'slideshow' => $slideshow]);
+
+    }
+
 }
