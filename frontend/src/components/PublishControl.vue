@@ -102,89 +102,100 @@ async function downloadPdf(dataUrl: string, filename: string) {
         </div>
       </div>
 
-<!-- Während der Veranstaltung -->
-<div class="rounded-xl shadow bg-white p-6 space-y-6">
-  <h2 class="text-lg font-semibold mb-4">Während der Veranstaltung</h2>
+      <!-- Während der Veranstaltung -->
+      <div class="rounded-xl shadow bg-white p-6 space-y-6">
+        <h2 class="text-lg font-semibold mb-4">Während der Veranstaltung</h2>
 
-  <div class="flex flex-wrap items-start gap-6 justify-start">
-    <!-- 1: QR Plan PNG -->
-    <div class="flex flex-col items-center">
-      <img
-        v-if="qrPlanUrl"
-        :src="qrPlanUrl"
-        alt="QR Plan"
-        class="mx-auto w-28 h-28"
-      />
-      <button
-        v-if="qrPlanUrl"
-        class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-        @click="downloadPng(qrPlanUrl, 'plan.png')"
-      >
-        PNG
-      </button>
-    </div>
+        <div class="flex flex-wrap items-start gap-6 justify-start">
+          <!-- 1: QR Plan PNG -->
+          <div class="flex flex-col items-center">
+            <img
+              v-if="qrPlanUrl"
+              :src="qrPlanUrl"
+              alt="QR Plan"
+              class="mx-auto w-28 h-28"
+            />
+            <button
+              v-if="qrPlanUrl"
+              class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+              @click="downloadPng(qrPlanUrl, 'plan.png')"
+            >
+              PNG
+            </button>
+          </div>
 
-    <!-- 2: Fake PDF Preview (Plan) -->
-    <div class="flex flex-col items-center">
-      <img
-        src="@/assets/fake/qr1.png"
-        alt="PDF Preview Plan"
-        class="mx-auto h-28 w-auto border"
-      />
-      <a :href="qr1Pdf" download="plan.pdf">
-        <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-      </a>
-    </div>
+          <!-- 2: Fake PDF Preview (Plan) -->
+          <div class="flex flex-col items-center">
+            <img
+              src="@/assets/fake/qr1.png"
+              alt="PDF Preview Plan"
+              class="mx-auto h-28 w-auto border"
+            />
+            <a :href="qr1Pdf" download="plan.pdf">
+              <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+            </a>
+          </div>
 
-    <!-- 3: WLAN Felder -->
-    <div class="flex flex-col items-stretch min-w-[180px]">
-      <h3 class="text-sm font-semibold mb-2">WLAN-Zugangsdaten</h3>
-      <div>
-        <label class="block text-xs text-gray-700 mb-1">SSID</label>
-        <input
-          v-model="event.wifi_ssid"
-          class="w-full border px-2 py-1 rounded text-sm"
-        />
+          <!-- 3: WLAN Felder -->
+          <div class="rounded-xl shadow bg-white p-4 flex flex-col">
+            <h3 class="text-sm font-semibold mb-2">WLAN-Zugangsdaten</h3>
+            <div v-if="event" class="space-y-3">
+              <!-- SSID -->
+              <div class="flex items-center gap-3">
+                <label class="w-20 text-sm text-gray-700">SSID</label>
+                <input
+                  v-model="event.wifi_ssid"
+                  @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
+                  class="flex-1 border px-3 py-1 rounded text-sm"
+                  type="text"
+                  placeholder="z. B. TH_EVENT_WLAN"
+                />
+              </div>
+
+              <!-- Passwort -->
+              <div class="flex items-center gap-3">
+                <label class="w-20 text-sm text-gray-700">Passwort</label>
+                <input
+                  v-model="event.wifi_password"
+                  @blur="updateEventField('wifi_password', event.wifi_password)"
+                  class="flex-1 border px-3 py-1 rounded text-sm"
+                  type="text"
+                  placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
+                />
+              </div>
+            </div>
+          </div>  
+
+          <!-- 4: QR Wifi PNG -->
+          <div class="flex flex-col items-center">
+            <img
+              v-if="qrWifiUrl"
+              :src="qrWifiUrl"
+              alt="QR Wifi"
+              class="mx-auto w-28 h-28"
+            />
+            <button
+              v-if="qrWifiUrl"
+              class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+              @click="downloadPng(qrWifiUrl, 'wifi.png')"
+            >
+              PNG
+            </button>
+          </div>
+
+          <!-- 5: Fake PDF Preview (Plan + Wifi) -->
+          <div class="flex flex-col items-center">
+            <img
+              src="@/assets/fake/qr2.png"
+              alt="PDF Preview Wifi+Plan"
+              class="mx-auto h-28 w-auto border"
+            />
+            <a :href="qr2Pdf" download="wifi-plan.pdf">
+              <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+            </a>
+          </div>
+        </div>
       </div>
-      <div class="mt-2">
-        <label class="block text-xs text-gray-700 mb-1">Passwort</label>
-        <input
-          v-model="event.wifi_password"
-          class="w-full border px-2 py-1 rounded text-sm"
-        />
-      </div>
-    </div>
-
-    <!-- 4: QR Wifi PNG -->
-    <div class="flex flex-col items-center">
-      <img
-        v-if="qrWifiUrl"
-        :src="qrWifiUrl"
-        alt="QR Wifi"
-        class="mx-auto w-28 h-28"
-      />
-      <button
-        v-if="qrWifiUrl"
-        class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-        @click="downloadPng(qrWifiUrl, 'wifi.png')"
-      >
-        PNG
-      </button>
-    </div>
-
-    <!-- 5: Fake PDF Preview (Plan + Wifi) -->
-    <div class="flex flex-col items-center">
-      <img
-        src="@/assets/fake/qr2.png"
-        alt="PDF Preview Wifi+Plan"
-        class="mx-auto h-28 w-auto border"
-      />
-      <a :href="qr2Pdf" download="wifi-plan.pdf">
-        <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-      </a>
-    </div>
-  </div>
-</div>
 
 
     </div>
