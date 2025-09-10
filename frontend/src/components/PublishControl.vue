@@ -103,10 +103,15 @@ async function downloadPng(dataUrl: string, filename: string) {
 
   <div class="p-6 space-y-8">
 
-    <div>
-        <a target="_blank" :href="'https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=' + planId">
-          Link zum öPlan: https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan={{ planId }}
-        </a>
+    <div class="flex items-center gap-2 bg-orange-100 border border-orange-300 rounded p-2 text-orange-800">
+      <span>🔧</span>
+      <a
+        target="_blank"
+        :href="'https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=' + planId"
+        class="underline hover:text-orange-900"
+      >
+        Link zum Ö-Plan: https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan={{ planId }}
+      </a> (kommt noch raus!)
     </div>
 
   
@@ -286,19 +291,27 @@ async function downloadPng(dataUrl: string, filename: string) {
 
         <!-- 4: QR Wifi PNG -->
         <div class="flex flex-col items-center">
-          <img
-            v-if="qrWifiUrl"
-            :src="qrWifiUrl"
-            alt="QR Wifi"
-            class="mx-auto w-28 h-28"
-          />
-          <button
-            v-if="qrWifiUrl"
-            class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-            @click="downloadPng(qrWifiUrl, 'wifi.png')"
-          >
-            PNG
-          </button>
+          <template v-if="qrWifiUrl">
+            <img
+              :src="qrWifiUrl"
+              alt="QR Wifi"
+              class="mx-auto w-28 h-28"
+            />
+            <button
+              class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+              @click="downloadPng(qrWifiUrl, 'wifi.png')"
+            >
+              PNG
+            </button>
+          </template>
+
+          <template v-else>
+            <div
+              class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
+            >
+              ?
+            </div>
+          </template>
         </div>
 
         <!-- 5: Fake PDF Preview (Plan + Wifi) -->
@@ -308,7 +321,7 @@ async function downloadPng(dataUrl: string, filename: string) {
             alt="PDF Preview Wifi+Plan"
             class="mx-auto h-28 w-auto border"
           />
-          <a :href="qr2Pdf" download="wifi-plan.pdf">
+          <a v-if="qrWifiUrl" :href="qr2Pdf" download="wifi-plan.pdf">
             <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
           </a>
         </div>
