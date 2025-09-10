@@ -1,152 +1,153 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useEventStore } from '@/stores/event'
+import QRCode from "qrcode"
+import jsPDF from "jspdf"
+import axios from 'axios'
 
-import {ref, computed} from 'vue'
-import {useEventStore} from '@/stores/event'
-import jsPDF from "jspdf";
-import QRCode from "qrcode";
-import Card from "@/components/atoms/Card.vue";
-import axios from 'axios';
+// Assets (Fake)
+import qr1Png from '@/assets/fake/qr1.png'
+import qr1Pdf from '@/assets/fake/qr1.pdf'
+import qr2Png from '@/assets/fake/qr2.png'
+import qr2Pdf from '@/assets/fake/qr2.pdf'
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 
-const detailLevel = ref(1)
-const detailLevelLabel = computed(() => ['grob', 'mittel', 'fein'][detailLevel.value])
+// Fake Link
+const publicLink = ref("https://flow.hands-on-technology.org/braunschweig")
 
-const tabs = ['Zeitpläne', 'Namensschilder', 'QR-Code WLAN', 'QR-Code Zeitplan']
-const activeTab = ref(tabs[0])
+// Slider
+const levels = ["Planung", "Stand nach Anmeldeschluss", "Überblick", "volle Details"]
+const detailLevel = ref(0)
 
-const downloadWifiQr = () => {
-  window.open(`/events/${event.value?.id}/wifi-qr`, '_blank')
+// Kopieren / Öffnen
+function openLink() {
+  window.open(publicLink.value, "_blank", "noopener")
 }
-
-async function generateWifiPDF() {
-  const qrContent = `WIFI:T:WPA;S:${event.value.wifi_ssid};P:${event.value.wifi_password};;`
-  const qrDataUrl = await QRCode.toDataURL(qrContent)
-
-  const pdf = new jsPDF()
-  pdf.setFontSize(16)
-  pdf.text('WiFi QR Code', 20, 20)
-  pdf.addImage(qrDataUrl, 'PNG', 20, 30, 100, 100)
-  pdf.text(`SSID: ${event.value.wifi_ssid}`, 20, 140)
-  pdf.text(`Password: ${event.value.wifi_password}`, 20, 150)
-
-  window.open(pdf.output('bloburl'), '_blank')
-}
-
-const downloadScheduleQr = () => {
-  window.open(`/events/${event.value?.id}/schedule-qr`, '_blank')
-}
-const printSchedule = () => {
-  window.open(`/events/${event.value?.id}/print/schedule`, '_blank')
-}
-const printNameTags = () => {
-  window.open(`/events/${event.value?.id}/print/nametags`, '_blank')
-}
-
-const updateEventField = async (field: string, value: any) => {
+async function copyLink() {
   try {
-    await axios.put(`/events/${event.value?.id}`, {
-      [field]: value
-    })
+    await navigator.clipboard.writeText(publicLink.value)
+    alert("Link kopiert!")
   } catch (e) {
-    console.error('WLAN update failed:', e)
+    console.error("Kopieren fehlgeschlagen", e)
   }
+}
+
+// --- QR Codes ---
+const qrPlanUrl = ref("")
+const qrWifiUrl = ref("")
+
+async function generateQRCodes() {
+  qrPlanUrl.value = await QRCode.toDataURL(publicLink.value)
+  if (event.value?.wifi_ssid && event.value?.wifi_password) {
+    const qrContent = `WIFI:T:WPA;S:${event.value.wifi_ssid};P:${event.value.wifi_password};;`
+    qrWifiUrl.value = await QRCode.toDataURL(qrContent)
+  }
+}
+generateQRCodes()
+
+// --- Downloads ---
+async function downloadPng(dataUrl: string, filename: string) {
+  const a = document.createElement("a")
+  a.href = dataUrl
+  a.download = filename
+  a.click()
+}
+
+async function downloadPdf(dataUrl: string, filename: string) {
+  const pdf = new jsPDF()
+  pdf.addImage(dataUrl, "PNG", 20, 20, 100, 100)
+  pdf.save(filename)
 }
 </script>
 
 <template>
-  <div class="p-6">
-    <h1 class="text-2xl font-bold mb-6">Veröffentlichungskontrolle</h1>
-    <div class="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+  <div class="p-6 space-y-8">
+    <h1 class="text-2xl font-bold">Zugriff auf den Plan</h1>
 
-      <div class="rounded-xl shadow bg-white p-4 flex flex-col justify-between col-span-2">
-        <h2 class="text-lg font-semibold mb-4">Detailgrad der öffentlichen Ansicht</h2>
-        <div>
-          <span>
-            Öffentlicher Link: {{ eventPublicLink }}
-          </span>
-        </div>
-        <div class="flex justify-between items-center space-x-2">
-          <span class="text-sm">grob</span>
-          <input type="range" min="0" max="2" step="1" v-model="detailLevel" class="flex-1 accent-blue-500">
-          <span class="text-sm">fein</span>
-        </div>
-        <div class="text-center text-sm mt-2 text-gray-500">
-          Aktuell: <strong>{{ detailLevelLabel }}</strong>
+    <!-- Online Box -->
+    <div class="rounded-xl shadow bg-white p-6 space-y-6">
+      <h2 class="text-lg font-semibold mb-2">Online</h2>
+      <p class="text-sm text-gray-600">
+        Dieser Link gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
+      </p>
+
+      <div class="flex items-center gap-2">
+        <span class="text-blue-600 underline">{{ publicLink }}</span>
+        <button @click="openLink" title="In neuem Fenster öffnen">🔗</button>
+        <button @click="copyLink" title="In Zwischenablage kopieren">📋</button>
+      </div>
+
+      <!-- Slider -->
+      <div class="mt-4">
+        <input type="range" min="0" max="3" step="1" v-model="detailLevel" class="w-full accent-blue-600" />
+        <div class="text-center text-sm mt-2">
+          Aktuell: <strong>{{ levels[detailLevel] }}</strong>
         </div>
       </div>
 
-      <div class="rounded-xl shadow bg-white p-4 flex flex-col">
-        <h2 class="text-lg font-semibold mb-4">PDFs exportieren</h2>
+      <!-- 5 Bereiche -->
+      <div class="rounded-xl shadow bg-white p-4">
+        <h2 class="text-lg font-semibold mb-4">Für die Veranstaltung</h2>
 
-        <div class="flex space-x-2 mb-4">
-          <button
-              v-for="tab in tabs"
-              :key="tab"
-              :class="['px-4 py-2 rounded', activeTab === tab ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800']"
-              @click="activeTab = tab"
-          >
-            {{ tab }}
-          </button>
-        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 text-center">
 
-        <div v-if="activeTab === 'Zeitpläne'" class="space-y-2">
-          <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded" @click="printSchedule">
-            Zeitpläne drucken
-          </button>
-        </div>
-
-        <div v-else-if="activeTab === 'Namensschilder'" class="space-y-2">
-          <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded" @click="printNameTags">
-            Namensschilder drucken
-          </button>
-        </div>
-
-        <div v-else-if="activeTab === 'QR-Code WLAN'" class="space-y-2">
-          <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded" :disabled="!event?.wifi_ssid"
-                  @click="generateWifiPDF">
-            PDF exportieren
-          </button>
-        </div>
-
-        <div v-else-if="activeTab === 'QR-Code Zeitplan'" class="space-y-2">
-          <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded" @click="downloadScheduleQr">
-            PDF exportieren
-          </button>
-        </div>
-      </div>
-
-      <!-- WiFi Credentials Card -->
-      <div class="rounded-xl shadow bg-white p-4 flex flex-col">
-        <h2 class="text-lg font-semibold mb-2">WLAN Zugangsdaten</h2>
-        <div class="grid grid-cols-2 gap-4" v-if="event">
+          <!-- 1: QR Plan PNG -->
           <div>
-            <label class="block text-sm text-gray-700 mb-1">SSID</label>
-            <input
-                v-model="event.wifi_ssid"
-                @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
-                class="w-full border px-3 py-1 rounded text-sm"
-                type="text"
-                placeholder="z. B. TH_EVENT_WLAN"
-            />
+            <img :src="qr1Png" alt="QR Plan Preview" class="mx-auto w-28 h-28" />
+            <a :href="qr1Png" download="plan.png">
+              <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PNG</button>
+            </a>
           </div>
+
+          <!-- 2: Fake PDF -->
           <div>
-            <label class="block text-sm text-gray-700 mb-1">Passwort</label>
-            <input
-                v-model="event.wifi_password"
-                @blur="updateEventField('wifi_password', event.wifi_password)"
-                class="w-full border px-3 py-1 rounded text-sm"
-                type="text"
-                placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
-            />
+            <img :src="qr1Png" alt="QR Plan PDF Preview" class="mx-auto w-28 h-28 border" />
+            <a :href="qr1Pdf" download="plan.pdf">
+              <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+            </a>
+          </div>
+
+          <!-- 3: WLAN Felder -->
+          <div>
+            <div>
+              <label class="block text-xs text-gray-700 mb-1">SSID</label>
+              <input v-model="event.wifi_ssid" class="w-full border px-2 py-1 rounded text-sm" />
+            </div>
+            <div class="mt-2">
+              <label class="block text-xs text-gray-700 mb-1">Passwort</label>
+              <input v-model="event.wifi_password" class="w-full border px-2 py-1 rounded text-sm" />
+            </div>
+          </div>
+
+          <!-- 4: QR Wifi PNG -->
+          <div>
+            <img :src="qr2Png" alt="QR Wifi Preview" class="mx-auto w-28 h-28" />
+            <a :href="qr2Png" download="wifi.png">
+              <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PNG</button>
+            </a>
+          </div>
+
+          <!-- 5: Fake PDF beide -->
+          <div>
+            <img :src="qr2Png" alt="QR Both Preview" class="mx-auto w-28 h-28 border" />
+            <a :href="qr2Pdf" download="wifi-plan.pdf">
+              <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+            </a>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Offline Box -->
+    <div class="rounded-xl shadow bg-white p-6 space-y-4">
+      <h2 class="text-lg font-semibold mb-2">Offline</h2>
+      <p class="text-sm text-gray-600">Hier kannst du vorbereitete Dokumente für den Druck exportieren.</p>
+      <div class="space-y-2">
+        <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded">Zeitpläne drucken</button>
+        <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded">Namensschilder drucken</button>
+      </div>
+    </div>
   </div>
 </template>
-
-<style scoped>
-
-</style>
