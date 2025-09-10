@@ -18,21 +18,16 @@ const event = computed(() => eventStore.selectedEvent)
 // Fake Link
 const publicLink = ref("https://flow.hands-on-technology.org/braunschweig")
 
-// Slider
-const levels = ["Planung", "Nach Anmeldeschluss", "Überblick über den Ablauf", "Alle Details"]
+// Radio Buttons Detailstufe
+const levels = ["Planung", "Nach Anmeldeschluss", "Überblick zum Ablauf", "volle Details"]
 const detailLevel = ref(0)
 
-// Kopieren / Öffnen
-function openLink() {
-  window.open(publicLink.value, "_blank", "noopener")
-}
-async function copyLink() {
-  try {
-    await navigator.clipboard.writeText(publicLink.value)
-    alert("Link kopiert!")
-  } catch (e) {
-    console.error("Kopieren fehlgeschlagen", e)
-  }
+function isCardActive(card: number, level: number) {
+  if (card <= 2) return true        // Kachel 1,2 immer aktiv
+  if (card === 3 && level >= 1) return true
+  if (card === 4 && level >= 2) return true
+  if (card === 5 && level >= 3) return true
+  return false
 }
 
 // --- QR Codes ---
@@ -70,11 +65,7 @@ async function downloadPng(dataUrl: string, filename: string) {
   a.click()
 }
 
-async function downloadPdf(dataUrl: string, filename: string) {
-  const pdf = new jsPDF()
-  pdf.addImage(dataUrl, "PNG", 20, 20, 100, 100)
-  pdf.save(filename)
-}
+
 </script>
 
 <template>
@@ -104,12 +95,7 @@ async function downloadPdf(dataUrl: string, filename: string) {
 <div class="flex items-start gap-6">
   <!-- Radiobuttons links -->
   <div class="flex flex-col space-y-3">
-    <h3 class="text-sm font-semibold mb-2">Detaillevel</h3>
-    <label
-      v-for="(label, idx) in levels"
-      :key="idx"
-      class="flex items-start gap-2 cursor-pointer"
-    >
+    <label v-for="(label, idx) in levels" :key="idx" class="flex items-start gap-2 cursor-pointer">
       <input
         type="radio"
         :value="idx"
@@ -124,56 +110,70 @@ async function downloadPdf(dataUrl: string, filename: string) {
   </div>
 
   <!-- Info-Kacheln rechts -->
-  <div class="flex-1">
-    <h3 class="text-sm font-semibold mb-2">Veröffentlichte Informationen</h3>
-    <div
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4"
-    >
-      <!-- Kachel 1 -->
-      <div class="rounded-lg border p-3 text-sm">
-        <div class="font-semibold mb-1">Datum</div>
-        <div>Mittwoch, 28.01.2026</div>
-        <div class="mt-2 font-semibold">Adresse</div>
-        <div class="whitespace-pre-line text-gray-700 text-xs">
-          ROBIGS c/o ROCARE GmbH  
-          Am Seitenkanal 8  
-          49811 Lingen (Ems)
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 flex-1">
+    <!-- Helper: Kachel-Wrapper -->
+    <template v-for="(card, idx) in 5" :key="idx">
+      <div
+        class="relative rounded-lg border p-3 text-sm"
+        :class="{
+          'opacity-100': isCardActive(idx + 1, detailLevel),
+          'opacity-50': !isCardActive(idx + 1, detailLevel),
+        }"
+      >
+        <!-- Icon oben rechts -->
+        <div class="absolute top-2 right-2">
+          <div
+            v-if="isCardActive(idx + 1, detailLevel)"
+            class="w-4 h-4 bg-green-500 text-white flex items-center justify-center rounded-sm text-xs"
+          >
+            ✓
+          </div>
+          <div
+            v-else
+            class="w-4 h-4 bg-gray-300 flex items-center justify-center rounded-sm"
+          ></div>
         </div>
-        <div class="mt-2 font-semibold">Kontakt</div>
-        <div class="text-xs">
-          Lena Helle<br />lhelle@rosen-group.com
-        </div>
-      </div>
 
-      <!-- Kachel 2 -->
-      <div class="rounded-lg border p-3 text-sm">
-        <div class="font-semibold mb-1">Teams</div>
-        <div>Explore: 5 / 12</div>
-        <div>Challenge: 12 / 16</div>
-      </div>
+        <!-- Inhalt -->
+        <template v-if="idx === 0">
+          <div class="font-semibold mb-1">Datum</div>
+          <div>Mittwoch, 28.01.2026</div>
+          <div class="mt-2 font-semibold">Adresse</div>
+          <div class="whitespace-pre-line text-gray-700 text-xs">
+            ROBIGS c/o ROCARE GmbH  
+            Am Seitenkanal 8  
+            49811 Lingen (Ems)
+          </div>
+          <div class="mt-2 font-semibold">Kontakt</div>
+          <div class="text-xs">Lena Helle<br/>lhelle@rosen-group.com</div>
+        </template>
 
-      <!-- Kachel 3 -->
-      <div class="rounded-lg border p-3 text-sm">
-        <div class="font-semibold mb-1">Explore Teams</div>
-        <div>Zwerge, Gurkentruppe</div>
-        <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
-        <div>Rocky, Ironman, Gandalf</div>
-      </div>
+        <template v-else-if="idx === 1">
+          <div class="font-semibold mb-1">Teams</div>
+          <div>Explore: 5 / 12</div>
+          <div>Challenge: 12 / 16</div>
+        </template>
 
-      <!-- Kachel 4 -->
-      <div class="rounded-lg border p-3 text-sm">
-        <div class="font-semibold mb-1">Zeitplan</div>
-        <div>Briefings ab 8:30 Uhr</div>
-        <div>Eröffnung 9:00 Uhr</div>
-        <div>Ende 17:15 Uhr</div>
-      </div>
+        <template v-else-if="idx === 2">
+          <div class="font-semibold mb-1">Explore Teams</div>
+          <div>Zwerge, Gurkentruppe</div>
+          <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
+          <div>Rocky, Ironman, Gandalf</div>
+        </template>
 
-      <!-- Kachel 5 -->
-      <div class="rounded-lg border p-3 text-sm">
-        <div class="font-semibold mb-1">Ablaufplan</div>
-        <div class="text-xs text-gray-600">mit allen Details</div>
+        <template v-else-if="idx === 3">
+          <div class="font-semibold mb-1">Zeitplan</div>
+          <div>Briefings ab 8:30 Uhr</div>
+          <div>Eröffnung 9:00 Uhr</div>
+          <div>Ende 17:15 Uhr</div>
+        </template>
+
+        <template v-else-if="idx === 4">
+          <div class="font-semibold mb-1">Ablaufplan</div>
+          <div class="text-xs text-gray-600">mit allen Details</div>
+        </template>
       </div>
-    </div>
+    </template>
   </div>
 </div>
 
