@@ -13,6 +13,7 @@ import {Slide} from "@/models/slide";
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
 
+const loading = ref(true);
 const planId = ref<number | null>(null);
 const slideshows = ref<Slideshow[]>([]);
 
@@ -37,6 +38,7 @@ async function loadSlideshows() {
   if (response && response.data) {
     slideshows.value = response.data;
   }
+  loading.value = false;
 }
 
 async function fetchPlanId() {
@@ -70,14 +72,14 @@ function deleteSlide(slideshow: Slideshow, slideId: number) {
 }
 
 async function addSlideshow() {
-
+  loading.value = true;
   const response = await axios.post(`/slideshow/${event.value?.id}`, {
     planId: planId.value
   });
 
   const slideshow = response.data.slideshow;
   slideshows.value.push(slideshow);
-
+  loading.value = false;
 }
 
 async function addSlide(slideshow: Slideshow) {
@@ -120,7 +122,7 @@ function copyUrl(url) {
       <h2 class="text-lg font-semibold mb-2">Präsentation</h2>
       <button
           class="bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
-          :disabled="!planId || !event?.id || slideshows.length >= 1"
+          :disabled="loading || !planId || !event?.id || slideshows.length >= 1"
           @click="addSlideshow">
         + Slideshow erstellen
       </button>

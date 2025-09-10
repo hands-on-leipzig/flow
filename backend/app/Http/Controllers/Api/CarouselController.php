@@ -105,6 +105,8 @@ class CarouselController extends Controller
         return response()->json(['success' => true, 'slide' => $slide]);
     }
 
+    private string $defaultSlideBackground = "{\"version\":\"6.7.1\",\"backgroundImage\":{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":0,\"top\":-3.3333,\"width\":1920,\"height\":1096,\"scaleX\":0.4167,\"scaleY\":0.4167,\"src\":\"/background.png\"}}";
+
     public function generateSlideshow(Request $request, $eventId)
     {
         // TODO Eventid prüfen
@@ -120,13 +122,16 @@ class CarouselController extends Controller
             'transition_time' => 15,
         ]);
 
-        $planId_json = ', "planId": ' . $planId;
+        $content = '{ "hours": 2'
+            . ', "background": ' . json_encode($this->defaultSlideBackground)
+            . ', "planId": ' . $planId
+            . '}';
 
         $slide = Slide::create([
             'name' => 'Öffentlicher Zeitplan',
             'slideshow' => $slideshow->id,
             'type' => 'PublicPlanSlideContent',
-            'content' => '{ "hours": 2 ' . $planId_json . '}',
+            'content' => $content,
             'order' => 0,
         ]);
 

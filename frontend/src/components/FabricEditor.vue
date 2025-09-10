@@ -52,7 +52,7 @@ onMounted(() => {
 
   if (props.slide) {
     paintSlide(props.slide);
-    addImage();
+    // addImage();
   }
 
   // Toolbar
@@ -304,9 +304,8 @@ function saveJson() {
       </button>
       <div v-if="toolbarState.type === 'text'" class="ml-4 mb-1 flex items-center gap-x-2">
         <!-- Text property toolbar -->
-        Font Size:
         <input type="number" v-model.number="toolbarState.object.fontSize" v-on:change="triggerRender"
-               class="w-16 px-1 border border-gray-300 rounded ml-2 h-10"/>
+               class="w-16 pr-1 border border-gray-300 rounded ml-2 h-10"/>
         <button v-on:click="makeBold" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-bold h-10 w-12"
                 :class="{ 'bg-gray-400': toolbarState.object.fontWeight === 'bold' }">B
         </button>
