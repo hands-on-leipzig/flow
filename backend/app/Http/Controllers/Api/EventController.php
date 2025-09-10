@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\MSeason;
 use App\Models\RegionalPartner;
+use App\Models\Slide;
 use App\Models\TableEvent;
 use App\Models\User;
 use Illuminate\Http\Request;
