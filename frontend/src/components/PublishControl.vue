@@ -40,14 +40,33 @@ watch(
   { immediate: true } // triggert sofort und auch bei späterem Setzen
 )
 
-// Assets (Fake)
-import qr1Png from '@/assets/fake/qr1.png'
+// Link und QR Code
+
+const publicLink = ref<string>("")
+const qrPlanUrl = ref<string>("")
+
+const publishData = ref<{ link: string; qrcode: string } | null>(null)
+
+async function fetchPublishData(planId: number) {
+  try {
+    const { data } = await axios.get(`/publish/link/${planId}`)
+    publishData.value = data
+  } catch (e) {
+    console.error('Fehler beim Laden von Publish-Daten:', e)
+    publishData.value = null
+  }
+}
+
+watch(planId, (id) => {
+  if (id) fetchPublishData(id)
+})
+
+
+
+// Assets (Fake) TODO
 import qr1Pdf from '@/assets/fake/qr1.pdf'
-import qr2Png from '@/assets/fake/qr2.png'
 import qr2Pdf from '@/assets/fake/qr2.pdf'
 
-// Fake Link
-const publicLink = ref("https://flow.hands-on-technology.org/braunschweig")
 
 // Radio Buttons Detailstufe
 const levels = ["Planung", "Nach Anmeldeschluss", "Überblick zum Ablauf", "volle Details"]
@@ -62,7 +81,6 @@ function isCardActive(card: number, level: number) {
 }
 
 // --- QR Codes ---
-const qrPlanUrl = ref("")
 const qrWifiUrl = ref("")
 
 async function generateQRCodes() {
@@ -127,14 +145,15 @@ const carouselLink = computed(() => {
 
       <!-- Link prominent + Erklärung dezent dahinter -->
       <div class="flex items-center gap-3">
-        <a
-          :href="publicLink"
-          target="_blank"
-          rel="noopener"
-          class="text-blue-600 underline font-medium text-base"
-        >
-          {{ publicLink }}
-        </a>
+<a
+  v-if="publishData?.link"
+  :href="publishData.link"
+  target="_blank"
+  rel="noopener"
+  class="text-blue-600 underline font-medium text-base"
+>
+  {{ publishData.link }}
+</a>
         <span class="text-sm text-gray-600">
           gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
         </span>
@@ -245,21 +264,21 @@ const carouselLink = computed(() => {
 
           <div class="flex flex-row flex-wrap gap-6 justify-start">
             <!-- 1: QR Plan PNG -->
-            <div class="flex flex-col items-center">
-              <img
-                v-if="qrPlanUrl"
-                :src="qrPlanUrl"
-                alt="QR Plan"
-                class="mx-auto w-28 h-28"
-              />
-              <button
-                v-if="qrPlanUrl"
-                class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-                @click="downloadPng(qrPlanUrl, 'plan.png')"
-              >
-                PNG
-              </button>
-            </div>
+<div class="flex flex-col items-center">
+  <img
+    v-if="publishData?.qrcode"
+    :src="publishData.qrcode"
+    alt="QR Plan"
+    class="mx-auto w-28 h-28"
+  />
+  <button
+    v-if="publishData?.qrcode"
+    class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+    @click="downloadPng(publishData.qrcode, 'plan.png')"
+  >
+    PNG
+  </button>
+</div>
 
             <!-- 2: Fake PDF Preview (Plan) -->
             <div class="flex flex-col items-center">

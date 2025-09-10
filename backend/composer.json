@@ -8,6 +8,7 @@
   "require": {
     "php": "^8.2",
     "doctrine/dbal": "^4.3",
+    "endroid/qr-code": "^5.0",
     "firebase/php-jwt": "^6.11",
     "guzzlehttp/guzzle": "^7.9",
     "laravel/framework": "^12.0",

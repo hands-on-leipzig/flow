@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\QualityController;
+use App\Http\Controllers\Api\PublishController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -73,7 +74,7 @@ Route::middleware(['keycloak'])->group(function () {
 
 
     // PlanParameter controller
-//    Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
+    // Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
 
@@ -142,6 +143,7 @@ Route::middleware(['keycloak'])->group(function () {
     // Publish controller
     Route::prefix('publish')->group(function () {
         Route::get('/link/{planId}', [PublishController::class, 'linkAndQRcode']);                    // Link und QR-Code holen, ggfs. generieren
+    });    
 
     // Quality controller
     Route::prefix('quality')->group(function () {

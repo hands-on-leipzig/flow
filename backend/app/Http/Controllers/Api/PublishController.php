@@ -18,7 +18,13 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
-use SimpleSoftwareIO\QrCode\Facades\QrCode; // Falls nicht installiert: composer require simplesoftwareio/simple-qrcode
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Color\Color;
+use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Logo\Logo;
 
 class PublishController extends Controller
 {
@@ -34,7 +40,7 @@ class PublishController extends Controller
         if (!$event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
-
+/*
         // Wenn bereits gesetzt → zurückgeben
         if (!empty($event->link) && !empty($event->qrcode)) {
             return response()->json([
@@ -42,7 +48,7 @@ class PublishController extends Controller
                 'qrcode' => $event->qrcode,
             ]);
         }
-
+*/
         // Basislink aus Region
         $region = DB::table('regional_partner')
             ->where('id', $event->regional_partner)
@@ -52,7 +58,7 @@ class PublishController extends Controller
             return response()->json(['error' => 'Region not found'], 404);
         }
 
-        $baseLink = "https://flow.hands-on-technology.org/" . $region;
+        $link =  $region;
 
         // Prüfen, ob mehrere Events für diesen Regionalpartner existieren
         $eventCount = DB::table('event')
@@ -61,28 +67,57 @@ class PublishController extends Controller
 
         if ($eventCount > 1) {
             if (!is_null($event->event_challenge)) {
-                $baseLink .= "-challenge";
+                $link .= "-challenge";
             }
             if (!is_null($event->event_explore)) {
-                $baseLink .= "-explore";
+                $link .= "-explore";
             }
         }
 
-        // QR-Code als Base64 generieren (inkl. Data-URL Prefix)
-        $qrcode = 'data:image/png;base64,' . base64_encode(
-            QrCode::format('png')->size(200)->generate($baseLink)
+        // Link "säubern"
+        $link = trim(strtolower($link));
+        $link = str_replace(array('ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß', '/', ' '), array('ae', 'oe', 'ue', 'AE', 'OE', 'UE', 'ss', '-', '-'), $link);
+
+        $link = "https://flow.hands-on-technology.org/" . $link;
+
+
+        // QR-Code mit Endroid erzeugen
+        $qrCode = new QrCode(
+            $link,
+            new Encoding('UTF-8'),
+            ErrorCorrectionLevel::High,
+            300,
+            10,
+            RoundBlockSizeMode::Margin,
+            new Color(0, 0, 0),        // schwarz
+            new Color(255, 255, 255)   // weiß
         );
+
+        $writer = new PngWriter();
+
+        // Logo optional hinzufügen
+        $logo = null;
+        $logoPath = public_path("img/hot_logo_qr.png");
+        if (file_exists($logoPath)) {
+            $logo = new Logo($logoPath, 50); // 50px breit
+        }
+
+        // QR-Code als Base64 generieren (inkl. Data-URL Prefix)
+        $result = $writer->write($qrCode);
+        $qrcode = 'data:image/png;base64,' . base64_encode($result->getString());
+
+
 
         // In DB speichern
         DB::table('event')
             ->where('id', $event->id)
             ->update([
-                'link'   => $baseLink,
+                'link'   => $link,
                 'qrcode' => $qrcode,
             ]);
 
         return response()->json([
-            'link' => $baseLink,
+            'link' => $link,
             'qrcode' => $qrcode,
         ]);
     }
