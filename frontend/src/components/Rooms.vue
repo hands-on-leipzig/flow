@@ -11,6 +11,7 @@ const roomTypes = ref([])
 const typeGroups = ref([])
 const assignments = ref({})
 const scheduleParameters = ref({})
+const extraBlocks = ref([])
 
 const dragOverRoomId = ref(null)
 const isDragging = ref(false)
@@ -33,8 +34,37 @@ const exploreJuryGroupsPM = computed(() => {
   return Number(scheduleParameters.value['e2_lanes'] || 0)
 })
 
+// Check if an extra block is enabled by room type ID
+const isExtraBlockEnabled = computed(() => {
+  return (roomTypeId) => {
+    // Check if any extra block has an insert point with this room type
+    const enabled = extraBlocks.value.some(block => {
+      return block.insert_point && 
+             block.insert_point.room_type && 
+             block.insert_point.room_type.id === roomTypeId
+    })
+    
+    console.log(`Checking extra block for room type ID ${roomTypeId}:`, {
+      enabled,
+      availableBlocks: extraBlocks.value.map(b => ({
+        name: b.name,
+        insertPoint: b.insert_point?.room_type?.id
+      })),
+      matchingBlocks: extraBlocks.value.filter(block => 
+        block.insert_point && 
+        block.insert_point.room_type && 
+        block.insert_point.room_type.id === roomTypeId
+      )
+    })
+    return enabled
+  }
+})
+
 // Filter room types based on jury group configuration
 const filteredRoomTypes = computed(() => {
+  console.log('All room types:', roomTypes.value.map(t => ({ name: t.name, group: t.group?.name })))
+  console.log('Available extra blocks:', extraBlocks.value.map(b => b.name))
+  
   return roomTypes.value.filter(type => {
     const groupName = type.group?.name?.toLowerCase() || ''
     const typeName = type.name?.toLowerCase() || ''
@@ -62,6 +92,20 @@ const filteredRoomTypes = computed(() => {
       const maxExploreGroups = Math.max(exploreJuryGroupsAM.value, exploreJuryGroupsPM.value)
       const shouldShow = juryGroupNumber <= maxExploreGroups
       console.log(`Explore room ${type.name}: group ${juryGroupNumber} <= ${maxExploreGroups} = ${shouldShow}`)
+      return shouldShow
+    }
+    
+    // For extra block room types, only show if the corresponding extra block is enabled
+    if (groupName.includes('zusatz') || groupName.includes('extra') || groupName.includes('block') || 
+        typeName.includes('zusatz') || typeName.includes('extra') || typeName.includes('block')) {
+      // If no extra blocks are loaded yet, show all extra block room types as fallback
+      if (extraBlocks.value.length === 0) {
+        console.log(`Extra block room ${type.name}: showing (no extra blocks loaded yet)`)
+        return true
+      }
+      
+      const shouldShow = isExtraBlockEnabled.value(type.id)
+      console.log(`Extra block room ${type.name} (ID: ${type.id}, group: ${groupName}): enabled = ${shouldShow}`)
       return shouldShow
     }
     
@@ -101,9 +145,19 @@ onMounted(async () => {
         }
         return acc
       }, {})
+      
+      // Fetch extra blocks for this plan (with room types for filtering)
+      const {data: extraBlocksData} = await axios.get(`/plans/${planData.id}/extra-blocks-with-room-types`)
+      extraBlocks.value = extraBlocksData
+      console.log('Fetched extra blocks:', extraBlocksData)
+      console.log('Extra blocks with insert points:', extraBlocksData.map(b => ({
+        name: b.name,
+        insert_point: b.insert_point,
+        room_type: b.insert_point?.room_type
+      })))
     }
   } catch (error) {
-    console.warn('Could not fetch schedule parameters:', error)
+    console.warn('Could not fetch schedule parameters or extra blocks:', error)
   }
 
   const result = {}

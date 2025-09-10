@@ -80,6 +80,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     // ExtraBlock controller
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
+    Route::get('/plans/{id}/extra-blocks-with-room-types', [ExtraBlockController::class, 'getBlocksForPlanWithRoomTypes']);
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::get('/insert-points', [ExtraBlockController::class, 'getInsertPoints']);
     Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
