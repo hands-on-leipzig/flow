@@ -35,6 +35,7 @@ function e_briefings($t, $group) {
 
     // FLL Explore Judges
 
+    db_insert_activity_group(ID_ATD_E_JUDGE_BRIEFING);
     if (!pp("e_briefing_after_opening_j")) {
 
         db_insert_activity(ID_ATD_E_JUDGE_BRIEFING,g_shift_minutes($t, -1 * ($d_j + pp("e_ready_opening"))), $d_j);    
