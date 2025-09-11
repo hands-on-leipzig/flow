@@ -21,8 +21,9 @@ async function deleteSlide() {
 }
 
 async function toggleActive() {
-  componentSlide.active = componentSlide.active === 1 ? 0 : 1;
-  props.slide.active = props.slide.active === 1 ? 0 : 1;
+  const active = componentSlide.active === 1 ? 0 : 1;
+  componentSlide.active = active;
+  props.slide.active = active;
   const s = {...componentSlide, content: componentSlide.content.toJSON()};
   axios.put(`slides/${props.slide.id}`, s).then(response => {
     console.log('Slide saved:', response.data);
