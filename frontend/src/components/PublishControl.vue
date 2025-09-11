@@ -65,11 +65,8 @@ async function fetchPdfSingleUrl(planId: number) {
 
 async function fetchPdfSinglePreview(planId: number) {
   try {
-    const res = await axios.get(`/publish/pdf-single-preview/${planId}`, {
-      responseType: "arraybuffer",
-    })
-    const blob = new Blob([res.data], { type: "image/png" })
-    pdfSinglePreview.value = URL.createObjectURL(blob)
+    const res = await axios.get(`/publish/pdf-single-preview/${planId}`)
+    pdfSinglePreview.value = res.data.preview // direkt den data:image/png;base64 String
   } catch (e) {
     console.error("Fehler beim Laden von PDF-Preview:", e)
     pdfSinglePreview.value = ""
