@@ -39,7 +39,7 @@ class PublishController extends Controller
         }
 
         // Wenn bereits gesetzt → zurückgeben
-        if (!empty($event->link) && !empty($event->qrcode)) {
+        if (!empty($event->link) && !empty($event->qrcode) && !empty($event->slug)) {
             return response()->json([
                 'link' => $event->link,
                 'qrcode' => 'data:image/png;base64,' . $event->qrcode,
@@ -88,6 +88,7 @@ class PublishController extends Controller
         $link = trim(strtolower($link));
         $link = str_replace(array('ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß', '/', ' '), array('ae', 'oe', 'ue', 'AE', 'OE', 'UE', 'ss', '-', '-'), $link);
 
+        $slug = $link;
         $link = "https://flow.hands-on-technology.org/" . $link;
 
 
@@ -120,6 +121,7 @@ class PublishController extends Controller
         DB::table('event')
             ->where('id', $event->id)
             ->update([
+                'slug'   => $slug,
                 'link'   => $link,
                 'qrcode' => $qrcodeRaw,
             ]);
@@ -148,7 +150,7 @@ class PublishController extends Controller
 
         // HTML fürs PDF
         $html = $this->buildEventHtml($event, $wifi);
-        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
+        $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
         $pdfData = $pdf->output(); // Binary PDF
 
         // PDF -> PNG konvertieren
@@ -234,6 +236,12 @@ private function buildEventHtml($event, bool $wifi = false): string
                 . $qr_plan .
             '</div>';
     }
+
+
+    // Hier den Code für die Logos einfügen
+
+
+
 
     $html .= '</div>'; // Wrapper schließen
 
