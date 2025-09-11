@@ -144,41 +144,22 @@ public function PDFsingle(int $planId)
         return response()->json(['error' => 'Event not found'], 404);
     }
 
-    $html = $this->buildEventHtml($event);
-
-    $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
-    return $pdf->stream('FLOW_QR_Code_Plan.pdf');
-}
-
-public function PDFsinglePreview(int $planId)
-{
-    $event = DB::table('event')
-        ->join('plan', 'plan.event', '=', 'event.id')
-        ->where('plan.id', $planId)
-        ->select('event.*')
-        ->first();
-
-    if (!$event) {
-        return response()->json(['error' => 'Event not found'], 404);
-    }
-
-    // PDF wie bei PDFsingle erzeugen
+    // HTML fürs PDF
     $html = $this->buildEventHtml($event);
     $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
-    $pdfData = $pdf->output();
+    $pdfData = $pdf->output(); // Binary PDF
 
-    // PDF -> PNG mit Imagick
+    // PDF -> PNG konvertieren
     $imagick = new \Imagick();
-    $imagick->setResolution(100, 100); // Vorschau-Auflösung
+    $imagick->setResolution(100, 100);
     $imagick->readImageBlob($pdfData);
+    $imagick->setIteratorIndex(0); // erste Seite
     $imagick->setImageFormat('png');
-
-    // Nur erste Seite als Preview
-    $imagick->setIteratorIndex(0);
     $pngData = $imagick->getImageBlob();
 
     return response()->json([
-        'preview' => 'data:image/png;base64,' . base64_encode($pngData)
+        'pdf' => 'data:application/pdf;base64,' . base64_encode($pdfData),
+        'preview' => 'data:image/png;base64,' . base64_encode($pngData),
     ]);
 }
 
@@ -196,7 +177,7 @@ private function buildEventHtml($event): string
     }
 
     $html = '
-        <div style="width: 100%; height: 100%; border: 30px solid #000; box-sizing: border-box; 
+        <div style="width: 100%; height: 100%; border: 3px solid #000; box-sizing: border-box; 
                     display: flex; flex-direction: column; justify-content: center; align-items: center;
                     font-family: sans-serif; text-align: center; padding: 40px;">
             

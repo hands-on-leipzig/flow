@@ -38,37 +38,26 @@ watch(
   { immediate: true }
 )
 
-// PDF-Links
-const pdfSingleUrl = ref<string>("")
-const pdfSinglePreview = ref<string>("")
+// PDF
 
 watch(planId, (id) => {
   if (id) {
     fetchPublishData(id)
-    fetchPdfSingleUrl(id)
-    fetchPdfSinglePreview(id)
+    fetchPdfSingle(id)
   }
 })
 
-async function fetchPdfSingleUrl(planId: number) {
+const pdfSinglePDF = ref<string>("")
+const pdfSinglePreview = ref<string>("")
+
+async function fetchPdfSingle(planId: number) {
   try {
-    const res = await axios.get(`/publish/pdf-single/${planId}`, {
-      responseType: "blob",
-    })
-    const url = URL.createObjectURL(res.data)
-    pdfSingleUrl.value = url
+    const { data } = await axios.get(`/publish/pdf-single/${planId}`)
+    pdfSinglePDF.value = data.pdf         // enthält "data:application/pdf;base64,..."
+    pdfSinglePreview.value = data.preview // enthält "data:image/png;base64,..."
   } catch (e) {
     console.error("Fehler beim Laden von PDF-Single:", e)
-    pdfSingleUrl.value = ""
-  }
-}
-
-async function fetchPdfSinglePreview(planId: number) {
-  try {
-    const res = await axios.get(`/publish/pdf-single-preview/${planId}`)
-    pdfSinglePreview.value = res.data.preview // direkt den data:image/png;base64 String
-  } catch (e) {
-    console.error("Fehler beim Laden von PDF-Preview:", e)
+    pdfSinglePDF.value = ""
     pdfSinglePreview.value = ""
   }
 }
@@ -297,7 +286,7 @@ const carouselLink = computed(() => {
       class="h-full w-full object-contain"
     />
   </div>
-  <a v-if="pdfSingleUrl" :href="pdfSingleUrl" download="FLOW_QR_Code_Plan.pdf">
+  <a v-if="pdfSinglePDF" :href="pdfSinglePDF" download="FLOW_QR_Code_Plan.pdf">
     <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
   </a>
 </div>
