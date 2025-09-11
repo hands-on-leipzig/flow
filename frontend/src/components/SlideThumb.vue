@@ -25,49 +25,20 @@ const componentSlide = Slide.fromObject(props.slide)
 </script>
 
 <template>
-  <div class="slide-thumb">
-    <span class="button-row">
+  <div class="flex flex-col relative bg-blue-400 w-56 h-52 m-2 cursor-grab rounded-xl shadow">
+    <span class="flex justify-end gap-1 pt-2 pr-2">
       <router-link :to="'/editSlide/' + slide.id">
         <svg-icon type="mdi" :path="mdiPencil" @click="emit('editSlide')"/>
       </router-link>
       <svg-icon type="mdi" :path="mdiTrashCanOutline" @click="deleteSlide"></svg-icon>
     </span>
-    <div class="thumb">
+    <div class="w-56 h-32 mx-auto bg-blue-300 m-2 flex items-center justify-center overflow-hidden">
       <SlideContentRenderer :slide="componentSlide" :preview="true"></SlideContentRenderer>
     </div>
-    <span class="p-2">{{ slide.name }}</span>
+    <span class="p-2 text-center font-medium truncate">{{ slide.name }}</span>
   </div>
 </template>
 
 <style scoped>
-.slide-thumb {
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  background-color: cornflowerblue;
-  width: 15rem;
-  height: 13rem;
-  margin: .5rem;
-  cursor: grab;
-}
 
-.thumb {
-  width: 16rem;
-  height: 8rem;
-  background-color: lightblue;
-}
-
-.slide-thumb > * {
-  width: 100%;
-}
-
-.button-row {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.button-row > * {
-  margin: .2rem;
-  cursor: pointer;
-}
 </style>

@@ -28,6 +28,8 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 
 // Public Carousel route
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getSlideshowsForEvent']);
+Route::get('/plans/action-now/{planId}', [PlanController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
+Route::get('/plans/action-next/{planId}', [PlanController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
@@ -64,8 +66,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/preview/{planId}/teams', [PlanController::class, 'previewTeams']);
         Route::get('/preview/{planId}/rooms', [PlanController::class, 'previewRooms']);
         Route::get('/activities/{planId}', [PlanController::class, 'activities']);
-        Route::get('/action-now/{planId}', [PlanController::class, 'actionNow']);           // optional: ?point_in_time=YYYY-MM-DD HH:mm
-        Route::get('/action-next/{planId}', [PlanController::class, 'actionNext']);          // optional: ?interval=15&point_in_time=...
         Route::get('/action/next/{planId}/{interval?}', [PlanController::class, 'actionNext']);
         Route::post('/{planId}/generate', [PlanController::class, 'generate']);
         Route::get('/{planId}/status', [PlanController::class, 'status']);
@@ -146,7 +146,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/link/{planId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
         Route::get('/pdf-single/{planId}', [PublishController::class, 'PDFsingle']);    // PDF mit einem QR Code zum Plan
         Route::get('/pdf-single-preview/{planId}', [PublishController::class, 'PDFsinglePreview']);    // Preview dazu
-    });    
+    });
 
     // Quality controller
     Route::prefix('quality')->group(function () {

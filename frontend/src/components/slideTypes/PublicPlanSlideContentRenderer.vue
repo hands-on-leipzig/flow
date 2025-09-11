@@ -118,83 +118,87 @@ onMounted(() => {
 <template>
   <!-- <iframe :srcDoc="data" /> -->
   <!-- <object :data="planUrl"/> -->
-  <FabricSlideContentRenderer v-if="props.content.background" class="background" :content="props.content"
-                              :preview="props.preview"></FabricSlideContentRenderer>
+  <div class="relative w-full h-full overflow-hidden">
 
-  <div :class="{ 'preview': props.preview } " class="z-10">
-    <div v-if="result" class="result">
-      <!-- Eine Spalte pro Activity-Group -->
-      <div class="flex flex-row items-center justify-center"
-           :class="{ 'min-h-screen': !props.preview, 'min-h-100': props.preview }">
-        <div
-            v-for="g in (result.groups || [])"
-            :key="g.activity_group_id"
-            class="border rounded-lg bg-white mx-4 shadow-sm overflow-hidden"
-        >
-          <!-- Group-Header -->
-          <div class="px-3 py-2 bg-gray-50 border-b">
-            <div class="flex items-start gap-2">
-              <!-- Program Icon -->
-              <img
-                  v-if="g.group_meta?.first_program_id === 2"
-                  src="@/assets/FLL_Explore.png"
-                  alt="Explore"
-                  class="w-10 h-10 flex-shrink-0"
-              />
-              <img
-                  v-else-if="g.group_meta?.first_program_id === 3"
-                  src="@/assets/FLL_Challenge.png"
-                  alt="Challenge"
-                  class="w-10 h-10 flex-shrink-0"
-              />
+    <FabricSlideContentRenderer v-if="props.content.background"
+                                class="absolute inset-0 z-0"
+                                :content="props.content" :preview="props.preview"></FabricSlideContentRenderer>
 
-              <!-- Textbereich -->
-              <div class="flex-1">
-                <div class="text-sm font-semibold">
-                  {{ g.group_meta?.name || ('Group #' + g.activity_group_id) }}
-                </div>
-                <div v-if="g.group_meta?.description" class="text-xs text-break text-gray-500 mt-0.5 max-w-64">
-                  {{ g.group_meta.description }}
+    <div class="z-10 relative" :class="{ 'preview': props.preview }">
+      <div v-if="result" class="result">
+        <!-- Eine Spalte pro Activity-Group -->
+        <div class="flex flex-row items-center justify-center"
+             :class="{ 'min-h-screen': !props.preview, 'min-h-100': props.preview }">
+          <div
+              v-for="g in (result.groups || [])"
+              :key="g.activity_group_id"
+              class="border rounded-lg bg-white mx-4 shadow-sm overflow-hidden"
+          >
+            <!-- Group-Header -->
+            <div class="px-3 py-2 bg-gray-50 border-b">
+              <div class="flex items-start gap-2">
+                <!-- Program Icon -->
+                <img
+                    v-if="g.group_meta?.first_program_id === 2"
+                    src="@/assets/FLL_Explore.png"
+                    alt="Explore"
+                    class="w-10 h-10 flex-shrink-0"
+                />
+                <img
+                    v-else-if="g.group_meta?.first_program_id === 3"
+                    src="@/assets/FLL_Challenge.png"
+                    alt="Challenge"
+                    class="w-10 h-10 flex-shrink-0"
+                />
+
+                <!-- Textbereich -->
+                <div class="flex-1">
+                  <div class="text-sm font-semibold">
+                    {{ g.group_meta?.name || ('Group #' + g.activity_group_id) }}
+                  </div>
+                  <div v-if="g.group_meta?.description" class="text-xs text-break text-gray-500 mt-0.5 max-w-64">
+                    {{ g.group_meta.description }}
+                  </div>
                 </div>
               </div>
             </div>
+            <!-- Activities der Gruppe -->
+            <ul class="divide-y">
+              <li
+                  v-for="a in (g.activities || [])"
+                  :key="a.activity_id"
+                  class="px-3 py-2"
+              >
+                <!-- Zeile 1: Activity-Name (kleiner) -->
+                <div class="text-sm text-gray-700 font-medium">
+                  {{ a.meta?.name || a.activity_name || ('Activity #' + a.activity_id) }}
+                </div>
+
+                <!-- Zeile 2: Zeit fett links, rechts Ort/Tische nicht fett -->
+                <div class="mt-0.5 flex items-baseline justify-between gap-3">
+                  <div class="text-base font-semibold whitespace-nowrap">
+                    {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
+                  </div>
+                  <div class="text-base text-gray-700">
+                    {{ splitWith(a).right }}
+                  </div>
+                </div>
+
+                <!-- Zeile 3: Teams (Lane: ein Team; Tables: Team A : Team B). Sonst leer -->
+                <div v-if="splitWith(a).bottom" class="mt-0.5 text-base text-gray-800">
+                  {{ splitWith(a).bottom }}
+                </div>
+              </li>
+
+              <li v-if="!g.activities || g.activities.length === 0" class="px-3 py-3 text-xs text-gray-500">
+                Keine Aktivitäten in dieser Gruppe.
+              </li>
+            </ul>
+
           </div>
-          <!-- Activities der Gruppe -->
-          <ul class="divide-y">
-            <li
-                v-for="a in (g.activities || [])"
-                :key="a.activity_id"
-                class="px-3 py-2"
-            >
-              <!-- Zeile 1: Activity-Name (kleiner) -->
-              <div class="text-sm text-gray-700 font-medium">
-                {{ a.meta?.name || a.activity_name || ('Activity #' + a.activity_id) }}
-              </div>
-
-              <!-- Zeile 2: Zeit fett links, rechts Ort/Tische nicht fett -->
-              <div class="mt-0.5 flex items-baseline justify-between gap-3">
-                <div class="text-base font-semibold whitespace-nowrap">
-                  {{ formatTimeOnly(a.start_time) }}–{{ formatTimeOnly(a.end_time) }}
-                </div>
-                <div class="text-base text-gray-700">
-                  {{ splitWith(a).right }}
-                </div>
-              </div>
-
-              <!-- Zeile 3: Teams (Lane: ein Team; Tables: Team A : Team B). Sonst leer -->
-              <div v-if="splitWith(a).bottom" class="mt-0.5 text-base text-gray-800">
-                {{ splitWith(a).bottom }}
-              </div>
-            </li>
-
-            <li v-if="!g.activities || g.activities.length === 0" class="px-3 py-3 text-xs text-gray-500">
-              Keine Aktivitäten in dieser Gruppe.
-            </li>
-          </ul>
-
-        </div>
-        <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
-          Keine passenden Aktivitäten.
+          <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
+            Keine passenden Aktivitäten.
+          </div>
         </div>
       </div>
     </div>
