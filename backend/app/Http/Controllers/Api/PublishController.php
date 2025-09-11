@@ -40,7 +40,7 @@ class PublishController extends Controller
         if (!$event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
-/*
+
         // Wenn bereits gesetzt → zurückgeben
         if (!empty($event->link) && !empty($event->qrcode)) {
             return response()->json([
@@ -48,8 +48,7 @@ class PublishController extends Controller
                 'qrcode' => $event->qrcode,
             ]);
         }
-*/
-        // Basislink aus Region
+    
         $region = DB::table('regional_partner')
             ->where('id', $event->regional_partner)
             ->value('region');
@@ -58,20 +57,34 @@ class PublishController extends Controller
             return response()->json(['error' => 'Region not found'], 404);
         }
 
-        $link =  $region;
+        switch ($event->level) {
 
-        // Prüfen, ob mehrere Events für diesen Regionalpartner existieren
-        $eventCount = DB::table('event')
-            ->where('regional_partner', $event->regional_partner)
-            ->count();
+            case 1:
 
-        if ($eventCount > 1) {
-            if (!is_null($event->event_challenge)) {
-                $link .= "-challenge";
-            }
-            if (!is_null($event->event_explore)) {
-                $link .= "-explore";
-            }
+                $link =  $region;
+
+                // Prüfen, ob mehrere Regio für diesen Regionalpartner existieren
+                $eventCount = DB::table('event')
+                    ->where('regional_partner', $event->regional_partner)
+                    ->where('level', 1)
+                    ->count();
+
+                if ($eventCount > 1) {
+                    if (!is_null($event->event_challenge)) {
+                        $link .= "-challenge";
+                    }
+                    if (!is_null($event->event_explore)) {
+                        $link .= "-explore";
+                    }
+                }
+                break;
+
+            case 2:    
+                $link = "quali-". $region;
+                break;
+
+            case 3:
+              $link = "finale"; // Region bewusst weggelassen
         }
 
         // Link "säubern"
