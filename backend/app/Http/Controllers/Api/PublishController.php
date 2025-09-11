@@ -129,49 +129,83 @@ class PublishController extends Controller
 
 
 
-    public function PDFsingle(int $planId)
-    {
-        // Plan → Event
-        $event = DB::table('event')
-            ->join('plan', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $planId)
-            ->select('event.*')
-            ->first();
+  public function PDFsingle(int $planId)
+{
+    $event = DB::table('event')
+        ->join('plan', 'plan.event', '=', 'event.id')
+        ->where('plan.id', $planId)
+        ->select('event.*')
+        ->first();
 
-        if (!$event) {
-            return response()->json(['error' => 'Event not found'], 404);
-        }
+    if (!$event) {
+        return response()->json(['error' => 'Event not found'], 404);
+    }
 
-        // PDF-Inhalt vorbereiten
-        $html = '
-            <div style="text-align: center; font-family: sans-serif; width: 100%;">
-                <h1 style="margin-bottom: 40px;">'
-                    . e($event->name) . ' ' . e($event->date) .
-                '</h1>';
+    $html = $this->buildEventHtml($event);
 
-        // QR-Code
-        if (!empty($event->qrcode)) {
-            $html .= '<div style="margin-bottom: 30px;">
-                <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
-            </div>';
-        }
+    $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
+    return $pdf->stream('FLOW_QR_Code_Plan.pdf');
+}
 
-        // Link
-        if (!empty($event->link)) {
-            $html .= '<div style="font-size: 16px; color: #333;">'
-                . e($event->link) .
-            '</div>';
-        }
+public function PDFsinglePreview(int $planId)
+{
+    $event = DB::table('event')
+        ->join('plan', 'plan.event', '=', 'event.id')
+        ->where('plan.id', $planId)
+        ->select('event.*')
+        ->first();
 
-        $html .= '</div>';
+    if (!$event) {
+        return response()->json(['error' => 'Event not found'], 404);
+    }
 
-        // PDF erzeugen
-        $pdf = Pdf::loadHTML($html)
-            ->setPaper('a4', 'landscape');
+    // statt PDF: direkt PNG aus demselben HTML-Content bauen
+    $html = $this->buildEventHtml($event);
 
-        // Direkt ausliefern
-        return $pdf->download('FLOW_QR_Code_Plan.pdf');
-    }    
+    // wir erzeugen ein QR-Code PNG direkt (klein)
+    $writer = new PngWriter();
+    $qrCode = new QrCode(
+        $event->link ?? '',
+        new Encoding('UTF-8'),
+        ErrorCorrectionLevel::High,
+        200,
+        10,
+        RoundBlockSizeMode::Margin,
+        new Color(0, 0, 0),
+        new Color(255, 255, 255)
+    );
+
+    $result = $writer->write($qrCode);
+
+    return response()->json([
+        'preview' => 'data:image/png;base64,' . base64_encode($result->getString())
+    ]);
+}
+
+private function buildEventHtml($event): string
+{
+    $html = '
+        <div style="text-align: center; font-family: sans-serif; width: 100%;">
+            <h1 style="margin-bottom: 40px;">'
+                . e($event->name) . ' ' . e($event->date) .
+            '</h1>';
+
+    if (!empty($event->qrcode)) {
+        $html .= '<div style="margin-bottom: 30px;">
+            <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
+        </div>';
+    }
+
+    if (!empty($event->link)) {
+        $html .= '<div style="font-size: 16px; color: #333;">'
+            . e($event->link) .
+        '</div>';
+    }
+
+    $html .= '</div>';
+
+    return $html;
+}
 
 
 

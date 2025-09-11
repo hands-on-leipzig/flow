@@ -19,6 +19,7 @@
     "fabric": "^6.7.1",
     "jspdf": "^3.0.1",
     "keycloak-js": "^26.2.0",
+    "pdfjs-dist": "^5.4.149",
     "pinia": "^3.0.3",
     "qrcode": "^1.5.4",
     "router": "^2.2.0",

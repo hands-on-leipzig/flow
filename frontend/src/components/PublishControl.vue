@@ -6,8 +6,6 @@ import QRCode from "qrcode"
 import jsPDF from "jspdf"
 import axios from 'axios'
 
-
-
 // Store + Selected Event
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -37,14 +35,48 @@ watch(
   (id) => {
     if (id) fetchPlanIdByEventId(id)
   },
-  { immediate: true } // triggert sofort und auch bei späterem Setzen
+  { immediate: true }
 )
 
-// Link und QR Code
+// PDF-Links
+const pdfSingleUrl = ref<string>("")
+const pdfSinglePreview = ref<string>("")
 
-const publicLink = ref<string>("")
-const qrPlanUrl = ref<string>("")
+watch(planId, (id) => {
+  if (id) {
+    fetchPublishData(id)
+    fetchPdfSingleUrl(id)
+    fetchPdfSinglePreview(id)
+  }
+})
 
+async function fetchPdfSingleUrl(planId: number) {
+  try {
+    const res = await axios.get(`/publish/pdf-single/${planId}`, {
+      responseType: "blob",
+    })
+    const url = URL.createObjectURL(res.data)
+    pdfSingleUrl.value = url
+  } catch (e) {
+    console.error("Fehler beim Laden von PDF-Single:", e)
+    pdfSingleUrl.value = ""
+  }
+}
+
+async function fetchPdfSinglePreview(planId: number) {
+  try {
+    const res = await axios.get(`/publish/pdf-single-preview/${planId}`, {
+      responseType: "arraybuffer",
+    })
+    const blob = new Blob([res.data], { type: "image/png" })
+    pdfSinglePreview.value = URL.createObjectURL(blob)
+  } catch (e) {
+    console.error("Fehler beim Laden von PDF-Preview:", e)
+    pdfSinglePreview.value = ""
+  }
+}
+
+// Link + QR Code
 const publishData = ref<{ link: string; qrcode: string } | null>(null)
 
 async function fetchPublishData(planId: number) {
@@ -57,23 +89,12 @@ async function fetchPublishData(planId: number) {
   }
 }
 
-watch(planId, (id) => {
-  if (id) fetchPublishData(id)
-})
-
-
-
-// Assets (Fake) TODO
-import qr1Pdf from '@/assets/fake/qr1.pdf'
-import qr2Pdf from '@/assets/fake/qr2.pdf'
-
-
 // Radio Buttons Detailstufe
 const levels = ["Planung", "Nach Anmeldeschluss", "Überblick zum Ablauf", "volle Details"]
 const detailLevel = ref(0)
 
 function isCardActive(card: number, level: number) {
-  if (card <= 2) return true        // Kachel 1,2 immer aktiv
+  if (card <= 2) return true
   if (card === 3 && level >= 1) return true
   if (card === 4 && level >= 2) return true
   if (card === 5 && level >= 3) return true
@@ -82,16 +103,6 @@ function isCardActive(card: number, level: number) {
 
 // --- QR Codes ---
 const qrWifiUrl = ref("")
-
-async function generateQRCodes() {
-  qrPlanUrl.value = await QRCode.toDataURL(publicLink.value)
-  if (event.value?.wifi_ssid && event.value?.wifi_password) {
-    const qrContent = `WIFI:T:WPA;S:${event.value.wifi_ssid};P:${event.value.wifi_password};;`
-    qrWifiUrl.value = await QRCode.toDataURL(qrContent)
-  }
-}
-generateQRCodes()
-
 
 watch(
   () => [event.value?.wifi_ssid, event.value?.wifi_password],
@@ -114,11 +125,9 @@ async function downloadPng(dataUrl: string, filename: string) {
   a.click()
 }
 
-
 const carouselLink = computed(() => {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
-});
-
+})
 </script>
 
 <template>
@@ -263,6 +272,7 @@ const carouselLink = computed(() => {
           <h3 class="text-lg font-semibold mb-4">QR Codes zum Online-Plan zum Aushängen vor Ort</h3>
 
           <div class="flex flex-row flex-wrap gap-6 justify-start">
+
             <!-- 1: QR Plan PNG -->
             <div class="flex flex-col items-center">
               <img
@@ -281,17 +291,17 @@ const carouselLink = computed(() => {
             </div>
 
             <!-- 2: PDF Preview (Plan) -->
-<div class="flex flex-col items-center">
-  <embed
-    v-if="pdfSingleUrl"
-    :src="pdfSingleUrl"
-    type="application/pdf"
-    class="mx-auto h-28 w-auto border"
-  />
-  <a v-if="pdfSingleUrl" :href="pdfSingleUrl" download="FLOW_QR_Code_Plan.pdf">
-    <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-  </a>
-</div>
+            <div class="flex flex-col items-center">
+              <img
+                v-if="pdfSinglePreview"
+                :src="pdfSinglePreview"
+                alt="PDF Preview"
+                class="mx-auto h-28 w-auto border"
+              />
+              <a v-if="pdfSingleUrl" :href="pdfSingleUrl" download="FLOW_QR_Code_Plan.pdf">
+                <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+              </a>
+            </div>
 
             <!-- 3: WLAN Felder -->
             <div class="rounded-xl shadow bg-white p-4 flex flex-col justify-center">
@@ -347,16 +357,18 @@ const carouselLink = computed(() => {
             </div>
 
             <!-- 5: Fake PDF Preview (Plan + Wifi) -->
-            <div class="flex flex-col items-center">
-              <img
-                src="@/assets/fake/qr2.png"
-                alt="PDF Preview Wifi+Plan"
-                class="mx-auto h-28 w-auto border"
-              />
-              <a v-if="qrWifiUrl" :href="qr2Pdf" download="wifi-plan.pdf">
-                <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-              </a>
-            </div>
+<!-- 2: PDF Preview (Plan) -->
+<div class="flex flex-col items-center">
+  <embed
+    v-if="pdfSingleUrl"
+    :src="pdfSingleUrl"
+    type="application/pdf"
+    class="mx-auto h-28 w-auto border"
+  />
+  <a v-if="pdfSingleUrl" :href="pdfSingleUrl" download="FLOW_QR_Code_Plan.pdf">
+    <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+  </a>
+</div>
           </div>
         </div>
 
