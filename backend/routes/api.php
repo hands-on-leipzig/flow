@@ -144,8 +144,7 @@ Route::middleware(['keycloak'])->group(function () {
     // Publish controller
     Route::prefix('publish')->group(function () {
         Route::get('/link/{planId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
-        Route::get('/pdf-single/{planId}', [PublishController::class, 'PDFsingle']);    // PDF mit einem QR Code zum Plan
-        Route::get('/pdf-single-preview/{planId}', [PublishController::class, 'PDFsinglePreview']);    // Preview dazu
+        Route::get('/pdf/{planId}', [PublishController::class, 'PDFandPreview']);    // PDF mit Vorschau holen
     });    
 
     // Quality controller

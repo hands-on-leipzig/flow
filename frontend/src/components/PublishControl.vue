@@ -38,38 +38,43 @@ watch(
   { immediate: true }
 )
 
-// PDF-Links
-const pdfSingleUrl = ref<string>("")
-const pdfSinglePreview = ref<string>("")
+// PDF und Preview
 
 watch(planId, (id) => {
   if (id) {
     fetchPublishData(id)
-    fetchPdfSingleUrl(id)
-    fetchPdfSinglePreview(id)
+    fetchPdfAndPreview(id, false) // Single
+    fetchPdfAndPreview(id, true)  // Double (mit WLAN)
   }
 })
 
-async function fetchPdfSingleUrl(planId: number) {
-  try {
-    const res = await axios.get(`/publish/pdf-single/${planId}`, {
-      responseType: "blob",
-    })
-    const url = URL.createObjectURL(res.data)
-    pdfSingleUrl.value = url
-  } catch (e) {
-    console.error("Fehler beim Laden von PDF-Single:", e)
-    pdfSingleUrl.value = ""
-  }
-}
+const pdfSinglePDF = ref<string>("")
+const pdfSinglePreview = ref<string>("")
+const pdfDoublePDF = ref<string>("")
+const pdfDoublePreview = ref<string>("")
 
-async function fetchPdfSinglePreview(planId: number) {
+async function fetchPdfAndPreview(planId: number, wifi: boolean) {
   try {
-    const res = await axios.get(`/publish/pdf-single-preview/${planId}`)
-    pdfSinglePreview.value = res.data.preview // direkt den data:image/png;base64 String
+    const { data } = await axios.get(`/publish/pdf/${planId}`, {
+      params: { wifi }   // übergibt ?wifi=true/false
+    })
+
+    if (wifi) {
+      pdfDoublePDF.value = data.pdf
+      pdfDoublePreview.value = data.preview
+    } else {
+      pdfSinglePDF.value = data.pdf
+      pdfSinglePreview.value = data.preview
+    }
   } catch (e) {
-    console.error("Fehler beim Laden von PDF-Preview:", e)
-    pdfSinglePreview.value = ""
+    console.error("Fehler beim Laden von PDF & Preview:", e)
+    if (wifi) {
+      pdfDoublePDF.value = ""
+      pdfDoublePreview.value = ""
+    } else {
+      pdfSinglePDF.value = ""
+      pdfSinglePreview.value = ""
+    }
   }
 }
 
@@ -113,6 +118,44 @@ watch(
   },
   { immediate: true }
 )
+
+// --- Update einzelnes Event-Feld ---
+async function updateEventField(field: string, value: string) {
+  if (!event.value?.id) return
+
+  try {
+    await axios.put(`/events/${event.value.id}`, {
+      [field]: value,
+    })
+    console.log(`Feld ${field} erfolgreich aktualisiert`)
+
+    // PDF und Preview neu laden
+    await fetchPdfAndPreview(planId.value, true)
+    
+  } catch (e) {
+    console.error(`Fehler beim Aktualisieren von ${field}:`, e)
+  }
+}
+
+// Vor Doqwnload WLAN-Daten speichern, PDF neu generieren, Download anstoßen
+async function downloadDoublePdf() {
+  if (!event.value?.id || !planId.value) return
+
+  // 1. Sicherstellen, dass aktuelle Daten gespeichert sind
+  await updateEventField('wifi_ssid', event.value.wifi_ssid)
+  await updateEventField('wifi_password', event.value.wifi_password)
+
+  // 2. Neu generieren (Backend mit ?wifi=true)
+  await fetchPdfAndPreview(planId.value, true)
+
+  // 3. Download anstoßen
+  if (pdfDoublePDF.value) {
+    const a = document.createElement("a")
+    a.href = pdfDoublePDF.value
+    a.download = "FLOW_QR_Code_Plan+Wifi.pdf"
+    a.click()
+  }
+}
 
 // --- Downloads ---
 async function downloadPng(dataUrl: string, filename: string) {
@@ -289,13 +332,15 @@ const carouselLink = computed(() => {
 
             <!-- 2: PDF Preview (Plan) -->
             <div class="flex flex-col items-center">
-              <img
-                v-if="pdfSinglePreview"
-                :src="pdfSinglePreview"
-                alt="PDF Preview"
-                class="mx-auto h-28 w-auto border"
-              />
-              <a v-if="pdfSingleUrl" :href="pdfSingleUrl" download="FLOW_QR_Code_Plan.pdf">
+              <div class="relative h-28 w-auto aspect-[1.414/1] border">
+                <img
+                  v-if="pdfSinglePreview"
+                  :src="pdfSinglePreview"
+                  alt="PDF Preview"
+                  class="h-full w-full object-contain"
+                />
+              </div>
+              <a v-if="pdfSinglePDF" :href="pdfSinglePDF" download="FLOW_QR_Code_Plan.pdf">
                 <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
               </a>
             </div>
@@ -353,20 +398,35 @@ const carouselLink = computed(() => {
               </template>
             </div>
 
-            <!-- 5: Fake PDF Preview (Plan + Wifi) -->
-<!-- 2: PDF Preview (Plan) -->
+<!-- 5: PDF Preview (Plan + WiFi) -->
 <div class="flex flex-col items-center">
-  <embed
-    v-if="pdfSingleUrl"
-    :src="pdfSingleUrl"
-    type="application/pdf"
-    class="mx-auto h-28 w-auto border"
-  />
-  <a v-if="pdfSingleUrl" :href="pdfSingleUrl" download="FLOW_QR_Code_Plan.pdf">
-    <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-  </a>
+  <template v-if="qrWifiUrl">
+    <div class="relative h-28 w-auto aspect-[1.414/1] border">
+      <img
+        :src="pdfDoublePreview"
+        alt="PDF Preview"
+        class="h-full w-full object-contain"
+      />
+    </div>
+    <button
+      class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+      @click="downloadDoublePdf"
+    >
+      PDF
+    </button>
+  </template>
+  <template v-else>
+    <div
+      class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
+    >
+      ?
+    </div>
+  </template>
 </div>
+
+
           </div>
+
         </div>
 
         <!-- Rechte Box: Karussell -->

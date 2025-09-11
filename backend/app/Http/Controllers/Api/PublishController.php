@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 use Carbon\Carbon;
@@ -17,8 +18,7 @@ use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Logo\Logo;
 
-
-
+use Illuminate\Support\Facades\Crypt;
 
 use Barryvdh\DomPDF\Facade\Pdf;        // composer require barryvdh/laravel-dompdf
 
@@ -132,58 +132,41 @@ class PublishController extends Controller
     }
 
 
-public function PDFsingle(int $planId)
-{
-    $event = DB::table('event')
-        ->join('plan', 'plan.event', '=', 'event.id')
-        ->where('plan.id', $planId)
-        ->select('event.*')
-        ->first();
+    public function PDFandPreview(int $planId, Request $request) : JsonResponse
+    {
+        $wifi = filter_var($request->query('wifi', false), FILTER_VALIDATE_BOOLEAN);
 
-    if (!$event) {
-        return response()->json(['error' => 'Event not found'], 404);
+        $event = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->select('event.*')
+            ->first();
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        // HTML fürs PDF
+        $html = $this->buildEventHtml($event, $wifi);
+        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
+        $pdfData = $pdf->output(); // Binary PDF
+
+        // PDF -> PNG konvertieren
+        $imagick = new \Imagick();
+        $imagick->setResolution(100, 100);
+        $imagick->readImageBlob($pdfData);
+        $imagick->setIteratorIndex(0); // erste Seite
+        $imagick->setImageFormat('png');
+        $pngData = $imagick->getImageBlob();
+
+        return response()->json([
+            'pdf' => 'data:application/pdf;base64,' . base64_encode($pdfData),
+            'preview' => 'data:image/png;base64,' . base64_encode($pngData),
+        ]);
     }
 
-    $html = $this->buildEventHtml($event);
 
-    $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
-    return $pdf->stream('FLOW_QR_Code_Plan.pdf');
-}
-
-public function PDFsinglePreview(int $planId)
-{
-    $event = DB::table('event')
-        ->join('plan', 'plan.event', '=', 'event.id')
-        ->where('plan.id', $planId)
-        ->select('event.*')
-        ->first();
-
-    if (!$event) {
-        return response()->json(['error' => 'Event not found'], 404);
-    }
-
-    // PDF wie bei PDFsingle erzeugen
-    $html = $this->buildEventHtml($event);
-    $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
-    $pdfData = $pdf->output();
-
-    // PDF -> PNG mit Imagick
-    $imagick = new \Imagick();
-    $imagick->setResolution(100, 100); // Vorschau-Auflösung
-    $imagick->readImageBlob($pdfData);
-    $imagick->setImageFormat('png');
-
-    // Nur erste Seite als Preview
-    $imagick->setIteratorIndex(0);
-    $pngData = $imagick->getImageBlob();
-
-    return response()->json([
-        'preview' => 'data:image/png;base64,' . base64_encode($pngData)
-    ]);
-}
-
-
-private function buildEventHtml($event): string
+private function buildEventHtml($event, bool $wifi = false): string
 {
     // Datum formatieren
     $formattedDate = '';
@@ -191,36 +174,75 @@ private function buildEventHtml($event): string
         try {
             $formattedDate = Carbon::parse($event->date)->format('d.m.Y');
         } catch (\Exception $e) {
-            $formattedDate = $event->date; // fallback, falls parsing schiefgeht
+            $formattedDate = $event->date;
+        }
+    }
+
+    // Passwort entschlüsseln
+    $wifiPassword = '';
+    if (!empty($event->wifi_password)) {
+        try {
+            $wifiPassword = Crypt::decryptString($event->wifi_password);
+        } catch (\Exception $e) {
+            $wifiPassword = $event->wifi_password;
         }
     }
 
     $html = '
-        <div style="text-align: center; font-family: sans-serif; width: 100%;">
-            <h2 style="margin-bottom: 10px; font-size: 20px; font-weight: normal;">
-                FIRST LEGO League Wettbewerb
-            </h2>
-            <h1 style="margin-bottom: 40px;">'
-                . e($event->name) . ' ' . e($formattedDate) .
-            '</h1>';
+    <div style="width: 100%; font-family: sans-serif; text-align: center; padding: 40px;">
+        
+        <h2 style="margin-bottom: 10px; font-size: 20px; font-weight: normal;">
+            FIRST LEGO League Wettbewerb
+        </h2>
+        
+        <h1 style="margin-bottom: 40px;">'
+            . e($event->name) . ' ' . e($formattedDate) .
+        '</h1>';
 
-    if (!empty($event->qrcode)) {
-        $html .= '<div style="margin-bottom: 30px;">
-            <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
-        </div>';
+    // Plan-QR ist immer dabei
+    $qr_plan = '
+        <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
+        <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>';
+
+    if ($wifi && !empty($event->wifi_ssid) && !empty($wifiPassword)) {
+        // WLAN-QR nur wenn gewünscht und Daten vorhanden
+        $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
+        $wifiQr = new \Endroid\QrCode\QrCode($wifiQrContent);
+        $writer = new \Endroid\QrCode\Writer\PngWriter();
+        $wifiResult = $writer->write($wifiQr);
+        $wifiBase64 = base64_encode($wifiResult->getString());
+
+        $html .= '
+            <table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 40px;">
+                <tr>
+                    <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
+                        ' . $qr_plan . '
+                    </td>
+                    <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
+                        <img src="data:image/png;base64,' . $wifiBase64 . '" style="width:200px; height:200px;" />
+                        <div style="margin-top: 10px; font-size: 14px; color: #333;">
+                            SSID: ' . e($event->wifi_ssid) . '<br/>
+                            Passwort: ' . e($wifiPassword) . '
+                        </div>
+                    </td>
+                </tr>
+            </table>';
+    } else {
+        // Nur Plan-QR
+        $html .= '
+            <div style="text-align: center; margin-bottom: 40px;">' 
+                . $qr_plan .
+            '</div>';
     }
 
-    if (!empty($event->link)) {
-        $html .= '<div style="font-size: 16px; color: #333;">'
-            . e($event->link) .
-        '</div>';
+    $html .= '</div>'; // Wrapper schließen
+
+            
+
+        $html .= '</div>';
+
+        return $html;
     }
-
-    $html .= '</div>';
-
-    return $html;
-}
-
 
 
 
