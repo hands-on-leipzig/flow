@@ -27,7 +27,7 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 });
 
 // Public Carousel route
-Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getSlideshowsForEvent']);
+Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);
 Route::get('/plans/action-now/{planId}', [PlanController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
 
@@ -96,6 +96,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/slides/{slide}', [CarouselController::class, 'getSlide']);
     Route::put('/slides/{slide}', [CarouselController::class, 'updateSlide']);
     Route::delete('/slides/{slide}', [CarouselController::class, 'deleteSlide']);
+    Route::get('/slideshow/{event}', [CarouselController::class, 'getAllSlideshows']);
     Route::put('/slideshow/{slideshow}/updateOrder', [CarouselController::class, 'updateSlideshowOrder']);
     Route::put('/slideshow/{slideshow}/add', [CarouselController::class, 'addSlide']);
     Route::post('/slideshow/{event}', [CarouselController::class, 'generateSlideshow']);

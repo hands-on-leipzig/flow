@@ -11,6 +11,7 @@ export class Slide {
     public name: string;
     public type: string;
     public content: SlideContent;
+    public active: number = 1; // 0 or 1
 
     constructor(data: any, content: SlideContent) {
         Object.assign(this, data);

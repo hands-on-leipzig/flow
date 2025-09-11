@@ -214,12 +214,6 @@ iframe, object, .result {
   background: transparent;
 }
 
-.background {
-  vertical-align: top;
-  z-index: 0;
-  display: inline-block;
-}
-
 .preview {
   zoom: 0.25;
   height: 100%;

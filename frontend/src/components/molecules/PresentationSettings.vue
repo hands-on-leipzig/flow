@@ -34,7 +34,7 @@ onMounted(loadSlideshows);
 onMounted(fetchPlanId);
 
 async function loadSlideshows() {
-  const response = await axios.get(`/carousel/${event.value?.id}/slideshows`);
+  const response = await axios.get(`/slideshow/${event.value?.id}`);
   if (response && response.data) {
     slideshows.value = response.data;
   }
