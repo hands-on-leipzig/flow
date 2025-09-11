@@ -107,26 +107,24 @@ class PublishController extends Controller
             $logo = new Logo($logoPath, 100); // 50px breit
         }
 
-        // QR-Code als Base64 generieren (inkl. Data-URL Prefix)
+        // QR-Code schreiben
         $result = $writer->write($qrCode, $logo);
-        $qrcode = 'data:image/png;base64,' . base64_encode($result->getString());
+        $qrcodeRaw = base64_encode($result->getString()); // nur Base64
 
-
-
-        // In DB speichern
+        // In DB speichern (ohne Prefix)
         DB::table('event')
             ->where('id', $event->id)
             ->update([
                 'link'   => $link,
-                'qrcode' => $qrcode,
+                'qrcode' => $qrcodeRaw,
             ]);
 
+        // In Response Prefix hinzufügen
         return response()->json([
             'link' => $link,
-            'qrcode' => $qrcode,
+            'qrcode' => 'data:image/png;base64,' . $qrcodeRaw,
         ]);
     }
-
 
 
   public function PDFsingle(int $planId)
