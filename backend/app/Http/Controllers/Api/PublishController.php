@@ -3,20 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Plan;
-use App\Models\MSupportedPlan;
-use App\Models\PlanParamValue;
-use App\Models\Team;
-use App\Models\TeamPlan;
-use App\Models\FirstProgram;
-use App\Services\PreviewMatrix;
-use App\Services\GeneratePlan;
-use App\Jobs\GeneratePlanJob;
+
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
 
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Encoding\Encoding;
@@ -25,6 +14,9 @@ use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Logo\Logo;
+
+use Barryvdh\DomPDF\Facade\Pdf;        // composer require barryvdh/laravel-dompdf
+
 
 class PublishController extends Controller
 {
@@ -40,7 +32,7 @@ class PublishController extends Controller
         if (!$event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
-/*
+
         // Wenn bereits gesetzt → zurückgeben
         if (!empty($event->link) && !empty($event->qrcode)) {
             return response()->json([
@@ -48,8 +40,7 @@ class PublishController extends Controller
                 'qrcode' => $event->qrcode,
             ]);
         }
-*/
-        // Basislink aus Region
+    
         $region = DB::table('regional_partner')
             ->where('id', $event->regional_partner)
             ->value('region');
@@ -58,20 +49,34 @@ class PublishController extends Controller
             return response()->json(['error' => 'Region not found'], 404);
         }
 
-        $link =  $region;
+        switch ($event->level) {
 
-        // Prüfen, ob mehrere Events für diesen Regionalpartner existieren
-        $eventCount = DB::table('event')
-            ->where('regional_partner', $event->regional_partner)
-            ->count();
+            case 1:
 
-        if ($eventCount > 1) {
-            if (!is_null($event->event_challenge)) {
-                $link .= "-challenge";
-            }
-            if (!is_null($event->event_explore)) {
-                $link .= "-explore";
-            }
+                $link =  $region;
+
+                // Prüfen, ob mehrere Regio für diesen Regionalpartner existieren
+                $eventCount = DB::table('event')
+                    ->where('regional_partner', $event->regional_partner)
+                    ->where('level', 1)
+                    ->count();
+
+                if ($eventCount > 1) {
+                    if (!is_null($event->event_challenge)) {
+                        $link .= "-challenge";
+                    }
+                    if (!is_null($event->event_explore)) {
+                        $link .= "-explore";
+                    }
+                }
+                break;
+
+            case 2:    
+                $link = "quali-". $region;
+                break;
+
+            case 3:
+              $link = "finale"; // Region bewusst weggelassen
         }
 
         // Link "säubern"
@@ -102,23 +107,107 @@ class PublishController extends Controller
             $logo = new Logo($logoPath, 100); // 50px breit
         }
 
-        // QR-Code als Base64 generieren (inkl. Data-URL Prefix)
+        // QR-Code schreiben
         $result = $writer->write($qrCode, $logo);
-        $qrcode = 'data:image/png;base64,' . base64_encode($result->getString());
+        $qrcodeRaw = base64_encode($result->getString()); // nur Base64
 
-
-
-        // In DB speichern
+        // In DB speichern (ohne Prefix)
         DB::table('event')
             ->where('id', $event->id)
             ->update([
                 'link'   => $link,
-                'qrcode' => $qrcode,
+                'qrcode' => $qrcodeRaw,
             ]);
 
+        // In Response Prefix hinzufügen
         return response()->json([
             'link' => $link,
-            'qrcode' => $qrcode,
+            'qrcode' => 'data:image/png;base64,' . $qrcodeRaw,
         ]);
     }
+
+
+  public function PDFsingle(int $planId)
+{
+    $event = DB::table('event')
+        ->join('plan', 'plan.event', '=', 'event.id')
+        ->where('plan.id', $planId)
+        ->select('event.*')
+        ->first();
+
+    if (!$event) {
+        return response()->json(['error' => 'Event not found'], 404);
+    }
+
+    $html = $this->buildEventHtml($event);
+
+    $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
+    return $pdf->stream('FLOW_QR_Code_Plan.pdf');
+}
+
+public function PDFsinglePreview(int $planId)
+{
+    $event = DB::table('event')
+        ->join('plan', 'plan.event', '=', 'event.id')
+        ->where('plan.id', $planId)
+        ->select('event.*')
+        ->first();
+
+    if (!$event) {
+        return response()->json(['error' => 'Event not found'], 404);
+    }
+
+    // statt PDF: direkt PNG aus demselben HTML-Content bauen
+    $html = $this->buildEventHtml($event);
+
+    // wir erzeugen ein QR-Code PNG direkt (klein)
+    $writer = new PngWriter();
+    $qrCode = new QrCode(
+        $event->link ?? '',
+        new Encoding('UTF-8'),
+        ErrorCorrectionLevel::High,
+        200,
+        10,
+        RoundBlockSizeMode::Margin,
+        new Color(0, 0, 0),
+        new Color(255, 255, 255)
+    );
+
+    $result = $writer->write($qrCode);
+
+    return response()->json([
+        'preview' => 'data:image/png;base64,' . base64_encode($result->getString())
+    ]);
+}
+
+private function buildEventHtml($event): string
+{
+    $html = '
+        <div style="text-align: center; font-family: sans-serif; width: 100%;">
+            <h1 style="margin-bottom: 40px;">'
+                . e($event->name) . ' ' . e($event->date) .
+            '</h1>';
+
+    if (!empty($event->qrcode)) {
+        $html .= '<div style="margin-bottom: 30px;">
+            <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
+        </div>';
+    }
+
+    if (!empty($event->link)) {
+        $html .= '<div style="font-size: 16px; color: #333;">'
+            . e($event->link) .
+        '</div>';
+    }
+
+    $html .= '</div>';
+
+    return $html;
+}
+
+
+
+
+
+
 }
