@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 use Carbon\Carbon;
 
@@ -237,9 +238,41 @@ private function buildEventHtml($event, bool $wifi = false): string
             '</div>';
     }
 
+    // Logos laden
+$logos = DB::table('logo')
+    ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
+    ->where('event_logo.event', $event->id)
+    ->select('logo.*')
+    ->get();
 
-    // Hier den Code für die Logos einfügen
+if ($logos->count() > 0) {
+    $html .= '
+        <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
+            <tr>';
 
+    foreach ($logos as $logo) {
+        // Pfad in storage -> public URL
+        $logoPath = storage_path('app/public/' . $logo->path);
+
+Log::info('Logo path: ' . $logoPath);
+
+        if (file_exists($logoPath)) {
+            $base64 = base64_encode(file_get_contents($logoPath));
+            $src = 'data:image/png;base64,' . $base64;
+
+            $html .= '
+                <td style="text-align: center; vertical-align: middle; padding: 10px;">
+                    <img src="' . $src . '" style="height:80px; max-width:100%; object-fit: contain;" />
+                </td>';
+        }
+    }
+
+    $html .= '
+            </tr>
+        </table>';
+}
+
+ 
 
 
 
