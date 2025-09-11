@@ -376,20 +376,30 @@ const carouselLink = computed(() => {
 
             <!-- 5: PDF Preview (Plan + WiFi) -->
             <div class="flex flex-col items-center">
-              <div class="relative h-28 w-auto aspect-[1.414/1] border">
-                <img
-                  v-if="pdfDoublePreview"
-                  :src="pdfDoublePreview"
-                  alt="PDF Preview"
-                  class="h-full w-full object-contain"
-                />
-              </div>
-              <a v-if="pdfSinglePDF" :href="pdfSinglePDF" download="FLOW_QR_Code_Plan.pdf">
-                <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-              </a>
+              <template v-if="qrWifiUrl">
+                <div class="relative h-28 w-auto aspect-[1.414/1] border">
+                  <img
+                    :src="pdfDoublePreview"
+                    alt="PDF Preview"
+                    class="h-full w-full object-contain"
+                  />
+                </div>
+                <a v-if="qrWifiUrl" :href="pdfDoublePDF" download="FLOW_QR_Code_Plan+Wifi.pdf">
+                  <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+                </a>
+              </template>
+              <template v-else>
+                <div
+                  class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
+                >
+                  ?
+                </div>
+              </template>
             </div>
 
+
           </div>
+
         </div>
 
         <!-- Rechte Box: Karussell -->
