@@ -280,17 +280,18 @@ const carouselLink = computed(() => {
               </button>
             </div>
 
-            <!-- 2: Fake PDF Preview (Plan) -->
-            <div class="flex flex-col items-center">
-              <img
-                src="@/assets/fake/qr1.png"
-                alt="PDF Preview Plan"
-                class="mx-auto h-28 w-auto border"
-              />
-              <a :href="qr1Pdf" download="plan.pdf">
-                <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-              </a>
-            </div>
+            <!-- 2: PDF Preview (Plan) -->
+<div class="flex flex-col items-center">
+  <embed
+    v-if="pdfSingleUrl"
+    :src="pdfSingleUrl"
+    type="application/pdf"
+    class="mx-auto h-28 w-auto border"
+  />
+  <a v-if="pdfSingleUrl" :href="pdfSingleUrl" download="FLOW_QR_Code_Plan.pdf">
+    <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+  </a>
+</div>
 
             <!-- 3: WLAN Felder -->
             <div class="rounded-xl shadow bg-white p-4 flex flex-col justify-center">

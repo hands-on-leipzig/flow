@@ -3,20 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Plan;
-use App\Models\MSupportedPlan;
-use App\Models\PlanParamValue;
-use App\Models\Team;
-use App\Models\TeamPlan;
-use App\Models\FirstProgram;
-use App\Services\PreviewMatrix;
-use App\Services\GeneratePlan;
-use App\Jobs\GeneratePlanJob;
+
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
 
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Encoding\Encoding;
@@ -25,6 +14,9 @@ use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Logo\Logo;
+
+use Barryvdh\DomPDF\Facade\Pdf;        // composer require barryvdh/laravel-dompdf
+
 
 class PublishController extends Controller
 {
@@ -134,4 +126,56 @@ class PublishController extends Controller
             'qrcode' => $qrcode,
         ]);
     }
+
+
+
+    public function PDFsingle(int $planId)
+    {
+        // Plan → Event
+        $event = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->select('event.*')
+            ->first();
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        // PDF-Inhalt vorbereiten
+        $html = '
+            <div style="text-align: center; font-family: sans-serif; width: 100%;">
+                <h1 style="margin-bottom: 40px;">'
+                    . e($event->name) . ' ' . e($event->date) .
+                '</h1>';
+
+        // QR-Code
+        if (!empty($event->qrcode)) {
+            $html .= '<div style="margin-bottom: 30px;">
+                <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
+            </div>';
+        }
+
+        // Link
+        if (!empty($event->link)) {
+            $html .= '<div style="font-size: 16px; color: #333;">'
+                . e($event->link) .
+            '</div>';
+        }
+
+        $html .= '</div>';
+
+        // PDF erzeugen
+        $pdf = Pdf::loadHTML($html)
+            ->setPaper('a4', 'landscape');
+
+        // Direkt ausliefern
+        return $pdf->download('FLOW_QR_Code_Plan.pdf');
+    }    
+
+
+
+
+
+
 }
