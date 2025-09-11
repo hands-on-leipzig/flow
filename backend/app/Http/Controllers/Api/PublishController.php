@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
+use Carbon\Carbon;
+
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
@@ -14,6 +16,9 @@ use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Logo\Logo;
+
+
+
 
 use Barryvdh\DomPDF\Facade\Pdf;        // composer require barryvdh/laravel-dompdf
 
@@ -37,7 +42,7 @@ class PublishController extends Controller
         if (!empty($event->link) && !empty($event->qrcode)) {
             return response()->json([
                 'link' => $event->link,
-                'qrcode' => $event->qrcode,
+                'qrcode' => 'data:image/png;base64,' . $event->qrcode,
             ]);
         }
     
@@ -127,7 +132,7 @@ class PublishController extends Controller
     }
 
 
-  public function PDFsingle(int $planId)
+public function PDFsingle(int $planId)
 {
     $event = DB::table('event')
         ->join('plan', 'plan.event', '=', 'event.id')
@@ -157,35 +162,46 @@ public function PDFsinglePreview(int $planId)
         return response()->json(['error' => 'Event not found'], 404);
     }
 
-    // statt PDF: direkt PNG aus demselben HTML-Content bauen
+    // PDF wie bei PDFsingle erzeugen
     $html = $this->buildEventHtml($event);
+    $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
+    $pdfData = $pdf->output();
 
-    // wir erzeugen ein QR-Code PNG direkt (klein)
-    $writer = new PngWriter();
-    $qrCode = new QrCode(
-        $event->link ?? '',
-        new Encoding('UTF-8'),
-        ErrorCorrectionLevel::High,
-        200,
-        10,
-        RoundBlockSizeMode::Margin,
-        new Color(0, 0, 0),
-        new Color(255, 255, 255)
-    );
+    // PDF -> PNG mit Imagick
+    $imagick = new \Imagick();
+    $imagick->setResolution(100, 100); // Vorschau-Auflösung
+    $imagick->readImageBlob($pdfData);
+    $imagick->setImageFormat('png');
 
-    $result = $writer->write($qrCode);
+    // Nur erste Seite als Preview
+    $imagick->setIteratorIndex(0);
+    $pngData = $imagick->getImageBlob();
 
     return response()->json([
-        'preview' => 'data:image/png;base64,' . base64_encode($result->getString())
+        'preview' => 'data:image/png;base64,' . base64_encode($pngData)
     ]);
 }
 
+
 private function buildEventHtml($event): string
 {
+    // Datum formatieren
+    $formattedDate = '';
+    if (!empty($event->date)) {
+        try {
+            $formattedDate = Carbon::parse($event->date)->format('d.m.Y');
+        } catch (\Exception $e) {
+            $formattedDate = $event->date; // fallback, falls parsing schiefgeht
+        }
+    }
+
     $html = '
         <div style="text-align: center; font-family: sans-serif; width: 100%;">
+            <h2 style="margin-bottom: 10px; font-size: 20px; font-weight: normal;">
+                FIRST LEGO League Wettbewerb
+            </h2>
             <h1 style="margin-bottom: 40px;">'
-                . e($event->name) . ' ' . e($event->date) .
+                . e($event->name) . ' ' . e($formattedDate) .
             '</h1>';
 
     if (!empty($event->qrcode)) {
