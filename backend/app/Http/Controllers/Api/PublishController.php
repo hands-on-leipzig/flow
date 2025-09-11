@@ -145,7 +145,7 @@ public function PDFsingle(int $planId)
     }
 
     // HTML fürs PDF
-    $html = $this->buildEventHtml($event);
+    $html = $this->buildEventHtml($event, true);
     $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
     $pdfData = $pdf->output(); // Binary PDF
 
@@ -164,7 +164,7 @@ public function PDFsingle(int $planId)
 }
 
 
-private function buildEventHtml($event): string
+private function buildEventHtml($event, bool $wifi = false): string
 {
     // Datum formatieren
     $formattedDate = '';
@@ -189,16 +189,42 @@ private function buildEventHtml($event): string
                 . e($event->name) . ' ' . e($formattedDate) .
             '</h1>';
 
-    if (!empty($event->qrcode)) {
-        $html .= '<div style="margin-bottom: 30px;">
-            <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
-        </div>';
-    }
+    // Normalfall: nur Plan-QR
+    if (!$wifi || empty($event->wifi_ssid) || empty($event->wifi_password)) {
+        if (!empty($event->qrcode)) {
+            $html .= '<div style="margin-bottom: 30px;">
+                <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
+            </div>';
+        }
 
-    if (!empty($event->link)) {
-        $html .= '<div style="font-size: 16px; color: #333;">'
-            . e($event->link) .
-        '</div>';
+        if (!empty($event->link)) {
+            $html .= '<div style="font-size: 16px; color: #333;">'
+                . e($event->link) .
+            '</div>';
+        }
+    } 
+    // Spezialfall: Plan-QR + WLAN-QR nebeneinander
+    else {
+        $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$event->wifi_password};;";
+        $wifiQr = new \Endroid\QrCode\QrCode($wifiQrContent);
+        $writer = new \Endroid\QrCode\Writer\PngWriter();
+        $wifiResult = $writer->write($wifiQr);
+        $wifiBase64 = base64_encode($wifiResult->getString());
+
+        $html .= '
+            <div style="display: flex; justify-content: center; align-items: flex-start; gap: 60px; margin-bottom: 30px;">
+                <div>
+                    <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
+                    <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>
+                </div>
+                <div>
+                    <img src="data:image/png;base64,' . $wifiBase64 . '" style="width:200px; height:200px;" />
+                    <div style="margin-top: 10px; font-size: 14px; color: #333;">
+                        SSID: ' . e($event->wifi_ssid) . '<br/>
+                        Passwort: ' . e($event->wifi_password) . '
+                    </div>
+                </div>
+            </div>';
     }
 
     $html .= '</div>';
