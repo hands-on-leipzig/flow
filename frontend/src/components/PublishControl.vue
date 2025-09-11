@@ -152,7 +152,7 @@ async function downloadDoublePdf() {
   if (pdfDoublePDF.value) {
     const a = document.createElement("a")
     a.href = pdfDoublePDF.value
-    a.download = "FLOW_QR_Code_Plan+Wifi.pdf"
+    a.download = "FLOW_QR_Code_Plan+WLAN.pdf"
     a.click()
   }
 }
@@ -384,7 +384,7 @@ const carouselLink = computed(() => {
                 />
                 <button
                   class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-                  @click="downloadPng(qrWifiUrl, 'wifi.png')"
+                  @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
                 >
                   PNG
                 </button>
@@ -398,31 +398,31 @@ const carouselLink = computed(() => {
               </template>
             </div>
 
-<!-- 5: PDF Preview (Plan + WiFi) -->
-<div class="flex flex-col items-center">
-  <template v-if="qrWifiUrl">
-    <div class="relative h-28 w-auto aspect-[1.414/1] border">
-      <img
-        :src="pdfDoublePreview"
-        alt="PDF Preview"
-        class="h-full w-full object-contain"
-      />
-    </div>
-    <button
-      class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-      @click="downloadDoublePdf"
-    >
-      PDF
-    </button>
-  </template>
-  <template v-else>
-    <div
-      class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
-    >
-      ?
-    </div>
-  </template>
-</div>
+            <!-- 5: PDF Preview (Plan + WiFi) -->
+            <div class="flex flex-col items-center">
+              <template v-if="qrWifiUrl">
+                <div class="relative h-28 w-auto aspect-[1.414/1] border">
+                  <img
+                    :src="pdfDoublePreview"
+                    alt="PDF Preview"
+                    class="h-full w-full object-contain"
+                  />
+                </div>
+                <button
+                  class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+                  @click="downloadDoublePdf"
+                >
+                  PDF
+                </button>
+              </template>
+              <template v-else>
+                <div
+                  class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
+                >
+                  ?
+                </div>
+              </template>
+            </div>
 
 
           </div>

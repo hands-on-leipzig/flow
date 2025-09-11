@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 use Carbon\Carbon;
 
@@ -39,7 +40,7 @@ class PublishController extends Controller
         }
 
         // Wenn bereits gesetzt → zurückgeben
-        if (!empty($event->link) && !empty($event->qrcode)) {
+        if (!empty($event->link) && !empty($event->qrcode) && !empty($event->slug)) {
             return response()->json([
                 'link' => $event->link,
                 'qrcode' => 'data:image/png;base64,' . $event->qrcode,
@@ -88,6 +89,7 @@ class PublishController extends Controller
         $link = trim(strtolower($link));
         $link = str_replace(array('ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß', '/', ' '), array('ae', 'oe', 'ue', 'AE', 'OE', 'UE', 'ss', '-', '-'), $link);
 
+        $slug = $link;
         $link = "https://flow.hands-on-technology.org/" . $link;
 
 
@@ -120,6 +122,7 @@ class PublishController extends Controller
         DB::table('event')
             ->where('id', $event->id)
             ->update([
+                'slug'   => $slug,
                 'link'   => $link,
                 'qrcode' => $qrcodeRaw,
             ]);
@@ -148,7 +151,7 @@ class PublishController extends Controller
 
         // HTML fürs PDF
         $html = $this->buildEventHtml($event, $wifi);
-        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
+        $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
         $pdfData = $pdf->output(); // Binary PDF
 
         // PDF -> PNG konvertieren
@@ -234,6 +237,44 @@ private function buildEventHtml($event, bool $wifi = false): string
                 . $qr_plan .
             '</div>';
     }
+
+    // Logos laden
+$logos = DB::table('logo')
+    ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
+    ->where('event_logo.event', $event->id)
+    ->select('logo.*')
+    ->get();
+
+if ($logos->count() > 0) {
+    $html .= '
+        <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
+            <tr>';
+
+    foreach ($logos as $logo) {
+        // Pfad in storage -> public URL
+        $logoPath = storage_path('app/public/' . $logo->path);
+
+Log::info('Logo path: ' . $logoPath);
+
+        if (file_exists($logoPath)) {
+            $base64 = base64_encode(file_get_contents($logoPath));
+            $src = 'data:image/png;base64,' . $base64;
+
+            $html .= '
+                <td style="text-align: center; vertical-align: middle; padding: 10px;">
+                    <img src="' . $src . '" style="height:80px; max-width:100%; object-fit: contain;" />
+                </td>';
+        }
+    }
+
+    $html .= '
+            </tr>
+        </table>';
+}
+
+ 
+
+
 
     $html .= '</div>'; // Wrapper schließen
 
