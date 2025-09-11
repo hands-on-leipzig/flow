@@ -55,7 +55,7 @@ const pdfDoublePreview = ref<string>("")
 
 async function fetchPdfAndPreview(planId: number, wifi: boolean) {
   try {
-    const { data } = await axios.get(`/publish/pdf-single/${planId}`, {
+    const { data } = await axios.get(`/publish/pdf/${planId}`, {
       params: { wifi }   // übergibt ?wifi=true/false
     })
 
@@ -128,6 +128,10 @@ async function updateEventField(field: string, value: string) {
       [field]: value,
     })
     console.log(`Feld ${field} erfolgreich aktualisiert`)
+
+    // PDF und Preview neu laden
+    await fetchPdfAndPreview(planId.value, true)
+    
   } catch (e) {
     console.error(`Fehler beim Aktualisieren von ${field}:`, e)
   }
