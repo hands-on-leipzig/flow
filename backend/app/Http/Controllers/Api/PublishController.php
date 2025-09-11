@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
+use Carbon\Carbon;
+
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
@@ -14,6 +16,7 @@ use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Logo\Logo;
+
 
 use Barryvdh\DomPDF\Facade\Pdf;        // composer require barryvdh/laravel-dompdf
 
@@ -37,7 +40,7 @@ class PublishController extends Controller
         if (!empty($event->link) && !empty($event->qrcode)) {
             return response()->json([
                 'link' => $event->link,
-                'qrcode' => $event->qrcode,
+                'qrcode' => 'data:image/png;base64,' . $event->qrcode,
             ]);
         }
     
@@ -180,12 +183,26 @@ public function PDFsinglePreview(int $planId)
     ]);
 }
 
+
 private function buildEventHtml($event): string
 {
+    // Datum formatieren
+    $formattedDate = '';
+    if (!empty($event->date)) {
+        try {
+            $formattedDate = Carbon::parse($event->date)->format('d.m.Y');
+        } catch (\Exception $e) {
+            $formattedDate = $event->date; // fallback, falls parsing schiefgeht
+        }
+    }
+
     $html = '
         <div style="text-align: center; font-family: sans-serif; width: 100%;">
+            <h2 style="margin-bottom: 10px; font-size: 20px; font-weight: normal;">
+                FIRST LEGO League Wettbewerb
+            </h2>
             <h1 style="margin-bottom: 40px;">'
-                . e($event->name) . ' ' . e($event->date) .
+                . e($event->name) . ' ' . e($formattedDate) .
             '</h1>';
 
     if (!empty($event->qrcode)) {
