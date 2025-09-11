@@ -137,6 +137,26 @@ async function updateEventField(field: string, value: string) {
   }
 }
 
+// Vor Doqwnload WLAN-Daten speichern, PDF neu generieren, Download anstoßen
+async function downloadDoublePdf() {
+  if (!event.value?.id || !planId.value) return
+
+  // 1. Sicherstellen, dass aktuelle Daten gespeichert sind
+  await updateEventField('wifi_ssid', event.value.wifi_ssid)
+  await updateEventField('wifi_password', event.value.wifi_password)
+
+  // 2. Neu generieren (Backend mit ?wifi=true)
+  await fetchPdfAndPreview(planId.value, true)
+
+  // 3. Download anstoßen
+  if (pdfDoublePDF.value) {
+    const a = document.createElement("a")
+    a.href = pdfDoublePDF.value
+    a.download = "FLOW_QR_Code_Plan+Wifi.pdf"
+    a.click()
+  }
+}
+
 // --- Downloads ---
 async function downloadPng(dataUrl: string, filename: string) {
   const a = document.createElement("a")
@@ -378,28 +398,31 @@ const carouselLink = computed(() => {
               </template>
             </div>
 
-            <!-- 5: PDF Preview (Plan + WiFi) -->
-            <div class="flex flex-col items-center">
-              <template v-if="qrWifiUrl">
-                <div class="relative h-28 w-auto aspect-[1.414/1] border">
-                  <img
-                    :src="pdfDoublePreview"
-                    alt="PDF Preview"
-                    class="h-full w-full object-contain"
-                  />
-                </div>
-                <a v-if="qrWifiUrl" :href="pdfDoublePDF" download="FLOW_QR_Code_Plan+Wifi.pdf">
-                  <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-                </a>
-              </template>
-              <template v-else>
-                <div
-                  class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
-                >
-                  ?
-                </div>
-              </template>
-            </div>
+<!-- 5: PDF Preview (Plan + WiFi) -->
+<div class="flex flex-col items-center">
+  <template v-if="qrWifiUrl">
+    <div class="relative h-28 w-auto aspect-[1.414/1] border">
+      <img
+        :src="pdfDoublePreview"
+        alt="PDF Preview"
+        class="h-full w-full object-contain"
+      />
+    </div>
+    <button
+      class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+      @click="downloadDoublePdf"
+    >
+      PDF
+    </button>
+  </template>
+  <template v-else>
+    <div
+      class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
+    >
+      ?
+    </div>
+  </template>
+</div>
 
 
           </div>
