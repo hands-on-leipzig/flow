@@ -196,10 +196,14 @@ private function buildEventHtml($event): string
     }
 
     $html = '
-        <div style="text-align: center; font-family: sans-serif; width: 100%;">
+        <div style="width: 100%; height: 100%; border: 30px solid #000; box-sizing: border-box; 
+                    display: flex; flex-direction: column; justify-content: center; align-items: center;
+                    font-family: sans-serif; text-align: center; padding: 40px;">
+            
             <h2 style="margin-bottom: 10px; font-size: 20px; font-weight: normal;">
                 FIRST LEGO League Wettbewerb
             </h2>
+            
             <h1 style="margin-bottom: 40px;">'
                 . e($event->name) . ' ' . e($formattedDate) .
             '</h1>';
@@ -220,7 +224,6 @@ private function buildEventHtml($event): string
 
     return $html;
 }
-
 
 
 
