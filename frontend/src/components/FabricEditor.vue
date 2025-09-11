@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {Canvas, Rect, Textbox, FabricImage, Triangle, Circle} from 'fabric'
-import {onBeforeUnmount, onMounted, reactive, shallowRef, watch} from 'vue';
+import {onBeforeUnmount, onMounted, reactive, shallowRef, watch, ref} from 'vue';
 import SvgIcon from '@jamescoyle/vue-icon';
-import {mdiFormatText, mdiRectangle, mdiContentSave} from '@mdi/js';
+import {mdiFormatText, mdiRectangle, mdiImageArea} from '@mdi/js';
 import {Slide} from "@/models/slide";
 import axios from "axios";
 
@@ -32,6 +32,8 @@ watch(props.slide, (newSlide) => {
 
 const canvasEl = shallowRef(null);
 let canvas: Canvas;
+
+const availableImages = ref([]);
 
 const defaultObjectProperties = {
   transparentCorners: true,
@@ -70,6 +72,7 @@ onMounted(() => {
 });
 
 onMounted(loadFont);
+onMounted(loadImages);
 onBeforeUnmount(() => {
   saveJson();
   window.removeEventListener('keydown', keyListener);
@@ -93,6 +96,11 @@ function keyListener(e: KeyboardEvent) {
     updateToolbar();
     canvas.requestRenderAll();
   }
+}
+
+async function loadImages() {
+  const {data} = await axios.get('/logos');
+  availableImages.value = data;
 }
 
 function paintSlide(slide: Slide) {
@@ -124,29 +132,24 @@ function addRect() {
   canvas.requestRenderAll();
 }
 
-async function addImage() {
+const showImageModal = ref(false);
+
+function openImageModal() {
+  showImageModal.value = true;
+}
+
+function closeImageModal() {
+  showImageModal.value = false;
+}
+
+async function insertImage(image) {
+  closeImageModal();
   if (!canvas) return;
-  const img = await FabricImage.fromURL('/background.png');
-  img.set(defaultObjectProperties);
+  const img = await FabricImage.fromURL(image.url + '/' + image.path);
+  img.set({left: 100, top: 100, ...defaultObjectProperties});
 
-  const canvasWidth = canvas.getWidth();
-  const canvasHeight = canvas.getHeight();
-
-  // Skalieren (ausfüllen)
-  const scale = Math.max(
-      canvasWidth / img.width,
-      canvasHeight / img.height
-  );
-  img.scaleX = scale;
-  img.scaleY = scale;
-
-  // Zentrieren
-  const imgWidth = img.width * img.scaleX;
-  const imgHeight = img.height * img.scaleY;
-  img.left = (canvasWidth - imgWidth) / 2;
-  img.top = (canvasHeight - imgHeight) / 2;
-
-  canvas.backgroundImage = img;
+  canvas.add(img);
+  canvas.setActiveObject(img);
   canvas.requestRenderAll();
 }
 
@@ -296,11 +299,14 @@ function saveJson() {
   <div class="inline-block pt-4">
     <div class="flex items-start gap-x-2">
       <button @click="addRect"
-              class="px-3 rounded bg-blue-500  hover:bg-blue-600 h-10 w-12 mb-1">
+              class="px-3 rounded bg-blue-500 hover:bg-blue-600 h-10 w-12 mb-1">
         <svg-icon type="mdi" :path="mdiRectangle"></svg-icon>
       </button>
-      <button @click="addText" class="px-3 rounded bg-blue-500  hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
+      <button @click="addText" class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
         <svg-icon type="mdi" :path="mdiFormatText"></svg-icon>
+      </button>
+      <button @click="openImageModal" class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
+        <svg-icon type="mdi" :path="mdiImageArea"></svg-icon>
       </button>
       <div v-if="toolbarState.type === 'text'" class="ml-4 mb-1 flex items-center gap-x-2">
         <!-- Text property toolbar -->
@@ -339,6 +345,22 @@ function saveJson() {
       </div>
     </div>
     <canvas ref="canvasEl" class="border border-grey rounded"></canvas>
+
+    <!-- Image Auswahl Overlay -->
+    <div v-if="showImageModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div class="bg-white rounded shadow-lg p-6 w-96">
+        <h2 class="text-lg font-bold mb-4">Bild auswählen</h2>
+        <div class="grid grid-cols-3 gap-4">
+          <div v-for="img in availableImages" :key="img" class="cursor-pointer">
+            <img :src="`${img.url}/${img.path}`" :alt="img.title" class="w-24 h-24 object-cover rounded border"
+                 @click="insertImage(img)" />
+          </div>
+        </div>
+        <button @click="closeImageModal" class="mt-6 px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 w-full">
+          Abbrechen
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 

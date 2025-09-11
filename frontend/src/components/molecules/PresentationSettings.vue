@@ -34,7 +34,7 @@ onMounted(loadSlideshows);
 onMounted(fetchPlanId);
 
 async function loadSlideshows() {
-  const response = await axios.get(`/carousel/${event.value?.id}/slideshows`);
+  const response = await axios.get(`/slideshow/${event.value?.id}`);
   if (response && response.data) {
     slideshows.value = response.data;
   }
@@ -152,7 +152,7 @@ function copyUrl(url) {
           + Folie hinzufügen
         </button>
         <draggable v-model="slideshow.slides" :key="slidesKey"
-                   class="draggable-list flex items-center flex-wrap flex-row gap-2" ghost-class="ghost" group="slides"
+                   class="flex flex-wrap gap-2 ü-5 bg-gray-800 rounded-xl" ghost-class="ghost" group="slides"
                    item-key="id"
                    @end="updateOrder(slideshow)">
           <template #item="{ element }">
@@ -165,10 +165,5 @@ function copyUrl(url) {
 </template>
 
 <style scoped>
-.draggable-list {
-  padding: 20px;
-  gap: 10px;
-  background: #2e2e2e;
-  border-radius: 12px;
-}
+
 </style>
