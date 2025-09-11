@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import {Canvas, Rect, Textbox} from 'fabric'
-import {onMounted, onBeforeUnmount, reactive, shallowRef, computed, watch} from 'vue';
+import {Canvas, Rect, Textbox, FabricImage, Triangle, Circle} from 'fabric'
+import {onBeforeUnmount, onMounted, reactive, shallowRef, watch} from 'vue';
 import SvgIcon from '@jamescoyle/vue-icon';
 import {mdiFormatText, mdiRectangle, mdiContentSave} from '@mdi/js';
-import {useEventStore} from "@/stores/event";
 import {Slide} from "@/models/slide";
-import FllEvent from "@/models/FllEvent";
 import axios from "axios";
 
 // Ideen und TODOS
@@ -14,6 +12,12 @@ import axios from "axios";
 // Undo / Redo
 // Toolbox: Farbe, Font
 // Bilder einfügen
+
+// Custom controls
+// Copy and Paste
+// Auto-Save (kein speichern-button)
+// Einfügen-Menü für Biler
+// Form-Art wechseln.
 
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 450;
@@ -29,6 +33,11 @@ watch(props.slide, (newSlide) => {
 const canvasEl = shallowRef(null);
 let canvas: Canvas;
 
+const defaultObjectProperties = {
+  transparentCorners: true,
+  cornerColor: '#4e4d4d',
+};
+
 const toolbarState = reactive({
   type: 'none', // 'none', 'text', 'shape', 'image'
   object: undefined,
@@ -38,27 +47,66 @@ onMounted(() => {
   canvas = new Canvas(canvasEl.value, {
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
   });
 
   if (props.slide) {
     paintSlide(props.slide);
+    // addImage();
   }
 
+  // Toolbar
   canvas.on('selection:created', updateToolbar);
-
   canvas.on('selection:updated', updateToolbar);
-
   canvas.on('selection:cleared', updateToolbar);
+
+  // Auto-save bei Änderungen
+  canvas.on('object:modified', tryAutoSave);
+  canvas.on('object:added', tryAutoSave);
+  canvas.on('object:removed', tryAutoSave);
+
+  // Löschen
+  window.addEventListener('keydown', keyListener);
 });
 
 onMounted(loadFont);
+onBeforeUnmount(() => {
+  saveJson();
+  window.removeEventListener('keydown', keyListener);
+});
+
+function keyListener(e: KeyboardEvent) {
+  if ((e.key === 'Delete' || e.key === 'Backspace') && canvas?.getActiveObject()) {
+    const activeObj = canvas.getActiveObject();
+    if (activeObj.get('type') === 'textbox' && activeObj.isEditing) {
+      // Sonderfall: Textfeld wird gerade bearbeitet.
+      return;
+    }
+    e.preventDefault();
+
+    if (activeObj.get('type') === 'activeselection') {
+      activeObj.forEachObject(canvas.remove.bind(canvas));
+      canvas.discardActiveObject();
+    } else {
+      canvas.remove(activeObj);
+    }
+    updateToolbar();
+    canvas.requestRenderAll();
+  }
+}
 
 function paintSlide(slide: Slide) {
   if (!canvas || !slide || !slide.content.background) return;
   canvas.clear();
   canvas.loadFromJSON(slide.content.background).then(() => {
+    applyDefaultControls();
     canvas.requestRenderAll();
+  });
+}
+
+function applyDefaultControls() {
+  canvas.getObjects().forEach(obj => {
+    obj.set(defaultObjectProperties);
   });
 }
 
@@ -69,9 +117,36 @@ function addRect() {
     top: 100,
     fill: '#add8e6',
     width: 100,
-    height: 100
+    height: 100,
+    ...defaultObjectProperties
   });
   canvas.add(rect);
+  canvas.requestRenderAll();
+}
+
+async function addImage() {
+  if (!canvas) return;
+  const img = await FabricImage.fromURL('/background.png');
+  img.set(defaultObjectProperties);
+
+  const canvasWidth = canvas.getWidth();
+  const canvasHeight = canvas.getHeight();
+
+  // Skalieren (ausfüllen)
+  const scale = Math.max(
+      canvasWidth / img.width,
+      canvasHeight / img.height
+  );
+  img.scaleX = scale;
+  img.scaleY = scale;
+
+  // Zentrieren
+  const imgWidth = img.width * img.scaleX;
+  const imgHeight = img.height * img.scaleY;
+  img.left = (canvasWidth - imgWidth) / 2;
+  img.top = (canvasHeight - imgHeight) / 2;
+
+  canvas.backgroundImage = img;
   canvas.requestRenderAll();
 }
 
@@ -84,7 +159,8 @@ function addText() {
     fontSize: 24,
     fill: '#000000',
     width: 200,
-    editable: true
+    editable: true,
+    ...defaultObjectProperties
   });
   canvas.add(text);
   canvas.setActiveObject(text);
@@ -106,15 +182,14 @@ function updateToolbar() {
   const activeObject = canvas.getActiveObject();
   // Update toolbar based on selection
   if (activeObject) {
-    console.log('Update toolbar for selection:', activeObject.get('type'));
     // Example: Enable/disable buttons based on selection properties
-    if (activeObject.get('type') === 'textbox') {
+    const type = activeObject.get('type');
+    if (type === 'textbox') {
       toolbarState.type = 'text';
       toolbarState.object = activeObject;
-    } else if (activeObject.get('type') === 'rect') {
+    } else if (type === 'rect' || type === 'circle' || type === 'triangle') {
       toolbarState.type = 'shape';
       toolbarState.object = activeObject;
-      console.log(activeObject);
     } else {
       toolbarState.type = 'none';
     }
@@ -129,7 +204,7 @@ function makeBold() {
   } else {
     toolbarState.object.set({fontWeight: "bold"});
   }
-  triggerRender();
+  canvas.requestRenderAll();
 }
 
 function makeItalic() {
@@ -138,21 +213,67 @@ function makeItalic() {
   } else {
     toolbarState.object.set({fontStyle: "italic"});
   }
-  triggerRender();
+  canvas.requestRenderAll();
 }
 
 function makeUnderline() {
   toolbarState.object.set({underline: !toolbarState.object.underline});
-  triggerRender();
+  canvas.requestRenderAll();
 }
 
 function onFillChange(color) {
   toolbarState.object.set({fill: color});
-  triggerRender();
+  canvas.requestRenderAll();
 }
 
-function triggerRender() {
+function onShapeTypeChange(type: string) {
+  const obj = toolbarState.object;
+  if (!obj) return;
+  const props = {
+    left: obj.left,
+    top: obj.top,
+    fill: obj.fill,
+    stroke: obj.stroke,
+    strokeWidth: obj.strokeWidth,
+    scaleX: obj.scaleX,
+    scaleY: obj.scaleY,
+    angle: obj.angle,
+    ...defaultObjectProperties
+  };
+  let newObj;
+  if (type === 'rect') {
+    newObj = new Rect({width: obj.width, height: obj.height, ...props});
+  } else if (type === 'circle') {
+    newObj = new Circle({radius: Math.min(obj.width, obj.height) / 2, ...props});
+  } else if (type === 'triangle') {
+    newObj = new Triangle({width: obj.width, height: obj.height, ...props});
+  }
+  canvas.remove(canvas.getActiveObject());
+  canvas.add(newObj);
+  canvas.setActiveObject(newObj);
+  toolbarState.object = newObj;
   canvas.requestRenderAll();
+}
+
+function onStrokeChange(color: string) {
+  toolbarState.object.set({stroke: color});
+  canvas.requestRenderAll();
+}
+
+function onStrokeWidthChange(width: string) {
+  toolbarState.object.set({strokeWidth: parseInt(width)});
+  canvas.requestRenderAll();
+}
+
+let lastSave = Date.now();
+const SAVE_INTERVAL = 15 * 1000;
+
+function tryAutoSave() {
+  const now = Date.now();
+  if (now - lastSave > SAVE_INTERVAL) {
+    lastSave = now;
+    saveJson();
+  }
 }
 
 function saveJson() {
@@ -168,43 +289,54 @@ function saveJson() {
       console.error('Error saving slide:', error);
     });
   }
-  console.log(JSON.stringify(json));
 }
 </script>
 
 <template>
   <div class="inline-block pt-4">
-    <button @click="addRect"
-            class="px-3 py-1 rounded bg-blue-500  hover:bg-blue-600">
-      <svg-icon type="mdi" :path="mdiRectangle"></svg-icon>
-    </button>
-    <button @click="addText" class="px-3 py-1 rounded bg-blue-500  hover:bg-blue-600 ml-2">
-      <svg-icon type="mdi" :path="mdiFormatText"></svg-icon>
-    </button>
-    <button @click="saveJson" class="px-3 py-1 rounded btn-primary ml-2 bg-green-500 hover:bg-green-600">
-      <svg-icon type="mdi" :path="mdiContentSave"></svg-icon>
-    </button>
-    <div v-if="toolbarState.type === 'text'" class="inline-block ml-4">
-      <!-- Text property toolbar -->
-      Font Size:
-      <input type="number" v-model.number="toolbarState.object.fontSize" v-on:change="triggerRender"
-             class="w-16 px-1 py-0.5 border border-gray-300 rounded ml-2"/>
-      <button v-on:click="makeBold" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-bold"
-              :class="{ 'bg-gray-400': toolbarState.object.fontWeight === 'bold' }">B
+    <div class="flex items-start gap-x-2">
+      <button @click="addRect"
+              class="px-3 rounded bg-blue-500  hover:bg-blue-600 h-10 w-12 mb-1">
+        <svg-icon type="mdi" :path="mdiRectangle"></svg-icon>
       </button>
-      <button v-on:click="makeItalic" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-italic"
-              :class="{ 'bg-gray-400': toolbarState.object.fontStyle === 'italic' }">I
+      <button @click="addText" class="px-3 rounded bg-blue-500  hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
+        <svg-icon type="mdi" :path="mdiFormatText"></svg-icon>
       </button>
-      <button v-on:click="makeUnderline" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2"
-              :class="{ 'bg-gray-400': toolbarState.object.underline }">U
-      </button>
-      <input type="color" class="px-2 py-1 rounded ml-2" :value="toolbarState.object.fill"
-             @input="onFillChange($event.target.value)"/>
-    </div>
-    <div v-else-if="toolbarState.type === 'shape'" class="inline-block ml-4">
-      <!-- Shape Toolbar -->
-      <input type="color" class="px-2 py-1 rounded ml-2" :value="toolbarState.object.fill"
-             @input="onFillChange($event.target.value)"/>
+      <div v-if="toolbarState.type === 'text'" class="ml-4 mb-1 flex items-center gap-x-2">
+        <!-- Text property toolbar -->
+        <input type="number" v-model.number="toolbarState.object.fontSize" v-on:change="triggerRender"
+               class="w-16 pr-1 border border-gray-300 rounded ml-2 h-10"/>
+        <button v-on:click="makeBold" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-bold h-10 w-12"
+                :class="{ 'bg-gray-400': toolbarState.object.fontWeight === 'bold' }">B
+        </button>
+        <button v-on:click="makeItalic" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-italic h-10 w-12"
+                :class="{ 'bg-gray-400': toolbarState.object.fontStyle === 'italic' }">I
+        </button>
+        <button v-on:click="makeUnderline" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 h-10 w-12"
+                :class="{ 'bg-gray-400': toolbarState.object.underline }">U
+        </button>
+        <input type="color" class="px-2 rounded ml-2 h-10 w-12" :value="toolbarState.object.fill"
+               @input="onFillChange($event.target.value)"/>
+      </div>
+      <div v-else-if="toolbarState.type === 'shape'" class="ml-4 flex items-start gap-x-2">
+        <!-- Shape Toolbar -->
+        <select v-model="toolbarState.object.type" @change="onShapeTypeChange($event.target.value)"
+                class="px-2 rounded ml-2 h-10">
+          <option value="rect">Rechteck</option>
+          <option value="circle">Kreis</option>
+          <option value="triangle">Dreieck</option>
+        </select>
+        <!-- Fill Color -->
+        <input type="color" class="px-2 rounded ml-2 mb-1 h-10 w-12" :value="toolbarState.object.fill"
+               @input="onFillChange($event.target.value)"/>
+        <!-- Border Color -->
+        <input type="color" class="px-2 rounded ml-2 h-10 w-12" :value="toolbarState.object.stroke"
+               @input="onStrokeChange($event.target.value)"/>
+        <!-- Border Size -->
+        <input type="number" min="0" class="w-16 px-1 border border-gray-300 rounded ml-2 h-10 w-12"
+               :value="toolbarState.object.strokeWidth"
+               @input="onStrokeWidthChange($event.target.value)"/>
+      </div>
     </div>
     <canvas ref="canvasEl" class="border border-grey rounded"></canvas>
   </div>

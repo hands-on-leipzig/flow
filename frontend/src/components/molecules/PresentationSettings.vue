@@ -13,6 +13,8 @@ import {Slide} from "@/models/slide";
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
 
+const loading = ref(true);
+const planId = ref<number | null>(null);
 const slideshows = ref<Slideshow[]>([]);
 
 const carouselLink = computed(() => {
@@ -29,11 +31,23 @@ const slideTypes = [
 ];
 
 onMounted(loadSlideshows);
+onMounted(fetchPlanId);
 
 async function loadSlideshows() {
   const response = await axios.get(`/carousel/${event.value?.id}/slideshows`);
   if (response && response.data) {
     slideshows.value = response.data;
+  }
+  loading.value = false;
+}
+
+async function fetchPlanId() {
+  if (!event.value?.id) return;
+  try {
+    const response = await axios.get(`/plans/event/${event.value.id}`)
+    planId.value = response.data.id
+  } catch (error) {
+    console.error('Error fetching plan ID:', error)
   }
 }
 
@@ -55,6 +69,17 @@ function deleteSlide(slideshow: Slideshow, slideId: number) {
   if (index !== -1) {
     slideshow.slides.splice(index, 1);
   }
+}
+
+async function addSlideshow() {
+  loading.value = true;
+  const response = await axios.post(`/slideshow/${event.value?.id}`, {
+    planId: planId.value
+  });
+
+  const slideshow = response.data.slideshow;
+  slideshows.value.push(slideshow);
+  loading.value = false;
 }
 
 async function addSlide(slideshow: Slideshow) {
@@ -93,12 +118,20 @@ function copyUrl(url) {
 
 <template>
   <div class="rounded-xl shadow bg-white p-4 flex flex-col">
-    <h2 class="text-lg font-semibold mb-2">Präsentation</h2>
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-semibold mb-2">Präsentation</h2>
+      <button
+          class="bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+          :disabled="loading || !planId || !event?.id || slideshows.length >= 1"
+          @click="addSlideshow">
+        + Slideshow erstellen
+      </button>
+    </div>
     <div class="mb-4">
       <div class="d-flex align-items-center gap-2">
-            <span class="text-break">Link zur öffentlichen Ansicht:
-              <a :href="carouselLink" target="_blank" rel="noopener noreferrer">{{ carouselLink }}</a>
-            </span>
+        <span class="text-break">Link zur öffentlichen Ansicht:
+          <a :href="carouselLink" target="_blank" rel="noopener noreferrer">{{ carouselLink }}</a>
+        </span>
         <button
             type="button"
             class="btn btn-outline-secondary btn-sm"

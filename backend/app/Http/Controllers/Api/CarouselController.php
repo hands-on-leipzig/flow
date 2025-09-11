@@ -105,4 +105,40 @@ class CarouselController extends Controller
         return response()->json(['success' => true, 'slide' => $slide]);
     }
 
+    private string $defaultSlideBackground = "{\"version\":\"6.7.1\",\"backgroundImage\":{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":0,\"top\":-3.3333,\"width\":1920,\"height\":1096,\"scaleX\":0.4167,\"scaleY\":0.4167,\"src\":\"/background.png\"}}";
+
+    public function generateSlideshow(Request $request, $eventId)
+    {
+        // TODO Eventid prüfen
+
+        $planId = $request->input('planId');
+        if (!$planId || !is_numeric($planId)) {
+            return response()->json(['error' => 'plan id required'], 400);
+        }
+
+        $slideshow = SlideShow::create([
+            'event' => $eventId,
+            'name' => 'Standard-Slideshow',
+            'transition_time' => 15,
+        ]);
+
+        $content = '{ "hours": 2'
+            . ', "background": ' . json_encode($this->defaultSlideBackground)
+            . ', "planId": ' . $planId
+            . '}';
+
+        $slide = Slide::create([
+            'name' => 'Öffentlicher Zeitplan',
+            'slideshow' => $slideshow->id,
+            'type' => 'PublicPlanSlideContent',
+            'content' => $content,
+            'order' => 0,
+        ]);
+
+        $slideshow->slides = [$slide];
+
+        return response()->json(['success' => true, 'slideshow' => $slideshow]);
+
+    }
+
 }
