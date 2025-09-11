@@ -103,6 +103,20 @@ watch(
   { immediate: true }
 )
 
+// --- Update einzelnes Event-Feld ---
+async function updateEventField(field: string, value: string) {
+  if (!event.value?.id) return
+
+  try {
+    await axios.put(`/events/${event.value.id}`, {
+      [field]: value,
+    })
+    console.log(`Feld ${field} erfolgreich aktualisiert`)
+  } catch (e) {
+    console.error(`Fehler beim Aktualisieren von ${field}:`, e)
+  }
+}
+
 // --- Downloads ---
 async function downloadPng(dataUrl: string, filename: string) {
   const a = document.createElement("a")
