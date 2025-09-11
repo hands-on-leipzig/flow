@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 use Carbon\Carbon;
@@ -131,8 +132,10 @@ class PublishController extends Controller
     }
 
 
-    public function PDFsingle(int $planId)
+    public function PDFandPreview(int $planId, Request $request) : JsonResponse
     {
+        $wifi = filter_var($request->query('wifi', false), FILTER_VALIDATE_BOOLEAN);
+
         $event = DB::table('event')
             ->join('plan', 'plan.event', '=', 'event.id')
             ->where('plan.id', $planId)
@@ -144,7 +147,7 @@ class PublishController extends Controller
         }
 
         // HTML fürs PDF
-        $html = $this->buildEventHtml($event, true);
+        $html = $this->buildEventHtml($event, $wifi);
         $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
         $pdfData = $pdf->output(); // Binary PDF
 

@@ -38,27 +38,43 @@ watch(
   { immediate: true }
 )
 
-// PDF
+// PDF und Preview
 
 watch(planId, (id) => {
   if (id) {
     fetchPublishData(id)
-    fetchPdfSingle(id)
+    fetchPdfAndPreview(id, false) // Single
+    fetchPdfAndPreview(id, true)  // Double (mit WLAN)
   }
 })
 
 const pdfSinglePDF = ref<string>("")
 const pdfSinglePreview = ref<string>("")
+const pdfDoublePDF = ref<string>("")
+const pdfDoublePreview = ref<string>("")
 
-async function fetchPdfSingle(planId: number) {
+async function fetchPdfAndPreview(planId: number, wifi: boolean) {
   try {
-    const { data } = await axios.get(`/publish/pdf-single/${planId}`)
-    pdfSinglePDF.value = data.pdf         // enthält "data:application/pdf;base64,..."
-    pdfSinglePreview.value = data.preview // enthält "data:image/png;base64,..."
+    const { data } = await axios.get(`/publish/pdf-single/${planId}`, {
+      params: { wifi }   // übergibt ?wifi=true/false
+    })
+
+    if (wifi) {
+      pdfDoublePDF.value = data.pdf
+      pdfDoublePreview.value = data.preview
+    } else {
+      pdfSinglePDF.value = data.pdf
+      pdfSinglePreview.value = data.preview
+    }
   } catch (e) {
-    console.error("Fehler beim Laden von PDF-Single:", e)
-    pdfSinglePDF.value = ""
-    pdfSinglePreview.value = ""
+    console.error("Fehler beim Laden von PDF & Preview:", e)
+    if (wifi) {
+      pdfDoublePDF.value = ""
+      pdfDoublePreview.value = ""
+    } else {
+      pdfSinglePDF.value = ""
+      pdfSinglePreview.value = ""
+    }
   }
 }
 
@@ -358,19 +374,21 @@ const carouselLink = computed(() => {
               </template>
             </div>
 
-            <!-- 5: Fake PDF Preview (Plan + Wifi) -->
-<!-- 2: PDF Preview (Plan) -->
-<div class="flex flex-col items-center">
-  <embed
-    v-if="pdfSingleUrl"
-    :src="pdfSingleUrl"
-    type="application/pdf"
-    class="mx-auto h-28 w-auto border"
-  />
-  <a v-if="pdfSingleUrl" :href="pdfSingleUrl" download="FLOW_QR_Code_Plan.pdf">
-    <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-  </a>
-</div>
+            <!-- 5: PDF Preview (Plan + WiFi) -->
+            <div class="flex flex-col items-center">
+              <div class="relative h-28 w-auto aspect-[1.414/1] border">
+                <img
+                  v-if="pdfDoublePreview"
+                  :src="pdfDoublePreview"
+                  alt="PDF Preview"
+                  class="h-full w-full object-contain"
+                />
+              </div>
+              <a v-if="pdfSinglePDF" :href="pdfSinglePDF" download="FLOW_QR_Code_Plan.pdf">
+                <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+              </a>
+            </div>
+
           </div>
         </div>
 
