@@ -148,6 +148,14 @@ async function insertImage(image) {
   const img = await FabricImage.fromURL(image.url + '/' + image.path);
   img.set({left: 100, top: 100, ...defaultObjectProperties});
 
+  const maxWidth = canvas.width * 0.5;
+  const maxHeight = canvas.height * 0.5;
+
+  if (img.width > maxWidth || img.height > maxHeight) {
+    const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+    img.scale(scale);
+  }
+
   canvas.add(img);
   canvas.setActiveObject(img);
   canvas.requestRenderAll();
