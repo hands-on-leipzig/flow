@@ -12,6 +12,12 @@ const fileInput = ref(null)
 const selectedLogoForPreview = ref(null)
 const logoToDelete = ref(null)
 
+// Drag and drop state
+const draggedLogo = ref(null)
+const draggedOverLogo = ref(null)
+const dropPosition = ref(null) // 'before' or 'after'
+const isDragging = ref(false)
+
 const fetchLogos = async () => {
   const {data} = await axios.get('/logos')
   logos.value = data
@@ -109,6 +115,101 @@ const deleteLogo = async () => {
   }
 }
 
+// Drag and drop methods
+const handleDragStart = (event, logo) => {
+  draggedLogo.value = logo
+  isDragging.value = true
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/html', event.target.outerHTML)
+  event.target.style.opacity = '0.5'
+  event.target.style.transform = 'rotate(5deg) scale(1.05)'
+}
+
+const handleDragEnd = (event) => {
+  event.target.style.opacity = '1'
+  event.target.style.transform = ''
+  draggedLogo.value = null
+  draggedOverLogo.value = null
+  dropPosition.value = null
+  isDragging.value = false
+}
+
+const handleDragOver = (event) => {
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'move'
+}
+
+const handleDragEnter = (event, logo) => {
+  event.preventDefault()
+  draggedOverLogo.value = logo
+  
+  // Determine drop position based on mouse position
+  const rect = event.currentTarget.getBoundingClientRect()
+  const mouseY = event.clientY
+  const centerY = rect.top + rect.height / 2
+  
+  dropPosition.value = mouseY < centerY ? 'before' : 'after'
+}
+
+const handleDragLeave = (event) => {
+  // Only clear if we're actually leaving the element (not just moving to a child)
+  if (!event.currentTarget.contains(event.relatedTarget)) {
+    draggedOverLogo.value = null
+    dropPosition.value = null
+  }
+}
+
+const handleDrop = async (event, targetLogo) => {
+  event.preventDefault()
+  
+  if (!draggedLogo.value || !targetLogo || draggedLogo.value.id === targetLogo.id) {
+    return
+  }
+  
+  const currentEvent = selectedEvent.value || eventStore.selectedEvent
+  if (!currentEvent) {
+    alert('Bitte wählen Sie zuerst ein Event aus.')
+    return
+  }
+  
+  // Get logos assigned to this event
+  const assignedLogos = logos.value.filter(logo => 
+    logo.events.some(e => e.id === currentEvent.id)
+  )
+  
+  // Find the indices of the dragged and target logos in the assigned logos array
+  const draggedIndex = assignedLogos.findIndex(logo => logo.id === draggedLogo.value.id)
+  const targetIndex = assignedLogos.findIndex(logo => logo.id === targetLogo.id)
+  
+  if (draggedIndex === -1 || targetIndex === -1) {
+    return
+  }
+  
+  // Reorder the logos array
+  const newOrder = [...assignedLogos]
+  const [draggedItem] = newOrder.splice(draggedIndex, 1)
+  newOrder.splice(targetIndex, 0, draggedItem)
+  
+  // Update sort order in database
+  try {
+    const logoOrders = newOrder.map((logo, index) => ({
+      logo_id: logo.id,
+      sort_order: index
+    }))
+    
+    await axios.post('/logos/update-sort-order', {
+      event_id: currentEvent.id,
+      logo_orders: logoOrders
+    })
+    
+    // Refresh logos to get updated order
+    await fetchLogos()
+  } catch (error) {
+    console.error('Error updating logo order:', error)
+    alert('Fehler beim Aktualisieren der Reihenfolge: ' + error.message)
+  }
+}
+
 const handleFileChange = (e) => {
   const file = e.target.files?.[0]
   if (file) {
@@ -127,6 +228,73 @@ const closeLogoPreview = () => {
 const deleteMessage = computed(() => {
   if (!logoToDelete.value) return ''
   return `Möchten Sie das Logo "${logoToDelete.value.title || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+})
+
+// Sort logos by their sort_order for the current event
+const sortedLogos = computed(() => {
+  const currentEvent = selectedEvent.value || eventStore.selectedEvent
+  if (!currentEvent) {
+    return logos.value
+  }
+  
+  return [...logos.value].sort((a, b) => {
+    const aEvent = a.events.find(e => e.id === currentEvent.id)
+    const bEvent = b.events.find(e => e.id === currentEvent.id)
+    
+    // If both logos are assigned to the current event, sort by sort_order
+    if (aEvent && bEvent) {
+      const aOrder = aEvent.pivot?.sort_order || 0
+      const bOrder = bEvent.pivot?.sort_order || 0
+      return aOrder - bOrder
+    }
+    
+    // If only one is assigned, put assigned ones first
+    if (aEvent && !bEvent) return -1
+    if (!aEvent && bEvent) return 1
+    
+    // If neither is assigned, maintain original order
+    return 0
+  })
+})
+
+// Computed property to determine which logos should move to make space
+const logosWithSpaceMaking = computed(() => {
+  if (!isDragging.value || !draggedOverLogo.value || !dropPosition.value) {
+    return sortedLogos.value
+  }
+  
+  const currentEvent = selectedEvent.value || eventStore.selectedEvent
+  if (!currentEvent) return sortedLogos.value
+  
+  const assignedLogos = sortedLogos.value.filter(logo => 
+    logo.events.some(e => e.id === currentEvent.id)
+  )
+  
+  const targetIndex = assignedLogos.findIndex(logo => logo.id === draggedOverLogo.value.id)
+  if (targetIndex === -1) return sortedLogos.value
+  
+  // Create a visual representation where logos move to make space
+  const result = [...sortedLogos.value]
+  
+  if (dropPosition.value === 'before') {
+    // Move logos to the right to make space before the target
+    for (let i = 0; i < targetIndex; i++) {
+      const logo = result.find(l => l.id === assignedLogos[i].id)
+      if (logo) {
+        logo._spaceMakingOffset = 'translateX(20px)'
+      }
+    }
+  } else {
+    // Move logos to the left to make space after the target
+    for (let i = targetIndex + 1; i < assignedLogos.length; i++) {
+      const logo = result.find(l => l.id === assignedLogos[i].id)
+      if (logo) {
+        logo._spaceMakingOffset = 'translateX(-20px)'
+      }
+    }
+  }
+  
+  return result
 })
 
 
@@ -162,7 +330,47 @@ onMounted(async () => {
 
     <!-- Logos -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div v-for="logo in logos" :key="logo.id" class="border rounded p-4 shadow space-y-2 bg-white">
+      <div 
+        v-for="logo in logosWithSpaceMaking" 
+        :key="logo.id" 
+        class="border rounded p-4 shadow space-y-2 bg-white transition-all duration-300 ease-out relative"
+        :class="{
+          'opacity-50 scale-105 rotate-2': draggedLogo?.id === logo.id,
+          'ring-2 ring-blue-500 bg-blue-50': draggedOverLogo?.id === logo.id,
+          'cursor-move': logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id)),
+          'transform': logo._spaceMakingOffset
+        }"
+        :style="{ transform: logo._spaceMakingOffset || '' }"
+        :draggable="logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))"
+        @dragstart="handleDragStart($event, logo)"
+        @dragend="handleDragEnd"
+        @dragover="handleDragOver"
+        @dragenter="handleDragEnter($event, logo)"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop($event, logo)"
+      >
+        <!-- Drag handle indicator -->
+        <div 
+          v-if="logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))"
+          class="absolute top-2 right-2 text-gray-400 text-xs cursor-move"
+          title="Drag to reorder"
+        >
+          ⋮⋮
+        </div>
+        
+        <!-- Drop indicator -->
+        <div 
+          v-if="isDragging && draggedOverLogo?.id === logo.id"
+          class="absolute inset-0 border-2 border-dashed border-blue-400 bg-blue-100 bg-opacity-50 rounded flex items-center justify-center"
+          :class="{
+            'border-t-4': dropPosition === 'before',
+            'border-b-4': dropPosition === 'after'
+          }"
+        >
+          <div class="text-blue-600 font-semibold text-sm">
+            {{ dropPosition === 'before' ? '↑ Drop here' : '↓ Drop here' }}
+          </div>
+        </div>
         <img 
           :src="`${logo.url}/${logo.path}`" 
           alt="Logo" 
@@ -285,5 +493,41 @@ onMounted(async () => {
 
 .toggle-switch:checked::after {
   transform: translateX(20px);
+}
+
+/* Enhanced drag and drop animations */
+.transition-all {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transform {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth space-making animations */
+.border {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ring-2 {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bg-blue-50 {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Drop indicator animations */
+.border-dashed {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 </style>

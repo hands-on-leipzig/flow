@@ -26,8 +26,7 @@ class User extends Authenticatable
         'subject',
         'password',
         'selection_event',
-        'selection_regional_partner',
-        'is_admin'
+        'selection_regional_partner'
     ];
 
     /**
@@ -56,5 +55,20 @@ class User extends Authenticatable
     public function regionalPartners()
     {
         return $this->belongsToMany(RegionalPartner::class, 'user_regional_partner', 'user', 'regional_partner');
+    }
+
+    /**
+     * Get user roles from JWT token
+     */
+    public function getRoles(): array
+    {
+        $request = request();
+        $jwt = $request->attributes->get('jwt');
+        
+        if (!$jwt || !isset($jwt['resource_access']->flow->roles)) {
+            return [];
+        }
+        
+        return $jwt['resource_access']->flow->roles ?? [];
     }
 }

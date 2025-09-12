@@ -12,23 +12,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. Create s_generator table (missing in test/prod)
-        if (!Schema::hasTable('s_generator')) {
-            Schema::create('s_generator', function (Blueprint $table) {
-                $table->id();
-                $table->unsignedBigInteger('plan');
-                $table->timestamp('start')->nullable();
-                $table->timestamp('end')->nullable();
-                $table->string('mode')->nullable(); // 'job' or 'direct'
-                $table->timestamps();
-                
-                // Foreign key constraint
-                $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
-                
-                // Index for performance
-                $table->index(['plan', 'start']);
-            });
-        }
+        // 1. s_generator table should already exist from previous migration
+        // No need to create it here as it's handled by 2025_09_10_061841_create_s_generator_table.php
 
         // 2. Add missing columns to existing tables
         
@@ -51,6 +36,8 @@ return new class extends Migration
         // 3. Remove obsolete columns
         
         // Remove enddate from event table (exists in test/prod, should be removed)
+        // Note: This is also handled by 2025_09_10_061929_remove_enddate_from_events_table.php
+        // but we keep it here as a safety check for test/prod environments
         if (Schema::hasColumn('event', 'enddate')) {
             Schema::table('event', function (Blueprint $table) {
                 $table->dropColumn('enddate');
@@ -125,10 +112,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Drop s_generator table
-        if (Schema::hasTable('s_generator')) {
-            Schema::dropIfExists('s_generator');
-        }
+        // s_generator table is handled by its own migration
+        // No need to drop it here
 
         // Remove added columns
         if (Schema::hasColumn('m_room_type', 'level')) {
@@ -159,11 +144,22 @@ return new class extends Migration
     private function dropForeignKeyIfExists(string $table, string $constraint): void
     {
         try {
-            Schema::table($table, function (Blueprint $table) use ($constraint) {
-                $table->dropForeign([$constraint]);
-            });
-        } catch (Exception $e) {
-            // Constraint doesn't exist, ignore
+            // Get the actual foreign key constraint name from the database
+            $constraints = DB::select("
+                SELECT CONSTRAINT_NAME 
+                FROM information_schema.KEY_COLUMN_USAGE 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = ? 
+                AND CONSTRAINT_NAME = ?
+            ", [$table, $constraint]);
+            
+            if (!empty($constraints)) {
+                Schema::table($table, function (Blueprint $table) use ($constraint) {
+                    $table->dropForeign([$constraint]);
+                });
+            }
+        } catch (\Exception $e) {
+            // Constraint doesn't exist or other error, ignore
         }
     }
 };
