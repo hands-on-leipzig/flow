@@ -5,19 +5,23 @@ import SvgIcon from '@jamescoyle/vue-icon';
 import {mdiFormatText, mdiRectangle, mdiImageArea} from '@mdi/js';
 import {Slide} from "@/models/slide";
 import axios from "axios";
+import {imageUrl} from '@/utils/images'
 
 // Ideen und TODOS
 // Resize
 // Border korrekt, Layouting allgemein
 // Undo / Redo
-// Toolbox: Farbe, Font
-// Bilder einfügen
 
 // Custom controls
 // Copy and Paste
-// Auto-Save (kein speichern-button)
-// Einfügen-Menü für Biler
-// Form-Art wechseln.
+
+// Slide-Ansicht: Umgang mit nicht 16:9 Bildschirmgröße
+
+// QR-Code Zeitplan integrieren
+// Standard-Slideshow mit QR-Code
+// Übergangszeit ändern UI, Standard 5s
+// Slideshow löschen
+// Zeit-Parameter für Activity-list
 
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 450;
@@ -34,21 +38,21 @@ const canvasEl = shallowRef(null);
 let canvas: Canvas;
 
 const standardImages = [
-  {title: 'Hands on Technology', path: 'flow/hot.png'},
-  {title: 'Hands on Technology', path: 'flow/hot_outline.png'},
-  {title: 'Unearthed', path: 'flow/season_unearthed+fll_h.png'},
-  {title: 'Unearthed', path: 'flow/season_unearthed_v.png'},
-  {title: 'Unearthed', path: 'flow/season_unearthed_wordmark.png'},
-  {title: 'First LEGO League', path: 'flow/first+fll_h.png'},
-  {title: 'First LEGO League', path: 'flow/first+fll_v.png'},
-  {title: 'First', path: 'flow/first_h.png'},
-  {title: 'First', path: 'flow/first_v.png'},
-  {title: 'First', path: 'flow/first_v.png'},
-  {title: 'FLl Challenge', path: 'flow/fll_challenge_h.png'},
-  {title: 'FLl Challenge', path: 'flow/fll_challenge_v.png'},
-  {title: 'FLl Explore', path: 'flow/fll_explore_h.png'},
-  {title: 'FLl Explore', path: 'flow/fll_explore_hs.png'},
-  {title: 'FLl Explore', path: 'flow/fll_explore_v.png'},
+  {title: 'Hands on Technology', path: imageUrl('flow/hot.png')},
+  {title: 'Hands on Technology', path: imageUrl('flow/hot_outline.png')},
+  {title: 'Unearthed', path: imageUrl('flow/season_unearthed+fll_h.png')},
+  {title: 'Unearthed', path: imageUrl('flow/season_unearthed_v.png')},
+  {title: 'Unearthed', path: imageUrl('flow/season_unearthed_wordmark.png')},
+  {title: 'First LEGO League', path: imageUrl('flow/first+fll_h.png')},
+  {title: 'First LEGO League', path: imageUrl('flow/first+fll_v.png')},
+  {title: 'First', path: imageUrl('flow/first_h.png')},
+  {title: 'First', path: imageUrl('flow/first_v.png')},
+  {title: 'First', path: imageUrl('flow/first_v.png')},
+  {title: 'FLl Challenge', path: imageUrl('flow/fll_challenge_h.png')},
+  {title: 'FLl Challenge', path: imageUrl('flow/fll_challenge_v.png')},
+  {title: 'FLl Explore', path: imageUrl('flow/fll_explore_h.png')},
+  {title: 'FLl Explore', path: imageUrl('flow/fll_explore_hs.png')},
+  {title: 'FLl Explore', path: imageUrl('flow/fll_explore_v.png')},
 ];
 const availableImages = ref(standardImages);
 
@@ -162,7 +166,7 @@ function closeImageModal() {
 async function insertImage(image) {
   closeImageModal();
   if (!canvas) return;
-  const img = await FabricImage.fromURL((image.url ?? '') + '/' + image.path);
+  const img = await FabricImage.fromURL((image.url ? image.url + '/' : '') + image.path);
   img.set({left: 100, top: 100, ...defaultObjectProperties});
 
   const maxWidth = canvas.width * 0.5;
@@ -377,7 +381,7 @@ function saveJson() {
         <h2 class="text-lg font-bold mb-4">Bild auswählen</h2>
         <div class="grid grid-cols-3 gap-4 overflow-y-auto max-h-96">
           <div v-for="img in availableImages" :key="img" class="cursor-pointer">
-            <img :src="`${img.url ?? ''}/${img.path}`" :alt="img.title" class="w-24 h-24 object-contain rounded border"
+            <img :src="`${img.url ? img.url + '/' : ''}${img.path}`" :alt="img.title" class="w-24 h-24 object-contain rounded border"
                  @click="insertImage(img)" />
           </div>
         </div>
