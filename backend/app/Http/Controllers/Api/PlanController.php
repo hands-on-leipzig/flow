@@ -129,6 +129,7 @@ class PlanController extends Controller
         }
 
         // Populate team_plan table with all teams for this event
+        Log::info("Creating plan $newId for event $eventId - calling populateTeamPlanForNewPlan");
         $this->populateTeamPlanForNewPlan($newId, $eventId);
 
         return response()->json([
@@ -591,16 +592,22 @@ class PlanController extends Controller
      */
     private function populateTeamPlanForNewPlan($planId, $eventId)
     {
+        Log::info("populateTeamPlanForNewPlan called for plan $planId, event $eventId");
+        
         // Get all teams for this event
         $teams = Team::where('event', $eventId)->get();
+        Log::info("Found " . $teams->count() . " teams for event $eventId");
 
         if ($teams->isEmpty()) {
+            Log::info("No teams found for event $eventId - skipping team_plan population");
             return; // No teams to add
         }
 
         // Group teams by program and assign order
         $exploreTeams = $teams->where('first_program', 2)->values(); // Explore = 2
         $challengeTeams = $teams->where('first_program', 3)->values(); // Challenge = 3
+
+        Log::info("Explore teams: " . $exploreTeams->count() . ", Challenge teams: " . $challengeTeams->count());
 
         $teamPlanEntries = [];
 
@@ -625,9 +632,18 @@ class PlanController extends Controller
             ];
         }
 
+        Log::info("Prepared " . count($teamPlanEntries) . " team_plan entries to insert");
+
         // Insert all team_plan entries
         if (!empty($teamPlanEntries)) {
-            TeamPlan::insert($teamPlanEntries);
+            try {
+                TeamPlan::insert($teamPlanEntries);
+                Log::info("Successfully inserted " . count($teamPlanEntries) . " team_plan entries");
+            } catch (\Exception $e) {
+                Log::error("Failed to insert team_plan entries: " . $e->getMessage());
+            }
+        } else {
+            Log::warning("No team_plan entries to insert");
         }
     }
 
@@ -637,12 +653,15 @@ class PlanController extends Controller
      */
     public function syncTeamPlanForEvent($eventId)
     {
+        Log::info("syncTeamPlanForEvent called for event $eventId");
         $plans = Plan::where('event', $eventId)->get();
 
         if ($plans->isEmpty()) {
+            Log::info("No plans found for event $eventId - skipping sync");
             return; // No plans to sync
         }
 
+        Log::info("Found " . $plans->count() . " plans for event $eventId - syncing team_plan entries");
         foreach ($plans as $plan) {
             $this->syncTeamPlanForPlan($plan->id, $eventId);
         }
@@ -653,10 +672,14 @@ class PlanController extends Controller
      */
     private function syncTeamPlanForPlan($planId, $eventId)
     {
+        Log::info("syncTeamPlanForPlan called for plan $planId, event $eventId");
+        
         // Get all teams for this event
         $teams = Team::where('event', $eventId)->get();
+        Log::info("Found " . $teams->count() . " teams for event $eventId");
 
         if ($teams->isEmpty()) {
+            Log::info("No teams found for event $eventId - skipping sync");
             return;
         }
 
@@ -664,17 +687,21 @@ class PlanController extends Controller
         $existingTeamIds = TeamPlan::where('plan', $planId)
             ->pluck('team')
             ->toArray();
+        Log::info("Found " . count($existingTeamIds) . " existing team_plan entries for plan $planId");
 
         // Find teams that don't have team_plan entries
         $missingTeams = $teams->whereNotIn('id', $existingTeamIds);
+        Log::info("Found " . $missingTeams->count() . " missing teams for plan $planId");
 
         if ($missingTeams->isEmpty()) {
+            Log::info("All teams already have team_plan entries for plan $planId");
             return; // All teams already have entries
         }
 
         // Get the highest current team_number_plan for this plan
         $maxOrder = TeamPlan::where('plan', $planId)
             ->max('team_number_plan') ?? 0;
+        Log::info("Max team_number_plan for plan $planId: $maxOrder");
 
         // Add missing teams with sequential order
         $teamPlanEntries = [];
@@ -687,9 +714,16 @@ class PlanController extends Controller
             ];
         }
 
+        Log::info("Prepared " . count($teamPlanEntries) . " missing team_plan entries to insert");
+
         // Insert missing team_plan entries
         if (!empty($teamPlanEntries)) {
-            TeamPlan::insert($teamPlanEntries);
+            try {
+                TeamPlan::insert($teamPlanEntries);
+                Log::info("Successfully inserted " . count($teamPlanEntries) . " missing team_plan entries");
+            } catch (\Exception $e) {
+                Log::error("Failed to insert missing team_plan entries: " . $e->getMessage());
+            }
         }
     }
 
