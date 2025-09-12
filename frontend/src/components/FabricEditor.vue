@@ -162,7 +162,7 @@ function closeImageModal() {
 async function insertImage(image) {
   closeImageModal();
   if (!canvas) return;
-  const img = await FabricImage.fromURL(image.url + '/' + image.path);
+  const img = await FabricImage.fromURL((image.url ?? '') + '/' + image.path);
   img.set({left: 100, top: 100, ...defaultObjectProperties});
 
   const maxWidth = canvas.width * 0.5;
