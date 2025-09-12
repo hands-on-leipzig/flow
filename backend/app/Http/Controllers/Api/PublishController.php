@@ -330,7 +330,69 @@ private function buildEventHtml($event, bool $wifi = false): string
     }
 
 
+    // Informationen fürs Volk ...
 
+
+
+public function scheduleInformation(int $eventId, Request $request): JsonResponse
+{
+    // Level aus Tabelle publication holen
+    $publication = DB::table('publication')
+        ->where('event', $eventId)
+        ->select('level')
+        ->first();
+
+    $level = $publication?->level ?? 1; // Fallback Level 1
+
+    // Falls im Request level übergeben wird -> überschreibt DB-Wert
+    if ($request->has('level')) {
+        $level = (int) $request->query('level');
+    }
+
+    // Beispielhafte Daten (später aus Controllern oder Tabellen laden)
+    $data = [
+        'event_id' => $eventId,
+        'level'    => $level,
+        'date'     => 'Mittwoch, 28.01.2026',
+        'address'  => 'ROBIGS c/o ROCARE GmbH, Am Seitenkanal 8, 49811 Lingen (Ems)',
+        'contact'  => [
+            'name'  => 'Lena Helle',
+            'email' => 'lhelle@rosen-group.com',
+        ],
+        'teams' => [
+            'explore' => [
+                'capacity'   => 12,
+                'registered' => 9,
+            ],
+            'challenge' => [
+                'capacity'   => 24,
+                'registered' => 21,
+            ],
+        ],
+    ];
+
+    if ($level >= 2) {
+        $data['teams']['explore']['list']   = ['Team Explorer 1', 'Team Explorer 2'];
+        $data['teams']['challenge']['list'] = ['RoboKidz', 'BrickMasters'];
+    }
+
+    if ($level >= 3) {
+        $data['schedule'] = [
+            'explore' => [
+                'briefings' => '09:00 Uhr',
+                'opening'   => '10:00 Uhr',
+                'end'       => '15:00 Uhr',
+            ],
+            'challenge' => [
+                'briefings' => '08:30 Uhr',
+                'opening'   => '09:30 Uhr',
+                'end'       => '18:00 Uhr',
+            ],
+        ];
+    }
+
+    return response()->json($data);
+}
 
 
 }
