@@ -109,6 +109,7 @@ class CarouselController extends Controller
             'type',
             'content',
             'order',
+            'active',
         ];
 
         $data = $request->only($fields);

@@ -23,9 +23,11 @@ onMounted(() => {
     backgroundColor: '#ffffff'
   });
   c.setZoom(zoom);
-  c.loadFromJSON(props.content.background).then(() => {
-    c.requestRenderAll();
-  });
+  if (props.content.background) {
+    c.loadFromJSON(props.content.background).then(() => {
+      c.requestRenderAll();
+    });
+  }
 });
 
 onMounted(loadFont);
