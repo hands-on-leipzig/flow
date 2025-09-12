@@ -330,15 +330,34 @@ function previewOlinePlan() {
 
                 <template v-else-if="idx === 1 && scheduleInfo">
                   <div class="font-semibold mb-1">Teams</div>
-                  <div>Explore: {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet</div>
-                  <div>Challenge: {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet</div>
+
+                  <!-- Explore nur anzeigen, wenn > 0 -->
+                  <div v-if="scheduleInfo.teams.explore.capacity > 0 || scheduleInfo.teams.explore.registered > 0">
+                    Explore: {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet
+                  </div>
+
+                  <!-- Challenge nur anzeigen, wenn > 0 -->
+                  <div v-if="scheduleInfo.teams.challenge.capacity > 0 || scheduleInfo.teams.challenge.registered > 0">
+                    Challenge: {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet
+                  </div>
                 </template>
 
                 <template v-else-if="idx === 2 && scheduleInfo && scheduleInfo.level >= 2">
-                  <div class="font-semibold mb-1">Explore Teams</div>
-                  <div class="whitespace-pre-line text-gray-700 text-xs">{{ scheduleInfo.teams.explore.list?.join(', ') }}</div>
-                  <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
-                  <div class="whitespace-pre-line text-gray-700 text-xs">{{ scheduleInfo.teams.challenge.list?.join(', ') }}</div>
+                  <!-- Explore nur anzeigen, wenn Teams existieren -->
+                  <template v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0">
+                    <div class="font-semibold mb-1">Explore Teams</div>
+                    <div class="whitespace-pre-line text-gray-700 text-xs">
+                      {{ scheduleInfo.teams.explore.list.join(', ') }}
+                    </div>
+                  </template>
+
+                  <!-- Challenge nur anzeigen, wenn Teams existieren -->
+                  <template v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0">
+                    <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
+                    <div class="whitespace-pre-line text-gray-700 text-xs">
+                      {{ scheduleInfo.teams.challenge.list.join(', ') }}
+                    </div>
+                  </template>
                 </template>
 
                 <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
