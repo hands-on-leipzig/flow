@@ -23,7 +23,8 @@ class Logo extends Model
 
     public function events()
     {
-        return $this->belongsToMany(Event::class, 'event_logo', "logo", "event");
+        return $this->belongsToMany(Event::class, 'event_logo', "logo", "event")
+            ->withPivot('sort_order');
     }
 }
 

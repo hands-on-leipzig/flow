@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('publication', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('event');
+            $table->unsignedInteger('event');
             $table->integer('level');
             $table->timestamps();
             

@@ -110,6 +110,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::patch('/logos/{logo}', [LogoController::class, 'update']);
     Route::delete('/logos/{logo}', [LogoController::class, 'destroy']);
     Route::post('/logos/{logo}/toggle-event', [LogoController::class, 'toggleEvent']);
+    Route::post('/logos/update-sort-order', [LogoController::class, 'updateSortOrder']);
 
     // Room controller
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);
