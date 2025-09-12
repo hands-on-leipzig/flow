@@ -56,4 +56,19 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(RegionalPartner::class, 'user_regional_partner', 'user', 'regional_partner');
     }
+
+    /**
+     * Get user roles from JWT token
+     */
+    public function getRoles(): array
+    {
+        $request = request();
+        $jwt = $request->attributes->get('jwt');
+        
+        if (!$jwt || !isset($jwt['resource_access']->flow->roles)) {
+            return [];
+        }
+        
+        return $jwt['resource_access']->flow->roles ?? [];
+    }
 }
