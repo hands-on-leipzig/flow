@@ -33,14 +33,45 @@ async function fetchPlanIdByEventId(eventId: number) {
   }
 }
 
-// Reaktiv laden, sobald/solange es eine Event-ID gibt
+// Event-ID ändert sich → Daten laden
 watch(
   () => event.value?.id,
   (id) => {
-    if (id) fetchPlanIdByEventId(id)
+    if (id) {
+      fetchPlanIdByEventId(id)
+      fetchScheduleInformation(id)   // <--- NEU
+    }
   },
   { immediate: true }
 )
+
+// --- Schedule Information ---
+const scheduleInfo = ref<any>(null)
+
+async function fetchScheduleInformation(eventId: number) {
+  try {
+    const { data } = await axios.post(`/publish/information/${eventId}`,  {
+      level: 4 // überschreibt den Wert aus der DB, um alle Infos zu bekommen
+    })
+    scheduleInfo.value = data
+  } catch (e) {
+    console.error('Fehler beim Laden von Schedule Information:', e)
+    scheduleInfo.value = null
+  }
+}
+
+// Event-ID ändert sich → Daten laden
+watch(
+  () => event.value?.id,
+  (id) => {
+    if (id) {
+      fetchPlanIdByEventId(id)
+      fetchScheduleInformation(id)   // <--- NEU
+    }
+  },
+  { immediate: true }
+)
+
 
 // PDF und Preview
 
@@ -260,44 +291,48 @@ const carouselLink = computed(() => {
                   ></div>
                 </div>
 
-                <!-- Inhalt -->
-                <template v-if="idx === 0">
-                  <div class="font-semibold mb-1">Datum</div>
-                  <div>Mittwoch, 28.01.2026</div>
-                  <div class="mt-2 font-semibold">Adresse</div>
-                  <div class="whitespace-pre-line text-gray-700 text-xs">
-                    ROBIGS c/o ROCARE GmbH  
-                    Am Seitenkanal 8  
-                    49811 Lingen (Ems)
-                  </div>
-                  <div class="mt-2 font-semibold">Kontakt</div>
-                  <div class="text-xs">Lena Helle<br/>lhelle@rosen-group.com</div>
-                </template>
 
-                <template v-else-if="idx === 1">
-                  <div class="font-semibold mb-1">Teams</div>
-                  <div>Explore: 5 / 12</div>
-                  <div>Challenge: 12 / 16</div>
-                </template>
+<!-- Inhalt -->
+<template v-if="idx === 0 && scheduleInfo">
+  <div class="font-semibold mb-1">Datum</div>
+  <div>{{ scheduleInfo.date }}</div>
+  <div class="mt-2 font-semibold">Adresse</div>
+  <div class="whitespace-pre-line text-gray-700 text-xs">
+    {{ scheduleInfo.address }}
+  </div>
+  <div class="mt-2 font-semibold">Kontakt</div>
+  <div class="text-xs">
+    {{ scheduleInfo.contact.name }}<br/>{{ scheduleInfo.contact.email }}
+  </div>
+</template>
 
-                <template v-else-if="idx === 2">
-                  <div class="font-semibold mb-1">Explore Teams</div>
-                  <div>Zwerge, Gurkentruppe</div>
-                  <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
-                  <div>Rocky, Ironman, Gandalf</div>
-                </template>
+<template v-else-if="idx === 1 && scheduleInfo">
+  <div class="font-semibold mb-1">Teams</div>
+  <div>Explore: {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet</div>
+  <div>Challenge: {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet</div>
+</template>
 
-                <template v-else-if="idx === 3">
-                  <div class="font-semibold mb-1">Zeitplan</div>
-                  <div>Briefings ab 8:30 Uhr</div>
-                  <div>Eröffnung 9:00 Uhr</div>
-                  <div>Ende 17:15 Uhr</div>
-                </template>
+<template v-else-if="idx === 2 && scheduleInfo && scheduleInfo.level >= 2">
+  <div class="font-semibold mb-1">Explore Teams</div>
+  <div>{{ scheduleInfo.teams.explore.list?.join(', ') }}</div>
+  <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
+  <div>{{ scheduleInfo.teams.challenge.list?.join(', ') }}</div>
+</template>
 
-                <template v-else-if="idx === 4">
-                  <div class="font-semibold mb-1">Ablaufplan</div>
-                  <div class="text-xs text-gray-600">mit allen Details</div>
-                </template>
+<template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
+  <div class="font-semibold mb-1">Zeitplan</div>
+  <div>Briefings ab {{ scheduleInfo.schedule.challenge.briefings }}</div>
+  <div>Eröffnung {{ scheduleInfo.schedule.challenge.opening }}</div>
+  <div>Ende {{ scheduleInfo.schedule.challenge.end }}</div>
+</template>
+
+<template v-else-if="idx === 4">
+  <div class="font-semibold mb-1">Ablaufplan</div>
+  <div class="text-xs text-gray-600">mit allen Details</div>
+</template>
+
+
+
               </div>
             </template>
           </div>

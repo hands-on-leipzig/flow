@@ -344,10 +344,11 @@ public function scheduleInformation(int $eventId, Request $request): JsonRespons
 
     $level = $publication?->level ?? 1; // Fallback Level 1
 
-    // Falls im Request level übergeben wird -> überschreibt DB-Wert
-    if ($request->has('level')) {
-        $level = (int) $request->query('level');
-    }
+// Falls im Request level übergeben wird -> überschreibt DB-Wert
+$override = $request->input('level'); // liest Body ODER Query
+if ($override !== null) {
+    $level = (int) $override;
+}
 
     // Beispielhafte Daten (später aus Controllern oder Tabellen laden)
     $data = [
