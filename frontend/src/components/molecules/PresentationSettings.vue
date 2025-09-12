@@ -82,6 +82,16 @@ async function addSlideshow() {
   loading.value = false;
 }
 
+async function updateTransitionTime(slideshow: Slideshow) {
+  try {
+    await axios.put(`/slideshow/${slideshow.id}`, {
+      transition_time: slideshow.transition_time
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 async function addSlide(slideshow: Slideshow) {
   if (slideType.value) {
     let newSlide = Slide.createNewSlide(slideType.value);
@@ -143,14 +153,32 @@ function copyUrl(url) {
       </div>
       <details v-for="(slideshow, index) in slideshows" :open="index === 0">
         <summary class="font-bold">{{ slideshow.name }}</summary>
-        <select v-model="slideType">
-          <option v-for="type of slideTypes" :id="type.value" v-text="type.label" :value="type.value"></option>
-        </select>
-        <button
-            class="my-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
-            @click="addSlide(slideshow)">
-          + Folie hinzufügen
-        </button>
+
+        <div class="flex items-center gap-2 mt-2 mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Anzeigezeit pro Folie</label>
+            <div class="flex items-center gap-3 w-60">
+              <input
+                  type="range"
+                  :min="1"
+                  :max="60"
+                  :step="1"
+                  v-model.number="slideshow.transition_time"
+                  @change="updateTransitionTime(slideshow)"
+                  class="flex-1"
+                  aria-label="Transition time slider"
+              />
+              <span class="text-sm text-gray-600">{{ slideshow.transition_time }}s</span>
+          </div>
+
+          <select v-model="slideType" class="ml-10 mr-1">
+            <option v-for="type of slideTypes" :id="type.value" v-text="type.label" :value="type.value"></option>
+          </select>
+          <button
+              class="my-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
+              @click="addSlide(slideshow)">
+            + Folie hinzufügen
+          </button>
+        </div>
         <draggable v-model="slideshow.slides" :key="slidesKey"
                    class="flex flex-wrap gap-2 ü-5 bg-gray-800 rounded-xl" ghost-class="ghost" group="slides"
                    item-key="id"

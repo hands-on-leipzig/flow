@@ -16,11 +16,7 @@ import {useEventStore} from "@/stores/event";
 // Custom controls
 // Copy and Paste
 
-// Slide-Ansicht: Umgang mit nicht 16:9 Bildschirmgröße
 
-// QR-Code Zeitplan integrieren
-// Standard-Slideshow mit QR-Code
-// Übergangszeit ändern UI, Standard 5s
 // Slideshow löschen
 // Zeit-Parameter für Activity-list
 

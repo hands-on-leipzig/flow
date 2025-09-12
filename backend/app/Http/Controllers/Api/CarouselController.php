@@ -81,6 +81,24 @@ class CarouselController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function updateSlideshow(Request $request, $slideshowId)
+    {
+        $fields = [
+            'name',
+            'transition_time',
+        ];
+
+        $data = $request->only($fields);
+
+        $slideshow = SlideShow::findOrFail($slideshowId);
+
+        // TODO: Event and rights check
+
+        $slideshow->update($data);
+
+        return response()->json(['success' => true]);
+    }
+
     public function deleteSlide(Request $request, $slideId)
     {
         $slide = Slide::find($slideId);
