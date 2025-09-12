@@ -4,6 +4,7 @@ import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import {useEventStore} from '@/stores/event'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
 const props = defineProps<{
   parameters: any[]
@@ -239,11 +240,15 @@ const getTeamInputStyle = (level: number) => {
 
 <template>
   <div class="p-4 border rounded shadow relative">
-    <div class="flex items-center justify-between mb-2">
-      <div class="flex items-center gap-2">
-        <h2 class="text-lg font-semibold">Challenge Einstellungen</h2>
-
-      </div>
+    <div class="flex items-center gap-2 mb-2">
+      <img
+          :src="programLogoSrc('C')"
+          :alt="programLogoAlt('C')"
+          class="w-10 h-10 flex-shrink-0"
+        />
+      <h3 class="text-lg font-semibold capitalize">
+        <span class="italic">FIRST</span> LEGO League Challenge
+      </h3>
       <label class="relative inline-flex items-center cursor-pointer">
         <input
             type="checkbox"
@@ -271,36 +276,6 @@ const getTeamInputStyle = (level: number) => {
         />
         <label class="text-sm font-medium">Teams</label>
         <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
-      </div>
-
-      <div class="mb-3">
-        <div class="flex items-center gap-2">
-          <RadioGroup v-model="rTablesProxy" class="flex gap-1">
-            <RadioGroupOption
-                v-for="tb in [2,4]"
-                :key="'tables_' + tb"
-                :value="tb"
-                :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
-                v-slot="{ checked, disabled }"
-            >
-              <button
-                  type="button"
-                  class="px-2 py-1 rounded-md border text-sm transition
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  :class="[
-                    checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
-                    disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-                  ]"
-                  :aria-disabled="disabled"
-                  @click="!disabled && updateByName('r_tables', tb)"
-              >
-                {{ tb }}
-              </button>
-            </RadioGroupOption>
-          </RadioGroup>
-          <span class="text-sm font-medium">Robot-Game Tische</span>
-          <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
-        </div>
       </div>
 
       <!-- Jury lanes -->
@@ -342,6 +317,38 @@ const getTeamInputStyle = (level: number) => {
         </p>
 
       </div>
+
+
+      <!-- Robot game tables -->
+      <div class="mb-3">
+        <div class="flex items-center gap-2">
+          <RadioGroup v-model="rTablesProxy" class="flex gap-1">
+            <RadioGroupOption
+                v-for="tb in [2,4]"
+                :key="'tables_' + tb"
+                :value="tb"
+                :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
+                v-slot="{ checked, disabled }"
+            >
+              <button
+                  type="button"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :class="[
+                    checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
+                    disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                  ]"
+                  :aria-disabled="disabled"
+                  @click="!disabled && updateByName('r_tables', tb)"
+              >
+                {{ tb }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
+          <span class="text-sm font-medium">Robot-Game Tische</span>
+          <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
+        </div>
+      </div>      
 
 
     </template>

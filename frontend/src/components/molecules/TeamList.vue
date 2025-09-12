@@ -4,6 +4,7 @@ import {computed, toRef, ref, watch, onMounted} from "vue";
 import axios from "axios";
 import {useEventStore} from "@/stores/event";
 import IconDraggable from "@/components/icons/IconDraggable.vue";
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
 const props = defineProps({
   program: {type: String, required: true}, // 'explore' or 'challenge'
@@ -175,25 +176,18 @@ onMounted(async () => {
     <div class="p-4 border rounded shadow">
       <div class="flex items-center gap-2 mb-2">
         <img
-          v-if="program === 'explore'"
-          src="@/assets/FLL_Explore.png"
-          alt="Logo Explore"
+          :src="programLogoSrc(program)"
+          :alt="programLogoAlt(program)"
           class="w-10 h-10 flex-shrink-0"
         />
-        <img
-          v-else-if="program === 'challenge'"
-          src="@/assets/FLL_Challenge.png"
-          alt="Logo Challenge"
-          class="w-10 h-10 flex-shrink-0"
-        />
-      <div>
-        <h3 class="text-lg font-semibold capitalize">
-          <span class="italic">FIRST</span> LEGO League {{ program }}
-        </h3>
-        <p class="text-sm text-gray-500">
-          Kapazität: {{ program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0 }}
-        </p>
-      </div>
+        <div>
+          <h3 class="text-lg font-semibold capitalize">
+            <span class="italic">FIRST</span> LEGO League {{ program }}
+          </h3>
+          <p class="text-sm text-gray-500">
+            Geplant: {{ program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0 }}
+          </p>
+        </div>
       </div>
       <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
         Die Daten in FLOW weichen von denen der Anmeldung ab.

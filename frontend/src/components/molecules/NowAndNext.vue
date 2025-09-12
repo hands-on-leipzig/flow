@@ -184,14 +184,14 @@ function openPreview(id: string | number) {
               <!-- Program Icon -->
               <img
                 v-if="g.group_meta?.first_program_id === 2"
-                src="@/assets/FLL_Explore.png"
-                alt="Explore"
+                :src="programLogoSrc('E')"
+                :alt="programLogoAlt('E')"
                 class="w-6 h-6 flex-shrink-0"
               />
               <img
                 v-else-if="g.group_meta?.first_program_id === 3"
-                src="@/assets/FLL_Challenge.png"
-                alt="Challenge"
+                :src="programLogoSrc('C')"
+                :alt="programLogoAlt('C')"
                 class="w-6 h-6 flex-shrink-0"
               />
 

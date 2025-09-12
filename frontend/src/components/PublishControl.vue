@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 
 import { useEventStore } from '@/stores/event'
-import { imageUrl } from '@/utils/imageUrl'  
+import { imageUrl } from '@/utils/images'  
 import QRCode from "qrcode"
 import jsPDF from "jspdf"
 import axios from 'axios'

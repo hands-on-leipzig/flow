@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+
 
 const data = ref(null)
 const totals = ref(null)
@@ -327,14 +329,14 @@ function formatNumber(num) {
               <span class="inline-flex items-center space-x-1 ml-2">
                 <img
                   v-if="row.event_explore"
-                  src="@/assets/FLL_Explore.png"
-                  alt="Explore"
+                  :src="programLogoSrc('E')"
+                  :alt="programLogoAlt('E')"
                   class="w-5 h-5 inline-block"
                 />
                 <img
                   v-if="row.event_challenge"
-                  src="@/assets/FLL_Challenge.png"
-                  alt="Challenge"
+                  :src="programLogoSrc('C')"
+                  :alt="programLogoAlt('C')"
                   class="w-5 h-5 inline-block"
                 />
               </span>

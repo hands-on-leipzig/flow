@@ -5,6 +5,8 @@ import {useRouter} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import dayjs from "dayjs";
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+
 
 const regionalPartners = ref([])
 const eventStore = useEventStore()
@@ -62,14 +64,14 @@ async function selectEvent(eventId, regionalPartnerId) {
             <div class="flex ml-4 space-x-2">
               <img
                 v-if="event.event_explore !== null"
-                src="@/assets/FLL_Explore.png"
-                alt="Logo Explore"
+                  :src="programLogoSrc('E')"
+                  :alt="programLogoAlt('E')"
                 class="w-20 h-20 flex-shrink-0"
               />
               <img
                 v-if="event.event_challenge !== null"
-                src="@/assets/FLL_Challenge.png"
-                alt="Logo Challenge"
+                  :src="programLogoSrc('C')"
+                  :alt="programLogoAlt('C')"
                 class="w-20 h-20 flex-shrink-0"
               />
             </div>
