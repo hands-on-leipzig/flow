@@ -38,12 +38,14 @@ watch(
   () => event.value?.id,
   (id) => {
     if (id) {
+      fetchPublicationLevel(id)
       fetchPlanIdByEventId(id)
-      fetchScheduleInformation(id)   // <--- NEU
+      fetchScheduleInformation(id)  
     }
   },
   { immediate: true }
 )
+
 
 // --- Schedule Information ---
 const scheduleInfo = ref<any>(null)
@@ -116,6 +118,34 @@ async function fetchPublishData(planId: number) {
 // Radio Buttons Detailstufe
 const levels = ["Planung", "Nach Anmeldeschluss", "Überblick zum Ablauf", "volle Details"]
 const detailLevel = ref(0)
+
+// Level vom Backend holen
+async function fetchPublicationLevel(eventId: number) {
+  try {
+    const { data } = await axios.get(`/publish/level/${eventId}`)
+    detailLevel.value = (data.level ?? 1) - 1 // -1, da Radio Buttons bei 0 starten
+  } catch (e) {
+    console.error("Fehler beim Laden des Publication Levels:", e)
+    detailLevel.value = 0
+  }
+}
+
+// Level im Backend speichern
+async function updatePublicationLevel(eventId: number, level: number) {
+  try {
+    await axios.post(`/publish/level/${eventId}`, { level: level + 1 }) // +1, da Backend bei 1 startet
+    console.log("Publication Level aktualisiert:", level + 1)
+  } catch (e) {
+    console.error("Fehler beim Setzen des Publication Levels:", e)
+  }
+}
+
+// Wenn Radio Button geändert wird → Level im Backend speichern
+watch(detailLevel, (newLevel) => {
+  if (event.value?.id) {
+    updatePublicationLevel(event.value.id, newLevel)
+  }
+})
 
 function isCardActive(card: number, level: number) {
   if (card <= 2) return true
@@ -228,10 +258,15 @@ function previewOlinePlan() {
 
     
       <div class="flex items-start gap-6">
+
         <!-- Radiobuttons links -->
         <div class="flex flex-col space-y-3">
           <h3 class="text-sm font-semibold mb-2">Detaillevel</h3>
-          <label v-for="(label, idx) in levels" :key="idx" class="flex items-start gap-2 cursor-pointer">
+          <label
+            v-for="(label, idx) in levels"
+            :key="idx"
+            class="flex items-start gap-2 cursor-pointer"
+          >
             <input
               type="radio"
               :value="idx"
@@ -307,7 +342,7 @@ function previewOlinePlan() {
                 </template>
 
                 <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
-                  <div class="font-semibold mb-1">Wichtige Zeiten</div>
+                  <div class="font-semibold mb-1">Wichtige Zeiten [Dummy Data]</div>
                   <div>Briefings ab {{ scheduleInfo.schedule.challenge.briefings }}</div>
                   <div>Eröffnung {{ scheduleInfo.schedule.challenge.opening }}</div>
                   <div>Ende {{ scheduleInfo.schedule.challenge.end }}</div>
