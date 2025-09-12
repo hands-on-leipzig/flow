@@ -81,6 +81,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     // ExtraBlock controller
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
+    Route::get('/plans/{id}/extra-blocks-with-room-types', [ExtraBlockController::class, 'getBlocksForPlanWithRoomTypes']);
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::get('/insert-points', [ExtraBlockController::class, 'getInsertPoints']);
     Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
@@ -112,6 +113,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::patch('/logos/{logo}', [LogoController::class, 'update']);
     Route::delete('/logos/{logo}', [LogoController::class, 'destroy']);
     Route::post('/logos/{logo}/toggle-event', [LogoController::class, 'toggleEvent']);
+    Route::post('/logos/update-sort-order', [LogoController::class, 'updateSortOrder']);
 
     // Room controller
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);

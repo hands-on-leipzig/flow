@@ -27,6 +27,18 @@ class ExtraBlockController extends Controller
         return response()->json($blocks);
     }
 
+    public function getBlocksForPlanWithRoomTypes(int $planId)
+    {
+        $blocks = ExtraBlock::query()
+            ->with(['insertPoint.roomType'])
+            ->where('plan', $planId)
+            ->orderBy('insert_point')
+            ->orderBy('start')
+            ->get();
+
+        return response()->json($blocks);
+    }
+
     public function storeOrUpdate(Request $request, int $planId)
     {
         $validated = $request->validate([
