@@ -109,7 +109,7 @@ class PublishController extends Controller
 
         // Logo optional hinzufügen
         $logo = null;
-        $logoPath = public_path("img/hot_logo_qr.png");
+        $logoPath = public_path("flow/hot_qr.png");
         if (file_exists($logoPath)) {
             $logo = new Logo($logoPath, 100); // 50px breit
         }
@@ -254,7 +254,7 @@ if ($logos->count() > 0) {
         // Pfad in storage -> public URL
         $logoPath = storage_path('app/public/' . $logo->path);
 
-Log::info('Logo path: ' . $logoPath);
+        // Log::info('Logo path: ' . $logoPath);
 
         if (file_exists($logoPath)) {
             $base64 = base64_encode(file_get_contents($logoPath));

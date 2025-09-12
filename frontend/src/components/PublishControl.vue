@@ -2,9 +2,13 @@
 import { ref, computed, watch } from 'vue'
 
 import { useEventStore } from '@/stores/event'
+import { imageUrl } from '@/utils/imageUrl'  
 import QRCode from "qrcode"
 import jsPDF from "jspdf"
 import axios from 'axios'
+
+
+
 
 // Store + Selected Event
 const eventStore = useEventStore()
@@ -434,7 +438,7 @@ const carouselLink = computed(() => {
           <h3 class="text-lg font-semibold mb-4">Präsentation über Bildschirme</h3>
           
           <img
-            src="@/assets/fake/Karussell.png"
+            :src="imageUrl('/flow/karussell.png')"
             alt="Karussell Vorschau"
             class="h-28 w-auto border"
           />
