@@ -2,9 +2,10 @@
 
 // Bilder aus dem Backend laden
 export function imageUrl(path: string) {
-  // Falls path mit / anfängt, abschneiden um keine doppelten Slashes zu erzeugen
-  const cleanPath = path.startsWith("/") ? path.slice(1) : path
-  return `${import.meta.env.VITE_FILES_BASE_URL}/${encodeURIComponent(cleanPath)}`
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path
+  const parts = cleanPath.split('/')
+  const encodedParts = parts.map(p => encodeURIComponent(p))
+  return `${import.meta.env.VITE_FILES_BASE_URL}/${encodedParts.join('/')}`
 }
 
 // FIRST program Logo als img-Tag zurückgeben
