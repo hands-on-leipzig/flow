@@ -203,6 +203,14 @@ async function downloadPng(dataUrl: string, filename: string) {
 const carouselLink = computed(() => {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
 })
+
+function previewOlinePlan() {
+  if (!planId.value) return
+  const url = `https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=${planId.value}`
+  window.open(url, '_blank')
+}
+
+
 </script>
 
 <template>
@@ -292,46 +300,63 @@ const carouselLink = computed(() => {
                 </div>
 
 
-<!-- Inhalt -->
-<template v-if="idx === 0 && scheduleInfo">
-  <div class="font-semibold mb-1">Datum</div>
-  <div>{{ scheduleInfo.date }}</div>
-  <div class="mt-2 font-semibold">Adresse</div>
-  <div class="whitespace-pre-line text-gray-700 text-xs">
-    {{ scheduleInfo.address }}
-  </div>
-  <div class="mt-2 font-semibold">Kontakt</div>
-  <div class="text-xs">
-    {{ scheduleInfo.contact.name }}<br/>{{ scheduleInfo.contact.email }}
-  </div>
-</template>
+                <!-- Inhalt -->
+                <template v-if="idx === 0 && scheduleInfo">
+                  <div class="font-semibold mb-1">Datum</div>
+                  <div>{{ scheduleInfo.date }}</div>
+                  <div class="mt-2 font-semibold">Adresse</div>
+                  <div class="whitespace-pre-line text-gray-700 text-xs">
+                    {{ scheduleInfo.address }}
+                  </div>
+                  <div class="mt-2 font-semibold">Kontakt</div>
+                  <div class="text-xs">
+                    {{ scheduleInfo.contact.name }}<br/>{{ scheduleInfo.contact.email }}
+                  </div>
+                </template>
 
-<template v-else-if="idx === 1 && scheduleInfo">
-  <div class="font-semibold mb-1">Teams</div>
-  <div>Explore: {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet</div>
-  <div>Challenge: {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet</div>
-</template>
+                <template v-else-if="idx === 1 && scheduleInfo">
+                  <div class="font-semibold mb-1">Teams</div>
+                  <div>Explore: {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet</div>
+                  <div>Challenge: {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet</div>
+                </template>
 
-<template v-else-if="idx === 2 && scheduleInfo && scheduleInfo.level >= 2">
-  <div class="font-semibold mb-1">Explore Teams</div>
-  <div>{{ scheduleInfo.teams.explore.list?.join(', ') }}</div>
-  <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
-  <div>{{ scheduleInfo.teams.challenge.list?.join(', ') }}</div>
-</template>
+                <template v-else-if="idx === 2 && scheduleInfo && scheduleInfo.level >= 2">
+                  <div class="font-semibold mb-1">Explore Teams</div>
+                  <div>{{ scheduleInfo.teams.explore.list?.join(', ') }}</div>
+                  <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
+                  <div>{{ scheduleInfo.teams.challenge.list?.join(', ') }}</div>
+                </template>
 
-<template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
-  <div class="font-semibold mb-1">Zeitplan</div>
-  <div>Briefings ab {{ scheduleInfo.schedule.challenge.briefings }}</div>
-  <div>Eröffnung {{ scheduleInfo.schedule.challenge.opening }}</div>
-  <div>Ende {{ scheduleInfo.schedule.challenge.end }}</div>
-</template>
+                <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
+                  <div class="font-semibold mb-1">Zeitplan</div>
+                  <div>Briefings ab {{ scheduleInfo.schedule.challenge.briefings }}</div>
+                  <div>Eröffnung {{ scheduleInfo.schedule.challenge.opening }}</div>
+                  <div>Ende {{ scheduleInfo.schedule.challenge.end }}</div>
+                </template>
 
-<template v-else-if="idx === 4">
-  <div class="font-semibold mb-1">Ablaufplan</div>
-  <div class="text-xs text-gray-600">mit allen Details</div>
-</template>
+                <template v-else-if="idx === 4">
+                  <div class="h-full flex flex-col justify-between">
+                    <!-- Inhalt der Kachel -->
+                    <div>
+                      <div class="font-semibold mb-1">Online Zeitplan</div>
+                      <img
+                        :src="imageUrl('/flow/öplan.png')"
+                        alt="Karussell Vorschau"
+                        class="h-28 w-auto border mx-auto"
+                      />
+                    </div>
 
-
+                    <!-- Button immer unten -->
+                    <div class="mt-4 flex justify-center">
+                    <button
+                      class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+                      @click="previewOlinePlan"
+                    >
+                      Vorschau
+                    </button>
+                    </div>
+                  </div>
+                </template>
 
               </div>
             </template>
@@ -342,7 +367,7 @@ const carouselLink = computed(() => {
 
 
     <!-- Während der Veranstaltung -->
-    <div>
+    <div class="rounded-xl shadow bg-white p-6 space-y-4">
       <h2 class="text-lg font-semibold mb-4">Während der Veranstaltung</h2>
 
       <div class="flex flex-col lg:flex-row gap-6">
