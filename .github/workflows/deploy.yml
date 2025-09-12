@@ -28,6 +28,7 @@ jobs:
           echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_DEV }}" > .env
           echo "VITE_APP_NAME=FLOW" >> .env
           echo "VITE_APP_URL=https://dev.flow.hands-on-technology.org" >> .env
+          echo "VITE_FILES_BASE_URL=https://dev.flow.hands-on-technology.org" >> .env
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
@@ -99,6 +100,7 @@ jobs:
           echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_TEST }}" > .env
           echo "VITE_APP_NAME=FLOW" >> .env
           echo "VITE_APP_URL=https://test.flow.hands-on-technology.org" >> .env
+          echo "VITE_FILES_BASE_URL=https://test.flow.hands-on-technology.org" >> .env
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
@@ -173,6 +175,7 @@ jobs:
           echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_PROD }}" > .env
           echo "VITE_APP_NAME=FLOW" >> .env
           echo "VITE_APP_URL=https://flow.hands-on-technology.org" >> .env
+          echo "VITE_FILES_BASE_URL=https://flow.hands-on-technology.org" >> .env
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
