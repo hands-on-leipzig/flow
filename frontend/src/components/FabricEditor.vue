@@ -33,7 +33,24 @@ watch(props.slide, (newSlide) => {
 const canvasEl = shallowRef(null);
 let canvas: Canvas;
 
-const availableImages = ref([]);
+const standardImages = [
+  {title: 'Hands on Technology', path: 'flow/hot.png'},
+  {title: 'Hands on Technology', path: 'flow/hot_outline.png'},
+  {title: 'Unearthed', path: 'flow/season_unearthed+fll_h.png'},
+  {title: 'Unearthed', path: 'flow/season_unearthed_v.png'},
+  {title: 'Unearthed', path: 'flow/season_unearthed_wordmark.png'},
+  {title: 'First LEGO League', path: 'flow/first+fll_h.png'},
+  {title: 'First LEGO League', path: 'flow/first+fll_v.png'},
+  {title: 'First', path: 'flow/first_h.png'},
+  {title: 'First', path: 'flow/first_v.png'},
+  {title: 'First', path: 'flow/first_v.png'},
+  {title: 'FLl Challenge', path: 'flow/fll_challenge_h.png'},
+  {title: 'FLl Challenge', path: 'flow/fll_challenge_v.png'},
+  {title: 'FLl Explore', path: 'flow/fll_explore_h.png'},
+  {title: 'FLl Explore', path: 'flow/fll_explore_hs.png'},
+  {title: 'FLl Explore', path: 'flow/fll_explore_v.png'},
+];
+const availableImages = ref(standardImages);
 
 const defaultObjectProperties = {
   transparentCorners: true,
@@ -100,7 +117,7 @@ function keyListener(e: KeyboardEvent) {
 
 async function loadImages() {
   const {data} = await axios.get('/logos');
-  availableImages.value = data;
+  availableImages.value = [...data, ...standardImages];
 }
 
 function paintSlide(slide: Slide) {
@@ -145,8 +162,16 @@ function closeImageModal() {
 async function insertImage(image) {
   closeImageModal();
   if (!canvas) return;
-  const img = await FabricImage.fromURL(image.url + '/' + image.path);
+  const img = await FabricImage.fromURL((image.url ?? '') + '/' + image.path);
   img.set({left: 100, top: 100, ...defaultObjectProperties});
+
+  const maxWidth = canvas.width * 0.5;
+  const maxHeight = canvas.height * 0.5;
+
+  if (img.width > maxWidth || img.height > maxHeight) {
+    const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+    img.scale(scale);
+  }
 
   canvas.add(img);
   canvas.setActiveObject(img);
@@ -350,9 +375,9 @@ function saveJson() {
     <div v-if="showImageModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
       <div class="bg-white rounded shadow-lg p-6 w-96">
         <h2 class="text-lg font-bold mb-4">Bild auswählen</h2>
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-3 gap-4 overflow-y-auto max-h-96">
           <div v-for="img in availableImages" :key="img" class="cursor-pointer">
-            <img :src="`${img.url}/${img.path}`" :alt="img.title" class="w-24 h-24 object-cover rounded border"
+            <img :src="`${img.url ?? ''}/${img.path}`" :alt="img.title" class="w-24 h-24 object-contain rounded border"
                  @click="insertImage(img)" />
           </div>
         </div>

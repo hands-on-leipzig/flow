@@ -21,17 +21,22 @@ return new class extends Migration
         if (!Schema::hasColumn('m_room_type', 'level')) {
             Schema::table('m_room_type', function (Blueprint $table) {
                 $table->unsignedBigInteger('level')->nullable()->after('room_type_group');
-                $table->foreign('level')->references('id')->on('m_level');
             });
+        }
+        
+        // Add foreign key constraint for level column if it doesn't exist
+        if (Schema::hasColumn('m_room_type', 'level')) {
+            $this->addForeignKeyIfNotExists('m_room_type', 'level', 'm_level', 'id', 'm_room_type_level_foreign');
         }
 
         // Add plan_extra_block column to activity (missing in test/prod)
         if (!Schema::hasColumn('activity', 'plan_extra_block')) {
             Schema::table('activity', function (Blueprint $table) {
                 $table->unsignedBigInteger('plan_extra_block')->nullable()->after('extra_block');
-                $table->foreign('plan_extra_block')->references('id')->on('plan_extra_block')->onDelete('no action')->onUpdate('no action');
             });
         }
+        
+        // Note: No foreign key constraint for plan_extra_block as the referenced table doesn't exist
 
         // 3. Remove obsolete columns
         
@@ -51,10 +56,8 @@ return new class extends Migration
             // Drop old constraint if it exists
             $this->dropForeignKeyIfExists('activity', 'fk_plan_extra_Block');
             
-            // Add new constraint
-            Schema::table('activity', function (Blueprint $table) {
-                $table->foreign('plan_extra_block')->references('id')->on('plan_extra_block')->onDelete('no action')->onUpdate('no action');
-            });
+            // Note: plan_extra_block foreign key constraint removed because plan_extra_block table doesn't exist
+            // The plan_extra_block column exists but references a non-existent table
         }
 
         // Update plan table constraints
@@ -71,27 +74,11 @@ return new class extends Migration
             }
         }
 
-        // 5. Update m_room_type constraints
-        if (Schema::hasTable('m_room_type') && Schema::hasColumn('m_room_type', 'level')) {
-            // Drop old constraint if it exists
-            $this->dropForeignKeyIfExists('m_room_type', 'm_room_type_m_level_id_fk');
-            
-            // Add new constraint
-            Schema::table('m_room_type', function (Blueprint $table) {
-                $table->foreign('level')->references('id')->on('m_level');
-            });
-        }
+        // 5. Update m_room_type constraints (handled above in section 2)
 
         // 6. Update team table constraints
-        if (Schema::hasTable('team')) {
-            // Drop old constraint if it exists
-            $this->dropForeignKeyIfExists('team', 'event');
-            
-            // Add new constraint
-            Schema::table('team', function (Blueprint $table) {
-                $table->foreign('event')->references('id')->on('event');
-            });
-        }
+        // Note: Skipping team table foreign key updates due to data integrity issues
+        // The team table has invalid event references that need manual cleanup
 
         // 7. Update team_plan constraints
         if (Schema::hasTable('team_plan')) {
@@ -160,6 +147,27 @@ return new class extends Migration
             }
         } catch (\Exception $e) {
             // Constraint doesn't exist or other error, ignore
+        }
+    }
+    
+    private function addForeignKeyIfNotExists($table, $column, $referencedTable, $referencedColumn, $constraintName)
+    {
+        try {
+            $constraints = DB::select("
+                SELECT CONSTRAINT_NAME 
+                FROM information_schema.KEY_COLUMN_USAGE 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = ? 
+                AND CONSTRAINT_NAME = ?
+            ", [$table, $constraintName]);
+            
+            if (empty($constraints)) {
+                Schema::table($table, function (Blueprint $table) use ($column, $referencedTable, $referencedColumn, $constraintName) {
+                    $table->foreign($column, $constraintName)->references($referencedColumn)->on($referencedTable);
+                });
+            }
+        } catch (\Exception $e) {
+            // Constraint already exists or other error, ignore
         }
     }
 };
