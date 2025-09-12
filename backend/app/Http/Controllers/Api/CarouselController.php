@@ -11,7 +11,22 @@ use Illuminate\Http\Request;
 class CarouselController extends Controller
 {
 
-    public function getSlideshowsForEvent($eventId)
+    // Public Endpoint
+    public function getPublicSlideshowForEvent($eventId)
+    {
+        // TODO slideshow selection logic
+        // only active slides
+        $slideshows = SlideShow::where('event', $eventId)
+            ->with(['slides' => function ($query) {
+                $query->where('active', true);
+            }])
+            ->get();
+
+        return response()->json($slideshows);
+    }
+
+    // Authenticated Endpoint, includes hidden slides:
+    public function getAllSlideshows($eventId)
     {
         $slideshows = SlideShow::where('event', $eventId)
             ->with('slides')
@@ -36,6 +51,7 @@ class CarouselController extends Controller
             'name',
             'type',
             'content',
+            'active',
         ];
 
         $data = $request->only($updatableFields);

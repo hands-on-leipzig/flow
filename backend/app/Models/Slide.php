@@ -17,6 +17,7 @@ class Slide extends Model
         'content',
         'order',
         'slideshow',
+        'active',
     ];
 
     public function slideshow()
