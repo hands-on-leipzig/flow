@@ -3,8 +3,8 @@ import { ref, computed, watch } from 'vue'
 
 import { useEventStore } from '@/stores/event'
 import { imageUrl } from '@/utils/images'  
+import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
 import QRCode from "qrcode"
-import jsPDF from "jspdf"
 import axios from 'axios'
 
 
@@ -291,14 +291,18 @@ function previewOlinePlan() {
                 <!-- Inhalt -->
                 <template v-if="idx === 0 && scheduleInfo">
                   <div class="font-semibold mb-1">Datum</div>
-                  <div>{{ scheduleInfo.date }}</div>
+                  <div>{{ formatDateOnly(scheduleInfo.date) }}</div>
                   <div class="mt-2 font-semibold">Adresse</div>
                   <div class="whitespace-pre-line text-gray-700 text-xs">
                     {{ scheduleInfo.address }}
                   </div>
                   <div class="mt-2 font-semibold">Kontakt</div>
-                  <div class="text-xs">
-                    {{ scheduleInfo.contact.name }}<br/>{{ scheduleInfo.contact.email }}
+                  <div class="text-xs space-y-2">
+                    <div v-for="(c, idx) in scheduleInfo.contact" :key="idx">
+                      {{ c.contact }}<br />
+                      {{ c.contact_email }}
+                      <div v-if="c.contact_infos">{{ c.contact_infos }}</div>
+                    </div>
                   </div>
                 </template>
 
@@ -310,9 +314,9 @@ function previewOlinePlan() {
 
                 <template v-else-if="idx === 2 && scheduleInfo && scheduleInfo.level >= 2">
                   <div class="font-semibold mb-1">Explore Teams</div>
-                  <div>{{ scheduleInfo.teams.explore.list?.join(', ') }}</div>
+                  <div class="whitespace-pre-line text-gray-700 text-xs">{{ scheduleInfo.teams.explore.list?.join(', ') }}</div>
                   <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
-                  <div>{{ scheduleInfo.teams.challenge.list?.join(', ') }}</div>
+                  <div class="whitespace-pre-line text-gray-700 text-xs">{{ scheduleInfo.teams.challenge.list?.join(', ') }}</div>
                 </template>
 
                 <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
