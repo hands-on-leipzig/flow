@@ -4,6 +4,7 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import dayjs from "dayjs";
 import ExtraBlocks from "@/components/molecules/ExtraBlocks.vue";
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -236,37 +237,76 @@ const updateTableName = async () => {
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- Event Info -->
     <div>
       <h1 class="text-2xl font-bold">Veranstaltung {{ event?.name }}</h1>
       <div class="grid grid-cols-3 gap-4 mt-4">
-        <div class="p-4 border rounded shadow">
-          <h3 class="font-semibold mb-2">Daten</h3>
-          <p>Datum: {{ dayjs(event?.date).format('dddd, DD.MM.YYYY') }}</p>
-          <p v-if="event?.days > 1">bis: {{ dayjs(event?.enddate).format('dddd, DD.MM.YYYY') }}</p>
-          <p>Art: {{ event?.level_rel.name }}</p>
-          <p>Saison: {{ event?.season_rel.name }}</p>
 
-          <!-- Team Statistics -->
-          <div class="mt-3 pt-3 border-t border-gray-200">
-            <h4 class="text-sm font-medium text-gray-700 mb-2">Team-Statistiken</h4>
-            <div class="space-y-1 text-sm">
-              <div v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0">
-                <span class="text-gray-600">Explore: </span>
-                <span class="font-medium">{{ teamStats.explore.registered }}/{{ teamStats.explore.capacity }}</span>
-              </div>
-              <div v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0">
-                <span class="text-gray-600">Challenge: </span>
-                <span class="font-medium">{{ teamStats.challenge.registered }}/{{ teamStats.challenge.capacity }}</span>
-              </div>
+
+        <div class="p-4 border rounded shadow">
+          <div class="grid grid-cols-2 gap-6">
+            <!-- Linke Seite: Event-Daten -->
+            <div>
+              <h3 class="font-semibold mb-2">Daten</h3>
+              <p>Datum: {{ dayjs(event?.date).format('dddd, DD.MM.YYYY') }}</p>
+              <p v-if="event?.days > 1">
+                bis: {{ dayjs(event?.enddate).format('dddd, DD.MM.YYYY') }}
+              </p>
+              <p>Art: {{ event?.level_rel.name }}</p>
+              <p>Saison: {{ event?.season_rel.name }}</p>
+            </div>
+
+            <!-- Rechte Seite: Team-Statistik -->
+            <div>
+
+              <!-- Explore -->
               <div
-                  v-if="teamStats.explore.capacity === 0 && teamStats.explore.registered === 0 && teamStats.challenge.capacity === 0 && teamStats.challenge.registered === 0"
-                  class="text-gray-500 text-xs">
+                v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0"
+                class="flex items-start gap-2 mb-3"
+              >
+                <img
+                  :src="programLogoSrc('E')"
+                  :alt="programLogoAlt('E')"
+                  class="w-10 h-10 flex-shrink-0"
+                />
+                <div class="flex-1">
+                  <span class="font-medium block">
+                    {{ teamStats.explore.registered }} von {{ teamStats.explore.capacity }} Teams 
+                  </span>
+                  <span class="text-gray-600 block">angemeldet</span>
+                </div>
+              </div>
+
+              <!-- Challenge -->
+              <div
+                v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0"
+                class="flex items-start gap-2"
+              >
+                <img
+                  :src="programLogoSrc('C')"
+                  :alt="programLogoAlt('C')"
+                  class="w-10 h-10 flex-shrink-0"
+                />
+                <div class="flex-1">
+                  <span class="font-medium block">
+                    {{ teamStats.challenge.registered }} von {{ teamStats.challenge.capacity }} Teams 
+                  </span>
+                  <span class="text-gray-600 block">angemeldet</span>
+                </div>
+              </div>
+
+              <!-- Fallback -->
+              <div
+                v-if="teamStats.explore.capacity === 0 && teamStats.explore.registered === 0 && teamStats.challenge.capacity === 0 && teamStats.challenge.registered === 0"
+                class="text-gray-500 text-xs"
+              >
                 Keine Team-Daten verfügbar
               </div>
             </div>
           </div>
         </div>
+
+
+
         <div class="p-4 border rounded shadow">
           <h3 class="font-semibold mb-2">Adresse</h3>
           <p>{{ event?.address }}</p>
@@ -356,7 +396,10 @@ const updateTableName = async () => {
         </div>
 
       </div>
+    
     </div>
+
+
   </div>
 
   <!-- Toast notification (same as Schedule.vue) -->

@@ -4,6 +4,7 @@ import {onMounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import dayjs from "dayjs";
+import { imageUrl } from '@/utils/images'  
 
 const eventStore = useEventStore()
 onMounted(async () => {
@@ -38,8 +39,8 @@ function goTo(tab) {
 <template>
   <div class="flex items-center justify-between border-b px-2 py-2 bg-white shadow-sm">
     <div class="flex items-center gap-8">
-      <img src="../assets/FLOW_v.1.0.png" alt="Logo" class="h-8 w-auto"/>
-      <img src="../assets/logo_hot_fll.png" alt="Logo" class="h-8 w-auto"/>
+      <img :src="imageUrl('/flow/flow.png')" alt="Logo" class="h-8 w-auto"/>
+      <img :src="imageUrl('/flow/hot+fll.png')" alt="Logo" class="h-8 w-auto"/>
 
       <TabGroup v-model="selectedTab" as="div">
         <TabList class="flex space-x-2">

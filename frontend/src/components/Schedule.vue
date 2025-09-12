@@ -14,6 +14,7 @@ import InsertBlocks from "@/components/molecules/InsertBlocks.vue";
 import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex'
 import FllEvent from "@/models/FllEvent";
 import {Parameter, ParameterCondition} from "@/models/Parameter"
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
@@ -518,7 +519,16 @@ onMounted(async () => {
           <div class="grid grid-cols-2 gap-6 max-h-[600px] overflow-y-auto">
             <!-- Left column: Explore or turned off message -->
             <div>
-              <h4 class="text-md font-semibold mb-2">Explore</h4>
+                  <div class="flex items-center gap-2 mb-2">
+                    <img
+                        :src="programLogoSrc('E')"
+                        :alt="programLogoAlt('E')"
+                        class="w-10 h-10 flex-shrink-0"
+                      />
+                    <h3 class="text-lg font-semibold capitalize">
+                      <span class="italic">FIRST</span> LEGO League Explore
+                    </h3>
+                  </div>
               <div v-if="showExplore">
                 <template v-for="(group, programName) in expertParamsGrouped" :key="programName">
                   <template v-if="programName.toLowerCase().includes('explore')">
@@ -543,7 +553,16 @@ onMounted(async () => {
 
             <!-- Right column: Challenge or turned off message -->
             <div>
-              <h4 class="text-md font-semibold mb-2">Challenge</h4>
+                  <div class="flex items-center gap-2 mb-2">
+                    <img
+                        :src="programLogoSrc('C')"
+                        :alt="programLogoAlt('C')"
+                        class="w-10 h-10 flex-shrink-0"
+                      />
+                    <h3 class="text-lg font-semibold capitalize">
+                      <span class="italic">FIRST</span> LEGO League Challenge
+                    </h3>
+                  </div>
               <div v-if="showChallenge">
                 <template v-for="(group, programName) in expertParamsGrouped" :key="programName">
                   <template v-if="programName.toLowerCase().includes('challenge')">
