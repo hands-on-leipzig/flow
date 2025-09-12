@@ -408,8 +408,8 @@ class PublishController extends Controller
             DB::table('publication')->insert([
                 'event'     => $eventId,
                 'level'     => 1,
-                'created_at'=> now(),
-                'updated_at'=> now(),
+                'created_at'=> Carbon::now(),
+                'updated_at'=> Carbon::now(),
             ]);
 
             $level = 1;
@@ -431,7 +431,7 @@ class PublishController extends Controller
         DB::table('publication')
             ->updateOrInsert(
                 ['event' => $eventId],
-                ['level' => $level, 'updated_at' => now()]
+                ['level' => $level, 'updated_at' => Carbon::now(),]
             );
 
         return response()->json([
