@@ -191,19 +191,60 @@ private function buildEventHtml($event, bool $wifi = false): string
         }
     }
 
+    // Explore-Logo laden
+    $exploreLogoPath = public_path('flow/fll_explore_hs.png');
+    $exploreLogoSrc = (file_exists($exploreLogoPath) && !empty($event->event_explore))
+        ? 'data:image/png;base64,' . base64_encode(file_get_contents($exploreLogoPath))
+        : '';
+
+    // Challenge-Logo laden
+    $challengeLogoPath = public_path('flow/fll_challenge_hs.png');
+    $challengeLogoSrc = (file_exists($challengeLogoPath) && !empty($event->event_challenge))
+        ? 'data:image/png;base64,' . base64_encode(file_get_contents($challengeLogoPath))
+        : '';
+
+    // Linke Zelle mit dynamischen Logos
+    $leftLogosHtml = '';
+    if ($exploreLogoSrc) {
+        $leftLogosHtml .= '<img src="'.$exploreLogoSrc.'" style="height:80px; width:auto; margin-right:10px;" />';
+    }
+    if ($challengeLogoSrc) {
+        $leftLogosHtml .= '<img src="'.$challengeLogoSrc.'" style="height:80px; width:auto;" />';
+    }
+
+
+
+    // Logos (aus /public/flow/...) als Base64 einbetten – dompdf-sicher
+    $rightLogoPath = public_path('flow/hot.png');
+
+    $rightLogoSrc = file_exists($rightLogoPath)
+        ? 'data:image/png;base64,' . base64_encode(file_get_contents($rightLogoPath))
+        : '';
+
+
+
+
     $html = '
     <div style="width: 100%; font-family: sans-serif; text-align: center; padding: 40px;">
         
-        <h2 style="margin-bottom: 10px; font-size: 20px; font-weight: normal;">
-            FIRST LEGO League Wettbewerb
-        </h2>
-        
-        <h1 style="margin-bottom: 40px;">'
-            . e($event->name) . ' ' . e($formattedDate) .
-        '</h1>';
+        <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-bottom:30px;">
+        <tr>
+            <td style="width:33%; text-align:left; vertical-align:top;">
+            '.$leftLogosHtml.'
+            </td>
+            <td style="width:34%; text-align:center; vertical-align:top;">
+                <div style="font-size:20px; margin-bottom:6px; font-weight:normal;">FIRST LEGO League Wettbewerb</div>
+                <div style="font-size:28px; font-weight:bold;">' . e($event->name) . ' ' . e($formattedDate) . '</div>
+            </td>
+            <td style="width:33%; text-align:right; vertical-align:top;">
+            ' . ($rightLogoSrc ? '<img src="'.$rightLogoSrc.'" style="height:80px; width:auto;" />' : '') . '
+            </td>
+        </tr>
+        </table>';
 
     // Plan-QR ist immer dabei
     $qr_plan = '
+        <div style="margin-top: 10px; font-size: 20px; color: #333;">Online Zeitplan</div>
         <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
         <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>';
 
@@ -222,6 +263,9 @@ private function buildEventHtml($event, bool $wifi = false): string
                         ' . $qr_plan . '
                     </td>
                     <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
+                        <div style="margin-top: 10px; font-size: 20px; color: #333;">
+                            Kostenloses WLAN
+                        </div>
                         <img src="data:image/png;base64,' . $wifiBase64 . '" style="width:200px; height:200px;" />
                         <div style="margin-top: 10px; font-size: 14px; color: #333;">
                             SSID: ' . e($event->wifi_ssid) . '<br/>
@@ -239,38 +283,38 @@ private function buildEventHtml($event, bool $wifi = false): string
     }
 
     // Logos laden
-$logos = DB::table('logo')
-    ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
-    ->where('event_logo.event', $event->id)
-    ->select('logo.*')
-    ->get();
+    $logos = DB::table('logo')
+        ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
+        ->where('event_logo.event', $event->id)
+        ->select('logo.*')
+        ->get();
 
-if ($logos->count() > 0) {
-    $html .= '
-        <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
-            <tr>';
+    if ($logos->count() > 0) {
+        $html .= '
+            <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
+                <tr>';
 
-    foreach ($logos as $logo) {
-        // Pfad in storage -> public URL
-        $logoPath = storage_path('app/public/' . $logo->path);
+        foreach ($logos as $logo) {
+            // Pfad in storage -> public URL
+            $logoPath = storage_path('app/public/' . $logo->path);
 
-        // Log::info('Logo path: ' . $logoPath);
+            // Log::info('Logo path: ' . $logoPath);
 
-        if (file_exists($logoPath)) {
-            $base64 = base64_encode(file_get_contents($logoPath));
-            $src = 'data:image/png;base64,' . $base64;
+            if (file_exists($logoPath)) {
+                $base64 = base64_encode(file_get_contents($logoPath));
+                $src = 'data:image/png;base64,' . $base64;
 
-            $html .= '
-                <td style="text-align: center; vertical-align: middle; padding: 10px;">
-                    <img src="' . $src . '" style="height:80px; max-width:100%; object-fit: contain;" />
-                </td>';
+                $html .= '
+                    <td style="text-align: center; vertical-align: middle; padding: 10px;">
+                        <img src="' . $src . '" style="height:80px; max-width:100%; object-fit: contain;" />
+                    </td>';
+            }
         }
-    }
 
-    $html .= '
-            </tr>
-        </table>';
-}
+        $html .= '
+                </tr>
+            </table>';
+    }
 
  
 
