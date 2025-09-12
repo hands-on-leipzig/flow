@@ -401,12 +401,25 @@ class PublishController extends Controller
     {
         $publication = DB::table('publication')
             ->where('event', $eventId)
-            ->select('level')
             ->first();
+
+        // Falls noch kein Eintrag vorhanden → neuen mit Level 1 anlegen
+        if (!$publication) {
+            DB::table('publication')->insert([
+                'event'     => $eventId,
+                'level'     => 1,
+                'created_at'=> now(),
+                'updated_at'=> now(),
+            ]);
+
+            $level = 1;
+        } else {
+            $level = $publication->level;
+        }
 
         return response()->json([
             'event_id' => $eventId,
-            'level'    => $publication?->level ?? 1, // Fallback 1
+            'level'    => $level,
         ]);
     }
 
