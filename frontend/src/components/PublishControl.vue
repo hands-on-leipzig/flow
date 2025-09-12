@@ -148,6 +148,7 @@ watch(detailLevel, (newLevel) => {
 })
 
 function isCardActive(card: number, level: number) {
+ 
   if (card <= 2) return true
   if (card === 3 && level >= 1) return true
   if (card === 4 && level >= 2) return true
@@ -362,6 +363,7 @@ function previewOlinePlan() {
 
                 <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
                   <div class="font-semibold mb-1">Wichtige Zeiten [Dummy Data]</div>
+                  <div>Letzte Änderung: xx.yy.2222</div>
                   <div>Briefings ab {{ scheduleInfo.schedule.challenge.briefings }}</div>
                   <div>Eröffnung {{ scheduleInfo.schedule.challenge.opening }}</div>
                   <div>Ende {{ scheduleInfo.schedule.challenge.end }}</div>
