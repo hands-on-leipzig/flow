@@ -99,8 +99,7 @@ async function addSlide(slideshow: Slideshow) {
     // TODO
     if (slideType.value === 'PublicPlanSlideContent') {
       newSlide.name = 'Öffentlicher Zeitplan';
-      console.log(event.value);
-      newSlide.content.planId = 8457; // TODO
+      newSlide.content.planId = planId.value;
     } else if (slideType.value === 'RobotGameSlideContent') {
       newSlide.name = 'Robot-Game-Ergebnisse';
     } else if (slideType.value === 'UrlSlideContent') {

@@ -116,6 +116,7 @@ class CarouselController extends Controller
     public function addSlide(Request $request, $slideshowId)
     {
         $data = $this->onlySlide($request, true);
+        $data['content'] = '{"background": ' . $this->generatePublicPlanBackground() . '}';
         $data['slideshow'] = $slideshowId;
 
         // TODO Validierung (Type korrekt) und Rechte-Check
