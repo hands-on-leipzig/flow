@@ -216,20 +216,8 @@ function previewOlinePlan() {
 <template>
 
   <div class="p-6 space-y-8">
-
-    <div class="flex items-center gap-2 bg-orange-100 border border-orange-300 rounded p-2 text-orange-800">
-      <span>🔧</span>
-      <a
-        target="_blank"
-        :href="'https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=' + planId"
-        class="underline hover:text-orange-900"
-      >
-        Link zum Ö-Plan: https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan={{ planId }}
-      </a> (kommt noch raus!)
-    </div>
-
   
-    <h1 class="text-2xl font-bold">Zugriff auf den Plan</h1>
+    <h1 class="text-2xl font-bold">Zugriff auf den Ablaufplan</h1>
 
     <!-- Online Box -->
     <div class="rounded-xl shadow bg-white p-6 space-y-4">
