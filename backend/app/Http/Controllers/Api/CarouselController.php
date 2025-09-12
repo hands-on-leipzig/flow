@@ -47,14 +47,7 @@ class CarouselController extends Controller
 
     public function updateSlide(Request $request, $slide)
     {
-        $updatableFields = [
-            'name',
-            'type',
-            'content',
-            'active',
-        ];
-
-        $data = $request->only($updatableFields);
+        $data = $this->onlySlide($request, false);
 
         $slideModel = Slide::findOrFail($slide);
 
@@ -104,15 +97,7 @@ class CarouselController extends Controller
 
     public function addSlide(Request $request, $slideshowId)
     {
-        $fields = [
-            'name',
-            'type',
-            'content',
-            'order',
-            'active',
-        ];
-
-        $data = $request->only($fields);
+        $data = $this->onlySlide($request, true);
         $data['slideshow'] = $slideshowId;
 
         // TODO Validierung (Type korrekt) und Rechte-Check
@@ -120,6 +105,22 @@ class CarouselController extends Controller
         $slide = Slide::create($data);
 
         return response()->json(['success' => true, 'slide' => $slide]);
+    }
+
+    private function onlySlide(Request $request, bool $allowOrder)
+    {
+        $fields = [
+            'name',
+            'type',
+            'content',
+            'active',
+        ];
+
+        if ($allowOrder) {
+            $fields[] = 'order';
+        }
+
+        return $request->only($fields);
     }
 
     private string $defaultSlideBackground = "{\"version\":\"6.7.1\",\"backgroundImage\":{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":0,\"top\":-3.3333,\"width\":1920,\"height\":1096,\"scaleX\":0.4167,\"scaleY\":0.4167,\"src\":\"/background.png\"}}";
