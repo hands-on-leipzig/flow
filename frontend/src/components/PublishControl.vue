@@ -3,8 +3,8 @@ import { ref, computed, watch } from 'vue'
 
 import { useEventStore } from '@/stores/event'
 import { imageUrl } from '@/utils/images'  
+import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
 import QRCode from "qrcode"
-import jsPDF from "jspdf"
 import axios from 'axios'
 
 
@@ -33,14 +33,34 @@ async function fetchPlanIdByEventId(eventId: number) {
   }
 }
 
-// Reaktiv laden, sobald/solange es eine Event-ID gibt
+// Event-ID ändert sich → Daten laden
 watch(
   () => event.value?.id,
   (id) => {
-    if (id) fetchPlanIdByEventId(id)
+    if (id) {
+      fetchPublicationLevel(id)
+      fetchPlanIdByEventId(id)
+      fetchScheduleInformation(id)  
+    }
   },
   { immediate: true }
 )
+
+
+// --- Schedule Information ---
+const scheduleInfo = ref<any>(null)
+
+async function fetchScheduleInformation(eventId: number) {
+  try {
+    const { data } = await axios.post(`/publish/information/${eventId}`,  {
+      level: 4 // überschreibt den Wert aus der DB, um alle Infos zu bekommen
+    })
+    scheduleInfo.value = data
+  } catch (e) {
+    console.error('Fehler beim Laden von Schedule Information:', e)
+    scheduleInfo.value = null
+  }
+}
 
 // PDF und Preview
 
@@ -99,7 +119,36 @@ async function fetchPublishData(planId: number) {
 const levels = ["Planung", "Nach Anmeldeschluss", "Überblick zum Ablauf", "volle Details"]
 const detailLevel = ref(0)
 
+// Level vom Backend holen
+async function fetchPublicationLevel(eventId: number) {
+  try {
+    const { data } = await axios.get(`/publish/level/${eventId}`)
+    detailLevel.value = (data.level ?? 1) - 1 // -1, da Radio Buttons bei 0 starten
+  } catch (e) {
+    console.error("Fehler beim Laden des Publication Levels:", e)
+    detailLevel.value = 0
+  }
+}
+
+// Level im Backend speichern
+async function updatePublicationLevel(eventId: number, level: number) {
+  try {
+    await axios.post(`/publish/level/${eventId}`, { level: level + 1 }) // +1, da Backend bei 1 startet
+    console.log("Publication Level aktualisiert:", level + 1)
+  } catch (e) {
+    console.error("Fehler beim Setzen des Publication Levels:", e)
+  }
+}
+
+// Wenn Radio Button geändert wird → Level im Backend speichern
+watch(detailLevel, (newLevel) => {
+  if (event.value?.id) {
+    updatePublicationLevel(event.value.id, newLevel)
+  }
+})
+
 function isCardActive(card: number, level: number) {
+ 
   if (card <= 2) return true
   if (card === 3 && level >= 1) return true
   if (card === 4 && level >= 2) return true
@@ -172,25 +221,21 @@ async function downloadPng(dataUrl: string, filename: string) {
 const carouselLink = computed(() => {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
 })
+
+function previewOlinePlan() {
+  if (!planId.value) return
+  const url = `https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=${planId.value}`
+  window.open(url, '_blank')
+}
+
+
 </script>
 
 <template>
 
   <div class="p-6 space-y-8">
-
-    <div class="flex items-center gap-2 bg-orange-100 border border-orange-300 rounded p-2 text-orange-800">
-      <span>🔧</span>
-      <a
-        target="_blank"
-        :href="'https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=' + planId"
-        class="underline hover:text-orange-900"
-      >
-        Link zum Ö-Plan: https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan={{ planId }}
-      </a> (kommt noch raus!)
-    </div>
-
   
-    <h1 class="text-2xl font-bold">Zugriff auf den Plan</h1>
+    <h1 class="text-2xl font-bold">Zugriff auf den Ablaufplan</h1>
 
     <!-- Online Box -->
     <div class="rounded-xl shadow bg-white p-6 space-y-4">
@@ -214,10 +259,15 @@ const carouselLink = computed(() => {
 
     
       <div class="flex items-start gap-6">
+
         <!-- Radiobuttons links -->
         <div class="flex flex-col space-y-3">
           <h3 class="text-sm font-semibold mb-2">Detaillevel</h3>
-          <label v-for="(label, idx) in levels" :key="idx" class="flex items-start gap-2 cursor-pointer">
+          <label
+            v-for="(label, idx) in levels"
+            :key="idx"
+            class="flex items-start gap-2 cursor-pointer"
+          >
             <input
               type="radio"
               :value="idx"
@@ -260,44 +310,89 @@ const carouselLink = computed(() => {
                   ></div>
                 </div>
 
+
                 <!-- Inhalt -->
-                <template v-if="idx === 0">
+                <template v-if="idx === 0 && scheduleInfo">
                   <div class="font-semibold mb-1">Datum</div>
-                  <div>Mittwoch, 28.01.2026</div>
+                  <div>{{ formatDateOnly(scheduleInfo.date) }}</div>
                   <div class="mt-2 font-semibold">Adresse</div>
                   <div class="whitespace-pre-line text-gray-700 text-xs">
-                    ROBIGS c/o ROCARE GmbH  
-                    Am Seitenkanal 8  
-                    49811 Lingen (Ems)
+                    {{ scheduleInfo.address }}
                   </div>
                   <div class="mt-2 font-semibold">Kontakt</div>
-                  <div class="text-xs">Lena Helle<br/>lhelle@rosen-group.com</div>
+                  <div class="text-xs space-y-2">
+                    <div v-for="(c, idx) in scheduleInfo.contact" :key="idx">
+                      {{ c.contact }}<br />
+                      {{ c.contact_email }}
+                      <div v-if="c.contact_infos">{{ c.contact_infos }}</div>
+                    </div>
+                  </div>
                 </template>
 
-                <template v-else-if="idx === 1">
+                <template v-else-if="idx === 1 && scheduleInfo">
                   <div class="font-semibold mb-1">Teams</div>
-                  <div>Explore: 5 / 12</div>
-                  <div>Challenge: 12 / 16</div>
+
+                  <!-- Explore nur anzeigen, wenn > 0 -->
+                  <div v-if="scheduleInfo.teams.explore.capacity > 0 || scheduleInfo.teams.explore.registered > 0">
+                    Explore: {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet
+                  </div>
+
+                  <!-- Challenge nur anzeigen, wenn > 0 -->
+                  <div v-if="scheduleInfo.teams.challenge.capacity > 0 || scheduleInfo.teams.challenge.registered > 0">
+                    Challenge: {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet
+                  </div>
                 </template>
 
-                <template v-else-if="idx === 2">
-                  <div class="font-semibold mb-1">Explore Teams</div>
-                  <div>Zwerge, Gurkentruppe</div>
-                  <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
-                  <div>Rocky, Ironman, Gandalf</div>
+                <template v-else-if="idx === 2 && scheduleInfo && scheduleInfo.level >= 2">
+                  <!-- Explore nur anzeigen, wenn Teams existieren -->
+                  <template v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0">
+                    <div class="font-semibold mb-1">Explore Teams</div>
+                    <div class="whitespace-pre-line text-gray-700 text-xs">
+                      {{ scheduleInfo.teams.explore.list.join(', ') }}
+                    </div>
+                  </template>
+
+                  <!-- Challenge nur anzeigen, wenn Teams existieren -->
+                  <template v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0">
+                    <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
+                    <div class="whitespace-pre-line text-gray-700 text-xs">
+                      {{ scheduleInfo.teams.challenge.list.join(', ') }}
+                    </div>
+                  </template>
                 </template>
 
-                <template v-else-if="idx === 3">
-                  <div class="font-semibold mb-1">Zeitplan</div>
-                  <div>Briefings ab 8:30 Uhr</div>
-                  <div>Eröffnung 9:00 Uhr</div>
-                  <div>Ende 17:15 Uhr</div>
+                <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
+                  <div class="font-semibold mb-1">Wichtige Zeiten [Dummy Data]</div>
+                  <div>Letzte Änderung: xx.yy.2222</div>
+                  <div>Briefings ab {{ scheduleInfo.schedule.challenge.briefings }}</div>
+                  <div>Eröffnung {{ scheduleInfo.schedule.challenge.opening }}</div>
+                  <div>Ende {{ scheduleInfo.schedule.challenge.end }}</div>
                 </template>
 
                 <template v-else-if="idx === 4">
-                  <div class="font-semibold mb-1">Ablaufplan</div>
-                  <div class="text-xs text-gray-600">mit allen Details</div>
+                  <div class="h-full flex flex-col justify-between">
+                    <!-- Inhalt der Kachel -->
+                    <div>
+                      <div class="font-semibold mb-1">Online Zeitplan</div>
+                      <img
+                        :src="imageUrl('/flow/öplan.png')"
+                        alt="Karussell Vorschau"
+                        class="h-28 w-auto border mx-auto"
+                      />
+                    </div>
+
+                    <!-- Button immer unten -->
+                    <div class="mt-4 flex justify-center">
+                    <button
+                      class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+                      @click="previewOlinePlan"
+                    >
+                      Vorschau
+                    </button>
+                    </div>
+                  </div>
                 </template>
+
               </div>
             </template>
           </div>
@@ -307,7 +402,7 @@ const carouselLink = computed(() => {
 
 
     <!-- Während der Veranstaltung -->
-    <div>
+    <div class="rounded-xl shadow bg-white p-6 space-y-4">
       <h2 class="text-lg font-semibold mb-4">Während der Veranstaltung</h2>
 
       <div class="flex flex-col lg:flex-row gap-6">

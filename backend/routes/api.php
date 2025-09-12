@@ -149,6 +149,10 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('publish')->group(function () {
         Route::get('/link/{planId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
         Route::get('/pdf/{planId}', [PublishController::class, 'PDFandPreview']);    // PDF mit Vorschau holen
+        Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen   
+        Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
+        Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
+
     });
 
     // Quality controller

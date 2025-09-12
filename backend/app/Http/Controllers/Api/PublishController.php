@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -169,124 +170,275 @@ class PublishController extends Controller
     }
 
 
-private function buildEventHtml($event, bool $wifi = false): string
-{
-    // Datum formatieren
-    $formattedDate = '';
-    if (!empty($event->date)) {
-        try {
-            $formattedDate = Carbon::parse($event->date)->format('d.m.Y');
-        } catch (\Exception $e) {
-            $formattedDate = $event->date;
+    private function buildEventHtml($event, bool $wifi = false): string
+    {
+        // Datum formatieren
+        $formattedDate = '';
+        if (!empty($event->date)) {
+            try {
+                $formattedDate = Carbon::parse($event->date)->format('d.m.Y');
+            } catch (\Exception $e) {
+                $formattedDate = $event->date;
+            }
         }
-    }
 
-    // Passwort entschlüsseln
-    $wifiPassword = '';
-    if (!empty($event->wifi_password)) {
-        try {
-            $wifiPassword = Crypt::decryptString($event->wifi_password);
-        } catch (\Exception $e) {
-            $wifiPassword = $event->wifi_password;
+        // Passwort entschlüsseln
+        $wifiPassword = '';
+        if (!empty($event->wifi_password)) {
+            try {
+                $wifiPassword = Crypt::decryptString($event->wifi_password);
+            } catch (\Exception $e) {
+                $wifiPassword = $event->wifi_password;
+            }
         }
-    }
 
-    $html = '
-    <div style="width: 100%; font-family: sans-serif; text-align: center; padding: 40px;">
-        
-        <h2 style="margin-bottom: 10px; font-size: 20px; font-weight: normal;">
-            FIRST LEGO League Wettbewerb
-        </h2>
-        
-        <h1 style="margin-bottom: 40px;">'
-            . e($event->name) . ' ' . e($formattedDate) .
-        '</h1>';
+        // Explore-Logo laden
+        $exploreLogoPath = public_path('flow/fll_explore_hs.png');
+        $exploreLogoSrc = (file_exists($exploreLogoPath) && !empty($event->event_explore))
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($exploreLogoPath))
+            : '';
 
-    // Plan-QR ist immer dabei
-    $qr_plan = '
-        <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
-        <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>';
+        // Challenge-Logo laden
+        $challengeLogoPath = public_path('flow/fll_challenge_hs.png');
+        $challengeLogoSrc = (file_exists($challengeLogoPath) && !empty($event->event_challenge))
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($challengeLogoPath))
+            : '';
 
-    if ($wifi && !empty($event->wifi_ssid) && !empty($wifiPassword)) {
-        // WLAN-QR nur wenn gewünscht und Daten vorhanden
-        $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
-        $wifiQr = new \Endroid\QrCode\QrCode($wifiQrContent);
-        $writer = new \Endroid\QrCode\Writer\PngWriter();
-        $wifiResult = $writer->write($wifiQr);
-        $wifiBase64 = base64_encode($wifiResult->getString());
+        // Linke Zelle mit dynamischen Logos
+        $leftLogosHtml = '';
+        if ($exploreLogoSrc) {
+            $leftLogosHtml .= '<img src="'.$exploreLogoSrc.'" style="height:80px; width:auto; margin-right:10px;" />';
+        }
+        if ($challengeLogoSrc) {
+            $leftLogosHtml .= '<img src="'.$challengeLogoSrc.'" style="height:80px; width:auto;" />';
+        }
 
-        $html .= '
-            <table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 40px;">
-                <tr>
-                    <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
-                        ' . $qr_plan . '
-                    </td>
-                    <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
-                        <img src="data:image/png;base64,' . $wifiBase64 . '" style="width:200px; height:200px;" />
-                        <div style="margin-top: 10px; font-size: 14px; color: #333;">
-                            SSID: ' . e($event->wifi_ssid) . '<br/>
-                            Passwort: ' . e($wifiPassword) . '
-                        </div>
-                    </td>
-                </tr>
+
+
+        // Logos (aus /public/flow/...) als Base64 einbetten – dompdf-sicher
+        $rightLogoPath = public_path('flow/hot.png');
+
+        $rightLogoSrc = file_exists($rightLogoPath)
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($rightLogoPath))
+            : '';
+
+
+
+
+        $html = '
+        <div style="width: 100%; font-family: sans-serif; text-align: center; padding: 40px;">
+            
+            <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-bottom:30px;">
+            <tr>
+                <td style="width:33%; text-align:left; vertical-align:top;">
+                '.$leftLogosHtml.'
+                </td>
+                <td style="width:34%; text-align:center; vertical-align:top;">
+                    <div style="font-size:20px; margin-bottom:6px; font-weight:normal;">FIRST LEGO League Wettbewerb</div>
+                    <div style="font-size:28px; font-weight:bold;">' . e($event->name) . ' ' . e($formattedDate) . '</div>
+                </td>
+                <td style="width:33%; text-align:right; vertical-align:top;">
+                ' . ($rightLogoSrc ? '<img src="'.$rightLogoSrc.'" style="height:80px; width:auto;" />' : '') . '
+                </td>
+            </tr>
             </table>';
-    } else {
-        // Nur Plan-QR
-        $html .= '
-            <div style="text-align: center; margin-bottom: 40px;">' 
-                . $qr_plan .
-            '</div>';
-    }
 
-    // Logos laden
-$logos = DB::table('logo')
-    ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
-    ->where('event_logo.event', $event->id)
-    ->select('logo.*')
-    ->get();
+        // Plan-QR ist immer dabei
+        $qr_plan = '
+            <div style="margin-top: 10px; font-size: 20px; color: #333;">Online Zeitplan</div>
+            <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
+            <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>';
 
-if ($logos->count() > 0) {
-    $html .= '
-        <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
-            <tr>';
-
-    foreach ($logos as $logo) {
-        // Pfad in storage -> public URL
-        $logoPath = storage_path('app/public/' . $logo->path);
-
-        // Log::info('Logo path: ' . $logoPath);
-
-        if (file_exists($logoPath)) {
-            $base64 = base64_encode(file_get_contents($logoPath));
-            $src = 'data:image/png;base64,' . $base64;
+        if ($wifi && !empty($event->wifi_ssid) && !empty($wifiPassword)) {
+            // WLAN-QR nur wenn gewünscht und Daten vorhanden
+            $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
+            $wifiQr = new \Endroid\QrCode\QrCode($wifiQrContent);
+            $writer = new \Endroid\QrCode\Writer\PngWriter();
+            $wifiResult = $writer->write($wifiQr);
+            $wifiBase64 = base64_encode($wifiResult->getString());
 
             $html .= '
-                <td style="text-align: center; vertical-align: middle; padding: 10px;">
-                    <img src="' . $src . '" style="height:80px; max-width:100%; object-fit: contain;" />
-                </td>';
+                <table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 40px;">
+                    <tr>
+                        <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
+                            ' . $qr_plan . '
+                        </td>
+                        <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
+                            <div style="margin-top: 10px; font-size: 20px; color: #333;">
+                                Kostenloses WLAN
+                            </div>
+                            <img src="data:image/png;base64,' . $wifiBase64 . '" style="width:200px; height:200px;" />
+                            <div style="margin-top: 10px; font-size: 14px; color: #333;">
+                                SSID: ' . e($event->wifi_ssid) . '<br/>
+                                Passwort: ' . e($wifiPassword) . '
+                            </div>
+                        </td>
+                    </tr>
+                </table>';
+        } else {
+            // Nur Plan-QR
+            $html .= '
+                <div style="text-align: center; margin-bottom: 40px;">' 
+                    . $qr_plan .
+                '</div>';
         }
-    }
 
-    $html .= '
-            </tr>
-        </table>';
-}
+        // Logos laden
+        $logos = DB::table('logo')
+            ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
+            ->where('event_logo.event', $event->id)
+            ->select('logo.*')
+            ->get();
 
- 
+        if ($logos->count() > 0) {
+            $html .= '
+                <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
+                    <tr>';
 
+            foreach ($logos as $logo) {
+                // Pfad in storage -> public URL
+                $logoPath = storage_path('app/public/' . $logo->path);
 
+                // Log::info('Logo path: ' . $logoPath);
 
-    $html .= '</div>'; // Wrapper schließen
+                if (file_exists($logoPath)) {
+                    $base64 = base64_encode(file_get_contents($logoPath));
+                    $src = 'data:image/png;base64,' . $base64;
 
-            
+                    $html .= '
+                        <td style="text-align: center; vertical-align: middle; padding: 10px;">
+                            <img src="' . $src . '" style="height:80px; max-width:100%; object-fit: contain;" />
+                        </td>';
+                }
+            }
 
-        $html .= '</div>';
+            $html .= '
+                    </tr>
+                </table>';
+        }
+
+        $html .= '</div>'; // Wrapper schließen         
 
         return $html;
+    }   
+
+
+// Informationen fürs Volk ...
+
+
+
+    public function scheduleInformation(int $eventId, Request $request): JsonResponse
+    {
+        // Level aus Tabelle publication holen
+        $publication = DB::table('publication')
+            ->where('event', $eventId)
+            ->select('level')
+            ->first();
+
+        $level = $publication?->level ?? 1; // Fallback Level 1
+
+        // Falls im Request level übergeben wird -> überschreibt DB-Wert
+        $override = $request->input('level'); // liest Body ODER Query
+        if ($override !== null) {
+            $level = (int) $override;
+        }
+
+        // Basisdaten aus DrahtController holen
+        $event = Event::findOrFail($eventId);
+        $drahtCtrl = app(\App\Http\Controllers\Api\DrahtController::class);
+        $drahtData = $drahtCtrl->show($event)->getData(true);
+
+
+        // Ins Log schreiben
+        Log::info('DrahtController::show() data', $drahtData);
+
+
+
+
+    // JSON bauen
+    $data = [
+        'event_id' => $eventId,
+        'level'    => $level,
+        'date'     => $drahtData['information']['date'] ?? null,
+        'address'  => $drahtData['address'] ?? null,
+        // hier direkt durchreichen:
+        'contact'  => $drahtData['contact'] ?? [],
+        'teams'    => [
+            'explore' => [
+                'capacity'   => $drahtData['capacity_explore'] ?? 0,
+                'registered' => count($drahtData['teams_explore'] ?? []),
+                'list'       => $level >= 2 ? array_column($drahtData['teams_explore'], 'name') : [],
+            ],
+            'challenge' => [
+                'capacity'   => $drahtData['capacity_challenge'] ?? 0,
+                'registered' => count($drahtData['teams_challenge'] ?? []),
+                'list'       => $level >= 2 ? array_column($drahtData['teams_challenge'], 'name') : [],
+            ],
+        ],
+    ];
+
+        if ($level >= 3) {
+            $data['schedule'] = [
+                'explore' => [
+                    'briefings' => '09:00 Uhr',
+                    'opening'   => '10:00 Uhr',
+                    'end'       => '15:00 Uhr',
+                ],
+                'challenge' => [
+                    'briefings' => '08:30 Uhr',
+                    'opening'   => '09:30 Uhr',
+                    'end'       => '18:00 Uhr',
+                ],
+            ];
+        }
+
+        return response()->json($data);
     }
 
 
+    // Aktuellen Level holen
+    public function getPublicationLevel(int $eventId): JsonResponse
+    {
+        $publication = DB::table('publication')
+            ->where('event', $eventId)
+            ->first();
 
+        // Falls noch kein Eintrag vorhanden → neuen mit Level 1 anlegen
+        if (!$publication) {
+            DB::table('publication')->insert([
+                'event'     => $eventId,
+                'level'     => 1,
+                'created_at'=> Carbon::now(),
+                'updated_at'=> Carbon::now(),
+            ]);
 
+            $level = 1;
+        } else {
+            $level = $publication->level;
+        }
+
+        return response()->json([
+            'event_id' => $eventId,
+            'level'    => $level,
+        ]);
+    }
+
+    // Level setzen/überschreiben
+    public function setPublicationLevel(int $eventId, Request $request): JsonResponse
+    {
+        $level = (int) $request->input('level', 1);
+
+        DB::table('publication')
+            ->updateOrInsert(
+                ['event' => $eventId],
+                ['level' => $level, 'updated_at' => Carbon::now(),]
+            );
+
+        return response()->json([
+            'success' => true,
+            'event_id' => $eventId,
+            'level'    => $level,
+        ]);
+    }
 
 }
