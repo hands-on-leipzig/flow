@@ -396,4 +396,36 @@ class PublishController extends Controller
     }
 
 
+    // Aktuellen Level holen
+    public function getPublicationLevel(int $eventId): JsonResponse
+    {
+        $publication = DB::table('publication')
+            ->where('event', $eventId)
+            ->select('level')
+            ->first();
+
+        return response()->json([
+            'event_id' => $eventId,
+            'level'    => $publication?->level ?? 1, // Fallback 1
+        ]);
+    }
+
+    // Level setzen/überschreiben
+    public function setPublicationLevel(int $eventId, Request $request): JsonResponse
+    {
+        $level = (int) $request->input('level', 1);
+
+        DB::table('publication')
+            ->updateOrInsert(
+                ['event' => $eventId],
+                ['level' => $level, 'updated_at' => now()]
+            );
+
+        return response()->json([
+            'success' => true,
+            'event_id' => $eventId,
+            'level'    => $level,
+        ]);
+    }
+
 }

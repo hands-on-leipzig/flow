@@ -60,19 +60,6 @@ async function fetchScheduleInformation(eventId: number) {
   }
 }
 
-// Event-ID ändert sich → Daten laden
-watch(
-  () => event.value?.id,
-  (id) => {
-    if (id) {
-      fetchPlanIdByEventId(id)
-      fetchScheduleInformation(id)   // <--- NEU
-    }
-  },
-  { immediate: true }
-)
-
-
 // PDF und Preview
 
 watch(planId, (id) => {
@@ -320,7 +307,7 @@ function previewOlinePlan() {
                 </template>
 
                 <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
-                  <div class="font-semibold mb-1">Zeitplan</div>
+                  <div class="font-semibold mb-1">Wichtige Zeiten</div>
                   <div>Briefings ab {{ scheduleInfo.schedule.challenge.briefings }}</div>
                   <div>Eröffnung {{ scheduleInfo.schedule.challenge.opening }}</div>
                   <div>Ende {{ scheduleInfo.schedule.challenge.end }}</div>
