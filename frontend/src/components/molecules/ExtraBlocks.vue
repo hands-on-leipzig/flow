@@ -2,6 +2,8 @@
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import LoaderFlow from '../atoms/LoaderFlow.vue'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+
 
 type Maybe<T> = T | null | undefined
 
@@ -246,8 +248,8 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
               <div class="flex justify-center space-x-1">
                 <!-- Explore Logo -->
                 <img 
-                  src="@/assets/FLL_Explore.png" 
-                  alt="Explore" 
+                  :src="programLogoSrc('E')"
+                  :alt="programLogoAlt('E')"
                   class="w-8 h-8 cursor-pointer transition-all duration-200 hover:scale-110"
                   :class="{
                     'opacity-100': b.first_program === 2 || b.first_program === 0,
@@ -258,8 +260,8 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
                 />
                 <!-- Challenge Logo -->
                 <img 
-                  src="@/assets/FLL_Challenge.png" 
-                  alt="Challenge" 
+                  :src="programLogoSrc('C')"
+                  :alt="programLogoAlt('C')"
                   class="w-8 h-8 cursor-pointer transition-all duration-200 hover:scale-110"
                   :class="{
                     'opacity-100': b.first_program === 3 || b.first_program === 0,

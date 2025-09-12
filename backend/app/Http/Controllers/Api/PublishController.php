@@ -109,7 +109,7 @@ class PublishController extends Controller
 
         // Logo optional hinzufügen
         $logo = null;
-        $logoPath = public_path("flow/hot_qr.png");
+        $logoPath = public_path("flow/hot_outline.png");
         if (file_exists($logoPath)) {
             $logo = new Logo($logoPath, 100); // 50px breit
         }

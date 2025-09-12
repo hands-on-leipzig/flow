@@ -3,6 +3,7 @@ import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
 type InsertPoint = {
   id: number
@@ -294,6 +295,18 @@ defineExpose({
 
 <template>
   <div class="bg-white shadow-sm rounded-xl border border-gray-200">
+    <div class="flex items-center gap-2 mb-2">
+          <img
+          :src="programLogoSrc('C')"
+          :alt="programLogoAlt('C')"
+          class="w-10 h-10 flex-shrink-0"
+        />
+      <h3 class="text-lg font-semibold capitalize">
+        <span class="italic">FIRST</span> LEGO League Challenge
+      </h3>
+    </div>
+    
+    
     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
       <h3 class="text-sm font-semibold text-gray-700">Mit festen Einfügepunkten</h3>
     </div>

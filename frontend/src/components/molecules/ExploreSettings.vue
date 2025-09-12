@@ -5,6 +5,7 @@ import SplitBar from '@/components/atoms/SplitBar.vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue"
 import {useEventStore} from '@/stores/event'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
 const props = defineProps<{
   parameters: any[]
@@ -410,11 +411,15 @@ const getTeamInputStyle = (level: number) => {
 
 <template>
   <div class="p-4 border rounded shadow relative">
-    <div class="flex items-center justify-between mb-2">
-      <div class="flex items-center gap-2">
-        <h2 class="text-lg font-semibold">Explore Einstellungen</h2>
-
-      </div>
+    <div class="flex items-center gap-2 mb-2">
+      <img
+          :src="programLogoSrc('E')"
+          :alt="programLogoAlt('E')"
+          class="w-10 h-10 flex-shrink-0"
+        />
+      <h3 class="text-lg font-semibold capitalize">
+        <span class="italic">FIRST</span> LEGO League Explore
+      </h3>
       <label class="relative inline-flex items-center cursor-pointer">
         <input
             type="checkbox"
@@ -429,7 +434,7 @@ const getTeamInputStyle = (level: number) => {
     </div>
 
     <div v-if="hasExplore" class="mb-3 flex items-center gap-2">
-      <label class="text-sm font-medium">Anzahl Teams</label>
+      
       <input
           class="mt-1 w-32 border-2 rounded px-2 py-1 focus:outline-none focus:ring-2"
           :class="getTeamInputStyle(currentConfigAlertLevelIntegrated)"
@@ -439,6 +444,7 @@ const getTeamInputStyle = (level: number) => {
           :value="paramMapByName['e_teams']?.value"
           @input="updateByName('e_teams', Number(($event.target as HTMLInputElement).value || 0))"
       />
+      <label class="text-sm font-medium">Teams</label>
       <InfoPopover :text="paramMapByName['e_teams']?.ui_description"/>
     </div>
 
