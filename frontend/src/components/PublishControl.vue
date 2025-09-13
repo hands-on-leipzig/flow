@@ -375,11 +375,11 @@ function previewOlinePlan() {
               scheduleInfo.schedule.explore.end)">
     <div class="font-semibold">Explore</div>
     <div v-if="scheduleInfo.schedule.explore.briefing?.teams">
-      Briefing (Teams) ab
+      Coach-Briefing:
       {{ formatTimeOnly(scheduleInfo.schedule.explore.briefing.teams, true) }}
     </div>
     <div v-if="scheduleInfo.schedule.explore.briefing?.judges">
-      Briefing (Judges) ab
+      Gutachter:innen-Briefing:
       {{ formatTimeOnly(scheduleInfo.schedule.explore.briefing.judges, true) }}
     </div>
     <div v-if="scheduleInfo.schedule.explore.opening">

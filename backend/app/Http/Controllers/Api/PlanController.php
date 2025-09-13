@@ -761,8 +761,8 @@ class PlanController extends Controller
                     'teams'  => $findStart(ID_ATD_E_COACH_BRIEFING),
                     'judges' => $findStart(ID_ATD_E_JUDGE_BRIEFING),
                 ],
-                'opening' => $findStart(ID_ATD_E_OPENING),
-                'end'     => $findEnd(ID_ATD_E_AWARDS),  
+                'opening' => $findStart([ID_ATD_E_OPENING, ID_ATD_OPENING]), // spezifisch oder gemeinsam
+                'end'     => $findEnd([ID_ATD_E_AWARDS, ID_ATD_AWARDS]),     // spezifisch oder gemeinsam
             ],
             'challenge' => [
                 'briefing' => [
@@ -770,8 +770,8 @@ class PlanController extends Controller
                     'judges'   => $findStart(ID_ATD_C_JUDGE_BRIEFING),
                     'referees' => $findStart(ID_ATD_R_REFEREE_BRIEFING),
                 ],
-                'opening' => $findStart(ID_ATD_C_OPENING),
-                'end'     => $findEnd(ID_ATD_C_AWARDS),   
+                'opening' => $findStart([ID_ATD_C_OPENING, ID_ATD_OPENING]), // spezifisch oder gemeinsam
+                'end'     => $findEnd([ID_ATD_C_AWARDS, ID_ATD_AWARDS]),     // spezifisch oder gemeinsam
             ],
         ];
 
