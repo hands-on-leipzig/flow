@@ -737,7 +737,7 @@ class PlanController extends Controller
 
         // Plan für last_changed
         $plan = DB::table('plan')
-            ->select('updated_at')
+            ->select('last_change')
             ->where('id', $planId)
             ->first();
 
@@ -755,14 +755,14 @@ class PlanController extends Controller
 
         $data = [
             'plan_id'      => $planId,
-            'last_changed' => $plan?->updated_at,
+            'last_changed' => $plan?->last_change,
             'explore' => [
                 'briefing' => [
                     'teams'  => $findStart(ID_ATD_E_COACH_BRIEFING),
                     'judges' => $findStart(ID_ATD_E_JUDGE_BRIEFING),
                 ],
                 'opening' => $findStart(ID_ATD_E_OPENING),
-                'end'     => $findEnd(ID_ATD_E_AWARDS),   // 👈 jetzt Ende
+                'end'     => $findEnd(ID_ATD_E_AWARDS),  
             ],
             'challenge' => [
                 'briefing' => [
@@ -771,7 +771,7 @@ class PlanController extends Controller
                     'referees' => $findStart(ID_ATD_R_REFEREE_BRIEFING),
                 ],
                 'opening' => $findStart(ID_ATD_C_OPENING),
-                'end'     => $findEnd(ID_ATD_C_AWARDS),   // 👈 jetzt Ende
+                'end'     => $findEnd(ID_ATD_C_AWARDS),   
             ],
         ];
 

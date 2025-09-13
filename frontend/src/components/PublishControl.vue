@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 
 import { useEventStore } from '@/stores/event'
 import { imageUrl } from '@/utils/images'  
-import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
+import { formatDateOnly, formatDateTime , formatTimeOnly} from '@/utils/dateTimeFormat'
 import QRCode from "qrcode"
 import axios from 'axios'
 
@@ -361,13 +361,65 @@ function previewOlinePlan() {
                   </template>
                 </template>
 
-                <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
-                  <div class="font-semibold mb-1">Wichtige Zeiten [Dummy Data]</div>
-                  <div>Letzte Änderung: xx.yy.2222</div>
-                  <div>Briefings ab {{ scheduleInfo.schedule.challenge.briefings }}</div>
-                  <div>Eröffnung {{ scheduleInfo.schedule.challenge.opening }}</div>
-                  <div>Ende {{ scheduleInfo.schedule.challenge.end }}</div>
-                </template>
+<template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
+  <div class="font-semibold mb-1">Wichtige Zeiten</div>
+  <div class="text-xs text-gray-600 mb-2">
+    Letzte Änderung: {{ formatDateTime(scheduleInfo.schedule.last_changed) }}
+  </div>
+
+  <!-- Explore -->
+  <div
+    v-if="scheduleInfo.schedule.explore &&
+           (scheduleInfo.schedule.explore.briefings ||
+            scheduleInfo.schedule.explore.opening ||
+            scheduleInfo.schedule.explore.end)"
+  >
+    <div class="font-semibold">Explore</div>
+    <div v-if="scheduleInfo.schedule.explore.briefings?.teams">
+      Briefing (Teams) ab
+      {{ formatTimeOnly(scheduleInfo.schedule.explore.briefings.teams, true) }}
+    </div>
+    <div v-if="scheduleInfo.schedule.explore.briefings?.judges">
+      Briefing (Judges) ab
+      {{ formatTimeOnly(scheduleInfo.schedule.explore.briefings.judges, true) }}
+    </div>
+    <div v-if="scheduleInfo.schedule.explore.opening">
+      Eröffnung {{ formatTimeOnly(scheduleInfo.schedule.explore.opening, true) }}
+    </div>
+    <div v-if="scheduleInfo.schedule.explore.end">
+      Ende {{ formatTimeOnly(scheduleInfo.schedule.explore.end, true) }}
+    </div>
+  </div>
+
+  <!-- Challenge -->
+  <div
+    v-if="scheduleInfo.schedule.challenge &&
+           (scheduleInfo.schedule.challenge.briefings ||
+            scheduleInfo.schedule.challenge.opening ||
+            scheduleInfo.schedule.challenge.end)"
+    class="mt-2"
+  >
+    <div class="font-semibold">Challenge</div>
+    <div v-if="scheduleInfo.schedule.challenge.briefings?.teams">
+      Briefing (Teams) ab
+      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefings.teams, true) }}
+    </div>
+    <div v-if="scheduleInfo.schedule.challenge.briefings?.judges">
+      Briefing (Judges) ab
+      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefings.judges, true) }}
+    </div>
+    <div v-if="scheduleInfo.schedule.challenge.briefings?.referees">
+      Briefing (Referees) ab
+      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefings.referees, true) }}
+    </div>
+    <div v-if="scheduleInfo.schedule.challenge.opening">
+      Eröffnung {{ formatTimeOnly(scheduleInfo.schedule.challenge.opening, true) }}
+    </div>
+    <div v-if="scheduleInfo.schedule.challenge.end">
+      Ende {{ formatTimeOnly(scheduleInfo.schedule.challenge.end, true) }}
+    </div>
+  </div>
+</template>
 
                 <template v-else-if="idx === 4">
                   <div class="h-full flex flex-col justify-between">

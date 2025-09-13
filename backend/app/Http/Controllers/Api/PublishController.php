@@ -351,9 +351,7 @@ class PublishController extends Controller
 
 
         // Ins Log schreiben
-        Log::info('DrahtController::show() data', $drahtData);
-
-
+        // Log::info('DrahtController::show() data', $drahtData);
 
 
         // JSON bauen
@@ -378,15 +376,24 @@ class PublishController extends Controller
             ],
         ];
 
-if ($level >= 3) {
-    // Call into PlanController
-    $planController = app(PlanController::class);
-    $importantTimesResponse = $planController->importantTimes($planId);
-    $importantTimes = $importantTimesResponse->getData(true); // JSON -> Array
+        if ($level >= 3) {
 
-    // Schedule ins Haupt-JSON einhängen
-    $data['schedule'] = $importantTimes;
-}
+            // PlanId aus der Plan-Tabelle holen (event → plan)
+            $planId = DB::table('plan')
+                ->where('event', $eventId)
+                ->value('id');        
+
+            // Call into PlanController
+            $planController = app(PlanController::class);
+            $importantTimesResponse = $planController->importantTimes($planId);
+            $importantTimes = $importantTimesResponse->getData(true); // JSON -> Array
+
+            // Ins Log schreiben
+            Log::info('planController::importantTimes() data', $importantTimes);
+
+            // Schedule ins Haupt-JSON einhängen
+            $data['schedule'] = $importantTimes;
+        }
 
         return response()->json($data);
     }
