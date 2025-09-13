@@ -727,4 +727,55 @@ class PlanController extends Controller
         }
     }
 
+
+   // Wichtige Zeite für die Veröffentlichung 
+
+    public function importantTimes(int $planId): \Illuminate\Http\JsonResponse
+    {
+        // Activities laden
+        $activities = $this->fetchActivities($planId);
+
+        // Plan für last_changed
+        $plan = DB::table('plan')
+            ->select('last_change')
+            ->where('id', $planId)
+            ->first();
+
+        // Hilfsfunktion: Erste Startzeit für gegebene ATD-IDs finden
+        $findStart = function($ids) use ($activities) {
+            $act = $activities->first(fn($a) => in_array($a->activity_type_detail_id, (array) $ids));
+            return $act ? $act->start_time : null;
+        };
+
+        // Hilfsfunktion: Ende der Aktivität (end_time) für gegebene ATD-IDs
+        $findEnd = function($ids) use ($activities) {
+            $act = $activities->first(fn($a) => in_array($a->activity_type_detail_id, (array) $ids));
+            return $act ? $act->end_time : null;
+        };
+
+        $data = [
+            'plan_id'      => $planId,
+            'last_changed' => $plan?->last_change,
+            'explore' => [
+                'briefing' => [
+                    'teams'  => $findStart(ID_ATD_E_COACH_BRIEFING),
+                    'judges' => $findStart(ID_ATD_E_JUDGE_BRIEFING),
+                ],
+                'opening' => $findStart([ID_ATD_E_OPENING, ID_ATD_OPENING]), // spezifisch oder gemeinsam
+                'end'     => $findEnd([ID_ATD_E_AWARDS, ID_ATD_AWARDS]),     // spezifisch oder gemeinsam
+            ],
+            'challenge' => [
+                'briefing' => [
+                    'teams'    => $findStart(ID_ATD_C_COACH_BRIEFING),
+                    'judges'   => $findStart(ID_ATD_C_JUDGE_BRIEFING),
+                    'referees' => $findStart(ID_ATD_R_REFEREE_BRIEFING),
+                ],
+                'opening' => $findStart([ID_ATD_C_OPENING, ID_ATD_OPENING]), // spezifisch oder gemeinsam
+                'end'     => $findEnd([ID_ATD_C_AWARDS, ID_ATD_AWARDS]),     // spezifisch oder gemeinsam
+            ],
+        ];
+
+        return response()->json($data);
+    }
+
 }

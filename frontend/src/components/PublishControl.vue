@@ -3,11 +3,9 @@ import { ref, computed, watch } from 'vue'
 
 import { useEventStore } from '@/stores/event'
 import { imageUrl } from '@/utils/images'  
-import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
+import { formatDateOnly, formatDateTime , formatTimeOnly} from '@/utils/dateTimeFormat'
 import QRCode from "qrcode"
 import axios from 'axios'
-
-
 
 
 // Store + Selected Event
@@ -155,6 +153,40 @@ function isCardActive(card: number, level: number) {
   if (card === 5 && level >= 3) return true
   return false
 }
+
+
+
+// Explore Zeiten vorbereiten
+const exploreTimes = computed(() => {
+  if (!scheduleInfo.value?.schedule?.explore) return []
+  const e = scheduleInfo.value.schedule.explore
+  const items = []
+
+  if (e.briefing?.teams) items.push({ label: "Coach-Briefing", time: e.briefing.teams })
+  if (e.briefing?.judges) items.push({ label: "Gutachter:innen-Briefing", time: e.briefing.judges })
+  if (e.opening) items.push({ label: "Eröffnung", time: e.opening })
+  if (e.end) items.push({ label: "Ende", time: e.end })
+
+  // nach Uhrzeit sortieren
+  return items.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+})
+
+// Challenge Zeiten vorbereiten
+const challengeTimes = computed(() => {
+  if (!scheduleInfo.value?.schedule?.challenge) return []
+  const c = scheduleInfo.value.schedule.challenge
+  const items = []
+
+  if (c.briefing?.teams) items.push({ label: "Coach-Briefing", time: c.briefing.teams })
+  if (c.briefing?.judges) items.push({ label: "Jury-Briefing", time: c.briefing.judges })
+  if (c.briefing?.referees) items.push({ label: "Schiedsrichter-Briefing", time: c.briefing.referees })
+  if (c.opening) items.push({ label: "Eröffnung", time: c.opening })
+  if (c.end) items.push({ label: "Ende", time: c.end })
+
+  return items.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+})
+
+
 
 // --- QR Codes ---
 const qrWifiUrl = ref("")
@@ -330,7 +362,7 @@ function previewOlinePlan() {
                 </template>
 
                 <template v-else-if="idx === 1 && scheduleInfo">
-                  <div class="font-semibold mb-1">Teams</div>
+                  <div class="font-semibold mb-1">Zahlen zur Anmeldung</div>
 
                   <!-- Explore nur anzeigen, wenn > 0 -->
                   <div v-if="scheduleInfo.teams.explore.capacity > 0 || scheduleInfo.teams.explore.registered > 0">
@@ -344,9 +376,10 @@ function previewOlinePlan() {
                 </template>
 
                 <template v-else-if="idx === 2 && scheduleInfo && scheduleInfo.level >= 2">
+                  <div class="font-semibold mb-1">Angemeldete Teams</div>
                   <!-- Explore nur anzeigen, wenn Teams existieren -->
                   <template v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0">
-                    <div class="font-semibold mb-1">Explore Teams</div>
+                    <div class="font-medium mb-1">Explore</div>
                     <div class="whitespace-pre-line text-gray-700 text-xs">
                       {{ scheduleInfo.teams.explore.list.join(', ') }}
                     </div>
@@ -354,7 +387,7 @@ function previewOlinePlan() {
 
                   <!-- Challenge nur anzeigen, wenn Teams existieren -->
                   <template v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0">
-                    <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
+                    <div class="font-medium mt-2 mb-1">Challenge</div>
                     <div class="whitespace-pre-line text-gray-700 text-xs">
                       {{ scheduleInfo.teams.challenge.list.join(', ') }}
                     </div>
@@ -362,11 +395,35 @@ function previewOlinePlan() {
                 </template>
 
                 <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
-                  <div class="font-semibold mb-1">Wichtige Zeiten [Dummy Data]</div>
-                  <div>Letzte Änderung: xx.yy.2222</div>
-                  <div>Briefings ab {{ scheduleInfo.schedule.challenge.briefings }}</div>
-                  <div>Eröffnung {{ scheduleInfo.schedule.challenge.opening }}</div>
-                  <div>Ende {{ scheduleInfo.schedule.challenge.end }}</div>
+                  <div class="font-semibold mb-1">Wichtige Zeiten</div>
+                  <div class="text-xs text-gray-600 mb-2">
+                    Letzte Änderung: {{ formatDateTime(scheduleInfo.schedule.last_changed) }}
+                  </div>
+
+                  <!-- Explore -->
+                  <div v-if="exploreTimes.length > 0">
+                    <div class="font-medium">Explore</div>
+                    <div 
+                      v-for="(item, i) in exploreTimes" 
+                      :key="i" 
+                      class="text-xs text-gray-600 mb-0.5"
+                    >
+                      {{ item.label }}: {{ formatTimeOnly(item.time, true) }}
+                    </div>
+                  </div>
+
+                  <!-- Challenge -->
+                  <div v-if="challengeTimes.length > 0" class="mt-2">
+                    <div class="font-medium">Challenge</div>
+                    <div 
+                      v-for="(item, i) in challengeTimes" 
+                      :key="i" 
+                      class="text-xs text-gray-600 mb-0.5"
+                    >
+                      {{ item.label }}: {{ formatTimeOnly(item.time, true) }}
+                    </div>
+                  </div>
+
                 </template>
 
                 <template v-else-if="idx === 4">
@@ -403,7 +460,7 @@ function previewOlinePlan() {
 
     <!-- Während der Veranstaltung -->
     <div class="rounded-xl shadow bg-white p-6 space-y-4">
-      <h2 class="text-lg font-semibold mb-4">Während der Veranstaltung</h2>
+      <h2 class="text-lg font-semibold mb-4">Online - Während der Veranstaltung</h2>
 
       <div class="flex flex-col lg:flex-row gap-6">
         <!-- Linke Box: fünf QR-Bereiche -->
@@ -557,12 +614,16 @@ function previewOlinePlan() {
 
     <!-- Offline Box -->
     <div class="rounded-xl shadow bg-white p-6 space-y-4">
-      <h2 class="text-lg font-semibold mb-2">Offline</h2>
-      <p class="text-sm text-gray-600">Hier kannst du vorbereitete Dokumente für den Druck exportieren.</p>
-      <div class="space-y-2">
-        <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded">Zeitpläne drucken</button>
-        <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded">Namensschilder drucken</button>
+      <h2 class="text-lg font-semibold mb-2">Offline - PDF-Download</h2>
+      <p class="text-sm text-gray-600">
+        Dokumente für den Veranstalter – volle Details in einfacher Formatierung.
+      </p>
+
+      <!-- Platzhalter -->
+      <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-400 text-sm">
+        📄 Hier kommt noch was ...
       </div>
     </div>
   </div>
+
 </template>
