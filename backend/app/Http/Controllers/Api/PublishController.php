@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Http\Controllers\Api\PlanController;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -355,42 +356,37 @@ class PublishController extends Controller
 
 
 
-    // JSON bauen
-    $data = [
-        'event_id' => $eventId,
-        'level'    => $level,
-        'date'     => $drahtData['information']['date'] ?? null,
-        'address'  => $drahtData['address'] ?? null,
-        // hier direkt durchreichen:
-        'contact'  => $drahtData['contact'] ?? [],
-        'teams'    => [
-            'explore' => [
-                'capacity'   => $drahtData['capacity_explore'] ?? 0,
-                'registered' => count($drahtData['teams_explore'] ?? []),
-                'list'       => $level >= 2 ? array_column($drahtData['teams_explore'], 'name') : [],
-            ],
-            'challenge' => [
-                'capacity'   => $drahtData['capacity_challenge'] ?? 0,
-                'registered' => count($drahtData['teams_challenge'] ?? []),
-                'list'       => $level >= 2 ? array_column($drahtData['teams_challenge'], 'name') : [],
-            ],
-        ],
-    ];
-
-        if ($level >= 3) {
-            $data['schedule'] = [
+        // JSON bauen
+        $data = [
+            'event_id' => $eventId,
+            'level'    => $level,
+            'date'     => $drahtData['information']['date'] ?? null,
+            'address'  => $drahtData['address'] ?? null,
+            // hier direkt durchreichen:
+            'contact'  => $drahtData['contact'] ?? [],
+            'teams'    => [
                 'explore' => [
-                    'briefings' => '09:00 Uhr',
-                    'opening'   => '10:00 Uhr',
-                    'end'       => '15:00 Uhr',
+                    'capacity'   => $drahtData['capacity_explore'] ?? 0,
+                    'registered' => count($drahtData['teams_explore'] ?? []),
+                    'list'       => $level >= 2 ? array_column($drahtData['teams_explore'], 'name') : [],
                 ],
                 'challenge' => [
-                    'briefings' => '08:30 Uhr',
-                    'opening'   => '09:30 Uhr',
-                    'end'       => '18:00 Uhr',
+                    'capacity'   => $drahtData['capacity_challenge'] ?? 0,
+                    'registered' => count($drahtData['teams_challenge'] ?? []),
+                    'list'       => $level >= 2 ? array_column($drahtData['teams_challenge'], 'name') : [],
                 ],
-            ];
-        }
+            ],
+        ];
+
+if ($level >= 3) {
+    // Call into PlanController
+    $planController = app(PlanController::class);
+    $importantTimesResponse = $planController->importantTimes($planId);
+    $importantTimes = $importantTimesResponse->getData(true); // JSON -> Array
+
+    // Schedule ins Haupt-JSON einhängen
+    $data['schedule'] = $importantTimes;
+}
 
         return response()->json($data);
     }
