@@ -362,7 +362,7 @@ function previewOlinePlan() {
                 </template>
 
                 <template v-else-if="idx === 1 && scheduleInfo">
-                  <div class="font-semibold mb-1">Teams</div>
+                  <div class="font-semibold mb-1">Zahlen zur Anmeldung</div>
 
                   <!-- Explore nur anzeigen, wenn > 0 -->
                   <div v-if="scheduleInfo.teams.explore.capacity > 0 || scheduleInfo.teams.explore.registered > 0">
@@ -376,9 +376,10 @@ function previewOlinePlan() {
                 </template>
 
                 <template v-else-if="idx === 2 && scheduleInfo && scheduleInfo.level >= 2">
+                  <div class="font-semibold mb-1">Angemeldete Teams</div>
                   <!-- Explore nur anzeigen, wenn Teams existieren -->
                   <template v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0">
-                    <div class="font-semibold mb-1">Explore Teams</div>
+                    <div class="font-medium mb-1">Explore</div>
                     <div class="whitespace-pre-line text-gray-700 text-xs">
                       {{ scheduleInfo.teams.explore.list.join(', ') }}
                     </div>
@@ -386,35 +387,44 @@ function previewOlinePlan() {
 
                   <!-- Challenge nur anzeigen, wenn Teams existieren -->
                   <template v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0">
-                    <div class="font-semibold mt-2 mb-1">Challenge Teams</div>
+                    <div class="font-medium mt-2 mb-1">Challenge</div>
                     <div class="whitespace-pre-line text-gray-700 text-xs">
                       {{ scheduleInfo.teams.challenge.list.join(', ') }}
                     </div>
                   </template>
                 </template>
 
-<template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
-  <div class="font-semibold mb-1">Wichtige Zeiten</div>
-  <div class="text-xs text-gray-600 mb-2">
-    Letzte Änderung: {{ formatDateTime(scheduleInfo.schedule.last_changed) }}
-  </div>
+                <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
+                  <div class="font-semibold mb-1">Wichtige Zeiten</div>
+                  <div class="text-xs text-gray-600 mb-2">
+                    Letzte Änderung: {{ formatDateTime(scheduleInfo.schedule.last_changed) }}
+                  </div>
 
-  <!-- Explore -->
-  <div v-if="exploreTimes.length > 0">
-    <div class="font-semibold">Explore</div>
-    <div v-for="(item, i) in exploreTimes" :key="i">
-      {{ item.label }}: {{ formatTimeOnly(item.time, true) }}
-    </div>
-  </div>
+                  <!-- Explore -->
+                  <div v-if="exploreTimes.length > 0">
+                    <div class="font-medium">Explore</div>
+                    <div 
+                      v-for="(item, i) in exploreTimes" 
+                      :key="i" 
+                      class="text-xs text-gray-600 mb-0.5"
+                    >
+                      {{ item.label }}: {{ formatTimeOnly(item.time, true) }}
+                    </div>
+                  </div>
 
-  <!-- Challenge -->
-  <div v-if="challengeTimes.length > 0" class="mt-2">
-    <div class="font-semibold">Challenge</div>
-    <div v-for="(item, i) in challengeTimes" :key="i">
-      {{ item.label }}: {{ formatTimeOnly(item.time, true) }}
-    </div>
-  </div>
-</template>
+                  <!-- Challenge -->
+                  <div v-if="challengeTimes.length > 0" class="mt-2">
+                    <div class="font-medium">Challenge</div>
+                    <div 
+                      v-for="(item, i) in challengeTimes" 
+                      :key="i" 
+                      class="text-xs text-gray-600 mb-0.5"
+                    >
+                      {{ item.label }}: {{ formatTimeOnly(item.time, true) }}
+                    </div>
+                  </div>
+                  
+                </template>
 
                 <template v-else-if="idx === 4">
                   <div class="h-full flex flex-col justify-between">
