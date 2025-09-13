@@ -423,7 +423,7 @@ function previewOlinePlan() {
                       {{ item.label }}: {{ formatTimeOnly(item.time, true) }}
                     </div>
                   </div>
-                  
+
                 </template>
 
                 <template v-else-if="idx === 4">
@@ -460,7 +460,7 @@ function previewOlinePlan() {
 
     <!-- Während der Veranstaltung -->
     <div class="rounded-xl shadow bg-white p-6 space-y-4">
-      <h2 class="text-lg font-semibold mb-4">Während der Veranstaltung</h2>
+      <h2 class="text-lg font-semibold mb-4">Online - Während der Veranstaltung</h2>
 
       <div class="flex flex-col lg:flex-row gap-6">
         <!-- Linke Box: fünf QR-Bereiche -->
@@ -614,12 +614,16 @@ function previewOlinePlan() {
 
     <!-- Offline Box -->
     <div class="rounded-xl shadow bg-white p-6 space-y-4">
-      <h2 class="text-lg font-semibold mb-2">Offline</h2>
-      <p class="text-sm text-gray-600">Hier kannst du vorbereitete Dokumente für den Druck exportieren.</p>
-      <div class="space-y-2">
-        <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded">Zeitpläne drucken</button>
-        <button class="w-full bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded">Namensschilder drucken</button>
+      <h2 class="text-lg font-semibold mb-2">Offline - PDF-Download</h2>
+      <p class="text-sm text-gray-600">
+        Dokumente für den Veranstalter – volle Details in einfacher Formatierung.
+      </p>
+
+      <!-- Platzhalter -->
+      <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-400 text-sm">
+        📄 Hier kommt noch was ...
       </div>
     </div>
   </div>
+
 </template>
