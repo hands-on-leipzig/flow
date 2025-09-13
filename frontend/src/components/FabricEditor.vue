@@ -16,7 +16,6 @@ import {useEventStore} from "@/stores/event";
 // Custom controls
 // Copy and Paste
 
-
 // Slideshow löschen
 // Zeit-Parameter für Activity-list
 
@@ -201,7 +200,7 @@ async function addQRCode() {
     return;
   }
 
-  const image = await FabricImage.fromObject({ src: qr });
+  const image = await FabricImage.fromObject({src: qr});
   insertImage(image);
 }
 
@@ -370,7 +369,8 @@ function saveJson() {
         <button v-on:click="makeBold" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-bold h-10 w-12"
                 :class="{ 'bg-gray-400': toolbarState.object.fontWeight === 'bold' }">B
         </button>
-        <button v-on:click="makeItalic" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-italic h-10 w-12"
+        <button v-on:click="makeItalic"
+                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-italic h-10 w-12"
                 :class="{ 'bg-gray-400': toolbarState.object.fontStyle === 'italic' }">I
         </button>
         <button v-on:click="makeUnderline" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 h-10 w-12"
@@ -407,13 +407,24 @@ function saveJson() {
         <h2 class="text-lg font-bold mb-4">Bild auswählen</h2>
         <div class="grid grid-cols-3 gap-4 overflow-y-auto max-h-96">
           <div v-for="img in availableImages" :key="img" class="cursor-pointer">
-            <img :src="`${img.url ? img.url + '/' : ''}${img.path}`" :alt="img.title" class="w-24 h-24 object-contain rounded border"
-                 @click="insertImageFromUrl((img.url ? img.url + '/' : '') + img.path)" />
+            <img :src="`${img.url ? img.url + '/' : ''}${img.path}`" :alt="img.title"
+                 class="w-24 h-24 object-contain rounded border"
+                 @click="insertImageFromUrl((img.url ? img.url + '/' : '') + img.path)"/>
           </div>
         </div>
-        <button @click="closeImageModal" class="mt-6 px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 w-full">
-          Abbrechen
-        </button>
+        <div class="mt-6 px-4 py-2 grid grid-cols-2">
+          <div>
+            <router-link to="/logos">
+              <button class="rounded bg-gray-300 hover:bg-gray-400 py-1 px-2">Logos verwalten</button>
+            </router-link>
+          </div>
+          <div>
+            <button @click="closeImageModal" class="rounded bg-gray-300 hover:bg-gray-400 w-full py-1 px-2">
+              Abbrechen
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
