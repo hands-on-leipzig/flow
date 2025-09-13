@@ -152,7 +152,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen   
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
-
+        Route::get('/times/{planId}', [PublishController::class, 'importantTimes']); // Wichtige Zeiten für Aussenkommunikation
     });
 
     // Quality controller
