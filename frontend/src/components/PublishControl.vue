@@ -8,8 +8,6 @@ import QRCode from "qrcode"
 import axios from 'axios'
 
 
-
-
 // Store + Selected Event
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -155,6 +153,40 @@ function isCardActive(card: number, level: number) {
   if (card === 5 && level >= 3) return true
   return false
 }
+
+
+
+// Explore Zeiten vorbereiten
+const exploreTimes = computed(() => {
+  if (!scheduleInfo.value?.schedule?.explore) return []
+  const e = scheduleInfo.value.schedule.explore
+  const items = []
+
+  if (e.briefing?.teams) items.push({ label: "Coach-Briefing", time: e.briefing.teams })
+  if (e.briefing?.judges) items.push({ label: "Gutachter:innen-Briefing", time: e.briefing.judges })
+  if (e.opening) items.push({ label: "Eröffnung", time: e.opening })
+  if (e.end) items.push({ label: "Ende", time: e.end })
+
+  // nach Uhrzeit sortieren
+  return items.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+})
+
+// Challenge Zeiten vorbereiten
+const challengeTimes = computed(() => {
+  if (!scheduleInfo.value?.schedule?.challenge) return []
+  const c = scheduleInfo.value.schedule.challenge
+  const items = []
+
+  if (c.briefing?.teams) items.push({ label: "Coach-Briefing", time: c.briefing.teams })
+  if (c.briefing?.judges) items.push({ label: "Jury-Briefing", time: c.briefing.judges })
+  if (c.briefing?.referees) items.push({ label: "Schiedsrichter-Briefing", time: c.briefing.referees })
+  if (c.opening) items.push({ label: "Eröffnung", time: c.opening })
+  if (c.end) items.push({ label: "Ende", time: c.end })
+
+  return items.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+})
+
+
 
 // --- QR Codes ---
 const qrWifiUrl = ref("")
@@ -368,54 +400,18 @@ function previewOlinePlan() {
   </div>
 
   <!-- Explore -->
-  <div v-if="scheduleInfo.schedule.explore &&
-            (scheduleInfo.schedule.explore.briefing?.teams ||
-              scheduleInfo.schedule.explore.briefing?.judges ||
-              scheduleInfo.schedule.explore.opening ||
-              scheduleInfo.schedule.explore.end)">
+  <div v-if="exploreTimes.length > 0">
     <div class="font-semibold">Explore</div>
-    <div v-if="scheduleInfo.schedule.explore.briefing?.teams">
-      Coach-Briefing:
-      {{ formatTimeOnly(scheduleInfo.schedule.explore.briefing.teams, true) }}
-    </div>
-    <div v-if="scheduleInfo.schedule.explore.briefing?.judges">
-      Gutachter:innen-Briefing:
-      {{ formatTimeOnly(scheduleInfo.schedule.explore.briefing.judges, true) }}
-    </div>
-    <div v-if="scheduleInfo.schedule.explore.opening">
-      Eröffnung {{ formatTimeOnly(scheduleInfo.schedule.explore.opening, true) }}
-    </div>
-    <div v-if="scheduleInfo.schedule.explore.end">
-      Ende {{ formatTimeOnly(scheduleInfo.schedule.explore.end, true) }}
+    <div v-for="(item, i) in exploreTimes" :key="i">
+      {{ item.label }}: {{ formatTimeOnly(item.time, true) }}
     </div>
   </div>
 
   <!-- Challenge -->
-  <div v-if="scheduleInfo.schedule.challenge &&
-            (scheduleInfo.schedule.challenge.briefing?.teams ||
-              scheduleInfo.schedule.challenge.briefing?.judges ||
-              scheduleInfo.schedule.challenge.briefing?.referees ||
-              scheduleInfo.schedule.challenge.opening ||
-              scheduleInfo.schedule.challenge.end)"
-      class="mt-2">
+  <div v-if="challengeTimes.length > 0" class="mt-2">
     <div class="font-semibold">Challenge</div>
-    <div v-if="scheduleInfo.schedule.challenge.briefing?.teams">
-      Coach-Briefing:
-      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefing.teams, true) }}
-    </div>
-    <div v-if="scheduleInfo.schedule.challenge.briefing?.judges">
-      Jury-Briefing:
-      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefing.judges, true) }}
-    </div>
-    <div v-if="scheduleInfo.schedule.challenge.briefing?.referees">
-      Schiedsrichter-Briefing: 
-      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefing.referees, true) }}
-    </div>
-    <div v-if="scheduleInfo.schedule.challenge.opening">
-      Eröffnung {{ formatTimeOnly(scheduleInfo.schedule.challenge.opening, true) }}
-    </div>
-    <div v-if="scheduleInfo.schedule.challenge.end">
-      Ende gegen {{ formatTimeOnly(scheduleInfo.schedule.challenge.end, true) }}
+    <div v-for="(item, i) in challengeTimes" :key="i">
+      {{ item.label }}: {{ formatTimeOnly(item.time, true) }}
     </div>
   </div>
 </template>
