@@ -368,20 +368,19 @@ function previewOlinePlan() {
   </div>
 
   <!-- Explore -->
-  <div
-    v-if="scheduleInfo.schedule.explore &&
-           (scheduleInfo.schedule.explore.briefings ||
-            scheduleInfo.schedule.explore.opening ||
-            scheduleInfo.schedule.explore.end)"
-  >
+  <div v-if="scheduleInfo.schedule.explore &&
+            (scheduleInfo.schedule.explore.briefing?.teams ||
+              scheduleInfo.schedule.explore.briefing?.judges ||
+              scheduleInfo.schedule.explore.opening ||
+              scheduleInfo.schedule.explore.end)">
     <div class="font-semibold">Explore</div>
-    <div v-if="scheduleInfo.schedule.explore.briefings?.teams">
+    <div v-if="scheduleInfo.schedule.explore.briefing?.teams">
       Briefing (Teams) ab
-      {{ formatTimeOnly(scheduleInfo.schedule.explore.briefings.teams, true) }}
+      {{ formatTimeOnly(scheduleInfo.schedule.explore.briefing.teams, true) }}
     </div>
-    <div v-if="scheduleInfo.schedule.explore.briefings?.judges">
+    <div v-if="scheduleInfo.schedule.explore.briefing?.judges">
       Briefing (Judges) ab
-      {{ formatTimeOnly(scheduleInfo.schedule.explore.briefings.judges, true) }}
+      {{ formatTimeOnly(scheduleInfo.schedule.explore.briefing.judges, true) }}
     </div>
     <div v-if="scheduleInfo.schedule.explore.opening">
       Eröffnung {{ formatTimeOnly(scheduleInfo.schedule.explore.opening, true) }}
@@ -392,31 +391,31 @@ function previewOlinePlan() {
   </div>
 
   <!-- Challenge -->
-  <div
-    v-if="scheduleInfo.schedule.challenge &&
-           (scheduleInfo.schedule.challenge.briefings ||
-            scheduleInfo.schedule.challenge.opening ||
-            scheduleInfo.schedule.challenge.end)"
-    class="mt-2"
-  >
+  <div v-if="scheduleInfo.schedule.challenge &&
+            (scheduleInfo.schedule.challenge.briefing?.teams ||
+              scheduleInfo.schedule.challenge.briefing?.judges ||
+              scheduleInfo.schedule.challenge.briefing?.referees ||
+              scheduleInfo.schedule.challenge.opening ||
+              scheduleInfo.schedule.challenge.end)"
+      class="mt-2">
     <div class="font-semibold">Challenge</div>
-    <div v-if="scheduleInfo.schedule.challenge.briefings?.teams">
-      Briefing (Teams) ab
-      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefings.teams, true) }}
+    <div v-if="scheduleInfo.schedule.challenge.briefing?.teams">
+      Coach-Briefing:
+      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefing.teams, true) }}
     </div>
-    <div v-if="scheduleInfo.schedule.challenge.briefings?.judges">
-      Briefing (Judges) ab
-      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefings.judges, true) }}
+    <div v-if="scheduleInfo.schedule.challenge.briefing?.judges">
+      Jury-Briefing:
+      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefing.judges, true) }}
     </div>
-    <div v-if="scheduleInfo.schedule.challenge.briefings?.referees">
-      Briefing (Referees) ab
-      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefings.referees, true) }}
+    <div v-if="scheduleInfo.schedule.challenge.briefing?.referees">
+      Schiedsrichter-Briefing: 
+      {{ formatTimeOnly(scheduleInfo.schedule.challenge.briefing.referees, true) }}
     </div>
     <div v-if="scheduleInfo.schedule.challenge.opening">
       Eröffnung {{ formatTimeOnly(scheduleInfo.schedule.challenge.opening, true) }}
     </div>
     <div v-if="scheduleInfo.schedule.challenge.end">
-      Ende {{ formatTimeOnly(scheduleInfo.schedule.challenge.end, true) }}
+      Ende gegen {{ formatTimeOnly(scheduleInfo.schedule.challenge.end, true) }}
     </div>
   </div>
 </template>
