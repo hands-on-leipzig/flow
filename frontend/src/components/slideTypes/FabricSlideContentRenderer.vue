@@ -33,7 +33,7 @@ onMounted(() => {
   // Intersection Observer um Resize bei Sichtbarkeit auszulösen (Carousel)
   io = new IntersectionObserver((entries) => {
     for (const entry of entries) {
-      if (entry.isIntersecting) { // true -> Element aktuell in Viewport sichtbar (Folie aktiv)
+      if (entry.isIntersecting && entry.target === root.value) { // true -> Element aktuell in Viewport sichtbar (Folie aktiv)
         requestAnimationFrame(() => handleResize());
       }
     }
@@ -71,10 +71,13 @@ function handleResize() {
 
   const displayW = Math.round(DEFAULT_WIDTH * zoom);
   const displayH = Math.round(DEFAULT_HEIGHT * zoom);
-  canvas.value.style.width = `${displayW}px`;
-  canvas.value.style.height = `${displayH}px`;
 
-  fabricCanvas.requestRenderAll();
+  if (width > 0 && height > 0) {
+    fabricCanvas.setDimensions({width: displayW, height: displayH});
+    fabricCanvas.setZoom(zoom);
+
+    fabricCanvas.requestRenderAll();
+  }
 }
 
 function loadFont() {
