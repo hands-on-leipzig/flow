@@ -37,7 +37,7 @@ class PlanController extends Controller
 
         // Sonst anlegen
         $newId = DB::table('plan')->insertGetId([
-            'name' => 'Zeitplan',
+            'name' => 'Zeitplan Y',
             'event' => $eventId,
             'created' => Carbon::now(),
             'last_change' => Carbon::now(),
@@ -46,30 +46,31 @@ class PlanController extends Controller
 
         // Get DRAHT team counts for this event
         $event = \App\Models\Event::find($eventId);
-        $e_teams = 0;
-        $c_teams = 0;
+
+        $e_teams = 6; // Default
+        $c_teams = 8; // Default
 
         if ($event) {
             $drahtController = new \App\Http\Controllers\Api\DrahtController();
             $drahtData = $drahtController->show($event);
             $data = $drahtData->getData(true);
 
-            // Count teams from DRAHT
-            $e_teams = count($data->teams_explore ?? []);
-            $c_teams = count($data->teams_challenge ?? []);
-        
+            if ($data) {
+                // Explore
+                if (array_key_exists('teams_explore', $data)) {
+                    $e_teams = count($data['teams_explore'] ?? []);
+                } elseif (array_key_exists('capacity_explore', $data)) {
+                    $e_teams = (int) $data['capacity_explore'];
+                }
 
-            // Fallback to minimum values if no DRAHT data
-            if ($e_teams === 0) (int)($data['capacity_explore']);
-            if ($c_teams === 0) (int)($data['capacity_challenge']);
-         }
-        if ($e_teams === 0) 6;
-        if ($c_teams === 0) 8;
-
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 6],   // e_teams
-            ['set_value' => $e_teams]
-        );
+                // Challenge
+                if (array_key_exists('teams_challenge', $data)) {
+                    $c_teams = count($data['teams_challenge'] ?? []);
+                } elseif (array_key_exists('capacity_challenge', $data)) {
+                    $c_teams = (int) $data['capacity_challenge'];
+                }
+            }
+        }
 
         if ( $e_teams > 0 ) {
 
