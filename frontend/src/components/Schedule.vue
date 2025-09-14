@@ -295,9 +295,6 @@ function normalizeValue(value: any, type: string | undefined) {
 }
 
 // Unified update function for single or multiple parameters
-// Including new "isGenerating" state
-
-const isGenerating = ref(false)
 
 async function updateParams(params: Array<{ name: string, value: any }>, afterUpdate?: () => Promise<void>) {
   if (!selectedPlanId.value) return
@@ -349,18 +346,25 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   }
   loading.value = false
 
-  // 3. Start plan generation
+  // 3. Generator starten (wiederverwendet runGeneratorOnce)
+  await runGeneratorOnce(afterUpdate)
+}
+
+const isGenerating = ref(false)
+
+async function runGeneratorOnce() {
+  if (!selectedPlanId.value) return
   isGenerating.value = true
   try {
-    await axios.post(`/plans/${selectedPlanId.value}/generate`) // Job starten
-    await pollUntilReady(selectedPlanId.value)                  // Warten, bis fertig
+    await axios.post(`/plans/${selectedPlanId.value}/generate`)
+    await pollUntilReady(selectedPlanId.value)
   } catch (error) {
-    console.error('Error during generation:', error)
+    console.error("Error during initial generation:", error)
   } finally {
     isGenerating.value = false
-    if (afterUpdate) await afterUpdate()
   }
 }
+
 
 async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 1000) {
   const start = Date.now()
@@ -395,33 +399,19 @@ const expertParamsGrouped = computed(() => {
 
 async function getOrCreatePlan() {
   if (!selectedEvent.value) return
+
   const res = await axios.get(`/plans/event/${selectedEvent.value.id}`)
   const planData = res.data
-  if (planData && planData.id) {
-    plans.value = [planData]
-    selectedPlanId.value = planData.id
-    await fetchParams(selectedPlanId.value as number)
-  } else {
-    const newPlanId = await createDefaultPlan()
-    if (newPlanId) {
-      const newPlan = {id: newPlanId, name: 'Standard-Zeitplan', is_chosen: true}
-      plans.value = [newPlan]
-      selectedPlanId.value = newPlanId
-      await fetchParams(newPlanId)
-    }
-  }
-}
 
-const createDefaultPlan = async () => {
-  try {
-    const response = await axios.post(`/plans`, {
-      event: selectedEvent?.value?.id,
-      name: 'Zeitplan'
-    })
-    return response.data.id
-  } catch (e) {
-    console.error('Fehler beim Erstellen des Plans', e)
-    return null
+  plans.value = [planData]
+  selectedPlanId.value = planData.id
+
+  await fetchParams(selectedPlanId.value as number)
+
+  // Generator nur starten, wenn Plan neu ist
+  if (planData.existing === false) {
+    console.log("New plan detected → run generator once")
+    await runGeneratorOnce()
   }
 }
 

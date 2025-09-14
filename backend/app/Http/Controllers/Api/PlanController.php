@@ -27,14 +27,21 @@ class PlanController extends Controller
         // Plan suchen
         $plan = DB::table('plan')
             ->where('event', $eventId)
-            ->select('id', 'name')
+            ->select('id')
             ->first();
 
-        // Wenn gefunden → zurückgeben
         if ($plan) {
-            return response()->json($plan);
-        }
+            // Prüfen, ob es mindestens eine activity_group für diesen Plan gibt
+            $hasActivityGroup = DB::table('activity_group')
+                ->where('plan', $plan->id)
+                ->exists();
 
+            return response()->json([
+                'id' => $plan->id,
+                'existing' => $hasActivityGroup,  // true nur, wenn activity_group existiert
+            ]);
+        }
+        
         // Sonst anlegen
         $newId = DB::table('plan')->insertGetId([
             'name' => 'Zeitplan',
@@ -159,7 +166,7 @@ class PlanController extends Controller
 
         return response()->json([
             'id' => $newId,
-            'name' => 'Zeitplan'
+            'existing' => false,
         ]);
     }
 
