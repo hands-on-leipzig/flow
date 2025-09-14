@@ -90,6 +90,9 @@ const disabledMap = computed<Record<number, boolean>>(() => {
   return map
 })
 
+// zusätzlich zur Parameterliste
+const originalValues = ref<Record<string, any>>({})
+
 const fetchParams = async (planId: number) => {
   if (!planId) return
   loading.value = true
@@ -99,6 +102,12 @@ const fetchParams = async (planId: number) => {
     // Defensive: backend could send a single object or null
     parameters.value = Array.isArray(rawParams) ? rawParams : []
     displayConditions.value = Array.isArray(conditions) ? conditions : []
+
+    // Hier Originalwerte ablegen
+    originalValues.value = Object.fromEntries(
+      parameters.value.map(p => [p.name, p.value])
+    )
+
     console.log('Fetched parameters:', parameters.value.length)
     console.log('Expert parameters:', parameters.value.filter(p => p.context === 'expert').length)
   } catch (err) {
@@ -156,8 +165,7 @@ const showToast = ref(false)
 const progress = ref(100)
 const progressIntervalId = ref<NodeJS.Timeout | null>(null)
 
-// Track if there are pending parameter updates
-const hasPendingParamUpdates = computed(() => Object.keys(pendingParamUpdates.value).length > 0)
+
 
 // Handle parameter updates from child components
 function handleParamUpdate(param: { name: string, value: any }) {
@@ -166,6 +174,17 @@ function handleParamUpdate(param: { name: string, value: any }) {
     console.warn('Parameter not found:', param.name)
     return
   }
+
+  // Normalisieren für stabilen Vergleich
+  const oldVal = String(originalValues.value[param.name] ?? '')
+  const newVal = String(param.value ?? '')
+
+  if (oldVal === newVal) {
+    console.log(`No change for ${param.name}, skipping update`)
+    return
+  }
+
+  console.log(`Param change detected → ${param.name}: ${oldVal} → ${newVal}`)
 
   // Update local state immediately
   p.value = param.value
@@ -299,6 +318,11 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
             value: normalizeValue(value, p?.type)?.toString() ?? ''
           }
         })
+      })
+
+      // Nach erfolgreichem Speichern: originalValues anpassen
+      params.forEach(({ name, value }) => {
+        originalValues.value[name] = value
       })
     }
 
