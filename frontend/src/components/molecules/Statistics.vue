@@ -5,12 +5,26 @@ import axios from 'axios'
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
+import { useRouter } from 'vue-router'
+import { useEventStore } from '@/stores/event'
 
 const data = ref(null)
 const totals = ref(null)
 const loading = ref(true)
 const error = ref(null)
 const selectedSeasonKey = ref(null)
+
+const router = useRouter()
+const eventStore = useEventStore()
+
+async function selectEvent(eventId, regionalPartnerId) {
+  await axios.post('/user/select-event', {
+    event: eventId,
+    regional_partner: regionalPartnerId
+  })
+  await eventStore.fetchSelectedEvent()
+  router.push('/event')
+}
 
 onMounted(async () => {
   try {
@@ -324,8 +338,16 @@ function formatNumber(num) {
                   ⚠️
                 </template>
               </span>
-              {{ row.event_name }}
-              <span class="text-gray-500">({{ formatDateOnly(row.event_date) }})</span>
+              <!-- klickbarer Name -->
+              <a
+                href="#"
+                class="text-blue-600 hover:underline cursor-pointer"
+                @click.prevent="selectEvent(row.event_id, row.partner_id)"
+              >
+                {{ row.event_name }}
+              </a>
+
+              <span class="text-gray-500"> ({{ formatDateOnly(row.event_date) }})</span>
               <span class="inline-flex items-center space-x-1 ml-2">
                 <img
                   v-if="row.event_explore"

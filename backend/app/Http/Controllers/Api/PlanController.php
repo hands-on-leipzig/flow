@@ -229,7 +229,7 @@ class PlanController extends Controller
 
     public function previewRoles(int $plan, PreviewMatrix $builder)
     {
-        $activities = $this->fetchActivities($plan, includeRooms: false);
+        $activities = $this->fetchActivities($plan, freeBlocks: false);
 
         if ($activities->isEmpty()) {
             // Return stable headers so the frontend can render an empty grid
@@ -242,7 +242,7 @@ class PlanController extends Controller
 
     public function previewTeams(int $plan, PreviewMatrix $builder)
     {
-        $activities = $this->fetchActivities($plan, includeRooms: false);
+        $activities = $this->fetchActivities($plan, freeBlocks: false);
 
         if ($activities->isEmpty()) {
             // Return stable headers so the frontend can render an empty grid
@@ -255,7 +255,7 @@ class PlanController extends Controller
 
     public function previewRooms(int $plan, PreviewMatrix $builder)
     {
-        $activities = $this->fetchActivities($plan, includeRooms: true);
+        $activities = $this->fetchActivities($plan, includeRooms: true, freeBlocks: false);
 
         if ($activities->isEmpty()) {
             // Return stable headers so the frontend can render an empty grid
@@ -270,48 +270,59 @@ class PlanController extends Controller
 
 
     private function fetchActivities(
-        int $plan,
-        bool $includeRooms = false,
-        bool $includeGroupMeta = false,
-        bool $includeActivityMeta = false,
-        bool $includeTeamNames = false
-    ) {
-        $freeIds = array_values(array_filter(array_map(function ($c) {
-            if (is_string($c) && defined($c)) return (int) constant($c);
-            if (is_numeric($c)) return (int) $c;
-            return null;
-        }, (array) config('atd.free')), fn ($v) => $v !== null));
+    int $plan,
+    bool $includeRooms = false,
+    bool $includeGroupMeta = false,
+    bool $includeActivityMeta = false,
+    bool $includeTeamNames = false,
+    bool $freeBlocks = true   // NEU: default = true
+) {
+    $freeIds = array_values(array_filter(array_map(function ($c) {
+        if (is_string($c) && defined($c)) return (int) constant($c);
+        if (is_numeric($c)) return (int) $c;
+        return null;
+    }, (array) config('atd.free')), fn ($v) => $v !== null));
 
-        $q = DB::table('activity as a')
-            ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
-            // Activity-ATD
-            ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
-            ->leftJoin('m_first_program as fp', 'atd.first_program', '=', 'fp.id')
-            // Group-ATD (optional)
-            ->when($includeGroupMeta, function ($qq) {
-                $qq->leftJoin('m_activity_type_detail as ag_atd', 'ag_atd.id', '=', 'ag.activity_type_detail')
+    $q = DB::table('activity as a')
+        ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+        // Activity-ATD
+        ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+        ->leftJoin('m_first_program as fp', 'atd.first_program', '=', 'fp.id')
+        // Group-ATD (optional)
+        ->when($includeGroupMeta, function ($qq) {
+            $qq->leftJoin('m_activity_type_detail as ag_atd', 'ag_atd.id', '=', 'ag.activity_type_detail')
                 ->leftJoin('m_first_program as ag_fp', 'ag_fp.id', '=', 'ag_atd.first_program');
-            })
-            ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
-            ->join('plan as p', 'p.id', '=', 'ag.plan')
-            ->where('ag.plan', $plan);
+        })
+        ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
+        ->join('plan as p', 'p.id', '=', 'ag.plan')
+        ->where('ag.plan', $plan);
 
-        if (!empty($freeIds)) {
-            $q->whereNotIn('atd.id', $freeIds);
-        }
+    if (!empty($freeIds)) {
+        $q->whereNotIn('atd.id', $freeIds);
+    }
 
-        // Räume (optional)
-        if ($includeRooms) {
-            $q->leftJoin('m_room_type as rt', 'a.room_type', '=', 'rt.id')
+    // NEU: Free-Blocks filtern
+    if (!$freeBlocks) {
+        $q->where(function ($sub) {
+            $sub->whereNull('a.extra_block')   // normale Activities
+                ->orWhereNotNull('peb.insert_point'); // Extra-Blocks, aber mit insert_point
+        });
+    }
+
+    // Räume (optional)
+    if ($includeRooms) {
+        $q->leftJoin('m_room_type as rt', 'a.room_type', '=', 'rt.id')
             ->leftJoin('room_type_room as rtr', function ($j) {
                 $j->on('rtr.room_type', '=', 'a.room_type')
-                    ->on('rtr.event', '=', 'p.event');
+                  ->on('rtr.event', '=', 'p.event');
             })
             ->leftJoin('room as r', function ($j) {
                 $j->on('r.id', '=', 'rtr.room')
-                    ->on('r.event', '=', 'p.event');
+                  ->on('r.event', '=', 'p.event');
             });
-        }
+    }
+
+    // … Rest bleibt unverändert …
 
         // Team-Namen (optional): team_plan → team
         if ($includeTeamNames) {
