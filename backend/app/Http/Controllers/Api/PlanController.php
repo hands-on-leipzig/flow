@@ -27,14 +27,21 @@ class PlanController extends Controller
         // Plan suchen
         $plan = DB::table('plan')
             ->where('event', $eventId)
-            ->select('id', 'name')
+            ->select('id')
             ->first();
 
-        // Wenn gefunden → zurückgeben
         if ($plan) {
-            return response()->json($plan);
-        }
+            // Prüfen, ob es mindestens eine activity_group für diesen Plan gibt
+            $hasActivityGroup = DB::table('activity_group')
+                ->where('plan', $plan->id)
+                ->exists();
 
+            return response()->json([
+                'id' => $plan->id,
+                'existing' => $hasActivityGroup,  // true nur, wenn activity_group existiert
+            ]);
+        }
+        
         // Sonst anlegen
         $newId = DB::table('plan')->insertGetId([
             'name' => 'Zeitplan',
@@ -46,95 +53,120 @@ class PlanController extends Controller
 
         // Get DRAHT team counts for this event
         $event = \App\Models\Event::find($eventId);
-        $e_teams = 0;
-        $c_teams = 0;
+
+        $e_teams = 6; // Default
+        $c_teams = 8; // Default
 
         if ($event) {
             $drahtController = new \App\Http\Controllers\Api\DrahtController();
             $drahtData = $drahtController->show($event);
             $data = $drahtData->getData(true);
 
-            // Count teams from DRAHT
-            $e_teams = count($data->teams_explore ?? []);
-            $c_teams = count($data->teams_challenge ?? []);
-        
 
-            // Fallback to minimum values if no DRAHT data
-            if ($e_teams === 0) (int)($data['capacity_explore']);
-            if ($c_teams === 0) (int)($data['capacity_challenge']);
-         }
-        if ($e_teams === 0) 6;
-        if ($c_teams === 0) 8;
+            if ($data) {
+                if (array_key_exists('capacity_explore', $data)) {
+                    $e_teams = (int) $data['capacity_explore'];
+                }
+                if (array_key_exists('capacity_challenge', $data)) {
+                    $c_teams = (int) $data['capacity_challenge'];
+                }
+            }
+        }
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 6],   // e_teams
-            ['set_value' => $e_teams]
-        );
+        // Max one explore group
+        $e2_teams = 0;
+        $e2_lanes = 0;
+
 
         if ( $e_teams > 0 ) {
 
             if ( $c_teams  == 0 ) {
-                PlanParamValue::updateOrCreate(
-                    ['plan' => $newId, 'parameter' => 7],   // e_mode standlone morning
-                    ['set_value' => 3]
-               );
+                // e_mode standlone morning
+                $e_mode = 3;
             } else {
-                PlanParamValue::updateOrCreate(
-                    ['plan' => $newId, 'parameter' => 7],   // e_mode integrated morning
-                    ['set_value' => 1]
-                );
+                // e_mode integrated morning
+                $e_mode = 1;
             }
 
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 6],   // e_teams
-                ['set_value' => $e_teams]
-            );
+            $e1_teams = $e_teams;           
+            $e1_lanes = MSupportedPlan::where('first_program', 2)->where('teams', $e_teams)->value('lanes');
+           
+        } else { 
 
-        } else {
+            // e_mode off
+            $e_mode = 0;
 
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 7],   // e_mode off
-                ['set_value' => 0]
-            );
+            $e1_teams = 0;
+            $e1_lanes = 0;            
+            
         }
+        
 
         if ( $c_teams > 0 ) { 
 
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 122],    // c_mode on
-                ['set_value' => 1]
-            );
+            // c_mode on
+            $c_mode = 1;
 
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 22],    // c_teams
-                ['set_value' => $c_teams]
-            );
-
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 23],    // j_lanes
-                ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes')]
-            );
-            
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 24],  // r_tables
-                ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables')]
-            );
+            $j_lanes = MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes');
+            $r_tables = MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables');  
             
         } else {
 
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 122],    // c_mode off
-                ['set_value' => 0]
-            );
+            // c_mode off
+            $c_mode = 0;   
+            $j_lanes = 0;
+            $r_tables = 0; 
+
         }
 
-        // Populate team_plan table with all teams for this event
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 7],   
+            ['set_value' => $e_mode]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 6],   
+            ['set_value' => $e_teams]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 111],   
+            ['set_value' => $e1_teams]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 81],   
+            ['set_value' => $e1_lanes]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 112],   
+            ['set_value' => $e2_teams]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 117],   
+            ['set_value' => $e2_lanes]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 122],   
+            ['set_value' => $c_mode]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 22],   
+            ['set_value' => $c_teams]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 23],   
+            ['set_value' => $j_lanes]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 24],   
+            ['set_value' => $r_tables]);
+
+
+            // Populate team_plan table with all teams for this event
         Log::info("Creating plan $newId for event $eventId - calling populateTeamPlanForNewPlan");
         $this->populateTeamPlanForNewPlan($newId, $eventId);
 
         return response()->json([
             'id' => $newId,
-            'name' => 'Zeitplan'
+            'existing' => false,
         ]);
     }
 
