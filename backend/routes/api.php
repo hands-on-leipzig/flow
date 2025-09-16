@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\ExtraBlockController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\QualityController;
+use App\Http\Controllers\Api\PublishController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +26,10 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
     ]);
 });
 
+// Public Carousel route
+Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);
+Route::get('/plans/action-now/{planId}', [PlanController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
+Route::get('/plans/action-next/{planId}', [PlanController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
@@ -60,8 +66,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/preview/{planId}/teams', [PlanController::class, 'previewTeams']);
         Route::get('/preview/{planId}/rooms', [PlanController::class, 'previewRooms']);
         Route::get('/activities/{planId}', [PlanController::class, 'activities']);
-        Route::get('/action-now/{planId}', [PlanController::class, 'actionNow']);           // optional: ?point_in_time=YYYY-MM-DD HH:mm
-        Route::get('/action-next/{planId}', [PlanController::class, 'actionNext']);          // optional: ?interval=15&point_in_time=...
         Route::get('/action/next/{planId}/{interval?}', [PlanController::class, 'actionNext']);
         Route::post('/{planId}/generate', [PlanController::class, 'generate']);
         Route::get('/{planId}/status', [PlanController::class, 'status']);
@@ -70,13 +74,14 @@ Route::middleware(['keycloak'])->group(function () {
 
 
     // PlanParameter controller
-//    Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
+    // Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
 
 
     // ExtraBlock controller
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
+    Route::get('/plans/{id}/extra-blocks-with-room-types', [ExtraBlockController::class, 'getBlocksForPlanWithRoomTypes']);
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::get('/insert-points', [ExtraBlockController::class, 'getInsertPoints']);
     Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
@@ -87,6 +92,16 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/events/{event}', [EventController::class, 'update']);
     Route::get('/events/{event}/table-names', [EventController::class, 'getTableNames']);
     Route::put('/events/{id}/table-names', [EventController::class, 'updateTableNames']);
+
+    // Carousel controller
+    Route::get('/slides/{slide}', [CarouselController::class, 'getSlide']);
+    Route::put('/slides/{slide}', [CarouselController::class, 'updateSlide']);
+    Route::delete('/slides/{slide}', [CarouselController::class, 'deleteSlide']);
+    Route::get('/slideshow/{event}', [CarouselController::class, 'getAllSlideshows']);
+    Route::put('/slideshow/{slideshow}/updateOrder', [CarouselController::class, 'updateSlideshowOrder']);
+    Route::put('/slideshow/{slideshow}', [CarouselController::class, 'updateSlideshow']);
+    Route::put('/slideshow/{slideshow}/add', [CarouselController::class, 'addSlide']);
+    Route::post('/slideshow/{event}', [CarouselController::class, 'generateSlideshow']);
 
     // Team controller
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
@@ -99,6 +114,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::patch('/logos/{logo}', [LogoController::class, 'update']);
     Route::delete('/logos/{logo}', [LogoController::class, 'destroy']);
     Route::post('/logos/{logo}/toggle-event', [LogoController::class, 'toggleEvent']);
+    Route::post('/logos/update-sort-order', [LogoController::class, 'updateSortOrder']);
 
     // Room controller
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);
@@ -129,6 +145,16 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
 
+    // Publish controller
+    Route::prefix('publish')->group(function () {
+        Route::get('/link/{planId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
+        Route::get('/pdf/{planId}', [PublishController::class, 'PDFandPreview']);    // PDF mit Vorschau holen
+        Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen   
+        Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
+        Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
+        Route::get('/times/{planId}', [PublishController::class, 'importantTimes']); // Wichtige Zeiten für Aussenkommunikation
+    });
+
     // Quality controller
     Route::prefix('quality')->group(function () {
         Route::post('/qrun', [QualityController::class, 'startQRun']);                   // Start eines neuen Runs
@@ -145,6 +171,5 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
     });
-
 
 });

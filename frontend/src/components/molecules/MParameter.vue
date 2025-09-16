@@ -2,6 +2,8 @@
 import draggable from 'vuedraggable'
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+
 
 // Daten
 const items = ref<any[]>([])          // Backend-Daten
@@ -160,13 +162,6 @@ const contextBarClass = (ctx: string | null | undefined) => {
   }
 }
 
-// Icon je first_program (1=CHALLENGE, 2=EXPLORE)
-const programIcon = (fp: number | null | undefined) => {
-  const v = fp == null ? 0 : Number(fp)
-  if (v === 2) return new URL('@/assets/FLL_Explore.png', import.meta.url).toString()
-  if (v === 3) return new URL('@/assets/FLL_Challenge.png', import.meta.url).toString()
-  return null // 0 (gemeinsam) → kein Icon
-}
 </script>
 
 <template>
@@ -245,10 +240,10 @@ const programIcon = (fp: number | null | undefined) => {
                         ></span>
 
                         <!-- Programm-Icon (optional, kein Text) -->
-                        <img
-                            v-if="programIcon(item.first_program)"
-                            :src="programIcon(item.first_program)"
-                            alt=""
+                        <img 
+                            v-if="item.first_program"
+                            :src="programLogoSrc(item.first_program)"
+                            :alt="programLogoAlt(item.first_program)"
                             class="ml-2 w-5 h-5 flex-shrink-0"
                         />
                         </div>

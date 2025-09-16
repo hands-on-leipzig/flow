@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import {computed, ref, UnwrapRef, watch} from 'vue'
+import {computed, UnwrapRef, watch} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import SplitBar from '@/components/atoms/SplitBar.vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue"
 import {useEventStore} from '@/stores/event'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
 const props = defineProps<{
   parameters: any[]
@@ -73,8 +74,6 @@ const e2Teams = computed(() => Number(paramMapByName.value['e2_teams']?.value ||
 // 5: Separate split between AM/PM
 const isIntegratedAM = computed(() => eMode.value === 1)
 const isIntegratedPM = computed(() => eMode.value === 2)
-const isSeparateAM = computed(() => eMode.value === 3)
-const isSeparatePM = computed(() => eMode.value === 4)
 const isSeparateSplit = computed(() => eMode.value === 5)
 
 const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2)
@@ -276,23 +275,22 @@ const isExploreLaneAllowedPM = (n: number) => {
   return allowed.includes(n)
 }
 
-/** SplitBar updates **/
-const onUpdateE1 = (val: number) => {
-  updateByName('e1_teams', val)
-  // Ensure total is always the sum
-  const total = val + e2Teams.value
-  if (total !== eTeams.value) {
-    updateByName('e_teams', total)
-  }
-}
-const onUpdateE2 = (val: number) => {
-  updateByName('e2_teams', val)
-  // Ensure total is always the sum
-  const total = e1Teams.value + val
-  if (total !== eTeams.value) {
-    updateByName('e_teams', total)
-  }
-}
+
+// Get the current note based on the active mode
+const currentExploreNote = computed<string>(() => {
+  if (eMode.value === 1) return currentIntegratedNote.value || ''
+  if (eMode.value === 2) return currentAMNote.value || ''
+  if (eMode.value === 3) return currentPMNote.value || ''
+  return ''
+})
+
+// Get the current alert level based on the active mode
+const currentExploreAlertLevel = computed<number>(() => {
+  if (eMode.value === 1) return currentConfigAlertLevelIntegrated.value
+  if (eMode.value === 2) return currentConfigAlertLevelAM.value
+  if (eMode.value === 3) return currentConfigAlertLevelPM.value
+  return 0
+})
 
 // Calculate min/max team counts from supported plan data
 const exploreTeamLimits = computed(() => {
@@ -307,15 +305,121 @@ const exploreTeamLimits = computed(() => {
     max: Math.max(...teamCounts)
   }
 })
+
+// Get current configuration alert level for integrated mode
+const currentConfigAlertLevelIntegrated = computed<number>(() => {
+  if (!props.supportedPlanData || !eTeams.value || !integratedLanesProxy.value) return 0
+  
+  const matchingPlan = props.supportedPlanData.find(plan => 
+    plan.first_program === 2 && 
+    plan.teams === eTeams.value && 
+    plan.lanes === integratedLanesProxy.value
+  )
+  
+  return matchingPlan?.alert_level || 0
+})
+
+
+// Get current configuration alert level for AM mode
+const currentConfigAlertLevelAM = computed<number>(() => {
+  if (!props.supportedPlanData || !eTeams.value || !eLanesAMProxy.value) return 0
+  
+  const matchingPlan = props.supportedPlanData.find(plan => 
+    plan.first_program === 2 && 
+    plan.teams === eTeams.value && 
+    plan.lanes === eLanesAMProxy.value
+  )
+  
+  return matchingPlan?.alert_level || 0
+})
+
+
+// Get current configuration alert level for PM mode
+const currentConfigAlertLevelPM = computed<number>(() => {
+  if (!props.supportedPlanData || !eTeams.value || !eLanesPMProxy.value) return 0
+  
+  const matchingPlan = props.supportedPlanData.find(plan => 
+    plan.first_program === 2 && 
+    plan.teams === eTeams.value && 
+    plan.lanes === eLanesPMProxy.value
+  )
+  
+  return matchingPlan?.alert_level || 0
+})
+
+// Get note for current integrated configuration
+const currentIntegratedNote = computed<string | undefined>(() => {
+  if (!props.supportedPlanData || !eTeams.value || !integratedLanesProxy.value) return
+  
+  const matchingPlan = props.supportedPlanData.find(plan => 
+    plan.first_program === 2 && 
+    plan.teams === eTeams.value && 
+    plan.lanes === integratedLanesProxy.value
+  )
+  
+  return matchingPlan?.note
+})
+
+// Get note for current AM configuration
+const currentAMNote = computed<string | undefined>(() => {
+  if (!props.supportedPlanData || !eTeams.value || !eLanesAMProxy.value) return
+  
+  const matchingPlan = props.supportedPlanData.find(plan => 
+    plan.first_program === 2 && 
+    plan.teams === eTeams.value && 
+    plan.lanes === eLanesAMProxy.value
+  )
+  
+  return matchingPlan?.note
+})
+
+// Get note for current PM configuration
+const currentPMNote = computed<string | undefined>(() => {
+  if (!props.supportedPlanData || !eTeams.value || !eLanesPMProxy.value) return
+  
+  const matchingPlan = props.supportedPlanData.find(plan => 
+    plan.first_program === 2 && 
+    plan.teams === eTeams.value && 
+    plan.lanes === eLanesPMProxy.value
+  )
+  
+  return matchingPlan?.note
+})
+
+// Alert level styling and messages
+const getAlertLevelStyle = (level: number) => {
+  switch (level) {
+    case 1: return 'border-2 border-green-500 ring-2 ring-green-500' // Recommended
+    case 2: return 'border-2 border-orange-500 ring-2 ring-orange-500' // Risk
+    case 3: return 'border-2 border-red-500 ring-2 ring-red-500' // High risk
+    default: return 'ring-1 ring-gray-500 border-gray-500' // OK
+  }
+}
+
+
+
+const getTeamInputStyle = (level: number) => {
+  switch (level) {
+    case 1: return 'border-green-500 focus:border-green-500 focus:ring-green-500'
+    case 2: return 'border-orange-500 focus:border-orange-500 focus:ring-orange-500'
+    case 3: return 'border-red-500 focus:border-red-500 focus:ring-red-500'
+    default: return 'border-gray-300 focus:border-gray-500 focus:ring-gray-500'
+  }
+}
+
 </script>
 
 <template>
-  <div class="p-4 border rounded shadow">
-    <div class="flex items-center justify-between mb-2">
-      <div class="flex items-center gap-2">
-        <h2 class="text-lg font-semibold">Explore Einstellungen</h2>
-
-      </div>
+  <div class="p-4 border rounded shadow relative">
+    <div class="flex items-center gap-2 mb-2">
+      <img
+          :src="programLogoSrc('E')"
+          :alt="programLogoAlt('E')"
+          class="w-10 h-10 flex-shrink-0"
+        />
+      <h3 class="text-lg font-semibold capitalize">
+        <span class="italic">FIRST</span> LEGO League Explore
+      </h3>
       <label class="relative inline-flex items-center cursor-pointer">
         <input
             type="checkbox"
@@ -329,16 +433,18 @@ const exploreTeamLimits = computed(() => {
       </label>
     </div>
 
-    <div v-if="hasExplore" class="mb-3">
-      <label class="text-sm font-medium">Anzahl Teams</label> &nbsp;
+    <div v-if="hasExplore" class="mb-3 flex items-center gap-2">
+      
       <input
-          class="mt-1 w-32 border rounded px-2 py-1"
+          class="mt-1 w-32 border-2 rounded px-2 py-1 focus:outline-none focus:ring-2"
+          :class="getTeamInputStyle(currentConfigAlertLevelIntegrated)"
           type="number"
           :min="exploreTeamLimits.min"
           :max="exploreTeamLimits.max"
           :value="paramMapByName['e_teams']?.value"
           @input="updateByName('e_teams', Number(($event.target as HTMLInputElement).value || 0))"
       />
+      <label class="text-sm font-medium">Teams</label>
       <InfoPopover :text="paramMapByName['e_teams']?.ui_description"/>
     </div>
 
@@ -406,7 +512,7 @@ const exploreTeamLimits = computed(() => {
     <!-- Message when explore is disabled -->
     <div v-else class="text-center py-8 text-gray-500">
       <div class="text-lg font-medium mb-2">Explore ist deaktiviert</div>
-      <div class="text-sm">Aktivieren Sie den Schalter oben rechts, um Explore-Einstellungen zu konfigurieren.</div>
+      <div class="text-sm">Aktiviere den Schalter oben rechts, um Explore-Einstellungen zu konfigurieren.</div>
     </div>
 
     <!-- INTEGRATED (1/2): inline lane selector bound to e1_lanes (allowed by total e_teams) -->
@@ -425,7 +531,7 @@ const exploreTeamLimits = computed(() => {
                 class="px-2 py-1 rounded-md border text-sm transition
                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                 :class="[
-                  checked ? 'ring-1 ring-gray-500' : '',
+                  checked ? getAlertLevelStyle(currentConfigAlertLevelIntegrated) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
                 :aria-disabled="disabled"
@@ -437,6 +543,8 @@ const exploreTeamLimits = computed(() => {
         <span class="text-sm font-medium">Jurygruppen</span>
         <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
       </div>
+      
+
     </div>
 
     <!-- SPLIT slider only for mode 5 -->
@@ -473,7 +581,7 @@ const exploreTeamLimits = computed(() => {
                   class="px-2 py-1 rounded-md border text-sm transition
                        focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                   :class="[
-                  checked ? 'ring-1 ring-gray-500' : '',
+                  checked ? getAlertLevelStyle(currentConfigAlertLevelAM) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
                   :aria-disabled="disabled"
@@ -484,6 +592,8 @@ const exploreTeamLimits = computed(() => {
           </RadioGroup>
           <span class="text-sm font-medium">Jurygruppen</span>
         </div>
+        
+
       </div>
 
       <!-- PM -->
@@ -505,7 +615,7 @@ const exploreTeamLimits = computed(() => {
                   class="px-2 py-1 rounded-md border text-sm transition
                        focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                   :class="[
-                  checked ? 'ring-1 ring-gray-500' : '',
+                  checked ? getAlertLevelStyle(currentConfigAlertLevelPM) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
                   :aria-disabled="disabled"
@@ -516,7 +626,20 @@ const exploreTeamLimits = computed(() => {
           </RadioGroup>
           <span class="text-sm font-medium">Jurygruppen</span>
         </div>
+        
+
       </div>
+    </div>
+
+    <!-- Alert message banner -->
+    <div v-if="currentExploreNote && (currentExploreAlertLevel === 2 || currentExploreAlertLevel === 3)" 
+         class="mt-3 inline-flex items-center gap-1 px-2 py-1 rounded text-xs"
+         :class="{
+           'bg-orange-100/60 border border-orange-300/40 text-orange-700': currentExploreAlertLevel === 2,
+           'bg-red-100/60 border border-red-300/40 text-red-700': currentExploreAlertLevel === 3
+         }">
+      <span class="text-xs">⚠</span>
+      {{ currentExploreNote }}
     </div>
   </div>
 </template>

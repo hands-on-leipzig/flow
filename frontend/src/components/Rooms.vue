@@ -1,8 +1,7 @@
 <script setup>
-import {ref, onMounted, computed, nextTick} from 'vue'
+import {ref, onMounted, onUnmounted, computed, nextTick} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
-import IconAccordionArrow from '@/components/icons/IconAccordionArrow.vue'
 import draggable from 'vuedraggable'
 
 const eventStore = useEventStore()
@@ -11,6 +10,8 @@ const rooms = ref([])
 const roomTypes = ref([])
 const typeGroups = ref([])
 const assignments = ref({})
+const scheduleParameters = ref({})
+const extraBlocks = ref([])
 
 const dragOverRoomId = ref(null)
 const isDragging = ref(false)
@@ -20,14 +21,144 @@ const getProgramColor = (type) => {
   return type?.group?.program?.color || '#888888'
 }
 
+// Get current jury group counts from schedule parameters
+const challengeJuryGroups = computed(() => {
+  return Number(scheduleParameters.value['j_lanes'] || 0)
+})
+
+const exploreJuryGroupsAM = computed(() => {
+  return Number(scheduleParameters.value['e1_lanes'] || 0)
+})
+
+const exploreJuryGroupsPM = computed(() => {
+  return Number(scheduleParameters.value['e2_lanes'] || 0)
+})
+
+// Check if an extra block is enabled by room type ID
+const isExtraBlockEnabled = computed(() => {
+  return (roomTypeId) => {
+    // Check if any extra block has an insert point with this room type
+    const enabled = extraBlocks.value.some(block => {
+      return block.insert_point && 
+             block.insert_point.room_type && 
+             block.insert_point.room_type.id === roomTypeId
+    })
+    
+    console.log(`Checking extra block for room type ID ${roomTypeId}:`, {
+      enabled,
+      availableBlocks: extraBlocks.value.map(b => ({
+        name: b.name,
+        insertPoint: b.insert_point?.room_type?.id
+      })),
+      matchingBlocks: extraBlocks.value.filter(block => 
+        block.insert_point && 
+        block.insert_point.room_type && 
+        block.insert_point.room_type.id === roomTypeId
+      )
+    })
+    return enabled
+  }
+})
+
+// Filter room types based on jury group configuration
+const filteredRoomTypes = computed(() => {
+  console.log('All room types:', roomTypes.value.map(t => ({ name: t.name, group: t.group?.name })))
+  console.log('Available extra blocks:', extraBlocks.value.map(b => b.name))
+  
+  return roomTypes.value.filter(type => {
+    const groupName = type.group?.name?.toLowerCase() || ''
+    const typeName = type.name?.toLowerCase() || ''
+    
+    // Debug logging
+    console.log('Filtering room type:', {
+      name: type.name,
+      groupName: type.group?.name,
+      challengeJuryGroups: challengeJuryGroups.value,
+      exploreJuryGroupsAM: exploreJuryGroupsAM.value,
+      exploreJuryGroupsPM: exploreJuryGroupsPM.value
+    })
+    
+    // For jurybewertung (Challenge jury groups)
+    if (groupName.includes('jurybewertung') || groupName.includes('jury') || typeName.includes('jury')) {
+      const juryGroupNumber = extractJuryGroupNumber(type.name)
+      const shouldShow = juryGroupNumber <= challengeJuryGroups.value
+      console.log(`Challenge room ${type.name}: group ${juryGroupNumber} <= ${challengeJuryGroups.value} = ${shouldShow}`)
+      return shouldShow
+    }
+    
+    // For begutachtung (Explore jury groups)
+    if (groupName.includes('begutachtung') || groupName.includes('explore') || typeName.includes('begutachtung')) {
+      const juryGroupNumber = extractJuryGroupNumber(type.name)
+      const maxExploreGroups = Math.max(exploreJuryGroupsAM.value, exploreJuryGroupsPM.value)
+      const shouldShow = juryGroupNumber <= maxExploreGroups
+      console.log(`Explore room ${type.name}: group ${juryGroupNumber} <= ${maxExploreGroups} = ${shouldShow}`)
+      return shouldShow
+    }
+    
+    // For extra block room types, only show if the corresponding extra block is enabled
+    if (groupName.includes('zusatz') || groupName.includes('extra') || groupName.includes('block') || 
+        typeName.includes('zusatz') || typeName.includes('extra') || typeName.includes('block')) {
+      // If no extra blocks are loaded yet, show all extra block room types as fallback
+      if (extraBlocks.value.length === 0) {
+        console.log(`Extra block room ${type.name}: showing (no extra blocks loaded yet)`)
+        return true
+      }
+      
+      const shouldShow = isExtraBlockEnabled.value(type.id)
+      console.log(`Extra block room ${type.name} (ID: ${type.id}, group: ${groupName}): enabled = ${shouldShow}`)
+      return shouldShow
+    }
+    
+    // For other room types, show all
+    console.log(`Other room ${type.name}: showing`)
+    return true
+  })
+})
+
+// Extract jury group number from room type name (e.g., "Jurygruppe 1" -> 1)
+const extractJuryGroupNumber = (name) => {
+  const match = name.match(/(\d+)/)
+  return match ? parseInt(match[1]) : 0
+}
+
 onMounted(async () => {
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
+  
+  // Fetch rooms and room types
   const {data} = await axios.get(`/events/${eventId.value}/rooms`)
   rooms.value = data.rooms
   roomTypes.value = data.roomTypes
   typeGroups.value = data.groups
+
+  // Fetch schedule parameters to get jury group configuration
+  try {
+    // Get the plan for this event
+    const {data: planData} = await axios.get(`/plans/event/${eventId.value}`)
+    
+    if (planData && planData.id) {
+      const {data: paramsData} = await axios.get(`/plans/${planData.id}/parameters`)
+      scheduleParameters.value = paramsData.reduce((acc, param) => {
+        if (param.name) {
+          acc[param.name] = param.value
+        }
+        return acc
+      }, {})
+      
+      // Fetch extra blocks for this plan (with room types for filtering)
+      const {data: extraBlocksData} = await axios.get(`/plans/${planData.id}/extra-blocks-with-room-types`)
+      extraBlocks.value = extraBlocksData
+      console.log('Fetched extra blocks:', extraBlocksData)
+      console.log('Extra blocks with insert points:', extraBlocksData.map(b => ({
+        name: b.name,
+        insert_point: b.insert_point,
+        room_type: b.insert_point?.room_type
+      })))
+    }
+  } catch (error) {
+    console.warn('Could not fetch schedule parameters or extra blocks:', error)
+  }
 
   const result = {}
   data.rooms.forEach(room => {
@@ -63,14 +194,7 @@ const unassignRoomType = async (typeId) => {
   })
 }
 
-const expandedGroups = ref(new Set())
-const toggleGroup = (groupId) => {
-  if (expandedGroups.value.has(groupId)) {
-    expandedGroups.value.delete(groupId)
-  } else {
-    expandedGroups.value.add(groupId)
-  }
-}
+// Removed accordion functionality - all groups are always visible
 
 // 🔹 Ghost tile refs
 const newRoomName = ref('')
@@ -78,14 +202,20 @@ const newRoomNote = ref('')
 const newRoomInput = ref(null)
 const newRoomNoteInput = ref(null)
 const isSaving = ref(false)
+const isCreatingRoom = ref(false)
+const newRoomCardRef = ref(null)
 
 const createRoom = async () => {
+  // Prevent multiple simultaneous room creations
+  if (isCreatingRoom.value) return
+  
   if (!newRoomName.value.trim() && !newRoomNote.value.trim()) {
     newRoomName.value = ''
     newRoomNote.value = ''
     return
   }
 
+  isCreatingRoom.value = true
   isSaving.value = true
   try {
     const {data} = await axios.post('/rooms', {
@@ -102,6 +232,7 @@ const createRoom = async () => {
     newRoomInput.value?.focus()
   } finally {
     isSaving.value = false
+    isCreatingRoom.value = false
   }
 }
 
@@ -136,6 +267,24 @@ const cancelDeleteRoom = () => {
   showDeleteModal.value = false
   roomToDelete.value = null
 }
+
+// Handle clicks outside the new room card
+const handleClickOutside = (event) => {
+  if (newRoomCardRef.value && !newRoomCardRef.value.contains(event.target)) {
+    // Only create room if there's content to save
+    if (newRoomName.value.trim() || newRoomNote.value.trim()) {
+      createRoom()
+    }
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <template>
@@ -176,7 +325,7 @@ const cancelDeleteRoom = () => {
                 }"
               >
                 <draggable
-                    :list="roomTypes.filter(t => assignments[t.id] === room.id)"
+                    :list="filteredRoomTypes.filter(t => assignments[t.id] === room.id)"
                     group="roomtypes"
                     item-key="id"
                     @add="event => handleDrop(event, room)"
@@ -205,7 +354,10 @@ const cancelDeleteRoom = () => {
         </li>
 
         <!-- Ghost tile -->
-        <li class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm">
+        <li 
+            ref="newRoomCardRef"
+            class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+        >
           <div class="mb-2">
             <input
                 ref="newRoomInput"
@@ -213,7 +365,6 @@ const cancelDeleteRoom = () => {
                 class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
                 placeholder="Neuer Raum"
                 @keyup.enter="createRoom"
-                @blur="createRoom"
                 :disabled="isSaving"
             />
           </div>
@@ -225,9 +376,7 @@ const cancelDeleteRoom = () => {
                   class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
                   placeholder="Navigationshinweis"
                   @keyup.enter="createRoom"
-                  @blur="createRoom"
                   :disabled="isSaving"
-                  @vue:mounted="nextTick(() => newRoomNoteInput?.focus())"
               />
             </div>
           </transition>
@@ -235,51 +384,35 @@ const cancelDeleteRoom = () => {
       </ul>
     </div>
 
-    <!-- Assignment panel (unchanged) -->
+    <!-- Assignment panel -->
     <div>
       <h2 class="text-xl font-bold mb-4">Raumzuordnung</h2>
-      <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3"
-              @click="typeGroups.forEach(item => expandedGroups.add(item.id))">
-        Alle öffnen
-      </button>
-      &nbsp;
-      <button class="bg-blue-500 text-white px-4 py-1 rounded mb-3" @click="expandedGroups.clear()">
-        Alle schließen
-      </button>
       <div
           v-for="group in typeGroups"
           :key="group.id"
           class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
       >
-        <button
-            class="w-full text-left text-lg font-semibold text-black flex justify-between items-center mb-2"
-            @click="toggleGroup(group.id)"
-        >
+        <div class="text-lg font-semibold text-black mb-3">
           {{ group.name }}
-          <span><IconAccordionArrow :opened="expandedGroups.has(group.id)"/></span>
-        </button>
+        </div>
 
-        <transition name="accordion">
-            <div v-if="expandedGroups.has(group.id)" class="overflow-hidden">
-            <draggable
-                :list="roomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
-                group="roomtypes"
-                item-key="id"
-                class="flex flex-wrap gap-2"
-                @start="isDragging = true"
-                @end="isDragging = false"
+        <draggable
+            :list="filteredRoomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
+            group="roomtypes"
+            item-key="id"
+            class="flex flex-wrap gap-2"
+            @start="isDragging = true"
+            @end="isDragging = false"
+        >
+          <template #item="{element}">
+            <span
+                :style="{ backgroundColor: getProgramColor(element), color: '#fff' }"
+                class="text-xs px-2 py-1 rounded-full cursor-move"
             >
-              <template #item="{element}">
-                <span
-                    :style="{ backgroundColor: getProgramColor(element), color: '#fff' }"
-                    class="text-xs px-2 py-1 rounded-full cursor-move"
-                >
-                  {{ element.name }}
-                </span>
-              </template>
-            </draggable>
-          </div>
-        </transition>
+              {{ element.name }}
+            </span>
+          </template>
+        </draggable>
       </div>
     </div>
   </div>

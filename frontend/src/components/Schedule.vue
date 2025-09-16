@@ -14,6 +14,7 @@ import InsertBlocks from "@/components/molecules/InsertBlocks.vue";
 import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex'
 import FllEvent from "@/models/FllEvent";
 import {Parameter, ParameterCondition} from "@/models/Parameter"
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
@@ -89,6 +90,9 @@ const disabledMap = computed<Record<number, boolean>>(() => {
   return map
 })
 
+// zusätzlich zur Parameterliste
+const originalValues = ref<Record<string, any>>({})
+
 const fetchParams = async (planId: number) => {
   if (!planId) return
   loading.value = true
@@ -98,6 +102,12 @@ const fetchParams = async (planId: number) => {
     // Defensive: backend could send a single object or null
     parameters.value = Array.isArray(rawParams) ? rawParams : []
     displayConditions.value = Array.isArray(conditions) ? conditions : []
+
+    // Hier Originalwerte ablegen
+    originalValues.value = Object.fromEntries(
+      parameters.value.map(p => [p.name, p.value])
+    )
+
     console.log('Fetched parameters:', parameters.value.length)
     console.log('Expert parameters:', parameters.value.filter(p => p.context === 'expert').length)
   } catch (err) {
@@ -155,8 +165,7 @@ const showToast = ref(false)
 const progress = ref(100)
 const progressIntervalId = ref<NodeJS.Timeout | null>(null)
 
-// Track if there are pending parameter updates
-const hasPendingParamUpdates = computed(() => Object.keys(pendingParamUpdates.value).length > 0)
+
 
 // Handle parameter updates from child components
 function handleParamUpdate(param: { name: string, value: any }) {
@@ -165,6 +174,17 @@ function handleParamUpdate(param: { name: string, value: any }) {
     console.warn('Parameter not found:', param.name)
     return
   }
+
+  // Normalisieren für stabilen Vergleich
+  const oldVal = String(originalValues.value[param.name] ?? '')
+  const newVal = String(param.value ?? '')
+
+  if (oldVal === newVal) {
+    console.log(`No change for ${param.name}, skipping update`)
+    return
+  }
+
+  console.log(`Param change detected → ${param.name}: ${oldVal} → ${newVal}`)
 
   // Update local state immediately
   p.value = param.value
@@ -275,9 +295,6 @@ function normalizeValue(value: any, type: string | undefined) {
 }
 
 // Unified update function for single or multiple parameters
-// Including new "isGenerating" state
-
-const isGenerating = ref(false)
 
 async function updateParams(params: Array<{ name: string, value: any }>, afterUpdate?: () => Promise<void>) {
   if (!selectedPlanId.value) return
@@ -298,6 +315,11 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
             value: normalizeValue(value, p?.type)?.toString() ?? ''
           }
         })
+      })
+
+      // Nach erfolgreichem Speichern: originalValues anpassen
+      params.forEach(({ name, value }) => {
+        originalValues.value[name] = value
       })
     }
 
@@ -324,18 +346,25 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   }
   loading.value = false
 
-  // 3. Start plan generation
+  // 3. Generator starten (wiederverwendet runGeneratorOnce)
+  await runGeneratorOnce(afterUpdate)
+}
+
+const isGenerating = ref(false)
+
+async function runGeneratorOnce() {
+  if (!selectedPlanId.value) return
   isGenerating.value = true
   try {
-    await axios.post(`/plans/${selectedPlanId.value}/generate`) // Job starten
-    await pollUntilReady(selectedPlanId.value)                  // Warten, bis fertig
+    await axios.post(`/plans/${selectedPlanId.value}/generate`)
+    await pollUntilReady(selectedPlanId.value)
   } catch (error) {
-    console.error('Error during generation:', error)
+    console.error("Error during initial generation:", error)
   } finally {
     isGenerating.value = false
-    if (afterUpdate) await afterUpdate()
   }
 }
+
 
 async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 1000) {
   const start = Date.now()
@@ -370,33 +399,19 @@ const expertParamsGrouped = computed(() => {
 
 async function getOrCreatePlan() {
   if (!selectedEvent.value) return
+
   const res = await axios.get(`/plans/event/${selectedEvent.value.id}`)
   const planData = res.data
-  if (planData && planData.id) {
-    plans.value = [planData]
-    selectedPlanId.value = planData.id
-    await fetchParams(selectedPlanId.value as number)
-  } else {
-    const newPlanId = await createDefaultPlan()
-    if (newPlanId) {
-      const newPlan = {id: newPlanId, name: 'Standard-Zeitplan', is_chosen: true}
-      plans.value = [newPlan]
-      selectedPlanId.value = newPlanId
-      await fetchParams(newPlanId)
-    }
-  }
-}
 
-const createDefaultPlan = async () => {
-  try {
-    const response = await axios.post(`/plans`, {
-      event: selectedEvent?.value?.id,
-      name: 'Zeitplan'
-    })
-    return response.data.id
-  } catch (e) {
-    console.error('Fehler beim Erstellen des Plans', e)
-    return null
+  plans.value = [planData]
+  selectedPlanId.value = planData.id
+
+  await fetchParams(selectedPlanId.value as number)
+
+  // Generator nur starten, wenn Plan neu ist
+  if (planData.existing === false) {
+    console.log("New plan detected → run generator once")
+    await runGeneratorOnce()
   }
 }
 
@@ -436,11 +451,6 @@ onMounted(async () => {
 
 <template>
   <div class="h-screen p-6 flex flex-col space-y-5">
-    <div>
-      <a target="_blank" :href="'https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=' + selectedPlanId">
-        Link zum öPlan: https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan={{ selectedPlanId }}
-      </a>
-    </div>
 
     <!-- Toast notification for pending parameter updates -->
     <div v-if="showToast"
@@ -521,18 +531,72 @@ onMounted(async () => {
       <transition name="fade">
         <div v-if="openGroup === 'expert'" class="p-4">
           <div class="grid grid-cols-2 gap-6 max-h-[600px] overflow-y-auto">
-            <div v-for="(group, programName) in expertParamsGrouped" :key="programName">
-              <h4 class="text-md font-semibold mb-2">{{ programName }}</h4>
-              <template v-for="param in group" :key="param.id">
-                <ParameterField
-                    v-if="visibilityMap[param.id]"
-                    :param="param"
-                    :disabled="disabledMap[param.id]"
-                    :with-label="true"
-                    :horizontal="true"
-                    @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
-                />
-              </template>
+            <!-- Left column: Explore or turned off message -->
+            <div>
+                  <div class="flex items-center gap-2 mb-2">
+                    <img
+                        :src="programLogoSrc('E')"
+                        :alt="programLogoAlt('E')"
+                        class="w-10 h-10 flex-shrink-0"
+                      />
+                    <h3 class="text-lg font-semibold capitalize">
+                      <span class="italic">FIRST</span> LEGO League Explore
+                    </h3>
+                  </div>
+              <div v-if="showExplore">
+                <template v-for="(group, programName) in expertParamsGrouped" :key="programName">
+                  <template v-if="programName.toLowerCase().includes('explore')">
+                    <template v-for="param in group" :key="param.id">
+                      <ParameterField
+                          v-if="visibilityMap[param.id]"
+                          :param="param"
+                          :disabled="disabledMap[param.id]"
+                          :with-label="true"
+                          :horizontal="true"
+                          @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
+                      />
+                    </template>
+                  </template>
+                </template>
+              </div>
+              <div v-else class="text-center py-8 text-gray-500">
+                <div class="text-sm font-medium mb-1">Explore ist deaktiviert</div>
+                <div class="text-xs">Aktiviere Explore, um Expertenparameter zu konfigurieren.</div>
+              </div>
+            </div>
+
+            <!-- Right column: Challenge or turned off message -->
+            <div>
+                  <div class="flex items-center gap-2 mb-2">
+                    <img
+                        :src="programLogoSrc('C')"
+                        :alt="programLogoAlt('C')"
+                        class="w-10 h-10 flex-shrink-0"
+                      />
+                    <h3 class="text-lg font-semibold capitalize">
+                      <span class="italic">FIRST</span> LEGO League Challenge
+                    </h3>
+                  </div>
+              <div v-if="showChallenge">
+                <template v-for="(group, programName) in expertParamsGrouped" :key="programName">
+                  <template v-if="programName.toLowerCase().includes('challenge')">
+                    <template v-for="param in group" :key="param.id">
+                      <ParameterField
+                          v-if="visibilityMap[param.id]"
+                          :param="param"
+                          :disabled="disabledMap[param.id]"
+                          :with-label="true"
+                          :horizontal="true"
+                          @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
+                      />
+                    </template>
+                  </template>
+                </template>
+              </div>
+              <div v-else class="text-center py-8 text-gray-500">
+                <div class="text-sm font-medium mb-1">Challenge ist deaktiviert</div>
+                <div class="text-xs">Aktiviere Challenge, um Expertenparameter zu konfigurieren.</div>
+              </div>
             </div>
           </div>
         </div>
@@ -597,7 +661,7 @@ onMounted(async () => {
           initial-view="roles"
       />
     </div>
-
+ 
   </div>
 </template>
 

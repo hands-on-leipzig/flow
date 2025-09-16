@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\MSeason;
 use App\Models\RegionalPartner;
+use App\Models\Slide;
 use App\Models\TableEvent;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -29,31 +30,34 @@ class EventController extends Controller
         $user = Auth::user();
         $season = MSeason::latest('year')->first();
 
-        switch ($user->is_admin) {
-            case 0:
-                $regionalPartners = $user->regionalPartners()
-                    ->whereHas('events', function ($query) use ($season) {
-                        $query->where('season', $season->id);
-                    })
-                    ->with(['events' => function ($query) use ($season) {
-                        $query->where('season', $season->id)
-                            ->orderBy('date')
-                            ->with(['seasonRel', 'levelRel']);
-                    }])
-                    ->get();
-                break;
-            case 1:
-                $regionalPartners = RegionalPartner::whereHas('events', function ($query) use ($season) {
-                        $query->where('season', $season->id);
-                    })
-                    ->with(['events' => function ($query) use ($season) {
-                        $query->where('season', $season->id)
-                            ->orderBy('date')
-                            ->with(['seasonRel', 'levelRel']);
-                    }])
-                    ->orderBy('name')
-                    ->get();
-                break;
+        // Get user roles from JWT token
+        $roles = $user->getRoles();
+        $isAdmin = in_array('flow-admin', $roles) || in_array('flow_admin', $roles);
+
+        if ($isAdmin) {
+            // Admin users can see all events
+            $regionalPartners = RegionalPartner::whereHas('events', function ($query) use ($season) {
+                    $query->where('season', $season->id);
+                })
+                ->with(['events' => function ($query) use ($season) {
+                    $query->where('season', $season->id)
+                        ->orderBy('date')
+                        ->with(['seasonRel', 'levelRel']);
+                }])
+                ->orderBy('name')
+                ->get();
+        } else {
+            // Non-admin users can only see their regional partner events
+            $regionalPartners = $user->regionalPartners()
+                ->whereHas('events', function ($query) use ($season) {
+                    $query->where('season', $season->id);
+                })
+                ->with(['events' => function ($query) use ($season) {
+                    $query->where('season', $season->id)
+                        ->orderBy('date')
+                        ->with(['seasonRel', 'levelRel']);
+                }])
+                ->get();
         }
         ini_set('max_execution_time', 300);
         return $regionalPartners->map(function ($rp) {

@@ -2,7 +2,6 @@
 import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import ParameterField from '@/components/molecules/ParameterField.vue'
-import InfoPopover from "@/components/atoms/InfoPopover.vue";
 
 const props = defineProps<{
   parameters: any[]
@@ -72,13 +71,7 @@ function shouldShowSection(prefix: 'g' | 'c' | 'e1' | 'e2'): boolean {
   return fields.some(field => isFieldEditable(prefix, field as any))
 }
 
-// Section titles
-const sectionTitles = {
-  c: 'Challenge',
-  g: 'Gemeinsam',
-  e1: 'Explore Vormittag',
-  e2: 'Explore Nachmittag'
-}
+
 
 // Forward updates
 function updateParam(p: any) {
@@ -150,6 +143,8 @@ onMounted(async () => {
                     v-if="cellParam('e1', 'start_opening') && visibilityMap[cellParam('e1', 'start_opening').id]"
                     :disabled="disabledMap[cellParam('e1', 'start_opening').id]"
                     :horizontal="false"
+                    :with-label="true"
+                    :compact="true"
                     :param="cellParam('e1', 'start_opening')"
                     @update="updateParam"
                 />
@@ -160,6 +155,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('e2', 'start_opening').id]"
                     :horizontal="false"
                     :param="cellParam('e2', 'start_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -173,6 +170,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('e2', 'start_opening').id]"
                     :horizontal="false"
                     :param="cellParam('e2', 'start_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -182,6 +181,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('c', 'start_opening').id]"
                     :horizontal="false"
                     :param="cellParam('c', 'start_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -196,6 +197,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('c', 'start_opening').id]"
                     :horizontal="false"
                     :param="cellParam('c', 'start_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -205,12 +208,14 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('g', 'start_opening').id]"
                     :horizontal="false"
                     :param="cellParam('g', 'start_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
               <div v-else class="text-gray-400 text-center">-</div>
             </div>
-          </div>
+      </div>
 
           <!-- Row 2: Duration -->
           <div v-if="hasAnyDurationField()" class="grid grid-cols-4 gap-4 items-center">
@@ -223,6 +228,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('e1', 'duration_opening').id]"
                     :horizontal="false"
                     :param="cellParam('e1', 'duration_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -232,6 +239,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('e2', 'duration_opening').id]"
                     :horizontal="false"
                     :param="cellParam('e2', 'duration_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -245,6 +254,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('e2', 'duration_opening').id]"
                     :horizontal="false"
                     :param="cellParam('e2', 'duration_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -254,6 +265,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('c', 'duration_opening').id]"
                     :horizontal="false"
                     :param="cellParam('c', 'duration_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -268,6 +281,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('c', 'duration_opening').id]"
                     :horizontal="false"
                     :param="cellParam('c', 'duration_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -277,12 +292,14 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('g', 'duration_opening').id]"
                     :horizontal="false"
                     :param="cellParam('g', 'duration_opening')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
               <div v-else class="text-gray-400 text-center">-</div>
             </div>
-          </div>
+      </div>
 
           <!-- Row 3: Awards -->
           <div v-if="hasAnyAwardsField()" class="grid grid-cols-4 gap-4 items-center">
@@ -295,6 +312,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('e1', 'duration_awards').id]"
                     :horizontal="false"
                     :param="cellParam('e1', 'duration_awards')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -304,6 +323,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('e2', 'duration_awards').id]"
                     :horizontal="false"
                     :param="cellParam('e2', 'duration_awards')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -317,6 +338,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('e2', 'duration_awards').id]"
                     :horizontal="false"
                     :param="cellParam('e2', 'duration_awards')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -326,6 +349,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('c', 'duration_awards').id]"
                     :horizontal="false"
                     :param="cellParam('c', 'duration_awards')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -340,6 +365,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('c', 'duration_awards').id]"
                     :horizontal="false"
                     :param="cellParam('c', 'duration_awards')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>
@@ -349,6 +376,8 @@ onMounted(async () => {
                     :disabled="disabledMap[cellParam('g', 'duration_awards').id]"
                     :horizontal="false"
                     :param="cellParam('g', 'duration_awards')"
+                    :with-label="true"
+                    :compact="true"
                     @update="updateParam"
                 />
               </div>

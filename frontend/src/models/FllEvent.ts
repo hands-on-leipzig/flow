@@ -1,3 +1,5 @@
+import {Slideshow} from "./slideshow";
+
 export default class FllEvent {
     id: number
     name: string | null
@@ -13,12 +15,13 @@ export default class FllEvent {
     qrcode: string | null
     wifi_ssid: string | null
     wifi_password: string | null
-    
+    slideshows: Slideshow[] | null
+
     // DRAHT team counts
     drahtTeamsExplore: number
     drahtTeamsChallenge: number
     hasTeamDiscrepancy: boolean
-    
+
     // DRAHT team capacity
     drahtCapacityExplore: number
     drahtCapacityChallenge: number
@@ -36,7 +39,7 @@ export default class FllEvent {
     isFinalEvent(): boolean {
         return this.level === 3
     }
-    
+
     getTotalDrahtTeams(): number {
         return this.drahtTeamsExplore + this.drahtTeamsChallenge
     }

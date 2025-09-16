@@ -1810,7 +1810,7 @@ sub get_logos {
             if ($link ne "") {
                 $logos .= qq{<a href="$link" target="_blank">};
             }
-            $logos .= qq{<img src="/$path" width="100%" alt="$title" title="$title">};
+            $logos .= qq{<img src="/storage/$path" width="100%" alt="$title" title="$title">};
             if ($link ne "") {
                 $logos .= qq{</a>};
             }

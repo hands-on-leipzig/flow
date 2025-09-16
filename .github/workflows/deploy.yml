@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - main
+      - test
+      - production
 
 jobs:
   deploy-dev:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -25,6 +28,7 @@ jobs:
           echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_DEV }}" > .env
           echo "VITE_APP_NAME=FLOW" >> .env
           echo "VITE_APP_URL=https://dev.flow.hands-on-technology.org" >> .env
+          echo "VITE_FILES_BASE_URL=https://dev.flow.hands-on-technology.org" >> .env
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
@@ -75,3 +79,152 @@ jobs:
             php artisan view:clear
             php artisan migrate --force
             php artisan storage:link
+
+  deploy-test:
+    if: github.ref == 'refs/heads/test'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      # Build Vue frontend
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+      - name: Create frontend .env file
+        working-directory: ./frontend
+        run: |
+          echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_TEST }}" > .env
+          echo "VITE_APP_NAME=FLOW" >> .env
+          echo "VITE_APP_URL=https://test.flow.hands-on-technology.org" >> .env
+          echo "VITE_FILES_BASE_URL=https://test.flow.hands-on-technology.org" >> .env
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+      # Set up PHP & Composer
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: Install Laravel dependencies
+        working-directory: ./backend
+        run: composer install --no-dev --optimize-autoloader
+      - name: Copy frontend dist to Laravel public dir
+        run: |
+          rm -rf backend/public/build
+          rm -f backend/public/index.html
+          cp -r frontend/dist/* backend/public/
+      - name: Copy output to Laravel public dir
+        run: |
+          rm -rf backend/public/output
+          mkdir -p backend/public/output
+          cp -r output/* backend/public/output/
+          chmod +x backend/public/output/zeitplan.cgi || true
+          chmod +x backend/public/output/namensschilder.cgi || true
+          chmod +x backend/public/output/visibility.cgi || true
+      - name: Rsync backend to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-flow-test-temp/
+      - name: Finalize on server (move to public dir)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 222
+          script: |
+            rsync -av --delete \
+            --exclude='.env' \
+            --exclude='.htaccess' \
+            --exclude='storage/' \
+            ~/deploy-flow-test-temp/ ~/public_html/flow-test/
+            cd ~/public_html/flow-test
+            php artisan config:clear
+            php artisan route:clear
+            php artisan view:clear
+            php artisan migrate --force
+            php artisan storage:link
+            # Refresh main tables after migration
+            php artisan tinker --execute="include 'database/scripts/refresh_main_tables.php'; refreshMainTables();"
+
+  deploy-production:
+    if: github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      # Build Vue frontend
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+      - name: Create frontend .env file
+        working-directory: ./frontend
+        run: |
+          echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_PROD }}" > .env
+          echo "VITE_APP_NAME=FLOW" >> .env
+          echo "VITE_APP_URL=https://flow.hands-on-technology.org" >> .env
+          echo "VITE_FILES_BASE_URL=https://flow.hands-on-technology.org" >> .env
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+      # Set up PHP & Composer
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: Install Laravel dependencies
+        working-directory: ./backend
+        run: composer install --no-dev --optimize-autoloader
+      - name: Copy frontend dist to Laravel public dir
+        run: |
+          rm -rf backend/public/build
+          rm -f backend/public/index.html
+          cp -r frontend/dist/* backend/public/
+      - name: Copy output to Laravel public dir
+        run: |
+          rm -rf backend/public/output
+          mkdir -p backend/public/output
+          cp -r output/* backend/public/output/
+          chmod +x backend/public/output/zeitplan.cgi || true
+          chmod +x backend/public/output/namensschilder.cgi || true
+          chmod +x backend/public/output/visibility.cgi || true
+      - name: Rsync backend to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-flow-prod-temp/
+      - name: Finalize on server (move to public dir)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 222
+          script: |
+            rsync -av --delete \
+            --exclude='.env' \
+            --exclude='.htaccess' \
+            --exclude='storage/' \
+            ~/deploy-flow-prod-temp/ ~/public_html/flow-prod/
+            cd ~/public_html/flow-prod
+            php artisan config:clear
+            php artisan route:clear
+            php artisan view:clear
+            php artisan migrate --force
+            php artisan storage:link
+            # Refresh main tables after migration
+            php artisan tinker --execute="include 'database/scripts/refresh_main_tables.php'; refreshMainTables();"

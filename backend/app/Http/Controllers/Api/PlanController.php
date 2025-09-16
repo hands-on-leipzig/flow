@@ -27,14 +27,21 @@ class PlanController extends Controller
         // Plan suchen
         $plan = DB::table('plan')
             ->where('event', $eventId)
-            ->select('id', 'name')
+            ->select('id')
             ->first();
 
-        // Wenn gefunden → zurückgeben
         if ($plan) {
-            return response()->json($plan);
-        }
+            // Prüfen, ob es mindestens eine activity_group für diesen Plan gibt
+            $hasActivityGroup = DB::table('activity_group')
+                ->where('plan', $plan->id)
+                ->exists();
 
+            return response()->json([
+                'id' => $plan->id,
+                'existing' => $hasActivityGroup,  // true nur, wenn activity_group existiert
+            ]);
+        }
+        
         // Sonst anlegen
         $newId = DB::table('plan')->insertGetId([
             'name' => 'Zeitplan',
@@ -44,95 +51,128 @@ class PlanController extends Controller
             'public' => false
         ]);
 
-        // DRAHT-Kapazitäten für dieses Event holen
-        $event   = \App\Models\Event::find($eventId);
+        // Get DRAHT team counts for this event
+        $event = \App\Models\Event::find($eventId);
+
+        $e_teams = 6; // Default
+        $c_teams = 8; // Default
 
         if ($event) {
             $drahtController = new \App\Http\Controllers\Api\DrahtController();
-            $resp = $drahtController->show($event);
+            $drahtData = $drahtController->show($event);
+            $data = $drahtData->getData(true);
 
-            $data = $resp->getData(true);
 
-            $e_teams = (int)($data['capacity_explore']);
-            $c_teams = (int)($data['capacity_challenge']);
-        
-        }else {
-        
-            // Fallbacks 
-            $e_teams = 1;
-            $c_teams = 4;
+            if ($data) {
+                if (array_key_exists('capacity_explore', $data)) {
+                    $e_teams = (int) $data['capacity_explore'];
+                }
+                if (array_key_exists('capacity_challenge', $data)) {
+                    $c_teams = (int) $data['capacity_challenge'];
+                }
+            }
         }
+
+        // Max one explore group
+        $e2_teams = 0;
+        $e2_lanes = 0;
+
 
         if ( $e_teams > 0 ) {
 
             if ( $c_teams  == 0 ) {
-                PlanParamValue::updateOrCreate(
-                    ['plan' => $newId, 'parameter' => 7],   // e_mode standlone morning
-                    ['set_value' => 3]
-               );
-
+                // e_mode standlone morning
+                $e_mode = 3;
             } else {
-                PlanParamValue::updateOrCreate(
-                    ['plan' => $newId, 'parameter' => 7],   // e_mode integrated morning
-                    ['set_value' => 1]
-                );
+                // e_mode integrated morning
+                $e_mode = 1;
             }
 
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 6],   // e_teams
-                ['set_value' => $e_teams]
-            );
+            $e1_teams = $e_teams;           
+            $e1_lanes = MSupportedPlan::where('first_program', 2)->where('teams', $e_teams)->value('lanes');
+           
+        } else { 
 
-        } else {
+            // e_mode off
+            $e_mode = 0;
 
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 7],   // e_mode off
-                ['set_value' => 0]
-            );
+            $e1_teams = 0;
+            $e1_lanes = 0;            
+            
         }
+        
 
         if ( $c_teams > 0 ) { 
 
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 122],    // c_mode on
-                ['set_value' => 1]
-            );
+            // c_mode on
+            $c_mode = 1;
 
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 22],    // c_teams
-                ['set_value' => $c_teams]
-            );
-
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 23],    // j_lanes
-                ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes')]
-            );
-            
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 24],  // r_tables
-                ['set_value' => MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables')]
-            );
+            $j_lanes = MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes');
+            $r_tables = MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables');  
             
         } else {
 
-            PlanParamValue::updateOrCreate(
-                ['plan' => $newId, 'parameter' => 122],    // c_mode off
-                ['set_value' => 0]
-            );
+            // c_mode off
+            $c_mode = 0;   
+            $j_lanes = 0;
+            $r_tables = 0; 
+
         }
 
-        // Populate team_plan table with all teams for this event
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 7],   
+            ['set_value' => $e_mode]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 6],   
+            ['set_value' => $e_teams]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 111],   
+            ['set_value' => $e1_teams]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 81],   
+            ['set_value' => $e1_lanes]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 112],   
+            ['set_value' => $e2_teams]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 117],   
+            ['set_value' => $e2_lanes]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 122],   
+            ['set_value' => $c_mode]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 22],   
+            ['set_value' => $c_teams]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 23],   
+            ['set_value' => $j_lanes]);
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $newId, 'parameter' => 24],   
+            ['set_value' => $r_tables]);
+
+
+            // Populate team_plan table with all teams for this event
+        Log::info("Creating plan $newId for event $eventId - calling populateTeamPlanForNewPlan");
         $this->populateTeamPlanForNewPlan($newId, $eventId);
 
         return response()->json([
             'id' => $newId,
-            'name' => 'Zeitplan'
+            'existing' => false,
         ]);
     }
 
     public function generate($planId, $async = false): JsonResponse
     {
-        
+
         $plan = Plan::find($planId);
         if (!$plan) {
             return response()->json(['error' => 'Plan not found'], 404);
@@ -150,9 +190,9 @@ class PlanController extends Controller
 
 
         if ($async) {
-        
+
             log::info("Plan {$planId}: Generation dispatched");
-            
+
             GeneratePlanJob::dispatch($planId);
 
             return response()->json(['message' => 'Generation dispatched']);
@@ -162,12 +202,12 @@ class PlanController extends Controller
             log::info("Plan {$planId}: Generation started");
 
             GeneratePlan::run($plan->id);
-            
+
             $plan->generator_status = 'done';
             $plan->save();
 
-            return response()->json(['message' => 'Generation done']);    
-        }    
+            return response()->json(['message' => 'Generation done']);
+        }
 
     }
 
@@ -185,11 +225,11 @@ class PlanController extends Controller
 
     //
     // Preview in frontend
-    // 
+    //
 
     public function previewRoles(int $plan, PreviewMatrix $builder)
     {
-        $activities = $this->fetchActivities($plan, includeRooms: false);
+        $activities = $this->fetchActivities($plan, freeBlocks: false);
 
         if ($activities->isEmpty()) {
             // Return stable headers so the frontend can render an empty grid
@@ -202,7 +242,7 @@ class PlanController extends Controller
 
     public function previewTeams(int $plan, PreviewMatrix $builder)
     {
-        $activities = $this->fetchActivities($plan, includeRooms: false);
+        $activities = $this->fetchActivities($plan, freeBlocks: false);
 
         if ($activities->isEmpty()) {
             // Return stable headers so the frontend can render an empty grid
@@ -215,7 +255,7 @@ class PlanController extends Controller
 
     public function previewRooms(int $plan, PreviewMatrix $builder)
     {
-        $activities = $this->fetchActivities($plan, includeRooms: true);
+        $activities = $this->fetchActivities($plan, includeRooms: true, freeBlocks: false);
 
         if ($activities->isEmpty()) {
             // Return stable headers so the frontend can render an empty grid
@@ -230,48 +270,59 @@ class PlanController extends Controller
 
 
     private function fetchActivities(
-        int $plan,
-        bool $includeRooms = false,
-        bool $includeGroupMeta = false,
-        bool $includeActivityMeta = false,
-        bool $includeTeamNames = false
-    ) {
-        $freeIds = array_values(array_filter(array_map(function ($c) {
-            if (is_string($c) && defined($c)) return (int) constant($c);
-            if (is_numeric($c)) return (int) $c;
-            return null;
-        }, (array) config('atd.free')), fn ($v) => $v !== null));
+    int $plan,
+    bool $includeRooms = false,
+    bool $includeGroupMeta = false,
+    bool $includeActivityMeta = false,
+    bool $includeTeamNames = false,
+    bool $freeBlocks = true   // NEU: default = true
+) {
+    $freeIds = array_values(array_filter(array_map(function ($c) {
+        if (is_string($c) && defined($c)) return (int) constant($c);
+        if (is_numeric($c)) return (int) $c;
+        return null;
+    }, (array) config('atd.free')), fn ($v) => $v !== null));
 
-        $q = DB::table('activity as a')
-            ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
-            // Activity-ATD
-            ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
-            ->leftJoin('m_first_program as fp', 'atd.first_program', '=', 'fp.id')
-            // Group-ATD (optional)
-            ->when($includeGroupMeta, function ($qq) {
-                $qq->leftJoin('m_activity_type_detail as ag_atd', 'ag_atd.id', '=', 'ag.activity_type_detail')
+    $q = DB::table('activity as a')
+        ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+        // Activity-ATD
+        ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+        ->leftJoin('m_first_program as fp', 'atd.first_program', '=', 'fp.id')
+        // Group-ATD (optional)
+        ->when($includeGroupMeta, function ($qq) {
+            $qq->leftJoin('m_activity_type_detail as ag_atd', 'ag_atd.id', '=', 'ag.activity_type_detail')
                 ->leftJoin('m_first_program as ag_fp', 'ag_fp.id', '=', 'ag_atd.first_program');
-            })
-            ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
-            ->join('plan as p', 'p.id', '=', 'ag.plan')
-            ->where('ag.plan', $plan);
+        })
+        ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
+        ->join('plan as p', 'p.id', '=', 'ag.plan')
+        ->where('ag.plan', $plan);
 
-        if (!empty($freeIds)) {
-            $q->whereNotIn('atd.id', $freeIds);
-        }
+    if (!empty($freeIds)) {
+        $q->whereNotIn('atd.id', $freeIds);
+    }
 
-        // Räume (optional)
-        if ($includeRooms) {
-            $q->leftJoin('m_room_type as rt', 'a.room_type', '=', 'rt.id')
+    // NEU: Free-Blocks filtern
+    if (!$freeBlocks) {
+        $q->where(function ($sub) {
+            $sub->whereNull('a.extra_block')   // normale Activities
+                ->orWhereNotNull('peb.insert_point'); // Extra-Blocks, aber mit insert_point
+        });
+    }
+
+    // Räume (optional)
+    if ($includeRooms) {
+        $q->leftJoin('m_room_type as rt', 'a.room_type', '=', 'rt.id')
             ->leftJoin('room_type_room as rtr', function ($j) {
                 $j->on('rtr.room_type', '=', 'a.room_type')
-                    ->on('rtr.event', '=', 'p.event');
+                  ->on('rtr.event', '=', 'p.event');
             })
             ->leftJoin('room as r', function ($j) {
                 $j->on('r.id', '=', 'rtr.room')
-                    ->on('r.event', '=', 'p.event');
+                  ->on('r.event', '=', 'p.event');
             });
-        }
+    }
+
+    // … Rest bleibt unverändert …
 
         // Team-Namen (optional): team_plan → team
         if ($includeTeamNames) {
@@ -387,6 +438,15 @@ class PlanController extends Controller
 
     public function activities(int $planId): \Illuminate\Http\JsonResponse
     {
+        // TODO do that in a standardized way and also reflect it in routes
+        // Check if user has admin role
+        $jwt = request()->attributes->get('jwt');
+        $roles = $jwt['resource_access']->flow->roles ?? [];
+
+        if (!in_array('flow-admin', $roles) && !in_array('flow_admin', $roles)) {
+            return response()->json(['error' => 'Forbidden - admin role required'], 403);
+        }
+
         // Aktivitäten laden (ohne Räume)
         $rows = $this->fetchActivities($planId, false);
 
@@ -426,7 +486,7 @@ class PlanController extends Controller
         ]);
     }
 
-  
+
 
     public function actionNow(int $planId, Request $req): JsonResponse
     {
@@ -440,26 +500,33 @@ class PlanController extends Controller
             includeTeamNames: true
         );
 
-        // Sichtbarkeit: nur ATDs, die für Rolle 14 (Publikum) erlaubt sind
-        $allowedAtdIds = DB::table('m_visibility')
-            ->where('role', 14)
-            ->pluck('activity_type_detail')
-            ->unique()
-            ->all();
+        // Erlaubte Rollen 14: Besucher Allgemein, 6: Besucher Challenge, 10: Besucher Explore
+        $role = $req->query('role', 14);
+        if (!is_numeric($role) || ((int)$role != 14 && (int)$role != 6 && (int)$role != 10)) {
+            $role = 14; // Default: Publikum
+        }
 
-        $rows = $rows->filter(function ($r) use ($allowedAtdIds) {
-            return in_array((int)$r->activity_type_detail_id, $allowedAtdIds, true);
-        });
+      $interval = (int) $req->query('interval', 60);
 
-        // Zeitfilter: start <= pivot AND end > pivot
-        $rows = $rows->filter(function ($r) use ($pivot) {
-            return \Carbon\Carbon::parse($r->start_time) <= $pivot
-                && \Carbon\Carbon::parse($r->end_time)   >  $pivot;
-        });
+      $from  = (clone $pivot);
+      $to    = (clone $pivot)->addMinutes($interval);
 
-        return response()->json($this->groupActivitiesForApi($planId, $rows));
+      $rows = $this->fetchActivities(
+          $planId,
+          includeRooms: false,
+          includeGroupMeta: true,
+          includeActivityMeta: true
+      );
+
+      // Filtern: start in [from, to)
+      $rows = $rows->filter(function ($r) use ($from, $to) {
+          $s = Carbon::parse($r->start_time, 'UTC');
+          return $s >= $from && $s < $to;
+      });
+
+      return response()->json($this->groupActivitiesForApi($planId, $rows));
     }
-
+  
     public function actionNext(int $planId, Request $req): JsonResponse
     {
         $pivot = \Carbon\Carbon::parse($req->query('point_in_time', now()), 'Europe/Berlin');
@@ -568,16 +635,22 @@ class PlanController extends Controller
      */
     private function populateTeamPlanForNewPlan($planId, $eventId)
     {
+        Log::info("populateTeamPlanForNewPlan called for plan $planId, event $eventId");
+        
         // Get all teams for this event
         $teams = Team::where('event', $eventId)->get();
-        
+        Log::info("Found " . $teams->count() . " teams for event $eventId");
+
         if ($teams->isEmpty()) {
+            Log::info("No teams found for event $eventId - skipping team_plan population");
             return; // No teams to add
         }
 
         // Group teams by program and assign order
         $exploreTeams = $teams->where('first_program', 2)->values(); // Explore = 2
         $challengeTeams = $teams->where('first_program', 3)->values(); // Challenge = 3
+
+        Log::info("Explore teams: " . $exploreTeams->count() . ", Challenge teams: " . $challengeTeams->count());
 
         $teamPlanEntries = [];
 
@@ -602,9 +675,18 @@ class PlanController extends Controller
             ];
         }
 
+        Log::info("Prepared " . count($teamPlanEntries) . " team_plan entries to insert");
+
         // Insert all team_plan entries
         if (!empty($teamPlanEntries)) {
-            TeamPlan::insert($teamPlanEntries);
+            try {
+                TeamPlan::insert($teamPlanEntries);
+                Log::info("Successfully inserted " . count($teamPlanEntries) . " team_plan entries");
+            } catch (\Exception $e) {
+                Log::error("Failed to insert team_plan entries: " . $e->getMessage());
+            }
+        } else {
+            Log::warning("No team_plan entries to insert");
         }
     }
 
@@ -614,12 +696,15 @@ class PlanController extends Controller
      */
     public function syncTeamPlanForEvent($eventId)
     {
+        Log::info("syncTeamPlanForEvent called for event $eventId");
         $plans = Plan::where('event', $eventId)->get();
-        
+
         if ($plans->isEmpty()) {
+            Log::info("No plans found for event $eventId - skipping sync");
             return; // No plans to sync
         }
 
+        Log::info("Found " . $plans->count() . " plans for event $eventId - syncing team_plan entries");
         foreach ($plans as $plan) {
             $this->syncTeamPlanForPlan($plan->id, $eventId);
         }
@@ -630,10 +715,14 @@ class PlanController extends Controller
      */
     private function syncTeamPlanForPlan($planId, $eventId)
     {
+        Log::info("syncTeamPlanForPlan called for plan $planId, event $eventId");
+        
         // Get all teams for this event
         $teams = Team::where('event', $eventId)->get();
-        
+        Log::info("Found " . $teams->count() . " teams for event $eventId");
+
         if ($teams->isEmpty()) {
+            Log::info("No teams found for event $eventId - skipping sync");
             return;
         }
 
@@ -641,17 +730,21 @@ class PlanController extends Controller
         $existingTeamIds = TeamPlan::where('plan', $planId)
             ->pluck('team')
             ->toArray();
+        Log::info("Found " . count($existingTeamIds) . " existing team_plan entries for plan $planId");
 
         // Find teams that don't have team_plan entries
         $missingTeams = $teams->whereNotIn('id', $existingTeamIds);
+        Log::info("Found " . $missingTeams->count() . " missing teams for plan $planId");
 
         if ($missingTeams->isEmpty()) {
+            Log::info("All teams already have team_plan entries for plan $planId");
             return; // All teams already have entries
         }
 
         // Get the highest current team_number_plan for this plan
         $maxOrder = TeamPlan::where('plan', $planId)
             ->max('team_number_plan') ?? 0;
+        Log::info("Max team_number_plan for plan $planId: $maxOrder");
 
         // Add missing teams with sequential order
         $teamPlanEntries = [];
@@ -664,10 +757,68 @@ class PlanController extends Controller
             ];
         }
 
+        Log::info("Prepared " . count($teamPlanEntries) . " missing team_plan entries to insert");
+
         // Insert missing team_plan entries
         if (!empty($teamPlanEntries)) {
-            TeamPlan::insert($teamPlanEntries);
+            try {
+                TeamPlan::insert($teamPlanEntries);
+                Log::info("Successfully inserted " . count($teamPlanEntries) . " missing team_plan entries");
+            } catch (\Exception $e) {
+                Log::error("Failed to insert missing team_plan entries: " . $e->getMessage());
+            }
         }
+    }
+
+
+   // Wichtige Zeite für die Veröffentlichung 
+
+    public function importantTimes(int $planId): \Illuminate\Http\JsonResponse
+    {
+        // Activities laden
+        $activities = $this->fetchActivities($planId);
+
+        // Plan für last_changed
+        $plan = DB::table('plan')
+            ->select('last_change')
+            ->where('id', $planId)
+            ->first();
+
+        // Hilfsfunktion: Erste Startzeit für gegebene ATD-IDs finden
+        $findStart = function($ids) use ($activities) {
+            $act = $activities->first(fn($a) => in_array($a->activity_type_detail_id, (array) $ids));
+            return $act ? $act->start_time : null;
+        };
+
+        // Hilfsfunktion: Ende der Aktivität (end_time) für gegebene ATD-IDs
+        $findEnd = function($ids) use ($activities) {
+            $act = $activities->first(fn($a) => in_array($a->activity_type_detail_id, (array) $ids));
+            return $act ? $act->end_time : null;
+        };
+
+        $data = [
+            'plan_id'      => $planId,
+            'last_changed' => $plan?->last_change,
+            'explore' => [
+                'briefing' => [
+                    'teams'  => $findStart(ID_ATD_E_COACH_BRIEFING),
+                    'judges' => $findStart(ID_ATD_E_JUDGE_BRIEFING),
+                ],
+                'opening' => $findStart([ID_ATD_E_OPENING, ID_ATD_OPENING]), // spezifisch oder gemeinsam
+                'end'     => $findEnd([ID_ATD_E_AWARDS, ID_ATD_AWARDS]),     // spezifisch oder gemeinsam
+            ],
+            'challenge' => [
+                'briefing' => [
+                    'teams'    => $findStart(ID_ATD_C_COACH_BRIEFING),
+                    'judges'   => $findStart(ID_ATD_C_JUDGE_BRIEFING),
+                    'referees' => $findStart(ID_ATD_R_REFEREE_BRIEFING),
+                ],
+                'opening' => $findStart([ID_ATD_C_OPENING, ID_ATD_OPENING]), // spezifisch oder gemeinsam
+                'end'     => $findEnd([ID_ATD_C_AWARDS, ID_ATD_AWARDS]),     // spezifisch oder gemeinsam
+            ],
+        ];
+
+        return response()->json($data);
     }
 
 }
