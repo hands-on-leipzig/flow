@@ -16,8 +16,56 @@ class DrahtController extends Controller
 
     public function makeDrahtCall($route)
     {
+        // Use simulator in test environments
+        if (app()->environment('local', 'staging')) {
+            return $this->makeSimulatedCall($route);
+        }
+        
         $headers = ['DOLAPIKEY' => config('services.draht_api.key')];
         return Http::withHeaders($headers)->get(config('services.draht_api.base_url') . $route);
+    }
+    
+    /**
+     * Make simulated Draht API calls for test environments
+     */
+    private function makeSimulatedCall($route)
+    {
+        $simulator = new DrahtSimulatorController();
+        
+        // Create a mock request with the route
+        $mockRequest = new \Illuminate\Http\Request();
+        $mockRequest->setMethod('GET');
+        
+        // Extract the path from the route (remove leading slash)
+        $path = ltrim($route, '/');
+        
+        // Call the simulator
+        $response = $simulator->handle($mockRequest, $path);
+        
+        // Create a mock HTTP response that behaves like the real one
+        return new class($response) {
+            private $response;
+            
+            public function __construct($response) {
+                $this->response = $response;
+            }
+            
+            public function ok() {
+                return $this->response->getStatusCode() >= 200 && $this->response->getStatusCode() < 300;
+            }
+            
+            public function status() {
+                return $this->response->getStatusCode();
+            }
+            
+            public function json() {
+                return json_decode($this->response->getContent(), true);
+            }
+            
+            public function body() {
+                return $this->response->getContent();
+            }
+        };
     }
 
     public function show(Event $event)

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\DrahtController;
+use App\Http\Controllers\Api\DrahtSimulatorController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LogoController;
@@ -30,6 +31,11 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);
 Route::get('/plans/action-now/{planId}', [PlanController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
+
+// Draht API Simulator (for test environment)
+if (app()->environment('local', 'staging')) {
+    Route::any('/draht-simulator/{path?}', [DrahtSimulatorController::class, 'handle'])->where('path', '.*');
+}
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
