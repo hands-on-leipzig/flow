@@ -151,8 +151,9 @@ jobs:
             php artisan view:clear
             php artisan migrate --force
             php artisan storage:link
-            # Refresh main tables after migration
+            # Fresh database setup for test environment
             php artisan tinker --execute="include 'database/scripts/refresh_main_tables.php'; refreshMainTables();"
+            php artisan tinker --execute="include 'database/scripts/fresh_test_database.php'; freshTestDatabase();"
 
   deploy-production:
     if: github.ref == 'refs/heads/production'

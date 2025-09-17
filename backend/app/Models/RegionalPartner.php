@@ -10,6 +10,12 @@ class RegionalPartner extends Model
 
     public $timestamps = false;
     
+    protected $fillable = [
+        'name',
+        'region',
+        'dolibarr_id'
+    ];
+    
     public function events()
     {
         return $this->hasMany(Event::class, 'regional_partner');
