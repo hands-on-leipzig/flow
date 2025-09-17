@@ -1,8 +1,37 @@
-FcgidWrapper "/home/httpd/cgi-bin/php84-fcgi-starter.fcgi" .php
+<IfModule mod_rewrite.c>
+    RewriteEngine On
 
-RewriteEngine On
-RewriteRule ^api/(.*)$ handlers/RouteHandler.php [QSA,L]
+    # 🔒 Force HTTPS
+    RewriteCond %{HTTPS} !=on
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.html [L]
+    # 🌐 Prevent directory listing and MultiViews
+    Options -MultiViews -Indexes
+
+    # 🛠 Authorization headers
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # ⚠️ Do not redirect real files or dirs
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # 🚫 Exclude output dir from Laravel/Vue routing
+    RewriteCond %{REQUEST_URI} ^/output/
+    RewriteRule ^ - [L]
+
+    # ✅ Laravel handles API routes
+    RewriteCond %{REQUEST_URI} ^/api
+    RewriteRule ^ index.php [L]
+
+    # ✅ Laravel fallback (e.g. auth, POST endpoints)
+    RewriteCond %{REQUEST_URI} ^/sanctum [OR]
+    RewriteCond %{REQUEST_URI} ^/login [OR]
+    RewriteCond %{REQUEST_URI} ^/logout [OR]
+    RewriteCond %{REQUEST_URI} ^/password
+    RewriteRule ^ index.php [L]
+
+    # 🔁 Vue SPA fallback — everything else goes to frontend
+    RewriteRule ^ index.html [L]
+</IfModule>

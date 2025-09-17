@@ -9,6 +9,7 @@ use Firebase\JWT\Key;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class KeycloakJwtMiddleware
@@ -53,6 +54,11 @@ class KeycloakJwtMiddleware
                 'subject' => $claims['sub'] ?? null,
             ]);
 
+            // Auto-assign regional partners for flow-tester role in test environment
+            if (in_array($env, ['local', 'staging']) && in_array('flow-tester', $roles)) {
+                $this->assignTestRegionalPartners($user);
+            }
+
             Auth::login($user);
             $roles = $claims['resource_access']->flow->roles ?? [];
             Log::debug($roles);
@@ -83,5 +89,107 @@ class KeycloakJwtMiddleware
         }
 
         return $next($request);
+    }
+
+    /**
+     * Assign test regional partners to flow-tester users
+     */
+    private function assignTestRegionalPartners($user)
+    {
+        // Check if user already has regional partners assigned
+        if ($user->regionalPartners()->count() > 0) {
+            return; // User already has regional partners assigned
+        }
+
+        // Get test regional partners (created by fresh database script)
+        $testRPs = DB::table('regional_partner')
+            ->where('name', 'LIKE', 'Test Regional Partner%')
+            ->get();
+
+        if ($testRPs->count() == 0) {
+            // No test regional partners found, create them
+            $this->createTestRegionalPartners();
+            $testRPs = DB::table('regional_partner')
+                ->where('name', 'LIKE', 'Test Regional Partner%')
+                ->get();
+        }
+
+        // Assign user to all test regional partners
+        foreach ($testRPs as $rp) {
+            DB::table('user_regional_partner')->insertOrIgnore([
+                'user' => $user->id,
+                'regional_partner' => $rp->id
+            ]);
+        }
+
+        Log::info("Assigned test regional partners to flow-tester user: {$user->subject}");
+    }
+
+    /**
+     * Create test regional partners and events if they don't exist
+     */
+    private function createTestRegionalPartners()
+    {
+        // This will be called if no test regional partners exist
+        // We'll create minimal test data
+        $latestSeason = DB::table('m_season')->orderBy('year', 'desc')->first();
+        $level = DB::table('m_level')->first();
+
+        if (!$latestSeason || !$level) {
+            Log::warning("Cannot create test regional partners: missing season or level data");
+            return;
+        }
+
+        // Create test regional partners
+        $rpAId = DB::table('regional_partner')->insertGetId([
+            'name' => 'Test Regional Partner A',
+            'region' => 'Test Region A',
+            'dolibarr_id' => 2001
+        ]);
+
+        $rpBId = DB::table('regional_partner')->insertGetId([
+            'name' => 'Test Regional Partner B', 
+            'region' => 'Test Region B',
+            'dolibarr_id' => 2002
+        ]);
+
+        // Create test events
+        DB::table('event')->insert([
+            [
+                'name' => 'Test Explore Event - Test Regional Partner A',
+                'regional_partner' => $rpAId,
+                'season' => $latestSeason->id,
+                'level' => $level->id,
+                'date' => now()->addDays(30),
+                'days' => 1,
+                'slug' => 'test-explore-event-a',
+                'event_explore' => 1001,
+                'event_challenge' => null
+            ],
+            [
+                'name' => 'Test Challenge Event - Test Regional Partner A',
+                'regional_partner' => $rpAId,
+                'season' => $latestSeason->id,
+                'level' => $level->id,
+                'date' => now()->addDays(45),
+                'days' => 1,
+                'slug' => 'test-challenge-event-a',
+                'event_explore' => null,
+                'event_challenge' => 1002
+            ],
+            [
+                'name' => 'Test Combined Event - Test Regional Partner B',
+                'regional_partner' => $rpBId,
+                'season' => $latestSeason->id,
+                'level' => $level->id,
+                'date' => now()->addDays(60),
+                'days' => 1,
+                'slug' => 'test-combined-event-b',
+                'event_explore' => 1003,
+                'event_challenge' => 1004
+            ]
+        ]);
+
+        Log::info("Created test regional partners and events for flow-tester users");
     }
 }
