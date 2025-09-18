@@ -2,6 +2,7 @@
 import {RobotGameSlideContent} from '../../models/robotGameSlideContent.js';
 import {onMounted, onUnmounted, ref, computed} from "vue";
 import axios from "axios";
+import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
 
 type ScoresResponse = { name?: string, rounds?: RoundResponse }
 type RoundResponse = { [key: string]: TeamResponse }
@@ -122,13 +123,63 @@ function getRoundToShow(rounds: RoundResponse): TeamResponse {
 
 // Load data function
 function loadDACHData() {
-  axios.get('/api/events/1/data/rg-scores')
+  /*axios.get('/api/events/1/data/rg-scores')
       .then((response) => {
         scores.value = response.data;
       })
       .catch((err) => {
         console.error(err.message);
-      });
+      }); */
+
+  scores.value = {
+    "name": "RPT Demo",
+    "rounds": {
+      "VR": {
+        "1": {
+          "name": "TechKids",
+          "scores": [
+            { "points": 100, "highlight": true },
+            { "points": 80, "highlight": false },
+            { "points": 60, "highlight": false }
+          ],
+          "rank": 1,
+          "id": 1
+        },
+        "2": {
+          "name": "RoboExplorers",
+          "scores": [
+            { "points": 70, "highlight": true },
+            { "points": 50, "highlight": false },
+            { "points": 30, "highlight": false }
+          ],
+          "rank": 2,
+          "id": 2
+        },
+        "3": {
+          "name": "FutureScientists",
+          "scores": [
+            { "points": 10, "highlight": false },
+            { "points": 20, "highlight": false },
+            { "points": 60, "highlight": true }
+          ],
+          "rank": 3,
+          "id": 3
+        },
+        "4": {
+          "name": "DiscoversSquad",
+          "scores": [
+            { "points": 40, "highlight": true },
+            { "points": 40, "highlight": true },
+            { "points": 40, "highlight": true }
+          ],
+          "rank": 4,
+          "id": 4
+        },
+      }
+    }
+  };
+
+
 }
 
 function advancePage() {
@@ -164,8 +215,8 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 }
 
-let refreshInterval: number;
-let autoAdvanceInterval: number;
+let refreshInterval;
+let autoAdvanceInterval;
 
 onMounted(loadDACHData);
 onMounted(() => {
@@ -192,6 +243,10 @@ const props = defineProps({
 </script>
 
 <template>
+  <FabricSlideContentRenderer v-if="props.content.background"
+                              class="absolute inset-0 z-0"
+                              :content="props.content" :preview="props.preview"></FabricSlideContentRenderer>
+
   <div class="slide-container">
     <h1 class="slide-title">
       ERGEBNISSE {{ round ? roundNames[round].toUpperCase() : '' }}: {{ scores?.name?.toUpperCase() }}
@@ -242,8 +297,7 @@ const props = defineProps({
   background-position: center;
   padding: 5em;
   /* TODO: use user-defined values from settings */
-  background-color: black;
-  color: white;
+  color: #222222;
 }
 
 .slide-title {
