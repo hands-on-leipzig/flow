@@ -17,6 +17,8 @@ use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\RegionalPartner;
 use App\Models\Event;
+use App\Models\Plan;
+use App\Models\ExtraBlock;
 use App\Models\MSeason;
 use App\Models\MLevel;
 
@@ -115,13 +117,13 @@ function freshTestDatabase()
     
     // Explore event
     $exploreEvent = Event::create([
-        'name' => "Test Explore Event - {$rpA->name}",
+        'name' => "RPT Demo - Nur Explore",
         'regional_partner' => $rpA->id,
         'season' => $latestSeason->id,
         'level' => $level->id,
         'date' => now()->addDays(30),
         'days' => 1,
-        'slug' => 'test-explore-event-a',
+        'slug' => 'rpt-demo-nur-explore',
         'event_explore' => 1001, // Mock explore ID
         'event_challenge' => null
     ]);
@@ -130,13 +132,13 @@ function freshTestDatabase()
     
     // Challenge event
     $challengeEvent = Event::create([
-        'name' => "Test Challenge Event - {$rpA->name}",
+        'name' => "RPT Demo - Nur Challenge",
         'regional_partner' => $rpA->id,
         'season' => $latestSeason->id,
         'level' => $level->id,
         'date' => now()->addDays(45),
         'days' => 1,
-        'slug' => 'test-challenge-event-a',
+        'slug' => 'rpt-demo-nur-challenge',
         'event_explore' => null,
         'event_challenge' => 1002 // Mock challenge ID
     ]);
@@ -146,13 +148,13 @@ function freshTestDatabase()
     // Regional Partner B: Combined event (both explore and challenge on same day)
     $rpB = $createdRPs[1];
     $combinedEvent = Event::create([
-        'name' => "Test Combined Event - {$rpB->name}",
+        'name' => "RPT Demo",
         'regional_partner' => $rpB->id,
         'season' => $latestSeason->id,
         'level' => $level->id,
         'date' => now()->addDays(60),
         'days' => 1,
-        'slug' => 'test-combined-event-b',
+        'slug' => 'rpt-demo',
         'event_explore' => 1003, // Mock explore ID
         'event_challenge' => 1004 // Mock challenge ID
     ]);
@@ -164,11 +166,27 @@ function freshTestDatabase()
     // to the test regional partners created above.
     echo "  ✓ Test users will be created automatically on first login with 'flow-tester' role\n";
     
+    // Create sample extra block "Feuerschlucker" for the first plan
+    $firstPlan = Plan::first();
+    if ($firstPlan) {
+        $extraBlock = ExtraBlock::create([
+            'plan' => $firstPlan->id,
+            'name' => 'Feuerschlucker',
+            'duration' => 15, // 15 minutes
+            'description' => 'Sample extra block for testing - Feuerschlucker performance',
+            'is_active' => true
+        ]);
+        echo "  ✓ Created extra block: {$extraBlock->name} ({$extraBlock->duration} minutes) for plan {$firstPlan->id}\n";
+    } else {
+        echo "  ⚠️ No plans found, skipping extra block creation\n";
+    }
+    
     // Summary
     echo "\n=== Fresh Test Database Created ===\n";
     echo "Season: {$latestSeason->name} (Year: {$latestSeason->year})\n";
     echo "Regional Partners: " . RegionalPartner::count() . "\n";
     echo "Events: " . Event::count() . "\n";
+    echo "Extra Blocks: " . ExtraBlock::count() . "\n";
     echo "Users: " . User::count() . "\n";
     echo "User-Regional Partner links: " . DB::table('user_regional_partner')->count() . "\n";
     
