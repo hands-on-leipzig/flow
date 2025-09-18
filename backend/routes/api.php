@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\DrahtSimulatorController;
 use App\Http\Controllers\Api\EventController;
+use App\Models\Event;
 use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LogoController;
 use App\Http\Controllers\Api\ParameterController;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', fn() => ['pong' => true]);
+
+
 
 Route::get('/profile', function (Illuminate\Http\Request $request) {
     return response()->json([

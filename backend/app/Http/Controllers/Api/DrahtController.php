@@ -89,7 +89,7 @@ class DrahtController extends Controller
                 $challenge = $res->json();
                 $mergedData['event_challenge'] = $challenge;
                 $mergedData['address'] = $challenge['address'] ?? null;
-                $mergedData['contact'] = @unserialize($challenge['contact'] ?? null);
+                $mergedData['contact'] = $this->formatContactData($challenge['contact'] ?? null);
                 $mergedData['information'] = $challenge['information'] ?? null;
                 $mergedData['teams_challenge'] = $challenge['teams'] ?? [];
                 $mergedData['capacity_challenge'] = $challenge['capacity_teams'] ?? 0;
@@ -104,7 +104,7 @@ class DrahtController extends Controller
 
                 // overwrite shared fields only if not already set
                 $mergedData['address'] ??= $explore['address'] ?? null;
-                $mergedData['contact'] ??= @unserialize($explore['contact'] ?? null);
+                $mergedData['contact'] ??= $this->formatContactData($explore['contact'] ?? null);
                 $mergedData['information'] ??= $explore['information'] ?? null;
 
                 $mergedData['teams_explore'] = $explore['teams'] ?? [];
@@ -236,5 +236,30 @@ class DrahtController extends Controller
         });
 
         return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);
+    }
+
+    /**
+     * Format contact data for frontend consumption
+     */
+    private function formatContactData($contactData)
+    {
+        if (!$contactData) {
+            return [];
+        }
+
+        // If it's already an array, return it
+        if (is_array($contactData)) {
+            return $contactData;
+        }
+
+        // If it's a serialized string, unserialize it
+        if (is_string($contactData)) {
+            $unserialized = @unserialize($contactData);
+            if ($unserialized && is_array($unserialized)) {
+                return $unserialized;
+            }
+        }
+
+        return [];
     }
 }
