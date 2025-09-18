@@ -121,11 +121,7 @@ class DrahtSimulatorController extends Controller
             'id' => (int)$eventId,
             'name' => $eventInfo['name'],
             'address' => $eventInfo['address'],
-            'contact' => serialize([
-                'name' => $eventInfo['contact_name'],
-                'email' => $eventInfo['contact_email'],
-                'phone' => $eventInfo['contact_phone']
-            ]),
+            'contact' => serialize($this->generateContacts($eventInfo)),
             'information' => $eventInfo['information'],
             'teams' => $this->generateFLLTeams($eventId, $eventInfo['program_type'], $eventInfo['team_count']),
             'capacity_teams' => $eventInfo['capacity'],
@@ -295,5 +291,68 @@ class DrahtSimulatorController extends Controller
         }
         
         return $members;
+    }
+
+    /**
+     * Generate multiple contacts for an event
+     */
+    private function generateContacts($eventInfo)
+    {
+        $contacts = [];
+        
+        // Primary contact (from event info)
+        $contacts[] = [
+            'name' => $eventInfo['contact_name'],
+            'email' => $eventInfo['contact_email'],
+            'phone' => $eventInfo['contact_phone'],
+            'role' => 'Event Coordinator'
+        ];
+
+        // Generate 1-2 additional contacts
+        $additionalContacts = rand(1, 2);
+        $roles = ['Technical Support', 'Administration', 'Volunteer Coordinator', 'Safety Officer'];
+        
+        for ($i = 0; $i < $additionalContacts; $i++) {
+            $contacts[] = [
+                'name' => $this->generateGermanName(),
+                'email' => $this->generateEmail($eventInfo['contact_email']),
+                'phone' => $this->generatePhone(),
+                'role' => $roles[array_rand($roles)]
+            ];
+        }
+
+        return $contacts;
+    }
+
+    /**
+     * Generate a German name
+     */
+    private function generateGermanName()
+    {
+        $firstNames = ['Anna', 'Max', 'Lisa', 'Tom', 'Sarah', 'Ben', 'Emma', 'Lukas', 'Hannah', 'Felix'];
+        $lastNames = ['Schmidt', 'Müller', 'Weber', 'Wagner', 'Becker', 'Schulz', 'Hoffmann', 'Koch', 'Richter', 'Klein'];
+        
+        return $firstNames[array_rand($firstNames)] . ' ' . $lastNames[array_rand($lastNames)];
+    }
+
+    /**
+     * Generate an email based on the primary contact's domain
+     */
+    private function generateEmail($primaryEmail)
+    {
+        $domain = substr(strrchr($primaryEmail, "@"), 1);
+        $name = strtolower(str_replace(' ', '.', $this->generateGermanName()));
+        return $name . '@' . $domain;
+    }
+
+    /**
+     * Generate a phone number
+     */
+    private function generatePhone()
+    {
+        $areaCodes = ['+49 821', '+49 521', '+43 512', '+49 30', '+49 89'];
+        $areaCode = $areaCodes[array_rand($areaCodes)];
+        $number = rand(100000, 999999);
+        return $areaCode . ' ' . $number;
     }
 }
