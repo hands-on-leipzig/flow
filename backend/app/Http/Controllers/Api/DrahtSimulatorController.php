@@ -302,10 +302,9 @@ class DrahtSimulatorController extends Controller
         
         // Primary contact (from event info)
         $contacts[] = [
-            'name' => $eventInfo['contact_name'],
-            'email' => $eventInfo['contact_email'],
-            'phone' => $eventInfo['contact_phone'],
-            'role' => 'Event Coordinator'
+            'contact' => $eventInfo['contact_name'],
+            'contact_email' => $eventInfo['contact_email'],
+            'contact_infos' => $eventInfo['contact_phone'] . ' - Event Coordinator'
         ];
 
         // Generate 1-2 additional contacts
@@ -313,11 +312,15 @@ class DrahtSimulatorController extends Controller
         $roles = ['Technical Support', 'Administration', 'Volunteer Coordinator', 'Safety Officer'];
         
         for ($i = 0; $i < $additionalContacts; $i++) {
+            $name = $this->generateGermanName();
+            $email = $this->generateEmail($eventInfo['contact_email']);
+            $phone = $this->generatePhone();
+            $role = $roles[array_rand($roles)];
+            
             $contacts[] = [
-                'name' => $this->generateGermanName(),
-                'email' => $this->generateEmail($eventInfo['contact_email']),
-                'phone' => $this->generatePhone(),
-                'role' => $roles[array_rand($roles)]
+                'contact' => $name,
+                'contact_email' => $email,
+                'contact_infos' => $phone . ' - ' . $role
             ];
         }
 

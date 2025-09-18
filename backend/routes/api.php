@@ -24,6 +24,7 @@ Route::get('/ping', fn() => ['pong' => true]);
 
 
 
+
 Route::get('/profile', function (Illuminate\Http\Request $request) {
     return response()->json([
         'user' => $request->get('jwt'),

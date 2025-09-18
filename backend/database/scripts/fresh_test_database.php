@@ -18,7 +18,6 @@ use App\Models\User;
 use App\Models\RegionalPartner;
 use App\Models\Event;
 use App\Models\Plan;
-use App\Models\ExtraBlock;
 use App\Models\MSeason;
 use App\Models\MLevel;
 
@@ -166,27 +165,12 @@ function freshTestDatabase()
     // to the test regional partners created above.
     echo "  ✓ Test users will be created automatically on first login with 'flow-tester' role\n";
     
-    // Create sample extra block "Feuerschlucker" for the first plan
-    $firstPlan = Plan::first();
-    if ($firstPlan) {
-        $extraBlock = ExtraBlock::create([
-            'plan' => $firstPlan->id,
-            'name' => 'Feuerschlucker',
-            'duration' => 15, // 15 minutes
-            'description' => 'Sample extra block for testing - Feuerschlucker performance',
-            'is_active' => true
-        ]);
-        echo "  ✓ Created extra block: {$extraBlock->name} ({$extraBlock->duration} minutes) for plan {$firstPlan->id}\n";
-    } else {
-        echo "  ⚠️ No plans found, skipping extra block creation\n";
-    }
     
     // Summary
     echo "\n=== Fresh Test Database Created ===\n";
     echo "Season: {$latestSeason->name} (Year: {$latestSeason->year})\n";
     echo "Regional Partners: " . RegionalPartner::count() . "\n";
     echo "Events: " . Event::count() . "\n";
-    echo "Extra Blocks: " . ExtraBlock::count() . "\n";
     echo "Users: " . User::count() . "\n";
     echo "User-Regional Partner links: " . DB::table('user_regional_partner')->count() . "\n";
     
