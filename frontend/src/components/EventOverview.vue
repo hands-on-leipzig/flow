@@ -164,7 +164,7 @@ onMounted(async () => {
   challengeData.value = drahtData.data.event_challenge
 
   event.value.address = drahtData.data.address
-  event?.value.contact = drahtData.data.contact
+  event.value.contact = drahtData.data.contact
   event.value.information = drahtData.data.information
 
   event.value.wifi_ssid ??= ''
