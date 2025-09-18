@@ -33,7 +33,7 @@ function getFormattedDateTime() {
 
 function buildPointInTimeParam() {
   //return {point_in_time: getFormattedDateTime(), role: props.content.role};
-  return {point_in_time: '2025-11-16 12:00', role: props.content.role}; // <-- testing
+  return {point_in_time: '2025-11-17 12:00', role: props.content.role}; // <-- testing
 }
 
 async function callNow() {
