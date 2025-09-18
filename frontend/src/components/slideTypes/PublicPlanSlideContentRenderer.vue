@@ -31,21 +31,9 @@ function getFormattedDateTime() {
   return `${year}-${month}-${day}+${hours}:${minutes}`;
 }
 
-const planUrl = computed(() => {
-  const baseUrl = '/output/zeitplan.cgi';
-  const now = getFormattedDateTime();
-  const url = baseUrl + `?output=slide&plan=${props.content.planId}`
-      + `&hours=${props.content.hours}`
-      + `&role=${props.content.role}`
-      + `&brief=no`
-      + '&now=2026-02-27+12:00'; // <-- testing
-  console.log(url);
-  return url;
-});
-
 function buildPointInTimeParam() {
   //return {point_in_time: getFormattedDateTime(), role: props.content.role};
-  return {point_in_time: '2026-02-27 12:00', role: props.content.role}; // <-- testing
+  return {point_in_time: '2025-11-16 12:00', role: props.content.role}; // <-- testing
 }
 
 async function callNow() {
