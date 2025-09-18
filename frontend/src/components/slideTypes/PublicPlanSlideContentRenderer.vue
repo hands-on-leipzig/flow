@@ -40,8 +40,18 @@ async function callNow() {
   loading.value = true
   result.value = null
   try {
-    const params = buildPointInTimeParam()
-    const {data} = await axios.get(`/plans/action-now/${props.content.planId}`, {params})
+    const params = buildPointInTimeParam();
+    const {data} = await axios.get(`/plans/action-now/${props.content.planId}`, {params});
+
+    // Rollen-Filter anwenden
+    if (data && data.groups) {
+      if (props.content.role === 6) {
+        data.groups = data.groups.filter((g: any) => g.group_meta?.first_program_id !== 2);
+      } else if (props.content.role === 10) {
+        data.groups = data.groups.filter((g: any) => g.group_meta?.first_program_id !== 3);
+      }
+    }
+
     result.value = data
   } catch (e) {
     console.error(e)
