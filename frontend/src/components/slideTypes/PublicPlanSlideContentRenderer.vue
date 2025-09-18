@@ -184,9 +184,9 @@ onMounted(() => {
             </ul>
 
           </div>
-          <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
+          <!-- <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
             Keine passenden Aktivitäten.
-          </div>
+          </div> -->
         </div>
       </div>
     </div>

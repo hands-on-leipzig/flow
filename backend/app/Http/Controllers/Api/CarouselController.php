@@ -16,11 +16,11 @@ class CarouselController extends Controller
     }
 
     // Public Endpoint
-    public function getPublicSlideshowForEvent($eventId)
+    public function getPublicSlideshowForEvent($event)
     {
         // TODO slideshow selection logic
         // only active slides
-        $slideshows = SlideShow::where('event', $eventId)
+        $slideshows = SlideShow::where('event', $event->id)
             ->with(['slides' => function ($query) {
                 $query->where('active', true);
             }])
@@ -30,9 +30,9 @@ class CarouselController extends Controller
     }
 
     // Authenticated Endpoint, includes hidden slides:
-    public function getAllSlideshows($eventId)
+    public function getAllSlideshows($event)
     {
-        $slideshows = SlideShow::where('event', $eventId)
+        $slideshows = SlideShow::where('event', $event->id)
             ->with('slides')
             ->get();
 
