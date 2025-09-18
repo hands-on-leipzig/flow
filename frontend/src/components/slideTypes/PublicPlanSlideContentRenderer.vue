@@ -213,7 +213,7 @@ iframe, object, .result {
 }
 
 .preview {
-  zoom: 0.25;
+  zoom: 0.15;
   height: 100%;
   overflow: hidden;
   display: flex;
