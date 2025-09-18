@@ -237,9 +237,10 @@ onUnmounted(() => {
   clearInterval(autoAdvanceInterval);
   window.removeEventListener('keydown', handleKeyDown);
 })
-const props = defineProps({
-  content: RobotGameSlideContent
-});
+const props = defineProps<{
+  content: RobotGameSlideContent,
+  preview: boolean
+}>();
 </script>
 
 <template>
