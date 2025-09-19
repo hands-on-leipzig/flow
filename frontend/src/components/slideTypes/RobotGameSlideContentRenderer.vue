@@ -2,6 +2,7 @@
 import {RobotGameSlideContent} from '../../models/robotGameSlideContent.js';
 import {onMounted, onUnmounted, ref, computed} from "vue";
 import axios from "axios";
+import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
 
 type ScoresResponse = { name?: string, rounds?: RoundResponse }
 type RoundResponse = { [key: string]: TeamResponse }
@@ -122,13 +123,63 @@ function getRoundToShow(rounds: RoundResponse): TeamResponse {
 
 // Load data function
 function loadDACHData() {
-  axios.get('/api/events/1/data/rg-scores')
+  /*axios.get('/api/events/1/data/rg-scores')
       .then((response) => {
         scores.value = response.data;
       })
       .catch((err) => {
         console.error(err.message);
-      });
+      }); */
+
+  scores.value = {
+    "name": "RPT Demo",
+    "rounds": {
+      "VR": {
+        "1": {
+          "name": "TechKids",
+          "scores": [
+            {"points": 100, "highlight": true},
+            {"points": 80, "highlight": false},
+            {"points": 60, "highlight": false}
+          ],
+          "rank": 1,
+          "id": 1
+        },
+        "2": {
+          "name": "RoboExplorers",
+          "scores": [
+            {"points": 70, "highlight": true},
+            {"points": 50, "highlight": false},
+            {"points": 30, "highlight": false}
+          ],
+          "rank": 2,
+          "id": 2
+        },
+        "3": {
+          "name": "FutureScientists",
+          "scores": [
+            {"points": 10, "highlight": false},
+            {"points": 20, "highlight": false},
+            {"points": 60, "highlight": true}
+          ],
+          "rank": 3,
+          "id": 3
+        },
+        "4": {
+          "name": "DiscoversSquad",
+          "scores": [
+            {"points": 40, "highlight": true},
+            {"points": 40, "highlight": true},
+            {"points": 40, "highlight": true}
+          ],
+          "rank": 4,
+          "id": 4
+        },
+      }
+    }
+  };
+
+
 }
 
 function advancePage() {
@@ -164,8 +215,8 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 }
 
-let refreshInterval: number;
-let autoAdvanceInterval: number;
+let refreshInterval;
+let autoAdvanceInterval;
 
 onMounted(loadDACHData);
 onMounted(() => {
@@ -186,45 +237,52 @@ onUnmounted(() => {
   clearInterval(autoAdvanceInterval);
   window.removeEventListener('keydown', handleKeyDown);
 })
-const props = defineProps({
-  content: RobotGameSlideContent
-});
+const props = defineProps<{
+  content: RobotGameSlideContent,
+  preview: boolean
+}>();
 </script>
 
 <template>
-  <div class="slide-container">
-    <h1 class="slide-title">
-      ERGEBNISSE {{ round ? roundNames[round].toUpperCase() : '' }}: {{ scores?.name?.toUpperCase() }}
-    </h1>
+  <div class="relative w-full h-full overflow-hidden">
+    <FabricSlideContentRenderer v-if="props.content.background"
+                                class="absolute inset-0 z-0"
+                                :content="props.content" :preview="props.preview"></FabricSlideContentRenderer>
 
-    <div>
-      <table class="scores">
-        <thead>
-        <tr>
-          <th>Team</th>
-          <template v-if="round === 'VR'">
-            <th class="cell">R I</th>
-            <th class="cell">R II</th>
-            <th class="cell">R III</th>
-          </template>
-          <template v-else>
-            <th class="cell">Score</th>
-          </template>
-          <th class="cell">Rank</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="team in paginatedTeams" :key="team.id">
-          <td class="teamName">{{ team.name }}</td>
-          <template v-for="(score, index) in team.scores" :key="index">
-            <td class="cell" :class="{ highlight: score.highlight }">
-              {{ score.points }}
-            </td>
-          </template>
-          <td class="cell">{{ team.rank }}</td>
-        </tr>
-        </tbody>
-      </table>
+    <div class="slide-container" :class="{ 'preview': props.preview }">
+      <h1 class="slide-title">
+        ERGEBNISSE {{ round ? roundNames[round].toUpperCase() : '' }}: {{ scores?.name?.toUpperCase() }}
+      </h1>
+
+      <div>
+        <table class="scores">
+          <thead>
+          <tr>
+            <th>Team</th>
+            <template v-if="round === 'VR'">
+              <th class="cell">R I</th>
+              <th class="cell">R II</th>
+              <th class="cell">R III</th>
+            </template>
+            <template v-else>
+              <th class="cell">Score</th>
+            </template>
+            <th class="cell">Rank</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="team in paginatedTeams" :key="team.id">
+            <td class="teamName">{{ team.name }}</td>
+            <template v-for="(score, index) in team.scores" :key="index">
+              <td class="cell" :class="{ highlight: score.highlight }">
+                {{ score.points }}
+              </td>
+            </template>
+            <td class="cell">{{ team.rank }}</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
@@ -242,8 +300,7 @@ const props = defineProps({
   background-position: center;
   padding: 5em;
   /* TODO: use user-defined values from settings */
-  background-color: black;
-  color: white;
+  color: #222222;
 }
 
 .slide-title {
@@ -285,5 +342,9 @@ tr > th:not(:last-child) {
 
 .highlight {
   background-color: v-bind('props.content.highlightColor');
+}
+
+.preview {
+  zoom: 0.15;
 }
 </style>

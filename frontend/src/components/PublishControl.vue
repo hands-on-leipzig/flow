@@ -256,7 +256,7 @@ const carouselLink = computed(() => {
 
 function previewOlinePlan() {
   if (!planId.value) return
-  const url = `https://dev.flow.hands-on-technology.org/output/zeitplan.cgi?plan=${planId.value}`
+  const url = `${import.meta.env.VITE_APP_URL}/output/zeitplan.cgi?plan=${planId.value}`
   window.open(url, '_blank')
 }
 

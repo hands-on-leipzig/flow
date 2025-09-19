@@ -16,8 +16,56 @@ class DrahtController extends Controller
 
     public function makeDrahtCall($route)
     {
+        // Use simulator in test environments
+        if (app()->environment('local', 'staging')) {
+            return $this->makeSimulatedCall($route);
+        }
+        
         $headers = ['DOLAPIKEY' => config('services.draht_api.key')];
         return Http::withHeaders($headers)->get(config('services.draht_api.base_url') . $route);
+    }
+    
+    /**
+     * Make simulated Draht API calls for test environments
+     */
+    private function makeSimulatedCall($route)
+    {
+        $simulator = new DrahtSimulatorController();
+        
+        // Create a mock request with the route
+        $mockRequest = new \Illuminate\Http\Request();
+        $mockRequest->setMethod('GET');
+        
+        // Extract the path from the route (remove leading slash)
+        $path = ltrim($route, '/');
+        
+        // Call the simulator
+        $response = $simulator->handle($mockRequest, $path);
+        
+        // Create a mock HTTP response that behaves like the real one
+        return new class($response) {
+            private $response;
+            
+            public function __construct($response) {
+                $this->response = $response;
+            }
+            
+            public function ok() {
+                return $this->response->getStatusCode() >= 200 && $this->response->getStatusCode() < 300;
+            }
+            
+            public function status() {
+                return $this->response->getStatusCode();
+            }
+            
+            public function json() {
+                return json_decode($this->response->getContent(), true);
+            }
+            
+            public function body() {
+                return $this->response->getContent();
+            }
+        };
     }
 
     public function show(Event $event)
@@ -41,7 +89,7 @@ class DrahtController extends Controller
                 $challenge = $res->json();
                 $mergedData['event_challenge'] = $challenge;
                 $mergedData['address'] = $challenge['address'] ?? null;
-                $mergedData['contact'] = @unserialize($challenge['contact'] ?? null);
+                $mergedData['contact'] = $this->formatContactData($challenge['contact'] ?? null);
                 $mergedData['information'] = $challenge['information'] ?? null;
                 $mergedData['teams_challenge'] = $challenge['teams'] ?? [];
                 $mergedData['capacity_challenge'] = $challenge['capacity_teams'] ?? 0;
@@ -56,7 +104,7 @@ class DrahtController extends Controller
 
                 // overwrite shared fields only if not already set
                 $mergedData['address'] ??= $explore['address'] ?? null;
-                $mergedData['contact'] ??= @unserialize($explore['contact'] ?? null);
+                $mergedData['contact'] ??= $this->formatContactData($explore['contact'] ?? null);
                 $mergedData['information'] ??= $explore['information'] ?? null;
 
                 $mergedData['teams_explore'] = $explore['teams'] ?? [];
@@ -188,5 +236,30 @@ class DrahtController extends Controller
         });
 
         return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);
+    }
+
+    /**
+     * Format contact data for frontend consumption
+     */
+    private function formatContactData($contactData)
+    {
+        if (!$contactData) {
+            return [];
+        }
+
+        // If it's already an array, return it
+        if (is_array($contactData)) {
+            return $contactData;
+        }
+
+        // If it's a serialized string, unserialize it
+        if (is_string($contactData)) {
+            $unserialized = @unserialize($contactData);
+            if ($unserialized && is_array($unserialized)) {
+                return $unserialized;
+            }
+        }
+
+        return [];
     }
 }

@@ -31,29 +31,27 @@ function getFormattedDateTime() {
   return `${year}-${month}-${day}+${hours}:${minutes}`;
 }
 
-const planUrl = computed(() => {
-  const baseUrl = '/output/zeitplan.cgi';
-  const now = getFormattedDateTime();
-  const url = baseUrl + `?output=slide&plan=${props.content.planId}`
-      + `&hours=${props.content.hours}`
-      + `&role=${props.content.role}`
-      + `&brief=no`
-      + '&now=2026-02-27+12:00'; // <-- testing
-  console.log(url);
-  return url;
-});
-
 function buildPointInTimeParam() {
   //return {point_in_time: getFormattedDateTime(), role: props.content.role};
-  return {point_in_time: '2026-02-27 12:00', role: props.content.role}; // <-- testing
+  return {point_in_time: '2025-11-17 12:00', role: props.content.role}; // <-- testing
 }
 
 async function callNow() {
   loading.value = true
   result.value = null
   try {
-    const params = buildPointInTimeParam()
-    const {data} = await axios.get(`/plans/action-now/${props.content.planId}`, {params})
+    const params = buildPointInTimeParam();
+    const {data} = await axios.get(`/plans/action-now/${props.content.planId}`, {params});
+
+    // Rollen-Filter anwenden
+    if (data && data.groups) {
+      if (props.content.role === 6) {
+        data.groups = data.groups.filter((g: any) => g.group_meta?.first_program_id !== 2);
+      } else if (props.content.role === 10) {
+        data.groups = data.groups.filter((g: any) => g.group_meta?.first_program_id !== 3);
+      }
+    }
+
     result.value = data
   } catch (e) {
     console.error(e)
@@ -196,9 +194,9 @@ onMounted(() => {
             </ul>
 
           </div>
-          <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
+          <!-- <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
             Keine passenden Aktivitäten.
-          </div>
+          </div> -->
         </div>
       </div>
     </div>
@@ -215,7 +213,7 @@ iframe, object, .result {
 }
 
 .preview {
-  zoom: 0.25;
+  zoom: 0.15;
   height: 100%;
   overflow: hidden;
   display: flex;

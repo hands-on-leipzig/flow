@@ -92,7 +92,7 @@ class PublishController extends Controller
         $link = str_replace(array('ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß', '/', ' '), array('ae', 'oe', 'ue', 'AE', 'OE', 'UE', 'ss', '-', '-'), $link);
 
         $slug = $link;
-        $link = "https://flow.hands-on-technology.org/" . $link;
+        $link = config('app.url') . "/" . $link;
 
 
         // QR-Code mit Endroid erzeugen

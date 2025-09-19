@@ -139,7 +139,7 @@ function copyUrl(url) {
     <div class="mb-4">
       <div class="d-flex align-items-center gap-2">
         <span class="text-break">Link zur öffentlichen Ansicht:
-          <a :href="carouselLink" target="_blank" rel="noopener noreferrer">{{ carouselLink }}</a>
+          <a :href="carouselLink" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline font-medium text-base">{{ carouselLink }}</a>
         </span>
         <button
             type="button"

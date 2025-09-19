@@ -4,7 +4,7 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import dayjs from "dayjs";
 import ExtraBlocks from "@/components/molecules/ExtraBlocks.vue";
-import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import {programLogoSrc, programLogoAlt} from '@/utils/images'
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -260,13 +260,13 @@ const updateTableName = async () => {
 
               <!-- Explore -->
               <div
-                v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0"
-                class="flex items-start gap-2 mb-3"
+                  v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0"
+                  class="flex items-start gap-2 mb-3"
               >
                 <img
-                  :src="programLogoSrc('E')"
-                  :alt="programLogoAlt('E')"
-                  class="w-10 h-10 flex-shrink-0"
+                    :src="programLogoSrc('E')"
+                    :alt="programLogoAlt('E')"
+                    class="w-10 h-10 flex-shrink-0"
                 />
                 <div class="flex-1">
                   <span class="font-medium block">
@@ -278,13 +278,13 @@ const updateTableName = async () => {
 
               <!-- Challenge -->
               <div
-                v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0"
-                class="flex items-start gap-2"
+                  v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0"
+                  class="flex items-start gap-2"
               >
                 <img
-                  :src="programLogoSrc('C')"
-                  :alt="programLogoAlt('C')"
-                  class="w-10 h-10 flex-shrink-0"
+                    :src="programLogoSrc('C')"
+                    :alt="programLogoAlt('C')"
+                    class="w-10 h-10 flex-shrink-0"
                 />
                 <div class="flex-1">
                   <span class="font-medium block">
@@ -296,15 +296,14 @@ const updateTableName = async () => {
 
               <!-- Fallback -->
               <div
-                v-if="teamStats.explore.capacity === 0 && teamStats.explore.registered === 0 && teamStats.challenge.capacity === 0 && teamStats.challenge.registered === 0"
-                class="text-gray-500 text-xs"
+                  v-if="teamStats.explore.capacity === 0 && teamStats.explore.registered === 0 && teamStats.challenge.capacity === 0 && teamStats.challenge.registered === 0"
+                  class="text-gray-500 text-xs"
               >
                 Keine Team-Daten verfügbar
               </div>
             </div>
           </div>
         </div>
-
 
 
         <div class="p-4 border rounded shadow">
@@ -396,7 +395,7 @@ const updateTableName = async () => {
         </div>
 
       </div>
-    
+
     </div>
 
 

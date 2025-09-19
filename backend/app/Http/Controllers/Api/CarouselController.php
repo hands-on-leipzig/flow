@@ -11,12 +11,16 @@ use Illuminate\Http\Request;
 class CarouselController extends Controller
 {
 
+    public function __construct(private readonly PublishController $publishController)
+    {
+    }
+
     // Public Endpoint
-    public function getPublicSlideshowForEvent($eventId)
+    public function getPublicSlideshowForEvent($event)
     {
         // TODO slideshow selection logic
         // only active slides
-        $slideshows = SlideShow::where('event', $eventId)
+        $slideshows = SlideShow::where('event', $event->id)
             ->with(['slides' => function ($query) {
                 $query->where('active', true);
             }])
@@ -26,9 +30,9 @@ class CarouselController extends Controller
     }
 
     // Authenticated Endpoint, includes hidden slides:
-    public function getAllSlideshows($eventId)
+    public function getAllSlideshows($event)
     {
-        $slideshows = SlideShow::where('event', $eventId)
+        $slideshows = SlideShow::where('event', $event->id)
             ->with('slides')
             ->get();
 
@@ -152,9 +156,11 @@ class CarouselController extends Controller
 
     private string $defaultBackgroundImage = "\"backgroundImage\":{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":0,\"top\":-3.3333,\"width\":1920,\"height\":1096,\"scaleX\":0.4167,\"scaleY\":0.4167,\"src\":\"/background.png\"}";
 
-    public function generateSlideshow(Request $request, $eventId)
+    public function generateSlideshow(Request $request, $event)
     {
         // TODO Eventid prüfen
+
+        $eventId = $event->id;
 
         $planId = $request->input('planId');
         if (!$planId || !is_numeric($planId)) {

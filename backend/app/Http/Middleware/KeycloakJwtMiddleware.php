@@ -50,6 +50,22 @@ class KeycloakJwtMiddleware
 
             $request->attributes->set('jwt', $claims);
 
+            $roles = $claims['resource_access']->flow->roles ?? [];
+            Log::debug($roles);
+            $env = App::environment();
+            $path = $request->path();
+
+            // Env-based role access - check BEFORE creating user
+            if (in_array($env, ['local', 'staging'])) {
+                if (!in_array('flow-tester', $roles)) {
+                    return response()->json(['error' => 'Forbidden - tester role required'], 403);
+                }
+            } elseif ($env === 'production') {
+                if (!in_array('regionalpartner', $roles) && !in_array('flow-admin', $roles)) {
+                    return response()->json(['error' => 'Forbidden - partner or admin role required'], 403);
+                }
+            }
+
             $user = User::firstOrCreate([
                 'subject' => $claims['sub'] ?? null,
             ]);
@@ -60,21 +76,6 @@ class KeycloakJwtMiddleware
             }
 
             Auth::login($user);
-            $roles = $claims['resource_access']->flow->roles ?? [];
-            Log::debug($roles);
-            $env = App::environment();
-            $path = $request->path();
-
-            // Env-based role access
-            if (in_array($env, ['local', 'staging'])) {
-                if (!in_array('flow-tester', $roles)) {
-                    return response()->json(['error' => 'Forbidden - tester role required'], 403);
-                }
-            } elseif ($env === 'production') {
-                if (!in_array('regionalpartner', $roles) && !in_array('flow-admin', $roles)) {
-                    return response()->json(['error' => 'Forbidden - partner or admin role required'], 403);
-                }
-            }
             Log::debug($path);
             Log::debug(str_starts_with($path, 'admin'));
             // Admin route restriction
