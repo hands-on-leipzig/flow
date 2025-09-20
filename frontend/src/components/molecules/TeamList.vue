@@ -184,9 +184,14 @@ onMounted(async () => {
           <h3 class="text-lg font-semibold capitalize">
             <span class="italic">FIRST</span> LEGO League {{ program }}
           </h3>
-          <p class="text-sm text-gray-500">
-            Geplant: {{ program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0 }}
-          </p>
+          <div class="flex space-x-6 text-sm text-gray-500">
+            <span>
+              Kapazität: {{ program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0 }}
+            </span>
+            <span>
+              Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}
+            </span>
+          </div>
         </div>
       </div>
       <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
