@@ -108,6 +108,10 @@ const fetchParams = async (planId: number) => {
       parameters.value.map(p => [p.name, p.value])
     )
 
+    // Initial toggle states based on params
+    showExplore.value = Number(paramMapByName.value['e_mode']?.value || 0) > 0
+    showChallenge.value = Number(paramMapByName.value['c_mode']?.value || 0) > 0
+
     console.log('Fetched parameters:', parameters.value.length)
     console.log('Expert parameters:', parameters.value.filter(p => p.context === 'expert').length)
   } catch (err) {

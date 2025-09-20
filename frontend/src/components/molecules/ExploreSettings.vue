@@ -81,7 +81,7 @@ const isSeparateSplit = computed(() => eMode.value === 5)
 
 const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2)
 const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4 || eMode.value === 5)
-const hasExplore = computed(() => eMode.value > 0)
+const hasExplore = computed(() => props.showExplore)
 
 /** Fancy mode changes **/
 function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5) {
