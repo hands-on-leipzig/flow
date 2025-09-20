@@ -307,10 +307,14 @@ defineExpose({
     </div>
     
     
-    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-      <h3 class="text-sm font-semibold text-gray-700">Mit festen Einfügepunkten</h3>
+    <div class="px-4 py-3 border-b border-gray-100">
+      <h3 class="text-sm font-semibold text-gray-700">
+        Die Blöcke werden vor den Einfügepunkten eingeschoben.
+      </h3>
+      <p class="text-xs text-gray-500 mt-1">
+        Diese Blöcke verändern direkt die Zeiten im Robot-Game. Die Jury-Runden werden davon nur indirekt beeinflusst. 
+      </p>
     </div>
-
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
         <thead>
