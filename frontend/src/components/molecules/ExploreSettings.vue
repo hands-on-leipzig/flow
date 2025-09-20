@@ -7,6 +7,9 @@ import InfoPopover from "@/components/atoms/InfoPopover.vue"
 import {useEventStore} from '@/stores/event'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
+const eventStore = useEventStore()
+const event = computed(() => eventStore.selectedEvent)
+
 const props = defineProps<{
   parameters: any[]
   showExplore: boolean
@@ -42,7 +45,7 @@ function handleToggleChange(target: HTMLInputElement) {
     }
 
     // Use DRAHT team count as default if available, otherwise use min
-    const eventStore = useEventStore()
+    
     const drahtTeams = eventStore.selectedEvent?.drahtTeamsExplore || 0
     const minTeams = paramMapByName.value['e_teams']?.min || 1
     const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
@@ -78,7 +81,7 @@ const isSeparateSplit = computed(() => eMode.value === 5)
 
 const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2)
 const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4 || eMode.value === 5)
-const hasExplore = computed(() => eMode.value > 0)
+const hasExplore = computed(() => props.showExplore)
 
 /** Fancy mode changes **/
 function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5) {
@@ -407,6 +410,20 @@ const getTeamInputStyle = (level: number) => {
   }
 }
 
+const planTeams = computed(() => Number(paramMapByName.value['e_teams']?.value || 0))
+const registeredTeams = computed(() => Number(event.value?.drahtTeamsExplore || 0))
+const capacity = computed(() => Number(event.value?.drahtCapacityExplore || 0))
+
+const planStatusClass = computed(() => {
+  if (planTeams.value === registeredTeams.value) {
+    return 'bg-green-100 border border-green-300 text-green-700'
+  } else if (planTeams.value > capacity.value || planTeams.value < registeredTeams.value) {
+    return 'bg-red-100 border border-red-300 text-red-700'
+  } else {
+    return 'bg-yellow-100 border border-yellow-300 text-yellow-700'
+  }
+})
+
 </script>
 
 <template>
@@ -417,9 +434,25 @@ const getTeamInputStyle = (level: number) => {
           :alt="programLogoAlt('E')"
           class="w-10 h-10 flex-shrink-0"
         />
-      <h3 class="text-lg font-semibold capitalize">
-        <span class="italic">FIRST</span> LEGO League Explore
-      </h3>
+      <div>  
+        <h3 class="text-lg font-semibold capitalize">
+          <span class="italic">FIRST</span> LEGO League Explore
+        </h3>
+
+          <div :class="['flex space-x-4 text-xs px-2 py-1 rounded', planStatusClass]">
+            <span>
+              Kapazität: {{ capacity }}
+            </span>
+            <span>
+              Angemeldet: {{ registeredTeams }}
+            </span>
+            <span>
+              In diesem Plan: {{ planTeams }}
+            </span>
+          </div>
+
+      </div>
+
       <label class="relative inline-flex items-center cursor-pointer">
         <input
             type="checkbox"

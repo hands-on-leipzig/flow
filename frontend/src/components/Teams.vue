@@ -1,5 +1,4 @@
 <script setup>
-
 import TeamList from "@/components/molecules/TeamList.vue";
 import {computed, onMounted, ref} from "vue";
 import axios from "axios";
@@ -30,15 +29,14 @@ onMounted(async () => {
 
 <template>
   <div class="grid grid-cols-2 gap-4 mt-4">
-    <div v-if="exploreTeamsDraht.length">
-      <TeamList :remoteTeams="exploreTeamsDraht" :program="'explore'"/>
+    <!-- Explore -->
+    <div v-if="event?.drahtCapacityExplore > 0">
+      <TeamList :remoteTeams="exploreTeamsDraht" program="explore"/>
     </div>
-    <div v-if="challengeTeamsDraht.length">
-      <TeamList :remoteTeams="challengeTeamsDraht" :program="'challenge'"/>
+
+    <!-- Challenge -->
+    <div v-if="event?.drahtCapacityChallenge > 0" class="col-start-2">
+      <TeamList :remoteTeams="challengeTeamsDraht" program="challenge"/>
     </div>
   </div>
 </template>
-
-<style scoped>
-
-</style>
