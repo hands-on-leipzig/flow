@@ -121,6 +121,29 @@ function saveSlide() {
             @input="updateByName('url', ($event.target as HTMLInputElement).value || '')"
         />
       </div>
+      <div v-if="slide.type === 'RobotGameSlideContent'">
+        <!-- Teams -->
+        <label class="text-sm font-medium pl-2 mt-4">Teams pro Seite</label>
+        <InfoPopover text="Anzahl an Teams, die pro Seite angezeigt werden sollen."/>
+        &nbsp;
+        <input
+            class="mt-1 w-32 border rounded px-2 py-1"
+            type="number"
+            :value="slide.content.teamsPerPage"
+            @input="updateByName('teamsPerPage', ($event.target as HTMLInputElement).value || 0)"
+        />
+        <br>
+        <!-- Highlight-Farbe -->
+        <label class="text-sm font-medium pl-2 mt-4">Highlight-Farbe</label>
+        <InfoPopover text="Die Farbe, die für Hervorhebungen in der Tabelle verwendet wird."/>
+        &nbsp;
+        <input
+            class="mt-1 w-32 border rounded px-2 py-1"
+            type="color"
+            :value="slide.content.highlightColor"
+            @input="updateByName('highlightColor', ($event.target as HTMLInputElement).value || '#FFD700')"
+        />
+      </div>
     </div>
 
     <div class="rounded-xl shadow bg-white p-4 col-span-2">
