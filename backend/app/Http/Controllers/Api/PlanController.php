@@ -270,59 +270,58 @@ class PlanController extends Controller
 
 
     private function fetchActivities(
-    int $plan,
-    bool $includeRooms = false,
-    bool $includeGroupMeta = false,
-    bool $includeActivityMeta = false,
-    bool $includeTeamNames = false,
-    bool $freeBlocks = true   // NEU: default = true
-) {
-    $freeIds = array_values(array_filter(array_map(function ($c) {
-        if (is_string($c) && defined($c)) return (int) constant($c);
-        if (is_numeric($c)) return (int) $c;
-        return null;
-    }, (array) config('atd.free')), fn ($v) => $v !== null));
+        int $plan,
+        array $roles = [],                
+        bool $includeRooms = false,
+        bool $includeGroupMeta = false,
+        bool $includeActivityMeta = false,
+        bool $includeTeamNames = false,
+        bool $freeBlocks = true
+        ) {
 
-    $q = DB::table('activity as a')
-        ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
-        // Activity-ATD
-        ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
-        ->leftJoin('m_first_program as fp', 'atd.first_program', '=', 'fp.id')
-        // Group-ATD (optional)
-        ->when($includeGroupMeta, function ($qq) {
-            $qq->leftJoin('m_activity_type_detail as ag_atd', 'ag_atd.id', '=', 'ag.activity_type_detail')
-                ->leftJoin('m_first_program as ag_fp', 'ag_fp.id', '=', 'ag_atd.first_program');
-        })
-        ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
-        ->join('plan as p', 'p.id', '=', 'ag.plan')
-        ->where('ag.plan', $plan);
+        $q = DB::table('activity as a')
+            ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+            ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+            ->leftJoin('m_first_program as fp', 'atd.first_program', '=', 'fp.id')
+            ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
+            ->join('plan as p', 'p.id', '=', 'ag.plan')
+            ->where('ag.plan', $plan);
 
-    if (!empty($freeIds)) {
-        $q->whereNotIn('atd.id', $freeIds);
-    }
+        // Rollen-Filter (optional)
+        if (!empty($roles)) {
+            $q->whereIn('atd.id', function ($sub) use ($roles) {
+                $sub->select('activity_type_detail')
+                    ->from('m_visibility')
+                    ->whereIn('role', $roles);
+            });
+        }
 
-    // NEU: Free-Blocks filtern
-    if (!$freeBlocks) {
-        $q->where(function ($sub) {
-            $sub->whereNull('a.extra_block')   // normale Activities
-                ->orWhereNotNull('peb.insert_point'); // Extra-Blocks, aber mit insert_point
-        });
-    }
+        // Free-Blocks filtern (optional)
+        if (!$freeBlocks) {
+            $q->where(function ($sub) {
+                $sub->whereNull('a.extra_block')   // normale Activities
+                    ->orWhereNotNull('peb.insert_point'); // Extra-Blocks mit insert_point
+            });
+        }
 
-    // Räume (optional)
-    if ($includeRooms) {
-        $q->leftJoin('m_room_type as rt', 'a.room_type', '=', 'rt.id')
+        // Group-Meta (optional)
+        if ($includeGroupMeta) {
+            $q->leftJoin('m_activity_type_detail as ag_atd', 'ag_atd.id', '=', 'ag.activity_type_detail')
+            ->leftJoin('m_first_program as ag_fp', 'ag_fp.id', '=', 'ag_atd.first_program');
+        }
+
+        // Rooms (optional)
+        if ($includeRooms) {
+            $q->leftJoin('m_room_type as rt', 'a.room_type', '=', 'rt.id')
             ->leftJoin('room_type_room as rtr', function ($j) {
                 $j->on('rtr.room_type', '=', 'a.room_type')
-                  ->on('rtr.event', '=', 'p.event');
+                    ->on('rtr.event', '=', 'p.event');
             })
             ->leftJoin('room as r', function ($j) {
                 $j->on('r.id', '=', 'rtr.room')
-                  ->on('r.event', '=', 'p.event');
+                    ->on('r.event', '=', 'p.event');
             });
-    }
-
-    // … Rest bleibt unverändert …
+        }
 
         // Team-Namen (optional): team_plan → team
         if ($includeTeamNames) {
@@ -425,11 +424,11 @@ class PlanController extends Controller
             'ag.id'
         );
 
-        // und dann sortieren:
+        // sortieren: erst Gruppenstart, dann Activity-Start
         $q->orderBy('ag_min.group_first_start')
         ->orderBy('a.start');
 
-        return $q->orderBy('a.start')->selectRaw($select)->get();
+        return $q->selectRaw($select)->get();
     }
 
     //
@@ -486,19 +485,59 @@ class PlanController extends Controller
         ]);
     }
 
-
-
     public function actionNow(int $planId, Request $req): JsonResponse
     {
-        $pivot = \Carbon\Carbon::parse($req->query('point_in_time', now()), 'Europe/Berlin');
+        [$pivot, $rows] = $this->prepareActivities($planId, $req);
 
-        $rows = $this->fetchActivities(
-            $planId,
-            includeRooms: true,
-            includeGroupMeta: true,
-            includeActivityMeta: true,
-            includeTeamNames: true
-        );
+        $rows = $rows->filter(function ($r) use ($pivot) {
+            $start = Carbon::parse($r->start_time);
+            $end   = Carbon::parse($r->end_time);
+
+            return $start <= $pivot && $end >= $pivot;
+        });
+
+        return response()->json($this->groupActivitiesForApi($planId, $rows));
+    }
+
+    public function actionNext(int $planId, Request $req): JsonResponse
+    {
+        [$pivot, $rows] = $this->prepareActivities($planId, $req);
+
+        $interval = (int) $req->query('interval', 30);
+
+        $rows = $rows->filter(function ($r) use ($pivot, $interval) {
+            $start = Carbon::parse($r->start_time);
+            $end   = Carbon::parse($r->end_time);
+
+            return $start >= $pivot && $end <= (clone $pivot)->addMinutes($interval);
+        });
+
+        return response()->json($this->groupActivitiesForApi($planId, $rows));
+    }
+
+    /**
+     * Gemeinsame Selektion und Ausgabeform für now/next.
+     */
+
+    private function prepareActivities(int $planId, Request $req)
+    {
+        // Event-Datum holen
+        $eventDate = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->value('event.date');
+
+        if (!$eventDate) {
+            abort(404, 'Event not found');
+        }
+
+        // Uhrzeit aus Request holen
+        $timeInput = $req->query('point_in_time'); // erwartet "HH:MM"
+        if ($timeInput) {
+            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'UTC');
+        } else {
+            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . now('Europe/Berlin')->format('H:i'), 'UTC');
+        }
 
         // Erlaubte Rollen 14: Besucher Allgemein, 6: Besucher Challenge, 10: Besucher Explore
         $role = $req->query('role', 14);
@@ -506,63 +545,20 @@ class PlanController extends Controller
             $role = 14; // Default: Publikum
         }
 
-      $interval = (int) $req->query('interval', 60);
+        $roles = [(int)$role];
 
-      $from  = (clone $pivot);
-      $to    = (clone $pivot)->addMinutes($interval);
-
-      $rows = $this->fetchActivities(
-          $planId,
-          includeRooms: false,
-          includeGroupMeta: true,
-          includeActivityMeta: true
-      );
-
-      // Filtern: start in [from, to)
-      $rows = $rows->filter(function ($r) use ($from, $to) {
-          $s = Carbon::parse($r->start_time, 'UTC');
-          return $s >= $from && $s < $to;
-      });
-
-      return response()->json($this->groupActivitiesForApi($planId, $rows));
-    }
-  
-    public function actionNext(int $planId, Request $req): JsonResponse
-    {
-        $pivot = \Carbon\Carbon::parse($req->query('point_in_time', now()), 'Europe/Berlin');
-        $interval = (int) $req->query('interval', 30);
-        $from = $pivot->copy();
-        $to   = $pivot->copy()->addMinutes($interval);
-
+        // Activities laden
         $rows = $this->fetchActivities(
             $planId,
+            $roles,                // Array mit genau 1 Rolle
             includeRooms: true,
             includeGroupMeta: true,
-            includeActivityMeta: true,
-            includeTeamNames: true
+            includeActivityMeta: true
         );
 
-        $allowedAtdIds = DB::table('m_visibility')
-            ->where('role', 14)
-            ->pluck('activity_type_detail')
-            ->unique()
-            ->all();
-
-        $rows = $rows->filter(fn($r) => in_array((int)$r->activity_type_detail_id, $allowedAtdIds, true));
-
-        // Zeitfenster: Start innerhalb [from, to)
-        $rows = $rows->filter(function ($r) use ($from, $to) {
-            $s = \Carbon\Carbon::parse($r->start_time);
-            return $s >= $from && $s < $to;
-        });
-
-        return response()->json($this->groupActivitiesForApi($planId, $rows));
-    
+        return [$pivot, $rows];
     }
 
-    /**
-     * Gemeinsame Gruppierung + Ausgabeform für now/next.
-     */
     private function groupActivitiesForApi(int $planId, $rows): array
     {
         $groups = [];

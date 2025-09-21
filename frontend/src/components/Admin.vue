@@ -8,7 +8,7 @@ import MParameter from '@/components/molecules/MParameter.vue'
 import NowAndNext from '@/components/molecules/NowAndNext.vue'
 import '@vueform/multiselect/themes/default.css'
 
-const activeTab = ref('conditions')
+const activeTab = ref('statistics')
 
 const parameters = ref([])
 const conditions = ref([])
@@ -74,13 +74,23 @@ fetchConditions()
   <div class="flex h-full min-h-screen">
     <!-- Sidebar -->
     <div class="w-64 bg-gray-100 border-r p-4 space-y-2">
+
       <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-          :class="{ 'bg-white font-semibold shadow': activeTab === 'conditions' }"
-          @click="activeTab = 'conditions'"
+        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+        :class="{ 'bg-white font-semibold shadow': activeTab === 'statistics' }"
+        @click="activeTab = 'statistics'"
       >
-        📄 Parameter-Anzeige
+        📊 Statistiken
       </button>
+
+            <button
+        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+        :class="{ 'bg-white font-semibold shadow': activeTab === 'mparameter' }"
+        @click="activeTab = 'mparameter'"
+      >
+        📝 m_parameter
+      </button>
+
       <button
           class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
           :class="{ 'bg-white font-semibold shadow': activeTab === 'visibility' }"
@@ -88,12 +98,13 @@ fetchConditions()
       >
         👁️ Visibility
       </button>
+
       <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-          :class="{ 'bg-white font-semibold shadow': activeTab === 'sync' }"
-          @click="activeTab = 'sync'"
+        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+        :class="{ 'bg-white font-semibold shadow': activeTab === 'nowandnext' }"
+        @click="activeTab = 'nowandnext'"
       >
-        🔁 Draht Sync
+        ⏰ Now and Next
       </button>
 
       <button
@@ -104,28 +115,25 @@ fetchConditions()
       </button>
 
       <button
-        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-        :class="{ 'bg-white font-semibold shadow': activeTab === 'statistics' }"
-        @click="activeTab = 'statistics'"
+          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+          :class="{ 'bg-white font-semibold shadow': activeTab === 'conditions' }"
+          @click="activeTab = 'conditions'"
       >
-        📊 Statistiken
+        📄 Parameter-Anzeige
+      </button>
+      <button
+          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+          :class="{ 'bg-white font-semibold shadow': activeTab === 'sync' }"
+          @click="activeTab = 'sync'"
+      >
+        🔁 Draht Sync
       </button>
 
-      <button
-        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-        :class="{ 'bg-white font-semibold shadow': activeTab === 'mparameter' }"
-        @click="activeTab = 'mparameter'"
-      >
-        📝 m_parameter
-      </button>
 
-      <button
-        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-        :class="{ 'bg-white font-semibold shadow': activeTab === 'nowandnext' }"
-        @click="activeTab = 'nowandnext'"
-      >
-        ⏰ Now and Next
-      </button>
+
+
+
+
 
     </div>
 
@@ -211,10 +219,6 @@ fetchConditions()
         <quality />
       </div>
 
-      <div v-if="activeTab === 'statistics'">
-        <h2 class="text-xl font-bold mb-4">Statistiken</h2>
-        <statistics />
-      </div>
 
       <div v-if="activeTab === 'mparameter'">
         <h2 class="text-xl font-bold mb-4">Tabelle m_parameter</h2>
@@ -224,6 +228,11 @@ fetchConditions()
       <div v-if="activeTab === 'nowandnext'">
         <h2 class="text-xl font-bold mb-4">Was passiert gerade? Und was als nächstes?</h2>
         <NowAndNext />
+      </div>
+
+      <div v-if="activeTab === 'statistics'">
+        <h2 class="text-xl font-bold mb-4">Statistiken</h2>
+        <statistics />
       </div>
 
     </div>
