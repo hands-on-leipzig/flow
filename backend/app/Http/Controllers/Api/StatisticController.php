@@ -75,7 +75,31 @@ class StatisticController extends Controller
             ->groupBy('plan')
             ->get()
             ->keyBy('plan');
-                
+
+        // Expert-Parameter-Stats abrufen (nur Abweichungen vom Default)
+        $paramStatsRaw = DB::table('plan_param_value as ppv')
+            ->join('m_parameter as mp', 'mp.id', '=', 'ppv.parameter')
+            ->whereIn('ppv.plan', $planIds)
+            ->where('mp.context', 'expert')
+            ->where(function ($q) {
+                $q->whereRaw('ppv.set_value <> mp.value')
+                ->orWhere(function ($q2) {
+                    $q2->whereNull('ppv.set_value')
+                        ->whereNotNull('mp.value');
+                })
+                ->orWhere(function ($q2) {
+                    $q2->whereNotNull('ppv.set_value')
+                        ->whereNull('mp.value');
+                });
+            })
+            ->select(
+                'ppv.plan',
+                DB::raw('COUNT(*) as count')
+            )
+            ->groupBy('ppv.plan')
+            ->get()
+            ->keyBy('plan');
+
         // Gruppieren
         $groupedSeasons = [];
 
@@ -124,6 +148,7 @@ class StatisticController extends Controller
                     'plan_created' => $row->plan_created,
                     'plan_last_change' => $row->plan_last_change,
                     'generator_stats' => $genStatsRaw[$row->plan_id]->count ?? null,
+                    'expert_param_changes' => $paramStatsRaw[$row->plan_id]->count ?? 0, // <--- NEU
                     'publication_level' => $row->publication_level,
                     'publication_date' => $row->publication_date,
                     'publication_last_change' => $row->publication_last_change,
