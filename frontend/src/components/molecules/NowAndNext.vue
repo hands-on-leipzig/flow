@@ -7,9 +7,17 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 
 // Inputs
 const planId = ref('6')
+const role = ref(14)            // <-- neu: Default 14 = Publikum
 const usePoint = ref(true)
-const timeStr = ref('11:00')   // HH:mm
+const timeStr = ref('11:00')    // HH:mm
 const intervalMin = ref(60)
+
+// Rollendefinitionen
+const roles = [
+  { id: 14, label: 'Besucher Allgemein' },
+  { id: 6,  label: 'Besucher Challenge' },
+  { id: 10, label: 'Besucher Explore' }
+]
 
 // Output
 const loading = ref(false)
@@ -17,10 +25,14 @@ const error = ref(null)
 const result = ref(null)
 
 function buildPointInTimeParam() {
-  if (!usePoint.value) return {}
-  if (!timeStr.value) return {}
-  // Nur Uhrzeit senden – Backend ergänzt Datum
-  return { point_in_time: timeStr.value }
+  const params: any = {}
+  if (usePoint.value && timeStr.value) {
+    params.point_in_time = timeStr.value
+  }
+  if (role.value) {
+    params.role = role.value
+  }
+  return params
 }
 
 async function callNow() {
@@ -57,9 +69,6 @@ async function callNext() {
     loading.value = false
   }
 }
-
-
-
 
 const padTeam = (n: any) =>
   typeof n === 'number' || /^\d+$/.test(String(n))
@@ -130,6 +139,16 @@ function openPreview(id: string | number) {
       >
         🧾
       </button>
+
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Rolle</label>
+        <select v-model.number="role" class="border rounded px-2 py-1">
+          <option v-for="r in roles" :key="r.id" :value="r.id">
+            {{ r.label }}
+          </option>
+        </select>
+      </div>
+
       <div class="flex items-center gap-2">
         <label class="text-sm">
           <input type="checkbox" v-model="usePoint" class="mr-1" />
