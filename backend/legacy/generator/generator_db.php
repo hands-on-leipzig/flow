@@ -367,7 +367,7 @@ function db_insert_free_activities()
 }
 
 // Insert an activity that delays the schedule
-function g_insert_point($id)
+function g_insert_point($id, $duration)
 {
     global $r_time;
     global $g_activity_group;
@@ -416,36 +416,7 @@ function g_insert_point($id)
     } else {
 
         // No extra block defined, just the respective normal shift
-
-        switch ($id) {
-            case ID_IP_RG_TR:
-            case ID_IP_RG_1:
-                g_add_minutes($time, pp('r_duration_break'));
-                break;
-
-            case ID_IP_RG_2:
-                g_add_minutes($time, pp('r_duration_lunch'));
-                break;
-
-            case ID_IP_RG_3:
-                g_add_minutes($time, pp('c_ready_presentations'));
-                break;
-            
-            case ID_IP_PRESENTATIONS:
-
-                if (!pp("c_presentations_last"))
-                    g_add_minutes($time, pp('c_ready_robot_game'));
-                else    
-                    g_add_minutes($time, pp('c_ready_awards'));
-                break;
-
-            case ID_IP_RG_SEMI_FINAL:
-                g_add_minutes($time, pp('r_duration_results'));
-                break;
-
-            case ID_IP_RG_FINAL:
-                g_add_minutes($time, pp('c_ready_awards'));
-                break;
-        }
+        g_add_minutes($time, $duration);
+        
     }
 }

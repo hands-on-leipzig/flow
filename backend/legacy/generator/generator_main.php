@@ -595,15 +595,8 @@ function g_generator($plan_id) {
         // Semi finale is a must
         r_final_round(4);
 
-        // Create inserted block or planned delay. 
-        g_insert_point(ID_IP_RG_SEMI_FINAL);
-
         // Final matches
         r_final_round(2);   
-
-        // Create inserted block or planned delay.
-        g_insert_point(ID_IP_RG_FINAL);
-
 
 
         // -----------------------------------------------------------------------------------
