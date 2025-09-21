@@ -414,11 +414,11 @@ class PlanController extends Controller
             'ag.id'
         );
 
-        // und dann sortieren:
+        // sortieren: erst Gruppenstart, dann Activity-Start
         $q->orderBy('ag_min.group_first_start')
         ->orderBy('a.start');
 
-        return $q->orderBy('a.start')->selectRaw($select)->get();
+        return $q->selectRaw($select)->get();
     }
 
     //
