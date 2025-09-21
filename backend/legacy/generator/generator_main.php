@@ -557,37 +557,30 @@ function g_generator($plan_id) {
         // Organizer may chose not to show any presentations.
         // They can also decide to show them at the end 
 
+        // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
+        $r_time = clone $c_time;   
+
+    
         if (pp("c_presentations") == 0 || pp("c_presentations_last")) {
 
-            // No presentations at all or at the end. We run robot game finals first
-            $r_time = clone $c_time;
-
-            // Break for referees
+            // Break for referees and time to annouce advancing teams
             g_add_minutes($r_time, pp("r_duration_break"));
 
         } else {
-
+    
             // Research presentations on stage
-            g_add_minutes($c_time, pp("c_ready_presentations"));
+            g_add_minutes($r_time, pp("c_ready_presentations"));
             c_presentations();
-
-            // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
-            $r_time = clone $c_time;   
-
-            // Create inserted block or planned delay.
-            g_insert_point(ID_IP_PRESENTATIONS);
 
         }
 
+        // TODEL
         // Additional 5 minutes to show who advances and for those teams to get ready
-        g_add_minutes($r_time, pp("r_duration_results"));
+        // g_add_minutes($r_time, pp("r_duration_results"));
         
         // -----------------------------------------------------------------------------------
         /// Robot-game final rounds
         // -----------------------------------------------------------------------------------    
-
-        // Create inserted block or planned delay.
-        g_insert_point(ID_IP_RG_FINAL);
         
         // The DACH Finale is the only event running the round of best 16
         if(pp("g_finale") && pp("c_teams") >= 16) {
@@ -602,15 +595,15 @@ function g_generator($plan_id) {
         // Semi finale is a must
         r_final_round(4);
 
-
         // Create inserted block or planned delay. 
         g_insert_point(ID_IP_RG_SEMI_FINAL);
 
         // Final matches
         r_final_round(2);   
 
-        // back to only one action a time
-        $c_time = clone $r_time;
+        // Create inserted block or planned delay.
+        g_insert_point(ID_IP_RG_FINAL);
+
 
 
         // -----------------------------------------------------------------------------------
@@ -620,26 +613,24 @@ function g_generator($plan_id) {
         if ( pp("c_presentations") > 0 && pp("c_presentations_last") ) {
 
             // Research presentations on stage
-            g_add_minutes($c_time, pp("c_ready_presentations"));
+            g_add_minutes($r_time, pp("c_ready_presentations"));
             c_presentations();
 
-            // Create inserted block or planned delay.
-            g_insert_point(ID_IP_PRESENTATIONS);
-
         }
+
 
         // -----------------------------------------------------------------------------------
         // Awards
         // -----------------------------------------------------------------------------------  
+
+        // back to only one action a time
+        $c_time = clone $r_time;
 
         // FLL Challenge
         // Deliberations might have taken longer, which is unlikely
         if (g_diff_in_minutes($j_time, $c_time) > 0) {
             $c_time = clone $j_time;
         } 
-
-        // Create inserted block or planned delay.
-        g_insert_point(ID_IP_RG_FINAL);
 
         // FLL Explore
         // Deliberations might have taken longer. Which is rather theroritical ...

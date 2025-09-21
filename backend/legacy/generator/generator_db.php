@@ -411,7 +411,7 @@ function g_insert_point($id)
             'room_type' => $room_type,
         ]);
 
-        g_add_minutes($time, (int)$row->buffer_after);
+        g_add_minutes($time, (int)$row->duration + (int)$row->buffer_after);
     
     } else {
 
@@ -437,6 +437,10 @@ function g_insert_point($id)
                     g_add_minutes($time, pp('c_ready_robot_game'));
                 else    
                     g_add_minutes($time, pp('c_ready_awards'));
+                break;
+
+            case ID_IP_RG_SEMI_FINAL:
+                g_add_minutes($time, pp('r_duration_results'));
                 break;
 
             case ID_IP_RG_FINAL:

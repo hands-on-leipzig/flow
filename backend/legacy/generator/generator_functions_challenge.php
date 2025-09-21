@@ -356,7 +356,7 @@ function r_insert_one_round($round) {
 
 function c_presentations () {
 
-    global $c_time;
+    global $r_time;
 
     // Duration:
     // 5 minutes for each presentation
@@ -365,19 +365,13 @@ function c_presentations () {
 
     db_insert_activity_group(ID_ATD_C_PRESENTATIONS);
 
-    /* 2024 version: x-time 5 Minutes
-
-    for ($p = 1; $p <= pp("c_presentations"); $p++) {
-        db_insert_activity(ID_ATD_C_PRESENTATIONS, $c_time, pp("c_duration_presentation") );
-        g_add_minutes($c_time, pp("c_duration_presentation"));
-    }       
-
-    */
-
     $duration = pp("c_presentations") * pp("c_duration_presentation") + 5; // 5 minutes buffer for overruns
 
-    db_insert_activity(ID_ATD_C_PRESENTATIONS, $c_time, $duration );
-    g_add_minutes($c_time, $duration);
+    db_insert_activity(ID_ATD_C_PRESENTATIONS, $r_time, $duration );
+    g_add_minutes($r_time, $duration);
+
+    // Create inserted block or planned delay.
+    g_insert_point(ID_IP_PRESENTATIONS);
 
 } 
 
@@ -617,7 +611,7 @@ function r_final_round($team_count) {
             g_add_minutes($r_time, pp("r_duration_match"));
 
     }     
-
+/*
     if ($team_count <> 2) {
 
         // If robot check is on, the first match was delayed by the first check.
@@ -629,6 +623,7 @@ function r_final_round($team_count) {
         // Additional 5 minutes to show who advances and for those teams to get ready. Not needed after final.
         g_add_minutes($r_time, pp("r_duration_results"));
     }    
+*/
 
 }
 
