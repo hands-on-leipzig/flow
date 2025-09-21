@@ -405,11 +405,22 @@ function formatNumber(num) {
           </td>     
 
           <!-- Publication Level -->
-          <td class="px-3 py-2 text-right">
-            <template v-if="row.plan_id && row.publication_level !== null">
-              {{ row.publication_level }}
-            </template>
-            <template v-else>–</template>
+          <td class="px-3 py-2">
+            <span class="inline-flex items-center gap-1">
+              <!-- Icons -->
+              <span class="flex">
+                <span
+                  v-for="n in 4"
+                  :key="n"
+                  class="w-3 h-3 rounded-full mx-0.5"
+                  :class="n <= (row.publication_level || 0)
+                    ? 'bg-blue-600'
+                    : 'bg-gray-300'"
+                ></span>
+              </span>
+              <!-- Zahl -->
+              <span>{{ row.publication_level ?? '–' }}</span>
+            </span>
           </td>
 
           <!-- Publication Date -->
