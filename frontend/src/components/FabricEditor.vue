@@ -100,6 +100,9 @@ onBeforeUnmount(() => {
 
 function keyListener(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+    if (isEditingText()) {
+      return;
+    }
     e.preventDefault();
     paste();
     return;
@@ -108,7 +111,7 @@ function keyListener(e: KeyboardEvent) {
   const activeObj = canvas.getActiveObject();
   if (!activeObj) return;
 
-  if (activeObj.get('type') === 'textbox' && activeObj.isEditing) {
+  if (isEditingText()) {
     return;
   }
 
@@ -131,6 +134,11 @@ function keyListener(e: KeyboardEvent) {
     canvas.requestRenderAll();
     return;
   }
+}
+
+function isEditingText() {
+  const activeObj = canvas.getActiveObject();
+  return activeObj?.get('type') === 'textbox' && activeObj.isEditing;
 }
 
 async function loadImages() {
