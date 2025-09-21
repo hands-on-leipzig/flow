@@ -82,13 +82,13 @@ define('ID_ATD_E_FREE', 51);
 define('ID_ATD_C_FREE', 52);
 
 // Insert Points
-define('ID_IP_RG_1', 6);
-define('ID_IP_RG_2', 7);
-define('ID_IP_RG_3', 8);
-define('ID_IP_PRESENTATIONS', 1);
-define('ID_IP_RG_FINAL_ROUNDS', 2);
-define('ID_IP_RG_LAST_MATCHES', 4);
-define('ID_IP_AWARDS', 3);
+define('ID_IP_RG_TR', 6);
+define('ID_IP_RG_1', 7);
+define('ID_IP_RG_2', 8);
+define('ID_IP_RG_3', 1);
+define('ID_IP_PRESENTATIONS', 2);
+define('ID_IP_RG_SEMI_FINAL', 4);
+define('ID_IP_RG_FINAL', 3);
 
 // IDs from m_room_type
 define('ID_RT_R_MATCH', 1);
@@ -369,24 +369,11 @@ function db_insert_free_activities()
 // Insert an activity that delays the schedule
 function g_insert_point($id)
 {
-    global $c_time, $r_time;
+    global $r_time;
     global $g_activity_group;
 
-    switch ($id) {
-        case ID_IP_RG_1:
-        case ID_IP_RG_2:
-        case ID_IP_RG_3:
-        case ID_IP_RG_FINAL_ROUNDS:
-        case ID_IP_RG_LAST_MATCHES:    
-            $time = $r_time;
-            break;
-
-        case ID_IP_PRESENTATIONS:
-        case ID_IP_AWARDS:
-            $time = $c_time;
-            break;
-    }
-
+    $time = $r_time;  // Use r_time as current time to flexiby if c_time needs to be used in future situations
+    
     $row = DB::table('extra_block')
         ->select('id', 'buffer_before', 'duration', 'buffer_after')
         ->where('plan', pp('g_plan'))
@@ -428,9 +415,11 @@ function g_insert_point($id)
     
     } else {
 
+        // No extra block defined, just the respective normal shift
+
         switch ($id) {
+            case ID_IP_RG_TR:
             case ID_IP_RG_1:
-            case ID_IP_RG_3:
                 g_add_minutes($time, pp('r_duration_break'));
                 break;
 
@@ -438,11 +427,19 @@ function g_insert_point($id)
                 g_add_minutes($time, pp('r_duration_lunch'));
                 break;
 
-            case ID_IP_PRESENTATIONS:
+            case ID_IP_RG_3:
                 g_add_minutes($time, pp('c_ready_presentations'));
                 break;
+            
+            case ID_IP_PRESENTATIONS:
 
-            case ID_IP_AWARDS:
+                if (!pp("c_presentations_last"))
+                    g_add_minutes($time, pp('c_ready_robot_game'));
+                else    
+                    g_add_minutes($time, pp('c_ready_awards'));
+                break;
+
+            case ID_IP_RG_FINAL:
                 g_add_minutes($time, pp('c_ready_awards'));
                 break;
         }

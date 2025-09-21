@@ -567,17 +567,15 @@ function g_generator($plan_id) {
 
         } else {
 
-            // Create inserted block or planned delay.
-            g_insert_point(ID_IP_PRESENTATIONS);
-
-            // Rearch presentations on stage
-            c_presentations();
-
-            // back to robot game
+            // Research presentations on stage
             g_add_minutes($c_time, pp("c_ready_presentations"));
+            c_presentations();
 
             // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
             $r_time = clone $c_time;   
+
+            // Create inserted block or planned delay.
+            g_insert_point(ID_IP_PRESENTATIONS);
 
         }
 
@@ -589,7 +587,7 @@ function g_generator($plan_id) {
         // -----------------------------------------------------------------------------------    
 
         // Create inserted block or planned delay.
-        g_insert_point(ID_IP_RG_FINAL_ROUNDS);
+        g_insert_point(ID_IP_RG_FINAL);
         
         // The DACH Finale is the only event running the round of best 16
         if(pp("g_finale") && pp("c_teams") >= 16) {
@@ -606,7 +604,7 @@ function g_generator($plan_id) {
 
 
         // Create inserted block or planned delay. 
-        g_insert_point(ID_IP_RG_LAST_MATCHES);
+        g_insert_point(ID_IP_RG_SEMI_FINAL);
 
         // Final matches
         r_final_round(2);   
@@ -620,11 +618,14 @@ function g_generator($plan_id) {
         // -----------------------------------------------------------------------------------  
 
         if ( pp("c_presentations") > 0 && pp("c_presentations_last") ) {
+
+            // Research presentations on stage
+            g_add_minutes($c_time, pp("c_ready_presentations"));
+            c_presentations();
+
             // Create inserted block or planned delay.
             g_insert_point(ID_IP_PRESENTATIONS);
 
-            // Rearch presentations on stage
-            c_presentations($c_time);
         }
 
         // -----------------------------------------------------------------------------------
@@ -638,7 +639,7 @@ function g_generator($plan_id) {
         } 
 
         // Create inserted block or planned delay.
-        g_insert_point(ID_IP_AWARDS);
+        g_insert_point(ID_IP_RG_FINAL);
 
         // FLL Explore
         // Deliberations might have taken longer. Which is rather theroritical ...

@@ -320,7 +320,7 @@ function r_insert_one_round($round) {
     } // for each match in round
 
     // Four tables only: 
-    // When the last match is over, r_time is correct for another match, but not for the total duartion.
+    // When the last match is over, r_time is correct for another match, but not for the total duration.
     // We fix that.
     if (pp("r_tables") == 4 ) {
         g_add_minutes($r_time, $duration - pp("r_duration_next_start") );
