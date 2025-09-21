@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {Canvas, Rect, Textbox, FabricImage, Triangle, Circle} from 'fabric'
+import {Canvas, Rect, Textbox, FabricImage, Triangle, Circle, ActiveSelection, util} from 'fabric'
 import {onBeforeUnmount, onMounted, reactive, shallowRef, watch, ref, computed} from 'vue';
 import SvgIcon from '@jamescoyle/vue-icon';
 import {mdiFormatText, mdiRectangle, mdiImageArea, mdiQrcodePlus} from '@mdi/js';
@@ -99,12 +99,26 @@ onBeforeUnmount(() => {
 });
 
 function keyListener(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+    e.preventDefault();
+    paste();
+    return;
+  }
+
+  const activeObj = canvas.getActiveObject();
+  if (!activeObj) return;
+
+  if (activeObj.get('type') === 'textbox' && activeObj.isEditing) {
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+    e.preventDefault();
+    copy();
+    return;
+  }
+
   if ((e.key === 'Delete' || e.key === 'Backspace') && canvas?.getActiveObject()) {
-    const activeObj = canvas.getActiveObject();
-    if (activeObj.get('type') === 'textbox' && activeObj.isEditing) {
-      // Sonderfall: Textfeld wird gerade bearbeitet.
-      return;
-    }
     e.preventDefault();
 
     if (activeObj.get('type') === 'activeselection') {
@@ -115,6 +129,7 @@ function keyListener(e: KeyboardEvent) {
     }
     updateToolbar();
     canvas.requestRenderAll();
+    return;
   }
 }
 
@@ -344,6 +359,54 @@ function saveJson() {
     });
   }
 }
+
+async function copy() {
+  const activeObjects = canvas.getActiveObjects();
+  if (!activeObjects?.length) return;
+
+  const bbox = canvas.getActiveObject().getBoundingRect();
+  const data = {
+    bbox: { left: bbox.left, top: bbox.top },
+    objects: activeObjects.map(obj => obj.toObject()),
+  };
+
+  localStorage.setItem("fabric-clipboard", JSON.stringify(data));
+}
+
+async function paste() {
+  try {
+    const json = localStorage.getItem("fabric-clipboard");
+    if (!json) return;
+    const objectData = JSON.parse(json);
+    const objects = await util.enlivenObjects(objectData.objects);
+    const multiple = objects.length > 1;
+    for (const object of objects) {
+      const left = 10 + (multiple ? objectData.bbox?.left : 0) + (object?.left || 0);
+      const top = 10 + (multiple ? objectData.bbox?.top : 0) + (object.top || 0);
+      object.set({
+        left,
+        top,
+        ...defaultObjectProperties
+      });
+      canvas.add(object);
+    }
+
+    if (objects.length === 1) {
+      canvas.setActiveObject(objects[0]);
+    } else {
+      const sel = new ActiveSelection(objects, { canvas });
+      canvas.setActiveObject(sel);
+      sel.setCoords();
+    }
+
+    canvas.requestRenderAll();
+
+  } catch (e) {
+    // do nothing (paste with non valid JSON)
+    console.error(e);
+  }
+}
+
 </script>
 
 <template>
