@@ -486,42 +486,11 @@ class PlanController extends Controller
         ]);
     }
 
-
-
     public function actionNow(int $planId, Request $req): JsonResponse
     {
-        $eventDate = DB::table('event')
-            ->join('plan', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $planId)
-            ->value('event.date');
+        [$pivot, $rows] = $this->prepareActivities($planId, $req);
 
-        if (!$eventDate) {
-            return response()->json(['error' => 'Event not found'], 404);
-        }
-
-        $timeInput = $req->query('point_in_time'); // erwartet "HH:MM"
-        if ($timeInput) {
-            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'UTC');
-        } else {
-            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . now('Europe/Berlin')->format('H:i'), 'UTC');
-        }
-
-        // Erlaubte Rollen 14: Besucher Allgemein, 6: Besucher Challenge, 10: Besucher Explore
-        $role = $req->query('role', 14);
-        if (!is_numeric($role) || ((int)$role != 14 && (int)$role != 6 && (int)$role != 10)) {
-            $role = 14; // Default: Publikum
-        }
-
-        $rows = $this->fetchActivities(
-            $planId,
-            includeRooms: true,
-            includeGroupMeta: true,
-            includeActivityMeta: true
-        );
-
-        $interval = (int) $req->query('interval', 30);
-
-        $rows = $rows->filter(function ($r) use ($pivot, $interval) {
+        $rows = $rows->filter(function ($r) use ($pivot) {
             $start = Carbon::parse($r->start_time);
             $end   = Carbon::parse($r->end_time);
 
@@ -530,38 +499,10 @@ class PlanController extends Controller
 
         return response()->json($this->groupActivitiesForApi($planId, $rows));
     }
-  
+
     public function actionNext(int $planId, Request $req): JsonResponse
     {
-        // Event-Datum holen
-        $eventDate = DB::table('event')
-            ->join('plan', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $planId)
-            ->value('event.date');
-
-        if (!$eventDate) {
-            return response()->json(['error' => 'Event not found'], 404);
-        }
-
-        $timeInput = $req->query('point_in_time'); // erwartet "HH:MM"
-        if ($timeInput) {
-            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'UTC');
-        } else {
-            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . now('Europe/Berlin')->format('H:i'), 'UTC');
-        }
-
-        // Erlaubte Rollen 14: Besucher Allgemein, 6: Besucher Challenge, 10: Besucher Explore
-        $role = $req->query('role', 14);
-        if (!is_numeric($role) || ((int)$role != 14 && (int)$role != 6 && (int)$role != 10)) {
-            $role = 14; // Default: Publikum
-        }
-
-        $rows = $this->fetchActivities(
-            $planId,
-            includeRooms: true,
-            includeGroupMeta: true,
-            includeActivityMeta: true
-            );
+        [$pivot, $rows] = $this->prepareActivities($planId, $req);
 
         $interval = (int) $req->query('interval', 30);
 
@@ -576,8 +517,40 @@ class PlanController extends Controller
     }
 
     /**
-     * Gemeinsame Gruppierung + Ausgabeform für now/next.
+     * Gemeinsame Selektion und Ausgabeform für now/next.
      */
+
+    private function prepareActivities(int $planId, Request $req)
+    {
+        // Event-Datum holen
+        $eventDate = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->value('event.date');
+
+        if (!$eventDate) {
+            abort(404, 'Event not found');
+        }
+
+        // Uhrzeit aus Request holen
+        $timeInput = $req->query('point_in_time'); // erwartet "HH:MM"
+        if ($timeInput) {
+            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'UTC');
+        } else {
+            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . now('Europe/Berlin')->format('H:i'), 'UTC');
+        }
+
+        // Activities laden
+        $rows = $this->fetchActivities(
+            $planId,
+            includeRooms: true,
+            includeGroupMeta: true,
+            includeActivityMeta: true
+        );
+
+        return [$pivot, $rows];
+    }
+
     private function groupActivitiesForApi(int $planId, $rows): array
     {
         $groups = [];
