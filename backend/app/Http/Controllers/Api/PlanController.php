@@ -490,7 +490,6 @@ class PlanController extends Controller
 
     public function actionNow(int $planId, Request $req): JsonResponse
     {
-        // Event-Datum holen
         $eventDate = DB::table('event')
             ->join('plan', 'plan.event', '=', 'event.id')
             ->where('plan.id', $planId)
@@ -500,28 +499,33 @@ class PlanController extends Controller
             return response()->json(['error' => 'Event not found'], 404);
         }
 
-        // Uhrzeit aus Request holen
         $timeInput = $req->query('point_in_time'); // erwartet "HH:MM"
         if ($timeInput) {
-            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'Europe/Berlin');
+            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'UTC');
         } else {
-            $pivot = now('Europe/Berlin');
+            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . now('Europe/Berlin')->format('H:i'), 'UTC');
         }
 
-        $interval = (int) $req->query('interval', 60);
-        $from  = (clone $pivot);
-        $to    = (clone $pivot)->addMinutes($interval);
+        // Erlaubte Rollen 14: Besucher Allgemein, 6: Besucher Challenge, 10: Besucher Explore
+        $role = $req->query('role', 14);
+        if (!is_numeric($role) || ((int)$role != 14 && (int)$role != 6 && (int)$role != 10)) {
+            $role = 14; // Default: Publikum
+        }
 
         $rows = $this->fetchActivities(
             $planId,
-            includeRooms: false,
+            includeRooms: true,
             includeGroupMeta: true,
             includeActivityMeta: true
         );
 
-        $rows = $rows->filter(function ($r) use ($from, $to) {
-            $s = Carbon::parse($r->start_time, 'UTC');
-            return $s >= $from && $s < $to;
+        $interval = (int) $req->query('interval', 30);
+
+        $rows = $rows->filter(function ($r) use ($pivot, $interval) {
+            $start = Carbon::parse($r->start_time);
+            $end   = Carbon::parse($r->end_time);
+
+            return $start <= $pivot && $end >= $pivot;
         });
 
         return response()->json($this->groupActivitiesForApi($planId, $rows));
@@ -539,37 +543,33 @@ class PlanController extends Controller
             return response()->json(['error' => 'Event not found'], 404);
         }
 
-        // Uhrzeit aus Request holen
         $timeInput = $req->query('point_in_time'); // erwartet "HH:MM"
         if ($timeInput) {
-            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'Europe/Berlin');
+            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'UTC');
         } else {
-            $pivot = now('Europe/Berlin');
+            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . now('Europe/Berlin')->format('H:i'), 'UTC');
         }
 
-        $interval = (int) $req->query('interval', 30);
-        $from = $pivot->copy();
-        $to   = $pivot->copy()->addMinutes($interval);
+        // Erlaubte Rollen 14: Besucher Allgemein, 6: Besucher Challenge, 10: Besucher Explore
+        $role = $req->query('role', 14);
+        if (!is_numeric($role) || ((int)$role != 14 && (int)$role != 6 && (int)$role != 10)) {
+            $role = 14; // Default: Publikum
+        }
 
         $rows = $this->fetchActivities(
             $planId,
             includeRooms: true,
             includeGroupMeta: true,
-            includeActivityMeta: true,
-            includeTeamNames: true
-        );
+            includeActivityMeta: true
+            );
 
-        $allowedAtdIds = DB::table('m_visibility')
-            ->where('role', 14)
-            ->pluck('activity_type_detail')
-            ->unique()
-            ->all();
+        $interval = (int) $req->query('interval', 30);
 
-        $rows = $rows->filter(fn($r) => in_array((int)$r->activity_type_detail_id, $allowedAtdIds, true));
+        $rows = $rows->filter(function ($r) use ($pivot, $interval) {
+            $start = Carbon::parse($r->start_time);
+            $end   = Carbon::parse($r->end_time);
 
-        $rows = $rows->filter(function ($r) use ($from, $to) {
-            $s = Carbon::parse($r->start_time);
-            return $s >= $from && $s < $to;
+            return $start >= $pivot && $end <= (clone $pivot)->addMinutes($interval);
         });
 
         return response()->json($this->groupActivitiesForApi($planId, $rows));
