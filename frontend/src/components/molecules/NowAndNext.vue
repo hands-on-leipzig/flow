@@ -3,11 +3,11 @@ import { ref } from 'vue'
 import axios from 'axios'
 
 import { formatTimeOnly } from '@/utils/dateTimeFormat'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
 // Inputs
-const planId = ref('9333')
+const planId = ref('6')
 const usePoint = ref(true)
-const dateStr = ref('2026-01-16')   // YYYY-MM-DD
 const timeStr = ref('11:00')   // HH:mm
 const intervalMin = ref(60)
 
@@ -18,9 +18,9 @@ const result = ref(null)
 
 function buildPointInTimeParam() {
   if (!usePoint.value) return {}
-  if (!dateStr.value || !timeStr.value) return {}
-  // Wir schicken „YYYY-MM-DD HH:mm“ – Backend parst in UTC
-  return { point_in_time: `${dateStr.value} ${timeStr.value}` }
+  if (!timeStr.value) return {}
+  // Nur Uhrzeit senden – Backend ergänzt Datum
+  return { point_in_time: timeStr.value }
 }
 
 async function callNow() {
@@ -32,6 +32,7 @@ async function callNow() {
     const params = buildPointInTimeParam()
     const { data } = await axios.get(`/plans/action-now/${planId.value}`, { params })
     result.value = data
+    console.log('data:', data)
   } catch (e) {
     console.error(e)
     error.value = 'Fehler beim Abruf von now()).'
@@ -59,7 +60,7 @@ async function callNext() {
 
 
 
-// bleibt wie gehabt – wird noch genutzt
+
 const padTeam = (n: any) =>
   typeof n === 'number' || /^\d+$/.test(String(n))
     ? String(Number(n)).padStart(2, '0')
@@ -72,7 +73,7 @@ const teamLabel = (name?: string | null, num?: any) => {
   return ''
 }
 
-// neu: zerlegt "mit wem/wo" in (rechts in Zeile 2) und (Teams in Zeile 3)
+
 const splitWith = (a: any) => {
   const roomName: string | null = a?.room?.room_name ?? a?.room_name ?? null
 
@@ -114,6 +115,7 @@ function openPreview(id: string | number) {
 
 <template>
   <div class="space-y-4">
+
     <!-- Controls -->
     <div class="flex flex-wrap items-end gap-3">
       <div>
@@ -131,31 +133,26 @@ function openPreview(id: string | number) {
       <div class="flex items-center gap-2">
         <label class="text-sm">
           <input type="checkbox" v-model="usePoint" class="mr-1" />
-          point_in_time setzen
+          Aktuelle Uhrzeit übersteuern
         </label>
       </div>
 
       <div v-if="usePoint" class="flex items-end gap-3">
         <div>
-          <label class="block text-xs text-gray-500 mb-1">Datum</label>
-          <input type="date" v-model="dateStr" class="border rounded px-2 py-1" />
-        </div>
-        <div>
-          <label class="block text-xs text-gray-500 mb-1">Uhrzeit (lokal)</label>
+          <label class="block text-xs text-gray-500 mb-1">Uhrzeit im Plan</label>
           <input type="time" v-model="timeStr" class="border rounded px-2 py-1" />
         </div>
       </div>
-     <button @click="callNow" class="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">
-          actionNow
+
+      <button @click="callNow" class="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">
+        actionNow
       </button>
-      
 
       <div class="flex items-end gap-2">
-   
         <div>
-        <label class="block text-xs text-gray-500 mb-1">Intervall (min)</label>
-        <input type="number" min="1" v-model.number="intervalMin" class="border rounded px-2 py-1 w-24" />
-      </div>
+          <label class="block text-xs text-gray-500 mb-1">Intervall (min)</label>
+          <input type="number" min="1" v-model.number="intervalMin" class="border rounded px-2 py-1 w-24" />
+        </div>
         <button @click="callNext" class="px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700">
           actionNext
         </button>
