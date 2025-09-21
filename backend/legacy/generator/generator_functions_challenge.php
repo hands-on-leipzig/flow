@@ -319,6 +319,13 @@ function r_insert_one_round($round) {
 
     } // for each match in round
 
+    // With robot check, the next start is for robot-check, not the match itself.
+    // Thus we need to add the match duration here.
+
+    if (pp("r_robot_check")) {
+        g_add_minutes($r_time, pp("r_duration_robot_check"));
+    }
+
     // Four tables only: 
     // When the last match is over, r_time is correct for another match, but not for the total duration.
     // We fix that.
@@ -350,13 +357,13 @@ function r_insert_one_round($round) {
             g_insert_point(ID_IP_RG_3);
     }
 
+    /*
     // With robot check the rounds start with the checkers, not with the referees.
     // Thus we can take the duration out for the start of the next action.
     if (pp("r_robot_check")) {
         g_add_minutes($r_time, -1 * pp("r_duration_robot_check"));
     }
-
-
+*/
 }
 
 function c_presentations () {
@@ -608,7 +615,7 @@ function r_final_round($team_count) {
 
             // If robot check is on, the match was delayed by the first check.
             // Need to add that time before going on
-            if (pp("r_robot_check")) {
+            if (pp("_2")) {
                 g_add_minutes($r_time, pp("r_duration_robot_check"));
             }
 
@@ -621,7 +628,7 @@ function r_final_round($team_count) {
 
         // If robot check is on, the first match was delayed by the first check.
         // Need to add that time before going on
-        if (pp("r_robot_check")) {
+        if (pp("r_robot_check_2")) {
             g_add_minutes($r_time, pp("r_duration_robot_check"));
         }
 
