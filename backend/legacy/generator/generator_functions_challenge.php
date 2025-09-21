@@ -326,13 +326,8 @@ function r_insert_one_round($round) {
         g_add_minutes($r_time, $duration - pp("r_duration_next_start") );
     }
 
-    // With robot check the rounds start with the checkers, not with teh referees.
-    // Thus we can take the duration out for the start of the next action.
-    if (pp("r_robot_check")) {
-        g_add_minutes($r_time, -1 * pp("r_duration_robot_check"));
-    }
-
     // Create inserted block or break before NEXT round.
+    // This needs the current r_time 
     switch ($round) {
         case 0:
             g_insert_point(ID_IP_RG_1);
@@ -349,6 +344,13 @@ function r_insert_one_round($round) {
         case 2:
             g_insert_point(ID_IP_RG_3);
     }
+
+    // With robot check the rounds start with the checkers, not with the referees.
+    // Thus we can take the duration out for the start of the next action.
+    if (pp("r_robot_check")) {
+        g_add_minutes($r_time, -1 * pp("r_duration_robot_check"));
+    }
+
 
 }
 

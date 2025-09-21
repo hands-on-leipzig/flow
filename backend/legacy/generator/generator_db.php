@@ -333,59 +333,6 @@ function db_insert_activity(
     }
 }
 
-function db_get_duration_inserted_activity($insert_point)
-{
-    $row = DB::table('extra_block')
-        ->select('buffer_before', 'duration', 'buffer_after')
-        ->where('plan', pp('g_plan'))
-        ->where('insert_point', $insert_point)
-        ->first();
-
-    if (!$row) return 0;
-
-    return (int)$row->buffer_before + (int)$row->duration + (int)$row->buffer_after;
-}
-
-function db_insert_extra_activity($activity_type_detail, $time, $insert_point)
-{
-    global $g_activity_group;
-
-    // Read extra block
-    $row = DB::table('extra_block')
-        ->select('id', 'buffer_before', 'duration', 'buffer_after')
-        ->where('plan', pp('g_plan'))
-        ->where('insert_point', $insert_point)
-        ->first();
-
-    if (!$row) return;
-
-    // Read room_type from m_insert_point
-    $insert_point_row = DB::table('m_insert_point')
-        ->select('room_type')
-        ->where('id', $insert_point)
-        ->first();
-
-    $room_type = $insert_point_row ? $insert_point_row->room_type : null;
-
-    $time_start = clone $time;
-    g_add_minutes($time_start, (int)$row->buffer_before);
-
-    $time_end = clone $time_start;
-    g_add_minutes($time_end, (int)$row->duration);
-
-    $start = $time_start->format('Y-m-d H:i:s');
-    $end = $time_end->format('Y-m-d H:i:s');
-
-    DB::table('activity')->insertGetId([
-        'activity_group' => $g_activity_group,
-        'activity_type_detail' => $activity_type_detail,
-        'start' => $start,
-        'end' => $end,
-        'extra_block' => (int)$row->id,
-        'room_type' => $room_type,
-    ]);
-}
-
 function db_insert_free_activities()
 {
     // Free blocks with fixed times
@@ -423,8 +370,7 @@ function db_insert_free_activities()
 function g_insert_point($id)
 {
     global $c_time, $r_time;
-
-    $time = new DateTime();
+    global $g_activity_group;
 
     switch ($id) {
         case ID_IP_RG_1:
@@ -441,13 +387,47 @@ function g_insert_point($id)
             break;
     }
 
-    $duration = db_get_duration_inserted_activity($id);
+    $row = DB::table('extra_block')
+        ->select('id', 'buffer_before', 'duration', 'buffer_after')
+        ->where('plan', pp('g_plan'))
+        ->where('insert_point', $id)
+        ->first();
 
-    if ($duration > 0) {
+    if ($row) {
+    
         db_insert_activity_group(ID_ATD_C_INSERTED);
-        db_insert_extra_activity(ID_ATD_C_INSERTED, $time, $id);
-        g_add_minutes($time, $duration);
+
+        // Read room_type from m_insert_point
+        $insert_point_row = DB::table('m_insert_point')
+            ->select('room_type')
+            ->where('id', $id)
+            ->first();
+
+        $room_type = $insert_point_row ? $insert_point_row->room_type : null;
+
+        g_add_minutes($time, (int)$row->buffer_before);
+
+        $time_start = clone $time;
+        $time_end = clone $time;
+
+        g_add_minutes($time_end, (int)$row->duration);
+
+        $start = $time_start->format('Y-m-d H:i:s');
+        $end = $time_end->format('Y-m-d H:i:s');
+
+        DB::table('activity')->insertGetId([
+            'activity_group' => $g_activity_group,
+            'activity_type_detail' => ID_ATD_C_INSERTED,
+            'start' => $start,
+            'end' => $end,
+            'extra_block' => (int)$row->id,
+            'room_type' => $room_type,
+        ]);
+
+        g_add_minutes($time, (int)$row->buffer_after);
+    
     } else {
+
         switch ($id) {
             case ID_IP_RG_1:
             case ID_IP_RG_3:
