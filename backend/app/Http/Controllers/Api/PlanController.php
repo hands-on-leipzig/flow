@@ -270,13 +270,14 @@ class PlanController extends Controller
 
 
     private function fetchActivities(
-    int $plan,
-    bool $includeRooms = false,
-    bool $includeGroupMeta = false,
-    bool $includeActivityMeta = false,
-    bool $includeTeamNames = false,
-    bool $freeBlocks = true   // NEU: default = true
-    ) {
+        int $plan,
+        array $roles = [],                
+        bool $includeRooms = false,
+        bool $includeGroupMeta = false,
+        bool $includeActivityMeta = false,
+        bool $includeTeamNames = false,
+        bool $freeBlocks = true
+        ) {
 
         $q = DB::table('activity as a')
             ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
@@ -285,6 +286,15 @@ class PlanController extends Controller
             ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
             ->join('plan as p', 'p.id', '=', 'ag.plan')
             ->where('ag.plan', $plan);
+
+        // Rollen-Filter (optional)
+        if (!empty($roles)) {
+            $q->whereIn('atd.id', function ($sub) use ($roles) {
+                $sub->select('activity_type_detail')
+                    ->from('m_visibility')
+                    ->whereIn('role', $roles);
+            });
+        }
 
         // Free-Blocks filtern (optional)
         if (!$freeBlocks) {
@@ -529,9 +539,18 @@ class PlanController extends Controller
             $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . now('Europe/Berlin')->format('H:i'), 'UTC');
         }
 
+        // Erlaubte Rollen 14: Besucher Allgemein, 6: Besucher Challenge, 10: Besucher Explore
+        $role = $req->query('role', 14);
+        if (!is_numeric($role) || ((int)$role != 14 && (int)$role != 6 && (int)$role != 10)) {
+            $role = 14; // Default: Publikum
+        }
+
+        $roles = [(int)$role];
+
         // Activities laden
         $rows = $this->fetchActivities(
             $planId,
+            $roles,                // Array mit genau 1 Rolle
             includeRooms: true,
             includeGroupMeta: true,
             includeActivityMeta: true
