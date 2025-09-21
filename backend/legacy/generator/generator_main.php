@@ -295,7 +295,7 @@ function g_generator($plan_id) {
 
         // g_debug_timing("Los geht's", $c_block, $r_start_shift);
 
-        // For judging team number are used in increasing order
+        // For judging team numbers are used in increasing order
         // $j_t is the first team in the block. The lane number is added to this.
         $j_t = 0;
 
@@ -304,6 +304,9 @@ function g_generator($plan_id) {
 
         // Create the blocks of judging with robot game aligned
         for ($c_block = 1; $c_block <= pp("j_rounds"); $c_block++) {
+
+            g_debug_log(1, "Block " . $c_block . " of " . pp("j_rounds"));
+
 
             // Adjust timing between judging and robot game
 
@@ -321,20 +324,21 @@ function g_generator($plan_id) {
             // Calculate forward from start of the round:
             // 1 or 2 lanes = 1 match
             // 3 or 4 lanes = 2 matches
-            // 5 or 5 lanes = 3 matches 
+            // 5 or 6 lanes = 3 matches 
 
-            // The calculation of a4j = available for judging is done after the start of robot game is determined below
+            // The calculation of a4j = "available for judging" is down below
             // Here the value of the last block is used.    
 
             // Delay judging if needed
             if (g_diff_in_minutes($j_time_earliest, $j_time) > 0) {
+                g_debug_log(0, "Judging delayed from " . $j_time->format('H:i') . " to " . $j_time_earliest->format('H:i')  );
                 $j_time = clone $j_time_earliest;
             }
 
             // Key concept 2: teams at judging are last in CURRENT robot game round
             //
             // time to match = when will be need the team for their robot game match?
-            // The teams at judging go last in the current robot game round.
+            // 
             // Calculate backwards from end of the round:
             // 1 or 2 lanes = 1 match
             // 3 or 4 lanes = 2 matches
