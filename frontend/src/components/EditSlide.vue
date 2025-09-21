@@ -14,12 +14,14 @@ const props = defineProps<{
 
 const slide = ref<Slide | null>(null);
 
+const settingsSlideTypes = ['RobotGameSlideContent', 'PublicPlanSlideContent', 'UrlSlideContent'];
+
 const hasSettings = computed<boolean>(() => {
   if (!slide.value) {
     return false;
   }
   const type = slide.value.type;
-  return type === 'RobotGameSlideContent' || type === 'PublicPlanSlideContent';
+  return settingsSlideTypes.includes(type);
 })
 
 onMounted(loadSlide);
@@ -106,6 +108,18 @@ function saveSlide() {
           </div>
         </div>
 
+      </div>
+      <div v-if="slide.type === 'UrlSlideContent'">
+        <!-- URL -->
+        <label class="text-sm font-medium pl-2">URL</label>
+        <InfoPopover text="Die Website, die auf der Folie angezeigt werden soll."/>
+        &nbsp;
+        <input
+            class="mt-1 w-80 border rounded px-2 py-1"
+            type="text"
+            :value="slide.content.url"
+            @input="updateByName('url', ($event.target as HTMLInputElement).value || '')"
+        />
       </div>
     </div>
 

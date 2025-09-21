@@ -99,6 +99,16 @@ onBeforeUnmount(() => {
 });
 
 function keyListener(e: KeyboardEvent) {
+
+  // Don't interfere with typing in form fields
+  const target = e.target;
+  const isInput =
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable;
+
+  if (isInput) return;
+
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
     if (isEditingText()) {
       return;
