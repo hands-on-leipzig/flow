@@ -16,8 +16,18 @@ class StatisticController extends Controller
         $records = DB::table('regional_partner')
             ->leftJoin('event', 'event.regional_partner', '=', 'regional_partner.id')
             ->leftJoin('plan', 'plan.event', '=', 'event.id')
+            ->leftJoin(DB::raw('(
+                SELECT p.event, p.level, p.created_at, p.updated_at
+                FROM publication p
+                INNER JOIN (
+                    SELECT event, MAX(updated_at) as max_updated
+                    FROM publication
+                    GROUP BY event
+                ) latest
+                ON p.event = latest.event AND p.updated_at = latest.max_updated
+            ) as pub'), 'pub.event', '=', 'event.id')
             ->join('m_season', 'event.season', '=', 'm_season.id')
-            ->where('regional_partner.id', '!=', 98)                    // Test-RP ausschließen. TODO
+            ->where('regional_partner.name', 'not like', '%QPlan RP%')
             ->select([
                 // RP
                 'regional_partner.id as partner_id',
@@ -42,6 +52,11 @@ class StatisticController extends Controller
                 'plan.name as plan_name',
                 'plan.created as plan_created',
                 'plan.last_change as plan_last_change',
+
+                // Publication
+                'pub.level as publication_level',
+                'pub.created_at as publication_date',
+                'pub.updated_at as publication_last_change',
             ])
             ->get();
 
@@ -109,6 +124,9 @@ class StatisticController extends Controller
                     'plan_created' => $row->plan_created,
                     'plan_last_change' => $row->plan_last_change,
                     'generator_stats' => $genStatsRaw[$row->plan_id]->count ?? null,
+                    'publication_level' => $row->publication_level,
+                    'publication_date' => $row->publication_date,
+                    'publication_last_change' => $row->publication_last_change,
                 ];
             }
         }

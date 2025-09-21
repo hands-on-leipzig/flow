@@ -154,6 +154,9 @@ const flattenedRows = computed(() => {
           plan_created: plan.plan_created,
           plan_last_change: plan.plan_last_change,
           generator_stats: plan.generator_stats ?? null,
+          publication_level: plan.publication_level ?? null,
+          publication_date: plan.publication_date ?? null,
+          publication_last_change: plan.publication_last_change ?? null,
         })
       }
     }
@@ -283,6 +286,9 @@ function formatNumber(num) {
             <th class="px-3 py-2">Erstellt</th>
             <th class="px-3 py-2">Letzte Änderung</th>
             <th class="px-3 py-2">Generierungen</th>
+            <th class="px-3 py-2">Publikations-Level</th>
+            <th class="px-3 py-2">Publiziert</th>
+            <th class="px-3 py-2">Letzte Änderung</th>
           </tr>
         </thead>
         <tbody>
@@ -397,6 +403,33 @@ function formatNumber(num) {
               –
             </template>
           </td>     
+
+          <!-- Publication Level -->
+          <td class="px-3 py-2 text-right">
+            <template v-if="row.plan_id && row.publication_level !== null">
+              {{ row.publication_level }}
+            </template>
+            <template v-else>–</template>
+          </td>
+
+          <!-- Publication Date -->
+          <td class="px-3 py-2">
+            <template v-if="row.plan_id && row.publication_date">
+              {{ formatDateTime(row.publication_date) }}
+            </template>
+            <template v-else>–</template>
+          </td>
+
+          <!-- Publication Last Change -->
+          <td class="px-3 py-2">
+            <template v-if="row.plan_id && row.publication_last_change">
+              {{ formatDateTime(row.publication_last_change) }}
+            </template>
+            <template v-else>–</template>
+          </td>
+
+
+
 
         </tr>
 
