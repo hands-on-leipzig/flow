@@ -323,14 +323,16 @@ function r_insert_one_round($round) {
     // When the last match is over, r_time is correct for another match, but not for the total duration.
     // We fix that.
     if (pp("r_tables") == 4 ) {
-        g_add_minutes($r_time, $duration - pp("r_duration_next_start") );
+
+        g_add_minutes($r_time, $duration - pp("r_duration_next_start")  );
+        
     }
 
     // Create inserted block or break before NEXT round.
     // This needs the current r_time 
     switch ($round) {
         case 0:
-            g_insert_point(ID_IP_RG_1);
+            g_insert_point(ID_IP_RG_TR);
             break;
         case 1:
             if ( pp("e_mode") == ID_E_MORNING || pp("e_mode") == ID_E_AFTERNOON ) {
@@ -338,10 +340,13 @@ function r_insert_one_round($round) {
                 e_integrated();
             } else {
                 // independent lunch
-                g_insert_point(ID_IP_RG_2);
+                g_insert_point(ID_IP_RG_1);
             }
             break;
         case 2:
+            g_insert_point(ID_IP_RG_2);
+            break;
+        case 3:
             g_insert_point(ID_IP_RG_3);
     }
 
