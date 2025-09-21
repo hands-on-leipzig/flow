@@ -319,23 +319,27 @@ function r_insert_one_round($round) {
 
     } // for each match in round
 
-    // Four tables only: 
-    // When the last match is over, r_time is correct for another match, but not for the total duartion.
-    // We fix that.
-    if (pp("r_tables") == 4 ) {
-        g_add_minutes($r_time, $duration - pp("r_duration_next_start") );
+    // With robot check, the next start is for robot-check, not the match itself.
+    // Thus we need to add the match duration here.
+
+    if (pp("r_robot_check")) {
+        g_add_minutes($r_time, pp("r_duration_robot_check"));
     }
 
-    // With robot check the rounds start with the checkers, not with teh referees.
-    // Thus we can take the duration out for the start of the next action.
-    if (pp("r_robot_check")) {
-        g_add_minutes($r_time, -1 * pp("r_duration_robot_check"));
+    // Four tables only: 
+    // When the last match is over, r_time is correct for another match, but not for the total duration.
+    // We fix that.
+    if (pp("r_tables") == 4 ) {
+
+        g_add_minutes($r_time, pp("r_duration_match") - pp("r_duration_next_start")  );
+        
     }
 
     // Create inserted block or break before NEXT round.
+    // This needs the current r_time 
     switch ($round) {
         case 0:
-            g_insert_point(ID_IP_RG_1);
+            g_insert_point(ID_IP_RG_TR, pp("r_duration_break"));
             break;
         case 1:
             if ( pp("e_mode") == ID_E_MORNING || pp("e_mode") == ID_E_AFTERNOON ) {
@@ -343,18 +347,28 @@ function r_insert_one_round($round) {
                 e_integrated();
             } else {
                 // independent lunch
-                g_insert_point(ID_IP_RG_2);
+                g_insert_point(ID_IP_RG_1, pp("r_duration_lunch"));
             }
             break;
         case 2:
-            g_insert_point(ID_IP_RG_3);
+            g_insert_point(ID_IP_RG_2, pp("r_duration_break"));
+            break;
+        case 3:
+            g_insert_point(ID_IP_RG_3, pp("r_duration_results"));
     }
 
+    /* TODO: Check if needed
+    // With robot check the rounds start with the checkers, not with the referees.
+    // Thus we can take the duration out for the start of the next action.
+    if (pp("r_robot_check")) {
+        g_add_minutes($r_time, -1 * pp("r_duration_robot_check"));
+    
+        */
 }
 
 function c_presentations () {
 
-    global $c_time;
+    global $r_time;
 
     // Duration:
     // 5 minutes for each presentation
@@ -363,19 +377,18 @@ function c_presentations () {
 
     db_insert_activity_group(ID_ATD_C_PRESENTATIONS);
 
-    /* 2024 version: x-time 5 Minutes
-
-    for ($p = 1; $p <= pp("c_presentations"); $p++) {
-        db_insert_activity(ID_ATD_C_PRESENTATIONS, $c_time, pp("c_duration_presentation") );
-        g_add_minutes($c_time, pp("c_duration_presentation"));
-    }       
-
-    */
-
     $duration = pp("c_presentations") * pp("c_duration_presentation") + 5; // 5 minutes buffer for overruns
 
-    db_insert_activity(ID_ATD_C_PRESENTATIONS, $c_time, $duration );
-    g_add_minutes($c_time, $duration);
+    db_insert_activity(ID_ATD_C_PRESENTATIONS, $r_time, $duration );
+    g_add_minutes($r_time, $duration);
+
+    // Create inserted block or planned delay.
+
+    if( !pp("c_presentations_last") )
+        g_insert_point(ID_IP_PRESENTATIONS, pp("c_ready_presentations")); // back to robot game
+    else {
+        g_insert_point(ID_IP_PRESENTATIONS, pp("c_ready_awards")); // to awards
+    }
 
 } 
 
@@ -493,6 +506,15 @@ function r_final_round($team_count) {
             r_insert_one_match($r_time, pp("r_duration_match"), 3, 0, 4, 0, pp("r_robot_check_16"));
             g_add_minutes($r_time, pp("r_duration_match"));
 
+            // If robot check is on, the match was delayed by the first check.
+            // Need to add that time before going on
+            if (pp("r_robot_check_16")) {
+                g_add_minutes($r_time, pp("r_duration_robot_check"));
+            }
+
+            // Additional 5 minutes to show who advances and for those teams to get ready. 
+            g_add_minutes($r_time, pp("r_duration_results"));
+
             break;
 
         case 8:    
@@ -531,6 +553,15 @@ function r_final_round($team_count) {
                 g_add_minutes($r_time, pp("r_duration_match"));
 
             }
+
+            // If robot check is on, the match was delayed by the first check.
+            // Need to add that time before going on
+            if (pp("r_robot_check_8")) {
+                g_add_minutes($r_time, pp("r_duration_robot_check"));
+            }
+
+            // Additional 5 minutes to show who advances and for those teams to get ready.
+            g_add_minutes($r_time, pp("r_duration_results"));
 
             break;
 
@@ -594,6 +625,15 @@ function r_final_round($team_count) {
                 }
 
             }
+            
+            // If robot check is on, the match was delayed by the first check.
+            // Need to add that time before going on
+            if (pp("r_robot_check_4")) {
+                g_add_minutes($r_time, pp("r_duration_robot_check"));
+            }
+            
+            // Create inserted block or planned delay. 
+            g_insert_point(ID_IP_RG_SEMI_FINAL, pp("r_duration_results"));
 
             break;
 
@@ -607,26 +647,17 @@ function r_final_round($team_count) {
 
             // If robot check is on, the match was delayed by the first check.
             // Need to add that time before going on
-            if (pp("r_robot_check")) {
+            if (pp("r_robot_check_2")) {
                 g_add_minutes($r_time, pp("r_duration_robot_check"));
             }
 
             r_insert_one_match($r_time, pp("r_duration_match"), 1, 0, 2, 0, false); // only match without robot check
             g_add_minutes($r_time, pp("r_duration_match"));
 
+            // Create inserted block or planned delay.
+            g_insert_point(ID_IP_RG_FINAL, pp("c_ready_awards"));
+
     }     
-
-    if ($team_count <> 2) {
-
-        // If robot check is on, the first match was delayed by the first check.
-        // Need to add that time before going on
-        if (pp("r_robot_check")) {
-            g_add_minutes($r_time, pp("r_duration_robot_check"));
-        }
-
-        // Additional 5 minutes to show who advances and for those teams to get ready. Not needed after final.
-        g_add_minutes($r_time, pp("r_duration_results"));
-    }    
 
 }
 

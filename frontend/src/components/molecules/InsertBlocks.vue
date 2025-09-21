@@ -309,7 +309,7 @@ defineExpose({
     
     <div class="px-4 py-3 border-b border-gray-100">
       <h3 class="text-sm font-semibold text-gray-700">
-        Die Blöcke werden vor den Einfügepunkten eingeschoben.
+        Die Blöcke werden <em>nach</em> dem angegebenen Zeitpunkt eingeschoben.
       </h3>
       <p class="text-xs text-gray-500 mt-1">
         Diese Blöcke verändern direkt die Zeiten im Robot-Game. Die Jury-Runden werden davon nur indirekt beeinflusst. 
@@ -322,7 +322,7 @@ defineExpose({
           <th class="text-left px-4 py-2 w-64">Zeitpunkt</th>
           <th class="text-center px-2 py-2 w-20">Davor</th>
           <th class="text-center px-2 py-2 w-20">Dauer</th>
-          <th class="text-center px-2 py-2 w-20">Nach</th>
+          <th class="text-center px-2 py-2 w-20">Danach</th>
           <th class="text-left px-2 py-2">Titel</th>
           <th class="text-left px-2 py-2">Beschreibung</th>
           <th class="text-left px-2 py-2 w-64">Link</th>

@@ -295,7 +295,7 @@ function g_generator($plan_id) {
 
         // g_debug_timing("Los geht's", $c_block, $r_start_shift);
 
-        // For judging team number are used in increasing order
+        // For judging team numbers are used in increasing order
         // $j_t is the first team in the block. The lane number is added to this.
         $j_t = 0;
 
@@ -304,6 +304,9 @@ function g_generator($plan_id) {
 
         // Create the blocks of judging with robot game aligned
         for ($c_block = 1; $c_block <= pp("j_rounds"); $c_block++) {
+
+            g_debug_log(1, "Block " . $c_block . " of " . pp("j_rounds"));
+
 
             // Adjust timing between judging and robot game
 
@@ -321,20 +324,21 @@ function g_generator($plan_id) {
             // Calculate forward from start of the round:
             // 1 or 2 lanes = 1 match
             // 3 or 4 lanes = 2 matches
-            // 5 or 5 lanes = 3 matches 
+            // 5 or 6 lanes = 3 matches 
 
-            // The calculation of a4j = available for judging is done after the start of robot game is determined below
+            // The calculation of a4j = "available for judging" is down below
             // Here the value of the last block is used.    
 
             // Delay judging if needed
             if (g_diff_in_minutes($j_time_earliest, $j_time) > 0) {
+                g_debug_log(0, "Judging delayed from " . $j_time->format('H:i') . " to " . $j_time_earliest->format('H:i')  );
                 $j_time = clone $j_time_earliest;
             }
 
             // Key concept 2: teams at judging are last in CURRENT robot game round
             //
             // time to match = when will be need the team for their robot game match?
-            // The teams at judging go last in the current robot game round.
+            // 
             // Calculate backwards from end of the round:
             // 1 or 2 lanes = 1 match
             // 3 or 4 lanes = 2 matches
@@ -557,39 +561,30 @@ function g_generator($plan_id) {
         // Organizer may chose not to show any presentations.
         // They can also decide to show them at the end 
 
+        // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
+        $r_time = clone $c_time;   
+
+    
         if (pp("c_presentations") == 0 || pp("c_presentations_last")) {
 
-            // No presentations at all or at the end. We run robot game finals first
-            $r_time = clone $c_time;
-
-            // Break for referees
+            // Break for referees and time to annouce advancing teams
             g_add_minutes($r_time, pp("r_duration_break"));
 
         } else {
-
-            // Create inserted block or planned delay.
-            g_insert_point(ID_IP_PRESENTATIONS);
-
-            // Rearch presentations on stage
+    
+            // Research presentations on stage
+            g_add_minutes($r_time, pp("c_ready_presentations"));
             c_presentations();
-
-            // back to robot game
-            g_add_minutes($c_time, pp("c_ready_presentations"));
-
-            // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
-            $r_time = clone $c_time;   
 
         }
 
+        // TODEL
         // Additional 5 minutes to show who advances and for those teams to get ready
-        g_add_minutes($r_time, pp("r_duration_results"));
+        // g_add_minutes($r_time, pp("r_duration_results"));
         
         // -----------------------------------------------------------------------------------
         /// Robot-game final rounds
         // -----------------------------------------------------------------------------------    
-
-        // Create inserted block or planned delay.
-        g_insert_point(ID_IP_RG_FINAL_ROUNDS);
         
         // The DACH Finale is the only event running the round of best 16
         if(pp("g_finale") && pp("c_teams") >= 16) {
@@ -604,15 +599,8 @@ function g_generator($plan_id) {
         // Semi finale is a must
         r_final_round(4);
 
-
-        // Create inserted block or planned delay. 
-        g_insert_point(ID_IP_RG_LAST_MATCHES);
-
         // Final matches
         r_final_round(2);   
-
-        // back to only one action a time
-        $c_time = clone $r_time;
 
 
         // -----------------------------------------------------------------------------------
@@ -620,25 +608,26 @@ function g_generator($plan_id) {
         // -----------------------------------------------------------------------------------  
 
         if ( pp("c_presentations") > 0 && pp("c_presentations_last") ) {
-            // Create inserted block or planned delay.
-            g_insert_point(ID_IP_PRESENTATIONS);
 
-            // Rearch presentations on stage
-            c_presentations($c_time);
+            // Research presentations on stage
+            g_add_minutes($r_time, pp("c_ready_presentations"));
+            c_presentations();
+
         }
+
 
         // -----------------------------------------------------------------------------------
         // Awards
         // -----------------------------------------------------------------------------------  
+
+        // back to only one action a time
+        $c_time = clone $r_time;
 
         // FLL Challenge
         // Deliberations might have taken longer, which is unlikely
         if (g_diff_in_minutes($j_time, $c_time) > 0) {
             $c_time = clone $j_time;
         } 
-
-        // Create inserted block or planned delay.
-        g_insert_point(ID_IP_AWARDS);
 
         // FLL Explore
         // Deliberations might have taken longer. Which is rather theroritical ...
