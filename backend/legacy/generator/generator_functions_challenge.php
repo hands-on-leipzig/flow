@@ -324,7 +324,7 @@ function r_insert_one_round($round) {
     // We fix that.
     if (pp("r_tables") == 4 ) {
 
-        g_add_minutes($r_time, $duration - pp("r_duration_next_start")  );
+        g_add_minutes($r_time, pp("r_duration_match") - pp("r_duration_next_start")  );
         
     }
 
