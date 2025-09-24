@@ -18,6 +18,23 @@ const isDragging = ref(false)
 const previewedTypeId = ref(null)
 
 const getProgramColor = (type) => {
+  // Check if this room type is associated with an extra block
+  const associatedExtraBlock = extraBlocks.value.find(block => {
+    return block.insert_point && 
+           block.insert_point.room_type && 
+           block.insert_point.room_type.id === type.id
+  })
+  
+  if (associatedExtraBlock) {
+    // Color based on extra block program
+    if (associatedExtraBlock.first_program === 2 || associatedExtraBlock.first_program === 0) {
+      return '#10B981' // Green for Explore (or both programs)
+    } else if (associatedExtraBlock.first_program === 3) {
+      return '#EF4444' // Red for Challenge only
+    }
+  }
+  
+  // Fallback to original color logic
   return type?.group?.program?.color || '#888888'
 }
 
