@@ -51,6 +51,15 @@ const exploreJuryGroupsPM = computed(() => {
   return Number(scheduleParameters.value['e2_lanes'] || 0)
 })
 
+// Get program modes to determine if programs are enabled
+const challengeMode = computed(() => {
+  return Number(scheduleParameters.value['c_mode'] || 0)
+})
+
+const exploreMode = computed(() => {
+  return Number(scheduleParameters.value['e_mode'] || 0)
+})
+
 // Check if an extra block is enabled by room type ID
 const isExtraBlockEnabled = computed(() => {
   return (roomTypeId) => {
@@ -97,6 +106,12 @@ const filteredRoomTypes = computed(() => {
     
     // For jurybewertung (Challenge jury groups)
     if (groupName.includes('jurybewertung') || groupName.includes('jury') || typeName.includes('jury')) {
+      // Hide if Challenge mode is disabled
+      if (challengeMode.value === 0) {
+        console.log(`Challenge room ${type.name}: hidden (c_mode=0)`)
+        return false
+      }
+      
       const juryGroupNumber = extractJuryGroupNumber(type.name)
       const shouldShow = juryGroupNumber <= challengeJuryGroups.value
       console.log(`Challenge room ${type.name}: group ${juryGroupNumber} <= ${challengeJuryGroups.value} = ${shouldShow}`)
@@ -105,6 +120,12 @@ const filteredRoomTypes = computed(() => {
     
     // For begutachtung (Explore jury groups)
     if (groupName.includes('begutachtung') || groupName.includes('explore') || typeName.includes('begutachtung')) {
+      // Hide if Explore mode is disabled
+      if (exploreMode.value === 0) {
+        console.log(`Explore room ${type.name}: hidden (e_mode=0)`)
+        return false
+      }
+      
       const juryGroupNumber = extractJuryGroupNumber(type.name)
       const maxExploreGroups = Math.max(exploreJuryGroupsAM.value, exploreJuryGroupsPM.value)
       const shouldShow = juryGroupNumber <= maxExploreGroups
@@ -119,6 +140,29 @@ const filteredRoomTypes = computed(() => {
       if (extraBlocks.value.length === 0) {
         console.log(`Extra block room ${type.name}: showing (no extra blocks loaded yet)`)
         return true
+      }
+      
+      // Check if this room type is associated with an extra block and its program mode
+      const associatedExtraBlock = extraBlocks.value.find(block => {
+        return block.insert_point && 
+               block.insert_point.room_type && 
+               block.insert_point.room_type.id === type.id
+      })
+      
+      if (associatedExtraBlock) {
+        // Hide if the extra block's program is disabled
+        if (associatedExtraBlock.first_program === 3 && challengeMode.value === 0) {
+          console.log(`Extra block room ${type.name}: hidden (Challenge extra block, c_mode=0)`)
+          return false
+        }
+        if (associatedExtraBlock.first_program === 2 && exploreMode.value === 0) {
+          console.log(`Extra block room ${type.name}: hidden (Explore extra block, e_mode=0)`)
+          return false
+        }
+        if (associatedExtraBlock.first_program === 0 && challengeMode.value === 0 && exploreMode.value === 0) {
+          console.log(`Extra block room ${type.name}: hidden (Both programs extra block, both modes=0)`)
+          return false
+        }
       }
       
       const shouldShow = isExtraBlockEnabled.value(type.id)
