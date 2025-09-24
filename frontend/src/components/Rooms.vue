@@ -136,11 +136,6 @@ const filteredRoomTypes = computed(() => {
     // For extra block room types, only show if the corresponding extra block is enabled
     if (groupName.includes('zusatz') || groupName.includes('extra') || groupName.includes('block') || 
         typeName.includes('zusatz') || typeName.includes('extra') || typeName.includes('block')) {
-      // If no extra blocks are loaded yet, show all extra block room types as fallback
-      if (extraBlocks.value.length === 0) {
-        console.log(`Extra block room ${type.name}: showing (no extra blocks loaded yet)`)
-        return true
-      }
       
       // Check if this room type is associated with an extra block and its program mode
       const associatedExtraBlock = extraBlocks.value.find(block => {
