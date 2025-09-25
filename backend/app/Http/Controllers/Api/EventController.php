@@ -109,10 +109,9 @@ class EventController extends Controller
     }
 
 
-    public function getTableNames($event)
+    public function getTableNames(Event $event)
     {
-
-        $tables = TableEvent::where('event', $event)
+        $tables = TableEvent::where('event', $event->id)
             ->orderBy('table_number')
             ->get(['table_number', 'table_name']);
 
@@ -120,7 +119,7 @@ class EventController extends Controller
             'table_names' => $tables,
         ]);
     }
-
+    
     public function updateTableNames(Request $request, $event)
     {
 
