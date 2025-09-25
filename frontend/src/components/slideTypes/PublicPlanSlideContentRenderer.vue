@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref} from 'vue';
+import {onMounted, ref} from 'vue';
 import {PublicPlanSlideContent} from "@/models/publicPlanSlideContent";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
 import axios from "axios";
@@ -7,7 +7,7 @@ import {formatTimeOnly} from "@/utils/dateTimeFormat";
 
 const props = withDefaults(defineProps<{
   content: PublicPlanSlideContent,
-  preview: Boolean
+  preview: boolean
 }>(), {
   preview: false
 });
@@ -19,21 +19,15 @@ const result = ref(null);
 function getFormattedDateTime() {
   const now = new Date();
 
-  // Get date components
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are 0-based
-  const day = String(now.getDate()).padStart(2, '0');
-
   // Get time components
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
 
-  return `${year}-${month}-${day}+${hours}:${minutes}`;
+  return `${hours}:${minutes}`;
 }
 
 function buildPointInTimeParam() {
-  //return {point_in_time: getFormattedDateTime(), role: props.content.role};
-  return {point_in_time: '2025-11-17 12:00', role: props.content.role}; // <-- testing
+  return {point_in_time: getFormattedDateTime(), role: props.content.role};
 }
 
 async function callNow() {

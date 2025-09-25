@@ -1,14 +1,25 @@
-<script setup>
-import {UrlSlideContent} from "../../models/urlSlideContent.js";
+<script setup lang="ts">
+import {UrlSlideContent} from "@/models/urlSlideContent.js";
+import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
 
-const props = defineProps({
+const props = withDefaults(defineProps<{
   content: UrlSlideContent,
+  preview: boolean
+}>(), {
+  preview: false
 });
 
 </script>
 
 <template>
-    <object :data="props.content.url"></object>
+  <div class="relative w-full h-full overflow-hidden">
+
+    <FabricSlideContentRenderer v-if="props.content.background"
+                                class="absolute inset-0 z-0"
+                                :content="props.content" :preview="props.preview"></FabricSlideContentRenderer>
+
+    <object :data="props.content.url" :class="{'preview': props.preview}"></object>
+  </div>
 </template>
 
 <style scoped>
@@ -18,5 +29,13 @@ object {
   margin: 0;
   position: relative;
   overflow: hidden;
+}
+
+.preview {
+  zoom: 0.15;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 </style>
