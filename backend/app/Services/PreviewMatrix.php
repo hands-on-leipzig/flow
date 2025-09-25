@@ -10,18 +10,9 @@ class PreviewMatrix
     /**
      * Build roles matrix based on DB (m_role + m_visibility).
      */
-public function buildRolesMatrix(Collection $activities): array
+public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Illuminate\Support\Collection $roles): array
 {
-    // 1) Rollen & Visibility
-    $roles = DB::table('m_role')
-        ->whereNotNull('first_program')
-        ->where('preview_matrix', 1)
-        ->orderBy('first_program')
-        ->orderBy('sequence')
-        ->get();
-
-    $visibility = DB::table('m_visibility')->get(); // role_id + atd_id
-
+    // Safety
     if ($activities->isEmpty() || $roles->isEmpty()) {
         return [
             'headers' => [['key' => 'time', 'title' => 'Zeit']],
@@ -29,52 +20,38 @@ public function buildRolesMatrix(Collection $activities): array
         ];
     }
 
-    // 2) Ableitungen aus echten Activities
+    // --- Ableitungen aus echten Activities
     $exLaneMax = (int)($activities->where('program_name', 'EXPLORE')->pluck('lane')->filter()->max() ?? 0);
     $chLaneMax = (int)($activities->where('program_name', 'CHALLENGE')->pluck('lane')->filter()->max() ?? 0);
 
+    // verwendete Tische (1..4), nur die, die tatsächlich vorkommen
     $tablesUsed = collect([1,2,3,4])->filter(function ($t) use ($activities) {
         return $activities->contains(fn($a) => ((int)$a->table_1 === $t) || ((int)$a->table_2 === $t));
     })->values()->all();
+    sort($tablesUsed);
 
-    // NEU: „Teams vorhanden?“ je Programm (für programmunabhängige Blöcke)
-    $exTeamMax = (int) max(
-        (int)($activities->where('program_name','EXPLORE')->pluck('team')->filter()->max() ?? 0),
-        (int)($activities->where('program_name','EXPLORE')->pluck('table_1_team')->filter()->max() ?? 0),
-        (int)($activities->where('program_name','EXPLORE')->pluck('table_2_team')->filter()->max() ?? 0)
-    );
-    $chTeamMax = (int) max(
-        (int)($activities->where('program_name','CHALLENGE')->pluck('team')->filter()->max() ?? 0),
-        (int)($activities->where('program_name','CHALLENGE')->pluck('table_1_team')->filter()->max() ?? 0),
-        (int)($activities->where('program_name','CHALLENGE')->pluck('table_2_team')->filter()->max() ?? 0)
-    );
+    // --- Sichtbarkeiten (welche Rollen sehen welche ATDs)
+    $visibility = DB::table('m_visibility')->get(); // Spalten: role, activity_type_detail
 
-    // --- 3. Build headers dynamically (interleaved RC/RG per table)
+    // --- Header vorbereiten
     $headers  = [['key' => 'time', 'title' => 'Zeit']];
-    $usedKeys = []; // zur Sicherheit: Duplikate verhindern
-    $headerMeta = []; // <-- ergänzen: Titel je Key mitführen
+    $usedKeys = [];
     $addHeader = function (array $h) use (&$headers, &$usedKeys) {
-        if (!isset($h['key']) || !isset($h['title'])) {
-            return;
-        }
+        if (!isset($h['key'], $h['title'])) return;
         if (!isset($usedKeys[$h['key']])) {
             $headers[] = $h;
             $usedKeys[$h['key']] = true;
         }
     };
 
-    // tablesUsed sortiert/unique (falls nicht schon vorher geschehen)
-    $tablesUsed = array_values(array_unique($tablesUsed));
-    sort($tablesUsed);
-
-    // Rollen vorsortieren in Eimer
-    $tableRolesByProg = [ 'E' => [], 'C' => [] ]; // z.B. ['RC' => $roleObj, 'RG' => $roleObj, ...]
-    $laneRoles        = [];                       // [[$progLetter, $role, $shortKey], ...]
-    $simpleRoles      = [];                       // [[$progLetter, $role, $shortKey], ...]
+    // --- Rollen vorsortieren
+    // Wir erwarten hier NUR lane/table-Rollen (Controller filtert bereits so),
+    // bauen aber robust dennoch nach differentiation_parameter.
+    $laneRoles        = [];              // [[$progLetter, $role, $shortKey], ...]
+    $tableRolesByProg = ['E' => [], 'C' => []]; // z.B. ['RC' => $roleObj, 'RG' => $roleObj, ...]
 
     foreach ($roles as $role) {
         $progLetter = ((int)$role->first_program === 2) ? 'E' : 'C';
-        // shortKey aus name_short (wenn vorhanden), sonst aus name
         $baseShort  = (string)($role->name_short ?: $role->name);
         $shortKey   = strtoupper(substr($baseShort, 0, 2));
 
@@ -82,92 +59,77 @@ public function buildRolesMatrix(Collection $activities): array
             $laneRoles[] = [$progLetter, $role, $shortKey];
         } elseif ($role->differentiation_parameter === 'table') {
             $tableRolesByProg[$progLetter][$shortKey] = $role;
-        } else {
-            $simpleRoles[] = [$progLetter, $role, $shortKey];
         }
     }
 
-    // 3a) LANE-Rollen (E/C separat, Anzahl je Programm)
+    // --- RC-Erkennung nur bei echten Robot-Check-Activities
+    $rcAtdId = defined('ID_ATD_R_CHECK') ? (int) ID_ATD_R_CHECK : (int) config('atd.ids.robot_check', 0);
+    $rcTablesByProg = ['E' => [], 'C' => []];
+
+    foreach ($activities as $a) {
+        if ((int)$a->activity_type_detail_id !== $rcAtdId) continue;
+        $p = strtoupper((string)$a->program_name) === 'EXPLORE' ? 'E' : 'C';
+        foreach ([1, 2] as $ti) {
+            $t = (int) ($a->{'table_'.$ti} ?? 0);
+            if ($t > 0) $rcTablesByProg[$p][$t] = true;
+        }
+    }
+
+    // --- 1) Lane/Judging-Spalten (E links, C rechts), je Programm 1..laneMax
     foreach ($laneRoles as [$progLetter, $role, $shortKey]) {
         $titleBase = (string)($role->name_short ?: $role->name);
         $laneMax   = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
 
         for ($i = 1; $i <= $laneMax; $i++) {
             $addHeader([
-                'key'   => strtolower($progLetter) . '_' . $shortKey . $i, // e.g. c_RC1
+                'key'   => strtolower($progLetter) . '_' . $shortKey . $i, // e.g. e_JU1
                 'title' => "{$titleBase}{$i}",
             ]);
         }
     }
 
-    // Erlaubte RC-Spalten pro Programm (nur wenn es echte RC-Aktivitäten gibt)
-    $rcAtdId = defined('ID_ATD_R_CHECK') ? (int) ID_ATD_R_CHECK : (int) config('atd.ids.robot_check', 0);
-
-    $rcTablesByProg = ['E' => [], 'C' => []];
-
-    foreach ($activities as $a) {
-        if ((int)$a->activity_type_detail_id !== $rcAtdId) {
-            continue; // kein Robot-Check
-        }
-        // Programm ableiten
-        $p = strtoupper((string) $a->program_name) === 'EXPLORE' ? 'E' : 'C';
-
-        // Über beide Tabellenspalten gehen
-        foreach ([1, 2] as $ti) {
-            $t = (int) ($a->{'table_'.$ti} ?? 0);
-            if ($t > 0) {
-                $rcTablesByProg[$p][$t] = true; // Merken: in diesem Programm gab es RC auf Tisch t
-            }
-        }
-    }    
-
-    // 3b) TABLE-Rollen: in 2er-Blöcken RC→RG pro Programm
+    // --- 2) Table-Spalten in 2er-Blöcken: RC (nur wenn vorhanden) → RG (immer)
     foreach (['E', 'C'] as $progLetter) {
         if (empty($tablesUsed)) continue;
 
         $rcRole = $tableRolesByProg[$progLetter]['RC'] ?? null;
         $rgRole = $tableRolesByProg[$progLetter]['RG'] ?? null;
 
-        // andere table-basierte Rollen sammeln (ohne RC/RG) – unverändert
+        // weitere table-basierte Rollen (ohne RC/RG) nachziehen
         $otherTableRoles = [];
-        foreach ($roles as $r) {
-            $pL = ((int)$r->first_program === 2) ? 'E' : 'C';
-            if ($pL !== $progLetter) continue;
-            if ($r->differentiation_parameter !== 'table') continue;
-            $sk = strtoupper(substr((string)($r->name_short ?: $r->name), 0, 2));
+        foreach ($tableRolesByProg[$progLetter] as $sk => $r) {
             if ($sk === 'RC' || $sk === 'RG') continue;
             $otherTableRoles[] = [$r, $sk];
         }
 
-        // Tische in 2er-Blöcke: [t1,t2], [t3,t4], ...
-        $blocks = array_chunk(array_values($tablesUsed), 2);
+        $blocks = array_chunk($tablesUsed, 2); // [t1,t2], [t3,t4], ...
 
         foreach ($blocks as $block) {
-            // 1) RC-Spalten NUR, wenn es mindestens einen echten RC auf dem Tisch gab
+            // RC nur mit realen Activities pro Tisch
             if ($rcRole) {
                 $titleBase = (string)($rcRole->name_short ?: $rcRole->name);
                 foreach ($block as $t) {
                     if (!empty($rcTablesByProg[$progLetter][$t])) {
                         $addHeader([
-                            'key'   => strtolower($progLetter) . '_RC' . 't' . $t,
+                            'key'   => strtolower($progLetter) . '_RC' . 't' . $t, // e.g. e_RCt1
                             'title' => "{$titleBase}{$t}",
                         ]);
                     }
                 }
             }
 
-            // 2) RG-Spalten immer (so wie zuvor, nur blockweise)
+            // RG immer
             if ($rgRole) {
                 $titleBase = (string)($rgRole->name_short ?: $rgRole->name);
                 foreach ($block as $t) {
                     $addHeader([
-                        'key'   => strtolower($progLetter) . '_RG' . 't' . $t,
+                        'key'   => strtolower($progLetter) . '_RG' . 't' . $t, // e.g. e_RGt1
                         'title' => "{$titleBase}{$t}",
                     ]);
                 }
             }
 
-            // 3) weitere table-basierte Rollen (falls vorhanden)
+            // andere table-basierte Rollen
             foreach ($otherTableRoles as [$r, $sk]) {
                 $titleBase = (string)($r->name_short ?: $r->name);
                 foreach ($block as $t) {
@@ -180,26 +142,25 @@ public function buildRolesMatrix(Collection $activities): array
         }
     }
 
-    // 3c) SIMPLE-Rollen (ohne lane/table)
-    foreach ($simpleRoles as [$progLetter, $role, $shortKey]) {
-        $titleBase = (string)($role->name_short ?: $role->name);
-        $addHeader([
-            'key'   => strtolower($progLetter) . '_' . $shortKey,
-            'title' => $titleBase,
-        ]);
-    }
-
-    // am Ende wie gehabt:
-    $headerKeys = array_map(fn($h) => $h['key'], $headers);
-
-    // ---- 4) Activities in Buckets einsortieren (NICHT $headers/$bucket resetten!)
-    $bucket = [];  // nur hier initialisieren, nicht später überschreiben!
+    // --- 3) Activities in Buckets einsortieren (sichtbarkeitsgesteuert!)
+    $bucket = [];
 
     foreach ($activities as $a) {
-        $atd = (int)$a->activity_type_detail_id;
-        $visibleRoles = $visibility->where('activity_type_detail', $atd);
+        $atdId   = (int) $a->activity_type_detail_id;
+        $visible = $visibility->where('activity_type_detail', $atdId);
 
-        foreach ($visibleRoles as $vr) {
+        $start   = \Illuminate\Support\Carbon::parse($a->start_time)->startOfMinute();
+        $end     = \Illuminate\Support\Carbon::parse($a->end_time)->startOfMinute();
+
+        // Basistext inkl. Spezialfall "Mit Team"
+        $baseText = (string) $a->activity_name;
+        if (stripos($baseText, 'mit team') !== false) {
+            $progName = strtoupper((string)$a->program_name);
+            $baseText = $progName === 'EXPLORE' ? 'Begutachtung' : ($progName === 'CHALLENGE' ? 'Jury' : $baseText);
+        }
+
+        foreach ($visible as $vr) {
+            /** @var object|null $role */
             $role = $roles->firstWhere('id', $vr->role);
             if (!$role) continue;
 
@@ -207,77 +168,62 @@ public function buildRolesMatrix(Collection $activities): array
             $baseShort  = (string)($role->name_short ?: $role->name);
             $shortKey   = strtoupper(substr($baseShort, 0, 2));
 
-            $start = \Illuminate\Support\Carbon::parse($a->start_time)->startOfMinute();
-            $end   = \Illuminate\Support\Carbon::parse($a->end_time)->startOfMinute();
-            $baseText = (string)$a->activity_name;
-
             if ($role->differentiation_parameter === 'lane') {
-                $lane = (int)($a->lane ?? 0);
+                $lane   = (int)($a->lane ?? 0);
                 $teamNo = (int)($a->team ?? 0);
-                $text = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
+                $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
+
                 if ($lane > 0) {
-                    $key = strtolower($progLetter).'_'.$shortKey.$lane;
+                    $key = strtolower($progLetter) . '_' . $shortKey . $lane;
                     $this->push($bucket, $key, $start, $end, $text);
                 } else {
+                    // Kein Lane gesetzt → in alle vorhandenen Lanes des Programms duplizieren
                     $laneMax = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
                     for ($i = 1; $i <= $laneMax; $i++) {
-                        $this->push($bucket, strtolower($progLetter).'_'.$shortKey.$i, $start, $end, $text);
+                        $key = strtolower($progLetter) . '_' . $shortKey . $i;
+                        $this->push($bucket, $key, $start, $end, $text);
                     }
                 }
 
             } elseif ($role->differentiation_parameter === 'table') {
                 $pushed = false;
-                foreach ([1,2] as $ti) {
+                foreach ([1, 2] as $ti) {
                     $tNo = (int)($a->{'table_'.$ti} ?? 0);
                     if ($tNo > 0) {
                         $teamNo = (int)($a->{'table_'.$ti.'_team'} ?? 0);
                         $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
-                        $key    = strtolower($progLetter).'_'.$shortKey.'t'.$tNo;
+                        $key    = strtolower($progLetter) . '_' . $shortKey . 't' . $tNo; // z.B. e_RGt2 oder e_RCt1
                         $this->push($bucket, $key, $start, $end, $text);
                         $pushed = true;
                     }
                 }
                 if (!$pushed) {
+                    // kein konkreter Tisch → in alle vorhandenen Tische duplizieren
                     $teamNo = (int)($a->team ?? 0);
                     $text   = $baseText . ($teamNo > 0 ? ' T'.str_pad((string)$teamNo, 2, '0', STR_PAD_LEFT) : '');
                     foreach ($tablesUsed as $t) {
-                        $key = strtolower($progLetter).'_'.$shortKey.'t'.$t;
+                        $key = strtolower($progLetter) . '_' . $shortKey . 't' . $t;
                         $this->push($bucket, $key, $start, $end, $text);
                     }
                 }
-
-            } elseif ($role->differentiation_parameter === 'team') {
-                $hasTeam =
-                    (int)($a->team ?? 0) > 0 ||
-                    (int)($a->table_1_team ?? 0) > 0 ||
-                    (int)($a->table_2_team ?? 0) > 0;
-                if (!$hasTeam) {
-                    $key = strtolower($progLetter).'_'.$shortKey;
-                    $this->push($bucket, $key, $start, $end, $baseText);
-                }
-
-            } else {
-                $key = strtolower($progLetter).'_'.$shortKey;
-                $this->push($bucket, $key, $start, $end, $baseText);
             }
+            // (andere differentiation_parameter werden ignoriert; Controller liefert lane/table)
         }
     }
 
-    // ---- 5) Leere Spalten entfernen – Reihenfolge der bereits interleaveten $headers beibehalten
-    $activeKeys = array_keys($bucket);
+    // --- 4) Leere Spalten entfernen, Reihenfolge beibehalten
+    $activeKeys   = array_keys($bucket);
     $finalHeaders = [];
     foreach ($headers as $h) {
         if ($h['key'] === 'time' || in_array($h['key'], $activeKeys, true)) {
-            // Titel aus headerMeta absichern (falls gewünscht)
-            $h['title'] = $headerMeta[$h['key']] ?? $h['title'];
             $finalHeaders[] = $h;
         }
     }
 
-    // ---- 6) Rows bauen
+    // --- 5) Rows bauen
     $rows = $this->buildRowsPerActiveDay($finalHeaders, $bucket);
     return ['headers' => $finalHeaders, 'rows' => $rows];
-    }
+}
 
     private function emptyRow(Carbon $t, array $headerKeys): array
     {
@@ -303,6 +249,9 @@ public function buildRolesMatrix(Collection $activities): array
             'text'  => $text,
         ];
     }
+
+
+
 
     /**
      * Rasterize only on active days found in $bucket.

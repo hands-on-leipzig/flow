@@ -229,7 +229,7 @@ class PlanController extends Controller
 
     public function previewRoles(int $plan, PreviewMatrix $builder)
     {
-        // Rollen mit differentiation_parameter = lane oder table
+        // Nur lane/table-Rollen für Preview
         $roles = DB::table('m_role')
             ->whereNotNull('first_program')
             ->where('preview_matrix', 1)
@@ -238,10 +238,14 @@ class PlanController extends Controller
             ->orderBy('sequence')
             ->get();
 
-        $activities = $this->fetchActivities($plan, roles: $roles->pluck('id')->all(), freeBlocks: false);
+        $activities = $this->fetchActivities(
+            $plan,
+            roles: $roles->pluck('id')->all(),
+            freeBlocks: false
+        );
 
         if ($activities->isEmpty()) {
-            return [ ['key' => 'time', 'title' => 'Zeit'],];
+            return [ ['key' => 'time', 'title' => 'Zeit'] ];
         }
 
         $matrix = $builder->buildRolesMatrix($activities, $roles);
