@@ -215,9 +215,11 @@ function handleParamUpdate(param: { name: string, value: any }) {
 function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
   console.log('Received block updates:', updates)
 
-  // Add all block updates to pending parameter updates
+  // Add all block updates to pending parameter updates with proper prefix
   updates.forEach(update => {
-    pendingParamUpdates.value[update.name] = update.value
+    // Convert "28_buffer_after" to "block_28_buffer_after" for updateParams compatibility
+    const prefixedName = update.name.startsWith('block_') ? update.name : `block_${update.name}`
+    pendingParamUpdates.value[prefixedName] = update.value
   })
 
   // Show toast and start progress animation
@@ -304,6 +306,8 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   if (!selectedPlanId.value) return
 
   loading.value = true
+  let needsRegeneration = false
+  
   try {
     // Separate parameter updates from block updates
     const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
@@ -328,19 +332,26 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
     }
 
     // 2. Save block updates
-    let needsRegeneration = false
     if (blockUpdates.length > 0) {
       // Group block updates by block ID
       const updatesByBlock: Record<string, Record<string, any>> = {}
       blockUpdates.forEach(({name, value}) => {
-        const [, blockId, field] = name.split('_', 3)
-        if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
-        updatesByBlock[blockId][field] = value
+        // Parse: "block_31_buffer_after" -> blockId="31", field="buffer_after"
+        const parts = name.split('_')
+        if (parts.length >= 3) {
+          const blockId = parts[1] // "31"
+          const field = parts.slice(2).join('_') // "buffer_after"
+          if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
+          updatesByBlock[blockId][field] = value
+        }
       })
 
       // Save each block with regeneration optimization
       for (const [blockId, updates] of Object.entries(updatesByBlock)) {
         const block = {id: parseInt(blockId), ...updates}
+        
+        console.log('Sending block to API:', block)
+        console.log('Updates object:', updates)
         
         // Check if only non-timing fields changed
         const timingFields = ['start', 'end', 'buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
