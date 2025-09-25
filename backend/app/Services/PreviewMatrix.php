@@ -337,7 +337,7 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
     }
 
 
-    public function buildTeamsMatrix(Collection $activities): array
+ public function buildTeamsMatrix(Collection $activities): array
     {
         $teamRoles = DB::table('m_role')
             ->whereNotNull('first_program')
@@ -390,7 +390,7 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
             ];
         }
 
-        // Schlüssel-Auflösung inkl. Suffixe (Jxx, Txx)
+        // Schlüssel-Auflösung inkl. Jxx / Txx
         $resolveKey = function($a, string $base) use ($exTeams, $chTeams) {
             $prog = strtoupper((string)$a->program_name);
             if ($prog !== 'EXPLORE' && $prog !== 'CHALLENGE') return [];
@@ -405,45 +405,49 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
             ])->filter(fn($n)=>$n>0)->unique()->all();
 
             $baseText = (string)$a->activity_name;
-            $suffix   = '';
-
-            if (stripos($baseText, 'jury') !== false) {
-                $juryNo = (int)($a->lane ?? 0);
-                if ($juryNo > 0) {
-                    $suffix = ' J'.str_pad((string)$juryNo, 2, '0', STR_PAD_LEFT);
-                }
-            } elseif (
-                stripos($baseText, 'check') !== false ||
-                stripos($baseText, 'match') !== false
-            ) {
-                $tableNos = collect([
-                    (int)($a->table_1 ?? 0),
-                    (int)($a->table_2 ?? 0),
-                ])->filter(fn($n)=>$n>0)->unique()->all();
-
-                if (!empty($tableNos)) {
-                    $suffix = ' ' . implode(' ', array_map(fn($t) => 'T'.str_pad((string)$t, 2, '0', STR_PAD_LEFT), $tableNos));
-                }
-            }
 
             $result = [];
-            if (!empty($teamsInActivity)) {
-                foreach ($teamsInActivity as $tn) {
-                    if (in_array($tn, $teamsAll, true)) {
-                        $result[] = [
-                            'key'  => $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT),
-                            'text' => $baseText . $suffix,
-                        ];
+            foreach ($teamsInActivity as $tn) {
+                if (!in_array($tn, $teamsAll, true)) continue;
+
+                $suffix = '';
+                if (stripos($baseText, 'jury') !== false) {
+                    $juryNo = (int)($a->lane ?? 0);
+                    if ($juryNo > 0) {
+                        $suffix = ' J' . $juryNo;
+                    }
+                } elseif (stripos($baseText, 'check') !== false) {
+                    // Welcher Tisch gehört zu diesem Team?
+                    if ((int)$a->table_1_team === $tn && (int)$a->table_1 > 0) {
+                        $suffix = ' RC T' . (int)$a->table_1;
+                    } elseif ((int)$a->table_2_team === $tn && (int)$a->table_2 > 0) {
+                        $suffix = ' RC T' . (int)$a->table_2;
+                    }
+                } elseif (stripos($baseText, 'match') !== false) {
+                    // Welcher Tisch gehört zu diesem Team?
+                    if ((int)$a->table_1_team === $tn && (int)$a->table_1 > 0) {
+                        $suffix = ' RG T' . (int)$a->table_1;
+                    } elseif ((int)$a->table_2_team === $tn && (int)$a->table_2 > 0) {
+                        $suffix = ' RG T' . (int)$a->table_2;
                     }
                 }
-            } else {
+
+                $result[] = [
+                    'key'  => $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT),
+                    'text' => $baseText . $suffix,
+                ];
+            }
+
+            // Falls keine Teams eingetragen → auf alle Teams ausrollen
+            if (empty($result)) {
                 foreach ($teamsAll as $tn) {
                     $result[] = [
                         'key'  => $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT),
-                        'text' => $baseText . $suffix,
+                        'text' => $baseText,
                     ];
                 }
             }
+
             return $result;
         };
 
