@@ -501,13 +501,6 @@ class PlanController extends Controller
 
     public function actionNext(int $planId, Request $req): JsonResponse
     {
-        // Request-Parameter ins Log
-    Log::info('actionNext() called', [
-        'planId' => $planId,
-        'query'  => $req->query(), // nur Query-Parameter (GET)
-        'all'    => $req->all(),   // alle Felder (Query + Body, falls vorhanden)
-    ]);
-
 
         [$pivot, $rows] = $this->prepareActivities($planId, $req);
 
