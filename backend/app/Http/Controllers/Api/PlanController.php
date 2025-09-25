@@ -328,36 +328,54 @@ class PlanController extends Controller
             // Jury-Team
             $q->leftJoin('team_plan as tp_j', function($j) {
                 $j->on('tp_j.plan', '=', 'p.id')
-                    ->on('tp_j.team_number_plan', '=', 'a.jury_team');
+                ->on('tp_j.team_number_plan', '=', 'a.jury_team');
             })
             ->leftJoin('team as t_j', function($j) {
                 $j->on('t_j.id', '=', 'tp_j.team')
-                    ->on('t_j.event', '=', 'p.event')
-                    ->on('t_j.first_program', '=', 'atd.first_program');
+                ->on('t_j.event', '=', 'p.event')
+                ->on('t_j.first_program', '=', 'atd.first_program');
             });
 
             // Table 1
             $q->leftJoin('team_plan as tp_t1', function($j) {
                 $j->on('tp_t1.plan', '=', 'p.id')
-                    ->on('tp_t1.team_number_plan', '=', 'a.table_1_team');
+                ->on('tp_t1.team_number_plan', '=', 'a.table_1_team');
             })
             ->leftJoin('team as t_t1', function($j) {
                 $j->on('t_t1.id', '=', 'tp_t1.team')
-                    ->on('t_t1.event', '=', 'p.event')
-                    ->on('t_t1.first_program', '=', 'atd.first_program');
+                ->on('t_t1.event', '=', 'p.event')
+                ->on('t_t1.first_program', '=', 'atd.first_program');
             });
 
             // Table 2
             $q->leftJoin('team_plan as tp_t2', function($j) {
                 $j->on('tp_t2.plan', '=', 'p.id')
-                    ->on('tp_t2.team_number_plan', '=', 'a.table_2_team');
+                ->on('tp_t2.team_number_plan', '=', 'a.table_2_team');
             })
             ->leftJoin('team as t_t2', function($j) {
                 $j->on('t_t2.id', '=', 'tp_t2.team')
-                    ->on('t_t2.event', '=', 'p.event')
-                    ->on('t_t2.first_program', '=', 'atd.first_program');
+                ->on('t_t2.event', '=', 'p.event')
+                ->on('t_t2.first_program', '=', 'atd.first_program');
             });
         }
+        
+        // Table-Names (Override aus table_event)
+        $q->leftJoin('table_event as te1', function($j) {
+            $j->on('te1.event', '=', 'p.event')
+               ->where('te1.table_number', 1);
+        });
+        $q->leftJoin('table_event as te2', function($j) {
+            $j->on('te2.event', '=', 'p.event')
+               ->where('te2.table_number', 2);
+        });
+        $q->leftJoin('table_event as te3', function($j) {
+            $j->on('te3.event', '=', 'p.event')
+               ->where('te3.table_number', 3);
+        });
+        $q->leftJoin('table_event as te4', function($j) {
+            $j->on('te4.event', '=', 'p.event')
+               ->where('te4.table_number', 4);
+        });
 
         // Basisselektion
         $select = '
@@ -373,7 +391,15 @@ class PlanController extends Controller
             a.table_1 as table_1,
             a.table_1_team as table_1_team,
             a.table_2 as table_2,
-            a.table_2_team as table_2_team
+            a.table_2_team as table_2_team,
+            CASE a.table_1 
+                WHEN 1 THEN COALESCE(te1.table_name, "Tisch 1")
+                WHEN 3 THEN COALESCE(te3.table_name, "Tisch 3")
+                ELSE NULL END as table_1_name,
+            CASE a.table_2 
+                WHEN 2 THEN COALESCE(te2.table_name, "Tisch 2")
+                WHEN 4 THEN COALESCE(te4.table_name, "Tisch 4")
+                ELSE NULL END as table_2_name
         ';
 
         if ($includeRooms) {
@@ -501,6 +527,7 @@ class PlanController extends Controller
 
     public function actionNext(int $planId, Request $req): JsonResponse
     {
+
         [$pivot, $rows] = $this->prepareActivities($planId, $req);
 
         $interval = (int) $req->query('interval', 30);
@@ -509,7 +536,7 @@ class PlanController extends Controller
             $start = Carbon::parse($r->start_time);
             $end   = Carbon::parse($r->end_time);
 
-            return $start >= $pivot && $end <= (clone $pivot)->addMinutes($interval);
+            return $start >= $pivot && $start <= (clone $pivot)->addMinutes($interval);
         });
 
         return response()->json($this->groupActivitiesForApi($planId, $rows));
@@ -553,7 +580,9 @@ class PlanController extends Controller
             $roles,                // Array mit genau 1 Rolle
             includeRooms: true,
             includeGroupMeta: true,
-            includeActivityMeta: true
+            includeActivityMeta: true,
+            includeTeamNames: true,
+            freeBlocks: true
         );
 
         return [$pivot, $rows];
@@ -578,51 +607,76 @@ class PlanController extends Controller
                 ];
             }
 
-            $groups[$gid]['activities'][] = [
-                'activity_id'      => $row->activity_id,
-                'start_time'       => $row->start_time,
-                'end_time'         => $row->end_time,
-                'activity_name'    => $row->activity_name,
-
-                // Activity-ATD-Meta
-                'meta' => [
-                    'name'               => $row->activity_atd_name ?? null,
-                    'first_program_id'   => $row->activity_first_program_id ?? null,
-                    'first_program_name' => $row->activity_first_program_name ?? null,
-                    'description'        => $row->activity_description ?? null,
-                ],
-
-                // Basis
-                'program'          => $row->program_name,
-                'lane'             => $row->lane,
-                'team'             => $row->team,
-                
-
-                // Robot-Game Tische + Teams
-                'table_1'              => $row->table_1,
-                'table_1_team'         => $row->table_1_team,
-                'table_2'              => $row->table_2,
-                'table_2_team'         => $row->table_2_team,
-
-                // NEU: Teamnamen (falls via fetchActivities(..., includeTeamNames: true) geladen)
-                'team_name'            => $row->jury_team_name ?? null, 
-                'table_1_team_name'    => $row->table_1_team_name ?? null,
-                'table_2_team_name'    => $row->table_2_team_name ?? null,
-
-                // NEU: Raumdaten (falls via fetchActivities(..., includeRooms: true) geladen)
-                'room' => [
-                    'room_type_id'    => $row->room_type_id    ?? null,
-                    'room_type_name'  => $row->room_type_name  ?? null,
-                    'room_id'         => $row->room_id         ?? null,
-                    'room_name'       => $row->room_name       ?? null,
-                ],
-            ];
+            // --- NEU: Activity-Key prüfen ---
+            $aid = $row->activity_id;
+            if (!isset($groups[$gid]['activities'][$aid])) {
+                $groups[$gid]['activities'][$aid] = [
+                    'activity_id'      => $row->activity_id,
+                    'start_time'       => $row->start_time,
+                    'end_time'         => $row->end_time,
+                    'activity_name'    => $row->activity_name,
+                    'meta' => [
+                        'name'               => $row->activity_atd_name ?? null,
+                        'first_program_id'   => $row->activity_first_program_id ?? null,
+                        'first_program_name' => $row->activity_first_program_name ?? null,
+                        'description'        => $row->activity_description ?? null,
+                    ],
+                    'program'          => $row->program_name,
+                    'lane'             => $row->lane,
+                    'team'             => $row->team,
+                    'table_1'          => $row->table_1,
+                    'table_1_name'     => $row->table_1_name ?? null,
+                    'table_1_team'     => $row->table_1_team,
+                    'table_2'          => $row->table_2,
+                    'table_2_name'     => $row->table_2_name ?? null,
+                    'table_2_team'     => $row->table_2_team,
+                    'team_name'        => $row->jury_team_name ?? null,
+                    'table_1_team_name'=> $row->table_1_team_name ?? null,
+                    'table_2_team_name'=> $row->table_2_team_name ?? null,
+                    'room' => [
+                        'room_type_id'    => $row->room_type_id    ?? null,
+                        'room_type_name'  => $row->room_type_name  ?? null,
+                        'room_id'         => $row->room_id         ?? null,
+                        'room_name'       => $row->room_name       ?? null,
+                    ],
+                ];
+            } else {
+                // --- NEU: Teamnamen ergänzen falls leer ---
+                if (!$groups[$gid]['activities'][$aid]['table_1_team_name'] && $row->table_1_team_name) {
+                    $groups[$gid]['activities'][$aid]['table_1_team_name'] = $row->table_1_team_name;
+                }
+                if (!$groups[$gid]['activities'][$aid]['table_2_team_name'] && $row->table_2_team_name) {
+                    $groups[$gid]['activities'][$aid]['table_2_team_name'] = $row->table_2_team_name;
+                }
+                if (!$groups[$gid]['activities'][$aid]['team_name'] && $row->jury_team_name) {
+                    $groups[$gid]['activities'][$aid]['team_name'] = $row->jury_team_name;
+                }
+            }
         }
 
-        return [
+    $result = [
+        'plan_id' => $planId,
+        'groups'  => array_values($groups),
+    ];
+
+    // Log: erster Group-Eintrag mit erster Activity
+    if (!empty($result['groups'])) {
+        $firstGroup = $result['groups'][0];
+        $firstActivity = $firstGroup['activities'][0] ?? null;
+
+        Log::info('groupActivitiesForApi first group', [
             'plan_id' => $planId,
-            'groups'  => array_values($groups),
-        ];
+            'group_id' => $firstGroup['activity_group_id'],
+            'group_meta' => $firstGroup['group_meta'],
+            'first_activity' => $firstActivity,
+        ]);
+    } else {
+        Log::info('groupActivitiesForApi: no groups found', [
+            'plan_id' => $planId,
+        ]);
+    }
+
+    return $result;
     }
 
     /**
