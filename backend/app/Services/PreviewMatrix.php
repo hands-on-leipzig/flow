@@ -390,7 +390,7 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
             ];
         }
 
-        // Schlüssel-Auflösung
+        // Schlüssel-Auflösung inkl. Suffixe (Jxx, Txx)
         $resolveKey = function($a, string $base) use ($exTeams, $chTeams) {
             $prog = strtoupper((string)$a->program_name);
             if ($prog !== 'EXPLORE' && $prog !== 'CHALLENGE') return [];
@@ -404,19 +404,47 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
                 (int)($a->table_2_team ?? 0),
             ])->filter(fn($n)=>$n>0)->unique()->all();
 
-            $keys = [];
+            $baseText = (string)$a->activity_name;
+            $suffix   = '';
+
+            if (stripos($baseText, 'jury') !== false) {
+                $juryNo = (int)($a->lane ?? 0);
+                if ($juryNo > 0) {
+                    $suffix = ' J'.str_pad((string)$juryNo, 2, '0', STR_PAD_LEFT);
+                }
+            } elseif (
+                stripos($baseText, 'check') !== false ||
+                stripos($baseText, 'match') !== false
+            ) {
+                $tableNos = collect([
+                    (int)($a->table_1 ?? 0),
+                    (int)($a->table_2 ?? 0),
+                ])->filter(fn($n)=>$n>0)->unique()->all();
+
+                if (!empty($tableNos)) {
+                    $suffix = ' ' . implode(' ', array_map(fn($t) => 'T'.str_pad((string)$t, 2, '0', STR_PAD_LEFT), $tableNos));
+                }
+            }
+
+            $result = [];
             if (!empty($teamsInActivity)) {
                 foreach ($teamsInActivity as $tn) {
                     if (in_array($tn, $teamsAll, true)) {
-                        $keys[] = $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT);
+                        $result[] = [
+                            'key'  => $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT),
+                            'text' => $baseText . $suffix,
+                        ];
                     }
                 }
             } else {
                 foreach ($teamsAll as $tn) {
-                    $keys[] = $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT);
+                    $result[] = [
+                        'key'  => $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT),
+                        'text' => $baseText . $suffix,
+                    ];
                 }
             }
-            return $keys;
+            return $result;
         };
 
         return $this->bucketizeActivities($activities, $headers, $resolveKey);
@@ -475,13 +503,21 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
             $headers[] = ['key' => 'roomtype_'.$rt['id'], 'title' => '['.$rt['name'].']'];
         }
 
-        // Schlüssel-Auflösung
+        // Schlüssel-Auflösung mit Text
         $resolveKey = function($a, string $base) {
+            $baseText = (string)$a->activity_name;
             $keys = [];
+
             if ((int)($a->room_id ?? 0) > 0) {
-                $keys[] = 'room_'.$a->room_id;
+                $keys[] = [
+                    'key'  => 'room_'.$a->room_id,
+                    'text' => $baseText,
+                ];
             } elseif ((int)($a->room_type_id ?? 0) > 0) {
-                $keys[] = 'roomtype_'.$a->room_type_id;
+                $keys[] = [
+                    'key'  => 'roomtype_'.$a->room_type_id,
+                    'text' => $baseText,
+                ];
             }
             return $keys;
         };
@@ -492,35 +528,29 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
     private function bucketizeActivities(Collection $activities, array $headers, callable $resolveKey): array
     {
         $bucket = [];
-        $push = function(string $colKey, \Illuminate\Support\Carbon $start, \Illuminate\Support\Carbon $end, string $text) use (&$bucket) {
-            $k = $start->toDateTimeString();
-            $bucket[$colKey][$k] = $bucket[$colKey][$k] ?? [];
-            $bucket[$colKey][$k][] = [
-                'start' => $start->toDateTimeString(),
-                'end'   => $end->toDateTimeString(),
-                'text'  => $text,
-            ];
-        };
 
         foreach ($activities as $a) {
             $start = \Illuminate\Support\Carbon::parse($a->start_time)->startOfMinute();
             $end   = \Illuminate\Support\Carbon::parse($a->end_time)->startOfMinute();
 
-            // Text mit Override
-            $base = (string)$a->activity_name;
-            if (stripos($base, 'mit team') !== false) {
-                $prog = strtoupper((string)$a->program_name);
-                $base = $prog === 'EXPLORE' ? 'Begutachtung' : ($prog === 'CHALLENGE' ? 'Jury' : $base);
-            }
+            $resolved = $resolveKey($a, (string)$a->activity_name);
 
-            // Spaltenkeys bestimmen und pushen
-            foreach ($resolveKey($a, $base) as $colKey) {
-                $push($colKey, $start, $end, $base);
+            foreach ($resolved as $r) {
+                $colKey = $r['key'];
+                $text   = $r['text'];
+
+                $k = $start->toDateTimeString();
+                $bucket[$colKey][$k] = $bucket[$colKey][$k] ?? [];
+                $bucket[$colKey][$k][] = [
+                    'start' => $start->toDateTimeString(),
+                    'end'   => $end->toDateTimeString(),
+                    'text'  => $text,
+                ];
             }
         }
 
         $rows = $this->buildRowsPerActiveDay($headers, $bucket);
-        return ['headers' => $headers, 'rows' => $rows];
+        return ['headers'=>$headers, 'rows'=>$rows];
     }
 
 
