@@ -323,41 +323,42 @@ class PlanController extends Controller
             });
         }
 
-// Team-Namen (optional): team_plan → team
-if ($includeTeamNames) {
-    // Jury-Team
-    $q->leftJoin('team_plan as tp_j', function($j) {
-        $j->on('tp_j.plan', '=', 'p.id')
-           ->on('tp_j.team_number_plan', '=', 'a.jury_team');
-    })
-    ->leftJoin('team as t_j', function($j) {
-        $j->on('t_j.id', '=', 'tp_j.team')
-           ->on('t_j.event', '=', 'p.event')
-           ->on('t_j.first_program', '=', 'atd.first_program');
-    });
+        // Team-Namen (optional): team_plan → team
+        if ($includeTeamNames) {
+            // Jury-Team
+            $q->leftJoin('team_plan as tp_j', function($j) {
+                $j->on('tp_j.plan', '=', 'p.id')
+                ->on('tp_j.team_number_plan', '=', 'a.jury_team');
+            })
+            ->leftJoin('team as t_j', function($j) {
+                $j->on('t_j.id', '=', 'tp_j.team')
+                ->on('t_j.event', '=', 'p.event')
+                ->on('t_j.first_program', '=', 'atd.first_program');
+            });
 
-    // Table 1
-    $q->leftJoin('team_plan as tp_t1', function($j) {
-        $j->on('tp_t1.plan', '=', 'p.id')
-           ->on('tp_t1.team_number_plan', '=', 'a.table_1_team');
-    })
-    ->leftJoin('team as t_t1', function($j) {
-        $j->on('t_t1.id', '=', 'tp_t1.team')
-           ->on('t_t1.event', '=', 'p.event')
-           ->on('t_t1.first_program', '=', 'atd.first_program');
-    });
+            // Table 1
+            $q->leftJoin('team_plan as tp_t1', function($j) {
+                $j->on('tp_t1.plan', '=', 'p.id')
+                ->on('tp_t1.team_number_plan', '=', 'a.table_1_team');
+            })
+            ->leftJoin('team as t_t1', function($j) {
+                $j->on('t_t1.id', '=', 'tp_t1.team')
+                ->on('t_t1.event', '=', 'p.event')
+                ->on('t_t1.first_program', '=', 'atd.first_program');
+            });
 
-    // Table 2
-    $q->leftJoin('team_plan as tp_t2', function($j) {
-        $j->on('tp_t2.plan', '=', 'p.id')
-           ->on('tp_t2.team_number_plan', '=', 'a.table_2_team');
-    })
-    ->leftJoin('team as t_t2', function($j) {
-        $j->on('t_t2.id', '=', 'tp_t2.team')
-           ->on('t_t2.event', '=', 'p.event')
-           ->on('t_t2.first_program', '=', 'atd.first_program');
-    });
-}
+            // Table 2
+            $q->leftJoin('team_plan as tp_t2', function($j) {
+                $j->on('tp_t2.plan', '=', 'p.id')
+                ->on('tp_t2.team_number_plan', '=', 'a.table_2_team');
+            })
+            ->leftJoin('team as t_t2', function($j) {
+                $j->on('t_t2.id', '=', 'tp_t2.team')
+                ->on('t_t2.event', '=', 'p.event')
+                ->on('t_t2.first_program', '=', 'atd.first_program');
+            });
+        }
+        
         // Table-Names (Override aus table_event)
         $q->leftJoin('table_event as te1', function($j) {
             $j->on('te1.event', '=', 'p.event')
@@ -398,10 +399,7 @@ if ($includeTeamNames) {
             CASE a.table_2 
                 WHEN 2 THEN COALESCE(te2.table_name, "Tisch 2")
                 WHEN 4 THEN COALESCE(te4.table_name, "Tisch 4")
-                ELSE NULL END as table_2_name,
-            t_j.name  as jury_team_name,
-            t_t1.name as table_1_team_name,
-            t_t2.name as table_2_team_name
+                ELSE NULL END as table_2_name
         ';
 
         if ($includeRooms) {
@@ -609,47 +607,51 @@ if ($includeTeamNames) {
                 ];
             }
 
-            $groups[$gid]['activities'][] = [
-                'activity_id'      => $row->activity_id,
-                'start_time'       => $row->start_time,
-                'end_time'         => $row->end_time,
-                'activity_name'    => $row->activity_name,
-
-                // Activity-ATD-Meta
-                'meta' => [
-                    'name'               => $row->activity_atd_name ?? null,
-                    'first_program_id'   => $row->activity_first_program_id ?? null,
-                    'first_program_name' => $row->activity_first_program_name ?? null,
-                    'description'        => $row->activity_description ?? null,
-                ],
-
-                // Basis
-                'program'          => $row->program_name,
-                'lane'             => $row->lane,
-                'team'             => $row->team,
-                
-
-                // Robot-Game Tische + Teams
-                'table_1'              => $row->table_1,
-                'table_1_name'         => $row->table_1_name ?? null,
-                'table_1_team'         => $row->table_1_team,
-                'table_2'              => $row->table_2,
-                'table_2_name'         => $row->table_2_name ?? null,
-                'table_2_team'         => $row->table_2_team,
-
-                // NEU: Teamnamen (falls via fetchActivities(..., includeTeamNames: true) geladen)
-                'team_name'            => $row->jury_team_name ?? null, 
-                'table_1_team_name'    => $row->table_1_team_name ?? null,
-                'table_2_team_name'    => $row->table_2_team_name ?? null,
-
-                // NEU: Raumdaten (falls via fetchActivities(..., includeRooms: true) geladen)
-                'room' => [
-                    'room_type_id'    => $row->room_type_id    ?? null,
-                    'room_type_name'  => $row->room_type_name  ?? null,
-                    'room_id'         => $row->room_id         ?? null,
-                    'room_name'       => $row->room_name       ?? null,
-                ],
-            ];
+            // --- NEU: Activity-Key prüfen ---
+            $aid = $row->activity_id;
+            if (!isset($groups[$gid]['activities'][$aid])) {
+                $groups[$gid]['activities'][$aid] = [
+                    'activity_id'      => $row->activity_id,
+                    'start_time'       => $row->start_time,
+                    'end_time'         => $row->end_time,
+                    'activity_name'    => $row->activity_name,
+                    'meta' => [
+                        'name'               => $row->activity_atd_name ?? null,
+                        'first_program_id'   => $row->activity_first_program_id ?? null,
+                        'first_program_name' => $row->activity_first_program_name ?? null,
+                        'description'        => $row->activity_description ?? null,
+                    ],
+                    'program'          => $row->program_name,
+                    'lane'             => $row->lane,
+                    'team'             => $row->team,
+                    'table_1'          => $row->table_1,
+                    'table_1_name'     => $row->table_1_name ?? null,
+                    'table_1_team'     => $row->table_1_team,
+                    'table_2'          => $row->table_2,
+                    'table_2_name'     => $row->table_2_name ?? null,
+                    'table_2_team'     => $row->table_2_team,
+                    'team_name'        => $row->jury_team_name ?? null,
+                    'table_1_team_name'=> $row->table_1_team_name ?? null,
+                    'table_2_team_name'=> $row->table_2_team_name ?? null,
+                    'room' => [
+                        'room_type_id'    => $row->room_type_id    ?? null,
+                        'room_type_name'  => $row->room_type_name  ?? null,
+                        'room_id'         => $row->room_id         ?? null,
+                        'room_name'       => $row->room_name       ?? null,
+                    ],
+                ];
+            } else {
+                // --- NEU: Teamnamen ergänzen falls leer ---
+                if (!$groups[$gid]['activities'][$aid]['table_1_team_name'] && $row->table_1_team_name) {
+                    $groups[$gid]['activities'][$aid]['table_1_team_name'] = $row->table_1_team_name;
+                }
+                if (!$groups[$gid]['activities'][$aid]['table_2_team_name'] && $row->table_2_team_name) {
+                    $groups[$gid]['activities'][$aid]['table_2_team_name'] = $row->table_2_team_name;
+                }
+                if (!$groups[$gid]['activities'][$aid]['team_name'] && $row->jury_team_name) {
+                    $groups[$gid]['activities'][$aid]['team_name'] = $row->jury_team_name;
+                }
+            }
         }
 
     $result = [
