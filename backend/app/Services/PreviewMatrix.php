@@ -495,45 +495,15 @@ public function buildRolesMatrix(Collection $activities): array
     
     public function buildRoomsMatrix(Collection $activities): array
     {
-        // 1) Load roles (only used in schedule matrix) and filter out table-differentiated roles
-        $roles = DB::table('m_role')
-            ->whereNotNull('first_program')
-            ->where('preview_matrix', 1)
-            ->where(function($q){
-                $q->whereNull('differentiation_parameter')
-                ->orWhere('differentiation_parameter', '<>', 'table');
-            })
-            ->orderBy('first_program')
-            ->orderBy('sequence')
-            ->get();
-
-        // Map of ATDs that are visible for at least one of these roles
-        $visibleAtdIds = DB::table('m_visibility')
-            ->whereIn('role', $roles->pluck('id')->all())
-            ->pluck('activity_type_detail')
-            ->unique()
-            ->values()
-            ->all();
-
-        // Filter activities to those that belong to the above-visible ATDs
-        $acts = $activities->filter(function ($a) use ($visibleAtdIds) {
-            return in_array((int)$a->activity_type_detail_id, $visibleAtdIds, true);
-        })->values();
-
-        if ($acts->isEmpty()) {
+        if ($activities->isEmpty()) {
             return [
                 'headers' => [['key' => 'time', 'title' => 'Zeit']],
                 'rows'    => [['separator' => true]],
             ];
         }
 
-        // 2) Time window from filtered activities
-        $minStart = \Illuminate\Support\Carbon::parse($acts->min('start_time'))->startOfMinute();
-        $maxEnd   = \Illuminate\Support\Carbon::parse($acts->max('end_time'))->startOfMinute();
-
-        // 3) **NEU**: Räume & Room-Types bestimmen
-        // 3a) Räume, die tatsächlich vorkommen (room_id > 0), sortiert nach room_type_sequence, dann room_name
-        $rooms = $acts
+        // Räume mit IDs
+        $rooms = $activities
             ->filter(fn($a) => (int)($a->room_id ?? 0) > 0)
             ->groupBy('room_id')
             ->map(function ($grp) {
@@ -541,7 +511,6 @@ public function buildRolesMatrix(Collection $activities): array
                 return [
                     'room_id'   => (int)$first->room_id,
                     'room_name' => (string)($first->room_name ?? ('Room '.$first->room_id)),
-                    'rt_id'     => (int)($first->room_type_id ?? 0),
                     'rt_seq'    => (int)($first->room_type_sequence ?? 0),
                 ];
             })
@@ -549,8 +518,8 @@ public function buildRolesMatrix(Collection $activities): array
             ->sortBy([['rt_seq','asc'],['room_name','asc']])
             ->all();
 
-        // 3b) Room-Types ohne zugeordneten Raum (room_id leer), die vorkommen
-        $roomTypesNoRoom = $acts
+        // Raumtypen ohne konkrete Räume
+        $roomTypesNoRoom = $activities
             ->filter(fn($a) => (int)($a->room_id ?? 0) === 0 && (int)($a->room_type_id ?? 0) > 0)
             ->groupBy('room_type_id')
             ->map(function ($grp) {
@@ -565,54 +534,47 @@ public function buildRolesMatrix(Collection $activities): array
             ->sortBy('sequence')
             ->all();
 
-        // 4) **NEU** Headers: Zeit + Räume + Room-Types (ohne Raum)
-        $headers = [['key'=>'time','title'=>'Zeit']];
+        // Header: Zeit + Räume + RoomTypes
+        $headers = [['key' => 'time', 'title' => 'Zeit']];
         foreach ($rooms as $r) {
             $headers[] = ['key' => 'room_'.$r['room_id'], 'title' => $r['room_name']];
         }
         foreach ($roomTypesNoRoom as $rt) {
-            $headers[] = [
-                'key'   => 'roomtype_'.$rt['id'],
-                'title' => '['.$rt['name'].']',   // <--- NEU: Klammern
-            ];
+            $headers[] = ['key' => 'roomtype_'.$rt['id'], 'title' => '['.$rt['name'].']'];
         }
-        $headerKeys = array_map(fn($h) => $h['key'], $headers);
 
-        // 5) Buckets per column + start minute
+        // Buckets füllen
         $bucket = [];
         $push = function(string $colKey, \Illuminate\Support\Carbon $start, \Illuminate\Support\Carbon $end, string $text) use (&$bucket) {
             $k = $start->toDateTimeString();
             $bucket[$colKey][$k] = $bucket[$colKey][$k] ?? [];
-            $bucket[$colKey][$k][] = ['start'=>$start->toDateTimeString(), 'end'=>$end->toDateTimeString(), 'text'=>$text];
+            $bucket[$colKey][$k][] = [
+                'start' => $start->toDateTimeString(),
+                'end'   => $end->toDateTimeString(),
+                'text'  => $text,
+            ];
         };
 
-        foreach ($acts as $a) {
+        foreach ($activities as $a) {
             $start = \Illuminate\Support\Carbon::parse($a->start_time)->startOfMinute();
             $end   = \Illuminate\Support\Carbon::parse($a->end_time)->startOfMinute();
 
-            // Base text (hard override for "Mit Team")
             $base = (string)$a->activity_name;
             if (trim($base) === 'Mit Team') {
                 $prog = strtoupper((string)$a->program_name);
-                if ($prog === 'EXPLORE')   { $base = 'Begutachtung'; }
-                elseif ($prog === 'CHALLENGE') { $base = 'Jury'; }
+                $base = $prog === 'EXPLORE' ? 'Begutachtung' : ($prog === 'CHALLENGE' ? 'Jury' : $base);
             }
 
-            // **NEU**: Key je nach room_id / room_type_id
-            $rid = (int)($a->room_id ?? 0);
-            if ($rid > 0) {
-                $push('room_'.$rid, $start, $end, $base);
-            } else {
-                $rtId = (int)($a->room_type_id ?? 0);
-                if ($rtId > 0) {
-                    $push('roomtype_'.$rtId, $start, $end, $base);
-                }
+            if ((int)($a->room_id ?? 0) > 0) {
+                $push('room_'.$a->room_id, $start, $end, $base);
+            } elseif ((int)($a->room_type_id ?? 0) > 0) {
+                $push('roomtype_'.$a->room_type_id, $start, $end, $base);
             }
         }
 
-        // 6) Raster rows (5-min) + day separators + extra empty row after day & at end
+        // Rows bauen
         $rows = $this->buildRowsPerActiveDay($headers, $bucket);
-        return ['headers'=>$headers, 'rows'=>$rows];
+        return ['headers' => $headers, 'rows' => $rows];
     }
 
 

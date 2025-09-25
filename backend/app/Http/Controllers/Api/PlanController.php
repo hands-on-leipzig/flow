@@ -270,15 +270,17 @@ class PlanController extends Controller
 
     public function previewRooms(int $plan, PreviewMatrix $builder)
     {
-        $activities = $this->fetchActivities($plan, includeRooms: true, freeBlocks: false);
+        $activities = $this->fetchActivities(
+            $plan,
+            includeRooms: true,
+            freeBlocks: false
+        );
 
         if ($activities->isEmpty()) {
-            // Return stable headers so the frontend can render an empty grid
-            return [ ['key' => 'time', 'title' => 'Zeit'],];
+            return [['key' => 'time', 'title' => 'Zeit']];
         }
 
-        $matrix = $builder->buildRoomsMatrix($activities);
-        return response()->json($matrix);
+        return response()->json($builder->buildRoomsMatrix($activities));
     }
 
 
