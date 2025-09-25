@@ -51,8 +51,6 @@ class KeycloakJwtMiddleware
             $request->attributes->set('jwt', $claims);
 
             $roles = $claims['resource_access']->flow->roles ?? [];
-            Log::debug('🔍 JWT Roles extracted:', $roles);
-            Log::debug('🔍 JWT Claims:', $claims);
             $env = App::environment();
             $path = $request->path();
 
@@ -81,14 +79,9 @@ class KeycloakJwtMiddleware
             Log::debug(str_starts_with($path, 'admin'));
             // Admin route restriction
             if (str_starts_with($path, 'api/admin') || str_starts_with($path, 'api/plans/activities/')) {
-                Log::debug('🔍 Admin route check:', ['path' => $path, 'roles' => $roles]);
-                $hasAdminRole = in_array('flow-admin', $roles) || in_array('flow_admin', $roles);
-                Log::debug('🔍 Has admin role:', $hasAdminRole);
-                if (!$hasAdminRole) {
-                    Log::debug('🔍 Access denied - no admin role');
+                if (!in_array('flow-admin', $roles) && !in_array('flow_admin', $roles)) {
                     return response()->json(['error' => 'Forbidden - admin role required'], 403);
                 }
-                Log::debug('🔍 Admin access granted');
             }
 
         } catch (\Exception $e) {

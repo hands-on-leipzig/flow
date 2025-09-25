@@ -43,17 +43,6 @@ if (app()->environment('local', 'staging')) {
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
-    
-    // Debug endpoint to check roles
-    Route::get('/debug/roles', function(Request $request) {
-        $jwt = $request->attributes->get('jwt');
-        $roles = $jwt['resource_access']->flow->roles ?? [];
-        return response()->json([
-            'roles' => $roles,
-            'is_admin' => in_array('flow-admin', $roles) || in_array('flow_admin', $roles),
-            'jwt_claims' => $jwt
-        ]);
-    });
     Route::get('/user/selected-event', function (Request $request) {
         $eventId = $request->user()?->selection_event;
         Log::info($eventId);
