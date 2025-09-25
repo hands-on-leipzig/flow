@@ -145,9 +145,19 @@ async function flushUpdates() {
   try {
     for (const [name, value] of updates) {
       if (name === 'extra_block_update' && value) {
+        // Check if only non-timing fields changed
+        const timingFields = ['start', 'end', 'buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
+        const hasTimingChanges = Object.keys(value).some(field => timingFields.includes(field))
+        
+        // Add skip_regeneration flag if only non-timing fields changed
+        const blockData = { ...value }
+        if (!hasTimingChanges) {
+          blockData.skip_regeneration = true
+        }
+        
         // Save extra block update
-        await axios.post(`/plans/${planId.value}/extra-blocks`, value)
-        console.log('Saved extra block:', value)
+        await axios.post(`/plans/${planId.value}/extra-blocks`, blockData)
+        console.log('Saved extra block:', blockData)
       }
       // Add more update types here as needed
     }

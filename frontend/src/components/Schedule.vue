@@ -328,6 +328,7 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
     }
 
     // 2. Save block updates
+    let needsRegeneration = false
     if (blockUpdates.length > 0) {
       // Group block updates by block ID
       const updatesByBlock: Record<string, Record<string, any>> = {}
@@ -337,9 +338,24 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
         updatesByBlock[blockId][field] = value
       })
 
-      // Save each block
+      // Save each block with regeneration optimization
       for (const [blockId, updates] of Object.entries(updatesByBlock)) {
         const block = {id: parseInt(blockId), ...updates}
+        
+        // Check if only non-timing fields changed
+        const timingFields = ['start', 'end', 'buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
+        const hasTimingChanges = Object.keys(updates).some(field => timingFields.includes(field))
+        
+        // Track if any block needs regeneration
+        if (hasTimingChanges) {
+          needsRegeneration = true
+        }
+        
+        // Add skip_regeneration flag if only non-timing fields changed
+        if (!hasTimingChanges) {
+          block.skip_regeneration = true
+        }
+        
         await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, block)
       }
     }
@@ -350,8 +366,13 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   }
   loading.value = false
 
-  // 3. Generator starten (wiederverwendet runGeneratorOnce)
-  await runGeneratorOnce(afterUpdate)
+  // 3. Generator starten nur wenn nötig (wiederverwendet runGeneratorOnce)
+  if (needsRegeneration || paramUpdates.length > 0) {
+    await runGeneratorOnce(afterUpdate)
+  } else {
+    console.log('Skipping regeneration - only non-timing extra block fields changed')
+    if (afterUpdate) await afterUpdate()
+  }
 }
 
 const isGenerating = ref(false)
