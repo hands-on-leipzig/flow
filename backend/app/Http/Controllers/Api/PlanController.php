@@ -229,14 +229,22 @@ class PlanController extends Controller
 
     public function previewRoles(int $plan, PreviewMatrix $builder)
     {
-        $activities = $this->fetchActivities($plan, freeBlocks: false);
+        // Rollen mit differentiation_parameter = lane oder table
+        $roles = DB::table('m_role')
+            ->whereNotNull('first_program')
+            ->where('preview_matrix', 1)
+            ->whereIn('differentiation_parameter', ['lane','table'])
+            ->orderBy('first_program')
+            ->orderBy('sequence')
+            ->get();
+
+        $activities = $this->fetchActivities($plan, roles: $roles->pluck('id')->all(), freeBlocks: false);
 
         if ($activities->isEmpty()) {
-            // Return stable headers so the frontend can render an empty grid
             return [ ['key' => 'time', 'title' => 'Zeit'],];
         }
 
-        $matrix = $builder->buildRolesMatrix($activities);
+        $matrix = $builder->buildRolesMatrix($activities, $roles);
         return response()->json($matrix);
     }
 
