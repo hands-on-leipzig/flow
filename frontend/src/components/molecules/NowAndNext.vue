@@ -82,22 +82,20 @@ const teamLabel = (name?: string | null, num?: any) => {
   return ''
 }
 
-
 const splitWith = (a: any) => {
   const roomName: string | null = a?.room?.room_name ?? a?.room_name ?? null
 
-
   // Lane
   if (a?.lane) {
-    const right = (a?.room?.room_name ?? a?.room_name ?? null) || `Lane ${a.lane}`
-    const bottom = teamLabel(a?.team_name, a?.team) || ''  // <-- team_name
+    const right = roomName || `Lane ${a.lane}`
+    const bottom = teamLabel(a?.team_name, a?.team) || ''
     return { right, bottom }
   }
 
   // Table-Fall
   if (a?.table_1 || a?.table_2) {
-    const t1Right = a?.table_1 ? `Tisch ${a.table_1}` : ''
-    const t2Right = a?.table_2 ? `Tisch ${a.table_2}` : ''
+    const t1Right = a?.table_1 ? (a?.table_1_name || `Tisch ${a.table_1}`) : ''
+    const t2Right = a?.table_2 ? (a?.table_2_name || `Tisch ${a.table_2}`) : ''
     const right = [t1Right, t2Right].filter(Boolean).join(' : ')
 
     const t1Team = a?.table_1

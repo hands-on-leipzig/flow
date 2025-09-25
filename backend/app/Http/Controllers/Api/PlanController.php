@@ -323,41 +323,58 @@ class PlanController extends Controller
             });
         }
 
-        // Team-Namen (optional): team_plan → team
-        if ($includeTeamNames) {
-            // Jury-Team
-            $q->leftJoin('team_plan as tp_j', function($j) {
-                $j->on('tp_j.plan', '=', 'p.id')
-                    ->on('tp_j.team_number_plan', '=', 'a.jury_team');
-            })
-            ->leftJoin('team as t_j', function($j) {
-                $j->on('t_j.id', '=', 'tp_j.team')
-                    ->on('t_j.event', '=', 'p.event')
-                    ->on('t_j.first_program', '=', 'atd.first_program');
-            });
+// Team-Namen (optional): team_plan → team
+if ($includeTeamNames) {
+    // Jury-Team
+    $q->leftJoin('team_plan as tp_j', function($j) {
+        $j->on('tp_j.plan', '=', 'p.id')
+           ->on('tp_j.team_number_plan', '=', 'a.jury_team');
+    })
+    ->leftJoin('team as t_j', function($j) {
+        $j->on('t_j.id', '=', 'tp_j.team')
+           ->on('t_j.event', '=', 'p.event')
+           ->on('t_j.first_program', '=', 'atd.first_program');
+    });
 
-            // Table 1
-            $q->leftJoin('team_plan as tp_t1', function($j) {
-                $j->on('tp_t1.plan', '=', 'p.id')
-                    ->on('tp_t1.team_number_plan', '=', 'a.table_1_team');
-            })
-            ->leftJoin('team as t_t1', function($j) {
-                $j->on('t_t1.id', '=', 'tp_t1.team')
-                    ->on('t_t1.event', '=', 'p.event')
-                    ->on('t_t1.first_program', '=', 'atd.first_program');
-            });
+    // Table 1
+    $q->leftJoin('team_plan as tp_t1', function($j) {
+        $j->on('tp_t1.plan', '=', 'p.id')
+           ->on('tp_t1.team_number_plan', '=', 'a.table_1_team');
+    })
+    ->leftJoin('team as t_t1', function($j) {
+        $j->on('t_t1.id', '=', 'tp_t1.team')
+           ->on('t_t1.event', '=', 'p.event')
+           ->on('t_t1.first_program', '=', 'atd.first_program');
+    });
 
-            // Table 2
-            $q->leftJoin('team_plan as tp_t2', function($j) {
-                $j->on('tp_t2.plan', '=', 'p.id')
-                    ->on('tp_t2.team_number_plan', '=', 'a.table_2_team');
-            })
-            ->leftJoin('team as t_t2', function($j) {
-                $j->on('t_t2.id', '=', 'tp_t2.team')
-                    ->on('t_t2.event', '=', 'p.event')
-                    ->on('t_t2.first_program', '=', 'atd.first_program');
-            });
-        }
+    // Table 2
+    $q->leftJoin('team_plan as tp_t2', function($j) {
+        $j->on('tp_t2.plan', '=', 'p.id')
+           ->on('tp_t2.team_number_plan', '=', 'a.table_2_team');
+    })
+    ->leftJoin('team as t_t2', function($j) {
+        $j->on('t_t2.id', '=', 'tp_t2.team')
+           ->on('t_t2.event', '=', 'p.event')
+           ->on('t_t2.first_program', '=', 'atd.first_program');
+    });
+}
+        // Table-Names (Override aus table_event)
+        $q->leftJoin('table_event as te1', function($j) {
+            $j->on('te1.event', '=', 'p.event')
+               ->where('te1.table_number', 1);
+        });
+        $q->leftJoin('table_event as te2', function($j) {
+            $j->on('te2.event', '=', 'p.event')
+               ->where('te2.table_number', 2);
+        });
+        $q->leftJoin('table_event as te3', function($j) {
+            $j->on('te3.event', '=', 'p.event')
+               ->where('te3.table_number', 3);
+        });
+        $q->leftJoin('table_event as te4', function($j) {
+            $j->on('te4.event', '=', 'p.event')
+               ->where('te4.table_number', 4);
+        });
 
         // Basisselektion
         $select = '
@@ -373,7 +390,18 @@ class PlanController extends Controller
             a.table_1 as table_1,
             a.table_1_team as table_1_team,
             a.table_2 as table_2,
-            a.table_2_team as table_2_team
+            a.table_2_team as table_2_team,
+            CASE a.table_1 
+                WHEN 1 THEN COALESCE(te1.table_name, "Tisch 1")
+                WHEN 3 THEN COALESCE(te3.table_name, "Tisch 3")
+                ELSE NULL END as table_1_name,
+            CASE a.table_2 
+                WHEN 2 THEN COALESCE(te2.table_name, "Tisch 2")
+                WHEN 4 THEN COALESCE(te4.table_name, "Tisch 4")
+                ELSE NULL END as table_2_name,
+            t_j.name  as jury_team_name,
+            t_t1.name as table_1_team_name,
+            t_t2.name as table_2_team_name
         ';
 
         if ($includeRooms) {
@@ -554,7 +582,9 @@ class PlanController extends Controller
             $roles,                // Array mit genau 1 Rolle
             includeRooms: true,
             includeGroupMeta: true,
-            includeActivityMeta: true
+            includeActivityMeta: true,
+            includeTeamNames: true,
+            freeBlocks: true
         );
 
         return [$pivot, $rows];
@@ -601,8 +631,10 @@ class PlanController extends Controller
 
                 // Robot-Game Tische + Teams
                 'table_1'              => $row->table_1,
+                'table_1_name'         => $row->table_1_name ?? null,
                 'table_1_team'         => $row->table_1_team,
                 'table_2'              => $row->table_2,
+                'table_2_name'         => $row->table_2_name ?? null,
                 'table_2_team'         => $row->table_2_team,
 
                 // NEU: Teamnamen (falls via fetchActivities(..., includeTeamNames: true) geladen)
@@ -620,10 +652,29 @@ class PlanController extends Controller
             ];
         }
 
-        return [
+    $result = [
+        'plan_id' => $planId,
+        'groups'  => array_values($groups),
+    ];
+
+    // Log: erster Group-Eintrag mit erster Activity
+    if (!empty($result['groups'])) {
+        $firstGroup = $result['groups'][0];
+        $firstActivity = $firstGroup['activities'][0] ?? null;
+
+        Log::info('groupActivitiesForApi first group', [
             'plan_id' => $planId,
-            'groups'  => array_values($groups),
-        ];
+            'group_id' => $firstGroup['activity_group_id'],
+            'group_meta' => $firstGroup['group_meta'],
+            'first_activity' => $firstActivity,
+        ]);
+    } else {
+        Log::info('groupActivitiesForApi: no groups found', [
+            'plan_id' => $planId,
+        ]);
+    }
+
+    return $result;
     }
 
     /**
