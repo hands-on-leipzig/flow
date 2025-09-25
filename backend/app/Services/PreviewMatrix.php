@@ -388,13 +388,8 @@ public function buildRolesMatrix(Collection $activities): array
     }
 
 
-
-
-
-
     public function buildTeamsMatrix(Collection $activities): array
     {
-        // 1) Team-Rollen laden (nur noch für die Header-Benennung nötig)
         $teamRoles = DB::table('m_role')
             ->whereNotNull('first_program')
             ->where('preview_matrix', 1)
@@ -409,7 +404,7 @@ public function buildRolesMatrix(Collection $activities): array
             ];
         }
 
-        // 2) Teams aus Activities sammeln
+        // Teams sammeln
         $collectTeams = function(string $program) use ($activities) {
             return $activities
                 ->filter(fn($a) => strtoupper((string)$a->program_name) === $program)
@@ -428,7 +423,7 @@ public function buildRolesMatrix(Collection $activities): array
         $exTeams = $collectTeams('EXPLORE');
         $chTeams = $collectTeams('CHALLENGE');
 
-        // 3) Header bauen
+        // Header bauen
         $nameShortE = (string)($teamRoles->firstWhere('first_program', 2)->name_short ?? 'Team E');
         $nameShortC = (string)($teamRoles->firstWhere('first_program', 3)->name_short ?? 'Team C');
 
@@ -446,20 +441,10 @@ public function buildRolesMatrix(Collection $activities): array
             ];
         }
 
-        // 4) Activities in Buckets einsortieren
-        $bucket = [];
-        foreach ($activities as $a) {
+        // Schlüssel-Auflösung
+        $resolveKey = function($a, string $base) use ($exTeams, $chTeams) {
             $prog = strtoupper((string)$a->program_name);
-            if ($prog !== 'EXPLORE' && $prog !== 'CHALLENGE') continue;
-
-            $start = Carbon::parse($a->start_time)->startOfMinute();
-            $end   = Carbon::parse($a->end_time)->startOfMinute();
-            $text  = (string)$a->activity_name;
-
-            // Override für "Mit Team"
-            if (stripos($text, 'mit team') !== false) {
-                $text = $prog === 'EXPLORE' ? 'Begutachtung' : 'Jury';
-            }
+            if ($prog !== 'EXPLORE' && $prog !== 'CHALLENGE') return [];
 
             $colPrefix = $prog === 'EXPLORE' ? 'ex_t' : 'ch_t';
             $teamsAll  = $prog === 'EXPLORE' ? $exTeams : $chTeams;
@@ -470,29 +455,27 @@ public function buildRolesMatrix(Collection $activities): array
                 (int)($a->table_2_team ?? 0),
             ])->filter(fn($n)=>$n>0)->unique()->all();
 
+            $keys = [];
             if (!empty($teamsInActivity)) {
                 foreach ($teamsInActivity as $tn) {
                     if (in_array($tn, $teamsAll, true)) {
-                        $key = $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT);
-                        $this->push($bucket, $key, $start, $end, $text);
+                        $keys[] = $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT);
                     }
                 }
             } else {
                 foreach ($teamsAll as $tn) {
-                    $key = $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT);
-                    $this->push($bucket, $key, $start, $end, $text);
+                    $keys[] = $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT);
                 }
             }
-        }
+            return $keys;
+        };
 
-        // 5) Raster-Output
-        $rows = $this->buildRowsPerActiveDay($headers, $bucket);
-        return ['headers'=>$headers, 'rows'=>$rows];
+        return $this->bucketizeActivities($activities, $headers, $resolveKey);
     }
 
 
 
-    
+        
     public function buildRoomsMatrix(Collection $activities): array
     {
         if ($activities->isEmpty()) {
@@ -534,7 +517,7 @@ public function buildRolesMatrix(Collection $activities): array
             ->sortBy('sequence')
             ->all();
 
-        // Header: Zeit + Räume + RoomTypes
+        // Header
         $headers = [['key' => 'time', 'title' => 'Zeit']];
         foreach ($rooms as $r) {
             $headers[] = ['key' => 'room_'.$r['room_id'], 'title' => $r['room_name']];
@@ -543,7 +526,22 @@ public function buildRolesMatrix(Collection $activities): array
             $headers[] = ['key' => 'roomtype_'.$rt['id'], 'title' => '['.$rt['name'].']'];
         }
 
-        // Buckets füllen
+        // Schlüssel-Auflösung
+        $resolveKey = function($a, string $base) {
+            $keys = [];
+            if ((int)($a->room_id ?? 0) > 0) {
+                $keys[] = 'room_'.$a->room_id;
+            } elseif ((int)($a->room_type_id ?? 0) > 0) {
+                $keys[] = 'roomtype_'.$a->room_type_id;
+            }
+            return $keys;
+        };
+
+        return $this->bucketizeActivities($activities, $headers, $resolveKey);
+    }
+
+    private function bucketizeActivities(Collection $activities, array $headers, callable $resolveKey): array
+    {
         $bucket = [];
         $push = function(string $colKey, \Illuminate\Support\Carbon $start, \Illuminate\Support\Carbon $end, string $text) use (&$bucket) {
             $k = $start->toDateTimeString();
@@ -559,25 +557,22 @@ public function buildRolesMatrix(Collection $activities): array
             $start = \Illuminate\Support\Carbon::parse($a->start_time)->startOfMinute();
             $end   = \Illuminate\Support\Carbon::parse($a->end_time)->startOfMinute();
 
+            // Text mit Override
             $base = (string)$a->activity_name;
-            if (trim($base) === 'Mit Team') {
+            if (stripos($base, 'mit team') !== false) {
                 $prog = strtoupper((string)$a->program_name);
                 $base = $prog === 'EXPLORE' ? 'Begutachtung' : ($prog === 'CHALLENGE' ? 'Jury' : $base);
             }
 
-            if ((int)($a->room_id ?? 0) > 0) {
-                $push('room_'.$a->room_id, $start, $end, $base);
-            } elseif ((int)($a->room_type_id ?? 0) > 0) {
-                $push('roomtype_'.$a->room_type_id, $start, $end, $base);
+            // Spaltenkeys bestimmen und pushen
+            foreach ($resolveKey($a, $base) as $colKey) {
+                $push($colKey, $start, $end, $base);
             }
         }
 
-        // Rows bauen
         $rows = $this->buildRowsPerActiveDay($headers, $bucket);
         return ['headers' => $headers, 'rows' => $rows];
     }
-
-
 
 
 }
