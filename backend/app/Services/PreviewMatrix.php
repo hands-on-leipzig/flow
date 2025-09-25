@@ -394,12 +394,12 @@ public function buildRolesMatrix(Collection $activities): array
 
     public function buildTeamsMatrix(Collection $activities): array
     {
-        // 1) Load ONLY the team-roles per program (for visibility) 
+        // 1) Team-Rollen laden (nur noch für die Header-Benennung nötig)
         $teamRoles = DB::table('m_role')
             ->whereNotNull('first_program')
             ->where('preview_matrix', 1)
             ->where('differentiation_parameter', 'team')
-            ->select('id','first_program','name_short')
+            ->select('first_program','name_short')
             ->get();
 
         if ($activities->isEmpty() || $teamRoles->isEmpty()) {
@@ -409,17 +409,15 @@ public function buildRolesMatrix(Collection $activities): array
             ];
         }
 
-        // 2) Determine team numbers from activities per program
+        // 2) Teams aus Activities sammeln
         $collectTeams = function(string $program) use ($activities) {
             return $activities
                 ->filter(fn($a) => strtoupper((string)$a->program_name) === $program)
-                ->flatMap(function($a){
-                    return [
-                        (int)($a->team ?? 0),
-                        (int)($a->table_1_team ?? 0),
-                        (int)($a->table_2_team ?? 0),
-                    ];
-                })
+                ->flatMap(fn($a) => [
+                    (int)($a->team ?? 0),
+                    (int)($a->table_1_team ?? 0),
+                    (int)($a->table_2_team ?? 0),
+                ])
                 ->filter(fn($n) => $n > 0)
                 ->unique()
                 ->sort()
@@ -430,7 +428,7 @@ public function buildRolesMatrix(Collection $activities): array
         $exTeams = $collectTeams('EXPLORE');
         $chTeams = $collectTeams('CHALLENGE');
 
-        // 3) Build headers: Zeit | <name_short(E)>01.. | <name_short(C)>01..
+        // 3) Header bauen
         $nameShortE = (string)($teamRoles->firstWhere('first_program', 2)->name_short ?? 'Team E');
         $nameShortC = (string)($teamRoles->firstWhere('first_program', 3)->name_short ?? 'Team C');
 
@@ -448,49 +446,24 @@ public function buildRolesMatrix(Collection $activities): array
             ];
         }
 
-        $headerKeys = array_map(fn($h) => $h['key'], $headers);
-
-        // 4) Visibility sets per program (union of all team roles per program)
-        $vis = DB::table('m_visibility')->get();
-        $teamRoleIdsE = $teamRoles->where('first_program', 2)->pluck('id')->all();
-        $teamRoleIdsC = $teamRoles->where('first_program', 3)->pluck('id')->all();
-
-        $allowedAtdsE = $vis->whereIn('role', $teamRoleIdsE)->pluck('activity_type_detail')->unique()->values()->all();
-        $allowedAtdsC = $vis->whereIn('role', $teamRoleIdsC)->pluck('activity_type_detail')->unique()->values()->all();
-
-        $isAllowedForProgram = function (int $atd, string $prog) use ($allowedAtdsE, $allowedAtdsC) {
-            if ($prog === 'EXPLORE')  return in_array($atd, $allowedAtdsE, true);
-            if ($prog === 'CHALLENGE') return in_array($atd, $allowedAtdsC, true);
-            return false;
-        };
-
-        // 5) Bucket activities
+        // 4) Activities in Buckets einsortieren
         $bucket = [];
         foreach ($activities as $a) {
             $prog = strtoupper((string)$a->program_name);
             if ($prog !== 'EXPLORE' && $prog !== 'CHALLENGE') continue;
 
-            $atdId = (int)$a->activity_type_detail_id;
-            if (!$isAllowedForProgram($atdId, $prog)) continue;
-
             $start = Carbon::parse($a->start_time)->startOfMinute();
             $end   = Carbon::parse($a->end_time)->startOfMinute();
             $text  = (string)$a->activity_name;
 
-            // --- Hard override for "Mit Team"
+            // Override für "Mit Team"
             if (stripos($text, 'mit team') !== false) {
-                if ($prog === 'EXPLORE') {
-                    $text = 'Begutachtung';
-                } elseif ($prog === 'CHALLENGE') {
-                    $text = 'Jury';
-                }
+                $text = $prog === 'EXPLORE' ? 'Begutachtung' : 'Jury';
             }
 
-            // Which team columns belong to this program?
             $colPrefix = $prog === 'EXPLORE' ? 'ex_t' : 'ch_t';
             $teamsAll  = $prog === 'EXPLORE' ? $exTeams : $chTeams;
 
-            // Team numbers present on the activity
             $teamsInActivity = collect([
                 (int)($a->team ?? 0),
                 (int)($a->table_1_team ?? 0),
@@ -499,14 +472,12 @@ public function buildRolesMatrix(Collection $activities): array
 
             if (!empty($teamsInActivity)) {
                 foreach ($teamsInActivity as $tn) {
-                    // only drop into existing columns
                     if (in_array($tn, $teamsAll, true)) {
                         $key = $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT);
                         $this->push($bucket, $key, $start, $end, $text);
                     }
                 }
             } else {
-                // No team on activity → replicate across all team columns of the program
                 foreach ($teamsAll as $tn) {
                     $key = $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT);
                     $this->push($bucket, $key, $start, $end, $text);
@@ -514,10 +485,9 @@ public function buildRolesMatrix(Collection $activities): array
             }
         }
 
-        // 6) Raster rows (5-min) + day separators + extra empty row at end
+        // 5) Raster-Output
         $rows = $this->buildRowsPerActiveDay($headers, $bucket);
         return ['headers'=>$headers, 'rows'=>$rows];
-        
     }
 
 
