@@ -242,11 +242,26 @@ class PlanController extends Controller
 
     public function previewTeams(int $plan, PreviewMatrix $builder)
     {
-        $activities = $this->fetchActivities($plan, freeBlocks: false);
+        // Team-Rollen ermitteln (nur für Programme, die in der Preview-Matrix relevant sind)
+        $teamRoleIds = DB::table('m_role')
+            ->whereNotNull('first_program')
+            ->where('preview_matrix', 1)
+            ->where('differentiation_parameter', 'team')
+            ->pluck('id')
+            ->all();
+
+        // Activities gefiltert nach diesen Rollen laden
+        $activities = $this->fetchActivities(
+            plan: $plan,
+            roles: $teamRoleIds,
+            freeBlocks: false
+        );
 
         if ($activities->isEmpty()) {
             // Return stable headers so the frontend can render an empty grid
-            return [ ['key' => 'time', 'title' => 'Zeit'],];
+            return [
+                ['key' => 'time', 'title' => 'Zeit'],
+            ];
         }
 
         $matrix = $builder->buildTeamsMatrix($activities);
