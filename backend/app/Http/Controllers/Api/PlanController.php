@@ -501,6 +501,14 @@ class PlanController extends Controller
 
     public function actionNext(int $planId, Request $req): JsonResponse
     {
+        // Request-Parameter ins Log
+    Log::info('actionNext() called', [
+        'planId' => $planId,
+        'query'  => $req->query(), // nur Query-Parameter (GET)
+        'all'    => $req->all(),   // alle Felder (Query + Body, falls vorhanden)
+    ]);
+
+
         [$pivot, $rows] = $this->prepareActivities($planId, $req);
 
         $interval = (int) $req->query('interval', 30);
@@ -509,7 +517,7 @@ class PlanController extends Controller
             $start = Carbon::parse($r->start_time);
             $end   = Carbon::parse($r->end_time);
 
-            return $start >= $pivot && $end <= (clone $pivot)->addMinutes($interval);
+            return $start >= $pivot && $start <= (clone $pivot)->addMinutes($interval);
         });
 
         return response()->json($this->groupActivitiesForApi($planId, $rows));
