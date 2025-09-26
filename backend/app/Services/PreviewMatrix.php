@@ -427,19 +427,12 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
                     if ($juryNo > 0) {
                         $suffix = ' J' . $juryNo;
                     }
-                } elseif (stripos($baseText, 'check') !== false) {
-                    // Robot-Check → Tisch-Nummer dieses Teams
+                } elseif (stripos($baseText, 'check') !== false || stripos($baseText, 'match') !== false) {
+                    // Welcher Tisch gehört zu diesem Team?
                     if ((int)$a->table_1_team === $tn && (int)$a->table_1 > 0) {
-                        $suffix = ' RC T' . (int)$a->table_1;
+                        $suffix = ' T' . (int)$a->table_1;
                     } elseif ((int)$a->table_2_team === $tn && (int)$a->table_2 > 0) {
-                        $suffix = ' RC T' . (int)$a->table_2;
-                    }
-                } elseif (stripos($baseText, 'match') !== false) {
-                    // Robot-Game Match → Tisch-Nummer dieses Teams
-                    if ((int)$a->table_1_team === $tn && (int)$a->table_1 > 0) {
-                        $suffix = ' RG T' . (int)$a->table_1;
-                    } elseif ((int)$a->table_2_team === $tn && (int)$a->table_2 > 0) {
-                        $suffix = ' RG T' . (int)$a->table_2;
+                        $suffix = ' T' . (int)$a->table_2;
                     }
                 }
 
