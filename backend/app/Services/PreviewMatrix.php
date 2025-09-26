@@ -4,6 +4,7 @@ namespace App\Services;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PreviewMatrix
 {
@@ -337,7 +338,7 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
     }
 
 
- public function buildTeamsMatrix(Collection $activities): array
+    public function buildTeamsMatrix(Collection $activities): array
     {
         $teamRoles = DB::table('m_role')
             ->whereNotNull('first_program')
@@ -358,7 +359,7 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
             return $activities
                 ->filter(fn($a) => strtoupper((string)$a->program_name) === $program)
                 ->flatMap(fn($a) => [
-                    (int)($a->team ?? 0),
+                    (int)($a->jury_team ?? 0),   // angepasst: statt $a->team
                     (int)($a->table_1_team ?? 0),
                     (int)($a->table_2_team ?? 0),
                 ])
@@ -390,7 +391,7 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
             ];
         }
 
-        // Schlüssel-Auflösung inkl. Jxx / Txx
+        // Schlüssel-Auflösung inkl. Jx / RC Tx / RG Tx
         $resolveKey = function($a, string $base) use ($exTeams, $chTeams) {
             $prog = strtoupper((string)$a->program_name);
             if ($prog !== 'EXPLORE' && $prog !== 'CHALLENGE') return [];
@@ -399,32 +400,42 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
             $teamsAll  = $prog === 'EXPLORE' ? $exTeams : $chTeams;
 
             $teamsInActivity = collect([
-                (int)($a->team ?? 0),
+                (int)($a->jury_team ?? 0),   // angepasst: statt $a->team
                 (int)($a->table_1_team ?? 0),
                 (int)($a->table_2_team ?? 0),
             ])->filter(fn($n)=>$n>0)->unique()->all();
 
             $baseText = (string)$a->activity_name;
+            $result   = [];
 
-            $result = [];
             foreach ($teamsInActivity as $tn) {
+                Log::info('Preview Teams Debug', [
+                    'id'        => $a->activity_id,
+                    'name'      => $a->activity_name,
+                    'lane'      => $a->jury_lane,   // angepasst: statt $a->lane
+                    'team'      => $a->jury_team,   // angepasst: statt $a->team
+                    'program'   => $a->program_name,
+                ]);
+
                 if (!in_array($tn, $teamsAll, true)) continue;
 
                 $suffix = '';
+
                 if (stripos($baseText, 'jury') !== false) {
-                    $juryNo = (int)($a->lane ?? 0);
+                    // Jury → lane-Nummer
+                    $juryNo = (int)($a->jury_lane ?? 0);  // angepasst: statt $a->lane
                     if ($juryNo > 0) {
                         $suffix = ' J' . $juryNo;
                     }
                 } elseif (stripos($baseText, 'check') !== false) {
-                    // Welcher Tisch gehört zu diesem Team?
+                    // Robot-Check → Tisch-Nummer dieses Teams
                     if ((int)$a->table_1_team === $tn && (int)$a->table_1 > 0) {
                         $suffix = ' RC T' . (int)$a->table_1;
                     } elseif ((int)$a->table_2_team === $tn && (int)$a->table_2 > 0) {
                         $suffix = ' RC T' . (int)$a->table_2;
                     }
                 } elseif (stripos($baseText, 'match') !== false) {
-                    // Welcher Tisch gehört zu diesem Team?
+                    // Robot-Game Match → Tisch-Nummer dieses Teams
                     if ((int)$a->table_1_team === $tn && (int)$a->table_1 > 0) {
                         $suffix = ' RG T' . (int)$a->table_1;
                     } elseif ((int)$a->table_2_team === $tn && (int)$a->table_2 > 0) {
@@ -453,7 +464,6 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
 
         return $this->bucketizeActivities($activities, $headers, $resolveKey);
     }
-
 
 
         
@@ -507,7 +517,7 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
             $headers[] = ['key' => 'roomtype_'.$rt['id'], 'title' => '['.$rt['name'].']'];
         }
 
-        // Schlüssel-Auflösung mit Text
+        // Schlüssel-Auflösung inkl. Text
         $resolveKey = function($a, string $base) {
             $baseText = (string)$a->activity_name;
             $keys = [];
