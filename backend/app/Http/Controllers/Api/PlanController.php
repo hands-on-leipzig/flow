@@ -501,8 +501,15 @@ class PlanController extends Controller
             return response()->json(['error' => 'Forbidden - admin role required'], 403);
         }
 
-        // Aktivitäten laden (ohne Räume)
-        $rows = $this->fetchActivities($planId, false);
+        $rows = $this->fetchActivities(
+            $planId,
+            roles: [],                 // keine Rollen → alles selektieren
+            includeRooms: false,
+            includeGroupMeta: false,
+            includeActivityMeta: false,
+            includeTeamNames: false,
+            freeBlocks: true
+        );
 
         // Nach Activity-Group gruppieren
         $groups = [];
