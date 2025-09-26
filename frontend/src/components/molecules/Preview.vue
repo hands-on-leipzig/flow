@@ -18,7 +18,12 @@ type Row = {
 }
 
 const route = useRoute()
-const { isAdmin } = useAuth()
+const { isAdmin, initializeUserRoles } = useAuth()
+
+// Ensure roles are initialized
+onMounted(() => {
+  initializeUserRoles()
+})
 
 const props = withDefaults(defineProps<{
   planId?: number

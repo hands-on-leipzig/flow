@@ -85,9 +85,14 @@ function flushUpdates() {
     // Group updates by block ID
     const updatesByBlock: Record<string, Record<string, any>> = {}
     Object.entries(pendingUpdates.value).forEach(([key, value]) => {
-      const [blockId, field] = key.split('_', 2)
-      if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
-      updatesByBlock[blockId][field] = value
+      // Parse: "123_buffer_before" -> blockId="123", field="buffer_before"
+      const parts = key.split('_')
+      if (parts.length >= 2) {
+        const blockId = parts[0] // "123"
+        const field = parts.slice(1).join('_') // "buffer_before"
+        if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
+        updatesByBlock[blockId][field] = value
+      }
     })
     
     console.log('Block updates grouped:', updatesByBlock)
@@ -102,11 +107,18 @@ function flushUpdates() {
     
     // Convert to parameter-style updates for the parent
     const updates = Object.entries(pendingUpdates.value).map(([key, value]) => {
-      const [blockId, field] = key.split('_', 2)
-      return { name: `block_${blockId}_${field}`, value }
+      // Parse: "28_buffer_before" -> blockId="28", field="buffer_before"
+      const parts = key.split('_')
+      if (parts.length >= 2) {
+        const blockId = parts[0] // "28"
+        const field = parts.slice(1).join('_') // "buffer_before"
+        return { name: `block_${blockId}_${field}`, value }
+      }
+      return { name: key, value } // fallback
     })
     
     // Send to parent's update system
+    console.log('Sending updates to parent:', updates)
     if (props.onUpdate) {
       props.onUpdate(updates)
     }

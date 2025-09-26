@@ -54,10 +54,15 @@ class ExtraBlockController extends Controller
             'start' => 'nullable|date',
             'end' => 'nullable|date|after_or_equal:start',
             'room' => 'nullable|integer|exists:room,id',
+            'skip_regeneration' => 'nullable|boolean', // New flag to skip regeneration
         ]);
 
         // Ensure plan is set from route param
         $validated['plan'] = $planId;
+
+        // Check if this is a timing-related update
+        $skipRegeneration = $validated['skip_regeneration'] ?? false;
+        unset($validated['skip_regeneration']); // Remove from data before saving
 
         // Update if ID present, otherwise create
         $block = ExtraBlock::updateOrCreate(
@@ -65,7 +70,11 @@ class ExtraBlockController extends Controller
             $validated
         );
 
-        return response()->json($block);
+        // Return the block with regeneration flag
+        return response()->json([
+            'block' => $block,
+            'skip_regeneration' => $skipRegeneration
+        ]);
     }
 
     public function delete(int $id)
