@@ -411,10 +411,13 @@ public function buildRolesMatrix(\Illuminate\Support\Collection $activities, \Il
                 if (!in_array($tn, $teamsAll, true)) continue;
 
                 $suffix = '';
-                if (stripos($baseText, 'jury') !== false) {
+                if (stripos($baseText, 'mit team') !== false) {
                     $juryNo = (int)($a->lane ?? 0);
                     if ($juryNo > 0) {
-                        $suffix = ' J' . $juryNo;
+                        // Programm unterscheiden: EXPLORE = G, CHALLENGE = J
+                        $progLetter = strtoupper((string)$a->program_name);
+                        $juryPrefix = $progLetter === 'EXPLORE' ? 'G' : 'J';
+                        $suffix = ' ' . $juryPrefix . $juryNo;
                     }
                 } elseif (stripos($baseText, 'check') !== false || stripos($baseText, 'match') !== false) {
                     // Welcher Tisch gehört zu diesem Team?
