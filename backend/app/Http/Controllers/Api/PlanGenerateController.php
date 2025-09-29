@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Plan;
 use App\Jobs\GeneratePlanJob;
-use App\Services\GeneratePlan;
+use App\Services\PlanGenerator;
 
 class PlanGenerateController extends Controller
 {
@@ -43,7 +43,7 @@ class PlanGenerateController extends Controller
 
             log::info("Plan {$planId}: Generation started");
 
-            GeneratePlan::run($plan->id);
+            PlanGenerator::run($plan->id);
 
             $plan->generator_status = 'done';
             $plan->save();

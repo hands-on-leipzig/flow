@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Illuminate\Support\Facades\Log;
 
-class GeneratePlan
+class PlanGenerator
 {
     public static function run(int $planId): void
     {
