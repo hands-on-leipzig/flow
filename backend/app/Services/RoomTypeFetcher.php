@@ -10,51 +10,67 @@ class RoomTypeFetcher
     
     public function fetchRoomTypes(int $plan): \Illuminate\Support\Collection
     {
-        // Normale room_types
-        $roomTypes = DB::table('activity as a')
+        // --- Normale Room Types ---
+        $normal = DB::table('activity as a')
             ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
-            ->join('plan as p', 'p.id', '=', 'ag.plan')
+            ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+            ->join('m_activity_type as at', 'at.id', '=', 'atd.activity_type')
             ->join('m_room_type as rt', 'a.room_type', '=', 'rt.id')
-            ->join('m_room_type_group as rg', 'rt.room_type_group', '=', 'rg.id')
             ->where('ag.plan', $plan)
             ->select(
-                'rg.id as group_id',
-                'rg.name as group_name',
-                'rt.id as type_id',
-                'rt.name as type_name'
-            );
+                'at.id   as group_id',
+                'at.name as group_name',
+                'at.sequence as group_seq',
+                'atd.id  as type_id',
+                'rt.name as type_name',
+                'atd.sequence as type_seq'
+            )
+            ->distinct()
+            ->orderBy('at.sequence')
+            ->orderBy('atd.sequence')
+            ->get();
 
-        // Sonderfall Extra Block (at.id = 9)
-        $extraBlocks = DB::table('activity as a')
+        // --- Sonderfall: Extra Blocks ---
+        $extra = DB::table('activity as a')
             ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
-            ->join('plan as p', 'p.id', '=', 'ag.plan')
-            ->join('extra_block as eb', 'a.extra_block', '=', 'eb.id')
+            ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+            ->join('m_activity_type as at', 'at.id', '=', 'atd.activity_type')
+            ->join('extra_block as eb', 'eb.id', '=', 'a.extra_block')
             ->where('ag.plan', $plan)
-            ->where('a.activity_type', 9)
+            ->where('at.id', 9) // activity_type = 9
             ->select(
                 DB::raw('1 as group_id'),
                 DB::raw('"Extra Blocks" as group_name'),
+                DB::raw('999 as group_seq'), // kommt nach allen anderen
                 'eb.id as type_id',
-                'eb.name as type_name'
-            );
+                'eb.name as type_name',
+                DB::raw('0 as type_seq')
+            )
+            ->distinct()
+            ->orderBy('eb.name')
+            ->get();
 
-        // Zusammenführen und gruppieren
-        $all = $roomTypes->union($extraBlocks)->get();
-
-        return $all
+        // --- Merge und strukturieren ---
+        $all = $normal->merge($extra)
             ->groupBy('group_id')
+            ->sortBy(fn($grp) => $grp->first()->group_seq)
             ->map(function ($items) {
                 $first = $items->first();
                 return [
                     'group_id'   => $first->group_id,
                     'group_name' => $first->group_name,
-                    'room_types' => $items->map(fn($i) => [
-                        'id'   => $i->type_id,
-                        'name' => $i->type_name,
-                    ])->unique('id')->values(),
+                    'room_types' => $items->sortBy('type_seq')
+                                        ->map(fn($i) => [
+                                            'type_id'   => $i->type_id,
+                                            'type_name' => $i->type_name,
+                                        ])
+                                        ->values()
+                                        ->all(),
                 ];
             })
             ->values();
+
+        return $all;
     }
 
 
