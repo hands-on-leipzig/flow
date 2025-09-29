@@ -198,4 +198,5 @@ class ActivityFetcher
 
         return $q->selectRaw($select)->get();
     }
+
 }
