@@ -308,10 +308,11 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   loading.value = true
   let needsRegeneration = false
   
+  // Separate parameter updates from block updates
+  const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
+  const blockUpdates = params.filter(p => p.name.startsWith('block_'))
+  
   try {
-    // Separate parameter updates from block updates
-    const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
-    const blockUpdates = params.filter(p => p.name.startsWith('block_'))
 
     // 1. Save parameters
     if (paramUpdates.length > 0) {
