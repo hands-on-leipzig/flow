@@ -481,6 +481,31 @@ function g_generator($plan_id) {
             }
 
             // g_debug_timing("Nach Robot Game", $c_block, $r_start_shift);
+
+
+            // If a hard lunch break is set, do it here
+            if ( ( (pp("j_rounds") == 4 && $c_block == 2) ||
+                   (pp("j_rounds") > 4 && $c_block == 3) ) &&
+                 pp('c_duration_lunch_break') > 0 ) {
+
+                g_debug_log(0, "Hard lunch " . $j_time->format('H:i') . " / " . $r_time->format('H:i') );
+
+                if (g_diff_in_minutes($j_time, $r_time) > 0) {
+                    $r_time = clone $j_time;
+                } else {
+                    $j_time = clone $r_time;      
+                }
+
+                db_insert_activity_group(ID_ATD_C_LUNCH_BREAK);
+                db_insert_activity(ID_ATD_C_LUNCH_BREAK, $j_time, pp("c_duration_lunch_break"));
+
+                g_add_minutes($j_time, pp("c_duration_lunch_break"));
+                g_add_minutes($r_time, pp("c_duration_lunch_break"));
+
+                g_debug_log(0, "Hard lunch " . $j_time->format('H:i') . " / " . $r_time->format('H:i') );
+
+
+            }
          
         }
 

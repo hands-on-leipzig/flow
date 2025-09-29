@@ -347,7 +347,11 @@ function r_insert_one_round($round) {
                 e_integrated();
             } else {
                 // independent lunch
-                g_insert_point(ID_IP_RG_1, pp("r_duration_lunch"));
+
+                // If a hard break is set, don't do anything here
+                if (pp('c_duration_lunch_break') == 0) {
+                    g_insert_point(ID_IP_RG_1, pp("r_duration_lunch"));
+                }
             }
             break;
         case 2:
@@ -357,13 +361,6 @@ function r_insert_one_round($round) {
             g_insert_point(ID_IP_RG_3, pp("r_duration_results"));
     }
 
-    /* TODO: Check if needed
-    // With robot check the rounds start with the checkers, not with the referees.
-    // Thus we can take the duration out for the start of the next action.
-    if (pp("r_robot_check")) {
-        g_add_minutes($r_time, -1 * pp("r_duration_robot_check"));
-    
-        */
 }
 
 function c_presentations () {
@@ -697,7 +694,11 @@ function r_final_round($team_count) {
     if ( (pp("j_rounds") == 4 && $c_block == 2) ||
          (pp("j_rounds") > 4 && $c_block == 3) ) {
         // lunch break
-        g_add_minutes($j_time, pp("j_duration_lunch"));
+
+        // If a hard break is set, don't do anything here
+        if (pp('c_duration_lunch_break') == 0) {
+            g_add_minutes($j_time, pp("j_duration_lunch"));
+        }
     } else {
         // normal break, but not after final block
         if ($c_block < pp("j_rounds")) {

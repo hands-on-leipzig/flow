@@ -27,6 +27,7 @@ define('ID_ATD_C_JUDGING_PACKAGE', 20);
 define('ID_ATD_C_WITH_TEAM', 17);
 define('ID_ATD_C_SCORING', 18);
 define('ID_ATD_C_DELIBERATIONS', 19);
+define('ID_ATD_C_LUNCH_BREAK', 21);
 define('ID_ATD_C_LUNCH_TEAM', 22);
 define('ID_ATD_C_LUNCH_JUDGE', 23);
 define('ID_ATD_C_COACH_BRIEFING', 35);
@@ -301,20 +302,8 @@ function db_insert_activity(
                 $room_type = ID_RT_E_JUDGE_DELIBERATIONS;
                 break;
 
-            case ID_ATD_C_LUNCH_TEAM:
-            case ID_ATD_E_LUNCH_TEAM:
+            case ID_ATD_C_LUNCH_BREAK:
                 $room_type = ID_RT_LUNCH_TEAM;
-                break;
-
-            case ID_ATD_C_LUNCH_VISITOR:
-            case ID_ATD_E_LUNCH_VISITOR:
-                $room_type = ID_RT_LUNCH_VISITOR;
-                break;
-
-            case ID_ATD_C_LUNCH_JUDGE:
-            case ID_ATD_R_LUNCH_REFEREE:
-            case ID_ATD_E_LUNCH_JUDGE:
-                $room_type = ID_RT_LUNCH_VOLUNTEER;
                 break;
 
             case ID_ATD_LC_JUDGE_BRIEFING:
