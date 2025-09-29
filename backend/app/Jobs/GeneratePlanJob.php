@@ -5,7 +5,7 @@ namespace App\Jobs;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use App\Models\Plan;
-use App\Services\GeneratePlan;
+use App\Services\PlanGenerator;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
@@ -28,7 +28,7 @@ class GeneratePlanJob implements ShouldQueue
         $plan->generator_status = 'running';
         $plan->save();
 
-        GeneratePlan::run($plan->id);
+        PlanGenerator::run($plan->id);
        
         $plan->generator_status = 'done';
         $plan->save();

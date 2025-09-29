@@ -8,10 +8,10 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use App\Http\Controllers\Api\PlanController;
+use App\Http\Controllers\Api\PlanGenerateController;
 use App\Models\QPlan;
 use App\Models\QRun;
-use App\Services\EvaluateQuality;
+use App\Services\QualityEvaluator;
 use Carbon\Carbon;
 
 class ExecuteQPlanJob implements ShouldQueue
@@ -53,12 +53,12 @@ class ExecuteQPlanJob implements ShouldQueue
 
         Log::info("qPlan {$qPlan->id}: creation of plan $planId dispatched");
 
-        $pc = new PlanController();
+        $pc = new PlanGenerateController();
         $pc->generate($planId, false);   // run synchronously as part of this job
 
         // Log::info("qPlan {$qPlan->id}: dispatch of quality evaluation for plan $planId");
 
-        $evaluator = new EvaluateQuality();
+        $evaluator = new QualityEvaluator();
         $evaluator->evaluatePlanId($planId);
 
         // Mark QPlan as calculated
