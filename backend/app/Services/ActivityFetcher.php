@@ -199,39 +199,4 @@ class ActivityFetcher
         return $q->selectRaw($select)->get();
     }
 
-    public function fetchRoomTypes(int $plan): \Illuminate\Support\Collection
-    {
-        return DB::table('activity as a')
-            ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
-            ->join('plan as p', 'p.id', '=', 'ag.plan')
-            ->leftJoin('m_room_type as rt', 'a.room_type', '=', 'rt.id')
-            ->leftJoin('m_room_type_group as rg', 'rt.room_type_group', '=', 'rg.id')
-            ->where('ag.plan', $plan)
-            ->whereNotNull('a.room_type')
-            ->select([
-                'rg.id as group_id',
-                'rg.name as group_name',
-                'rt.id as room_type_id',
-                'rt.name as room_type_name',
-            ])
-            ->distinct()
-            ->get()
-            ->groupBy('group_id')
-            ->map(function ($items, $groupId) {
-                $groupName = $items->first()->group_name ?? ('Group '.$groupId);
-                $roomTypes = $items->map(fn($i) => [
-                    'id'   => $i->room_type_id,
-                    'name' => $i->room_type_name,
-                ])->unique('id')->values();
-
-                return [
-                    'group_id'   => $groupId,
-                    'group_name' => $groupName,
-                    'room_types' => $roomTypes,
-                ];
-            })
-            ->values();
-    }
-
-
 }
