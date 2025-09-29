@@ -9,13 +9,17 @@ use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LogoController;
 use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanController;
-use App\Http\Controllers\Api\MParameterController;
+use App\Http\Controllers\Api\PlanGenerateController;
+use App\Http\Controllers\Api\PlanPreviewController;
+use App\Http\Controllers\Api\PlanActivityController;
+use App\Http\Controllers\Api\MParameterController;  
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\PublishController;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -33,8 +37,8 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 
 // Public Carousel route
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);
-Route::get('/plans/action-now/{planId}', [PlanController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
-Route::get('/plans/action-next/{planId}', [PlanController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
+Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
+Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
 
 // Draht API Simulator (for test environment)
 if (app()->environment('local', 'staging')) {
@@ -68,18 +72,29 @@ Route::middleware(['keycloak'])->group(function () {
         return response()->json(['status' => 'ok']);
     });
 
-    // Plan controller
+    // Plan controller (Basis-Funktionen)
     Route::prefix('plans')->group(function () {
         Route::post('/create', [PlanController::class, 'create']);
         Route::get('/event/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']);
-        Route::get('/preview/{planId}/roles', [PlanController::class, 'previewRoles']);
-        Route::get('/preview/{planId}/teams', [PlanController::class, 'previewTeams']);
-        Route::get('/preview/{planId}/rooms', [PlanController::class, 'previewRooms']);
-        Route::get('/activities/{planId}', [PlanController::class, 'activities']);
-        Route::get('/action/next/{planId}/{interval?}', [PlanController::class, 'actionNext']);
-        Route::post('/{planId}/generate', [PlanController::class, 'generate']);
-        Route::get('/{planId}/status', [PlanController::class, 'status']);
-        Route::post('/sync-team-plan/{eventId}', [PlanController::class, 'syncTeamPlanForEvent']); // Sync team_plan for existing plans
+        Route::post('/sync-team-plan/{eventId}', [PlanController::class, 'syncTeamPlanForEvent']);
+    });
+
+    // Preview controller
+    Route::prefix('plans/preview')->group(function () {
+        Route::get('/{planId}/roles', [PlanPreviewController::class, 'previewRoles']);
+        Route::get('/{planId}/teams', [PlanPreviewController::class, 'previewTeams']);
+        Route::get('/{planId}/rooms', [PlanPreviewController::class, 'previewRooms']);
+    });
+
+    // PlanActivity controller
+    Route::prefix('plans')->group(function () {
+        Route::get('/activities/{planId}', [PlanActivityController::class, 'activities']);
+    });
+
+    // Generate controller
+    Route::prefix('plans')->group(function () {
+        Route::post('/{planId}/generate', [PlanGenerateController::class, 'generate']);
+        Route::get('/{planId}/status', [PlanGenerateController::class, 'status']);
     });
 
 
