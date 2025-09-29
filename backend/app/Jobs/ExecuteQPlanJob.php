@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\PlanGenerateController;
 use App\Models\QPlan;
 use App\Models\QRun;
-use App\Services\EvaluateQuality;
+use App\Services\QualityEvaluator;
 use Carbon\Carbon;
 
 class ExecuteQPlanJob implements ShouldQueue
@@ -58,7 +58,7 @@ class ExecuteQPlanJob implements ShouldQueue
 
         // Log::info("qPlan {$qPlan->id}: dispatch of quality evaluation for plan $planId");
 
-        $evaluator = new EvaluateQuality();
+        $evaluator = new QualityEvaluator();
         $evaluator->evaluatePlanId($planId);
 
         // Mark QPlan as calculated

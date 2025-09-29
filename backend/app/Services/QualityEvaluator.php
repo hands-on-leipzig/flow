@@ -18,7 +18,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use PhpParser\Node\Expr\FuncCall;
 
-class EvaluateQuality
+class QualityEvaluator
 {
 
     public function generateQPlansFromSelection(int $runId): void
