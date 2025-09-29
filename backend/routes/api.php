@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanGenerateController;
 use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanActivityController;
+use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\MParameterController;  
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
@@ -89,6 +90,11 @@ Route::middleware(['keycloak'])->group(function () {
     // PlanActivity controller
     Route::prefix('plans')->group(function () {
         Route::get('/activities/{planId}', [PlanActivityController::class, 'activities']);
+    });
+
+    // PlanActivity controller
+    Route::prefix('plans')->group(function () {
+        Route::get('/{planId}/room-types', [PlanRoomTypeController::class, 'listRoomTypes']);
     });
 
     // Generate controller
