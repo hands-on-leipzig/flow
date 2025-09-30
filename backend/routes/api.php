@@ -97,7 +97,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/{planId}/room-types', [PlanRoomTypeController::class, 'listRoomTypes']);
     });
 
-    // Generate controller
+    // Generator controller
     Route::prefix('plans')->group(function () {
         Route::post('/{planId}/generate', [PlanGeneratorController::class, 'generate']);
         Route::get('/{planId}/status', [PlanGeneratorController::class, 'status']);
