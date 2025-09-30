@@ -10,8 +10,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use App\Models\QPlan;
 use App\Models\QRun;
-use App\Services\PlanGenerator;
-use App\Services\QualityEvaluator;
+use App\Services\PlanGeneratorService;
 use Carbon\Carbon;
 
 class ExecuteQPlanJob implements ShouldQueue
@@ -54,7 +53,7 @@ class ExecuteQPlanJob implements ShouldQueue
         Log::info("qPlan {$qPlan->id}: generation of plan {$planId} started");
 
         // Plan erzeugen über den Service
-        $generator = new PlanGenerator();
+        $generator = new PlanGeneratorService();
         $generator->prepare($planId);
         $generator->dispatchJob($planId, true);
 

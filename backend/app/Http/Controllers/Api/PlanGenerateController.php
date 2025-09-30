@@ -5,13 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
-use App\Services\PlanGenerator;
+use App\Services\PlanGeneratorService;
 
 class PlanGenerateController extends Controller
 {
-    protected PlanGenerator $generator;
+    protected PlanGeneratorService $generator;
 
-    public function __construct(PlanGenerator $generator)
+    public function __construct(PlanGeneratorService $generator)
     {
         $this->generator = $generator;
     }

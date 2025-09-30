@@ -9,7 +9,7 @@ use App\Support\PlanParameter;
 use App\Support\Helpers;
 use App\Jobs\GeneratePlanJob;
 
-class PlanGenerator
+class PlanGeneratorService
 {
     public function isSupported(int $planId): bool
     {
@@ -129,7 +129,7 @@ class PlanGenerator
             g_generator($planId);
 
             if ($withQualityEvaluation) {
-                $evaluator = new QualityEvaluator();
+                $evaluator = new QualityEvaluatorService();
                 $evaluator->evaluatePlanId($planId);
             }
 

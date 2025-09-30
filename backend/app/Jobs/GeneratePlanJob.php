@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Services\PlanGenerator;
+use App\Services\PlanGeneratorService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -28,7 +28,7 @@ class GeneratePlanJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(PlanGenerator $generator): void
+    public function handle(PlanGeneratorService $generator): void
     {
         $generator->run($this->planId, $this->withQualityEvaluation);
     }

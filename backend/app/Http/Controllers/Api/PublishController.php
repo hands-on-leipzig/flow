@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
-use App\Services\ActivityFetcher;
+use App\Services\ActivityFetcherService;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,9 +28,9 @@ use Barryvdh\DomPDF\Facade\Pdf;        // composer require barryvdh/laravel-domp
 
 class PublishController extends Controller
 {
-    private ActivityFetcher $fetcher;
+    private ActivityFetcherService $fetcher;
 
-    public function __construct(ActivityFetcher $fetcher)
+    public function __construct(ActivityFetcherService $fetcher)
     {
         $this->fetcher = $fetcher;
     }

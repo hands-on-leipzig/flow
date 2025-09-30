@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
-use App\Services\RoomTypeFetcher;
+use App\Services\RoomTypeFetcherService;
 
 class PlanRoomTypeController extends Controller
 {
-    protected RoomTypeFetcher $fetcher;
+    protected RoomTypeFetcherService $fetcher;
 
-    public function __construct(RoomTypeFetcher $fetcher)
+    public function __construct(RoomTypeFetcherService $fetcher)
     {
         $this->fetcher = $fetcher;
     }

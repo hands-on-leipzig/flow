@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\PreviewMatrix;
-use App\Services\ActivityFetcher;
+use App\Services\PreviewMatrixService;
+use App\Services\ActivityFetcherService;
 use Illuminate\Support\Facades\DB;
 
 
 class PlanPreviewController extends Controller
 {
-    public function __construct(private ActivityFetcher $activities) {}
+    public function __construct(private ActivityFetcherService $activities) {}
 
-    public function previewTeams(int $plan, PreviewMatrix $builder)
+    public function previewTeams(int $plan, PreviewMatrixService $builder)
     {
         // Team-Rollen ermitteln (nur für Programme, die in der Preview-Matrix relevant sind)
         $teamRoleIds = DB::table('m_role')
@@ -40,7 +40,7 @@ class PlanPreviewController extends Controller
         return response()->json($matrix);
     }
 
-    public function previewRooms(int $plan, PreviewMatrix $builder)
+    public function previewRooms(int $plan, PreviewMatrixService $builder)
     {
         $activities = $this->activities->fetchActivities(
             plan: $plan,
@@ -55,7 +55,7 @@ class PlanPreviewController extends Controller
         return response()->json($builder->buildRoomsMatrix($activities));
 }
 
-    public function previewRoles(int $plan, PreviewMatrix $builder)
+    public function previewRoles(int $plan, PreviewMatrixService $builder)
     {
         // Nur lane/table-Rollen für Preview
         $roles = DB::table('m_role')

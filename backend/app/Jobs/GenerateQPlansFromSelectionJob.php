@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Services\QualityEvaluator;
+use App\Services\QualityEvaluatorService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -25,7 +25,7 @@ class GenerateQPlansFromSelectionJob implements ShouldQueue
     {
         // Log::info("qRun {$this->qRunId}: Start asynchronous creation of qPlans");
 
-        $service = new QualityEvaluator();
+        $service = new QualityEvaluatorService();
         $service->generateQPlansFromSelection($this->qRunId);
 
         Log::info("qRun {$this->qRunId}: execution dispatched");

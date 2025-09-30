@@ -5,7 +5,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
 
-class RoomTypeFetcher
+class RoomTypeFetcherService
 {
     
     public function fetchRoomTypes(int $plan): \Illuminate\Support\Collection
