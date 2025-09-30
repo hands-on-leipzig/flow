@@ -122,11 +122,29 @@ class PlanGeneratorService
         GeneratePlanJob::dispatch($planId, $withQualityEvaluation);
     }
 
-    public function run(int $planId, bool $withQualityEvaluation = false): void
+    public function runOLD(int $planId, bool $withQualityEvaluation = false): void
     {
         try {
             require_once base_path("legacy/generator/generator_main.php");
             g_generator($planId);
+
+            if ($withQualityEvaluation) {
+                $evaluator = new QualityEvaluatorService();
+                $evaluator->evaluatePlanId($planId);
+            }
+
+            $this->finalize($planId, 'done');
+        } catch (\RuntimeException $e) {
+            Log::error("Fehler beim Generieren des Plans {$planId}: " . $e->getMessage());
+            $this->finalize($planId, 'failed');
+        }
+    }
+
+    public function run(int $planId, bool $withQualityEvaluation = false): void
+    {
+        try {
+            $core = new \App\Core\PlanGeneratorCore();
+            $core->generate($planId);
 
             if ($withQualityEvaluation) {
                 $evaluator = new QualityEvaluatorService();
