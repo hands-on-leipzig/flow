@@ -54,6 +54,7 @@ class ExtraBlockController extends Controller
             'start' => 'nullable|date',
             'end' => 'nullable|date|after_or_equal:start',
             'room' => 'nullable|integer|exists:room,id',
+            'active' => 'nullable|boolean',
             'skip_regeneration' => 'nullable|boolean', // New flag to skip regeneration
         ]);
 
