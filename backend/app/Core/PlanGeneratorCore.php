@@ -11,13 +11,11 @@ class PlanGeneratorCore
     private int $planId;
     private ActivityWriter $writer;
 
-    // Zeit-Cursor (c_time, r_time, …) als Properties
     private TimeCursor $cTime;
     private TimeCursor $rTime;
-    // Wenn du später j/e/lc brauchst, einfach aktivieren:
-    // private TimeCursor $jTime;
-    // private TimeCursor $eTime;
-    // private TimeCursor $lcTime;
+    private TimeCursor $jTime;
+    private TimeCursor $eTime;
+    private TimeCursor $lcTime;
 
     public function __construct(int $planId)
     {
@@ -46,6 +44,13 @@ class PlanGeneratorCore
         // Beispiel: Eine Runde einfügen (0 = Vorrunde) mit Startzeit r_time
         $matchPlan->insertOneRound(0, $this->rTime);
 
+        // Challenge-spezifisch: Briefings, Presentations, Judging …
+        $challenge = new ChallengeGenerator($this->writer, $this->cTime, $this->jTime, $this->rTime);
+
+        // Beispielaufrufe
+        $challenge->presentations();
+        $challenge->briefings(new \DateTime('2025-09-30 08:30:00'), 1);
+        $challenge->judgingOneRound(1, 0);
 
         Log::info("PlanGeneratorCore: Finished generation for plan {$this->planId}");
     }
