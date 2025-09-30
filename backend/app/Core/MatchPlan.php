@@ -349,5 +349,108 @@ class MatchPlan
 
     }
     
+    public function insertFinalRound(int $teamCount, TimeCursor $time): void
+    {
+        switch ($teamCount) {
+            case 16:
+                $this->writer->insertActivityGroup('r_final_16');
 
+                // 4 tables alternating
+                for ($i = 0; $i < 4; $i++) {
+                    $this->insertOneMatch($time, pp("r_duration_match"), 1, 0, 2, 0, (bool) pp("r_robot_check_16"));
+                    $time->addMinutes(pp("r_duration_next_start"));
+
+                    $this->insertOneMatch($time, pp("r_duration_match"), 3, 0, 4, 0, (bool) pp("r_robot_check_16"));
+                    $time->addMinutes($i < 3 ? pp("r_duration_next_start") : pp("r_duration_match"));
+                }
+
+                if (pp("r_robot_check_16")) {
+                    $time->addMinutes(pp("r_duration_robot_check"));
+                }
+
+                $time->addMinutes(pp("r_duration_results"));
+                break;
+
+            case 8:
+                $this->writer->insertActivityGroup('r_final_8');
+
+                if (pp("r_tables") == 2) {
+                    for ($i = 0; $i < 4; $i++) {
+                        $this->insertOneMatch($time, pp("r_duration_match"), 1, 0, 2, 0, (bool) pp("r_robot_check_8"));
+                        $time->addMinutes(pp("r_duration_match"));
+                    }
+                } else {
+                    for ($i = 0; $i < 2; $i++) {
+                        $this->insertOneMatch($time, pp("r_duration_match"), 1, 0, 2, 0, (bool) pp("r_robot_check_8"));
+                        $time->addMinutes(pp("r_duration_next_start"));
+
+                        $this->insertOneMatch($time, pp("r_duration_match"), 3, 0, 4, 0, (bool) pp("r_robot_check_8"));
+                        $time->addMinutes($i < 1 ? pp("r_duration_next_start") : pp("r_duration_match"));
+                    }
+                }
+
+                if (pp("r_robot_check_8")) {
+                    $time->addMinutes(pp("r_duration_robot_check"));
+                }
+
+                $time->addMinutes(pp("r_duration_results"));
+                break;
+
+            case 4:
+                $this->writer->insertActivityGroup('r_final_4');
+
+                if (pp("r_quarter_final")) {
+                    // TODO texts: QF1..QF4
+                    if (pp("r_tables") == 2) {
+                        for ($i = 0; $i < 2; $i++) {
+                            $this->insertOneMatch($time, pp("r_duration_match"), 1, 0, 2, 0, (bool) pp("r_robot_check_4"));
+                            $time->addMinutes(pp("r_duration_match"));
+                        }
+                    } else {
+                        $this->insertOneMatch($time, pp("r_duration_match"), 1, 0, 2, 0, (bool) pp("r_robot_check_4"));
+                        $time->addMinutes(pp("r_duration_next_start"));
+
+                        $this->insertOneMatch($time, pp("r_duration_match"), 3, 0, 4, 0, (bool) pp("r_robot_check_4"));
+                        $time->addMinutes(pp("r_duration_match"));
+                    }
+                } else {
+                    // TODO texts: RG1..RG4
+                    if (pp("r_tables") == 2) {
+                        for ($i = 0; $i < 2; $i++) {
+                            $this->insertOneMatch($time, pp("r_duration_match"), 1, 0, 2, 0, (bool) pp("r_robot_check_4"));
+                            $time->addMinutes(pp("r_duration_match"));
+                        }
+                    } else {
+                        $this->insertOneMatch($time, pp("r_duration_match"), 1, 0, 2, 0, (bool) pp("r_robot_check_4"));
+                        $time->addMinutes(pp("r_duration_next_start"));
+
+                        $this->insertOneMatch($time, pp("r_duration_match"), 3, 0, 4, 0, (bool) pp("r_robot_check_4"));
+                        $time->addMinutes(pp("r_duration_match"));
+                    }
+                }
+
+                if (pp("r_robot_check_4")) {
+                    $time->addMinutes(pp("r_duration_robot_check"));
+                }
+
+                $this->writer->insertPoint('rg_semi_final', pp("r_duration_results"), $time);
+                break;
+
+            case 2:
+                $this->writer->insertActivityGroup('r_final_2');
+
+                $this->insertOneMatch($time, pp("r_duration_match"), 1, 0, 2, 0, (bool) pp("r_robot_check_2"));
+                $time->addMinutes(pp("r_duration_match"));
+
+                if (pp("r_robot_check_2")) {
+                    $time->addMinutes(pp("r_duration_robot_check"));
+                }
+
+                $this->insertOneMatch($time, pp("r_duration_match"), 1, 0, 2, 0, false);
+                $time->addMinutes(pp("r_duration_match"));
+
+                $this->writer->insertPoint('rg_final', pp("c_ready_awards"), $time);
+                break;
+        }
+    }
 }
