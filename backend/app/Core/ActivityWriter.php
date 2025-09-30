@@ -176,6 +176,7 @@ class ActivityWriter
             ->select('id', 'buffer_before', 'duration', 'buffer_after')
             ->where('plan', $this->planId)
             ->where('insert_point', DB::table('m_insert_point')->where('code', $insertPointCode)->value('id'))
+            ->where('active', 1) 
             ->first();
 
         if ($row) {
@@ -216,6 +217,7 @@ class ActivityWriter
         $rows = DB::table('extra_block')
             ->select('id', 'first_program', 'start', 'end')
             ->where('plan', $this->planId)
+            ->where('active', 1) 
             ->whereNotNull('start')
             ->get();
 
