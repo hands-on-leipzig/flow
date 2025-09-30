@@ -5,7 +5,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-class PreviewMatrix
+class PreviewMatrixService
 {
     /**
      * Build roles matrix based on DB (m_role + m_visibility).

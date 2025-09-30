@@ -466,6 +466,7 @@ function c_briefings($t, $c_day) {
 }    
 
 
+
 function r_final_round($team_count) {
 
     global $r_time;
@@ -657,7 +658,6 @@ function r_final_round($team_count) {
     }     
 
 }
-
      
 
      

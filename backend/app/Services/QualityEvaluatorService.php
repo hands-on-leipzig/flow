@@ -18,7 +18,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use PhpParser\Node\Expr\FuncCall;
 
-class QualityEvaluator
+class QualityEvaluatorService
 {
 
     public function generateQPlansFromSelection(int $runId): void
@@ -280,6 +280,9 @@ class QualityEvaluator
         $this->calculateQ3($qPlanId);
         $this->calculateQ4($qPlanId);
         $this->calculateQ5($qPlanId);
+
+        Log::info("qPlan {$qPlanId}: evaluation done");
+
     }
 
 

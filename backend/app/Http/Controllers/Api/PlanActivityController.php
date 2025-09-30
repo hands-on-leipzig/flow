@@ -8,12 +8,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
-use App\Services\ActivityFetcher;
+use App\Services\ActivityFetcherService;
 
 
 class PlanActivityController extends Controller
 {
-    public function __construct(private ActivityFetcher $activities) {}
+    public function __construct(private ActivityFetcherService $activities) {}
 
     public function activities(int $planId): \Illuminate\Http\JsonResponse
     {

@@ -1,11 +1,11 @@
 <?php
-// app/Services/ActivityFetcher.php
+// app/Services/ActivityFetcherService.php
 
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
 
-class ActivityFetcher
+class ActivityFetcherService
 {
     /**
      * Zentrale Activity-Query mit optionalen Joins/Filtern.

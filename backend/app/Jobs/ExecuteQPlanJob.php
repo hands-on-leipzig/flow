@@ -8,10 +8,9 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use App\Http\Controllers\Api\PlanGenerateController;
 use App\Models\QPlan;
 use App\Models\QRun;
-use App\Services\QualityEvaluator;
+use App\Services\PlanGeneratorService;
 use Carbon\Carbon;
 
 class ExecuteQPlanJob implements ShouldQueue
@@ -30,11 +29,12 @@ class ExecuteQPlanJob implements ShouldQueue
 
     public function handle(): void
     {
-
+        // Mark run as running
         QRun::where('id', $this->runId)->update([
-                'status' => 'running',
-            ]);
+            'status' => 'running',
+        ]);
 
+        // Nächstes QPlan holen, das noch nicht berechnet ist
         $qPlan = QPlan::where('q_run', $this->runId)
             ->where('calculated', false)
             ->first();
@@ -50,23 +50,20 @@ class ExecuteQPlanJob implements ShouldQueue
         }
 
         $planId = $qPlan->plan;
+        Log::info("qPlan {$qPlan->id}: generation of plan {$planId} started");
 
-        Log::info("qPlan {$qPlan->id}: creation of plan $planId dispatched");
+        // Plan erzeugen über den Service
+        $generator = new PlanGeneratorService();
+        $generator->prepare($planId);
+        $generator->dispatchJob($planId, true);
 
-        $pc = new PlanGenerateController();
-        $pc->generate($planId, false);   // run synchronously as part of this job
+        // Warten
 
-        // Log::info("qPlan {$qPlan->id}: dispatch of quality evaluation for plan $planId");
-
-        $evaluator = new QualityEvaluator();
-        $evaluator->evaluatePlanId($planId);
-
-        // Mark QPlan as calculated
+        // QPlan als berechnet markieren
         QPlan::where('id', $qPlan->id)->update(['calculated' => true]);
         QRun::where('id', $this->runId)->increment('qplans_calculated');
 
-        Log::info("qPlan {$qPlan->id}: evaluation done");
-
+        // Job erneut dispatchen, bis alle QPlans berechnet sind
         ExecuteQPlanJob::dispatch($this->runId);
     }
 }
