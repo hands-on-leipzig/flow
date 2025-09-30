@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LogoController;
 use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanController;
-use App\Http\Controllers\Api\PlanGenerateController;
+use App\Http\Controllers\Api\PlanGeneratorController;
 use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanActivityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
@@ -97,10 +97,11 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/{planId}/room-types', [PlanRoomTypeController::class, 'listRoomTypes']);
     });
 
-    // Generate controller
+    // Generator controller
     Route::prefix('plans')->group(function () {
-        Route::post('/{planId}/generate', [PlanGenerateController::class, 'generate']);
-        Route::get('/{planId}/status', [PlanGenerateController::class, 'status']);
+        Route::post('/{planId}/generate', [PlanGeneratorController::class, 'generate']);
+        Route::get('/{planId}/status', [PlanGeneratorController::class, 'status']);
+        Route::post('/{planId}/generate-lite', [PlanGeneratorController::class, 'generateLite']);
     });
 
 

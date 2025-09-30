@@ -317,6 +317,7 @@ function db_insert_free_activities()
     $rows = DB::table('extra_block')
         ->select('id', 'first_program', 'start', 'end')
         ->where('plan', pp('g_plan'))
+        ->where('active', 1) 
         ->whereNotNull('start')
         ->get();
 
@@ -356,6 +357,7 @@ function g_insert_point($id, $duration)
         ->select('id', 'buffer_before', 'duration', 'buffer_after')
         ->where('plan', pp('g_plan'))
         ->where('insert_point', $id)
+        ->where('active', 1) 
         ->first();
 
     if ($row) {

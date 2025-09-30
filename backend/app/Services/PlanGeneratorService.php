@@ -180,4 +180,25 @@ class PlanGeneratorService
             ->where('id', $planId)
             ->value('generator_status') ?? 'unknown';
     }
+
+    public function generateLite(int $planId): void
+    {
+        // Schritt 1: Alle activity_groups finden mit passenden activity_type_detail-Codes
+        $groupIds = DB::table('activity_group AS ag')
+            ->join('m_activity_type_detail AS atd', 'ag.activity_type_detail', '=', 'atd.id')
+            ->where('ag.plan', $planId)
+            ->whereIn('atd.code', ['c_free_block', 'e_free_block', 'g_free_block'])
+            ->pluck('ag.id');
+
+        // Schritt 2: Löschen – Activities hängen per FK dran und gehen mit weg
+        if ($groupIds->isNotEmpty()) {
+            DB::table('activity_group')
+                ->whereIn('id', $groupIds)
+                ->delete();
+        }
+
+        // Schritt 3: Neue FreeActivities einsetzen
+        $writer = new \App\Core\ActivityWriter($planId);
+        $writer->insertFreeActivities();
+}
 }

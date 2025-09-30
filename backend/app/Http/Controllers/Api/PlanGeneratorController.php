@@ -7,7 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use App\Services\PlanGeneratorService;
 
-class PlanGenerateController extends Controller
+class PlanGeneratorController extends Controller
 {
     protected PlanGeneratorService $generator;
 
@@ -52,4 +52,15 @@ class PlanGenerateController extends Controller
             'status'  => $status,
         ]);
     }
+
+    public function generateLite(int $planId)
+{
+    // Service aufrufen
+    app(\App\Services\PlanGeneratorService::class)->generateLite($planId);
+
+    return response()->json([
+        'status' => 'ok',
+        'message' => "Lite generation completed for plan {$planId}",
+    ]);
+}
 }
