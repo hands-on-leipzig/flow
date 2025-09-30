@@ -21,6 +21,7 @@ type ExtraBlock = {
   name: string
   description: string
   link?: string | null
+  active?: boolean
 
   // fixed (insert-point) flavor:
   insert_point?: number | null
@@ -181,7 +182,7 @@ watch(() => props.eventLevel, (lvl) => {
 }, {immediate: true})
 
 // --- Fixed blocks (insert_point) ---
-const fixedBlocks = computed(() => blocks.value.filter(b => !!b.insert_point))
+// Note: We now load all blocks and filter by active state in the UI
 
 // Filter insert points based on toggle states
 const visibleInsertPoints = computed(() => {
@@ -192,37 +193,56 @@ const visibleInsertPoints = computed(() => {
   })
 })
 
-// For quick lookup: insert_point -> block
+// For quick lookup: insert_point -> block (includes all blocks, active and inactive)
 const fixedByPoint = computed<Record<number, ExtraBlock>>(() => {
   const map: Record<number, ExtraBlock> = {}
-  for (const b of fixedBlocks.value) {
+  for (const b of blocks.value) {
     if (b.insert_point) map[b.insert_point] = b
   }
   return map
 })
 
 function isPointEnabled(pointId: number) {
-  return !!fixedByPoint.value[pointId]
+  const block = blocks.value.find(b => b.insert_point === pointId)
+  return block ? (block.active !== false) : false
+}
+
+function isBlockEditable(pointId: number) {
+  const block = fixedByPoint.value[pointId]
+  return block && block.active !== false
 }
 
 async function togglePoint(point: InsertPoint, enabled: boolean) {
   if (props.planId == null) return // guard
-  const existing = fixedByPoint.value[point.id]
-  if (enabled && !existing) {
-    const draft: ExtraBlock = {
-      plan: props.planId,
-      first_program: point.first_program ?? null,
-      insert_point: point.id,
-      name: point.ui_label,
-      description: '',
-      link: null,
-      buffer_before: 5,
-      duration: 5,
-      buffer_after: 5
+  
+  // Find existing block for this insert point and plan (regardless of active state)
+  const existing = blocks.value.find(b => b.insert_point === point.id && b.plan === props.planId)
+  
+  if (enabled) {
+    if (!existing) {
+      // Create new block with active = true
+      const draft: ExtraBlock = {
+        plan: props.planId,
+        first_program: point.first_program ?? null,
+        insert_point: point.id,
+        name: point.ui_label,
+        description: '',
+        link: null,
+        buffer_before: 5,
+        duration: 5,
+        buffer_after: 5,
+        active: true
+      }
+      await saveBlockImmediate(draft)
+    } else {
+      // Update existing block to active = 1
+      await updateBlockActive(existing.id!, true)
     }
-    await saveBlockImmediate(draft)
-  } else if (!enabled && existing?.id) {
-    await removeBlock(existing.id)
+  } else {
+    if (existing?.id) {
+      // Set active = 0 instead of deleting
+      await updateBlockActive(existing.id, false)
+    }
   }
 }
 
@@ -232,8 +252,13 @@ async function saveBlockImmediate(block: ExtraBlock) {
   saving.value = true
   try {
     const planId = props.planId
-    // FIX: destructure `data`, not `res`
-    const {data: saved} = await axios.post<ExtraBlock>(`/plans/${planId}/extra-blocks`, block)
+    // Ensure active is sent as 1 or 0
+    const blockData = {
+      ...block,
+      active: block.active ? 1 : 0
+    }
+    const {data: response} = await axios.post(`/plans/${planId}/extra-blocks`, blockData)
+    const saved = response.block || response
 
     if (saved?.id != null) {
       const i = blocks.value.findIndex(b => b.id === saved.id)
@@ -248,16 +273,27 @@ async function saveBlockImmediate(block: ExtraBlock) {
   }
 }
 
-async function removeBlock(id: number) {
+async function updateBlockActive(id: number, active: boolean) {
   saving.value = true
   try {
-    await axios.delete(`/extra-blocks/${id}`)
-    blocks.value = blocks.value.filter(b => b.id !== id)
+    const {data: response} = await axios.post(`/plans/${props.planId}/extra-blocks`, {
+      id: id,
+      active: active ? 1 : 0  // Send 1 for true, 0 for false
+    })
+    const updated = response.block || response
+    
+    // Update local state
+    const blockIndex = blocks.value.findIndex(b => b.id === id)
+    if (blockIndex !== -1) {
+      blocks.value[blockIndex] = updated
+    }
+    
     emit('changed')
   } finally {
     saving.value = false
   }
 }
+
 
 function updateFixed(pointId: number, patch: Partial<ExtraBlock>) {
   const b = fixedByPoint.value[pointId]
@@ -286,7 +322,7 @@ function onFixedTextInput(pointId: number, field: 'name' | 'description' | 'link
   }
 }
 
-function onFixedBlur(pointId: number) {
+function onFixedBlur() {
   // Trigger immediate update on blur
   flushUpdates()
 }
@@ -357,65 +393,65 @@ defineExpose({
           </td>
 
           <td class="px-2 py-2 text-center">
-            <input :disabled="!fixedByPoint[p.id]" :value="fixedByPoint[p.id]?.buffer_before ?? ''"
+            <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.buffer_before ?? ''"
                    class="w-16 border rounded px-2 py-1 text-center"
                    min="5"
                    step="5"
                    type="number"
-                   @change="onFixedBlur(p.id)"
+                   @change="onFixedBlur()"
                    @input="onFixedNumInput(p.id, 'buffer_before', $event)"
             />
 
           </td>
 
           <td class="px-2 py-2 text-center">
-            <input :disabled="!fixedByPoint[p.id]" :value="fixedByPoint[p.id]?.duration ?? ''"
+            <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.duration ?? ''"
                    class="w-16 border rounded px-2 py-1 text-center"
                    min="5"
                    step="5"
                    type="number"
-                   @change="onFixedBlur(p.id)"
+                   @change="onFixedBlur()"
                    @input="onFixedNumInput(p.id, 'duration', $event)"
             />
           </td>
 
           <td class="px-2 py-2 text-center">
-            <input :disabled="!fixedByPoint[p.id]" :value="fixedByPoint[p.id]?.buffer_after ?? ''"
+            <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.buffer_after ?? ''"
                    class="w-16 border rounded px-2 py-1 text-center"
                    min="5"
                    step="5"
                    type="number"
-                   @change="onFixedBlur(p.id)"
+                   @change="onFixedBlur()"
                    @input="onFixedNumInput(p.id, 'buffer_after', $event)"
             />
           </td>
 
           <td class="px-2 py-2">
-            <input :disabled="!fixedByPoint[p.id]"
+            <input :disabled="!isBlockEditable(p.id)"
                    :value="fixedByPoint[p.id]?.name ?? ''"
                    class="w-full border rounded px-2 py-1"
                    type="text"
-                   @blur="onFixedBlur(p.id)"
+                   @blur="onFixedBlur()"
                    @input="onFixedTextInput(p.id, 'name', $event)"
             />
           </td>
 
           <td class="px-2 py-2">
-            <input :disabled="!fixedByPoint[p.id]"
+            <input :disabled="!isBlockEditable(p.id)"
                    :value="fixedByPoint[p.id]?.description ?? ''"
                    class="w-full border rounded px-2 py-1"
                    type="text"
-                   @blur="onFixedBlur(p.id)"
+                   @blur="onFixedBlur()"
                    @input="onFixedTextInput(p.id, 'description', $event)"
             />
           </td>
 
           <td class="px-2 py-2">
-            <input :disabled="!fixedByPoint[p.id]"
+            <input :disabled="!isBlockEditable(p.id)"
                    :value="fixedByPoint[p.id]?.link ?? ''"
                    class="w-full border rounded px-2 py-1"
                    type="text"
-                   @blur="onFixedBlur(p.id)"
+                   @blur="onFixedBlur()"
                    @input="onFixedTextInput(p.id, 'link', $event)"
             />
           </td>

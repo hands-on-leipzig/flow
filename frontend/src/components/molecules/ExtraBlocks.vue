@@ -2,6 +2,8 @@
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import LoaderFlow from '../atoms/LoaderFlow.vue'
+import ToggleSwitch from '../atoms/ToggleSwitch.vue'
+import ConfirmationModal from './ConfirmationModal.vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
 
@@ -14,6 +16,7 @@ type ExtraBlock = {
   name: string
   description: string
   link?: string | null
+  active?: boolean
 
   // free (custom) flavor:
   start?: string | null          // 'YYYY-MM-DD HH:mm:ss' (server)
@@ -38,6 +41,7 @@ const emit = defineEmits<{
 const loading = ref(false)
 const saving = ref(false)
 const blocks = ref<ExtraBlock[]>([])
+const blockToDelete = ref<ExtraBlock | null>(null)
 
 // Debounced saving is now handled by parent component
 
@@ -50,7 +54,7 @@ onUnmounted(() => {
 // Only custom blocks (no insert_point)
 const customBlocks = computed(() => blocks.value.filter(b => !('insert_point' in b) || !b.insert_point))
 
-// Filter custom blocks based on toggle states
+// Filter custom blocks based on toggle states (show all blocks, active and inactive)
 const visibleCustomBlocks = computed(() => {
   return customBlocks.value.filter(block => {
     // If both toggles are off, show all blocks (user might want to configure them)
@@ -95,7 +99,13 @@ async function saveBlockImmediate(block: ExtraBlock) {
   saving.value = true
   try {
     const planId = props.planId
-    const {data: saved} = await axios.post<ExtraBlock>(`/plans/${planId}/extra-blocks`, block)
+    // Ensure active is sent as 1 or 0
+    const blockData = {
+      ...block,
+      active: block.active ? 1 : 0
+    }
+    const {data: response} = await axios.post(`/plans/${planId}/extra-blocks`, blockData)
+    const saved = response.block || response
 
     if (saved?.id != null) {
       const i = blocks.value.findIndex(b => b.id === saved.id)
@@ -133,11 +143,51 @@ function fromLocalInput(val: string) {
   return val.replace('T', ' ') + ':00'
 }
 
-async function removeBlock(id: number) {
+
+const confirmDeleteBlock = (block: ExtraBlock) => {
+  blockToDelete.value = block
+}
+
+const cancelDeleteBlock = () => {
+  blockToDelete.value = null
+}
+
+const deleteBlock = async () => {
+  if (!blockToDelete.value?.id) return
+  
+  try {
+    await axios.delete(`/extra-blocks/${blockToDelete.value.id}`)
+    blocks.value = blocks.value.filter(b => b.id !== blockToDelete.value!.id)
+    emit('changed')
+    blockToDelete.value = null
+  } catch (error) {
+    console.error('Error deleting block:', error)
+    alert('Fehler beim Löschen des Blocks: ' + (error as Error).message)
+  }
+}
+
+const deleteMessage = computed(() => {
+  if (!blockToDelete.value) return ''
+  return `Möchten Sie den Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+})
+
+async function toggleActive(block: ExtraBlock, active: boolean) {
+  if (!block.id) return
+  
   saving.value = true
   try {
-    await axios.delete(`/extra-blocks/${id}`)
-    blocks.value = blocks.value.filter(b => b.id !== id)
+    const {data: response} = await axios.post(`/plans/${props.planId}/extra-blocks`, {
+      id: block.id,
+      active: active ? 1 : 0
+    })
+    const updated = response.block || response
+    
+    // Update local state
+    const blockIndex = blocks.value.findIndex(b => b.id === block.id)
+    if (blockIndex !== -1) {
+      blocks.value[blockIndex] = updated
+    }
+    
     emit('changed')
   } finally {
     saving.value = false
@@ -165,6 +215,7 @@ async function addCustom() {
     name: '',
     description: '',
     link: null,
+    active: true,                // New blocks are active by default
     start: fromLocalInput(startTime.toISOString().slice(0, 16)),
     end: fromLocalInput(endTime.toISOString().slice(0, 16))
   }
@@ -173,12 +224,6 @@ async function addCustom() {
   await saveBlockImmediate(draft)
 }
 
-function labelForProgram(v: number | null | 0) {
-  if (v === 2) return 'Explore'
-  if (v === 3) return 'Challenge'
-  if (v === 0) return 'Beide'
-  return '—'
-}
 
 function toggleProgram(block: ExtraBlock, program: 2 | 3) {
   if (program === 2) {
@@ -243,7 +288,12 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
           </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-          <tr v-for="b in visibleCustomBlocks" :key="b.id ?? JSON.stringify(b)" class="border-b">
+          <tr v-for="b in visibleCustomBlocks" :key="b.id ?? JSON.stringify(b)" 
+              class="border-b transition-all duration-200"
+              :class="{
+                'opacity-60 bg-gray-50': b.active === false,
+                'hover:bg-gray-50': b.active !== false
+              }">
             <td class="px-2 py-2 text-center">
               <div class="flex justify-center space-x-1">
                 <!-- Explore Logo -->
@@ -277,12 +327,14 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
               <div class="space-y-2">
                 <!-- Start Time -->
                 <input :value="toLocalInput(b.start)"
+                       :disabled="b.active === false"
                        class="w-full border rounded px-2 py-1 text-sm"
                        type="datetime-local"
                        placeholder="Beginn"
                        @change="b.start = fromLocalInput(($event.target as HTMLInputElement).value); saveBlock(b)"/>
                 <!-- End Time -->
                 <input :value="toLocalInput(b.end)"
+                       :disabled="b.active === false"
                        class="w-full border rounded px-2 py-1 text-sm"
                        type="datetime-local"
                        placeholder="Ende"
@@ -294,11 +346,13 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
                 <!-- Title and Link in one row -->
                 <div class="flex space-x-2">
                   <input v-model="b.name" 
+                         :disabled="b.active === false"
                          class="flex-1 border rounded px-2 py-1 text-sm" 
                          type="text" 
                          placeholder="Titel"
                          @blur="saveBlock(b)"/>
                   <input v-model="b.link" 
+                         :disabled="b.active === false"
                          class="flex-1 border rounded px-2 py-1 text-sm" 
                          type="url" 
                          placeholder="https://example.com"
@@ -306,6 +360,7 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
                 </div>
                 <!-- Description below -->
                 <input v-model="b.description" 
+                       :disabled="b.active === false"
                        class="w-full border rounded px-2 py-1 text-sm" 
                        type="text" 
                        placeholder="Beschreibung"
@@ -314,16 +369,25 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
             </td>
 
             <td class="px-2 py-2 text-right">
-              <button v-if="b.id"
-                      class="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-3 py-1 rounded"
-                      @click="removeBlock(b.id)">
-                Löschen
-              </button>
+              <div class="flex flex-col items-end space-y-2">
+                <!-- Active Toggle -->
+                <ToggleSwitch
+                    :model-value="b.active !== false"
+                    @update:modelValue="toggleActive(b, $event)"
+                    :disabled="!b.id"
+                />
+                <!-- Delete Button -->
+                <button v-if="b.id"
+                        class="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-3 py-1 rounded"
+                        @click="confirmDeleteBlock(b)">
+                  Löschen
+                </button>
+              </div>
             </td>
           </tr>
 
           <tr v-if="!customBlocks.length">
-            <td class="px-4 py-6 text-gray-500 text-center" colspan="8">
+            <td class="px-4 py-6 text-gray-500 text-center" colspan="4">
               Noch keine freien Zusatzblöcke. Füge oben welche hinzu.
             </td>
           </tr>
@@ -337,5 +401,17 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
         <LoaderFlow />
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <ConfirmationModal
+      :show="!!blockToDelete"
+      title="Block löschen"
+      :message="deleteMessage"
+      type="danger"
+      confirm-text="Löschen"
+      cancel-text="Abbrechen"
+      @confirm="deleteBlock"
+      @cancel="cancelDeleteBlock"
+    />
   </div>
 </template>

@@ -26,6 +26,7 @@ class ExtraBlock extends Model
         'start',
         'end',
         'room',
+        'active',
     ];
 
     protected $casts = [
@@ -34,6 +35,7 @@ class ExtraBlock extends Model
         'buffer_after' => 'integer',
         'start' => 'datetime',
         'end' => 'datetime',
+        'active' => 'boolean',
     ];
 
     public function plan()
