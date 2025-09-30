@@ -16,7 +16,7 @@ class PlanGenerateController extends Controller
         $this->generator = $generator;
     }
 
-    public function generate(int $planId, bool $async = true): JsonResponse
+    public function generate(int $planId, bool $async = false): JsonResponse
     {
         // Prüfen, ob Plan unterstützt wird
         if (! $this->generator->isSupported($planId)) {
