@@ -122,7 +122,7 @@ class PlanGeneratorService
         GeneratePlanJob::dispatch($planId, $withQualityEvaluation);
     }
 
-    public function runOLD(int $planId, bool $withQualityEvaluation = false): void
+    public function run(int $planId, bool $withQualityEvaluation = false): void
     {
         try {
             require_once base_path("legacy/generator/generator_main.php");
@@ -140,11 +140,11 @@ class PlanGeneratorService
         }
     }
 
-    public function run(int $planId, bool $withQualityEvaluation = false): void
+    public function runFUTURE(int $planId, bool $withQualityEvaluation = false): void
     {
         try {
-            $core = new \App\Core\PlanGeneratorCore();
-            $core->generate($planId);
+            $core = new \App\Core\PlanGeneratorCore($planId);
+            $core->generate();
 
             if ($withQualityEvaluation) {
                 $evaluator = new QualityEvaluatorService();

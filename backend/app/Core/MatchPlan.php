@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Core;
+use App\Core\TimeCursor;
 
 use Illuminate\Support\Collection;
 use App\Support\PlanParameter;
@@ -195,49 +196,58 @@ class MatchPlan
     } 
     
     private function insertOneMatch(
-        \DateTime $startTime,
+        TimeCursor $rTime,
         int $duration,
         int $table1,
         int $team1,
         int $table2,
         int $team2,
-        bool $withRobotCheck
+        bool $robotCheck
     ): void {
 
         // Approach: If robot check is needed, add it first and then the match. Otherwise, add the match directly.
         // The time provide to the function is the start time of the match, regardless of robot check.
 
         // $time is local to this function. $r_time needs to be adjusted by the caller of this function.
-        $time = clone $startTime;
 
-        // With robot check, that comes first and the match is delayed accordingly   
-        if ($withRobotCheck) {
+
+        // Clone, damit wir die Startzeit für Robot-Check/Match korrekt festhalten
+        $time = $rTime->copy();
+
+        // Mit Robot-Check → zuerst Check eintragen, dann Match starten
+        if ($robotCheck) {
             $this->writer->insertActivity(
                 'r_check',
                 $time,
                 pp('r_duration_robot_check'),
-                null, null,
-                $table1, $team1,
-                $table2, $team2
+                null,
+                null,
+                $table1,
+                $team1,
+                $table2,
+                $team2
             );
 
-            $time->modify('+' . pp('r_duration_robot_check') . ' minutes');
+            // Zeit weiterdrehen
+            $time->addMinutes(pp('r_duration_robot_check'));
         }
 
-        // Danach das Match
+        // Match eintragen
         $this->writer->insertActivity(
             'r_match',
             $time,
             $duration,
-            null, null,
-            $table1, $team1,
-            $table2, $team2
+            null,
+            null,
+            $table1,
+            $team1,
+            $table2,
+            $team2
         );
-    }
+    }    
 
 
-
-    public function insertOneRound(int $round, DateTime $rTime): DateTime
+    public function insertOneRound(int $round, TimeCursor $rTime)
     {
         // 1) Activity-Group nach Round setzen
         switch ($round) {
@@ -283,49 +293,45 @@ class MatchPlan
             // 4) Zeitachse fortschreiben (abhängig von #Tische & Round)
             if (pp("r_tables") === 2) {
                 // 2 Tische: Nächstes Match wartet bis dieses zu Ende ist
-                $rTime->modify("+{$duration} minutes");
+                $rTime->addMinutes($duration);
             } else {
                 // 4 Tische
                 if ($round === 0) {
                     // TR: Startzeiten alternieren zwischen next_start und (match - next_start)
                     if (($match['match']) % 2 === 1) {
-                        $rTime->modify('+' . pp("r_duration_next_start") . ' minutes');
+                        $rTime->addMinutes(pp("r_duration_next_start"));
                     } else {
                         $delta = $duration - pp("r_duration_next_start");
-                        $rTime->modify("+{$delta} minutes");
+                        $rTime->addMinutes($delta);
                     }
                 } else {
                     // RG1–3: Overlap — nächster Start alle r_duration_next_start
-                    $rTime->modify('+' . pp("r_duration_next_start") . ' minutes');
+                    $rTime->addMinutes(pp("r_duration_next_start"));
                 }
             }
         }
 
         // 5) Robot-Check addiert am Rundenende zusätzliche Zeit
         if ((bool) pp("r_robot_check")) {
-            $rTime->modify('+' . pp("r_duration_robot_check") . ' minutes');
+            $rTime->addMinutes(pp("r_duration_robot_check"));
         }
 
         // 6) Fix für 4 Tische: wenn letztes Match vorbei ist, Gesamtdauer korrigieren
         if (pp("r_tables") === 4) {
             $delta = pp("r_duration_match") - pp("r_duration_next_start");
-            $rTime->modify("+{$delta} minutes");
+            $rTime->addMinutes($delta);
         }
 
         // 7) Inserted Blocks / Pausen für NÄCHSTE Runde
         switch ($round) {
             case 0:
-                // nach TR
                 $this->writer->insertPoint('rg_tr', pp("r_duration_break"), $rTime);
                 break;
 
             case 1:
-                // nach RG1
                 if (pp("e_mode") == ID_E_MORNING || pp("e_mode") == ID_E_AFTERNOON) {
-                    // Explore-Integration (Legacy-Funktion beibehalten)
-                    e_integrated();
+                    e_integrated(); // Legacy-Funktion bleibt so
                 } else {
-                    // unabhängige Lunch-Pause (außer harter Break)
                     if (pp('c_duration_lunch_break') === 0) {
                         $this->writer->insertPoint('rg_1', pp("r_duration_lunch"), $rTime);
                     }
@@ -333,17 +339,14 @@ class MatchPlan
                 break;
 
             case 2:
-                // nach RG2
                 $this->writer->insertPoint('rg_2', pp("r_duration_break"), $rTime);
                 break;
 
             case 3:
-                // nach RG3
                 $this->writer->insertPoint('rg_3', pp("r_duration_results"), $rTime);
                 break;
         }
 
-        return $rTime;
     }
     
 

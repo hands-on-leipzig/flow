@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Core;
+use App\Core\TimeCursor;
 
 use Illuminate\Support\Facades\DB;
 use DateTime;
@@ -34,7 +35,7 @@ class ActivityWriter
     }
 
     public function insertActivityGroup(string $activityTypeDetailCode): int
-    {
+    {      
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeDetailCode);
 
         if (!$activityTypeDetailId) {
@@ -50,20 +51,27 @@ class ActivityWriter
         return $id;
     }
 
+    
+
     public function insertActivity(
         string $activityTypeCode,
-        DateTime $timeStart,
+        TimeCursor $time,
         int $duration,
         ?int $juryLane = null, ?int $juryTeam = null,
         ?int $table1 = null, ?int $table1Team = null,
         ?int $table2 = null, ?int $table2Team = null
     ): int {
-        // Ende berechnen
-        $timeEnd = clone $timeStart;
-        $timeEnd->modify("+{$duration} minutes");
 
-        $start = $timeStart->format('Y-m-d H:i:s');
-        $end   = $timeEnd->format('Y-m-d H:i:s');
+        if ($this->currentGroupId === null) {
+          throw new \RuntimeException("No activity group set before inserting activity: {$activityTypeCode}");
+        }         
+
+        // Start/End aus TimeCursor ableiten
+        $start = $time->current()->format('Y-m-d H:i:s');
+
+        $endCursor = $time->copy();
+        $endCursor->addMinutes($duration);
+        $end = $endCursor->current()->format('Y-m-d H:i:s');
 
         // activity_type_detail-ID anhand des Codes holen (aus Cache, nicht jedes Mal aus DB)
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeCode);
@@ -72,17 +80,17 @@ class ActivityWriter
         $roomType = $this->resolveRoomType($activityTypeCode, $juryLane);
 
         return DB::table('activity')->insertGetId([
-            'activity_group'         => $this->currentGroupId,
-            'activity_type_detail'   => $activityTypeDetailId,
-            'start'                  => $start,
-            'end'                    => $end,
-            'room_type'              => $roomType,
-            'jury_lane'              => $juryLane,
-            'jury_team'              => $juryTeam,
-            'table_1'                => $table1,
-            'table_1_team'           => $table1Team,
-            'table_2'                => $table2,
-            'table_2_team'           => $table2Team,
+            'activity_group'       => $this->currentGroupId,
+            'activity_type_detail' => $activityTypeDetailId,
+            'start'                => $start,
+            'end'                  => $end,
+            'room_type'            => $roomType,
+            'jury_lane'            => $juryLane,
+            'jury_team'            => $juryTeam,
+            'table_1'              => $table1,
+            'table_1_team'         => $table1Team,
+            'table_2'              => $table2,
+            'table_2_team'         => $table2Team,
         ]);
     }
 
@@ -161,32 +169,29 @@ class ActivityWriter
     }
 
 
-    public function insertPoint(int $insertPointId, int $duration, \DateTime &$time): void
+    public function insertPoint(string $insertPointCode, int $duration, TimeCursor $time): void
     {
         // Extra-Block für den Insert Point suchen
         $row = DB::table('extra_block')
             ->select('id', 'buffer_before', 'duration', 'buffer_after')
             ->where('plan', $this->planId)
-            ->where('insert_point', $insertPointId)
+            ->where('insert_point', DB::table('m_insert_point')->where('code', $insertPointCode)->value('id'))
             ->first();
 
         if ($row) {
             // Neue ActivityGroup für den Block anlegen
-            $groupId = $this->insertActivityGroup(
-                $this->activityTypeDetailIdFromCode('c_inserted')  // currently only availabe for Challenge
-            );
+            $groupId = $this->insertActivityGroup('c_inserted'); // nur Challenge verfügbar
 
-            // Raumtyp aus m_insert_point ermitteln
+            // Raumtyp direkt aus m_insert_point ermitteln
             $roomType = DB::table('m_insert_point')
-                ->where('id', $insertPointId)
+                ->where('id', $row->id)
                 ->value('room_type');
 
             // Buffer vor Block berücksichtigen
-            $time->modify('+' . (int) $row->buffer_before . ' minutes');
+            $time->addMinutes((int) $row->buffer_before);
 
-            $timeStart = clone $time;
-            $timeEnd   = clone $time;
-            $timeEnd->modify('+' . (int) $row->duration . ' minutes');
+            $timeStart = $time->current();
+            $timeEnd   = (clone $timeStart)->modify('+' . (int) $row->duration . ' minutes');
 
             DB::table('activity')->insertGetId([
                 'activity_group'        => $groupId,
@@ -197,11 +202,11 @@ class ActivityWriter
                 'room_type'             => $roomType,
             ]);
 
-
-            $time->modify('+' . ((int) $row->duration + (int) $row->buffer_after) . ' minutes');
+            // Zeitcursor weiterbewegen (Blockdauer + Buffer danach)
+            $time->addMinutes((int) $row->duration + (int) $row->buffer_after);
         } else {
-            // No extra block defined, just the respective normal shift
-            $time->modify('+' . $duration . ' minutes');
+            // Kein Extra-Block definiert → normale Verschiebung
+            $time->addMinutes($duration);
         }
     }
 
