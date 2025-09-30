@@ -2,35 +2,32 @@
 
 namespace App\Jobs;
 
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
-use App\Models\Plan;
 use App\Services\PlanGenerator;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
 class GeneratePlanJob implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $planId;
+    private int $planId;
 
-    public function __construct($planId)
+    /**
+     * Create a new job instance.
+     */
+    public function __construct(int $planId)
     {
         $this->planId = $planId;
     }
 
-    public function handle()
+    /**
+     * Execute the job.
+     */
+    public function handle(PlanGenerator $generator): void
     {
-        $plan = Plan::find($this->planId);
-        if (!$plan) return;
-
-        $plan->generator_status = 'running';
-        $plan->save();
-
-        PlanGenerator::run($plan->id);
-       
-        $plan->generator_status = 'done';
-        $plan->save();
+        $generator->run($this->planId);
     }
 }
