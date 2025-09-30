@@ -280,6 +280,9 @@ class QualityEvaluator
         $this->calculateQ3($qPlanId);
         $this->calculateQ4($qPlanId);
         $this->calculateQ5($qPlanId);
+
+        Log::info("qPlan {$qPlanId}: evaluation done");
+
     }
 
 

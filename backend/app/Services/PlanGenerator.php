@@ -117,16 +117,21 @@ class PlanGenerator
         ]);
     }
 
-    public function dispatchJob(int $planId): void
+    public function dispatchJob(int $planId, bool $withQualityEvaluation = false): void
     {
-        GeneratePlanJob::dispatch($planId);
+        GeneratePlanJob::dispatch($planId, $withQualityEvaluation);
     }
 
-    public function run(int $planId): void
+    public function run(int $planId, bool $withQualityEvaluation = false): void
     {
         try {
             require_once base_path("legacy/generator/generator_main.php");
             g_generator($planId);
+
+            if ($withQualityEvaluation) {
+                $evaluator = new QualityEvaluator();
+                $evaluator->evaluatePlanId($planId);
+            }
 
             $this->finalize($planId, 'done');
         } catch (\RuntimeException $e) {

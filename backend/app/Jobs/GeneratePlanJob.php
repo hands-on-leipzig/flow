@@ -14,13 +14,15 @@ class GeneratePlanJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     private int $planId;
+    private bool $withQualityEvaluation;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(int $planId)
+    public function __construct(int $planId, bool $withQualityEvaluation = false)
     {
         $this->planId = $planId;
+        $this->withQualityEvaluation = $withQualityEvaluation;
     }
 
     /**
@@ -28,6 +30,6 @@ class GeneratePlanJob implements ShouldQueue
      */
     public function handle(PlanGenerator $generator): void
     {
-        $generator->run($this->planId);
+        $generator->run($this->planId, $this->withQualityEvaluation);
     }
 }
