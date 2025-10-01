@@ -167,7 +167,7 @@ class PublishController extends Controller
                 // Falls es schon unverschlüsselt gespeichert war
                 $wifiPassword = $event->wifi_password;
             }
-}
+        }
 
         // QR-Content abhängig vom Passwort
         if (!empty($wifiPassword)) {
@@ -188,7 +188,16 @@ class PublishController extends Controller
         );
 
         $writer = new \Endroid\QrCode\Writer\PngWriter();
-        $wifiResult = $writer->write($wifiQr);
+
+        // Logo optional hinzufügen
+        $wifiLogo = null;
+        $wifiLogoPath = public_path("flow/wifi.png");
+        if (file_exists($wifiLogoPath)) {
+            $wifiLogo = new \Endroid\QrCode\Logo\Logo($wifiLogoPath, 100);
+        }
+
+        // QR-Code schreiben mit Logo
+        $wifiResult = $writer->write($wifiQr, $wifiLogo);
         $wifiQrcodeRaw = base64_encode($wifiResult->getString());
 
         // Speichern in DB
@@ -312,19 +321,18 @@ class PublishController extends Controller
             // Wifi-Instructions als HTML (mit Zeilenumbrüchen, Box <= QR-Breite)
             $wifiInstructionsHtml = '';
             if (!empty($event->wifi_instruction)) {
-                $wifiInstructionsHtml = '
-                    <div style="margin:8px auto 0 auto; 
-                                max-width:200px; 
-                                border:1px solid #ccc; 
-                                border-radius:6px; 
-                                padding:6px; 
-                                font-size:12px; 
-                                color:#555; 
-                                text-align:left; 
-                                white-space:pre-line; 
-                                line-height:1.3;">
-                        ' . e($event->wifi_instruction) . '
-                    </div>';
+                $wifiInstructionsHtml =
+                    '<div style="margin:8px auto 0 auto;
+                                max-width:200px;
+                                border:1px solid #ccc;
+                                border-radius:6px;
+                                padding:6px;
+                                font-size:12px;
+                                color:#555;
+                                text-align:left;
+                                line-height:1.3;">'
+                    . nl2br(e(trim($event->wifi_instruction))) .
+                    '</div>';
             }
 
             $html .= '
