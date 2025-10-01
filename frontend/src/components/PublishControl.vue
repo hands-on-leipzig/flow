@@ -194,8 +194,10 @@ const qrWifiUrl = ref("")
 watch(
   () => [event.value?.wifi_ssid, event.value?.wifi_password],
   async ([ssid, pw]) => {
-    if (ssid && pw) {
-      const qrContent = `WIFI:T:WPA;S:${ssid};P:${pw};;`
+    if (ssid) {
+      const qrContent = pw
+        ? `WIFI:T:WPA;S:${ssid};P:${pw};;`
+        : `WIFI:T:nopass;S:${ssid};;`
       qrWifiUrl.value = await QRCode.toDataURL(qrContent)
     } else {
       qrWifiUrl.value = ''
@@ -526,6 +528,17 @@ function previewOlinePlan() {
                     type="text"
                     placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
                   />
+                </div>
+                <!-- Weitere Anweisungen -->
+                <div class="flex items-start gap-3">
+                  <label class="w-20 text-sm text-gray-700 mt-1">Hinweise</label>
+                  <textarea
+                    v-model="event.wifi_instruction"
+                    @blur="updateEventField('wifi_instruction', event.wifi_instruction)"
+                    class="flex-1 border px-3 py-1 rounded text-sm"
+                    rows="3"
+                    placeholder="z. B. Code FLL eingebeben und Nutzungbedingungen akzeptieren."
+                  ></textarea>
                 </div>
               </div>
             </div>

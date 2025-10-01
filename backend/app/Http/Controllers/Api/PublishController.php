@@ -200,6 +200,15 @@ class PublishController extends Controller
             }
         }
 
+        $wifiInstructionsHtml = '';
+        if (!empty($event->wifi_instruction)) {
+            // preserve line breaks; escape HTML
+            $wifiInstructionsHtml =
+                '<div style="margin-top: 10px; font-size: 14px; color: #333; white-space: pre-line;">'
+                . e($event->wifi_instruction)
+                . '</div>';
+        }
+
         // Explore-Logo laden
         $exploreLogoPath = public_path('flow/fll_explore_hs.png');
         $exploreLogoSrc = (file_exists($exploreLogoPath) && !empty($event->event_explore))
@@ -231,8 +240,6 @@ class PublishController extends Controller
             : '';
 
 
-
-
         $html = '
         <div style="width: 100%; font-family: sans-serif; text-align: center; padding: 40px;">
             
@@ -257,13 +264,36 @@ class PublishController extends Controller
             <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
             <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>';
 
-        if ($wifi && !empty($event->wifi_ssid) && !empty($wifiPassword)) {
-            // WLAN-QR nur wenn gewünscht und Daten vorhanden
-            $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
+        if ($wifi && !empty($event->wifi_ssid)) {
+            // QR-Content abhängig vom Passwort
+            if (!empty($wifiPassword)) {
+                $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
+            } else {
+                $wifiQrContent = "WIFI:T:nopass;S:{$event->wifi_ssid};;";
+            }
+
             $wifiQr = new \Endroid\QrCode\QrCode($wifiQrContent);
             $writer = new \Endroid\QrCode\Writer\PngWriter();
             $wifiResult = $writer->write($wifiQr);
             $wifiBase64 = base64_encode($wifiResult->getString());
+
+            // Wifi-Instructions als HTML (mit Zeilenumbrüchen, Box <= QR-Breite)
+            $wifiInstructionsHtml = '';
+            if (!empty($event->wifi_instruction)) {
+                $wifiInstructionsHtml = '
+                    <div style="margin:8px auto 0 auto; 
+                                max-width:200px; 
+                                border:1px solid #ccc; 
+                                border-radius:6px; 
+                                padding:6px; 
+                                font-size:12px; 
+                                color:#555; 
+                                text-align:left; 
+                                white-space:pre-line; 
+                                line-height:1.3;">
+                        ' . e($event->wifi_instruction) . '
+                    </div>';
+            }
 
             $html .= '
                 <table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 40px;">
@@ -277,9 +307,12 @@ class PublishController extends Controller
                             </div>
                             <img src="data:image/png;base64,' . $wifiBase64 . '" style="width:200px; height:200px;" />
                             <div style="margin-top: 10px; font-size: 14px; color: #333;">
-                                SSID: ' . e($event->wifi_ssid) . '<br/>
-                                Passwort: ' . e($wifiPassword) . '
+                                SSID: ' . e($event->wifi_ssid) . '<br/>' .
+                                (!empty($wifiPassword)
+                                    ? 'Passwort: ' . e($wifiPassword)
+                                    : 'Kein Passwort erforderlich') . '
                             </div>
+                            ' . $wifiInstructionsHtml . '
                         </td>
                     </tr>
                 </table>';
@@ -331,8 +364,7 @@ class PublishController extends Controller
     }   
 
 
-// Informationen fürs Volk ...
-
+    // Informationen fürs Volk ...
 
 
     public function scheduleInformation(int $eventId, Request $request): JsonResponse
