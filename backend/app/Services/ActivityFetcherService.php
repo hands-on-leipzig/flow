@@ -155,23 +155,37 @@ class ActivityFetcherService
             ';
         }
 
-        if ($includeActivityMeta) {
-            $select .= ',
-                atd.name          as activity_atd_name,
-                atd.first_program as activity_first_program_id,
-                fp.name           as activity_first_program_name,
-                atd.description   as activity_description
-            ';
-        }
+// --- Activity-Meta: bei Extra-Block Name/Description aus peb.* ziehen
+if ($includeActivityMeta) {
+    $select .= ',
+        CASE 
+            WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.name, atd.name)
+            ELSE atd.name
+        END                        as activity_atd_name,
+        atd.first_program          as activity_first_program_id,
+        fp.name                    as activity_first_program_name,
+        CASE 
+            WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.description, atd.description)
+            ELSE atd.description
+        END                        as activity_description
+    ';
+}
 
-        if ($includeGroupMeta) {
-            $select .= ',
-                ag_atd.name          as group_atd_name,
-                ag_atd.first_program as group_first_program_id,
-                ag_fp.name           as group_first_program_name,
-                ag_atd.description   as group_description
-            ';
-        }
+// --- Group-Meta: ebenfalls bei Extra-Block Name/Description aus peb.* (auch wenn es formal Group-Meta ist)
+if ($includeGroupMeta) {
+    $select .= ',
+        CASE 
+            WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.name, ag_atd.name)
+            ELSE ag_atd.name
+        END                        as group_atd_name,
+        ag_atd.first_program       as group_first_program_id,
+        ag_fp.name                 as group_first_program_name,
+        CASE 
+            WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.description, ag_atd.description)
+            ELSE ag_atd.description
+        END                        as group_description
+    ';
+}
 
         if ($includeTeamNames) {
             $select .= ',
