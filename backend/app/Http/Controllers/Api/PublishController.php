@@ -158,6 +158,46 @@ class PublishController extends Controller
             return response()->json(['error' => 'Event not found'], 404);
         }
 
+        // Passwort entschlüsseln
+        $wifiPassword = '';
+        if (!empty($event->wifi_password)) {
+            try {
+                $wifiPassword = Crypt::decryptString($event->wifi_password);
+            } catch (\Exception $e) {
+                // Falls es schon unverschlüsselt gespeichert war
+                $wifiPassword = $event->wifi_password;
+            }
+}
+
+        // QR-Content abhängig vom Passwort
+        if (!empty($wifiPassword)) {
+            $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
+        } else {
+            $wifiQrContent = "WIFI:T:nopass;S:{$event->wifi_ssid};;";
+        }
+
+        $wifiQr = new \Endroid\QrCode\QrCode(
+            $wifiQrContent,
+            new \Endroid\QrCode\Encoding\Encoding('UTF-8'),
+            \Endroid\QrCode\ErrorCorrectionLevel::High,
+            300,
+            10,
+            \Endroid\QrCode\RoundBlockSizeMode::Margin,
+            new \Endroid\QrCode\Color\Color(0, 0, 0),
+            new \Endroid\QrCode\Color\Color(255, 255, 255)
+        );
+
+        $writer = new \Endroid\QrCode\Writer\PngWriter();
+        $wifiResult = $writer->write($wifiQr);
+        $wifiQrcodeRaw = base64_encode($wifiResult->getString());
+
+        // Speichern in DB
+        DB::table('event')
+            ->where('id', $event->id)
+            ->update([
+                'wifi_qrcode' => $wifiQrcodeRaw,
+            ]);
+
         // HTML fürs PDF
         $html = $this->buildEventHtml($event, $wifi);
         $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
@@ -264,18 +304,10 @@ class PublishController extends Controller
             <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
             <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>';
 
-        if ($wifi && !empty($event->wifi_ssid)) {
-            // QR-Content abhängig vom Passwort
-            if (!empty($wifiPassword)) {
-                $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
-            } else {
-                $wifiQrContent = "WIFI:T:nopass;S:{$event->wifi_ssid};;";
-            }
+        if ($wifi && !empty($event->wifi_ssid) && !empty($event->wifi_qrcode)) {
 
-            $wifiQr = new \Endroid\QrCode\QrCode($wifiQrContent);
-            $writer = new \Endroid\QrCode\Writer\PngWriter();
-            $wifiResult = $writer->write($wifiQr);
-            $wifiBase64 = base64_encode($wifiResult->getString());
+            // QR aus DB verwenden
+            $wifiBase64 = $event->wifi_qrcode;
 
             // Wifi-Instructions als HTML (mit Zeilenumbrüchen, Box <= QR-Breite)
             $wifiInstructionsHtml = '';

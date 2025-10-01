@@ -188,23 +188,12 @@ const challengeTimes = computed(() => {
 
 
 
-// --- QR Codes ---
-const qrWifiUrl = ref("")
-
-watch(
-  () => [event.value?.wifi_ssid, event.value?.wifi_password],
-  async ([ssid, pw]) => {
-    if (ssid) {
-      const qrContent = pw
-        ? `WIFI:T:WPA;S:${ssid};P:${pw};;`
-        : `WIFI:T:nopass;S:${ssid};;`
-      qrWifiUrl.value = await QRCode.toDataURL(qrContent)
-    } else {
-      qrWifiUrl.value = ''
-    }
-  },
-  { immediate: true }
-)
+// --- QR Codes WLAN
+const qrWifiUrl = computed(() => {
+  return event.value?.wifi_qrcode 
+    ? `data:image/png;base64,${event.value.wifi_qrcode}` 
+    : ''
+})
 
 // --- Update einzelnes Event-Feld ---
 async function updateEventField(field: string, value: string) {
