@@ -234,8 +234,20 @@ async function updateEventField(field: string, value: string) {
     console.error(`Fehler beim Aktualisieren von ${field}:`, e)
   } finally {
     if (field.startsWith("wifi_")) {
+      // Event-Daten neu laden -> holt frisches wifi_qrcode
+      await refreshEvent(event.value.id)
       loadingWifiQr.value = false
+      
     }
+  }
+}
+
+async function refreshEvent(eventId: number) {
+  try {
+    const { data } = await axios.get(`/events/${eventId}`)
+    eventStore.selectedEvent = data
+  } catch (e) {
+    console.error("Fehler beim Reload des Events:", e)
   }
 }
 
@@ -484,7 +496,7 @@ function previewOlinePlan() {
       <div class="flex flex-col lg:flex-row gap-6">
         <!-- Linke Box: fünf QR-Bereiche -->
         <div class="flex-1 rounded-xl shadow bg-white p-6">
-          <h3 class="text-lg font-semibold mb-4">QR Codes zum Online-Plan zum Aushängen vor Ort</h3>
+          <h3 class="text-lg font-semibold mb-4">QR Codes zum Online-Plan und WLAN-Zugang zum Aushängen vor Ort</h3>
 
           <div class="flex flex-row flex-wrap gap-6 justify-start">
 
