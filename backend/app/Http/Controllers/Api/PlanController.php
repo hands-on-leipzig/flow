@@ -156,10 +156,13 @@ class PlanController extends Controller
             ['set_value' => $r_tables]);
 
 
-            // Populate team_plan table with all teams for this event
+        // Populate team_plan table with all teams for this event
         Log::info("Creating plan $newId for event $eventId - calling populateTeamPlanForNewPlan");
         $this->populateTeamPlanForNewPlan($newId, $eventId);
 
+        // Add some default free blocks to illustrate usage
+        $this->addDefaultFreeBlocks($newId);
+    
         return response()->json([
             'id' => $newId,
             'existing' => false,
@@ -310,7 +313,45 @@ class PlanController extends Controller
         }
     }
 
+    private function addDefaultFreeBlocks(int $planId): void
+    {
+        $eventDate = DB::table('plan')
+            ->join('event', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->value('event.date');
 
+        $date = Carbon::parse($eventDate);
+        $start = $date->copy();
+        $end   = $date->copy();
 
+        $start->setTime(11, 30, 0);
+        $end->setTime(13, 30, 0);
 
+        DB::table('extra_block')->insert([
+            'plan'        => $planId,
+            'first_program' => 0, 
+            'name'        => 'Mittagessen',
+            'description' => 'Es gibt verschiedene Gerichte für Teams, Helfer und Besucher.',
+            'link'        => 'https://lecker-essen.mhhm',
+            'start'       => $start,
+            'end'         => $end,
+            'room'        => null,
+            'active'      => 1,
+        ]);
+
+        $start->setTime(9, 0, 0);
+        $end->setTime(16, 30, 0);
+        
+        DB::table('extra_block')->insert([
+            'plan'        => $planId,
+            'first_program' => 0,
+            'name'        => 'Awareness',
+            'description' => 'Awareness bedeutet, achtsam miteinander umzugehen, Grenzen zu respektieren und eine Umgebung frei von Diskriminierung, Mobbing oder unangemessenem Verhalten zu schaffen. Das Konzept bietet Anregungen zu Schutzmaßnahmen, inklusivem Miteinander und einer Kultur der Achtsamkeit, damit alle Kinder und Jugendlichen unsere Veranstaltungen als positive und sichere Erfahrung erleben.',
+            'link'        => 'https://youtube.com/shorts/vYOn38IBYX8?si=OMRuh3gsRYwle1kw',
+            'start'       => $start,
+            'end'         => $end,
+            'room'        => null,
+            'active'      => 1,
+        ]);
+    }
 }
