@@ -100,6 +100,18 @@ class StatisticController extends Controller
             ->get()
             ->keyBy('plan');
 
+        // Extra-Block-Stats abrufen
+        $extraBlockStatsRaw = DB::table('extra_block')
+            ->whereIn('plan', $planIds)
+            ->where('active', 1)
+            ->select(
+                'plan',
+                DB::raw('COUNT(*) as count')
+            )
+            ->groupBy('plan')
+            ->get()
+            ->keyBy('plan');
+
         // Gruppieren
         $groupedSeasons = [];
 
@@ -148,7 +160,8 @@ class StatisticController extends Controller
                     'plan_created' => $row->plan_created,
                     'plan_last_change' => $row->plan_last_change,
                     'generator_stats' => $genStatsRaw[$row->plan_id]->count ?? null,
-                    'expert_param_changes' => $paramStatsRaw[$row->plan_id]->count ?? 0, // <--- NEU
+                    'expert_param_changes' => $paramStatsRaw[$row->plan_id]->count ?? 0, 
+                    'extra_blocks'         => $extraBlockStatsRaw[$row->plan_id]->count ?? 0, 
                     'publication_level' => $row->publication_level,
                     'publication_date' => $row->publication_date,
                     'publication_last_change' => $row->publication_last_change,
