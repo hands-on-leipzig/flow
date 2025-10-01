@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 
 class EventController extends Controller
@@ -95,6 +96,7 @@ class EventController extends Controller
         $updatableFields = [
             'wifi_ssid',
             'wifi_password',
+            'wifi_instruction',
         ];
 
         $data = $request->only($updatableFields);

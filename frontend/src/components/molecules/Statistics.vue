@@ -154,7 +154,8 @@ const flattenedRows = computed(() => {
           plan_created: plan.plan_created,
           plan_last_change: plan.plan_last_change,
           generator_stats: plan.generator_stats ?? null,
-          expert_param_changes: plan.expert_param_changes ?? 0,   // <--- NEU
+          expert_param_changes: plan.expert_param_changes ?? 0,
+          extra_blocks: plan.extra_blocks ?? 0,
           publication_level: plan.publication_level ?? null,
           publication_date: plan.publication_date ?? null,
           publication_last_change: plan.publication_last_change ?? null,
@@ -288,6 +289,7 @@ function formatNumber(num) {
             <th class="px-3 py-2">Letzte Änderung</th>
             <th class="px-3 py-2">Generierungen</th>
             <th class="px-3 py-2">Expert-Parameter</th>
+            <th class="px-3 py-2">Extra-Blöcke</th>
             <th class="px-3 py-2">Publikations-Level</th>
             <th class="px-3 py-2">Publiziert</th>
             <th class="px-3 py-2">Letzte Änderung</th>
@@ -410,6 +412,14 @@ function formatNumber(num) {
           <td class="px-3 py-2 text-right">
             <template v-if="row.plan_id">
               {{ row.expert_param_changes }}
+            </template>
+            <template v-else>–</template>
+          </td>
+
+          <!-- Extra Blocks -->
+          <td class="px-3 py-2 text-right">
+            <template v-if="row.plan_id">
+              {{ row.extra_blocks }}
             </template>
             <template v-else>–</template>
           </td>
