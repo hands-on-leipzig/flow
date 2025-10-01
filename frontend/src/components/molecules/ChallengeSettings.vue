@@ -323,9 +323,6 @@ const teamsPerJuryHint = computed(() => {
         />
         <label class="text-sm font-medium">Teams</label>
         <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
-          <span class="text-xs text-gray-500 italic">
-            {{ teamsPerJuryHint }}
-          </span>
       </div>
 
       <!-- Jury lanes -->
@@ -360,6 +357,9 @@ const teamsPerJuryHint = computed(() => {
 
           <span class="text-sm font-medium">Jurygruppe(n)</span>
           <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
+          <span class="text-xs text-gray-500 italic">
+            {{ teamsPerJuryHint }}
+          </span>
         </div>
 
         <p v-if="cTeams && allowedJuryLanes.length === 0" class="text-xs text-gray-500 mt-1">

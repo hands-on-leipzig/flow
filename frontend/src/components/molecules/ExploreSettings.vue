@@ -424,6 +424,44 @@ const planStatusClass = computed(() => {
   }
 })
 
+const teamsPerJuryHint1 = computed(() => {
+  const teams = Number(paramMapByName.value['e1_teams']?.value ?? 0)
+  const lanes = Number(paramMapByName.value['e1_lanes']?.value ?? 1) // garantiert >0
+
+  if (teams === 0) {
+    return ''
+  } else {
+
+    const lo = Math.floor(teams / lanes)
+    const hi = Math.ceil(teams / lanes)
+
+    return lo === hi
+      ? `${lo} Teams pro Gruppe`
+      : `${lo} bis ${hi} Teams pro Gruppe`
+
+  }
+
+})
+
+const teamsPerJuryHint2 = computed(() => {
+  const teams = Number(paramMapByName.value['e2_teams']?.value ?? 0)
+  const lanes = Number(paramMapByName.value['e2_lanes']?.value ?? 1) // garantiert >0
+
+
+  if (teams === 0) {
+    return ''
+  } else {
+
+    const lo = Math.floor(teams / lanes)
+    const hi = Math.ceil(teams / lanes)
+
+    return lo === hi
+      ? `${lo} Teams pro Gruppe`
+      : `${lo} bis ${hi} Teams pro Gruppe`
+  }
+
+})
+
 </script>
 
 <template>
@@ -469,7 +507,7 @@ const planStatusClass = computed(() => {
     <div v-if="hasExplore" class="mb-3 flex items-center gap-2">
       
       <input
-          class="mt-1 w-32 border-2 rounded px-2 py-1 focus:outline-none focus:ring-2"
+          class="mt-1 w-16 border-2 rounded px-2 py-1 text-center focus:outline-none focus:ring-2"
           :class="getTeamInputStyle(currentConfigAlertLevelIntegrated)"
           type="number"
           :min="exploreTeamLimits.min"
@@ -550,31 +588,41 @@ const planStatusClass = computed(() => {
 
     <!-- INTEGRATED (1/2): inline lane selector bound to e1_lanes (allowed by total e_teams) -->
     <div v-if="hasExplore && isIntegrated" class="mt-4 flex">
-      <div class="flex items-center gap-2">
+      <div class="flex items-start gap-2">
+        <!-- Buttons -->
         <RadioGroup v-model="integratedLanesProxy" class="flex gap-1">
           <RadioGroupOption
-              v-for="n in allLaneOptions"
-              :key="'e_lane_int_' + n"
-              :value="n"
-              :disabled="!isExploreLaneAllowedIntegrated(n)"
-              v-slot="{ checked, disabled }"
+            v-for="n in allLaneOptions"
+            :key="'e_lane_int_' + n"
+            :value="n"
+            :disabled="!isExploreLaneAllowedIntegrated(n)"
+            v-slot="{ checked, disabled }"
           >
             <button
-                type="button"
-                class="px-2 py-1 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="[
-                  checked ? getAlertLevelStyle(currentConfigAlertLevelIntegrated) : '',
-                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-                ]"
-                :aria-disabled="disabled"
+              type="button"
+              class="px-2 py-1 rounded-md border text-sm transition
+                  focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+              :class="[
+                checked ? getAlertLevelStyle(currentConfigAlertLevelIntegrated) : '',
+                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+              ]"
+              :aria-disabled="disabled"
             >
               {{ n }}
             </button>
           </RadioGroupOption>
         </RadioGroup>
-        <span class="text-sm font-medium">Jurygruppen</span>
-        <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
+
+        <!-- Rechte Spalte mit Label + Hint -->
+        <div class="flex flex-col">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium">Gutachter:innen-Gruppen</span>
+            <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
+          </div>
+          <span class="text-xs text-gray-500 italic">
+            {{ teamsPerJuryHint1 }} {{ teamsPerJuryHint2 }}
+          </span>
+        </div>
       </div>
       
 
@@ -600,30 +648,39 @@ const planStatusClass = computed(() => {
         <div class="text-sm font-medium mb-1">
           Vormittag
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <RadioGroup v-model="eLanesAMProxy" class="flex gap-1">
             <RadioGroupOption
-                v-for="n in allLaneOptions"
-                :key="'e_lane_am_' + n"
-                :value="n"
-                :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
-                v-slot="{ checked, disabled }"
+              v-for="n in allLaneOptions"
+              :key="'e_lane_am_' + n"
+              :value="n"
+              :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
+              v-slot="{ checked, disabled }"
             >
               <button
-                  type="button"
-                  class="px-2 py-1 rounded-md border text-sm transition
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  :class="[
+                type="button"
+                class="px-2 py-1 rounded-md border text-sm transition
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                :class="[
                   checked ? getAlertLevelStyle(currentConfigAlertLevelAM) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
-                  :aria-disabled="disabled"
+                :aria-disabled="disabled"
               >
                 {{ n }}
               </button>
             </RadioGroupOption>
           </RadioGroup>
-          <span class="text-sm font-medium">Jurygruppen</span>
+
+          <!-- zweizeiliger Block unter den Buttons -->
+          <div class="basis-full mt-1">
+            <div class="flex flex-col">
+              <span class="text-sm font-medium">Gutacher:innen-Gruppen</span>
+              <span class="text-xs text-gray-500 italic">
+                {{ teamsPerJuryHint1 }}
+              </span>
+            </div>
+          </div>
         </div>
         
 
@@ -634,30 +691,39 @@ const planStatusClass = computed(() => {
         <div class="text-sm font-medium mb-1">
           Nachmittag
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <RadioGroup v-model="eLanesPMProxy" class="flex gap-1">
             <RadioGroupOption
-                v-for="n in allLaneOptions"
-                :key="'e_lane_pm_' + n"
-                :value="n"
-                :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
-                v-slot="{ checked, disabled }"
+              v-for="n in allLaneOptions"
+              :key="'e_lane_pm_' + n"
+              :value="n"
+              :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
+              v-slot="{ checked, disabled }"
             >
               <button
-                  type="button"
-                  class="px-2 py-1 rounded-md border text-sm transition
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  :class="[
+                type="button"
+                class="px-2 py-1 rounded-md border text-sm transition
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                :class="[
                   checked ? getAlertLevelStyle(currentConfigAlertLevelPM) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
-                  :aria-disabled="disabled"
+                :aria-disabled="disabled"
               >
                 {{ n }}
               </button>
             </RadioGroupOption>
           </RadioGroup>
-          <span class="text-sm font-medium">Jurygruppen</span>
+
+          <!-- zweizeiliger Block unter den Buttons -->
+          <div class="basis-full mt-1">
+            <div class="flex flex-col">
+              <span class="text-sm font-medium">Gutacher:innen-Gruppen</span>
+              <span class="text-xs text-gray-500 italic">
+                {{ teamsPerJuryHint2 }}
+              </span>
+            </div>
+          </div>
         </div>
         
 
