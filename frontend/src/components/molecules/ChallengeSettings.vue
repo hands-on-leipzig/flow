@@ -251,6 +251,18 @@ const planStatusClass = computed(() => {
   }
 })
 
+const teamsPerJuryHint = computed(() => {
+  const teams = Number(paramMapByName.value['c_teams']?.value ?? 0)
+  const lanes = Number(paramMapByName.value['j_lanes']?.value ?? 1) // garantiert >0
+
+  const lo = Math.floor(teams / lanes)
+  const hi = Math.ceil(teams / lanes)
+
+  return lo === hi
+    ? `${lo} Teams pro Jury`
+    : `${lo} bis ${hi} Teams pro Jury`
+})
+
 </script>
 
 <template>
@@ -301,13 +313,13 @@ const planStatusClass = computed(() => {
     <template v-if="showChallenge">
       <div class="mb-3 flex items-center gap-2">
         <input
-            class="mt-1 w-32 border-2 rounded px-2 py-1 focus:outline-none focus:ring-2"
-            :class="getTeamInputStyle(currentConfigAlertLevel)"
-            type="number"
-            :min="challengeTeamLimits.min"
-            :max="challengeTeamLimits.max"
-            :value="paramMapByName['c_teams']?.value"
-            @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
+          class="mt-1 w-16 border-2 rounded px-2 py-1 text-center focus:outline-none focus:ring-2"
+          :class="getTeamInputStyle(currentConfigAlertLevel)"
+          type="number"
+          :min="challengeTeamLimits.min"
+          :max="challengeTeamLimits.max"
+          :value="paramMapByName['c_teams']?.value"
+          @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
         />
         <label class="text-sm font-medium">Teams</label>
         <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
@@ -345,6 +357,9 @@ const planStatusClass = computed(() => {
 
           <span class="text-sm font-medium">Jurygruppe(n)</span>
           <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
+          <span class="text-xs text-gray-500 italic">
+            {{ teamsPerJuryHint }}
+          </span>
         </div>
 
         <p v-if="cTeams && allowedJuryLanes.length === 0" class="text-xs text-gray-500 mt-1">
