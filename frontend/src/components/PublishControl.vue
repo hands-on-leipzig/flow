@@ -692,7 +692,7 @@ async function downloadOfflinePdf() {
             Der ganze Plan in einem Dokument
           </h3>
           <p class="text-sm text-gray-600 mb-2">
-            Volle Details, aber in einfacher Formatierung: Je eine Tabelle pro Team, Guterachter:innen-/Jury-Gruppe und Robot-Game-Tisch. 
+            Volle Details, aber in einfacher Formatierung: Je eine Tabelle pro Team, Guterachter:innen-/Jury-Gruppe und Robot-Game-Tisch.
           </p>
           <p class="text-xs text-gray-500 mb-4">
             Dieses Dokument ist für den Veranstalter gedacht, nicht zum Verteilen an Teams, Freiwillige und Besucher! Für die gibt es den Link oben.
