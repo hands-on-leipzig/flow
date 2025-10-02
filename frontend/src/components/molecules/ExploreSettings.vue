@@ -7,6 +7,9 @@ import InfoPopover from "@/components/atoms/InfoPopover.vue"
 import {useEventStore} from '@/stores/event'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
+const eventStore = useEventStore()
+const event = computed(() => eventStore.selectedEvent)
+
 const props = defineProps<{
   parameters: any[]
   showExplore: boolean
@@ -42,7 +45,7 @@ function handleToggleChange(target: HTMLInputElement) {
     }
 
     // Use DRAHT team count as default if available, otherwise use min
-    const eventStore = useEventStore()
+    
     const drahtTeams = eventStore.selectedEvent?.drahtTeamsExplore || 0
     const minTeams = paramMapByName.value['e_teams']?.min || 1
     const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
@@ -78,7 +81,7 @@ const isSeparateSplit = computed(() => eMode.value === 5)
 
 const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2)
 const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4 || eMode.value === 5)
-const hasExplore = computed(() => eMode.value > 0)
+const hasExplore = computed(() => props.showExplore)
 
 /** Fancy mode changes **/
 function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5) {
@@ -407,6 +410,58 @@ const getTeamInputStyle = (level: number) => {
   }
 }
 
+const planTeams = computed(() => Number(paramMapByName.value['e_teams']?.value || 0))
+const registeredTeams = computed(() => Number(event.value?.drahtTeamsExplore || 0))
+const capacity = computed(() => Number(event.value?.drahtCapacityExplore || 0))
+
+const planStatusClass = computed(() => {
+  if (planTeams.value === registeredTeams.value) {
+    return 'bg-green-100 border border-green-300 text-green-700'
+  } else if (planTeams.value > capacity.value || planTeams.value < registeredTeams.value) {
+    return 'bg-red-100 border border-red-300 text-red-700'
+  } else {
+    return 'bg-yellow-100 border border-yellow-300 text-yellow-700'
+  }
+})
+
+const teamsPerJuryHint1 = computed(() => {
+  const teams = Number(paramMapByName.value['e1_teams']?.value ?? 0)
+  const lanes = Number(paramMapByName.value['e1_lanes']?.value ?? 1) // garantiert >0
+
+  if (teams === 0) {
+    return ''
+  } else {
+
+    const lo = Math.floor(teams / lanes)
+    const hi = Math.ceil(teams / lanes)
+
+    return lo === hi
+      ? `${lo} Teams pro Gruppe`
+      : `${lo} bis ${hi} Teams pro Gruppe`
+
+  }
+
+})
+
+const teamsPerJuryHint2 = computed(() => {
+  const teams = Number(paramMapByName.value['e2_teams']?.value ?? 0)
+  const lanes = Number(paramMapByName.value['e2_lanes']?.value ?? 1) // garantiert >0
+
+
+  if (teams === 0) {
+    return ''
+  } else {
+
+    const lo = Math.floor(teams / lanes)
+    const hi = Math.ceil(teams / lanes)
+
+    return lo === hi
+      ? `${lo} Teams pro Gruppe`
+      : `${lo} bis ${hi} Teams pro Gruppe`
+  }
+
+})
+
 </script>
 
 <template>
@@ -417,9 +472,25 @@ const getTeamInputStyle = (level: number) => {
           :alt="programLogoAlt('E')"
           class="w-10 h-10 flex-shrink-0"
         />
-      <h3 class="text-lg font-semibold capitalize">
-        <span class="italic">FIRST</span> LEGO League Explore
-      </h3>
+      <div>  
+        <h3 class="text-lg font-semibold capitalize">
+          <span class="italic">FIRST</span> LEGO League Explore
+        </h3>
+
+          <div :class="['flex space-x-4 text-xs px-2 py-1 rounded', planStatusClass]">
+            <span>
+              Kapazität: {{ capacity }}
+            </span>
+            <span>
+              Angemeldet: {{ registeredTeams }}
+            </span>
+            <span>
+              In diesem Plan: {{ planTeams }}
+            </span>
+          </div>
+
+      </div>
+
       <label class="relative inline-flex items-center cursor-pointer">
         <input
             type="checkbox"
@@ -436,7 +507,7 @@ const getTeamInputStyle = (level: number) => {
     <div v-if="hasExplore" class="mb-3 flex items-center gap-2">
       
       <input
-          class="mt-1 w-32 border-2 rounded px-2 py-1 focus:outline-none focus:ring-2"
+          class="mt-1 w-16 border-2 rounded px-2 py-1 text-center focus:outline-none focus:ring-2"
           :class="getTeamInputStyle(currentConfigAlertLevelIntegrated)"
           type="number"
           :min="exploreTeamLimits.min"
@@ -517,31 +588,41 @@ const getTeamInputStyle = (level: number) => {
 
     <!-- INTEGRATED (1/2): inline lane selector bound to e1_lanes (allowed by total e_teams) -->
     <div v-if="hasExplore && isIntegrated" class="mt-4 flex">
-      <div class="flex items-center gap-2">
+      <div class="flex items-start gap-2">
+        <!-- Buttons -->
         <RadioGroup v-model="integratedLanesProxy" class="flex gap-1">
           <RadioGroupOption
-              v-for="n in allLaneOptions"
-              :key="'e_lane_int_' + n"
-              :value="n"
-              :disabled="!isExploreLaneAllowedIntegrated(n)"
-              v-slot="{ checked, disabled }"
+            v-for="n in allLaneOptions"
+            :key="'e_lane_int_' + n"
+            :value="n"
+            :disabled="!isExploreLaneAllowedIntegrated(n)"
+            v-slot="{ checked, disabled }"
           >
             <button
-                type="button"
-                class="px-2 py-1 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                :class="[
-                  checked ? getAlertLevelStyle(currentConfigAlertLevelIntegrated) : '',
-                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-                ]"
-                :aria-disabled="disabled"
+              type="button"
+              class="px-2 py-1 rounded-md border text-sm transition
+                  focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+              :class="[
+                checked ? getAlertLevelStyle(currentConfigAlertLevelIntegrated) : '',
+                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+              ]"
+              :aria-disabled="disabled"
             >
               {{ n }}
             </button>
           </RadioGroupOption>
         </RadioGroup>
-        <span class="text-sm font-medium">Jurygruppen</span>
-        <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
+
+        <!-- Rechte Spalte mit Label + Hint -->
+        <div class="flex flex-col">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium">Gutachter:innen-Gruppen</span>
+            <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
+          </div>
+          <span class="text-xs text-gray-500 italic">
+            {{ teamsPerJuryHint1 }} {{ teamsPerJuryHint2 }}
+          </span>
+        </div>
       </div>
       
 
@@ -567,30 +648,39 @@ const getTeamInputStyle = (level: number) => {
         <div class="text-sm font-medium mb-1">
           Vormittag
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <RadioGroup v-model="eLanesAMProxy" class="flex gap-1">
             <RadioGroupOption
-                v-for="n in allLaneOptions"
-                :key="'e_lane_am_' + n"
-                :value="n"
-                :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
-                v-slot="{ checked, disabled }"
+              v-for="n in allLaneOptions"
+              :key="'e_lane_am_' + n"
+              :value="n"
+              :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
+              v-slot="{ checked, disabled }"
             >
               <button
-                  type="button"
-                  class="px-2 py-1 rounded-md border text-sm transition
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  :class="[
+                type="button"
+                class="px-2 py-1 rounded-md border text-sm transition
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                :class="[
                   checked ? getAlertLevelStyle(currentConfigAlertLevelAM) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
-                  :aria-disabled="disabled"
+                :aria-disabled="disabled"
               >
                 {{ n }}
               </button>
             </RadioGroupOption>
           </RadioGroup>
-          <span class="text-sm font-medium">Jurygruppen</span>
+
+          <!-- zweizeiliger Block unter den Buttons -->
+          <div class="basis-full mt-1">
+            <div class="flex flex-col">
+              <span class="text-sm font-medium">Gutacher:innen-Gruppen</span>
+              <span class="text-xs text-gray-500 italic">
+                {{ teamsPerJuryHint1 }}
+              </span>
+            </div>
+          </div>
         </div>
         
 
@@ -601,30 +691,39 @@ const getTeamInputStyle = (level: number) => {
         <div class="text-sm font-medium mb-1">
           Nachmittag
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <RadioGroup v-model="eLanesPMProxy" class="flex gap-1">
             <RadioGroupOption
-                v-for="n in allLaneOptions"
-                :key="'e_lane_pm_' + n"
-                :value="n"
-                :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
-                v-slot="{ checked, disabled }"
+              v-for="n in allLaneOptions"
+              :key="'e_lane_pm_' + n"
+              :value="n"
+              :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
+              v-slot="{ checked, disabled }"
             >
               <button
-                  type="button"
-                  class="px-2 py-1 rounded-md border text-sm transition
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  :class="[
+                type="button"
+                class="px-2 py-1 rounded-md border text-sm transition
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                :class="[
                   checked ? getAlertLevelStyle(currentConfigAlertLevelPM) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
-                  :aria-disabled="disabled"
+                :aria-disabled="disabled"
               >
                 {{ n }}
               </button>
             </RadioGroupOption>
           </RadioGroup>
-          <span class="text-sm font-medium">Jurygruppen</span>
+
+          <!-- zweizeiliger Block unter den Buttons -->
+          <div class="basis-full mt-1">
+            <div class="flex flex-col">
+              <span class="text-sm font-medium">Gutacher:innen-Gruppen</span>
+              <span class="text-xs text-gray-500 italic">
+                {{ teamsPerJuryHint2 }}
+              </span>
+            </div>
+          </div>
         </div>
         
 

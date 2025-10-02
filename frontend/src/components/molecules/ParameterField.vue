@@ -25,17 +25,28 @@ const props = defineProps({
 })
 const emit = defineEmits(['update'])
 const showInfo = ref(false)
-const localValue = ref(props.param.value)
 
+const normalizeBoolean = (val) => val === 1 || val === true || val === '1'
+
+// Initialisierung
+const localValue = ref(
+  props.param.type === 'boolean'
+    ? normalizeBoolean(props.param.value)
+    : props.param.value
+)
+
+// Synchronisierung bei Änderungen von außen
 watch(() => props.param.value, val => {
-  localValue.value = val
+  localValue.value = props.param.type === 'boolean'
+    ? normalizeBoolean(val)
+    : val
 })
 
 const showDefaultValue = (param) => {
   console.log('Parameter:', param.name, 'current:', param.value, 'default:', param.default_value)
   switch (param.type) {
     case 'boolean':
-      return param.default_value === 1 ? 'an' : 'aus'
+      return normalizeBoolean(param.default_value) ? 'an' : 'aus'
     default:
       return param.default_value
   }
@@ -52,12 +63,12 @@ const isChangedFromDefault = (param) => {
 
   switch (param.type) {
     case 'boolean':
-      return param.value !== (param.default_value === 1)
+      return localValue.value !== normalizeBoolean(param.default_value)
     case 'integer':
     case 'decimal':
-      return Number(param.value) !== Number(param.default_value)
+      return Number(localValue.value) !== Number(param.default_value)
     default:
-      return param.value !== param.default_value
+      return localValue.value !== param.default_value
   }
 }
 
@@ -75,7 +86,7 @@ const isDefaultValue = computed(() => {
 
   switch (props.param.type) {
     case 'boolean':
-      return localValue.value === (props.param.default_value === 1)
+      return localValue.value === normalizeBoolean(props.param.default_value)
     case 'integer':
     case 'decimal':
       return Number(localValue.value) === Number(props.param.default_value)

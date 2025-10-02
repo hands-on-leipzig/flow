@@ -6,6 +6,9 @@ import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import {useEventStore} from '@/stores/event'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
+const eventStore = useEventStore()
+const event = computed(() => eventStore.selectedEvent)
+
 const props = defineProps<{
   parameters: any[]
   showChallenge: boolean
@@ -39,7 +42,6 @@ function handleToggleChange(target: HTMLInputElement) {
   // Update challenge parameters based on toggle state
   if (isChecked) {
     // Use DRAHT team count as default if available, otherwise use min
-    const eventStore = useEventStore()
     const drahtTeams = eventStore.selectedEvent?.drahtTeamsChallenge || 0
     const minTeams = paramMapByName.value['c_teams']?.min || 1
     const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
@@ -235,6 +237,31 @@ const getTeamInputStyle = (level: number) => {
   }
 }
 
+const planTeams = computed(() => Number(paramMapByName.value['c_teams']?.value || 0))
+const registeredTeams = computed(() => Number(event.value?.drahtTeamsChallenge || 0))
+const capacity = computed(() => Number(event.value?.drahtCapacityChallenge || 0))
+
+const planStatusClass = computed(() => {
+  if (planTeams.value === registeredTeams.value) {
+    return 'bg-green-100 border border-green-300 text-green-700'
+  } else if (planTeams.value > capacity.value || planTeams.value < registeredTeams.value) {
+    return 'bg-red-100 border border-red-300 text-red-700'
+  } else {
+    return 'bg-yellow-100 border border-yellow-300 text-yellow-700'
+  }
+})
+
+const teamsPerJuryHint = computed(() => {
+  const teams = Number(paramMapByName.value['c_teams']?.value ?? 0)
+  const lanes = Number(paramMapByName.value['j_lanes']?.value ?? 1) // garantiert >0
+
+  const lo = Math.floor(teams / lanes)
+  const hi = Math.ceil(teams / lanes)
+
+  return lo === hi
+    ? `${lo} Teams pro Jury`
+    : `${lo} bis ${hi} Teams pro Jury`
+})
 
 </script>
 
@@ -246,9 +273,29 @@ const getTeamInputStyle = (level: number) => {
           :alt="programLogoAlt('C')"
           class="w-10 h-10 flex-shrink-0"
         />
-      <h3 class="text-lg font-semibold capitalize">
-        <span class="italic">FIRST</span> LEGO League Challenge
-      </h3>
+
+      <div>
+        <h3 class="text-lg font-semibold capitalize">
+          <span class="italic">FIRST</span> LEGO League Challenge
+        </h3>
+        
+      <div :class="['flex space-x-4 text-xs px-2 py-1 rounded', planStatusClass]">
+        <span>
+          Kapazität: {{ capacity }}
+        </span>
+        <span>
+          Angemeldet: {{ registeredTeams }}
+        </span>
+        <span>
+          In diesem Plan: {{ planTeams }}
+        </span>
+      </div>
+
+      </div>
+
+      
+      
+      
       <label class="relative inline-flex items-center cursor-pointer">
         <input
             type="checkbox"
@@ -266,13 +313,13 @@ const getTeamInputStyle = (level: number) => {
     <template v-if="showChallenge">
       <div class="mb-3 flex items-center gap-2">
         <input
-            class="mt-1 w-32 border-2 rounded px-2 py-1 focus:outline-none focus:ring-2"
-            :class="getTeamInputStyle(currentConfigAlertLevel)"
-            type="number"
-            :min="challengeTeamLimits.min"
-            :max="challengeTeamLimits.max"
-            :value="paramMapByName['c_teams']?.value"
-            @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
+          class="mt-1 w-16 border-2 rounded px-2 py-1 text-center focus:outline-none focus:ring-2"
+          :class="getTeamInputStyle(currentConfigAlertLevel)"
+          type="number"
+          :min="challengeTeamLimits.min"
+          :max="challengeTeamLimits.max"
+          :value="paramMapByName['c_teams']?.value"
+          @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
         />
         <label class="text-sm font-medium">Teams</label>
         <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
@@ -310,6 +357,9 @@ const getTeamInputStyle = (level: number) => {
 
           <span class="text-sm font-medium">Jurygruppe(n)</span>
           <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
+          <span class="text-xs text-gray-500 italic">
+            {{ teamsPerJuryHint }}
+          </span>
         </div>
 
         <p v-if="cTeams && allowedJuryLanes.length === 0" class="text-xs text-gray-500 mt-1">

@@ -83,6 +83,7 @@ class PlanParameterController extends Controller
     public function updateParameter(Request $request, $planId): JsonResponse
 
     {
+        /*
         // Debug logging
         Log::info("updateParameter called", [
             "planId" => $planId,
@@ -90,7 +91,7 @@ class PlanParameterController extends Controller
             "headers" => $request->headers->all(),
             "method" => $request->method(),
             "url" => $request->url()
-        ]);
+        ]); */
 
         // Handle both single parameter and batch updates
         if ($request->has('parameters')) {

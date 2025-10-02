@@ -16,8 +16,18 @@ class StatisticController extends Controller
         $records = DB::table('regional_partner')
             ->leftJoin('event', 'event.regional_partner', '=', 'regional_partner.id')
             ->leftJoin('plan', 'plan.event', '=', 'event.id')
+            ->leftJoin(DB::raw('(
+                SELECT p.event, p.level, p.created_at, p.updated_at
+                FROM publication p
+                INNER JOIN (
+                    SELECT event, MAX(updated_at) as max_updated
+                    FROM publication
+                    GROUP BY event
+                ) latest
+                ON p.event = latest.event AND p.updated_at = latest.max_updated
+            ) as pub'), 'pub.event', '=', 'event.id')
             ->join('m_season', 'event.season', '=', 'm_season.id')
-            ->where('regional_partner.id', '!=', 98)                    // Test-RP ausschließen. TODO
+            ->where('regional_partner.name', 'not like', '%QPlan RP%')
             ->select([
                 // RP
                 'regional_partner.id as partner_id',
@@ -42,6 +52,11 @@ class StatisticController extends Controller
                 'plan.name as plan_name',
                 'plan.created as plan_created',
                 'plan.last_change as plan_last_change',
+
+                // Publication
+                'pub.level as publication_level',
+                'pub.created_at as publication_date',
+                'pub.updated_at as publication_last_change',
             ])
             ->get();
 
@@ -60,7 +75,43 @@ class StatisticController extends Controller
             ->groupBy('plan')
             ->get()
             ->keyBy('plan');
-                
+
+        // Expert-Parameter-Stats abrufen (nur Abweichungen vom Default)
+        $paramStatsRaw = DB::table('plan_param_value as ppv')
+            ->join('m_parameter as mp', 'mp.id', '=', 'ppv.parameter')
+            ->whereIn('ppv.plan', $planIds)
+            ->where('mp.context', 'expert')
+            ->where(function ($q) {
+                $q->whereRaw('ppv.set_value <> mp.value')
+                ->orWhere(function ($q2) {
+                    $q2->whereNull('ppv.set_value')
+                        ->whereNotNull('mp.value');
+                })
+                ->orWhere(function ($q2) {
+                    $q2->whereNotNull('ppv.set_value')
+                        ->whereNull('mp.value');
+                });
+            })
+            ->select(
+                'ppv.plan',
+                DB::raw('COUNT(*) as count')
+            )
+            ->groupBy('ppv.plan')
+            ->get()
+            ->keyBy('plan');
+
+        // Extra-Block-Stats abrufen
+        $extraBlockStatsRaw = DB::table('extra_block')
+            ->whereIn('plan', $planIds)
+            ->where('active', 1)
+            ->select(
+                'plan',
+                DB::raw('COUNT(*) as count')
+            )
+            ->groupBy('plan')
+            ->get()
+            ->keyBy('plan');
+
         // Gruppieren
         $groupedSeasons = [];
 
@@ -109,6 +160,11 @@ class StatisticController extends Controller
                     'plan_created' => $row->plan_created,
                     'plan_last_change' => $row->plan_last_change,
                     'generator_stats' => $genStatsRaw[$row->plan_id]->count ?? null,
+                    'expert_param_changes' => $paramStatsRaw[$row->plan_id]->count ?? 0, 
+                    'extra_blocks'         => $extraBlockStatsRaw[$row->plan_id]->count ?? 0, 
+                    'publication_level' => $row->publication_level,
+                    'publication_date' => $row->publication_date,
+                    'publication_last_change' => $row->publication_last_change,
                 ];
             }
         }
@@ -159,23 +215,32 @@ class StatisticController extends Controller
         foreach ($seasons as $season) {
             $sid = $season->id;
 
-            // --- RP: total (alle RPs, unabhängig von Saison) ---
-            $rpTotal = DB::table('regional_partner')->count();      
+            // --- RP: total (alle RPs, außer QPlan RP) ---
+            $rpTotal = DB::table('regional_partner')
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
+                ->count();
 
             // --- RP: mit mind. einem Event in der Saison ---
             $rpWithEvents = DB::table('event')
                 ->where('event.season', $sid)
                 ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
                 ->distinct('event.regional_partner')
                 ->count('event.regional_partner');
 
             // --- Events: total & Plan-Verteilung & ungültige RP-Refs ---
-            $eventsTotal = DB::table('event')->where('season', $sid)->count();
+            $eventsTotal = DB::table('event')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+                ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
+                ->count('event.id');
 
             // Events je Plan-Anzahl (0/1/mehr)
             $eventPlanCounts = DB::table('event')
                 ->leftJoin('plan', 'plan.event', '=', 'event.id')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
                 ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
                 ->groupBy('event.id')
                 ->selectRaw('event.id, COUNT(plan.id) as plan_count')
                 ->pluck('plan_count');
@@ -195,14 +260,18 @@ class StatisticController extends Controller
             // --- Plans in der Saison ---
             $plansTotal = DB::table('plan')
                 ->join('event', 'event.id', '=', 'plan.event')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
                 ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
                 ->count('plan.id');
 
             // --- Activity Groups in der Saison ---
             $activityGroupsTotal = DB::table('activity_group')
                 ->join('plan', 'plan.id', '=', 'activity_group.plan')
                 ->join('event', 'event.id', '=', 'plan.event')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
                 ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
                 ->count('activity_group.id');
 
             // --- Activities in der Saison ---
@@ -210,7 +279,9 @@ class StatisticController extends Controller
                 ->join('activity_group', 'activity_group.id', '=', 'activity.activity_group')
                 ->join('plan', 'plan.id', '=', 'activity_group.plan')
                 ->join('event', 'event.id', '=', 'plan.event')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
                 ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
                 ->count('activity.id');
 
             $resultSeasons[] = [
@@ -218,7 +289,7 @@ class StatisticController extends Controller
                 'season_name'  => $season->season_name,
                 'season_year'  => $season->season_year,
                 'rp' => [
-                    'total'        => $rpTotal,       // <— NEU
+                    'total'        => $rpTotal,
                     'with_events'  => $rpWithEvents,
                 ],
                 'events' => [
@@ -226,7 +297,7 @@ class StatisticController extends Controller
                     'with_zero_plans'      => $withZeroPlans,
                     'with_one_plan'        => $withOnePlan,
                     'with_multiple_plans'  => $withMultiplePlans,
-                    'with_plan'            => $withPlan,   // <— NEU (Summe)
+                    'with_plan'            => $withPlan,
                     'invalid_partner_refs' => $invalidEventRp,
                 ],
                 'plans' => [

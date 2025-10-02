@@ -1,27 +1,38 @@
 <script setup>
 import {TabGroup, TabList, Tab, TabPanels, TabPanel, Menu, MenuButton, MenuItems, MenuItem} from '@headlessui/vue'
-import {onMounted, ref} from 'vue'
+import {onMounted, ref, computed} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useEventStore} from '@/stores/event'
+import {useAuth} from '@/composables/useAuth'
 import dayjs from "dayjs";
 import { imageUrl } from '@/utils/images'  
 
 const eventStore = useEventStore()
+const { isAdmin, initializeUserRoles } = useAuth()
+
 onMounted(async () => {
+  // Ensure roles are initialized
+  initializeUserRoles()
+  
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
 })
 
-const tabs = [
-  {name: 'Veranstaltung', path: '/event'},
-  {name: 'Ablauf', path: '/schedule'},
-  {name: 'Teams', path: '/teams'},
-  {name: 'Räume', path: '/rooms'},
-  {name: 'Logos', path: '/logos'},
-  {name: 'Veröffentlichung', path: '/publish'},
-  {name: 'Admin', path: '/admin'},
-]
+const tabs = computed(() => {
+  const allTabs = [
+    {name: 'Veranstaltung', path: '/event'},
+    {name: 'Ablauf', path: '/schedule'},
+    {name: 'Teams', path: '/teams'},
+    {name: 'Räume', path: '/rooms'},
+    {name: 'Logos', path: '/logos'},
+    {name: 'Veröffentlichung', path: '/publish'},
+    {name: 'Admin', path: '/admin'},
+  ]
+  
+  // Filter out Admin tab for non-admin users
+  return allTabs.filter(tab => tab.path !== '/admin' || isAdmin.value)
+})
 const selectedTab = ref('Schedule')
 const router = useRouter()
 const route = useRoute()

@@ -12,6 +12,7 @@ export class UrlSlideContent extends SlideContent {
     public toJSON(): object {
         return {
             type: "UrlSlideContent",
+            background: this.background,
             url: this.url
         };
     }

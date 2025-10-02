@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import {Canvas, Rect, Textbox, FabricImage, Triangle, Circle} from 'fabric'
+import {Canvas, Rect, Textbox, FabricImage, Triangle, Circle, ActiveSelection, util} from 'fabric'
 import {onBeforeUnmount, onMounted, reactive, shallowRef, watch, ref, computed} from 'vue';
 import SvgIcon from '@jamescoyle/vue-icon';
-import {mdiFormatText, mdiRectangle, mdiImageArea, mdiQrcodePlus} from '@mdi/js';
+import {
+  mdiFormatText,
+  mdiRectangle,
+  mdiImageArea,
+  mdiQrcodePlus,
+  mdiArrangeSendBackward,
+  mdiArrangeBringForward
+} from '@mdi/js';
 import {Slide} from "@/models/slide";
 import axios from "axios";
 import {imageUrl} from '@/utils/images'
@@ -14,7 +21,6 @@ import {useEventStore} from "@/stores/event";
 // Undo / Redo
 
 // Custom controls
-// Copy and Paste
 
 // Slideshow löschen
 // Zeit-Parameter für Activity-list
@@ -71,6 +77,7 @@ onMounted(() => {
     height: DEFAULT_HEIGHT,
     backgroundColor: '#ffffff',
   });
+  canvas.preserveObjectStacking = true;
 
   if (props.slide) {
     paintSlide(props.slide);
@@ -99,12 +106,39 @@ onBeforeUnmount(() => {
 });
 
 function keyListener(e: KeyboardEvent) {
-  if ((e.key === 'Delete' || e.key === 'Backspace') && canvas?.getActiveObject()) {
-    const activeObj = canvas.getActiveObject();
-    if (activeObj.get('type') === 'textbox' && activeObj.isEditing) {
-      // Sonderfall: Textfeld wird gerade bearbeitet.
+
+  // Don't interfere with typing in form fields
+  const target = e.target;
+  const isInput =
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable;
+
+  if (isInput) return;
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+    if (isEditingText()) {
       return;
     }
+    e.preventDefault();
+    paste();
+    return;
+  }
+
+  const activeObj = canvas.getActiveObject();
+  if (!activeObj) return;
+
+  if (isEditingText()) {
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+    e.preventDefault();
+    copy();
+    return;
+  }
+
+  if ((e.key === 'Delete' || e.key === 'Backspace') && canvas?.getActiveObject()) {
     e.preventDefault();
 
     if (activeObj.get('type') === 'activeselection') {
@@ -115,7 +149,13 @@ function keyListener(e: KeyboardEvent) {
     }
     updateToolbar();
     canvas.requestRenderAll();
+    return;
   }
+}
+
+function isEditingText() {
+  const activeObj = canvas.getActiveObject();
+  return activeObj?.get('type') === 'textbox' && activeObj.isEditing;
 }
 
 async function loadImages() {
@@ -240,15 +280,15 @@ function updateToolbar() {
     const type = activeObject.get('type');
     if (type === 'textbox') {
       toolbarState.type = 'text';
-      toolbarState.object = activeObject;
     } else if (type === 'rect' || type === 'circle' || type === 'triangle') {
       toolbarState.type = 'shape';
-      toolbarState.object = activeObject;
     } else {
       toolbarState.type = 'none';
     }
+    toolbarState.object = activeObject;
   } else {
     toolbarState.type = 'none';
+    toolbarState.object = undefined;
   }
 }
 
@@ -319,6 +359,22 @@ function onStrokeWidthChange(width: string) {
   canvas.requestRenderAll();
 }
 
+function bringToFront() {
+  const object = canvas.getActiveObject();
+  if (object && canvas) {
+    canvas.bringObjectToFront(object);
+    canvas.requestRenderAll();
+  }
+}
+
+function sendToBack() {
+  const object = canvas.getActiveObject();
+  if (object && canvas) {
+    canvas.sendObjectToBack(object);
+    canvas.requestRenderAll();
+  }
+}
+
 let lastSave = Date.now();
 const SAVE_INTERVAL = 15 * 1000;
 
@@ -344,57 +400,123 @@ function saveJson() {
     });
   }
 }
+
+async function copy() {
+  const activeObjects = canvas.getActiveObjects();
+  if (!activeObjects?.length) return;
+
+  const bbox = canvas.getActiveObject().getBoundingRect();
+  const data = {
+    bbox: {left: bbox.left, top: bbox.top},
+    objects: activeObjects.map(obj => obj.toObject()),
+  };
+
+  localStorage.setItem("fabric-clipboard", JSON.stringify(data));
+}
+
+async function paste() {
+  try {
+    const json = localStorage.getItem("fabric-clipboard");
+    if (!json) return;
+    const objectData = JSON.parse(json);
+    const objects = await util.enlivenObjects(objectData.objects);
+    const multiple = objects.length > 1;
+    for (const object of objects) {
+      const left = 10 + (multiple ? objectData.bbox?.left : 0) + (object?.left || 0);
+      const top = 10 + (multiple ? objectData.bbox?.top : 0) + (object.top || 0);
+      object.set({
+        left,
+        top,
+        ...defaultObjectProperties
+      });
+      canvas.add(object);
+    }
+
+    if (objects.length === 1) {
+      canvas.setActiveObject(objects[0]);
+    } else {
+      const sel = new ActiveSelection(objects, {canvas});
+      canvas.setActiveObject(sel);
+      sel.setCoords();
+    }
+
+    canvas.requestRenderAll();
+
+  } catch (e) {
+    // do nothing (paste with non valid JSON)
+    console.error(e);
+  }
+}
+
 </script>
 
 <template>
   <div class="inline-block pt-4">
     <div class="flex items-start gap-x-2">
-      <button @click="addRect"
+      <button @click="addRect" title="Form einfügen"
               class="px-3 rounded bg-blue-500 hover:bg-blue-600 h-10 w-12 mb-1">
         <svg-icon type="mdi" :path="mdiRectangle"></svg-icon>
       </button>
-      <button @click="addText" class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
+      <button @click="addText" title="Textfeld einfügen"
+              class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
         <svg-icon type="mdi" :path="mdiFormatText"></svg-icon>
       </button>
-      <button @click="openImageModal" class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
+      <button @click="openImageModal" title="Logo einfügen"
+              class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
         <svg-icon type="mdi" :path="mdiImageArea"></svg-icon>
       </button>
-      <button @click="addQRCode" class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
+      <button @click="addQRCode" title="QR-Code zum öffentlichen Zeitplan einfügen"
+              class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
         <svg-icon type="mdi" :path="mdiQrcodePlus"></svg-icon>
       </button>
+      <!-- Allgemeine Toolbar Vordergrund / Hintergrund -->
+      <div v-if="toolbarState.object" class="ml-4 flex items-center gap-x-2">
+        <button @click="bringToFront"
+                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 h-10 w-12"
+                title="In den Vordergrund">
+          <svg-icon type="mdi" :path="mdiArrangeBringForward"></svg-icon>
+        </button>
+        <button @click="sendToBack"
+                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 h-10 w-12"
+                title="In den Hintergrund">
+          <svg-icon type="mdi" :path="mdiArrangeSendBackward"></svg-icon>
+        </button>
+      </div>
       <div v-if="toolbarState.type === 'text'" class="ml-4 mb-1 flex items-center gap-x-2">
         <!-- Text property toolbar -->
-        <input type="number" v-model.number="toolbarState.object.fontSize" v-on:change="triggerRender"
+        <input type="number" title="Textgröße" v-model.number="toolbarState.object.fontSize" v-on:change="triggerRender"
                class="w-16 pr-1 border border-gray-300 rounded ml-2 h-10"/>
-        <button v-on:click="makeBold" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-bold h-10 w-12"
+        <button v-on:click="makeBold" title="Fett"
+                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-bold h-10 w-12"
                 :class="{ 'bg-gray-400': toolbarState.object.fontWeight === 'bold' }">B
         </button>
-        <button v-on:click="makeItalic"
+        <button v-on:click="makeItalic" title="Kursiv"
                 class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-italic h-10 w-12"
                 :class="{ 'bg-gray-400': toolbarState.object.fontStyle === 'italic' }">I
         </button>
-        <button v-on:click="makeUnderline" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 h-10 w-12"
+        <button v-on:click="makeUnderline" title="Unterstreichen"
+                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 h-10 w-12"
                 :class="{ 'bg-gray-400': toolbarState.object.underline }">U
         </button>
-        <input type="color" class="px-2 rounded ml-2 h-10 w-12" :value="toolbarState.object.fill"
+        <input type="color" title="Schriftfarbe" class="px-2 rounded ml-2 h-10 w-12" :value="toolbarState.object.fill"
                @input="onFillChange($event.target.value)"/>
       </div>
       <div v-else-if="toolbarState.type === 'shape'" class="ml-4 flex items-start gap-x-2">
         <!-- Shape Toolbar -->
-        <select v-model="toolbarState.object.type" @change="onShapeTypeChange($event.target.value)"
+        <select v-model="toolbarState.object.type" title="Form ändern" @change="onShapeTypeChange($event.target.value)"
                 class="px-2 rounded ml-2 h-10">
           <option value="rect">Rechteck</option>
           <option value="circle">Kreis</option>
           <option value="triangle">Dreieck</option>
         </select>
         <!-- Fill Color -->
-        <input type="color" class="px-2 rounded ml-2 mb-1 h-10 w-12" :value="toolbarState.object.fill"
+        <input type="color" title="Füllfarbe" class="px-2 rounded ml-2 mb-1 h-10 w-12" :value="toolbarState.object.fill"
                @input="onFillChange($event.target.value)"/>
         <!-- Border Color -->
-        <input type="color" class="px-2 rounded ml-2 h-10 w-12" :value="toolbarState.object.stroke"
+        <input type="color" title="Randfarbe" class="px-2 rounded ml-2 h-10 w-12" :value="toolbarState.object.stroke"
                @input="onStrokeChange($event.target.value)"/>
         <!-- Border Size -->
-        <input type="number" min="0" class="w-16 px-1 border border-gray-300 rounded ml-2 h-10 w-12"
+        <input type="number" title="Randgröße" min="0" class="w-16 px-1 border border-gray-300 rounded ml-2 h-10"
                :value="toolbarState.object.strokeWidth"
                @input="onStrokeWidthChange($event.target.value)"/>
       </div>

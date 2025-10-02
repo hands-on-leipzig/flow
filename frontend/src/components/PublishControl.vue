@@ -75,10 +75,23 @@ const pdfSinglePreview = ref<string>("")
 const pdfDoublePDF = ref<string>("")
 const pdfDoublePreview = ref<string>("")
 
+const loadingPdfSingle = ref(false)
+const loadingPdfDouble = ref(false)
+
 async function fetchPdfAndPreview(planId: number, wifi: boolean) {
+  if (wifi) {
+    loadingPdfDouble.value = true
+    pdfDoublePDF.value = ""
+    pdfDoublePreview.value = ""
+  } else {
+    loadingPdfSingle.value = true
+    pdfSinglePDF.value = ""
+    pdfSinglePreview.value = ""
+  }
+
   try {
     const { data } = await axios.get(`/publish/pdf/${planId}`, {
-      params: { wifi }   // übergibt ?wifi=true/false
+      params: { wifi }
     })
 
     if (wifi) {
@@ -90,12 +103,11 @@ async function fetchPdfAndPreview(planId: number, wifi: boolean) {
     }
   } catch (e) {
     console.error("Fehler beim Laden von PDF & Preview:", e)
+  } finally {
     if (wifi) {
-      pdfDoublePDF.value = ""
-      pdfDoublePreview.value = ""
+      loadingPdfDouble.value = false
     } else {
-      pdfSinglePDF.value = ""
-      pdfSinglePreview.value = ""
+      loadingPdfSingle.value = false
     }
   }
 }
@@ -188,37 +200,54 @@ const challengeTimes = computed(() => {
 
 
 
-// --- QR Codes ---
-const qrWifiUrl = ref("")
+// --- QR Codes WLAN
+const qrWifiUrl = computed(() => {
+  return event.value?.wifi_qrcode 
+    ? `data:image/png;base64,${event.value.wifi_qrcode}` 
+    : ''
+})
 
-watch(
-  () => [event.value?.wifi_ssid, event.value?.wifi_password],
-  async ([ssid, pw]) => {
-    if (ssid && pw) {
-      const qrContent = `WIFI:T:WPA;S:${ssid};P:${pw};;`
-      qrWifiUrl.value = await QRCode.toDataURL(qrContent)
-    } else {
-      qrWifiUrl.value = ''
-    }
-  },
-  { immediate: true }
-)
+const loadingWifiQr = ref(false)
 
 // --- Update einzelnes Event-Feld ---
 async function updateEventField(field: string, value: string) {
   if (!event.value?.id) return
-
   try {
+    if (field.startsWith("wifi_")) {
+      loadingWifiQr.value = true
+      pdfDoublePDF.value = ""
+      pdfDoublePreview.value = ""
+    }
+
     await axios.put(`/events/${event.value.id}`, {
       [field]: value,
     })
     console.log(`Feld ${field} erfolgreich aktualisiert`)
 
-    // PDF und Preview neu laden
-    await fetchPdfAndPreview(planId.value, true)
-    
+    if (planId.value) {
+      if (field.startsWith("wifi_")) {
+        // Nur Double-PDF (mit WLAN) neu generieren
+        await fetchPdfAndPreview(planId.value, true)
+      }
+    }
   } catch (e) {
     console.error(`Fehler beim Aktualisieren von ${field}:`, e)
+  } finally {
+    if (field.startsWith("wifi_")) {
+      // Event-Daten neu laden -> holt frisches wifi_qrcode
+      await refreshEvent(event.value.id)
+      loadingWifiQr.value = false
+      
+    }
+  }
+}
+
+async function refreshEvent(eventId: number) {
+  try {
+    const { data } = await axios.get(`/events/${eventId}`)
+    eventStore.selectedEvent = data
+  } catch (e) {
+    console.error("Fehler beim Reload des Events:", e)
   }
 }
 
@@ -259,6 +288,8 @@ function previewOlinePlan() {
   const url = `${import.meta.env.VITE_APP_URL}/output/zeitplan.cgi?plan=${planId.value}`
   window.open(url, '_blank')
 }
+
+
 
 
 </script>
@@ -465,7 +496,7 @@ function previewOlinePlan() {
       <div class="flex flex-col lg:flex-row gap-6">
         <!-- Linke Box: fünf QR-Bereiche -->
         <div class="flex-1 rounded-xl shadow bg-white p-6">
-          <h3 class="text-lg font-semibold mb-4">QR Codes zum Online-Plan zum Aushängen vor Ort</h3>
+          <h3 class="text-lg font-semibold mb-4">QR Codes zum Online-Plan und WLAN-Zugang zum Aushängen vor Ort</h3>
 
           <div class="flex flex-row flex-wrap gap-6 justify-start">
 
@@ -527,12 +558,36 @@ function previewOlinePlan() {
                     placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
                   />
                 </div>
+                <!-- Weitere Anweisungen -->
+                <div class="flex items-start gap-3">
+                  <label class="w-20 text-sm text-gray-700 mt-1">Hinweise</label>
+                  <textarea
+                    v-model="event.wifi_instruction"
+                    @blur="updateEventField('wifi_instruction', event.wifi_instruction)"
+                    class="flex-1 border px-3 py-1 rounded text-sm"
+                    rows="3"
+                    placeholder="z. B. Code FLL eingebeben und Nutzungbedingungen akzeptieren."
+                  ></textarea>
+                </div>
               </div>
             </div>
 
             <!-- 4: QR Wifi PNG -->
             <div class="flex flex-col items-center">
-              <template v-if="qrWifiUrl">
+              <template v-if="!event?.wifi_ssid">
+                <!-- Fall 2: SSID leer -->
+                <div class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400">
+                  ?
+                </div>
+              </template>
+              <template v-else-if="loadingWifiQr">
+                <!-- Fall 3a: Update läuft -->
+                <div class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-500">
+                  ⏳
+                </div>
+              </template>
+              <template v-else-if="qrWifiUrl">
+                <!-- Fall 3b: QR vorhanden -->
                 <img
                   :src="qrWifiUrl"
                   alt="QR Wifi"
@@ -545,18 +600,24 @@ function previewOlinePlan() {
                   PNG
                 </button>
               </template>
-              <template v-else>
-                <div
-                  class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
-                >
-                  ?
-                </div>
-              </template>
-            </div>
+            </div>  
 
             <!-- 5: PDF Preview (Plan + WiFi) -->
             <div class="flex flex-col items-center">
-              <template v-if="qrWifiUrl">
+              <template v-if="!event?.wifi_ssid">
+                <!-- Fall 2: SSID leer -->
+                <div class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400">
+                  ?
+                </div>
+              </template>
+              <template v-else-if="loadingWifiQr || loadingPdfDouble">
+                <!-- Fall 3a: Update läuft -->
+                <div class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-500">
+                  ⏳
+                </div>
+              </template>
+              <template v-else-if="pdfDoublePreview">
+                <!-- Fall 3b: Neues PDF da -->
                 <div class="relative h-28 w-auto aspect-[1.414/1] border">
                   <img
                     :src="pdfDoublePreview"
@@ -570,13 +631,6 @@ function previewOlinePlan() {
                 >
                   PDF
                 </button>
-              </template>
-              <template v-else>
-                <div
-                  class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
-                >
-                  ?
-                </div>
               </template>
             </div>
 

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
-use App\Http\Controllers\Api\PlanController;
+use App\Services\ActivityFetcherService;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +28,13 @@ use Barryvdh\DomPDF\Facade\Pdf;        // composer require barryvdh/laravel-domp
 
 class PublishController extends Controller
 {
+    private ActivityFetcherService $fetcher;
+
+    public function __construct(ActivityFetcherService $fetcher)
+    {
+        $this->fetcher = $fetcher;
+    }
+
     public function linkAndQRcode(int $planId): JsonResponse
     {
         // Plan → Event
@@ -151,6 +158,55 @@ class PublishController extends Controller
             return response()->json(['error' => 'Event not found'], 404);
         }
 
+        // Passwort entschlüsseln
+        $wifiPassword = '';
+        if (!empty($event->wifi_password)) {
+            try {
+                $wifiPassword = Crypt::decryptString($event->wifi_password);
+            } catch (\Exception $e) {
+                // Falls es schon unverschlüsselt gespeichert war
+                $wifiPassword = $event->wifi_password;
+            }
+        }
+
+        // QR-Content abhängig vom Passwort
+        if (!empty($wifiPassword)) {
+            $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
+        } else {
+            $wifiQrContent = "WIFI:T:nopass;S:{$event->wifi_ssid};;";
+        }
+
+        $wifiQr = new \Endroid\QrCode\QrCode(
+            $wifiQrContent,
+            new \Endroid\QrCode\Encoding\Encoding('UTF-8'),
+            \Endroid\QrCode\ErrorCorrectionLevel::High,
+            300,
+            10,
+            \Endroid\QrCode\RoundBlockSizeMode::Margin,
+            new \Endroid\QrCode\Color\Color(0, 0, 0),
+            new \Endroid\QrCode\Color\Color(255, 255, 255)
+        );
+
+        $writer = new \Endroid\QrCode\Writer\PngWriter();
+
+        // Logo optional hinzufügen
+        $wifiLogo = null;
+        $wifiLogoPath = public_path("flow/wifi.png");
+        if (file_exists($wifiLogoPath)) {
+            $wifiLogo = new \Endroid\QrCode\Logo\Logo($wifiLogoPath, 100);
+        }
+
+        // QR-Code schreiben mit Logo
+        $wifiResult = $writer->write($wifiQr, $wifiLogo);
+        $wifiQrcodeRaw = base64_encode($wifiResult->getString());
+
+        // Speichern in DB
+        DB::table('event')
+            ->where('id', $event->id)
+            ->update([
+                'wifi_qrcode' => $wifiQrcodeRaw,
+            ]);
+
         // HTML fürs PDF
         $html = $this->buildEventHtml($event, $wifi);
         $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
@@ -193,6 +249,15 @@ class PublishController extends Controller
             }
         }
 
+        $wifiInstructionsHtml = '';
+        if (!empty($event->wifi_instruction)) {
+            // preserve line breaks; escape HTML
+            $wifiInstructionsHtml =
+                '<div style="margin-top: 10px; font-size: 14px; color: #333; white-space: pre-line;">'
+                . e($event->wifi_instruction)
+                . '</div>';
+        }
+
         // Explore-Logo laden
         $exploreLogoPath = public_path('flow/fll_explore_hs.png');
         $exploreLogoSrc = (file_exists($exploreLogoPath) && !empty($event->event_explore))
@@ -224,8 +289,6 @@ class PublishController extends Controller
             : '';
 
 
-
-
         $html = '
         <div style="width: 100%; font-family: sans-serif; text-align: center; padding: 40px;">
             
@@ -250,13 +313,27 @@ class PublishController extends Controller
             <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
             <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>';
 
-        if ($wifi && !empty($event->wifi_ssid) && !empty($wifiPassword)) {
-            // WLAN-QR nur wenn gewünscht und Daten vorhanden
-            $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
-            $wifiQr = new \Endroid\QrCode\QrCode($wifiQrContent);
-            $writer = new \Endroid\QrCode\Writer\PngWriter();
-            $wifiResult = $writer->write($wifiQr);
-            $wifiBase64 = base64_encode($wifiResult->getString());
+        if ($wifi && !empty($event->wifi_ssid) && !empty($event->wifi_qrcode)) {
+
+            // QR aus DB verwenden
+            $wifiBase64 = $event->wifi_qrcode;
+
+            // Wifi-Instructions als HTML (mit Zeilenumbrüchen, Box <= QR-Breite)
+            $wifiInstructionsHtml = '';
+            if (!empty($event->wifi_instruction)) {
+                $wifiInstructionsHtml =
+                    '<div style="margin:8px auto 0 auto;
+                                max-width:200px;
+                                border:1px solid #ccc;
+                                border-radius:6px;
+                                padding:6px;
+                                font-size:12px;
+                                color:#555;
+                                text-align:left;
+                                line-height:1.3;">'
+                    . nl2br(e(trim($event->wifi_instruction))) .
+                    '</div>';
+            }
 
             $html .= '
                 <table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 40px;">
@@ -270,9 +347,12 @@ class PublishController extends Controller
                             </div>
                             <img src="data:image/png;base64,' . $wifiBase64 . '" style="width:200px; height:200px;" />
                             <div style="margin-top: 10px; font-size: 14px; color: #333;">
-                                SSID: ' . e($event->wifi_ssid) . '<br/>
-                                Passwort: ' . e($wifiPassword) . '
+                                SSID: ' . e($event->wifi_ssid) . '<br/>' .
+                                (!empty($wifiPassword)
+                                    ? 'Passwort: ' . e($wifiPassword)
+                                    : 'Kein Passwort erforderlich') . '
                             </div>
+                            ' . $wifiInstructionsHtml . '
                         </td>
                     </tr>
                 </table>';
@@ -324,8 +404,7 @@ class PublishController extends Controller
     }   
 
 
-// Informationen fürs Volk ...
-
+    // Informationen fürs Volk ...
 
 
     public function scheduleInformation(int $eventId, Request $request): JsonResponse
@@ -383,9 +462,7 @@ class PublishController extends Controller
                 ->where('event', $eventId)
                 ->value('id');        
 
-            // Call into PlanController
-            $planController = app(PlanController::class);
-            $importantTimesResponse = $planController->importantTimes($planId);
+            $importantTimesResponse = $this->importantTimes($planId);
             $importantTimes = $importantTimesResponse->getData(true); // JSON -> Array
 
             // Ins Log schreiben
@@ -443,5 +520,56 @@ class PublishController extends Controller
             'level'    => $level,
         ]);
     }
+
+   // Wichtige Zeite für die Veröffentlichung 
+
+    private function importantTimes(int $planId): \Illuminate\Http\JsonResponse
+    {
+        // Activities laden
+        $activities = $this->fetcher->fetchActivities($planId);
+
+        // Plan für last_changed
+        $plan = DB::table('plan')
+            ->select('last_change')
+            ->where('id', $planId)
+            ->first();
+
+        // Hilfsfunktion: Erste Startzeit für gegebene ATD-IDs finden
+        $findStart = function($ids) use ($activities) {
+            $act = $activities->first(fn($a) => in_array($a->activity_type_detail_id, (array) $ids));
+            return $act ? $act->start_time : null;
+        };
+
+        // Hilfsfunktion: Ende der Aktivität (end_time) für gegebene ATD-IDs
+        $findEnd = function($ids) use ($activities) {
+            $act = $activities->first(fn($a) => in_array($a->activity_type_detail_id, (array) $ids));
+            return $act ? $act->end_time : null;
+        };
+
+        $data = [
+            'plan_id'      => $planId,
+            'last_changed' => $plan?->last_change,
+            'explore' => [
+                'briefing' => [
+                    'teams'  => $findStart(ID_ATD_E_COACH_BRIEFING),
+                    'judges' => $findStart(ID_ATD_E_JUDGE_BRIEFING),
+                ],
+                'opening' => $findStart([ID_ATD_E_OPENING, ID_ATD_OPENING]), // spezifisch oder gemeinsam
+                'end'     => $findEnd([ID_ATD_E_AWARDS, ID_ATD_AWARDS]),     // spezifisch oder gemeinsam
+            ],
+            'challenge' => [
+                'briefing' => [
+                    'teams'    => $findStart(ID_ATD_C_COACH_BRIEFING),
+                    'judges'   => $findStart(ID_ATD_C_JUDGE_BRIEFING),
+                    'referees' => $findStart(ID_ATD_R_REFEREE_BRIEFING),
+                ],
+                'opening' => $findStart([ID_ATD_C_OPENING, ID_ATD_OPENING]), // spezifisch oder gemeinsam
+                'end'     => $findEnd([ID_ATD_C_AWARDS, ID_ATD_AWARDS]),     // spezifisch oder gemeinsam
+            ],
+        ];
+
+        return response()->json($data);
+    }
+
 
 }

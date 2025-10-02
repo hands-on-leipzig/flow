@@ -108,6 +108,10 @@ const fetchParams = async (planId: number) => {
       parameters.value.map(p => [p.name, p.value])
     )
 
+    // Initial toggle states based on params
+    showExplore.value = Number(paramMapByName.value['e_mode']?.value || 0) > 0
+    showChallenge.value = Number(paramMapByName.value['c_mode']?.value || 0) > 0
+
     console.log('Fetched parameters:', parameters.value.length)
     console.log('Expert parameters:', parameters.value.filter(p => p.context === 'expert').length)
   } catch (err) {
@@ -211,9 +215,11 @@ function handleParamUpdate(param: { name: string, value: any }) {
 function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
   console.log('Received block updates:', updates)
 
-  // Add all block updates to pending parameter updates
+  // Add all block updates to pending parameter updates with proper prefix
   updates.forEach(update => {
-    pendingParamUpdates.value[update.name] = update.value
+    // Convert "28_buffer_after" to "block_28_buffer_after" for updateParams compatibility
+    const prefixedName = update.name.startsWith('block_') ? update.name : `block_${update.name}`
+    pendingParamUpdates.value[prefixedName] = update.value
   })
 
   // Show toast and start progress animation
@@ -300,10 +306,13 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   if (!selectedPlanId.value) return
 
   loading.value = true
+  let needsRegeneration = false
+  
+  // Separate parameter updates from block updates
+  const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
+  const blockUpdates = params.filter(p => p.name.startsWith('block_'))
+  
   try {
-    // Separate parameter updates from block updates
-    const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
-    const blockUpdates = params.filter(p => p.name.startsWith('block_'))
 
     // 1. Save parameters
     if (paramUpdates.length > 0) {
@@ -328,14 +337,37 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
       // Group block updates by block ID
       const updatesByBlock: Record<string, Record<string, any>> = {}
       blockUpdates.forEach(({name, value}) => {
-        const [, blockId, field] = name.split('_', 3)
-        if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
-        updatesByBlock[blockId][field] = value
+        // Parse: "block_31_buffer_after" -> blockId="31", field="buffer_after"
+        const parts = name.split('_')
+        if (parts.length >= 3) {
+          const blockId = parts[1] // "31"
+          const field = parts.slice(2).join('_') // "buffer_after"
+          if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
+          updatesByBlock[blockId][field] = value
+        }
       })
 
-      // Save each block
+      // Save each block with regeneration optimization
       for (const [blockId, updates] of Object.entries(updatesByBlock)) {
         const block = {id: parseInt(blockId), ...updates}
+        
+        console.log('Sending block to API:', block)
+        console.log('Updates object:', updates)
+        
+        // Check if only non-timing fields changed
+        const timingFields = ['start', 'end', 'buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
+        const hasTimingChanges = Object.keys(updates).some(field => timingFields.includes(field))
+        
+        // Track if any block needs regeneration
+        if (hasTimingChanges) {
+          needsRegeneration = true
+        }
+        
+        // Add skip_regeneration flag if only non-timing fields changed
+        if (!hasTimingChanges) {
+          block.skip_regeneration = true
+        }
+        
         await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, block)
       }
     }
@@ -346,8 +378,13 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   }
   loading.value = false
 
-  // 3. Generator starten (wiederverwendet runGeneratorOnce)
-  await runGeneratorOnce(afterUpdate)
+  // 3. Generator starten nur wenn nötig (wiederverwendet runGeneratorOnce)
+  if (needsRegeneration || paramUpdates.length > 0) {
+    await runGeneratorOnce(afterUpdate)
+  } else {
+    console.log('Skipping regeneration - only non-timing extra block fields changed')
+    if (afterUpdate) await afterUpdate()
+  }
 }
 
 const isGenerating = ref(false)

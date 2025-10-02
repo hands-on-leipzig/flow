@@ -27,12 +27,10 @@ define('ID_ATD_C_JUDGING_PACKAGE', 20);
 define('ID_ATD_C_WITH_TEAM', 17);
 define('ID_ATD_C_SCORING', 18);
 define('ID_ATD_C_DELIBERATIONS', 19);
-define('ID_ATD_C_LUNCH_TEAM', 22);
-define('ID_ATD_C_LUNCH_JUDGE', 23);
+define('ID_ATD_C_LUNCH_BREAK', 21);
 define('ID_ATD_C_COACH_BRIEFING', 35);
 define('ID_ATD_C_JUDGE_BRIEFING_DAY_1', 55);
 
-define('ID_ATD_C_LUNCH_VISITOR', 25);
 define('ID_ATD_C_AWARDS', 32);
 define('ID_ATD_C_PRESENTATIONS', 33);
 
@@ -47,8 +45,6 @@ define('ID_ATD_R_FINAL_4', 13);
 define('ID_ATD_R_FINAL_2', 14);
 define('ID_ATD_R_MATCH', 15);
 define('ID_ATD_R_CHECK', 16);
-define('ID_ATD_R_LUNCH_REFEREE', 24);
-define('ID_ATD_R_LUNCH_ROBOT_CHECK', 25);
 define('ID_ATD_R_FINAL_16', 45);
 define('ID_ATD_R_REFEREE_DEBRIEFING', 46);
 
@@ -58,10 +54,6 @@ define('ID_ATD_E_JUDGING_PACKAGE', 4);
 define('ID_ATD_E_WITH_TEAM', 1);
 define('ID_ATD_E_SCORING', 2);
 define('ID_ATD_E_DELIBERATIONS', 3);
-define('ID_ATD_E_LUNCH', 26);
-define('ID_ATD_E_LUNCH_TEAM', 27);
-define('ID_ATD_E_LUNCH_JUDGE', 28);
-define('ID_ATD_E_LUNCH_VISITOR', 29);
 define('ID_ATD_E_AWARDS', 31);
 define('ID_ATD_E_COACH_BRIEFING', 38);
 define('ID_ATD_E_JUDGE_BRIEFING', 39);
@@ -82,13 +74,13 @@ define('ID_ATD_E_FREE', 51);
 define('ID_ATD_C_FREE', 52);
 
 // Insert Points
-define('ID_IP_RG_1', 6);
-define('ID_IP_RG_2', 7);
-define('ID_IP_RG_3', 8);
-define('ID_IP_PRESENTATIONS', 1);
-define('ID_IP_RG_FINAL_ROUNDS', 2);
-define('ID_IP_RG_LAST_MATCHES', 4);
-define('ID_IP_AWARDS', 3);
+define('ID_IP_RG_TR', 6);
+define('ID_IP_RG_1', 7);
+define('ID_IP_RG_2', 8);
+define('ID_IP_RG_3', 1);
+define('ID_IP_PRESENTATIONS', 2);
+define('ID_IP_RG_SEMI_FINAL', 4);
+define('ID_IP_RG_FINAL', 3);
 
 // IDs from m_room_type
 define('ID_RT_R_MATCH', 1);
@@ -109,9 +101,7 @@ define('ID_RT_C_JUDGE_BRIEFING', 15);
 define('ID_RT_E_JUDGE_BRIEFING', 16);
 define('ID_RT_C_COACH', 17);
 define('ID_RT_E_COACH', 18);
-define('ID_RT_LUNCH_TEAM', 19);
-define('ID_RT_LUNCH_VOLUNTEER', 20);
-define('ID_RT_LUNCH_VISITOR', 21);
+define('ID_RT_LUNCH_BREAK', 19);
 define('ID_RT_E_EXIBITION', 22);
 define('ID_RT_AWARDS', 23);
 define('ID_RT_C_PRESENTATIONS', 24);
@@ -301,20 +291,8 @@ function db_insert_activity(
                 $room_type = ID_RT_E_JUDGE_DELIBERATIONS;
                 break;
 
-            case ID_ATD_C_LUNCH_TEAM:
-            case ID_ATD_E_LUNCH_TEAM:
-                $room_type = ID_RT_LUNCH_TEAM;
-                break;
-
-            case ID_ATD_C_LUNCH_VISITOR:
-            case ID_ATD_E_LUNCH_VISITOR:
-                $room_type = ID_RT_LUNCH_VISITOR;
-                break;
-
-            case ID_ATD_C_LUNCH_JUDGE:
-            case ID_ATD_R_LUNCH_REFEREE:
-            case ID_ATD_E_LUNCH_JUDGE:
-                $room_type = ID_RT_LUNCH_VOLUNTEER;
+            case ID_ATD_C_LUNCH_BREAK:
+                $room_type = ID_RT_LUNCH_BREAK;
                 break;
 
             case ID_ATD_LC_JUDGE_BRIEFING:
@@ -333,65 +311,13 @@ function db_insert_activity(
     }
 }
 
-function db_get_duration_inserted_activity($insert_point)
-{
-    $row = DB::table('extra_block')
-        ->select('buffer_before', 'duration', 'buffer_after')
-        ->where('plan', pp('g_plan'))
-        ->where('insert_point', $insert_point)
-        ->first();
-
-    if (!$row) return 0;
-
-    return (int)$row->buffer_before + (int)$row->duration + (int)$row->buffer_after;
-}
-
-function db_insert_extra_activity($activity_type_detail, $time, $insert_point)
-{
-    global $g_activity_group;
-
-    // Read extra block
-    $row = DB::table('extra_block')
-        ->select('id', 'buffer_before', 'duration', 'buffer_after')
-        ->where('plan', pp('g_plan'))
-        ->where('insert_point', $insert_point)
-        ->first();
-
-    if (!$row) return;
-
-    // Read room_type from m_insert_point
-    $insert_point_row = DB::table('m_insert_point')
-        ->select('room_type')
-        ->where('id', $insert_point)
-        ->first();
-
-    $room_type = $insert_point_row ? $insert_point_row->room_type : null;
-
-    $time_start = clone $time;
-    g_add_minutes($time_start, (int)$row->buffer_before);
-
-    $time_end = clone $time_start;
-    g_add_minutes($time_end, (int)$row->duration);
-
-    $start = $time_start->format('Y-m-d H:i:s');
-    $end = $time_end->format('Y-m-d H:i:s');
-
-    DB::table('activity')->insertGetId([
-        'activity_group' => $g_activity_group,
-        'activity_type_detail' => $activity_type_detail,
-        'start' => $start,
-        'end' => $end,
-        'extra_block' => (int)$row->id,
-        'room_type' => $room_type,
-    ]);
-}
-
 function db_insert_free_activities()
 {
     // Free blocks with fixed times
     $rows = DB::table('extra_block')
         ->select('id', 'first_program', 'start', 'end')
         ->where('plan', pp('g_plan'))
+        ->where('active', 1) 
         ->whereNotNull('start')
         ->get();
 
@@ -420,51 +346,57 @@ function db_insert_free_activities()
 }
 
 // Insert an activity that delays the schedule
-function g_insert_point($id)
+function g_insert_point($id, $duration)
 {
-    global $c_time, $r_time;
+    global $r_time;
+    global $g_activity_group;
 
-    $time = new DateTime();
+    $time = $r_time;  // Use r_time as current time to flexiby if c_time needs to be used in future situations
+    
+    $row = DB::table('extra_block')
+        ->select('id', 'buffer_before', 'duration', 'buffer_after')
+        ->where('plan', pp('g_plan'))
+        ->where('insert_point', $id)
+        ->where('active', 1) 
+        ->first();
 
-    switch ($id) {
-        case ID_IP_RG_1:
-        case ID_IP_RG_2:
-        case ID_IP_RG_3:
-        case ID_IP_RG_FINAL_ROUNDS:
-        case ID_IP_RG_LAST_MATCHES:    
-            $time = $r_time;
-            break;
-
-        case ID_IP_PRESENTATIONS:
-        case ID_IP_AWARDS:
-            $time = $c_time;
-            break;
-    }
-
-    $duration = db_get_duration_inserted_activity($id);
-
-    if ($duration > 0) {
+    if ($row) {
+    
         db_insert_activity_group(ID_ATD_C_INSERTED);
-        db_insert_extra_activity(ID_ATD_C_INSERTED, $time, $id);
-        g_add_minutes($time, $duration);
+
+        // Read room_type from m_insert_point
+        $insert_point_row = DB::table('m_insert_point')
+            ->select('room_type')
+            ->where('id', $id)
+            ->first();
+
+        $room_type = $insert_point_row ? $insert_point_row->room_type : null;
+
+        g_add_minutes($time, (int)$row->buffer_before);
+
+        $time_start = clone $time;
+        $time_end = clone $time;
+
+        g_add_minutes($time_end, (int)$row->duration);
+
+        $start = $time_start->format('Y-m-d H:i:s');
+        $end = $time_end->format('Y-m-d H:i:s');
+
+        DB::table('activity')->insertGetId([
+            'activity_group' => $g_activity_group,
+            'activity_type_detail' => ID_ATD_C_INSERTED,
+            'start' => $start,
+            'end' => $end,
+            'extra_block' => (int)$row->id,
+            'room_type' => $room_type,
+        ]);
+
+        g_add_minutes($time, (int)$row->duration + (int)$row->buffer_after);
+    
     } else {
-        switch ($id) {
-            case ID_IP_RG_1:
-            case ID_IP_RG_3:
-                g_add_minutes($time, pp('r_duration_break'));
-                break;
 
-            case ID_IP_RG_2:
-                g_add_minutes($time, pp('r_duration_lunch'));
-                break;
-
-            case ID_IP_PRESENTATIONS:
-                g_add_minutes($time, pp('c_ready_presentations'));
-                break;
-
-            case ID_IP_AWARDS:
-                g_add_minutes($time, pp('c_ready_awards'));
-                break;
-        }
+        // No extra block defined, just the respective normal shift
+        g_add_minutes($time, $duration);
+        
     }
 }
