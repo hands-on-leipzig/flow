@@ -50,10 +50,10 @@ class PlanExportController extends Controller
                 continue;
             }
 
-            // Einen Eintrag zum Debuggen loggen
+            /*
             foreach ($activities->take(10)->values() as $i => $a) {
-    Log::debug("Activity #" . ($i+1), (array) $a);
-}
+                Log::debug("Activity #" . ($i+1), (array) $a);
+            } */
 
             // Helper: eine Activity in eine flache Row mappen (ohne Blade-Logik)
             // Helper: Zuordnungs-Label (Jury/Tisch) + Teamname

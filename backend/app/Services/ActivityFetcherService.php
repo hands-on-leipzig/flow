@@ -70,9 +70,15 @@ class ActivityFetcherService
             // Jury-Team
             $q->leftJoin('team_plan as tp_j', function($j) {
                 $j->on('tp_j.plan', '=', 'p.id')
-                ->on('tp_j.team_number_plan', '=', 'a.jury_team');
-            })
-            ->leftJoin('team as t_j', function($j) {
+                ->on('tp_j.team_number_plan', '=', 'a.jury_team')
+                ->whereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('team as tx')
+                        ->whereColumn('tx.id', 'tp_j.team')
+                        ->whereColumn('tx.event', 'p.event')
+                        ->whereColumn('tx.first_program', 'atd.first_program');
+                });
+            })->leftJoin('team as t_j', function($j) {
                 $j->on('t_j.id', '=', 'tp_j.team')
                 ->on('t_j.event', '=', 'p.event')
                 ->on('t_j.first_program', '=', 'atd.first_program');
@@ -81,9 +87,15 @@ class ActivityFetcherService
             // Table 1
             $q->leftJoin('team_plan as tp_t1', function($j) {
                 $j->on('tp_t1.plan', '=', 'p.id')
-                ->on('tp_t1.team_number_plan', '=', 'a.table_1_team');
-            })
-            ->leftJoin('team as t_t1', function($j) {
+                ->on('tp_t1.team_number_plan', '=', 'a.table_1_team')
+                ->whereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('team as tx1')
+                        ->whereColumn('tx1.id', 'tp_t1.team')
+                        ->whereColumn('tx1.event', 'p.event')
+                        ->whereColumn('tx1.first_program', 'atd.first_program');
+                });
+            })->leftJoin('team as t_t1', function($j) {
                 $j->on('t_t1.id', '=', 'tp_t1.team')
                 ->on('t_t1.event', '=', 'p.event')
                 ->on('t_t1.first_program', '=', 'atd.first_program');
@@ -92,9 +104,15 @@ class ActivityFetcherService
             // Table 2
             $q->leftJoin('team_plan as tp_t2', function($j) {
                 $j->on('tp_t2.plan', '=', 'p.id')
-                ->on('tp_t2.team_number_plan', '=', 'a.table_2_team');
-            })
-            ->leftJoin('team as t_t2', function($j) {
+                ->on('tp_t2.team_number_plan', '=', 'a.table_2_team')
+                ->whereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('team as tx2')
+                        ->whereColumn('tx2.id', 'tp_t2.team')
+                        ->whereColumn('tx2.event', 'p.event')
+                        ->whereColumn('tx2.first_program', 'atd.first_program');
+                });
+            })->leftJoin('team as t_t2', function($j) {
                 $j->on('t_t2.id', '=', 'tp_t2.team')
                 ->on('t_t2.event', '=', 'p.event')
                 ->on('t_t2.first_program', '=', 'atd.first_program');
