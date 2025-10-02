@@ -15,17 +15,14 @@
     </style>
 </head>
 <body>
-    <h1>Rollen</h1>
+<h1 style="font-size:18px; margin-bottom:20px;">Plan Export</h1>
 
-    @foreach($programGroups as $programName => $roleTables)
-        <h2>{{ $programName }}</h2>
+@foreach ($programGroups as $programName => $roleTables)
+    <h2 style="font-size:16px; margin-top:25px;">Programm: {{ $programName }}</h2>
 
-        @foreach($roleTables as $roleTable)
-            {{-- nur Differenzierung nach Team behandeln --}}
-            @if(isset($roleTable['teamLabel']))
-                @include('pdf.roles.team', ['roleTable' => $roleTable])
-            @endif
-        @endforeach
+    @foreach ($roleTables as $roleTable)
+        @include('pdf.roles.team', ['roleTable' => $roleTable])
     @endforeach
+@endforeach
 </body>
 </html>
