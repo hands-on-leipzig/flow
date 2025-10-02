@@ -12,14 +12,22 @@ This document explains how to configure environment variables for deployment acr
 
 ## Environment-Specific Configuration
 
-Each environment has its own `.env` file in the corresponding directory:
+Each environment has its own directory with a `.env` file at the top level:
 
 ```
-backend/
-├── dev/.env          # Development environment
-├── test/.env         # Test environment  
-├── prod/.env         # Production environment
-└── .env.example      # Template file
+server/
+├── flow-dev/
+│   ├── .env              # Development environment
+│   ├── public/           # Web root (dev.flow.hands-on-technology.org)
+│   └── ...
+├── flow-test/
+│   ├── .env              # Test environment  
+│   ├── public/           # Web root (test.flow.hands-on-technology.org)
+│   └── ...
+└── flow-prod/
+    ├── .env              # Production environment
+    ├── public/           # Web root (flow.hands-on-technology.org)
+    └── ...
 ```
 
 ## Required Environment Variables
@@ -44,7 +52,7 @@ backend/
 
 ## Environment File Setup
 
-### Development Environment (`dev/.env`):
+### Development Environment (`flow-dev/.env`):
 ```bash
 APP_ENV=local
 APP_DEBUG=true
@@ -56,7 +64,7 @@ DB_USERNAME=flow_dev_user
 DB_PASSWORD=dev_password_123
 ```
 
-### Test Environment (`test/.env`):
+### Test Environment (`flow-test/.env`):
 ```bash
 APP_ENV=testing
 APP_DEBUG=false
@@ -71,7 +79,7 @@ DEV_DB_USER=flow_dev_user
 DEV_DB_PASSWORD=dev_password_456
 ```
 
-### Production Environment (`prod/.env`):
+### Production Environment (`flow-prod/.env`):
 ```bash
 APP_ENV=production
 APP_DEBUG=false
@@ -104,17 +112,17 @@ DB_PASSWORD=prod_password_123
 You can also run deployments manually:
 
 ```bash
-# Development
-cd backend
-ENV_FILE=dev/.env ./deploy_dev.sh
+# Development (in flow-dev directory)
+cd /path/to/flow-dev
+./deploy_dev.sh
 
-# Test
-cd backend
-ENV_FILE=test/.env ./deploy_test.sh
+# Test (in flow-test directory)
+cd /path/to/flow-test
+./deploy_test.sh
 
-# Production
-cd backend
-ENV_FILE=prod/.env ./deploy_prod.sh
+# Production (in flow-prod directory)
+cd /path/to/flow-prod
+./deploy_prod.sh
 ```
 
 ## Security Best Practices
