@@ -106,12 +106,12 @@ class PlanExportController extends Controller
                 $acts = $acts->sortBy('start_time');
                 $firstAct = $acts->first();
 
-                // Teamname einmalig bestimmen
+                // Teamname direkt aus den DB-Feldern bestimmen
                 $teamName = $firstAct->jury_team_name
                     ?? $firstAct->table_1_team_name
                     ?? $firstAct->table_2_team_name;
 
-                $teamLabel = 'Team ' . $teamId . ($acts->first()->team_name ? ' – ' . $acts->first()->team_name : '');
+                $teamLabel   = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
                 $programName = $firstAct->activity_first_program_name ?? 'Alles';
 
                 $roleTables[] = [
