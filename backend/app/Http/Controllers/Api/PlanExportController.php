@@ -31,7 +31,6 @@ class PlanExportController extends Controller
         $programGroups = [];
 
         foreach ($roles as $role) {
-            // aktuell nur Team-Differenzierung behandeln
             if ($role->differentiation_parameter !== 'team') {
                 continue;
             }
@@ -41,7 +40,7 @@ class PlanExportController extends Controller
                 roles: [$role->id],
                 includeRooms: true,
                 includeGroupMeta: false,
-                includeActivityMeta: true,   // liefert activity_atd_name & activity_first_program_name
+                includeActivityMeta: true,
                 includeTeamNames: true,
                 freeBlocks: false
             );
@@ -50,15 +49,9 @@ class PlanExportController extends Controller
                 continue;
             }
 
-            /*
-            foreach ($activities->take(10)->values() as $i => $a) {
-                Log::debug("Activity #" . ($i+1), (array) $a);
-            } */
-
-            // Helper: eine Activity in eine flache Row mappen (ohne Blade-Logik)
-            // Helper: Zuordnungs-Label (Jury/Tisch) + Teamname
+            // Helper: Activity → Row
             $mapRow = function ($a) {
-                $assign = '–';
+                $assign   = '–';
                 $teamName = null;
 
                 if (!empty($a->lane)) {
@@ -83,49 +76,41 @@ class PlanExportController extends Controller
                 ];
             };
 
-            // Aufsplitten nach Teamnummer
+            // Gruppieren nach Teamnummer
             $groups = $activities->groupBy('team');
 
-            $roleTables = [];
-
-            // 1) Aktivitäten ohne Teamnummer zuerst
-            if ($groups->has(null)) {
-                $acts = $groups->get(null)->sortBy('start_time');
-                $programName = optional($acts->first())->activity_first_program_name ?? 'Alles';
-
-                $roleTables[] = [
-                    'role'      => $role->name,
-                    'program'   => $programName,
-                    'teamLabel' => 'Alle Teams',     // gewünschter H3-Text
-                    'rows'      => $acts->map($mapRow)->values()->all(),
-                ];
-            }
-
-            // 2) Aktivitäten mit Teamnummer → sortiert nach Team-ID
-            foreach ($groups->except([null])->sortKeys() as $teamId => $acts) {
+            foreach ($groups as $teamId => $acts) {
                 $acts = $acts->sortBy('start_time');
                 $firstAct = $acts->first();
 
-                // Teamname direkt aus den DB-Feldern bestimmen
-                $teamName = $firstAct->jury_team_name
-                    ?? $firstAct->table_1_team_name
-                    ?? $firstAct->table_2_team_name;
-
-                $teamLabel   = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
                 $programName = $firstAct->activity_first_program_name ?? 'Alles';
 
-                $roleTables[] = [
-                    'role'      => $role->name,
-                    'program'   => $programName,
+                if (!isset($programGroups[$programName])) {
+                    $programGroups[$programName] = [];
+                }
+                if (!isset($programGroups[$programName][$role->id])) {
+                    $programGroups[$programName][$role->id] = [
+                        'role'  => $role->name,
+                        'teams' => []
+                    ];
+                }
+
+                // Label bestimmen
+                if ($teamId === null) {
+                    $teamLabel = 'Alle Teams';
+                } else {
+                    $teamName = $firstAct->jury_team_name
+                        ?? $firstAct->table_1_team_name
+                        ?? $firstAct->table_2_team_name;
+
+                    $teamLabel = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
+                }
+
+                // Rowset einsortieren
+                $programGroups[$programName][$role->id]['teams'][] = [
                     'teamLabel' => $teamLabel,
                     'rows'      => $acts->map($mapRow)->values()->all(),
                 ];
-            }
-
-            // In programGroups einsortieren (nach Programmnamen)
-            foreach ($roleTables as $table) {
-                $programKey = $table['program'] ?? 'Alles';
-                $programGroups[$programKey][] = $table;
             }
         }
 
@@ -137,7 +122,7 @@ class PlanExportController extends Controller
             'programGroups' => $programGroups,
         ])->render();
 
-        $pdf = Pdf::loadHTML($html)
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)
             ->setPaper('a4', 'portrait');
 
         return $pdf->download("Plan_$planId.pdf");

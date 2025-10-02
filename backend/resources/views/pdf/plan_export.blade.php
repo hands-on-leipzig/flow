@@ -17,11 +17,15 @@
 <body>
 <h1 style="font-size:18px; margin-bottom:20px;">Plan Export</h1>
 
-@foreach ($programGroups as $programName => $roleTables)
-    <h2 style="font-size:16px; margin-top:25px;">Programm: {{ $programName }}</h2>
+@foreach ($programGroups as $programName => $roles)
+    <h1 style="font-size:18px; margin-top:25px;">Programm: {{ $programName }}</h1>
 
-    @foreach ($roleTables as $roleTable)
-        @include('pdf.roles.team', ['roleTable' => $roleTable])
+    @foreach ($roles as $roleBlock)
+        <h2 style="font-size:16px; margin-top:20px;">{{ $roleBlock['role'] }}</h2>
+
+        @foreach ($roleBlock['teams'] as $teamTable)
+            @include('pdf.roles.team', ['teamTable' => $teamTable])
+        @endforeach
     @endforeach
 @endforeach
 </body>
