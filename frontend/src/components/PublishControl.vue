@@ -289,7 +289,22 @@ function previewOlinePlan() {
   window.open(url, '_blank')
 }
 
+async function downloadOfflinePdf() {
+  if (!planId.value) return
+  try {
+    const url = `/export/pdf/${planId.value}` // deine neue Backend-Route
+    const response = await axios.get(url, { responseType: 'blob' })
 
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = `FLOW_Plan_${planId.value}.pdf`
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (e) {
+    console.error("Fehler beim Download des Offline-PDF:", e)
+  }
+}
 
 
 </script>
@@ -666,18 +681,24 @@ function previewOlinePlan() {
       </div>
     </div>
 
-    <!-- Offline Box -->
-    <div class="rounded-xl shadow bg-white p-6 space-y-4">
-      <h2 class="text-lg font-semibold mb-2">Offline - PDF-Download</h2>
-      <p class="text-sm text-gray-600">
-        Dokumente für den Veranstalter – volle Details in einfacher Formatierung.
-      </p>
+<!-- Offline Box -->
+<div class="rounded-xl shadow bg-white p-6 space-y-4">
+  <h2 class="text-lg font-semibold mb-2">Offline - PDF-Download</h2>
+  <p class="text-sm text-gray-600">
+    Dokumente für den Veranstalter – volle Details in einfacher Formatierung.
+  </p>
 
-      <!-- Platzhalter -->
-      <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-400 text-sm">
-        📄 Hier kommt noch was ...
-      </div>
-    </div>
+  <div class="flex justify-center">
+    <button
+      class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300"
+      @click="downloadOfflinePdf"
+    >
+      PDF herunterladen
+    </button>
+  </div>
+</div>
+
+
   </div>
 
 </template>

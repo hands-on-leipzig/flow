@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\PublishController;
+use App\Http\Controllers\Api\PlanExportController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -105,6 +106,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/{planId}/generate-lite', [PlanGeneratorController::class, 'generateLite']);
     });
 
+    // PlanExport controller
+    Route::get('/export/pdf/{planId}', [PlanExportController::class, 'exportPdf']);
 
     // PlanParameter controller
     // Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
