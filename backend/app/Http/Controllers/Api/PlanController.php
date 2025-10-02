@@ -354,4 +354,24 @@ class PlanController extends Controller
             'active'      => 1,
         ]);
     }
+
+    public function delete(int $id)
+    {
+        $deleted = DB::table('plan')->where('id', $id)->delete();
+
+         Log::info("Plan $id deletion attempted, deleted count: $deleted");
+
+        if ($deleted === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Plan not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Plan deleted successfully',
+        ]);
+    }
+
 }

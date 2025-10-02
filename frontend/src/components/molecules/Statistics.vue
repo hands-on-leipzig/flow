@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 
@@ -194,6 +194,40 @@ function formatNumber(num) {
   if (num === null || num === undefined) return '0'
   return Number(num).toLocaleString('de-DE')
 }
+
+
+const showDeleteModal = ref(false)
+const planToDelete = ref<{ id: number | null }>({ id: null })
+
+function askDeletePlan(planId: number) {
+  planToDelete.value = { id: planId }
+  showDeleteModal.value = true
+}
+
+function cancelDeletePlan() {
+  showDeleteModal.value = false
+  planToDelete.value = { id: null }
+}
+
+async function confirmDeletePlan() {
+  if (!planToDelete.value.id) return
+  try {
+    await axios.delete(`/plans/${planToDelete.value.id}`)
+    // Nach Löschen Liste aktualisieren
+    const [plansRes, totalsRes] = await Promise.all([
+      axios.get('/stats/plans'),
+      axios.get('/stats/totals'),
+    ])
+    data.value = plansRes.data
+    totals.value = totalsRes.data
+  } catch (e) {
+    console.error("Fehler beim Löschen des Plans:", e)
+  } finally {
+    cancelDeletePlan()
+  }
+}
+
+
 </script>
 
 <template>
@@ -378,18 +412,29 @@ function formatNumber(num) {
             </template>
           </td>
 
-          <!-- Plan ID + Button -->
+          <!-- Plan ID + Buttons -->
           <td class="px-3 py-2 text-gray-400">
-            {{ row.plan_id }}
-            <template v-if="row.plan_id">
-              <button
-                class="ml-2 text-blue-600 hover:text-blue-800"
-                title="Vorschau öffnen"
-                @click="openPreview(row.plan_id)"
-              >
-                🧾
-              </button>
-            </template>
+            <div class="flex flex-col items-start">
+              <span>{{ row.plan_id }}</span>
+              <div v-if="row.plan_id" class="flex gap-2 mt-1">
+                <!-- Vorschau -->
+                <button
+                  class="text-blue-600 hover:text-blue-800"
+                  title="Vorschau öffnen"
+                  @click="openPreview(row.plan_id)"
+                >
+                  🧾
+                </button>
+                <!-- Löschen -->
+                <button
+                  class="text-red-600 hover:text-red-800"
+                  title="Plan löschen"
+                  @click="askDeletePlan(row.plan_id)"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
           </td>
 
           <!-- Plan Created -->
@@ -472,4 +517,28 @@ function formatNumber(num) {
       </div>
     </div>
   </div>
+
+
+  <!-- Delete modal -->
+  <teleport to="body">
+    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
+        <h3 class="text-lg font-bold mb-4">Plan löschen?</h3>
+        <p class="mb-6 text-sm text-gray-700">
+          Bist du sicher, dass du den Plan mit der ID 
+          <span class="font-semibold">{{ planToDelete?.id }}</span> 
+          löschen möchtest? Diese Aktion kann nicht rückgängig gemacht werden.
+        </p>
+        <div class="flex justify-end gap-2">
+          <button class="px-4 py-2 text-gray-600 hover:text-black" @click="cancelDeletePlan">Abbrechen</button>
+          <button class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" @click="confirmDeletePlan">
+            Löschen
+          </button>
+        </div>
+      </div>
+    </div>
+  </teleport>
+
+
+
 </template>

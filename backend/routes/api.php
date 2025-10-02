@@ -78,6 +78,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/create', [PlanController::class, 'create']);
         Route::get('/event/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']);
         Route::post('/sync-team-plan/{eventId}', [PlanController::class, 'syncTeamPlanForEvent']);
+        Route::delete('/{id}', [PlanController::class, 'delete']);
     });
 
     // Preview controller

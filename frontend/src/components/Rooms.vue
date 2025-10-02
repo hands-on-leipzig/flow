@@ -346,7 +346,7 @@ onUnmounted(() => {
 <template>
   <div class="grid grid-cols-[2fr,1fr] gap-6 p-6">
     <div>
-      <h2 class="text-xl font-bold mb-4">Vorhandene Räume</h2>
+      <h2 class="text-xl font-bold mb-4">Räume</h2>
       <ul class="grid grid-cols-2 gap-4">
 
         <!-- Existing rooms -->
@@ -442,7 +442,7 @@ onUnmounted(() => {
 
     <!-- Assignment panel -->
     <div>
-      <h2 class="text-xl font-bold mb-4">Raumzuordnung</h2>
+      <h2 class="text-xl font-bold mb-4">Aktivitäten</h2>
       <div
           v-for="group in typeGroups"
           :key="group.id"
