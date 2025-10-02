@@ -38,12 +38,14 @@ const router = useRouter()
 const route = useRoute()
 
 function isActive(path) {
-  return route.path.startsWith(path)
+  // Remove leading slash and check if current path ends with the tab path
+  const cleanPath = path.replace(/^\//, '')
+  return route.path.endsWith('/' + cleanPath) || route.path === '/plan/' + cleanPath
 }
 
 function goTo(tab) {
-  selectedTab.value = tab
-  router.push({path: tab.toLowerCase()})
+  selectedTab.value = tab.name
+  router.push(tab.path)
 }
 </script>
 
@@ -61,7 +63,7 @@ function goTo(tab) {
               :to="tab.path"
               class="px-4 py-2 rounded hover:bg-gray-100 relative"
               :class="{ 'bg-gray-200 font-medium': isActive(tab.path) }"
-              @click="goTo(tab.path)"
+              @click="goTo(tab)"
           >
             {{ tab.name }}
              <div
@@ -89,7 +91,7 @@ function goTo(tab) {
         <div class="py-1">
           <MenuItem>
             <button
-                @click="router.push({ path: 'events' })"
+                @click="router.push({ path: '/events' })"
                 class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left whitespace-nowrap"
             >
               Veranstaltung wechseln

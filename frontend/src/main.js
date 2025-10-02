@@ -18,21 +18,41 @@ import Teams from "@/components/Teams.vue";
 import Preview from "@/components/molecules/Preview.vue";
 import Carousel from "@/components/Carousel.vue";
 import EditSlide from "@/components/EditSlide.vue";
+import PlanLayout from "@/components/PlanLayout.vue";
 import PresentationSettings from "@/components/molecules/PresentationSettings.vue";
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
-    {path: '/event', component: EventOverview},
-    {path: '/schedule', component: Schedule},
-    {path: '/teams', component: Teams},
-    {path: '/logos', component: Logos},
-    {path: '/events', component: SelectEvent},
-    {path: '/rooms', component: Rooms},
-    {path: '/publish', component: PublishControl},
-    {path: '/admin', component: Admin},
-    {path: '/presentation', component: PresentationSettings},
-    {path: '/preview/:planId', component: Preview, props: true},
-    {path: '/editSlide/:slideId', component: EditSlide, props: true},
+    {
+        path: '/plan',
+        component: PlanLayout,
+        redirect: '/plan/event',
+        children: [
+            {path: 'event', component: EventOverview},
+            {path: 'schedule', component: Schedule},
+            {path: 'teams', component: Teams},
+            {path: 'logos', component: Logos},
+            {path: 'events', component: SelectEvent},
+            {path: 'rooms', component: Rooms},
+            {path: 'publish', component: PublishControl},
+            {path: 'admin', component: Admin},
+            {path: 'presentation', component: PresentationSettings},
+            {path: 'preview/:planId', component: Preview, props: true},
+            {path: 'editSlide/:slideId', component: EditSlide, props: true},
+        ]
+    },
+    // Redirect old routes to new plan/ prefixed routes
+    {path: '/event', redirect: '/plan/event'},
+    {path: '/schedule', redirect: '/plan/schedule'},
+    {path: '/teams', redirect: '/plan/teams'},
+    {path: '/logos', redirect: '/plan/logos'},
+    {path: '/events', redirect: '/plan/events'},
+    {path: '/rooms', redirect: '/plan/rooms'},
+    {path: '/publish', redirect: '/plan/publish'},
+    {path: '/admin', redirect: '/plan/admin'},
+    {path: '/presentation', redirect: '/plan/presentation'},
+    {path: '/preview/:planId', redirect: to => `/plan/preview/${to.params.planId}`},
+    {path: '/editSlide/:slideId', redirect: to => `/plan/editSlide/${to.params.slideId}`},
 ];
 
 const router = createRouter({

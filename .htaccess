@@ -23,7 +23,7 @@
 
     # 🎯 Event slug routing - redirect to slug handler
     # Pattern: /slug -> /slug-handler.php?slug=slug
-    RewriteCond %{REQUEST_URI} !^/(api|sanctum|login|logout|password|output|legacy)/
+    RewriteCond %{REQUEST_URI} !^/(api|sanctum|login|logout|password|output|legacy|plan)/
     RewriteCond %{REQUEST_URI} ^/([a-zA-Z0-9_-]+)/?$
     RewriteRule ^([a-zA-Z0-9_-]+)/?$ /slug-handler.php?slug=$1 [L,QSA]
 
