@@ -22,7 +22,7 @@ public function exportPdf(int $planId)
 {
     Log::info("Starte PDF-Export für Plan $planId");
 
-    // Rollen laden, die PDF-Export aktiviert haben
+    // Nur Rollen mit PDF-Export, sortiert
     $roles = MRole::where('pdf_export', true)
         ->orderBy('first_program')
         ->orderBy('sequence')
@@ -31,12 +31,17 @@ public function exportPdf(int $planId)
     $programGroups = [];
 
     foreach ($roles as $role) {
+        // Nur Rollen mit Differenzierung "team" berücksichtigen
+        if ($role->differentiation_parameter !== 'team') {
+            continue;
+        }
+
         $activities = $this->activityFetcher->fetchActivities(
             plan: $planId,
             roles: [$role->id],
             includeRooms: true,
             includeGroupMeta: false,
-            includeActivityMeta: true,   // wichtig: liefert activity_first_program_name
+            includeActivityMeta: true,
             includeTeamNames: true,
             freeBlocks: false
         );
@@ -47,65 +52,41 @@ public function exportPdf(int $planId)
 
         Log::info("Rolle {$role->name}: " . $activities->count() . " Aktivitäten");
 
-        // Differenzierung nach Parameter
+        // Aufsplitten nach Teamnummer
+        $groups = $activities->groupBy('team');
+
         $roleTables = [];
 
-        if ($role->differentiation_parameter === 'lane') {
-            $groups = $activities->groupBy('lane');
-            foreach ($groups as $lane => $acts) {
-                $roleTables[] = [
-                    'role' => $role->name,
-                    'suffix' => $lane ? "Lane $lane" : null,
-                    'program' => optional($acts->first())->activity_first_program_name ?? 'Alles',
-                    'activities' => $acts->sortBy('start_time'),
-                ];
-            }
-
-        } elseif ($role->differentiation_parameter === 'table') {
-            $groups = $activities->groupBy('table_1_name');
-            foreach ($groups as $tableName => $acts) {
-                $roleTables[] = [
-                    'role' => $role->name,
-                    'suffix' => $tableName,
-                    'program' => optional($acts->first())->activity_first_program_name ?? 'Alles',
-                    'activities' => $acts->sortBy('start_time'),
-                ];
-            }
-
-        } elseif ($role->differentiation_parameter === 'team') {
-            $groups = $activities->groupBy('team');
-
-            foreach ($groups as $teamId => $acts) {
-                // Teamnummer & Name zusammensetzen
-                if ($teamId === null) {
-                    $teamLabel = "Team (unbekannt)";
-                } else {
-                    $teamName = null;
-                    foreach ($acts as $a) {
-                        $teamName = $a->jury_team_name ?? $a->table_1_team_name ?? $a->table_2_team_name;
-                        if ($teamName) break;
-                    }
-                    $teamLabel = "Team $teamId" . ($teamName ? " – $teamName" : "");
-                }
-
-                $roleTables[] = [
-                    'role' => $role->name,
-                    'program' => optional($acts->first())->activity_first_program_name ?? 'Alles',
-                    'teamLabel' => $teamLabel,   // eigener Key für Blade
-                    'activities' => $acts->sortBy('start_time'),
-                ];
-            }
-        
-
-        } else {
+        // Zuerst: Aktivitäten ohne Teamnummer
+        if ($groups->has(null)) {
+            $acts = $groups->get(null)->sortBy('start_time');
             $roleTables[] = [
-                'role' => $role->name,
-                'suffix' => null,
-                'program' => optional($activities->first())->activity_first_program_name ?? 'Alles',
-                'activities' => $activities->sortBy('start_time'),
+                'role'       => $role->name,
+                'program'    => optional($acts->first())->activity_first_program_name ?? 'Alles',
+                'teamLabel'  => 'Ohne Team',
+                'activities' => $acts,
             ];
         }
-        // Gruppierung nach Programmname (aus den Activities, nicht aus m_role)
+
+        // Jetzt: Aktivitäten mit Teamnummer
+        foreach ($groups->except([null])->sortKeys() as $teamId => $acts) {
+            $teamName = null;
+            foreach ($acts as $a) {
+                $teamName = $a->jury_team_name ?? $a->table_1_team_name ?? $a->table_2_team_name;
+                if ($teamName) break;
+            }
+
+            $teamLabel = "Team $teamId" . ($teamName ? " – $teamName" : "");
+
+            $roleTables[] = [
+                'role'       => $role->name,
+                'program'    => optional($acts->first())->activity_first_program_name ?? 'Alles',
+                'teamLabel'  => $teamLabel,
+                'activities' => $acts->sortBy('start_time'),
+            ];
+        }
+
+        // Gruppierung nach Program
         foreach ($roleTables as $table) {
             $programKey = $table['program'] ?? 'Alles';
             $programGroups[$programKey][] = $table;
