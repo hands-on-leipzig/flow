@@ -152,10 +152,49 @@ jobs:
             php artisan migrate --force
             php artisan storage:link
             # Fresh database setup for test environment
-            # The .env file is already in place at the top level of flow-test directory
-            # Run the deployment script with the current .env file
-            chmod +x deploy_test.sh
-            ./deploy_test.sh
+            php artisan tinker --execute="
+            use Illuminate\Support\Facades\DB;
+            use App\Models\MSeason;
+            use App\Models\MLevel;
+            use App\Models\RegionalPartner;
+            use App\Models\Event;
+            
+            echo 'Purging test database...' . PHP_EOL;
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            \$tables = ['activity', 'activity_group', 'event', 'event_logo', 'extra_block', 'logo', 'plan', 'plan_extra_block', 'plan_param_value', 'regional_partner', 'room', 'room_type_room', 'table_event', 'team', 'team_plan', 'user', 'user_regional_partner', 'slideshow', 'slide', 'publication', 's_generator', 'm_activity_type', 'm_activity_type_detail', 'm_first_program', 'm_insert_point', 'm_level', 'm_parameter', 'm_role', 'm_room_type', 'm_room_type_group', 'm_season', 'm_supported_plan', 'm_visibility'];
+            foreach (\$tables as \$table) {
+                if (DB::getSchemaBuilder()->hasTable(\$table)) {
+                    DB::table(\$table)->truncate();
+                }
+            }
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            
+            echo 'Creating test data...' . PHP_EOL;
+            
+            // Create season if not exists
+            if (DB::table('m_season')->count() == 0) {
+                DB::table('m_season')->insert(['name' => 'Test Season 2024', 'year' => 2024, 'active' => 1, 'created_at' => now(), 'updated_at' => now()]);
+            }
+            
+            // Create level if not exists
+            if (DB::table('m_level')->count() == 0) {
+                DB::table('m_level')->insert(['name' => 'Test Level', 'level' => 1, 'created_at' => now(), 'updated_at' => now()]);
+            }
+            
+            \$season = DB::table('m_season')->first();
+            \$level = DB::table('m_level')->first();
+            
+            // Create regional partners
+            \$rp1 = RegionalPartner::create(['name' => 'Test Regional Partner A', 'region' => 'Test Region A', 'dolibarr_id' => 2001]);
+            \$rp2 = RegionalPartner::create(['name' => 'Test Regional Partner B', 'region' => 'Test Region B', 'dolibarr_id' => 2002]);
+            
+            // Create test events
+            Event::create(['name' => 'RPT Demo - Nur Explore', 'regional_partner' => \$rp1->id, 'season' => \$season->id, 'level' => \$level->id, 'date' => now()->addDays(30), 'days' => 1, 'slug' => 'rpt-demo-nur-explore', 'event_explore' => 1001, 'event_challenge' => null]);
+            Event::create(['name' => 'RPT Demo - Nur Challenge', 'regional_partner' => \$rp1->id, 'season' => \$season->id, 'level' => \$level->id, 'date' => now()->addDays(45), 'days' => 1, 'slug' => 'rpt-demo-nur-challenge', 'event_explore' => null, 'event_challenge' => 1002]);
+            Event::create(['name' => 'RPT Demo', 'regional_partner' => \$rp2->id, 'season' => \$season->id, 'level' => \$level->id, 'date' => now()->addDays(60), 'days' => 1, 'slug' => 'rpt-demo', 'event_explore' => 1003, 'event_challenge' => 1004]);
+            
+            echo 'Test database setup complete!' . PHP_EOL;
+            "
 
   deploy-production:
     if: github.ref == 'refs/heads/production'
