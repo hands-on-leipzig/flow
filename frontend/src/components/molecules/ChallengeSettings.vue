@@ -259,8 +259,8 @@ const teamsPerJuryHint = computed(() => {
   const hi = Math.ceil(teams / lanes)
 
   return lo === hi
-    ? `${lo} Teams pro Jury`
-    : `${lo} bis ${hi} Teams pro Jury`
+    ? `${lo} Teams pro Gruppe`
+    : `${lo} bis ${hi} Teams pro Gruppe`
 })
 
 </script>
