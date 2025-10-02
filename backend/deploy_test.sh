@@ -11,7 +11,7 @@ echo ""
 
 # Configuration - using environment-specific .env file
 BACKEND_DIR="${BACKEND_DIR:-/path/to/backend}"  # Can be overridden via environment variable
-ENV_FILE="${ENV_FILE:-test/.env}"  # Default to test/.env, can be overridden
+ENV_FILE="${ENV_FILE:-.env}"  # Default to .env in current directory (flow-test, flow-dev, flow-prod)
 
 # Load environment variables from the specified .env file
 if [ -f "$ENV_FILE" ]; then

@@ -149,33 +149,20 @@ function populateMasterTables()
 {
     echo "  Populating master tables...\n";
     
-    // Check if we have access to dev database
-    $devConnection = config('database.connections.dev');
-    if (!$devConnection) {
-        echo "    ⚠ No dev database connection configured\n";
-        echo "    Please manually populate master tables from dev database\n";
-        echo "    Tables to populate:\n";
-        $masterTables = [
-            'm_activity_type',
-            'm_activity_type_detail', 
-            'm_first_program',
-            'm_insert_point',
-            'm_level',
-            'm_parameter',
-            'm_role',
-            'm_room_type',
-            'm_room_type_group',
-            'm_season',
-            'm_supported_plan',
-            'm_visibility'
-        ];
-        foreach ($masterTables as $table) {
-            echo "      - {$table}\n";
-        }
+    // Get dev database credentials from environment
+    $devDbName = env('DEV_DB_NAME');
+    $devDbUser = env('DEV_DB_USER');
+    $devDbPassword = env('DEV_DB_PASSWORD');
+    $devDbHost = env('DEV_DB_HOST', 'localhost');
+    
+    if (!$devDbName || !$devDbUser || !$devDbPassword) {
+        echo "    ⚠ Dev database credentials not found in environment\n";
+        echo "    Creating minimal master data for testing...\n";
+        createMinimalMasterData();
         return;
     }
     
-    // If dev connection exists, try to copy data
+    // Try to connect to dev database and copy master tables
     try {
         $masterTables = [
             'm_activity_type',
@@ -192,23 +179,105 @@ function populateMasterTables()
             'm_visibility'
         ];
         
+        echo "    Connecting to dev database: {$devDbName}@{$devDbHost}\n";
+        
+        // Create temporary connection to dev database
+        $devConnection = [
+            'driver' => 'mysql',
+            'host' => $devDbHost,
+            'port' => '3306',
+            'database' => $devDbName,
+            'username' => $devDbUser,
+            'password' => $devDbPassword,
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+        ];
+        
+        // Use raw PDO connection for data transfer
+        $devPdo = new PDO(
+            "mysql:host={$devDbHost};dbname={$devDbName};charset=utf8mb4",
+            $devDbUser,
+            $devDbPassword,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+        
         foreach ($masterTables as $table) {
             if (Schema::hasTable($table)) {
-                // This would require implementing the actual data copy logic
-                // For now, we'll just indicate that manual population is needed
-                echo "    ⚠ Table {$table} needs manual population from dev database\n";
+                echo "    Copying table: {$table}\n";
+                
+                // Get data from dev database
+                $stmt = $devPdo->prepare("SELECT * FROM {$table}");
+                $stmt->execute();
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                if (count($rows) > 0) {
+                    // Clear existing data
+                    DB::table($table)->truncate();
+                    
+                    // Insert data in chunks
+                    $chunkSize = 100;
+                    $chunks = array_chunk($rows, $chunkSize);
+                    
+                    foreach ($chunks as $chunk) {
+                        DB::table($table)->insert($chunk);
+                    }
+                    
+                    echo "      ✓ Copied " . count($rows) . " records\n";
+                } else {
+                    echo "      ⚠ No data found in dev database\n";
+                }
+            } else {
+                echo "    ⚠ Table {$table} does not exist in test database\n";
             }
         }
         
-        echo "    ⚠ Automatic master table population not implemented\n";
-        echo "    Please run the following commands to populate master tables:\n";
-        echo "    1. Export from dev: mysqldump -u dev_user -p dev_database --tables m_* --no-create-info > master_tables.sql\n";
-        echo "    2. Import to test: mysql -u test_user -p test_database < master_tables.sql\n";
+        echo "    ✓ Master tables populated successfully\n";
         
     } catch (Exception $e) {
         echo "    ❌ Error accessing dev database: " . $e->getMessage() . "\n";
-        echo "    Please manually populate master tables from dev database\n";
+        echo "    Creating minimal master data for testing...\n";
+        createMinimalMasterData();
     }
+}
+
+function createMinimalMasterData()
+{
+    echo "    Creating minimal master data...\n";
+    
+    // Create essential master data for testing
+    $season = MSeason::create([
+        'name' => 'Test Season 2024',
+        'year' => 2024,
+        'active' => true
+    ]);
+    echo "      ✓ Created season: {$season->name}\n";
+    
+    $level = MLevel::create([
+        'name' => 'Test Level',
+        'level' => 1
+    ]);
+    echo "      ✓ Created level: {$level->name}\n";
+    
+    // Create basic room types
+    $roomType = DB::table('m_room_type')->insertGetId([
+        'name' => 'Test Room Type',
+        'created_at' => now(),
+        'updated_at' => now()
+    ]);
+    echo "      ✓ Created room type: Test Room Type\n";
+    
+    // Create basic parameters
+    $parameter = DB::table('m_parameter')->insertGetId([
+        'name' => 'test_param',
+        'description' => 'Test Parameter',
+        'type' => 'string',
+        'default_value' => 'test',
+        'created_at' => now(),
+        'updated_at' => now()
+    ]);
+    echo "      ✓ Created parameter: test_param\n";
+    
+    echo "    ✓ Minimal master data created\n";
 }
 
 function createTestEvents()

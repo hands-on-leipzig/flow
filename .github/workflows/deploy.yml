@@ -151,9 +151,11 @@ jobs:
             php artisan view:clear
             php artisan migrate --force
             php artisan storage:link
-            # Fresh database setup for test environment using new deployment script
+            # Fresh database setup for test environment
+            # The .env file is already in place at the top level of flow-test directory
+            # Run the deployment script with the current .env file
             chmod +x deploy_test.sh
-            ENV_FILE=test/.env ./deploy_test.sh
+            ./deploy_test.sh
 
   deploy-production:
     if: github.ref == 'refs/heads/production'
