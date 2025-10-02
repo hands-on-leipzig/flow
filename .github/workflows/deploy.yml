@@ -3,13 +3,13 @@ name: Deploy Vue + Laravel App
 on:
   push:
     branches:
-      - development
-      - testing
-      - prod
+      - main
+      - test
+      - production
 
 jobs:
   deploy-dev:
-    if: github.ref == 'refs/heads/development'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -81,7 +81,7 @@ jobs:
             php artisan storage:link
 
   deploy-test:
-    if: github.ref == 'refs/heads/testing'
+    if: github.ref == 'refs/heads/test'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -156,7 +156,7 @@ jobs:
             ENV_FILE=test/.env ./deploy_test.sh
 
   deploy-production:
-    if: github.ref == 'refs/heads/prod'
+    if: github.ref == 'refs/heads/production'
     runs-on: ubuntu-latest
     environment: production
     steps:

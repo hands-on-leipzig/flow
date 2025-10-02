@@ -6,9 +6,9 @@ This document explains how to configure environment variables for deployment acr
 
 | Branch | Environment | Purpose |
 |--------|-------------|---------|
-| `development` | Development | Active development and testing |
-| `testing` | Test | Pre-production testing and validation |
-| `prod` | Production | Live production environment |
+| `main` | Development | Active development and testing |
+| `test` | Test | Pre-production testing and validation |
+| `production` | Production | Live production environment |
 
 ## Environment-Specific Configuration
 
@@ -89,7 +89,7 @@ DB_PASSWORD=prod_password_123
 
 | Workflow File | Trigger Branches | Environments | Purpose |
 |---------------|------------------|--------------|---------|
-| `deploy.yml` | `development`, `testing`, `prod` | Development, Test, Production | Complete deployment pipeline |
+| `deploy.yml` | `main`, `test`, `production` | Development, Test, Production | Complete deployment pipeline |
 
 ### Deployment Scripts
 
