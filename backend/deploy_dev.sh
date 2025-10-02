@@ -1,17 +1,17 @@
 #!/bin/bash
 
-# Test Environment Deployment Script
-# This script performs a complete deployment to the test environment
+# Development Environment Deployment Script
+# This script performs a deployment to the development environment
 
 set -e  # Exit on any error
 
-echo "🚀 Starting Test Environment Deployment..."
-echo "=========================================="
+echo "🚀 Starting Development Environment Deployment..."
+echo "==============================================="
 echo ""
 
 # Configuration - using environment-specific .env file
 BACKEND_DIR="${BACKEND_DIR:-/path/to/backend}"  # Can be overridden via environment variable
-ENV_FILE="${ENV_FILE:-test/.env}"  # Default to test/.env, can be overridden
+ENV_FILE="${ENV_FILE:-dev/.env}"  # Default to dev/.env, can be overridden
 
 # Load environment variables from the specified .env file
 if [ -f "$ENV_FILE" ]; then
@@ -26,9 +26,6 @@ DB_HOST="${DB_HOST:-localhost}"
 DB_NAME="${DB_NAME}"
 DB_USER="${DB_USER}"
 DB_PASSWORD="${DB_PASSWORD}"
-DEV_DB_NAME="${DEV_DB_NAME}"
-DEV_DB_USER="${DEV_DB_USER}"
-DEV_DB_PASSWORD="${DEV_DB_PASSWORD}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -57,11 +54,11 @@ command_exists() {
 # Check prerequisites
 echo "Checking prerequisites..."
 
-# Check required GitHub secrets
-required_secrets=("DB_NAME" "DB_USER" "DB_PASSWORD" "DEV_DB_NAME" "DEV_DB_USER" "DEV_DB_PASSWORD")
-for secret in "${required_secrets[@]}"; do
-    if [ -z "${!secret}" ]; then
-        print_error "Required GitHub secret '$secret' is not set"
+# Check required environment variables
+required_vars=("DB_NAME" "DB_USER" "DB_PASSWORD")
+for var in "${required_vars[@]}"; do
+    if [ -z "${!var}" ]; then
+        print_error "Required environment variable '$var' is not set"
         exit 1
     fi
 done
@@ -102,40 +99,17 @@ else
     exit 1
 fi
 
-# Step 2: Populate master tables from dev database
+# Step 2: Run migrations
 echo ""
-echo "Step 2: Populating master tables from dev database..."
-
-# Create temporary file for master tables export
-TEMP_FILE="/tmp/master_tables_$(date +%Y%m%d_%H%M%S).sql"
-
-echo "Exporting master tables from dev database..."
-mysqldump -h "$DB_HOST" -u "$DEV_DB_USER" -p"$DEV_DB_PASSWORD" \
-    --tables m_activity_type m_activity_type_detail m_first_program \
-    m_insert_point m_level m_parameter m_role m_room_type \
-    m_room_type_group m_season m_supported_plan m_visibility \
-    --no-create-info --single-transaction \
-    "$DEV_DB_NAME" > "$TEMP_FILE"
+echo "Step 2: Running migrations..."
+php artisan migrate --force
 
 if [ $? -eq 0 ]; then
-    print_status "Master tables exported from dev database"
+    print_status "Migrations completed"
 else
-    print_error "Failed to export master tables from dev database"
+    print_error "Migrations failed"
     exit 1
 fi
-
-echo "Importing master tables to test database..."
-mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$TEMP_FILE"
-
-if [ $? -eq 0 ]; then
-    print_status "Master tables imported to test database"
-else
-    print_error "Failed to import master tables to test database"
-    exit 1
-fi
-
-# Clean up temporary file
-rm -f "$TEMP_FILE"
 
 # Step 3: Final verification
 echo ""
@@ -155,20 +129,17 @@ fi
 
 # Step 4: Summary
 echo ""
-echo "✅ Test Environment Deployment Complete!"
-echo "=========================================="
+echo "✅ Development Environment Deployment Complete!"
+echo "==============================================="
 echo ""
 echo "Summary:"
 echo "- Database purged and migrated"
-echo "- Master tables populated from dev database"
-echo "- Three test events created:"
-echo "  1. RPT Demo - Nur Explore (Regional Partner A)"
-echo "  2. RPT Demo - Nur Challenge (Regional Partner A)"
-echo "  3. RPT Demo (Regional Partner B - Combined)"
+echo "- Master tables populated"
+echo "- Test events created"
 echo ""
 echo "Next steps:"
 echo "1. Test the application functionality"
 echo "2. Verify all endpoints work correctly"
 echo "3. Check user authentication"
 echo ""
-echo "Test users will be created automatically on first login with 'flow-tester' role."
+echo "Development environment is ready for testing."

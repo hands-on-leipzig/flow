@@ -3,13 +3,13 @@ name: Deploy Vue + Laravel App
 on:
   push:
     branches:
-      - main
-      - test
-      - production
+      - development
+      - testing
+      - prod
 
 jobs:
   deploy-dev:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/development'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -81,7 +81,7 @@ jobs:
             php artisan storage:link
 
   deploy-test:
-    if: github.ref == 'refs/heads/test'
+    if: github.ref == 'refs/heads/testing'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -151,12 +151,12 @@ jobs:
             php artisan view:clear
             php artisan migrate --force
             php artisan storage:link
-            # Fresh database setup for test environment
-            php artisan tinker --execute="include 'database/scripts/refresh_main_tables.php'; refreshMainTables();"
-            php artisan tinker --execute="include 'database/scripts/fresh_test_database.php'; freshTestDatabase();"
+            # Fresh database setup for test environment using new deployment script
+            chmod +x deploy_test.sh
+            ENV_FILE=test/.env ./deploy_test.sh
 
   deploy-production:
-    if: github.ref == 'refs/heads/production'
+    if: github.ref == 'refs/heads/prod'
     runs-on: ubuntu-latest
     environment: production
     steps:

@@ -1,43 +1,129 @@
-# GitHub Secrets Setup for Test Deployment
+# Environment Variables Setup for Deployment
 
-This document explains how to configure GitHub secrets for the test environment deployment.
+This document explains how to configure environment variables for deployment across different environments.
 
-## Required GitHub Secrets
+## Branch Structure
 
-You need to create the following secrets in your GitHub repository:
+| Branch | Environment | Purpose |
+|--------|-------------|---------|
+| `development` | Development | Active development and testing |
+| `testing` | Test | Pre-production testing and validation |
+| `prod` | Production | Live production environment |
+
+## Environment-Specific Configuration
+
+Each environment has its own `.env` file in the corresponding directory:
+
+```
+backend/
+├── dev/.env          # Development environment
+├── test/.env         # Test environment  
+├── prod/.env         # Production environment
+└── .env.example      # Template file
+```
+
+## Required Environment Variables
 
 ### Database Credentials
 
-| Secret Name | Description | Example |
-|-------------|-------------|---------|
-| `DB_NAME` | Test database name | `flow_test_db` |
-| `DB_USER` | Test database username | `flow_test_user` |
-| `DB_PASSWORD` | Test database password | `secure_password_123` |
+| Variable Name | Description | Example |
+|---------------|-------------|---------|
+| `DB_NAME` | Database name | `flow_dev_db` |
+| `DB_USER` | Database username | `flow_dev_user` |
+| `DB_PASSWORD` | Database password | `secure_password_123` |
+| `DB_HOST` | Database host | `localhost` |
+| `DB_PORT` | Database port | `3306` |
+
+### Additional Variables (Test Environment)
+
+| Variable Name | Description | Example |
+|---------------|-------------|---------|
 | `DEV_DB_NAME` | Development database name | `flow_dev_db` |
 | `DEV_DB_USER` | Development database username | `flow_dev_user` |
 | `DEV_DB_PASSWORD` | Development database password | `dev_password_456` |
 
-### Optional Secrets
+## Environment File Setup
 
-| Secret Name | Description | Default |
-|-------------|-------------|---------|
-| `DB_HOST` | Database host | `localhost` |
-| `BACKEND_DIR` | Backend directory path | `/path/to/backend` |
+### Development Environment (`dev/.env`):
+```bash
+APP_ENV=local
+APP_DEBUG=true
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=flow_dev_db
+DB_USERNAME=flow_dev_user
+DB_PASSWORD=dev_password_123
+```
 
-## How to Add GitHub Secrets
+### Test Environment (`test/.env`):
+```bash
+APP_ENV=testing
+APP_DEBUG=false
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=flow_test_db
+DB_USERNAME=flow_test_user
+DB_PASSWORD=test_password_123
+DEV_DB_NAME=flow_dev_db
+DEV_DB_USER=flow_dev_user
+DEV_DB_PASSWORD=dev_password_456
+```
 
-1. Go to your GitHub repository
-2. Click on **Settings** tab
-3. In the left sidebar, click **Secrets and variables** → **Actions**
-4. Click **New repository secret**
-5. Enter the secret name and value
-6. Click **Add secret**
-7. Repeat for all required secrets
+### Production Environment (`prod/.env`):
+```bash
+APP_ENV=production
+APP_DEBUG=false
+DB_CONNECTION=mysql
+DB_HOST=prod-db-server.com
+DB_PORT=3306
+DB_DATABASE=flow_prod_db
+DB_USERNAME=flow_prod_user
+DB_PASSWORD=prod_password_123
+```
+
+## Deployment Workflows
+
+### GitHub Actions Workflows
+
+| Workflow File | Trigger Branches | Environments | Purpose |
+|---------------|------------------|--------------|---------|
+| `deploy.yml` | `development`, `testing`, `prod` | Development, Test, Production | Complete deployment pipeline |
+
+### Deployment Scripts
+
+| Script | Environment | Purpose |
+|--------|-------------|---------|
+| `deploy_dev.sh` | Development | Development deployment |
+| `deploy_test.sh` | Test | Test environment setup |
+| `deploy_prod.sh` | Production | Production deployment |
+
+### Manual Deployment
+
+You can also run deployments manually:
+
+```bash
+# Development
+cd backend
+ENV_FILE=dev/.env ./deploy_dev.sh
+
+# Test
+cd backend
+ENV_FILE=test/.env ./deploy_test.sh
+
+# Production
+cd backend
+ENV_FILE=prod/.env ./deploy_prod.sh
+```
 
 ## Security Best Practices
 
 - Use strong, unique passwords for each environment
 - Never commit database credentials to the repository
+- Use environment-specific `.env` files
+- Enable manual approval for production deployments
+- Monitor deployment logs and application health
 - Regularly rotate passwords
 - Use different credentials for dev, test, and production
 - Consider using database connection pooling or managed database services
@@ -120,3 +206,4 @@ If you encounter issues with the deployment:
 2. Verify all secrets are correctly configured
 3. Test database connections manually
 4. Check that all required dependencies are installed
+
