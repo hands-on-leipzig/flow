@@ -22,7 +22,6 @@ class PlanExportController extends Controller
     {
         Log::info("Starte PDF-Export für Plan $planId");
 
-        // Nur Rollen mit PDF-Export, sortiert
         $roles = MRole::where('pdf_export', true)
             ->orderBy('first_program')
             ->orderBy('sequence')
@@ -49,8 +48,9 @@ class PlanExportController extends Controller
                 continue;
             }
 
-            // === Schritt 1: Activities "entfalten" (Lane/Table1/Table2 einzeln) ===
-            $expanded = collect();
+            // === Schritt 1: Activities entfalten (Lane/Table1/Table2 einzeln) ===
+            $expanded   = collect();
+            $neutral    = collect(); // neutrale Zeilen merken
             foreach ($activities as $a) {
                 if (!empty($a->lane) && !empty($a->team)) {
                     $clone = clone $a;
@@ -74,20 +74,20 @@ class PlanExportController extends Controller
                     $expanded->push($clone);
                 }
 
-                // Falls gar kein Team dran hängt → neutrale Zeile
+                // falls gar kein Team dran hängt → in neutral sammeln
                 if (empty($a->lane) && empty($a->table_1) && empty($a->table_2)) {
                     $clone = clone $a;
                     $clone->team      = null;
                     $clone->team_name = null;
                     $clone->assign    = '–';
-                    $expanded->push($clone);
+                    $neutral->push($clone);
                 }
             }
 
             // === Schritt 2: Nach Team gruppieren ===
             $groups = $expanded->groupBy('team');
 
-            // === Schritt 3: Map-Funktion für Tabellenzeilen ===
+            // === Schritt 3: Map-Funktion ===
             $mapRow = function ($a) {
                 return [
                     'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
@@ -102,8 +102,9 @@ class PlanExportController extends Controller
 
             // --- Sortierung nach Team-ID ---
             foreach ($groups->sortKeys() as $teamId => $acts) {
-                $acts = $acts->sortBy('start_time');
-                $firstAct = $acts->first();
+                // neutrales reingeben
+                $allActs = $acts->concat($neutral)->sortBy('start_time');
+                $firstAct = $allActs->first();
                 $programName = $firstAct->activity_first_program_name ?? 'Alles';
 
                 if (!isset($programGroups[$programName])) {
@@ -116,22 +117,14 @@ class PlanExportController extends Controller
                     ];
                 }
 
-                // Teamlabel bestimmen
-                if ($teamId === null) {
-                    $teamLabel = 'Alle Teams';
-                } else {
-                    $teamName = $acts->first()->team_name ?? null;
-                    $teamLabel = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
-                }
+                $teamName  = $acts->first()->team_name ?? null;
+                $teamLabel = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
 
                 $programGroups[$programName][$role->id]['teams'][] = [
                     'teamLabel' => $teamLabel,
-                    'rows'      => $acts->map($mapRow)->values()->all(),
+                    'rows'      => $allActs->map($mapRow)->values()->all(),
                 ];
             }
-
-
-
         }
 
         if (empty($programGroups)) {
@@ -142,8 +135,7 @@ class PlanExportController extends Controller
             'programGroups' => $programGroups,
         ])->render();
 
-        $pdf = Pdf::loadHTML($html)
-            ->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
 
         return $pdf->download("Plan_$planId.pdf");
     }
