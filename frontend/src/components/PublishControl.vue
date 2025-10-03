@@ -681,23 +681,37 @@ async function downloadOfflinePdf() {
       </div>
     </div>
 
-<!-- Offline Box -->
-<div class="rounded-xl shadow bg-white p-6 space-y-4">
-  <h2 class="text-lg font-semibold mb-2">Offline - PDF-Download</h2>
-  <p class="text-sm text-gray-600">
-    Dokumente für den Veranstalter – volle Details in einfacher Formatierung.
-  </p>
+    <!-- Offline Box -->
+    <div class="rounded-xl shadow bg-white p-6 space-y-4">
+      <h2 class="text-lg font-semibold mb-4">Offline - PDF-Download</h2>
 
-  <div class="flex justify-center">
-    <button
-      class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300"
-      @click="downloadOfflinePdf"
-    >
-      PDF herunterladen
-    </button>
-  </div>
-</div>
+      <div class="flex flex-col lg:flex-row gap-6">
+        <!-- Linke Box: Text + Button -->
+        <div class="w-2/5 rounded-xl shadow bg-white p-6 flex flex-col text-left">
+          <h3 class="text-lg font-semibold mb-4">
+            Der ganze Plan in einem Dokument
+          </h3>
+          <p class="text-sm text-gray-600 mb-2">
+            Volle Details, aber in einfacher Formatierung: Je eine Tabelle pro Team, Guterachter:innen-/Jury-Gruppe und Robot-Game-Tisch. 
+          </p>
+          <p class="text-xs text-gray-500 mb-4">
+            Dieses Dokument ist für den Veranstalter gedacht, nicht zum Verteilen an Teams, Freiwillige und Besucher! Für die gibt es den Link oben.
+          </p>
 
+          <div class="flex justify-center mt-auto">
+            <button
+              class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300"
+              @click="downloadOfflinePdf"
+            >
+              PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- Rechte Box: noch leer -->
+        <div class="w-3/5"></div>
+      </div>
+    </div>
 
   </div>
 
