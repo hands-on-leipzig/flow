@@ -36,6 +36,14 @@
                 @include('pdf.roles.lane', ['laneTable' => $laneTable])
             @endforeach
         @endif
+
+        {{-- Falls Tables existieren --}}
+        @if (!empty($roleBlock['tables']))
+            @foreach ($roleBlock['tables'] as $tableBlock)
+                @include('pdf.roles.table', ['tableBlock' => $tableBlock])
+            @endforeach
+        @endif
+
     @endforeach
 @endforeach
 </body>

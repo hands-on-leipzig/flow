@@ -54,6 +54,10 @@ class PlanExportController extends Controller
                     $this->buildLaneBlock($programGroups, $activities, $role);
                     break;
 
+                case 'table':
+                    $this->buildTableBlock($programGroups, $activities, $role);
+                    break;
+
                 default:
                     // noch nicht implementiert
                     break;
@@ -223,7 +227,7 @@ class PlanExportController extends Controller
                 ];
             }
 
-            $juryLabel = 'Jury ' . $laneId;
+            $juryLabel = 'Gruppe ' . $laneId;
 
             $programGroups[$programName][$role->id]['lanes'][] = [
                 'juryLabel' => $juryLabel,
@@ -231,4 +235,73 @@ class PlanExportController extends Controller
             ];
         }
     }
+
+    /**
+     * Block für Table-Differenzierung
+     */
+    private function buildTableBlock(array &$programGroups, $activities, $role): void
+    {
+        $expanded = collect();
+
+        // Schritt 1: Activities entfalten (Table_1 und Table_2 separat)
+        foreach ($activities as $a) {
+            if (!empty($a->table_1) && !empty($a->table_1_team)) {
+                $clone = clone $a;
+                $clone->table_id   = $a->table_1;
+                $clone->team_id    = $a->table_1_team;
+                $clone->team_name  = $a->table_1_team_name;
+                $clone->assign     = 'Tisch ' . $a->table_1;
+                $expanded->push($clone);
+            }
+            if (!empty($a->table_2) && !empty($a->table_2_team)) {
+                $clone = clone $a;
+                $clone->table_id   = $a->table_2;
+                $clone->team_id    = $a->table_2_team;
+                $clone->team_name  = $a->table_2_team_name;
+                $clone->assign     = 'Tisch ' . $a->table_2;
+                $expanded->push($clone);
+            }
+        }
+
+        if ($expanded->isEmpty()) {
+            return;
+        }
+
+        // Schritt 2: Gruppieren nach Table-ID
+        $groups = $expanded->groupBy('table_id');
+
+        // Schritt 3: Map-Funktion für Rows
+        $mapRow = function ($a) {
+            return [
+                'start_hm'  => Carbon::parse($a->start_time)->format('H:i'),
+                'end_hm'    => Carbon::parse($a->end_time)->format('H:i'),
+                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'teamLabel' => 'Team ' . $a->team_id . ($a->team_name ? ' – ' . $a->team_name : ''),
+                'assign'    => $a->assign,
+                'room'      => $a->room_name ?? $a->room_type_name ?? '–',
+            ];
+        };
+
+        // Schritt 4: In ProgramGroups einsortieren
+        foreach ($groups->sortKeys() as $tableId => $acts) {
+            $acts = $acts->sortBy('start_time');
+            $firstAct = $acts->first();
+            $programName = $firstAct->activity_first_program_name ?? 'Alles';
+
+            if (!isset($programGroups[$programName])) {
+                $programGroups[$programName] = [];
+            }
+            if (!isset($programGroups[$programName][$role->id])) {
+                $programGroups[$programName][$role->id] = [
+                    'role'   => $role->name,
+                    'tables' => []
+                ];
+            }
+
+            $programGroups[$programName][$role->id]['tables'][] = [
+                'tableLabel' => 'Tisch ' . $tableId,
+                'rows'       => $acts->map($mapRow)->values()->all(),
+            ];
+        }
+    }    
 }
