@@ -38,7 +38,7 @@ class PlanExportController extends Controller
                 includeGroupMeta: false,
                 includeActivityMeta: true,
                 includeTeamNames: true,
-                freeBlocks: false
+                freeBlocks: true
             );
 
             if ($activities->isEmpty()) {
