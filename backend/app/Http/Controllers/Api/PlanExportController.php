@@ -319,7 +319,7 @@ class PlanExportController extends Controller
                 'rows'       => $acts->map($mapRow)->values()->all(),
             ];
         }
-    }    
+    }
 
     /**
      * Block für Rollen ohne Differenzierung
