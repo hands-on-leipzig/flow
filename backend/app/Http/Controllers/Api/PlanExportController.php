@@ -59,7 +59,7 @@ class PlanExportController extends Controller
                     break;
 
                 default:
-                    // noch nicht implementiert
+                    $this->buildSimpleBlock($programGroups, $activities, $role);
                     break;
             }
         }
@@ -304,4 +304,70 @@ class PlanExportController extends Controller
             ];
         }
     }    
+
+    /**
+     * Block für Rollen ohne Differenzierung
+     */
+    private function buildSimpleBlock(array &$programGroups, $activities, $role): void
+    {
+        if ($activities->isEmpty()) {
+            return;
+        }
+
+        // Map-Funktion für Rows
+        $mapRow = function ($a) {
+            // Teamlabel bestimmen (falls es über Jury/Tables erkennbar ist)
+            $teamLabel = null;
+            if (!empty($a->team)) {
+                $teamLabel = 'Team ' . $a->team;
+            }
+            if (!empty($a->jury_team_name)) {
+                $teamLabel = 'Team ' . $a->team . ' – ' . $a->jury_team_name;
+            }
+            if (!empty($a->table_1_team_name)) {
+                $teamLabel = 'Team ' . $a->table_1_team . ' – ' . $a->table_1_team_name;
+            }
+            if (!empty($a->table_2_team_name)) {
+                $teamLabel = 'Team ' . $a->table_2_team . ' – ' . $a->table_2_team_name;
+            }
+
+            // Assignment (Jury/Tisch/-)
+            $assign = '–';
+            if (!empty($a->lane)) {
+                $assign = 'Jury ' . $a->lane;
+            } elseif (!empty($a->table_1)) {
+                $assign = 'Tisch ' . $a->table_1;
+            } elseif (!empty($a->table_2)) {
+                $assign = 'Tisch ' . $a->table_2;
+            }
+
+            return [
+                'start_hm'  => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                'end_hm'    => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'teamLabel' => $teamLabel ?? '–',
+                'assign'    => $assign,
+                'room'      => $a->room_name ?? $a->room_type_name ?? '–',
+            ];
+        };
+
+        $acts = $activities->sortBy('start_time');
+        $firstAct = $acts->first();
+        $programName = $firstAct->activity_first_program_name ?? 'Alles';
+
+        if (!isset($programGroups[$programName])) {
+            $programGroups[$programName] = [];
+        }
+        if (!isset($programGroups[$programName][$role->id])) {
+            $programGroups[$programName][$role->id] = [
+                'role'    => $role->name,
+                'general' => []   // kein team/lane/table → nur eine Liste
+            ];
+        }
+
+        $programGroups[$programName][$role->id]['general'][] = [
+            'rows' => $acts->map($mapRow)->values()->all(),
+        ];
+    }
+
 }

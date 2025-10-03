@@ -44,6 +44,13 @@
             @endforeach
         @endif
 
+        {{-- Falls General-Block existiert --}}
+        @if (!empty($roleBlock['general']))
+            @foreach ($roleBlock['general'] as $generalBlock)
+                @include('pdf.roles.general', ['generalBlock' => $generalBlock])
+            @endforeach
+        @endif
+
     @endforeach
 @endforeach
 </body>
