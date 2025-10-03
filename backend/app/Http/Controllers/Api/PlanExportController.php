@@ -100,7 +100,8 @@ class PlanExportController extends Controller
                 ];
             };
 
-            foreach ($groups as $teamId => $acts) {
+            // --- Sortierung nach Team-ID ---
+            foreach ($groups->sortKeys() as $teamId => $acts) {
                 $acts = $acts->sortBy('start_time');
                 $firstAct = $acts->first();
                 $programName = $firstAct->activity_first_program_name ?? 'Alles';
@@ -128,6 +129,9 @@ class PlanExportController extends Controller
                     'rows'      => $acts->map($mapRow)->values()->all(),
                 ];
             }
+
+
+
         }
 
         if (empty($programGroups)) {
