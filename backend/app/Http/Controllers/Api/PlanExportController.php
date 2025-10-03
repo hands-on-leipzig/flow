@@ -49,40 +49,60 @@ class PlanExportController extends Controller
                 continue;
             }
 
-            // Helper: Activity → Row
-            $mapRow = function ($a) {
-                $assign   = '–';
-                $teamName = null;
-
-                if (!empty($a->lane)) {
-                    $assign   = 'Jury ' . $a->lane;
-                    $teamName = $a->jury_team_name ?? null;
-                } elseif (!empty($a->table_1)) {
-                    $assign   = 'Tisch ' . $a->table_1;
-                    $teamName = $a->table_1_team_name ?? null;
-                } elseif (!empty($a->table_2)) {
-                    $assign   = 'Tisch ' . $a->table_2;
-                    $teamName = $a->table_2_team_name ?? null;
+            // === Schritt 1: Activities "entfalten" (Lane/Table1/Table2 einzeln) ===
+            $expanded = collect();
+            foreach ($activities as $a) {
+                if (!empty($a->lane) && !empty($a->team)) {
+                    $clone = clone $a;
+                    $clone->team      = $a->team;
+                    $clone->team_name = $a->jury_team_name;
+                    $clone->assign    = 'Jury ' . $a->lane;
+                    $expanded->push($clone);
+                }
+                if (!empty($a->table_1) && !empty($a->table_1_team)) {
+                    $clone = clone $a;
+                    $clone->team      = $a->table_1_team;
+                    $clone->team_name = $a->table_1_team_name;
+                    $clone->assign    = 'Tisch ' . $a->table_1;
+                    $expanded->push($clone);
+                }
+                if (!empty($a->table_2) && !empty($a->table_2_team)) {
+                    $clone = clone $a;
+                    $clone->team      = $a->table_2_team;
+                    $clone->team_name = $a->table_2_team_name;
+                    $clone->assign    = 'Tisch ' . $a->table_2;
+                    $expanded->push($clone);
                 }
 
+                // Falls gar kein Team dran hängt → neutrale Zeile
+                if (empty($a->lane) && empty($a->table_1) && empty($a->table_2)) {
+                    $clone = clone $a;
+                    $clone->team      = null;
+                    $clone->team_name = null;
+                    $clone->assign    = '–';
+                    $expanded->push($clone);
+                }
+            }
+
+            // === Schritt 2: Nach Team gruppieren ===
+            $groups = $expanded->groupBy('team');
+
+            // === Schritt 3: Map-Funktion für Tabellenzeilen ===
+            $mapRow = function ($a) {
                 return [
-                    'start_hm' => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
-                    'end_hm'   => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                    'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
+                    'end_hm'   => Carbon::parse($a->end_time)->format('H:i'),
                     'activity' => $a->activity_atd_name ?? $a->activity_name ?? '—',
-                    'assign'   => $assign,
+                    'assign'   => $a->assign,
                     'room'     => $a->room_name ?? $a->room_type_name ?? '–',
                     'team_id'  => $a->team,
-                    'team_name'=> $teamName,
+                    'team_name'=> $a->team_name,
                 ];
             };
-
-            // Gruppieren nach Teamnummer
-            $groups = $activities->groupBy('team');
 
             foreach ($groups as $teamId => $acts) {
                 $acts = $acts->sortBy('start_time');
                 $firstAct = $acts->first();
-
                 $programName = $firstAct->activity_first_program_name ?? 'Alles';
 
                 if (!isset($programGroups[$programName])) {
@@ -95,18 +115,14 @@ class PlanExportController extends Controller
                     ];
                 }
 
-                // Label bestimmen
+                // Teamlabel bestimmen
                 if ($teamId === null) {
                     $teamLabel = 'Alle Teams';
                 } else {
-                    $teamName = $firstAct->jury_team_name
-                        ?? $firstAct->table_1_team_name
-                        ?? $firstAct->table_2_team_name;
-
+                    $teamName = $acts->first()->team_name ?? null;
                     $teamLabel = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
                 }
 
-                // Rowset einsortieren
                 $programGroups[$programName][$role->id]['teams'][] = [
                     'teamLabel' => $teamLabel,
                     'rows'      => $acts->map($mapRow)->values()->all(),
@@ -122,7 +138,7 @@ class PlanExportController extends Controller
             'programGroups' => $programGroups,
         ])->render();
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)
+        $pdf = Pdf::loadHTML($html)
             ->setPaper('a4', 'portrait');
 
         return $pdf->download("Plan_$planId.pdf");
