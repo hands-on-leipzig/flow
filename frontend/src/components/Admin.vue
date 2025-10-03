@@ -6,6 +6,7 @@ import Quality from '@/components/molecules/Quality.vue'
 import Statistics from '@/components/molecules/Statistics.vue'
 import MParameter from '@/components/molecules/MParameter.vue'
 import NowAndNext from '@/components/molecules/NowAndNext.vue'
+import UserRegionalPartnerRelations from '@/components/molecules/UserRegionalPartnerRelations.vue'
 import '@vueform/multiselect/themes/default.css'
 
 const activeTab = ref('statistics')
@@ -123,6 +124,14 @@ fetchConditions()
       </button>
       <button
           class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+          :class="{ 'bg-white font-semibold shadow': activeTab === 'user-regional-partners' }"
+          @click="activeTab = 'user-regional-partners'"
+      >
+        👥 User-Regional Partner Relations
+      </button>
+
+      <button
+          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
           :class="{ 'bg-white font-semibold shadow': activeTab === 'sync' }"
           @click="activeTab = 'sync'"
       >
@@ -202,6 +211,11 @@ fetchConditions()
         <h2 class="text-xl font-bold mb-4">Visibility</h2>
         <object class="w-full h-screen"
                 data="https://dev.planning.hands-on-technology.org/output/visibility.cgi"></object>
+      </div>
+
+      <div v-if="activeTab === 'user-regional-partners'">
+        <h2 class="text-xl font-bold mb-4">User-Regional Partner Relations</h2>
+        <UserRegionalPartnerRelations />
       </div>
 
       <div v-if="activeTab === 'sync'">

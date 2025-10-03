@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\StatisticController;
+use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\PlanExportController;
@@ -175,8 +176,18 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/{id}', [MParameterController::class, 'updateMparameter']);
     });
 
+    // User-Regional Partner relations admin routes
+    Route::prefix('admin/user-regional-partners')->group(function () {
+        Route::get('/', [UserRegionalPartnerController::class, 'index']);
+        Route::get('/statistics', [UserRegionalPartnerController::class, 'statistics']);
+        Route::get('/selection-data', [UserRegionalPartnerController::class, 'getSelectionData']);
+        Route::post('/', [UserRegionalPartnerController::class, 'store']);
+        Route::delete('/', [UserRegionalPartnerController::class, 'destroy']);
+    });
+
     // DRAHT controller
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
+    
     // DRAHT admin routes
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
