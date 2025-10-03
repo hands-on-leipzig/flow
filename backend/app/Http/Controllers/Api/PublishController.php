@@ -232,7 +232,6 @@ class PublishController extends Controller
 
 private function buildEventHtml($event, bool $wifi = false): string
 {
-
     // Passwort entschlüsseln
     $wifiPassword = '';
     if (!empty($event->wifi_password)) {
@@ -243,64 +242,15 @@ private function buildEventHtml($event, bool $wifi = false): string
         }
     }
 
-    // === Mittelteil HTML aufbauen ===
-    $qr_plan = '
-        <div style="margin-top: 10px; font-size: 20px; color: #333;">Online Zeitplan</div>
-        <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
-        <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>';
+    // Mini-Blade für den Mittelteil rendern
+    $contentHtml = view('pdf.content.QR_codes', [
+        'event'        => $event,
+        'wifi'         => $wifi,
+        'wifiPassword' => $wifiPassword,
+    ])->render();
 
-    $contentHtml = '';
-
-    if ($wifi && !empty($event->wifi_ssid) && !empty($event->wifi_qrcode)) {
-
-        $wifiBase64 = $event->wifi_qrcode;
-
-        $wifiInstructionsHtml = '';
-        if (!empty($event->wifi_instruction)) {
-            $wifiInstructionsHtml =
-                '<div style="margin:8px auto 0 auto;
-                            max-width:200px;
-                            border:1px solid #ccc;
-                            border-radius:6px;
-                            padding:6px;
-                            font-size:12px;
-                            color:#555;
-                            text-align:left;
-                            line-height:1.3;">'
-                . nl2br(e(trim($event->wifi_instruction))) .
-                '</div>';
-        }
-
-        $contentHtml .= '
-            <table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 40px;">
-                <tr>
-                    <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
-                        ' . $qr_plan . '
-                    </td>
-                    <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
-                        <div style="margin-top: 10px; font-size: 20px; color: #333;">
-                            Kostenloses WLAN
-                        </div>
-                        <img src="data:image/png;base64,' . $wifiBase64 . '" style="width:200px; height:200px;" />
-                        <div style="margin-top: 10px; font-size: 14px; color: #333;">
-                            SSID: ' . e($event->wifi_ssid) . '<br/>' .
-                            (!empty($wifiPassword)
-                                ? 'Passwort: ' . e($wifiPassword)
-                                : 'Kein Passwort erforderlich') . '
-                        </div>
-                        ' . $wifiInstructionsHtml . '
-                    </td>
-                </tr>
-            </table>';
-    } else {
-        $contentHtml .= '
-            <div style="text-align: center; margin-bottom: 40px;">' 
-                . $qr_plan .
-            '</div>';
-    }
-
-    // === Layout-Service nutzen ===
-    $layout = app(PdfLayoutService::class);
+    // Layout-Service nutzen
+    $layout = app(\App\Services\PdfLayoutService::class);
     return $layout->renderLayout($event, $contentHtml, 'Event Sheet');
 }
 

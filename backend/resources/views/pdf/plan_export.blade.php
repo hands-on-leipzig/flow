@@ -31,28 +31,28 @@
         {{-- Falls Teams existieren --}}
         @if (!empty($roleBlock['teams']))
             @foreach ($roleBlock['teams'] as $teamTable)
-                @include('pdf.roles.team', ['teamTable' => $teamTable])
+                @include('pdf.plan_export.team', ['teamTable' => $teamTable])
             @endforeach
         @endif
 
         {{-- Falls Lanes existieren --}}
         @if (!empty($roleBlock['lanes']))
             @foreach ($roleBlock['lanes'] as $laneTable)
-                @include('pdf.roles.lane', ['laneTable' => $laneTable])
+                @include('pdf.plan_export.lane', ['laneTable' => $laneTable])
             @endforeach
         @endif
 
         {{-- Falls Tables existieren --}}
         @if (!empty($roleBlock['tables']))
             @foreach ($roleBlock['tables'] as $tableBlock)
-                @include('pdf.roles.table', ['tableBlock' => $tableBlock])
+                @include('pdf.plan_export.table', ['tableBlock' => $tableBlock])
             @endforeach
         @endif
 
         {{-- Falls General-Block existiert --}}
         @if (!empty($roleBlock['general']))
             @foreach ($roleBlock['general'] as $generalBlock)
-                @include('pdf.roles.general', ['generalBlock' => $generalBlock])
+                @include('pdf.plan_export.general', ['generalBlock' => $generalBlock])
             @endforeach
         @endif
 
