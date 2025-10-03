@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\PublishController;
+use App\Http\Controllers\Api\PlanExportController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -79,6 +80,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/create', [PlanController::class, 'create']);
         Route::get('/event/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']);
         Route::post('/sync-team-plan/{eventId}', [PlanController::class, 'syncTeamPlanForEvent']);
+        Route::delete('/{id}', [PlanController::class, 'delete']);
     });
 
     // Preview controller
@@ -105,6 +107,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/{planId}/generate-lite', [PlanGeneratorController::class, 'generateLite']);
     });
 
+    // PlanExport controller
+    Route::get('/export/pdf/{planId}', [PlanExportController::class, 'exportPdf']);
 
     // PlanParameter controller
     // Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
