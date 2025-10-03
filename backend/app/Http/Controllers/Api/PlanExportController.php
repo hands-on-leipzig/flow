@@ -77,7 +77,9 @@ class PlanExportController extends Controller
         // Formatierungen
         $eventName = $event->name;
         $eventDate = Carbon::parse($event->date)->format('d.m.Y');
-        $lastUpdated = Carbon::parse($plan->last_change)->format('d.m.Y H:i');
+        $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
+            ->timezone('Europe/Berlin')
+            ->format('d.m.Y H:i');
 
         $html = view('pdf.plan_export', [
             'programGroups' => $programGroups,
