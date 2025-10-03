@@ -30,9 +30,6 @@ class PlanExportController extends Controller
         $programGroups = [];
 
         foreach ($roles as $role) {
-            if ($role->differentiation_parameter !== 'team') {
-                continue;
-            }
 
             $activities = $this->activityFetcher->fetchActivities(
                 plan: $planId,
@@ -48,82 +45,18 @@ class PlanExportController extends Controller
                 continue;
             }
 
-            // === Schritt 1: Activities entfalten (Lane/Table1/Table2 einzeln) ===
-            $expanded   = collect();
-            $neutral    = collect(); // neutrale Zeilen merken
-            foreach ($activities as $a) {
-                if (!empty($a->lane) && !empty($a->team)) {
-                    $clone = clone $a;
-                    $clone->team      = $a->team;
-                    $clone->team_name = $a->jury_team_name;
-                    $clone->assign    = 'Jury ' . $a->lane;
-                    $expanded->push($clone);
-                }
-                if (!empty($a->table_1) && !empty($a->table_1_team)) {
-                    $clone = clone $a;
-                    $clone->team      = $a->table_1_team;
-                    $clone->team_name = $a->table_1_team_name;
-                    $clone->assign    = 'Tisch ' . $a->table_1;
-                    $expanded->push($clone);
-                }
-                if (!empty($a->table_2) && !empty($a->table_2_team)) {
-                    $clone = clone $a;
-                    $clone->team      = $a->table_2_team;
-                    $clone->team_name = $a->table_2_team_name;
-                    $clone->assign    = 'Tisch ' . $a->table_2;
-                    $expanded->push($clone);
-                }
+            switch ($role->differentiation_parameter) {
+                case 'team':
+                    $this->buildTeamBlock($programGroups, $activities, $role);
+                    break;
 
-                // falls gar kein Team dran hängt → in neutral sammeln
-                if (empty($a->lane) && empty($a->table_1) && empty($a->table_2)) {
-                    $clone = clone $a;
-                    $clone->team      = null;
-                    $clone->team_name = null;
-                    $clone->assign    = '–';
-                    $neutral->push($clone);
-                }
-            }
+                case 'lane':
+                    $this->buildLaneBlock($programGroups, $activities, $role);
+                    break;
 
-            // === Schritt 2: Nach Team gruppieren ===
-            $groups = $expanded->groupBy('team');
-
-            // === Schritt 3: Map-Funktion ===
-            $mapRow = function ($a) {
-                return [
-                    'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
-                    'end_hm'   => Carbon::parse($a->end_time)->format('H:i'),
-                    'activity' => $a->activity_atd_name ?? $a->activity_name ?? '—',
-                    'assign'   => $a->assign,
-                    'room'     => $a->room_name ?? $a->room_type_name ?? '–',
-                    'team_id'  => $a->team,
-                    'team_name'=> $a->team_name,
-                ];
-            };
-
-            // --- Sortierung nach Team-ID ---
-            foreach ($groups->sortKeys() as $teamId => $acts) {
-                // neutrales reingeben
-                $allActs = $acts->concat($neutral)->sortBy('start_time');
-                $firstAct = $allActs->first();
-                $programName = $firstAct->activity_first_program_name ?? 'Alles';
-
-                if (!isset($programGroups[$programName])) {
-                    $programGroups[$programName] = [];
-                }
-                if (!isset($programGroups[$programName][$role->id])) {
-                    $programGroups[$programName][$role->id] = [
-                        'role'  => $role->name,
-                        'teams' => []
-                    ];
-                }
-
-                $teamName  = $acts->first()->team_name ?? null;
-                $teamLabel = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
-
-                $programGroups[$programName][$role->id]['teams'][] = [
-                    'teamLabel' => $teamLabel,
-                    'rows'      => $allActs->map($mapRow)->values()->all(),
-                ];
+                default:
+                    // noch nicht implementiert
+                    break;
             }
         }
 
@@ -138,5 +71,164 @@ class PlanExportController extends Controller
         $pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
 
         return $pdf->download("Plan_$planId.pdf");
+    }
+
+    /**
+     * Block für Team-Differenzierung
+     */
+    private function buildTeamBlock(array &$programGroups, $activities, $role): void
+    {
+        // === Schritt 1: Activities entfalten (Lane/Table1/Table2 einzeln) ===
+        $expanded   = collect();
+        $neutral    = collect(); // neutrale Zeilen merken
+        foreach ($activities as $a) {
+            if (!empty($a->lane) && !empty($a->team)) {
+                $clone = clone $a;
+                $clone->team      = $a->team;
+                $clone->team_name = $a->jury_team_name;
+                $clone->assign    = 'Jury ' . $a->lane;
+                $expanded->push($clone);
+            }
+            if (!empty($a->table_1) && !empty($a->table_1_team)) {
+                $clone = clone $a;
+                $clone->team      = $a->table_1_team;
+                $clone->team_name = $a->table_1_team_name;
+                $clone->assign    = 'Tisch ' . $a->table_1;
+                $expanded->push($clone);
+            }
+            if (!empty($a->table_2) && !empty($a->table_2_team)) {
+                $clone = clone $a;
+                $clone->team      = $a->table_2_team;
+                $clone->team_name = $a->table_2_team_name;
+                $clone->assign    = 'Tisch ' . $a->table_2;
+                $expanded->push($clone);
+            }
+
+            // falls gar kein Team dran hängt → in neutral sammeln
+            if (empty($a->lane) && empty($a->table_1) && empty($a->table_2)) {
+                $clone = clone $a;
+                $clone->team      = null;
+                $clone->team_name = null;
+                $clone->assign    = '–';
+                $neutral->push($clone);
+            }
+        }
+
+        // === Schritt 2: Nach Team gruppieren ===
+        $groups = $expanded->groupBy('team');
+
+        // === Schritt 3: Map-Funktion ===
+        $mapRow = function ($a) {
+            return [
+                'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
+                'end_hm'   => Carbon::parse($a->end_time)->format('H:i'),
+                'activity' => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'assign'   => $a->assign,
+                'room'     => $a->room_name ?? $a->room_type_name ?? '–',
+                'team_id'  => $a->team,
+                'team_name'=> $a->team_name,
+            ];
+        };
+
+        // --- Sortierung nach Team-ID ---
+        foreach ($groups->sortKeys() as $teamId => $acts) {
+            // neutrales reingeben
+            $allActs = $acts->concat($neutral)->sortBy('start_time');
+            $firstAct = $allActs->first();
+            $programName = $firstAct->activity_first_program_name ?? 'Alles';
+
+            if (!isset($programGroups[$programName])) {
+                $programGroups[$programName] = [];
+            }
+            if (!isset($programGroups[$programName][$role->id])) {
+                $programGroups[$programName][$role->id] = [
+                    'role'  => $role->name,
+                    'teams' => []
+                ];
+            }
+
+            $teamName  = $acts->first()->team_name ?? null;
+            $teamLabel = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
+
+            $programGroups[$programName][$role->id]['teams'][] = [
+                'teamLabel' => $teamLabel,
+                'rows'      => $allActs->map($mapRow)->values()->all(),
+            ];
+        }
+    }
+
+    /**
+     * Block für Lane-Differenzierung (Dummy)
+     */
+
+    private function buildLaneBlock(array &$programGroups, $activities, $role): void
+    {
+        // === Schritt 1: Activities entfalten (nur Lanes) ===
+        $expanded = collect();
+        $neutral  = collect();
+
+        foreach ($activities as $a) {
+            if (!empty($a->lane) && !empty($a->team)) {
+                $clone = clone $a;
+                $clone->lane      = $a->lane;
+                $clone->team_id   = $a->team;
+                $clone->team_name = $a->jury_team_name;
+                $clone->assign    = 'Jury ' . $a->lane;
+                $expanded->push($clone);
+            }
+
+            // Falls keine Lane → neutral
+            if (empty($a->lane)) {
+                $clone = clone $a;
+                $clone->lane      = null;
+                $clone->team_id   = null;
+                $clone->team_name = null;
+                $clone->assign    = '–';
+                $neutral->push($clone);
+            }
+        }
+
+        // === Schritt 2: Gruppieren nach Lane ===
+        $groups = $expanded->groupBy('lane');
+
+        // === Schritt 3: Map-Funktion ===
+        $mapRow = function ($a) {
+            $teamLabel = $a->team_id
+                ? ('Team ' . $a->team_id . ($a->team_name ? ' – ' . $a->team_name : ''))
+                : '–';
+
+            return [
+                'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
+                'end_hm'   => Carbon::parse($a->end_time)->format('H:i'),
+                'activity' => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'assign'   => $a->assign, // Jury X
+                'room'     => $a->room_name ?? $a->room_type_name ?? '–',
+                'team'     => $teamLabel,
+            ];
+        };
+
+        // === Schritt 4: Iteration über Lanes ===
+        foreach ($groups->sortKeys() as $laneId => $acts) {
+            $allActs     = $acts->concat($neutral)->sortBy('start_time');
+            $firstAct    = $allActs->first();
+            $programName = $firstAct->activity_first_program_name ?? 'Alles';
+
+            if (!isset($programGroups[$programName])) {
+                $programGroups[$programName] = [];
+            }
+            if (!isset($programGroups[$programName][$role->id])) {
+                $programGroups[$programName][$role->id] = [
+                    'role'  => $role->name,
+                    'lanes' => []
+                ];
+            }
+
+            $juryLabel = 'Jury ' . $laneId;
+
+            $programGroups[$programName][$role->id]['lanes'][] = [
+                'juryLabel' => $juryLabel,
+                'rows'      => $allActs->map($mapRow)->values()->all(),
+            ];
+        }
     }
 }

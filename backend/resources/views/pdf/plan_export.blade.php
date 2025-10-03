@@ -18,14 +18,24 @@
 <h1 style="font-size:18px; margin-bottom:20px;">Plan Export</h1>
 
 @foreach ($programGroups as $programName => $roles)
-    <h1 style="font-size:18px; margin-top:25px;">Programm: {{ $programName }}</h1>
+    <h1 style="font-size:18px; margin-top:25px;">{{ $programName }}</h1>
 
     @foreach ($roles as $roleBlock)
         <h2 style="font-size:16px; margin-top:20px;">{{ $roleBlock['role'] }}</h2>
 
-        @foreach ($roleBlock['teams'] as $teamTable)
-            @include('pdf.roles.team', ['teamTable' => $teamTable])
-        @endforeach
+        {{-- Falls Teams existieren --}}
+        @if (!empty($roleBlock['teams']))
+            @foreach ($roleBlock['teams'] as $teamTable)
+                @include('pdf.roles.team', ['teamTable' => $teamTable])
+            @endforeach
+        @endif
+
+        {{-- Falls Lanes existieren --}}
+        @if (!empty($roleBlock['lanes']))
+            @foreach ($roleBlock['lanes'] as $laneTable)
+                @include('pdf.roles.lane', ['laneTable' => $laneTable])
+            @endforeach
+        @endif
     @endforeach
 @endforeach
 </body>
