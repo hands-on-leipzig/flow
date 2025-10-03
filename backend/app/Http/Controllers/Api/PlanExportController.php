@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MRole;
+use App\Models\Plan;
+use App\Models\Event;
 use App\Services\ActivityFetcherService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
@@ -68,9 +70,14 @@ class PlanExportController extends Controller
             return response()->json(['error' => 'Keine Aktivitäten gefunden'], 404);
         }
 
-        $eventName = "Regionalturnier Walldorf";   // z. B. aus DB holen
-        $eventDate = "2025-11-17";                 // z. B. Startdatum
-        $lastUpdated = now()->format('d.m.Y H:i'); // oder Timestamp aus Plan/DB
+        // Plan + Event laden
+        $plan = Plan::findOrFail($planId);
+        $event = Event::findOrFail($plan->event);
+
+        // Formatierungen
+        $eventName = $event->name;
+        $eventDate = Carbon::parse($event->date)->format('d.m.Y');
+        $lastUpdated = Carbon::parse($plan->last_change)->format('d.m.Y H:i');
 
         $html = view('pdf.plan_export', [
             'programGroups' => $programGroups,
