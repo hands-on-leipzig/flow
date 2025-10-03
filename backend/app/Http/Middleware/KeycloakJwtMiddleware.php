@@ -20,6 +20,12 @@ class KeycloakJwtMiddleware
 
     public function handle(Request $request, Closure $next)
     {
+        Log::info("KeycloakJwtMiddleware called", [
+            'path' => $request->path(),
+            'method' => $request->method(),
+            'has_auth_header' => $request->hasHeader('Authorization')
+        ]);
+        
         $authHeader = $request->header('Authorization');
 
         if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
@@ -79,7 +85,38 @@ class KeycloakJwtMiddleware
 
                 // Update last_login timestamp for existing users
                 if (!$user->wasRecentlyCreated) {
-                    $user->update(['last_login' => now()]);
+                    Log::info("Updating last_login for existing user", [
+                        'user_id' => $user->id,
+                        'subject' => $user->subject,
+                        'old_last_login' => $user->last_login,
+                        'new_last_login' => now(),
+                        'was_recently_created' => $user->wasRecentlyCreated,
+                        'in_transaction' => \DB::transactionLevel() > 0
+                    ]);
+                    
+                    try {
+                        $updateResult = $user->update(['last_login' => now()]);
+                        
+                        Log::info("Update result", [
+                            'user_id' => $user->id,
+                            'update_success' => $updateResult,
+                            'last_login_after_update' => $user->fresh()->last_login,
+                            'user_dirty' => $user->isDirty(),
+                            'user_changes' => $user->getChanges()
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error("Failed to update last_login", [
+                            'user_id' => $user->id,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
+                } else {
+                    Log::info("User was recently created, skipping last_login update", [
+                        'user_id' => $user->id,
+                        'subject' => $user->subject,
+                        'last_login' => $user->last_login
+                    ]);
                 }
 
                 // Log user creation/authentication
