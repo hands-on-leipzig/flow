@@ -230,29 +230,29 @@ class PublishController extends Controller
 
 
 
-private function buildEventHtml($event, bool $wifi = false): string
-{
-    // Passwort entschlüsseln
-    $wifiPassword = '';
-    if (!empty($event->wifi_password)) {
-        try {
-            $wifiPassword = Crypt::decryptString($event->wifi_password);
-        } catch (\Exception $e) {
-            $wifiPassword = $event->wifi_password;
+    private function buildEventHtml($event, bool $wifi = false): string
+    {
+        // Passwort entschlüsseln
+        $wifiPassword = '';
+        if (!empty($event->wifi_password)) {
+            try {
+                $wifiPassword = Crypt::decryptString($event->wifi_password);
+            } catch (\Exception $e) {
+                $wifiPassword = $event->wifi_password;
+            }
         }
+
+        // Mini-Blade für den Mittelteil rendern
+        $contentHtml = view('pdf.content.QR_codes', [
+            'event'        => $event,
+            'wifi'         => $wifi,
+            'wifiPassword' => $wifiPassword,
+        ])->render();
+
+        // Layout-Service nutzen
+        $layout = app(\App\Services\PdfLayoutService::class);
+        return $layout->renderLayout($event, $contentHtml, 'Event Sheet');
     }
-
-    // Mini-Blade für den Mittelteil rendern
-    $contentHtml = view('pdf.content.QR_codes', [
-        'event'        => $event,
-        'wifi'         => $wifi,
-        'wifiPassword' => $wifiPassword,
-    ])->render();
-
-    // Layout-Service nutzen
-    $layout = app(\App\Services\PdfLayoutService::class);
-    return $layout->renderLayout($event, $contentHtml, 'Event Sheet');
-}
 
 
     // Informationen fürs Volk ...

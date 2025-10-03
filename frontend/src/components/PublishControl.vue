@@ -506,155 +506,171 @@ async function downloadOfflinePdf() {
 
     <!-- Während der Veranstaltung -->
     <div class="rounded-xl shadow bg-white p-6 space-y-4">
-      <h2 class="text-lg font-semibold mb-4">Online - Während der Veranstaltung</h2>
+      <h2 class="text-lg font-semibold mb-4">Während der Veranstaltung</h2>
 
       <div class="flex flex-col lg:flex-row gap-6">
-        <!-- Linke Box: fünf QR-Bereiche -->
-        <div class="flex-1 rounded-xl shadow bg-white p-6">
-          <h3 class="text-lg font-semibold mb-4">QR Codes zum Online-Plan und WLAN-Zugang zum Aushängen vor Ort</h3>
+        
+        <div class="flex flex-col lg:flex-row gap-6">
 
-          <div class="flex flex-row flex-wrap gap-6 justify-start">
+          <!-- QR Codes als PDF -->
+          <div class="flex-1 rounded-xl shadow bg-white p-6">
+            <h3 class="text-lg font-semibold mb-4">
+              QR Codes zum Online-Plan und WLAN-Zugang zum Aushängen vor Ort
+            </h3>
 
-            <!-- 1: QR Plan PNG -->
-            <div class="flex flex-col items-center">
-              <img
-                v-if="publishData?.qrcode"
-                :src="publishData.qrcode"
-                alt="QR Plan"
-                class="mx-auto w-28 h-28"
-              />
-              <button
-                v-if="publishData?.qrcode"
-                class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-                @click="downloadPng(publishData.qrcode, 'FLOW_QR_Code_Plan.png')"
-              >
-                PNG
-              </button>
-            </div>
-
-            <!-- 2: PDF Preview (Plan) -->
-            <div class="flex flex-col items-center">
-              <div class="relative h-28 w-auto aspect-[1.414/1] border">
-                <img
-                  v-if="pdfSinglePreview"
-                  :src="pdfSinglePreview"
-                  alt="PDF Preview"
-                  class="h-full w-full object-contain"
-                />
-              </div>
-              <a v-if="pdfSinglePDF" :href="pdfSinglePDF" download="FLOW_QR_Code_Plan.pdf">
-                <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
-              </a>
-            </div>
-
-            <!-- 3: WLAN Felder -->
-            <div class="rounded-xl shadow bg-white p-4 flex flex-col justify-center">
-              <h3 class="text-sm font-semibold mb-2">WLAN-Zugangsdaten</h3>
-              <div v-if="event" class="space-y-3">
-                <!-- SSID -->
-                <div class="flex items-center gap-3">
-                  <label class="w-20 text-sm text-gray-700">SSID</label>
-                  <input
-                    v-model="event.wifi_ssid"
-                    @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
-                    class="flex-1 border px-3 py-1 rounded text-sm"
-                    type="text"
-                    placeholder="z. B. TH_EVENT_WLAN"
-                  />
-                </div>
-                <!-- Passwort -->
-                <div class="flex items-center gap-3">
-                  <label class="w-20 text-sm text-gray-700">Passwort</label>
-                  <input
-                    v-model="event.wifi_password"
-                    @blur="updateEventField('wifi_password', event.wifi_password)"
-                    class="flex-1 border px-3 py-1 rounded text-sm"
-                    type="text"
-                    placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
-                  />
-                </div>
-                <!-- Weitere Anweisungen -->
-                <div class="flex items-start gap-3">
-                  <label class="w-20 text-sm text-gray-700 mt-1">Hinweise</label>
-                  <textarea
-                    v-model="event.wifi_instruction"
-                    @blur="updateEventField('wifi_instruction', event.wifi_instruction)"
-                    class="flex-1 border px-3 py-1 rounded text-sm"
-                    rows="3"
-                    placeholder="z. B. Code FLL eingebeben und Nutzungbedingungen akzeptieren."
-                  ></textarea>
-                </div>
-              </div>
-            </div>
-
-            <!-- 4: QR Wifi PNG -->
-            <div class="flex flex-col items-center">
-              <template v-if="!event?.wifi_ssid">
-                <!-- Fall 2: SSID leer -->
-                <div class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400">
-                  ?
-                </div>
-              </template>
-              <template v-else-if="loadingWifiQr">
-                <!-- Fall 3a: Update läuft -->
-                <div class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-500">
-                  ⏳
-                </div>
-              </template>
-              <template v-else-if="qrWifiUrl">
-                <!-- Fall 3b: QR vorhanden -->
-                <img
-                  :src="qrWifiUrl"
-                  alt="QR Wifi"
-                  class="mx-auto w-28 h-28"
-                />
-                <button
-                  class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-                  @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
-                >
-                  PNG
-                </button>
-              </template>
-            </div>  
-
-            <!-- 5: PDF Preview (Plan + WiFi) -->
-            <div class="flex flex-col items-center">
-              <template v-if="!event?.wifi_ssid">
-                <!-- Fall 2: SSID leer -->
-                <div class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400">
-                  ?
-                </div>
-              </template>
-              <template v-else-if="loadingWifiQr || loadingPdfDouble">
-                <!-- Fall 3a: Update läuft -->
-                <div class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-500">
-                  ⏳
-                </div>
-              </template>
-              <template v-else-if="pdfDoublePreview">
-                <!-- Fall 3b: Neues PDF da -->
-                <div class="relative h-28 w-auto aspect-[1.414/1] border">
+            <div class="flex flex-col gap-6">
+              <!-- Zeile 1: Plan PNG + PDF -->
+              <div class="flex flex-row gap-6 justify-start">
+                <!-- QR Plan PNG -->
+                <div class="flex flex-col items-center">
                   <img
-                    :src="pdfDoublePreview"
-                    alt="PDF Preview"
-                    class="h-full w-full object-contain"
+                    v-if="publishData?.qrcode"
+                    :src="publishData.qrcode"
+                    alt="QR Plan"
+                    class="mx-auto w-28 h-28"
                   />
+                  <button
+                    v-if="publishData?.qrcode"
+                    class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+                    @click="downloadPng(publishData.qrcode, 'FLOW_QR_Code_Plan.png')"
+                  >
+                    PNG
+                  </button>
                 </div>
-                <button
-                  class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
-                  @click="downloadDoublePdf"
-                >
-                  PDF
-                </button>
-              </template>
+
+                <!-- PDF Preview (Plan) -->
+                <div class="flex flex-col items-center">
+                  <div class="relative h-28 w-auto aspect-[1.414/1] border">
+                    <img
+                      v-if="pdfSinglePreview"
+                      :src="pdfSinglePreview"
+                      alt="PDF Preview"
+                      class="h-full w-full object-contain"
+                    />
+                  </div>
+                  <a v-if="pdfSinglePDF" :href="pdfSinglePDF" download="FLOW_QR_Code_Plan.pdf">
+                    <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm">PDF</button>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Zeile 2: WLAN Felder -->
+              <div class="rounded-xl shadow bg-white p-4 flex flex-col justify-center">
+                <h3 class="text-sm font-semibold mb-2">WLAN-Zugangsdaten</h3>
+                <div v-if="event" class="space-y-3">
+                  <!-- SSID -->
+                  <div class="flex items-center gap-3">
+                    <label class="w-20 text-sm text-gray-700">SSID</label>
+                    <input
+                      v-model="event.wifi_ssid"
+                      @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
+                      class="flex-1 border px-3 py-1 rounded text-sm"
+                      type="text"
+                      placeholder="z. B. TH_EVENT_WLAN"
+                    />
+                  </div>
+                  <!-- Passwort -->
+                  <div class="flex items-center gap-3">
+                    <label class="w-20 text-sm text-gray-700">Passwort</label>
+                    <input
+                      v-model="event.wifi_password"
+                      @blur="updateEventField('wifi_password', event.wifi_password)"
+                      class="flex-1 border px-3 py-1 rounded text-sm"
+                      type="text"
+                      placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
+                    />
+                  </div>
+                  <!-- Weitere Anweisungen -->
+                  <div class="flex items-start gap-3">
+                    <label class="w-20 text-sm text-gray-700 mt-1">Hinweise</label>
+                    <textarea
+                      v-model="event.wifi_instruction"
+                      @blur="updateEventField('wifi_instruction', event.wifi_instruction)"
+                      class="flex-1 border px-3 py-1 rounded text-sm"
+                      rows="3"
+                      placeholder="z. B. Code FLL eingebeben und Nutzungbedingungen akzeptieren."
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Zeile 3: WLAN PNG + PDF -->
+              <div class="flex flex-row gap-6 justify-start">
+                <!-- QR Wifi PNG -->
+                <div class="flex flex-col items-center">
+                  <template v-if="!event?.wifi_ssid">
+                    <div
+                      class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
+                    >
+                      ?
+                    </div>
+                  </template>
+                  <template v-else-if="loadingWifiQr">
+                    <div
+                      class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-500"
+                    >
+                      ⏳
+                    </div>
+                  </template>
+                  <template v-else-if="qrWifiUrl">
+                    <img
+                      :src="qrWifiUrl"
+                      alt="QR Wifi"
+                      class="mx-auto w-28 h-28"
+                    />
+                    <button
+                      class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+                      @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
+                    >
+                      PNG
+                    </button>
+                  </template>
+                </div>
+
+                <!-- PDF Preview (Plan + WiFi) -->
+                <div class="flex flex-col items-center">
+                  <template v-if="!event?.wifi_ssid">
+                    <div
+                      class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400"
+                    >
+                      ?
+                    </div>
+                  </template>
+                  <template v-else-if="loadingWifiQr || loadingPdfDouble">
+                    <div
+                      class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-500"
+                    >
+                      ⏳
+                    </div>
+                  </template>
+                  <template v-else-if="pdfDoublePreview">
+                    <div class="relative h-28 w-auto aspect-[1.414/1] border">
+                      <img
+                        :src="pdfDoublePreview"
+                        alt="PDF Preview"
+                        class="h-full w-full object-contain"
+                      />
+                    </div>
+                    <button
+                      class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+                      @click="downloadDoublePdf"
+                    >
+                      PDF
+                    </button>
+                  </template>
+                </div>
+              </div>
             </div>
-
-
           </div>
-
         </div>
 
-        <!-- Rechte Box: Karussell -->
+        <!-- Raumbeschilderung -->
+        <div class="w-100 rounded-xl shadow bg-white p-6 flex flex-col items-center">
+          <h3 class="text-lg font-semibold mb-4">Raumbeschilderung</h3>
+          
+        </div>        
+
+        <!-- Karussell -->
         <div class="w-100 rounded-xl shadow bg-white p-6 flex flex-col items-center">
           <h3 class="text-lg font-semibold mb-4">Präsentation über Bildschirme</h3>
           
@@ -678,16 +694,9 @@ async function downloadOfflinePdf() {
           </div>
         </div>
 
-      </div>
-    </div>
-
-    <!-- Offline Box -->
-    <div class="rounded-xl shadow bg-white p-6 space-y-4">
-      <h2 class="text-lg font-semibold mb-4">Offline - PDF-Download</h2>
-
-      <div class="flex flex-col lg:flex-row gap-6">
-        <!-- Linke Box: Text + Button -->
-        <div class="w-2/5 rounded-xl shadow bg-white p-6 flex flex-col text-left">
+        <!-- Notfallplan -->
+        <div class="w-100 rounded-xl shadow bg-white p-6 flex flex-col items-center">
+          
           <h3 class="text-lg font-semibold mb-4">
             Der ganze Plan in einem Dokument
           </h3>
@@ -708,8 +717,8 @@ async function downloadOfflinePdf() {
           </div>
         </div>
 
-        <!-- Rechte Box: noch leer -->
-        <div class="w-3/5"></div>
+
+
       </div>
     </div>
 
