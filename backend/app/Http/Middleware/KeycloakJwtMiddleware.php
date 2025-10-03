@@ -72,9 +72,15 @@ class KeycloakJwtMiddleware
                         'subject' => $claims['sub'] ?? null,
                         'password' => null, // No password needed for JWT authentication
                         'selection_event' => null,
-                        'selection_regional_partner' => null
+                        'selection_regional_partner' => null,
+                        'last_login' => now()
                     ]
                 );
+
+                // Update last_login timestamp for existing users
+                if (!$user->wasRecentlyCreated) {
+                    $user->update(['last_login' => now()]);
+                }
 
                 // Log user creation/authentication
                 if ($user->wasRecentlyCreated) {
@@ -82,13 +88,15 @@ class KeycloakJwtMiddleware
                         'user_id' => $user->id,
                         'subject' => $user->subject,
                         'roles' => $roles,
-                        'environment' => $env
+                        'environment' => $env,
+                        'last_login' => $user->last_login
                     ]);
                 } else {
                     Log::debug("Existing user authenticated", [
                         'user_id' => $user->id,
                         'subject' => $user->subject,
-                        'roles' => $roles
+                        'roles' => $roles,
+                        'last_login' => $user->last_login
                     ]);
                 }
             } catch (\Exception $e) {

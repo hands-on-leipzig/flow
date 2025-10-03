@@ -26,7 +26,8 @@ class User extends Authenticatable
         'subject',
         'password',
         'selection_event',
-        'selection_regional_partner'
+        'selection_regional_partner',
+        'last_login'
     ];
 
     /**
@@ -49,6 +50,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'last_login' => 'datetime',
         ];
     }
 
