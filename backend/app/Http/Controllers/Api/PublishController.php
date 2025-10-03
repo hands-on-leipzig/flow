@@ -416,6 +416,39 @@ class PublishController extends Controller
             true           // freeBlocks
         );
 
+    // Debug: erste 10 Activities inkl. Team-Felder aus dem Fetcher loggen
+collect($activities)->take(10)->values()->each(function ($a, $i) {
+    \Illuminate\Support\Facades\Log::debug('RoomPDF Activity #' . ($i + 1), [
+        // Zeit / Kontext
+        'activity_id'                 => $a->activity_id ?? null,
+        'start_time'                  => $a->start_time ?? null,
+        'end_time'                    => $a->end_time ?? null,
+        'activity_atd_name'           => $a->activity_atd_name ?? ($a->activity_name ?? null),
+        'program'                     => $a->activity_first_program_name ?? ($a->program_name ?? null),
+
+        // Raum
+        'room_id'                     => $a->room_id ?? null,
+        'room_name'                   => $a->room_name ?? null,
+
+        // Jury/Lane + zugeordnete Teamnummer + Name
+        'lane'                        => $a->lane ?? null,
+        'jury_team_number'            => $a->team ?? null,              // fetcher: a.jury_team as team
+        'jury_team_name'              => $a->jury_team_name ?? null,
+
+        // Tisch 1
+        'table_1'                     => $a->table_1 ?? null,
+        'table_1_team'                => $a->table_1_team ?? null,
+        'table_1_team_name'           => $a->table_1_team_name ?? null,
+        'table_1_name'                => $a->table_1_name ?? null,
+
+        // Tisch 2
+        'table_2'                     => $a->table_2 ?? null,
+        'table_2_team'                => $a->table_2_team ?? null,
+        'table_2_team_name'           => $a->table_2_team_name ?? null,
+        'table_2_name'                => $a->table_2_name ?? null,
+    ]);
+});
+
     // Nur Aktivitäten mit echtem Raum
     $activities = collect($activities)->filter(fn($a) => !empty($a->room_name) || !empty($a->room_id));
 
@@ -430,25 +463,56 @@ class PublishController extends Controller
         ->first();
 
     $html = '';
-    $lastRoom = $grouped->keys()->last();
+// Rendern
+$html = '';
 
-    foreach ($grouped as $room => $acts) {
-        $rows = $acts->sortBy('start_time')->map(fn($a) => [
-            'start'     => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
-            'end'       => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-            'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '–',
-            'team'      => $a->team_name ?? $a->team_id ?? '–',
-        ])->values()->all();
+$roomKeys  = $grouped->keys()->values();
+$lastIndex = $roomKeys->count() - 1;
 
-        $html .= view('pdf.content.room_schedule', [
-            'room' => $room,
-            'rows' => $rows,
-        ])->render();
+foreach ($roomKeys as $idx => $room) {
+    $acts = $grouped->get($room)->sortBy('start_time');
 
-        if ($room !== $lastRoom) {
-            $html .= '<div style="page-break-after: always;"></div>';
+    $rows = $acts->map(function ($a) {
+        // Teams aus den fetcher-Feldern zusammensetzen
+        $teamParts = [];
+
+        // Jury (Lane)
+        if (!empty($a->lane) && $a->team !== null) {
+            // Name wenn vorhanden, sonst Nummer
+            $teamParts[] = !empty($a->jury_team_name) ? $a->jury_team_name : (string)$a->team;
         }
+
+        // Tisch 1
+        if (!empty($a->table_1) && $a->table_1_team !== null) {
+            $teamParts[] = !empty($a->table_1_team_name) ? $a->table_1_team_name : (string)$a->table_1_team;
+        }
+
+        // Tisch 2
+        if (!empty($a->table_2) && $a->table_2_team !== null) {
+            $teamParts[] = !empty($a->table_2_team_name) ? $a->table_2_team_name : (string)$a->table_2_team;
+        }
+
+        $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
+
+        return [
+            'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+            'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+            'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+            'team'     => $teamDisplay,
+        ];
+    })->values()->all();
+
+    // Teil-HTML für den Raum (ohne eigene Header/Footer)
+    $html .= view('pdf.content.room_schedule', [
+        'room' => $room,
+        'rows' => $rows,
+    ])->render();
+
+    // Seitenumbruch zwischen Räumen (aber nicht nach dem letzten)
+    if ($idx !== $lastIndex) {
+        $html .= '<div style="page-break-before: always;"></div>';
     }
+}
 
     // Jetzt EIN Layout drumherum bauen
     $layout = app(\App\Services\PdfLayoutService::class);
