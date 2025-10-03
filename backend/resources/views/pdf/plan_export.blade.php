@@ -15,7 +15,12 @@
     </style>
 </head>
 <body>
-<h1 style="font-size:18px; margin-bottom:20px;">Plan Export</h1>
+<h1 style="font-size:18px; margin-bottom:5px;">
+  {{ $eventName }} – {{ $eventDate }}
+</h1>
+<p style="font-size:11px; color:#555; margin-bottom:20px;">
+  Letzte Änderung: {{ $lastUpdated }}
+</p>
 
 @foreach ($programGroups as $programName => $roles)
     <h1 style="font-size:18px; margin-top:25px;">{{ $programName }}</h1>
@@ -26,28 +31,28 @@
         {{-- Falls Teams existieren --}}
         @if (!empty($roleBlock['teams']))
             @foreach ($roleBlock['teams'] as $teamTable)
-                @include('pdf.roles.team', ['teamTable' => $teamTable])
+                @include('pdf.plan_export.team', ['teamTable' => $teamTable])
             @endforeach
         @endif
 
         {{-- Falls Lanes existieren --}}
         @if (!empty($roleBlock['lanes']))
             @foreach ($roleBlock['lanes'] as $laneTable)
-                @include('pdf.roles.lane', ['laneTable' => $laneTable])
+                @include('pdf.plan_export.lane', ['laneTable' => $laneTable])
             @endforeach
         @endif
 
         {{-- Falls Tables existieren --}}
         @if (!empty($roleBlock['tables']))
             @foreach ($roleBlock['tables'] as $tableBlock)
-                @include('pdf.roles.table', ['tableBlock' => $tableBlock])
+                @include('pdf.plan_export.table', ['tableBlock' => $tableBlock])
             @endforeach
         @endif
 
         {{-- Falls General-Block existiert --}}
         @if (!empty($roleBlock['general']))
             @foreach ($roleBlock['general'] as $generalBlock)
-                @include('pdf.roles.general', ['generalBlock' => $generalBlock])
+                @include('pdf.plan_export.general', ['generalBlock' => $generalBlock])
             @endforeach
         @endif
 

@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Services\ActivityFetcherService;
+use App\Services\PdfLayoutService;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Crypt;
 
 use Carbon\Carbon;
 
@@ -21,7 +23,6 @@ use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Logo\Logo;
 
-use Illuminate\Support\Facades\Crypt;
 
 use Barryvdh\DomPDF\Facade\Pdf;        // composer require barryvdh/laravel-dompdf
 
@@ -208,7 +209,16 @@ class PublishController extends Controller
             ]);
 
         // HTML fürs PDF
-        $html = $this->buildEventHtml($event, $wifi);
+        $contentHtml = view('pdf.content.qr_codes', [
+            'event'        => $event,
+            'wifi'         => $wifi,
+            'wifiPassword' => $wifiPassword,
+        ])->render();
+
+        $layout = app(\App\Services\PdfLayoutService::class);
+        $html   = $layout->renderLayout($event, $contentHtml, 'Event Sheet');
+
+        // PDF generieren
         $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
         $pdfData = $pdf->output(); // Binary PDF
 
@@ -225,184 +235,6 @@ class PublishController extends Controller
             'preview' => 'data:image/png;base64,' . base64_encode($pngData),
         ]);
     }
-
-
-    private function buildEventHtml($event, bool $wifi = false): string
-    {
-        // Datum formatieren
-        $formattedDate = '';
-        if (!empty($event->date)) {
-            try {
-                $formattedDate = Carbon::parse($event->date)->format('d.m.Y');
-            } catch (\Exception $e) {
-                $formattedDate = $event->date;
-            }
-        }
-
-        // Passwort entschlüsseln
-        $wifiPassword = '';
-        if (!empty($event->wifi_password)) {
-            try {
-                $wifiPassword = Crypt::decryptString($event->wifi_password);
-            } catch (\Exception $e) {
-                $wifiPassword = $event->wifi_password;
-            }
-        }
-
-        $wifiInstructionsHtml = '';
-        if (!empty($event->wifi_instruction)) {
-            // preserve line breaks; escape HTML
-            $wifiInstructionsHtml =
-                '<div style="margin-top: 10px; font-size: 14px; color: #333; white-space: pre-line;">'
-                . e($event->wifi_instruction)
-                . '</div>';
-        }
-
-        // Explore-Logo laden
-        $exploreLogoPath = public_path('flow/fll_explore_hs.png');
-        $exploreLogoSrc = (file_exists($exploreLogoPath) && !empty($event->event_explore))
-            ? 'data:image/png;base64,' . base64_encode(file_get_contents($exploreLogoPath))
-            : '';
-
-        // Challenge-Logo laden
-        $challengeLogoPath = public_path('flow/fll_challenge_hs.png');
-        $challengeLogoSrc = (file_exists($challengeLogoPath) && !empty($event->event_challenge))
-            ? 'data:image/png;base64,' . base64_encode(file_get_contents($challengeLogoPath))
-            : '';
-
-        // Linke Zelle mit dynamischen Logos
-        $leftLogosHtml = '';
-        if ($exploreLogoSrc) {
-            $leftLogosHtml .= '<img src="'.$exploreLogoSrc.'" style="height:80px; width:auto; margin-right:10px;" />';
-        }
-        if ($challengeLogoSrc) {
-            $leftLogosHtml .= '<img src="'.$challengeLogoSrc.'" style="height:80px; width:auto;" />';
-        }
-
-
-
-        // Logos (aus /public/flow/...) als Base64 einbetten – dompdf-sicher
-        $rightLogoPath = public_path('flow/hot.png');
-
-        $rightLogoSrc = file_exists($rightLogoPath)
-            ? 'data:image/png;base64,' . base64_encode(file_get_contents($rightLogoPath))
-            : '';
-
-
-        $html = '
-        <div style="width: 100%; font-family: sans-serif; text-align: center; padding: 40px;">
-            
-            <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-bottom:30px;">
-            <tr>
-                <td style="width:33%; text-align:left; vertical-align:top;">
-                '.$leftLogosHtml.'
-                </td>
-                <td style="width:34%; text-align:center; vertical-align:top;">
-                    <div style="font-size:20px; margin-bottom:6px; font-weight:normal;">FIRST LEGO League Wettbewerb</div>
-                    <div style="font-size:28px; font-weight:bold;">' . e($event->name) . ' ' . e($formattedDate) . '</div>
-                </td>
-                <td style="width:33%; text-align:right; vertical-align:top;">
-                ' . ($rightLogoSrc ? '<img src="'.$rightLogoSrc.'" style="height:80px; width:auto;" />' : '') . '
-                </td>
-            </tr>
-            </table>';
-
-        // Plan-QR ist immer dabei
-        $qr_plan = '
-            <div style="margin-top: 10px; font-size: 20px; color: #333;">Online Zeitplan</div>
-            <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
-            <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>';
-
-        if ($wifi && !empty($event->wifi_ssid) && !empty($event->wifi_qrcode)) {
-
-            // QR aus DB verwenden
-            $wifiBase64 = $event->wifi_qrcode;
-
-            // Wifi-Instructions als HTML (mit Zeilenumbrüchen, Box <= QR-Breite)
-            $wifiInstructionsHtml = '';
-            if (!empty($event->wifi_instruction)) {
-                $wifiInstructionsHtml =
-                    '<div style="margin:8px auto 0 auto;
-                                max-width:200px;
-                                border:1px solid #ccc;
-                                border-radius:6px;
-                                padding:6px;
-                                font-size:12px;
-                                color:#555;
-                                text-align:left;
-                                line-height:1.3;">'
-                    . nl2br(e(trim($event->wifi_instruction))) .
-                    '</div>';
-            }
-
-            $html .= '
-                <table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 40px;">
-                    <tr>
-                        <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
-                            ' . $qr_plan . '
-                        </td>
-                        <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
-                            <div style="margin-top: 10px; font-size: 20px; color: #333;">
-                                Kostenloses WLAN
-                            </div>
-                            <img src="data:image/png;base64,' . $wifiBase64 . '" style="width:200px; height:200px;" />
-                            <div style="margin-top: 10px; font-size: 14px; color: #333;">
-                                SSID: ' . e($event->wifi_ssid) . '<br/>' .
-                                (!empty($wifiPassword)
-                                    ? 'Passwort: ' . e($wifiPassword)
-                                    : 'Kein Passwort erforderlich') . '
-                            </div>
-                            ' . $wifiInstructionsHtml . '
-                        </td>
-                    </tr>
-                </table>';
-        } else {
-            // Nur Plan-QR
-            $html .= '
-                <div style="text-align: center; margin-bottom: 40px;">' 
-                    . $qr_plan .
-                '</div>';
-        }
-
-        // Logos laden
-        $logos = DB::table('logo')
-            ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
-            ->where('event_logo.event', $event->id)
-            ->select('logo.*')
-            ->get();
-
-        if ($logos->count() > 0) {
-            $html .= '
-                <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
-                    <tr>';
-
-            foreach ($logos as $logo) {
-                // Pfad in storage -> public URL
-                $logoPath = storage_path('app/public/' . $logo->path);
-
-                // Log::info('Logo path: ' . $logoPath);
-
-                if (file_exists($logoPath)) {
-                    $base64 = base64_encode(file_get_contents($logoPath));
-                    $src = 'data:image/png;base64,' . $base64;
-
-                    $html .= '
-                        <td style="text-align: center; vertical-align: middle; padding: 10px;">
-                            <img src="' . $src . '" style="height:80px; max-width:100%; object-fit: contain;" />
-                        </td>';
-                }
-            }
-
-            $html .= '
-                    </tr>
-                </table>';
-        }
-
-        $html .= '</div>'; // Wrapper schließen         
-
-        return $html;
-    }   
-
 
     // Informationen fürs Volk ...
 
@@ -571,5 +403,91 @@ class PublishController extends Controller
         return response()->json($data);
     }
 
+ public function roomSchedulePdf(int $planId)
+{
+    $activities = app(\App\Services\ActivityFetcherService::class)
+        ->fetchActivities(
+            $planId,
+            [6, 10, 14],   // Rollen
+            true,          // includeRooms
+            false,         // includeGroupMeta
+            true,          // includeActivityMeta
+            true,          // includeTeamNames
+            true           // freeBlocks
+        );
+
+    // Nur Aktivitäten mit echtem Raum
+    $activities = collect($activities)->filter(fn($a) => !empty($a->room_name) || !empty($a->room_id));
+
+    // Gruppieren nach Raum
+    $grouped = $activities->groupBy(fn($a) => $a->room_name ?? $a->room_id);
+
+    // Event laden
+    $event = DB::table('event')
+        ->join('plan', 'plan.event', '=', 'event.id')
+        ->where('plan.id', $planId)
+        ->select('event.*')
+        ->first();
+
+
+    $html = '';
+
+    $roomKeys  = $grouped->keys()->values();
+    $lastIndex = $roomKeys->count() - 1;
+
+    foreach ($roomKeys as $idx => $room) {
+        $acts = $grouped->get($room)->sortBy('start_time');
+
+        $rows = $acts->map(function ($a) {
+            // Teams aus den fetcher-Feldern zusammensetzen
+            $teamParts = [];
+
+            // Jury (Lane)
+            if (!empty($a->lane) && $a->team !== null) {
+                // Name wenn vorhanden, sonst Nummer
+                $teamParts[] = !empty($a->jury_team_name) ? $a->jury_team_name : (string)$a->team;
+            }
+
+            // Tisch 1
+            if (!empty($a->table_1) && $a->table_1_team !== null) {
+                $teamParts[] = !empty($a->table_1_team_name) ? $a->table_1_team_name : (string)$a->table_1_team;
+            }
+
+            // Tisch 2
+            if (!empty($a->table_2) && $a->table_2_team !== null) {
+                $teamParts[] = !empty($a->table_2_team_name) ? $a->table_2_team_name : (string)$a->table_2_team;
+            }
+
+            $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
+
+            return [
+                'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+                'team'     => $teamDisplay,
+            ];
+        })->values()->all();
+
+        // Teil-HTML für den Raum (ohne eigene Header/Footer)
+        $html .= view('pdf.content.room_schedule', [
+            'room' => $room,
+            'rows' => $rows,
+        ])->render();
+
+        // Seitenumbruch zwischen Räumen (aber nicht nach dem letzten)
+        if ($idx !== $lastIndex) {
+            $html .= '<div style="page-break-before: always;"></div>';
+        }
+    }
+
+    // Jetzt EIN Layout drumherum bauen
+    $layout = app(\App\Services\PdfLayoutService::class);
+    $finalHtml = $layout->renderLayout($event, $html, 'FLOW Raumbeschilderung');
+
+    // PDF im Querformat erzeugen
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
+
+    return $pdf->download("FLOW_Raumbeschilderung_$planId.pdf");
+}
 
 }
