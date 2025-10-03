@@ -68,8 +68,15 @@ class PlanExportController extends Controller
             return response()->json(['error' => 'Keine Aktivitäten gefunden'], 404);
         }
 
+        $eventName = "Regionalturnier Walldorf";   // z. B. aus DB holen
+        $eventDate = "2025-11-17";                 // z. B. Startdatum
+        $lastUpdated = now()->format('d.m.Y H:i'); // oder Timestamp aus Plan/DB
+
         $html = view('pdf.plan_export', [
             'programGroups' => $programGroups,
+            'eventName'     => $eventName,
+            'eventDate'     => $eventDate,
+            'lastUpdated'   => $lastUpdated,
         ])->render();
 
         $pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');

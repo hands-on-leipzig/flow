@@ -15,7 +15,12 @@
     </style>
 </head>
 <body>
-<h1 style="font-size:18px; margin-bottom:20px;">Plan Export</h1>
+<h1 style="font-size:18px; margin-bottom:5px;">
+  {{ $eventName }} – {{ $eventDate }}
+</h1>
+<p style="font-size:11px; color:#555; margin-bottom:20px;">
+  Letzte Änderung: {{ $lastUpdated }}
+</p>
 
 @foreach ($programGroups as $programName => $roles)
     <h1 style="font-size:18px; margin-top:25px;">{{ $programName }}</h1>
