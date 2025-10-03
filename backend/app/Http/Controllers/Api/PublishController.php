@@ -209,7 +209,16 @@ class PublishController extends Controller
             ]);
 
         // HTML fürs PDF
-        $html = $this->buildEventHtml($event, $wifi);
+        $contentHtml = view('pdf.content.QR_codes', [
+            'event'        => $event,
+            'wifi'         => $wifi,
+            'wifiPassword' => $wifiPassword,
+        ])->render();
+
+        $layout = app(\App\Services\PdfLayoutService::class);
+        $html   = $layout->renderLayout($event, $contentHtml, 'Event Sheet');
+
+        // PDF generieren
         $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
         $pdfData = $pdf->output(); // Binary PDF
 
@@ -226,34 +235,6 @@ class PublishController extends Controller
             'preview' => 'data:image/png;base64,' . base64_encode($pngData),
         ]);
     }
-
-
-
-
-    private function buildEventHtml($event, bool $wifi = false): string
-    {
-        // Passwort entschlüsseln
-        $wifiPassword = '';
-        if (!empty($event->wifi_password)) {
-            try {
-                $wifiPassword = Crypt::decryptString($event->wifi_password);
-            } catch (\Exception $e) {
-                $wifiPassword = $event->wifi_password;
-            }
-        }
-
-        // Mini-Blade für den Mittelteil rendern
-        $contentHtml = view('pdf.content.QR_codes', [
-            'event'        => $event,
-            'wifi'         => $wifi,
-            'wifiPassword' => $wifiPassword,
-        ])->render();
-
-        // Layout-Service nutzen
-        $layout = app(\App\Services\PdfLayoutService::class);
-        return $layout->renderLayout($event, $contentHtml, 'Event Sheet');
-    }
-
 
     // Informationen fürs Volk ...
 
