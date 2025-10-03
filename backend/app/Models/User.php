@@ -23,8 +23,10 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'id',
+        'nick',
         'subject',
-        'password',
+        'dolibarr_id',
+        'lang',
         'selection_event',
         'selection_regional_partner',
         'last_login'

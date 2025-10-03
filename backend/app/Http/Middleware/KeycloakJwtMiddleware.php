@@ -72,11 +72,16 @@ class KeycloakJwtMiddleware
             }
 
             try {
+                $subject = $claims['sub'] ?? null;
+                Log::info("🔍 Looking for user with subject", [
+                    'subject' => $subject,
+                    'subject_exists' => !is_null($subject)
+                ]);
+                
                 $user = User::firstOrCreate(
-                    ['subject' => $claims['sub'] ?? null],
+                    ['subject' => $subject],
                     [
-                        'subject' => $claims['sub'] ?? null,
-                        'password' => null, // No password needed for JWT authentication
+                        'subject' => $subject,
                         'selection_event' => null,
                         'selection_regional_partner' => null,
                         'last_login' => now()
@@ -121,15 +126,16 @@ class KeycloakJwtMiddleware
 
                 // Log user creation/authentication
                 if ($user->wasRecentlyCreated) {
-                    Log::info("New user created", [
+                    Log::info("🆕 NEW USER CREATED", [
                         'user_id' => $user->id,
                         'subject' => $user->subject,
                         'roles' => $roles,
                         'environment' => $env,
-                        'last_login' => $user->last_login
+                        'last_login' => $user->last_login,
+                        'created_at' => now()
                     ]);
                 } else {
-                    Log::debug("Existing user authenticated", [
+                    Log::info("👤 EXISTING USER AUTHENTICATED", [
                         'user_id' => $user->id,
                         'subject' => $user->subject,
                         'roles' => $roles,
