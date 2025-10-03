@@ -209,7 +209,7 @@ class PublishController extends Controller
             ]);
 
         // HTML fürs PDF
-        $contentHtml = view('pdf.content.QR_codes', [
+        $contentHtml = view('pdf.content.qr_codes', [
             'event'        => $event,
             'wifi'         => $wifi,
             'wifiPassword' => $wifiPassword,
@@ -403,5 +403,61 @@ class PublishController extends Controller
         return response()->json($data);
     }
 
+ public function roomSchedulePdf(int $planId)
+{
+    $activities = app(\App\Services\ActivityFetcherService::class)
+        ->fetchActivities(
+            $planId,
+            [6, 10, 14],   // Rollen
+            true,          // includeRooms
+            false,         // includeGroupMeta
+            true,          // includeActivityMeta
+            true,          // includeTeamNames
+            true           // freeBlocks
+        );
+
+    // Nur Aktivitäten mit echtem Raum
+    $activities = collect($activities)->filter(fn($a) => !empty($a->room_name) || !empty($a->room_id));
+
+    // Gruppieren nach Raum
+    $grouped = $activities->groupBy(fn($a) => $a->room_name ?? $a->room_id);
+
+    // Event laden
+    $event = DB::table('event')
+        ->join('plan', 'plan.event', '=', 'event.id')
+        ->where('plan.id', $planId)
+        ->select('event.*')
+        ->first();
+
+    $html = '';
+    $lastRoom = $grouped->keys()->last();
+
+    foreach ($grouped as $room => $acts) {
+        $rows = $acts->sortBy('start_time')->map(fn($a) => [
+            'start'     => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+            'end'       => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+            'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '–',
+            'team'      => $a->team_name ?? $a->team_id ?? '–',
+        ])->values()->all();
+
+        $html .= view('pdf.content.room_schedule', [
+            'room' => $room,
+            'rows' => $rows,
+        ])->render();
+
+        if ($room !== $lastRoom) {
+            $html .= '<div style="page-break-after: always;"></div>';
+        }
+    }
+
+    // Jetzt EIN Layout drumherum bauen
+    $layout = app(\App\Services\PdfLayoutService::class);
+    $finalHtml = $layout->renderLayout($event, $html, 'FLOW Raumbeschilderung');
+
+    // PDF im Querformat erzeugen
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
+
+    return $pdf->download("FLOW_Raumbeschilderung_$planId.pdf");
+}
 
 }

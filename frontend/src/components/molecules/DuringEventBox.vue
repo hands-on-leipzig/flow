@@ -168,6 +168,25 @@ async function downloadOfflinePdf() {
   }
 }
 
+async function downloadRoomPdf() {
+  if (!planId.value) return
+  try {
+    const url = `/publish/rooms/${planId.value}`
+    const response = await axios.get(url, { responseType: "blob" })
+
+    const blob = new Blob([response.data], { type: "application/pdf" })
+    const link = document.createElement("a")
+    link.href = window.URL.createObjectURL(blob)
+    link.download = `FLOW_Raumbeschilderung_${planId.value}.pdf`
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (e) {
+    console.error("Fehler beim Download der Raumbeschilderung:", e)
+  }
+}
+
+
+
 const carouselLink = computed(() => {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : ''
 })
@@ -308,7 +327,14 @@ const carouselLink = computed(() => {
       <div class="space-y-6">
         <div class="rounded-xl shadow bg-white p-6 flex flex-col">
           <h3 class="text-lg font-semibold mb-4">Raumbeschilderung</h3>
-          <div class="text-sm text-gray-600">Hier kommt noch was</div>
+          <p class="text-sm text-gray-600 mb-2">Ein PDF mit je einer Seite pro Raum mit alle Aktivitäten.
+          </p>
+        <div class="flex justify-center mt-auto">
+            <button class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="downloadRoomPdf">
+              PDF
+            </button>
+          </div>
+
         </div>
 
         <div class="rounded-xl shadow bg-white p-6 flex flex-col">
