@@ -403,91 +403,92 @@ class PublishController extends Controller
         return response()->json($data);
     }
 
- public function roomSchedulePdf(int $planId)
-{
-    $activities = app(\App\Services\ActivityFetcherService::class)
-        ->fetchActivities(
-            $planId,
-            [6, 10, 14],   // Rollen
-            true,          // includeRooms
-            false,         // includeGroupMeta
-            true,          // includeActivityMeta
-            true,          // includeTeamNames
-            true           // freeBlocks
-        );
+    public function roomSchedulePdf(int $planId)
+    {
+        $activities = app(\App\Services\ActivityFetcherService::class)
+            ->fetchActivities(
+                $planId,
+                [6, 10, 14],   // Rollen
+                true,          // includeRooms
+                false,         // includeGroupMeta
+                true,          // includeActivityMeta
+                true,          // includeTeamNames
+                true           // freeBlocks
+            );
 
-    // Nur Aktivitäten mit echtem Raum
-    $activities = collect($activities)->filter(fn($a) => !empty($a->room_name) || !empty($a->room_id));
+        // Nur Aktivitäten mit echtem Raum
+        $activities = collect($activities)->filter(fn($a) => !empty($a->room_name) || !empty($a->room_id));
 
-    // Gruppieren nach Raum
-    $grouped = $activities->groupBy(fn($a) => $a->room_name ?? $a->room_id);
+        // Gruppieren nach Raum
+        $grouped = $activities->groupBy(fn($a) => $a->room_name ?? $a->room_id);
 
-    // Event laden
-    $event = DB::table('event')
-        ->join('plan', 'plan.event', '=', 'event.id')
-        ->where('plan.id', $planId)
-        ->select('event.*')
-        ->first();
+        // Event laden
+        $event = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->select('event.*')
+            ->first();
 
 
-    $html = '';
+        $html = '';
 
-    $roomKeys  = $grouped->keys()->values();
-    $lastIndex = $roomKeys->count() - 1;
+        $roomKeys  = $grouped->keys()->values();
+        $lastIndex = $roomKeys->count() - 1;
 
-    foreach ($roomKeys as $idx => $room) {
-        $acts = $grouped->get($room)->sortBy('start_time');
+        foreach ($roomKeys as $idx => $room) {
+            $acts = $grouped->get($room)->sortBy('start_time');
 
-        $rows = $acts->map(function ($a) {
-            // Teams aus den fetcher-Feldern zusammensetzen
-            $teamParts = [];
+            $rows = $acts->map(function ($a) {
+                // Teams aus den fetcher-Feldern zusammensetzen
+                $teamParts = [];
 
-            // Jury (Lane)
-            if (!empty($a->lane) && $a->team !== null) {
-                // Name wenn vorhanden, sonst Nummer
-                $teamParts[] = !empty($a->jury_team_name) ? $a->jury_team_name : (string)$a->team;
+                // Jury (Lane)
+                if (!empty($a->lane) && $a->team !== null) {
+                    // Name wenn vorhanden, sonst Nummer
+                    $teamParts[] = !empty($a->jury_team_name) ? $a->jury_team_name : (string)$a->team;
+                }
+
+                // Tisch 1
+                if (!empty($a->table_1) && $a->table_1_team !== null) {
+                    $teamParts[] = !empty($a->table_1_team_name) ? $a->table_1_team_name : (string)$a->table_1_team;
+                }
+
+                // Tisch 2
+                if (!empty($a->table_2) && $a->table_2_team !== null) {
+                    $teamParts[] = !empty($a->table_2_team_name) ? $a->table_2_team_name : (string)$a->table_2_team;
+                }
+
+                $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
+
+                return [
+                    'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                    'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                    'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+                    'team'     => $teamDisplay,
+                ];
+            })->values()->all();
+
+            // Teil-HTML für den Raum (ohne eigene Header/Footer)
+            $html .= view('pdf.content.room_schedule', [
+                'room' => $room,
+                'rows' => $rows,
+                'event' => $event,
+            ])->render();
+
+            // Seitenumbruch zwischen Räumen (aber nicht nach dem letzten)
+            if ($idx !== $lastIndex) {
+                $html .= '<div style="page-break-before: always;"></div>';
             }
-
-            // Tisch 1
-            if (!empty($a->table_1) && $a->table_1_team !== null) {
-                $teamParts[] = !empty($a->table_1_team_name) ? $a->table_1_team_name : (string)$a->table_1_team;
-            }
-
-            // Tisch 2
-            if (!empty($a->table_2) && $a->table_2_team !== null) {
-                $teamParts[] = !empty($a->table_2_team_name) ? $a->table_2_team_name : (string)$a->table_2_team;
-            }
-
-            $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
-
-            return [
-                'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
-                'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
-                'team'     => $teamDisplay,
-            ];
-        })->values()->all();
-
-        // Teil-HTML für den Raum (ohne eigene Header/Footer)
-        $html .= view('pdf.content.room_schedule', [
-            'room' => $room,
-            'rows' => $rows,
-        ])->render();
-
-        // Seitenumbruch zwischen Räumen (aber nicht nach dem letzten)
-        if ($idx !== $lastIndex) {
-            $html .= '<div style="page-break-before: always;"></div>';
         }
+
+        // Jetzt EIN Layout drumherum bauen
+        $layout = app(\App\Services\PdfLayoutService::class);
+        $finalHtml = $layout->renderLayout($event, $html, 'FLOW Raumbeschilderung');
+
+        // PDF im Querformat erzeugen
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
+
+        return $pdf->download("FLOW_Raumbeschilderung_$planId.pdf");
     }
-
-    // Jetzt EIN Layout drumherum bauen
-    $layout = app(\App\Services\PdfLayoutService::class);
-    $finalHtml = $layout->renderLayout($event, $html, 'FLOW Raumbeschilderung');
-
-    // PDF im Querformat erzeugen
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
-
-    return $pdf->download("FLOW_Raumbeschilderung_$planId.pdf");
-}
 
 }

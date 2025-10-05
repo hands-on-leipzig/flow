@@ -1,26 +1,71 @@
 {{-- resources/views/pdf/content/room_schedule.blade.php --}}
 
-<h2 style="margin-bottom: 10px; font-size: 20px; font-weight: bold;">
+<h2 style="margin-bottom: 15px; font-size: 22px; font-weight: bold;">
     {{ $room }}
 </h2>
 
-<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
-    <thead>
-        <tr>
-            <th style="border: 1px solid #ccc; padding: 6px; text-align: left;">Start</th>
-            <th style="border: 1px solid #ccc; padding: 6px; text-align: left;">Ende</th>
-            <th style="border: 1px solid #ccc; padding: 6px; text-align: left;">Aktivität</th>
-            <th style="border: 1px solid #ccc; padding: 6px; text-align: left;">Team</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach($rows as $row)
-            <tr>
-                <td style="border: 1px solid #ccc; padding: 6px;">{{ $row['start'] }}</td>
-                <td style="border: 1px solid #ccc; padding: 6px;">{{ $row['end'] }}</td>
-                <td style="border: 1px solid #ccc; padding: 6px;">{{ $row['activity'] }}</td>
-                <td style="border: 1px solid #ccc; padding: 6px;">{{ $row['team'] }}</td>
-            </tr>
-        @endforeach
-    </tbody>
+<table style="width:100%; border-collapse:collapse;">
+    <tr valign="top">
+        {{-- Linke Spalte: Tabelle --}}
+        <td style="width:66%; padding-right:20px;">
+
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="background-color:#f5f5f5;">
+                        <th style="text-align:left; padding:6px 8px; width:10%;">Start</th>
+                        <th style="text-align:left; padding:6px 8px; width:10%;">Ende</th>
+                        <th style="text-align:left; padding:6px 8px; width:30%;">Aktivität</th>
+                        <th style="text-align:left; padding:6px 8px; width:50%;">Team</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($rows as $i => $row)
+                        <tr style="background-color:{{ $i % 2 === 0 ? '#ffffff' : '#f9f9f9' }};">
+                            <td style="padding:5px 8px;">{{ $row['start'] }}</td>
+                            <td style="padding:5px 8px;">{{ $row['end'] }}</td>
+                            <td style="padding:5px 8px;">{{ $row['activity'] }}</td>
+                            <td style="padding:5px 8px;">{{ $row['team'] }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+
+        </td>
+
+        {{-- Rechte Spalte: QR-Code --}}
+        <td style="width:34%; text-align:center;">
+
+            <div style="
+                font-size:16px;
+                font-weight:bold;
+                margin-bottom:10px;
+                color:#222;
+                font-family:sans-serif;
+                letter-spacing:0.3px;
+            ">
+                Online&nbsp;Zeitplan
+            </div>
+
+            <div style="
+                    font-size:11px;
+                    color:#888;
+                    margin-top:8px;
+                    font-family:sans-serif;
+                ">
+                    Alle Aktivitäten der Veranstaltung, sortiert nach Teams und Räumen.
+            </div>
+
+            <img src="data:image/png;base64,{{ $event->qrcode }}" style="width:180px; height:180px; margin-bottom:10px;" />
+
+            <div style="
+                font-size:12px;
+                color:#444;
+                word-break:break-all;
+                font-family:sans-serif;
+            ">
+                {{ $event->link }}
+            </div>
+
+        </td>
+    </tr>
 </table>
