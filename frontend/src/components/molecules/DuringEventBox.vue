@@ -323,34 +323,87 @@ const carouselLink = computed(() => {
         </div>
       </div>
 
-      <!-- Spalte 2: Raumbeschilderung + Notfallplan -->
+      <!-- Spalte 2: Teilpläne + Notfallplan -->
       <div class="space-y-6">
+
+        <!-- Teilpläne -->
         <div class="rounded-xl shadow bg-white p-6 flex flex-col">
-          <h3 class="text-lg font-semibold mb-4">Raumbeschilderung</h3>
-          <p class="text-sm text-gray-600 mb-2">Ein PDF mit je einer Seite pro Raum mit alle Aktivitäten.
-          </p>
-        <div class="flex justify-center mt-auto">
-            <button class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="downloadRoomPdf">
+          <h3 class="text-lg font-semibold mb-4">Teilpläne</h3>
+
+          <!-- 1 Räume -->
+          <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
+            <div class="flex-1 pr-4">
+              <h4 class="text-base font-semibold text-gray-800">Räume</h4>
+              <p class="text-sm text-gray-600">
+                Eine Seite pro Raum mit allen Aktivitäten.
+              </p>
+            </div>
+            <button
+              class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300 whitespace-nowrap"
+              @click="downloadRoomPdf"
+            >
+              PDF
+            </button>
+          </div>
+
+          <!-- 2 Teams -->
+          <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
+            <div class="flex-1 pr-4">
+              <h4 class="text-base font-semibold text-gray-800">Teams</h4>
+              <p class="text-sm text-gray-600">
+                Eine Seite pro Team mit allen Aktivitäten.
+              </p>
+            </div>
+            <button
+              class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300 whitespace-nowrap"
+              @click="downloadTeamPdf"
+            >
+              PDF
+            </button>
+          </div>
+
+          <!-- 3 Juror:innen, Gutachter:innen, Schiedsrichter:innen -->
+          <div class="flex justify-between items-center">
+            <div class="flex-1 pr-4">
+              <h4 class="text-base font-semibold text-gray-800">Juror:innen, Gutachter:innen, Schiedsrichter:innen</h4>
+              <p class="text-sm text-gray-600">
+                Eine Seite pro Rolle mit allen Aktivitäten.
+              </p>
+            </div>
+            <button
+              class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300 whitespace-nowrap"
+              @click="downloadRolePdf"
+            >
               PDF
             </button>
           </div>
 
         </div>
 
+        <!-- Gesamtplan -->
         <div class="rounded-xl shadow bg-white p-6 flex flex-col">
-          <h3 class="text-lg font-semibold mb-4">Der ganze Plan in einem Dokument</h3>
-          <p class="text-sm text-gray-600 mb-2">
-            Volle Details, aber in einfacher Formatierung: Je eine Tabelle pro Team, Gutachter:innen-/Jury-Gruppe und Robot-Game-Tisch.
-          </p>
-          <p class="text-xs text-gray-500 mb-4">
-            Dieses Dokument ist für den Veranstalter gedacht, nicht zum Verteilen an Teams, Freiwillige und Besucher! Für die gibt es den Link oben.
-          </p>
-          <div class="flex justify-center mt-auto">
-            <button class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="downloadOfflinePdf">
+          <h3 class="text-lg font-semibold mb-4">Gesamtplan</h3>
+
+          <div class="flex justify-between items-center">
+            <div class="flex-1 pr-4">
+              <p class="text-sm text-gray-600 mb-1">
+                Eine Tabelle pro Team, Gutachter:innen-/Jury-Gruppe und Robot-Game-Tisch. 
+                Volle Details, aber in einfacher Formatierung.
+              </p>
+              <p class="text-xs text-gray-500">
+                Dieses Dokument ist für den Veranstalter gedacht, nicht zum Verteilen an Teams, Freiwillige und Besucher!
+              </p>
+            </div>
+
+            <button
+              class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300 whitespace-nowrap"
+              @click="downloadOfflinePdf"
+            >
               PDF
             </button>
           </div>
         </div>
+
       </div>
 
       <!-- Spalte 3: Karussell -->
