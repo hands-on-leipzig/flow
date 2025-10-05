@@ -160,7 +160,7 @@ async function downloadOfflinePdf() {
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
-    link.download = `FLOW_Plan_${planId.value}.pdf`
+    link.download = `FLOW_Gesamtplan.pdf`
     link.click()
     window.URL.revokeObjectURL(link.href)
   } catch (e) {
@@ -177,11 +177,45 @@ async function downloadRoomPdf() {
     const blob = new Blob([response.data], { type: "application/pdf" })
     const link = document.createElement("a")
     link.href = window.URL.createObjectURL(blob)
-    link.download = `FLOW_Raumbeschilderung_${planId.value}.pdf`
+    link.download = `FLOW_Plan_pro_Raum.pdf`
     link.click()
     window.URL.revokeObjectURL(link.href)
   } catch (e) {
     console.error("Fehler beim Download der Raumbeschilderung:", e)
+  }
+}
+
+async function downloadTeamPdf() {
+  if (!planId.value) return
+  try {
+    const url = `/publish/teams/${planId.value}`
+    const response = await axios.get(url, { responseType: "blob" })
+
+    const blob = new Blob([response.data], { type: "application/pdf" })
+    const link = document.createElement("a")
+    link.href = window.URL.createObjectURL(blob)
+    link.download = `FLOW_Plan_pro_Team.pdf`
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (e) {
+    console.error("Fehler beim Download der Teampläne:", e)
+  }
+}
+
+async function downloadRolePdf() {
+  if (!planId.value) return
+  try {
+    const url = `/publish/roles/${planId.value}`
+    const response = await axios.get(url, { responseType: "blob" })
+
+    const blob = new Blob([response.data], { type: "application/pdf" })
+    const link = document.createElement("a")
+    link.href = window.URL.createObjectURL(blob)
+    link.download = `FLOW_Plan_pro_Rolle.pdf`
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (e) {
+    console.error("Fehler beim Download der Rollenpläne:", e)
   }
 }
 
