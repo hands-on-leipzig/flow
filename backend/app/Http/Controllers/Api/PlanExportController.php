@@ -735,33 +735,21 @@ class PlanExportController extends Controller
 
 
 public function roleSchedulePdf(int $planId)
+
 {
     $fetcher = app(\App\Services\ActivityFetcherService::class);
 
-    // === EXPLORE Jury ===
-    $exploreActs = $fetcher->fetchActivities(
-        $planId,
-        [9], // Explore Jury
-        true,  // includeRooms
-        false, // includeGroupMeta
-        true,  // includeActivityMeta
-        true,  // includeTeamNames
-        true   // freeBlocks
-    );
+    // === 1️⃣ EXPLORE Jury (Role 9) ===
+    $exploreActs = $fetcher->fetchActivities($planId, [9], true, false, true, true, true);
 
-    // === Challenge Jury ===
-    $challengeJuryActs = $fetcher->fetchActivities(
-        $planId,
-        [4],
-        true, false, true, true, true
-    );
+    // === 2️⃣ CHALLENGE Jury (Role 4) ===
+    $challengeJuryActs = $fetcher->fetchActivities($planId, [4], true, false, true, true, true);
 
-    // === Challenge Robot Game ===
-    $challengeGameActs = $fetcher->fetchActivities(
-        $planId,
-        [5, 11],
-        true, false, true, true, true
-    );
+    // === 3️⃣ CHALLENGE Robot Game – Referees (Role 5) ===
+    $challengeRefActs = $fetcher->fetchActivities($planId, [5], true, false, true, true, true);
+
+    // === 4️⃣ CHALLENGE Robot Check (Role 11) ===
+    $challengeCheckActs = $fetcher->fetchActivities($planId, [11], true, false, true, true, true);
 
     // === Event laden ===
     $event = DB::table('event')
@@ -770,79 +758,86 @@ public function roleSchedulePdf(int $planId)
         ->select('event.*')
         ->first();
 
-    $sections = [];
+    /**
+     * Hilfsfunktion: verteilt "allgemeine" Aktivitäten auf alle Gruppen
+     */
+    $distributeGeneric = function ($activities, $groupKey, $labelPrefix) {
+        $withKey = collect($activities)->filter(fn($a) => !empty($a->{$groupKey}));
+        $withoutKey = collect($activities)->filter(fn($a) => empty($a->{$groupKey}));
 
-    // --- Helper für Tabellen-HTML ---
-    $renderSection = function ($label, $grouped, $event) {
-        $html = '';
-        $keys = $grouped->keys()->values();
-        $lastIndex = $keys->count() - 1;
+        // alle vorhandenen keys finden
+        $allKeys = $withKey->pluck($groupKey)->unique()->values();
 
-        foreach ($keys as $idx => $key) {
-            $acts = $grouped->get($key)->sortBy('start_time');
-
-            $rows = $acts->map(fn($a) => [
-                'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
-                'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? $a->activity_name ?? '–',
-                'team'     => $a->jury_team_name
-                              ?? $a->table_1_team_name
-                              ?? $a->table_2_team_name
-                              ?? ($a->team ?? '–'),
-                'room'     => $a->room_name ?? '–',
-            ])->values()->all();
-
-            $html .= view('pdf.content.role_schedule', [
-                'title' => $key,
-                'rows'  => $rows,
-                'event' => $event,
-            ])->render();
-
-            if ($idx !== $lastIndex) {
-                $html .= '<div style="page-break-before: always;"></div>';
+        // allgemeine Aktivitäten duplizieren
+        foreach ($withoutKey as $generic) {
+            foreach ($allKeys as $keyValue) {
+                $clone = clone $generic;
+                $clone->{$groupKey} = $keyValue;
+                $withKey->push($clone);
             }
         }
 
-        return $html;
+        // Gruppieren nach dem Schlüssel
+        return $withKey->groupBy(function ($a) use ($groupKey, $labelPrefix) {
+            $val = $a->{$groupKey};
+            if ($groupKey === 'lane') {
+                return "{$labelPrefix} – Lane {$val}";
+            } elseif ($groupKey === 'table_1') {
+                return "{$labelPrefix} – Tisch " . ($a->table_1_name ?? $val);
+            } elseif ($groupKey === 'table_2') {
+                return "{$labelPrefix} – Tisch " . ($a->table_2_name ?? $val);
+            }
+            return "{$labelPrefix} – {$val}";
+        });
     };
 
-    // === Explore: Gruppierung nach Lane ===
-    $exploreGrouped = collect($exploreActs)->groupBy(function ($a) {
-        return $a->lane
-            ? "Explore – Lane {$a->lane}"
-            : 'Explore – Allgemein';
-    });
+    // === Gruppieren & Duplizieren ===
+    $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'Explore');
+    $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'Challenge Jury');
+    $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table_1', 'Challenge Robot Game');
+    $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table_2', 'Challenge Robot Check');
 
-    // === Challenge Jury: Gruppierung nach Lane ===
-    $challengeJuryGrouped = collect($challengeJuryActs)->groupBy(function ($a) {
-        return $a->lane
-            ? "Challenge Jury – Lane {$a->lane}"
-            : 'Challenge Jury – Allgemein';
-    });
-
-    // === Challenge Robot Game: Gruppierung nach Tisch ===
-    $challengeGameGrouped = collect($challengeGameActs)->groupBy(function ($a) {
-        if ($a->table_1) return "Challenge – Tisch {$a->table_1_name}";
-        if ($a->table_2) return "Challenge – Tisch {$a->table_2_name}";
-        return 'Challenge – Allgemein';
-    });
-
-    // === Sortieren und zusammenführen ===
+    // === Zusammenführen, sortiert nach Program-Logik ===
     $sections = collect()
         ->merge($exploreGrouped->sortKeys())
         ->merge($challengeJuryGrouped->sortKeys())
-        ->merge($challengeGameGrouped->sortKeys());
+        ->merge($challengeRefGrouped->sortKeys())
+        ->merge($challengeCheckGrouped->sortKeys());
 
-    // === Alle Blöcke rendern ===
-    $html = $renderSection('Lanes/Tables', $sections, $event);
+    // === Rendern aller Abschnitte ===
+    $html = '';
+    $keys = $sections->keys()->values();
+    $last = $keys->count() - 1;
 
-    // === Komplettes Layout bauen ===
+    foreach ($keys as $i => $key) {
+        $acts = $sections[$key]->sortBy('start_time');
+        $rows = $acts->map(fn($a) => [
+            'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+            'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+            'activity' => $a->activity_atd_name ?? $a->activity_name ?? '–',
+            'team'     => $a->jury_team_name
+                          ?? $a->table_1_team_name
+                          ?? $a->table_2_team_name
+                          ?? ($a->team ?? '–'),
+            'room'     => $a->room_name ?? '–',
+        ]);
+
+        $html .= view('pdf.content.role_schedule', [
+            'title' => $key,
+            'rows'  => $rows,
+            'event' => $event,
+        ])->render();
+
+        if ($i !== $last) {
+            $html .= '<div style="page-break-before: always;"></div>';
+        }
+    }
+
+    // === Gesamtes Layout + PDF ===
     $layout = app(\App\Services\PdfLayoutService::class);
     $finalHtml = $layout->renderLayout($event, $html, 'FLOW Jury & Robot Game');
 
-    // === PDF erzeugen ===
     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
-
     return $pdf;
 }
 
