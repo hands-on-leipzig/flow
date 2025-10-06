@@ -39,30 +39,47 @@ async function downloadPng(dataUrl: string, filename: string) {
       QR Codes zum Online-Plan und WLAN-Zugang
     </h3>
 
-    <!-- Plan QR -->
-    <div class="flex flex-row gap-6">
-      <div class="flex flex-col items-center">
+  <!-- Plan QR -->
+  <div class="flex flex-col gap-3">
+    <!-- Text über allem -->
+    <p class="text-sm text-gray-600">
+      Teams, Freiwillige und Gäste gelangen über diesen QR-Code zum Online-Zeitplan.
+    </p>
+
+    <!-- QR + Preview nebeneinander -->
+    <div class="flex flex-row gap-6 items-start">
+      <!-- Linke Seite: QR-Code + PNG -->
+      <div class="flex flex-col items-start">
         <img
           v-if="event?.qrcode"
           :src="`data:image/png;base64,${event.qrcode}`"
           alt="QR Plan"
-          class="mx-auto w-28 h-28"
+          class="w-28 h-28 mb-2"
         />
         <button
           v-if="event?.qrcode"
-          class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm"
+          class="px-3 py-1 bg-gray-200 rounded text-sm"
           @click="downloadPng(`data:image/png;base64,${event.qrcode}`, 'FLOW_QR_Code_Plan.png')"
         >
           PNG
         </button>
       </div>
-      <div class="flex flex-col justify-center">
-        <p class="text-sm text-gray-600">
-          Teams, Freiwillige und Gäste gelangen über diesen QR-Code zum Online-Zeitplan.
-        </p>
-        <p v-if="event?.link" class="text-xs text-gray-500 mt-2">{{ event.link }}</p>
+
+      <!-- Rechte Seite: Preview + PDF -->
+      <div class="flex flex-col items-center">
+        <div
+          class="w-48 aspect-[4/3] border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm"
+        >
+          Preview
+        </div>
+        <button
+          class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+        >
+          PDF
+        </button>
       </div>
     </div>
+  </div>
 
     <!-- WLAN -->
     <div class="rounded-xl shadow bg-white p-4 flex flex-col justify-center">
@@ -99,17 +116,47 @@ async function downloadPng(dataUrl: string, filename: string) {
     </div>
 
     <!-- QR WLAN -->
-    <div class="flex flex-col items-center">
-      <template v-if="!event?.wifi_ssid">
-        <div class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400">?</div>
-      </template>
-      <template v-else-if="loadingWifiQr">
-        <div class="mx-auto w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-500">⏳</div>
-      </template>
-      <template v-else-if="qrWifiUrl">
-        <img :src="qrWifiUrl" alt="QR Wifi" class="mx-auto w-28 h-28" />
-        <button class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm" @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')">PNG</button>
-      </template>
+    <div class="flex flex-row gap-6 items-start">
+      <!-- Linke Seite: QR-Code + PNG -->
+      <div class="flex flex-col items-start">
+        <template v-if="!event?.wifi_ssid">
+          <div
+            class="w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400 mb-2"
+          >
+            ?
+          </div>
+        </template>
+        <template v-else-if="loadingWifiQr">
+          <div
+            class="w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-500 mb-2"
+          >
+            ⏳
+          </div>
+        </template>
+        <template v-else-if="qrWifiUrl">
+          <img :src="qrWifiUrl" alt="QR Wifi" class="w-28 h-28 mb-2" />
+          <button
+            class="px-3 py-1 bg-gray-200 rounded text-sm"
+            @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
+          >
+            PNG
+          </button>
+        </template>
+      </div>
+
+      <!-- Rechte Seite: Preview + PDF -->
+      <div class="flex flex-col items-center">
+        <div
+          class="w-48 aspect-[4/3] border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm"
+        >
+          Preview
+        </div>
+        <button
+          class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+        >
+          PDF
+        </button>
+      </div>
     </div>
   </div>
 </template>
