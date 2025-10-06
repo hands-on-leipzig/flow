@@ -39,47 +39,47 @@ async function downloadPng(dataUrl: string, filename: string) {
       QR Codes zum Online-Plan und WLAN-Zugang
     </h3>
 
-  <!-- Plan QR -->
-  <div class="flex flex-col gap-3">
-    <!-- Text über allem -->
-    <p class="text-sm text-gray-600">
-      Teams, Freiwillige und Gäste gelangen über diesen QR-Code zum Online-Zeitplan.
-    </p>
+    <!-- Plan QR -->
+    <div class="flex flex-col gap-3">
+      <!-- Text über allem -->
+      <p class="text-sm text-gray-600">
+        Teams, Freiwillige und Gäste gelangen über diesen QR-Code zum Online-Zeitplan.
+      </p>
 
-    <!-- QR + Preview nebeneinander -->
-    <div class="flex flex-row gap-6 items-start">
-      <!-- Linke Seite: QR-Code + PNG -->
-      <div class="flex flex-col items-start">
-        <img
-          v-if="event?.qrcode"
-          :src="`data:image/png;base64,${event.qrcode}`"
-          alt="QR Plan"
-          class="w-28 h-28 mb-2"
-        />
-        <button
-          v-if="event?.qrcode"
-          class="px-3 py-1 bg-gray-200 rounded text-sm"
-          @click="downloadPng(`data:image/png;base64,${event.qrcode}`, 'FLOW_QR_Code_Plan.png')"
-        >
-          PNG
-        </button>
-      </div>
-
-      <!-- Rechte Seite: Preview + PDF -->
-      <div class="flex flex-col items-center">
-        <div
-          class="w-48 aspect-[4/3] border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm"
-        >
-          Preview
+      <!-- QR + Preview nebeneinander -->
+      <div class="flex flex-row gap-6 items-start">
+        <!-- Linke Seite: QR-Code + PNG -->
+        <div class="flex flex-col items-center w-48">
+          <img
+            v-if="event?.qrcode"
+            :src="`data:image/png;base64,${event.qrcode}`"
+            alt="QR Plan"
+            class="w-40 h-40 mb-2 object-contain"
+          />
+          <button
+            v-if="event?.qrcode"
+            class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+            @click="downloadPng(`data:image/png;base64,${event.qrcode}`, 'FLOW_QR_Code_Plan.png')"
+          >
+            PNG
+          </button>
         </div>
-        <button
-          class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
-        >
-          PDF
-        </button>
+
+        <!-- Rechte Seite: Preview + PDF -->
+        <div class="flex flex-col items-center w-56">
+          <div
+            class="w-full aspect-[4/3] border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm"
+          >
+            Preview
+          </div>
+          <button
+            class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+          >
+            PDF
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
     <!-- WLAN -->
     <div class="rounded-xl shadow bg-white p-4 flex flex-col justify-center">
@@ -118,25 +118,25 @@ async function downloadPng(dataUrl: string, filename: string) {
     <!-- QR WLAN -->
     <div class="flex flex-row gap-6 items-start">
       <!-- Linke Seite: QR-Code + PNG -->
-      <div class="flex flex-col items-start">
+      <div class="flex flex-col items-center w-48">
         <template v-if="!event?.wifi_ssid">
           <div
-            class="w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400 mb-2"
+            class="w-40 h-40 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-2xl text-gray-400 mb-2"
           >
             ?
           </div>
         </template>
         <template v-else-if="loadingWifiQr">
           <div
-            class="w-28 h-28 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-500 mb-2"
+            class="w-40 h-40 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-500 mb-2"
           >
             ⏳
           </div>
         </template>
         <template v-else-if="qrWifiUrl">
-          <img :src="qrWifiUrl" alt="QR Wifi" class="w-28 h-28 mb-2" />
+          <img :src="qrWifiUrl" alt="QR Wifi" class="w-40 h-40 mb-2 object-contain" />
           <button
-            class="px-3 py-1 bg-gray-200 rounded text-sm"
+            class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
             @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
           >
             PNG
@@ -145,9 +145,9 @@ async function downloadPng(dataUrl: string, filename: string) {
       </div>
 
       <!-- Rechte Seite: Preview + PDF -->
-      <div class="flex flex-col items-center">
+      <div class="flex flex-col items-center w-56">
         <div
-          class="w-48 aspect-[4/3] border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm"
+          class="w-full aspect-[4/3] border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm"
         >
           Preview
         </div>
