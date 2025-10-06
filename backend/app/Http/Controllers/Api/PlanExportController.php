@@ -41,13 +41,17 @@ class PlanExportController extends Controller
             : '';
 
         // PDF erzeugen
-        $pdfResponse = match ($type) {
+        $pdf = match ($type) {
             'rooms' => $this->roomSchedulePdf($plan->id),
             // 'teams' => $this->teamSchedulePdf($plan->id),
             // 'roles' => $this->roleSchedulePdf($plan->id),
             'full'  => $this->fullSchedulePdf($plan->id),
-            default => response()->json(['error' => 'Unknown type'], 400),
+            default => null,
         };
+
+        if (!$pdf) {
+            return response()->json(['error' => 'Unknown type'], 400);
+        }
 
         // Dateiname abhängig vom Typ
         $names = [
@@ -58,8 +62,21 @@ class PlanExportController extends Controller
         ];
 
         $name = $names[$type] ?? ucfirst($type);
+        $filename = "FLOW_{$name}_({$formattedDate}).pdf";
 
-        return $pdfResponse->download("FLOW_{$name}_({$formattedDate}).pdf");
+        // Umlaute transliterieren
+        $filename = str_replace(
+            ['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'],
+            ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'],
+            $filename
+        );
+
+        // PDF zurückgeben mit Header für Dateiname
+        return response($pdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('X-Filename', $filename)
+            ->header('Access-Control-Expose-Headers', 'X-Filename');
+
     }
 
 

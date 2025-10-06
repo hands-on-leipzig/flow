@@ -8,15 +8,16 @@ const event = computed(() => eventStore.selectedEvent)
 
 async function downloadPdf(type: 'rooms' | 'teams' | 'roles' | 'full') {
   if (!event.value?.id) return
-
   const url = `/export/pdf_download/${type}/${event.value.id}`
 
   try {
     const response = await axios.get(url, { responseType: 'blob' })
+    const filename = response.headers['x-filename'] || `FLOW_${type}.pdf`
 
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
+    link.download = filename
     link.click()
     window.URL.revokeObjectURL(link.href)
   } catch (e) {
