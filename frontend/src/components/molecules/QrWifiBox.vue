@@ -112,26 +112,31 @@ onMounted(() => {
         </div>
 
         <!-- Rechte Seite: Preview + PDF -->
-        <div class="flex flex-col items-center w-44">
+<div class="flex flex-col items-center w-44">
+ 
+        <template v-if="previewPlan">
+          <img
+            :src="previewPlan"
+            alt="Preview Plan mit WLAN"
+            class=" h-20 mb-2 object-contain rounded border border-gray-200"
+          />
+        </template>
+
+        <template v-else>
           <div
-            class="w-full aspect-[4/3] border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm"
-            style="height: 80px;"
+            class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
           >
-            <img
-              v-if="previewPlan"
-              :src="previewPlan"
-              alt="Preview Plan"
-              class="w-full h-full object-contain rounded"
-            />
-            <span v-else>Preview</span>
+            Preview
           </div>
-          <button
-            class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
-            @click="downloadPdf('plan')"
-          >
-            PDF
-          </button>
-        </div>
+        </template>
+
+        <button
+          class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+          @click="downloadPdf('plan')"
+        >
+          PDF
+        </button>
+      </div>
       </div>
     </div>
 
@@ -203,20 +208,40 @@ onMounted(() => {
 
       <!-- Rechte Seite: Preview + PDF -->
       <div class="flex flex-col items-center w-44">
-        <div
-          class="w-full aspect-[4/3] border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm"
-          style="height: 80px;"
-        >
+        <template v-if="!event?.wifi_ssid">
+          <div
+            class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
+          >
+            ?
+          </div>
+        </template>
+
+        <template v-else-if="loadingWifiQr">
+          <div
+            class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-500 text-sm mb-2"
+          >
+            ⏳
+          </div>
+        </template>
+
+        <template v-else-if="previewPlanWifi">
           <img
-            v-if="previewPlanWifi"
             :src="previewPlanWifi"
             alt="Preview Plan mit WLAN"
-            class="w-full h-full object-contain rounded"
+            class=" h-20 mb-2 object-contain rounded border border-gray-200"
           />
-          <span v-else>Preview</span>
-        </div>
+        </template>
+
+        <template v-else>
+          <div
+            class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
+          >
+            Preview
+          </div>
+        </template>
+
         <button
-          class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+          class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
           @click="downloadPdf('plan_wifi')"
         >
           PDF
