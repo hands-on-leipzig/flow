@@ -192,7 +192,7 @@ onMounted(async () => {
     }
   }
 
-  await Promise.all([fetchTableNames(), fetchPlanId()])
+  await fetchPlanId()
 })
 
 onUnmounted(() => {
@@ -206,43 +206,7 @@ onUnmounted(() => {
 })
 
 
-const tableNames = ref(['', '', '', ''])
 
-const fetchTableNames = async () => {
-  if (!event.value?.id) return
-  try {
-    const response = await axios.get(`/table-names/${event.value.id}`)
-    const tables = response.data.table_names
-
-    const names = Array(4).fill('')
-    tables.forEach(t => {
-      if (t.table_number >= 1 && t.table_number <= 4) {
-        names[t.table_number - 1] = t.table_name ?? ''
-      }
-    })
-    tableNames.value = names
-  } catch (e) {
-    console.error('Fehler beim Laden der Tischbezeichnungen:', e)
-    tableNames.value = Array(4).fill('')
-  }
-}
-
-const updateTableName = async () => {
-  if (!event.value?.id) return
-
-  try {
-    const payload = {
-      table_names: tableNames.value.map((name, i) => ({
-        table_number: i + 1,
-        table_name: name ?? '',
-      })),
-    }
-
-    await axios.put(`/table-names/${event.value.id}`, payload)
-  } catch (e) {
-    console.error('Fehler beim Speichern der Tischnamen:', e)
-  }
-}
 </script>
 
 <template>
@@ -345,23 +309,6 @@ const updateTableName = async () => {
                   {{ person.contact_email }}
                 </div>
                 <p v-if="person.contact_infos" class="text-xs text-gray-600 mt-1">{{ person.contact_infos }}</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Robot-Game-Tische -->
-          <div class="p-4 border rounded shadow">
-            <h2 class="text-lg font-semibold mb-2">Bezeichnung der Robot-Game-Tische</h2>
-            <div class="grid grid-cols-2 gap-4">
-              <div v-for="(name, i) in tableNames" :key="i">
-                <label class="block text-sm text-gray-700 mb-1">Tisch {{ i + 1 }}</label>
-                <input
-                    v-model="tableNames[i]"
-                    class="w-full border px-3 py-1 rounded text-sm"
-                    :placeholder="`leer lassen für >>Tisch ${i + 1}<<`"
-                    type="text"
-                    @blur="updateTableName"
-                />
               </div>
             </div>
           </div>

@@ -672,18 +672,22 @@ const updateTableName = async () => {
                   </template>
                 </template>
 
+
                 <!-- Robot-Game-Tische -->
-                <div class="p-4 border rounded shadow">
-                  <h2 class="text-lg font-semibold mb-2">Bezeichnung der Robot-Game-Tische</h2>
+                <div class="p-4 border rounded shadow mt-4 w-full max-w-lg">
+                  <div class="flex items-center mb-3">
+                    <span class="font-medium text-gray-800">Bezeichnung der Robot-Game-Tische</span>
+                  </div>
+
                   <div class="grid grid-cols-2 gap-4">
                     <div v-for="(name, i) in tableNames" :key="i">
-                      <label class="block text-sm text-gray-700 mb-1">Tisch {{ i + 1 }}</label>
+                      <label class="block text-xs text-gray-600 mb-1">Tisch {{ i + 1 }}</label>
                       <input
-                          v-model="tableNames[i]"
-                          class="w-full border px-3 py-1 rounded text-sm"
-                          :placeholder="`leer lassen für >>Tisch ${i + 1}<<`"
-                          type="text"
-                          @blur="updateTableName"
+                        v-model="tableNames[i]"
+                        class="w-full border px-3 py-1 rounded text-sm"
+                        :placeholder="`leer lassen für >>Tisch ${i + 1}<<`"
+                        type="text"
+                        @blur="updateTableName"
                       />
                     </div>
                   </div>
@@ -694,6 +698,7 @@ const updateTableName = async () => {
                 <div class="text-sm font-medium mb-1">Challenge ist deaktiviert</div>
                 <div class="text-xs">Aktiviere Challenge, um Expertenparameter zu konfigurieren.</div>
               </div>
+              
             </div>
 
 
