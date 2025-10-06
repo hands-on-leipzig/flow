@@ -45,14 +45,8 @@
             </table>
         </td>
 
-        <td style="width:34%; text-align:center;">
-            <div style="font-size:16px; font-weight:bold; margin-bottom:10px; color:#222;">
-                Online&nbsp;Zeitplan
-            </div>
-            <img src="data:image/png;base64,{{ $event->qrcode }}" style="width:180px; height:180px; margin-bottom:10px;" />
-            <div style="font-size:12px; color:#444; word-break:break-all; font-family:sans-serif;">
-                {{ $event->link }}
-            </div>
-        </td>
+        {{-- Rechte Spalte: QR-Code --}}
+        @include('pdf.content.right_qr', ['event' => $event])
+
     </tr>
 </table>
