@@ -112,31 +112,31 @@ onMounted(() => {
         </div>
 
         <!-- Rechte Seite: Preview + PDF -->
-<div class="flex flex-col items-center w-44">
+        <div class="flex flex-col items-center w-44">
  
-        <template v-if="previewPlan">
-          <img
-            :src="previewPlan"
-            alt="Preview Plan mit WLAN"
-            class=" h-20 mb-2 object-contain rounded border border-gray-200"
-          />
-        </template>
+          <template v-if="previewPlan">
+            <img
+              :src="previewPlan"
+              alt="Preview Plan mit WLAN"
+              class=" h-20 mb-2 object-contain rounded border border-gray-200"
+            />
+          </template>
 
-        <template v-else>
-          <div
-            class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
+          <template v-else>
+            <div
+              class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
+            >
+              Preview
+            </div>
+          </template>
+
+          <button
+            class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+            @click="downloadPdf('plan')"
           >
-            Preview
-          </div>
-        </template>
-
-        <button
-          class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
-          @click="downloadPdf('plan')"
-        >
-          PDF
-        </button>
-      </div>
+            PDF
+          </button>
+        </div>
       </div>
     </div>
 
