@@ -201,9 +201,6 @@ class PublishController extends Controller
             $importantTimesResponse = $this->importantTimes($eventId);
             $importantTimes = $importantTimesResponse->getData(true); // JSON -> Array
 
-            // Ins Log schreiben
-            Log::info('planController::importantTimes() data', $importantTimes);
-
             // Schedule ins Haupt-JSON einhängen
             $data['plan'] = $importantTimes;
         }
@@ -262,8 +259,6 @@ class PublishController extends Controller
     private function importantTimes(int $eventId): \Illuminate\Http\JsonResponse
     {
 
-        Log::info('Fetching important times for event', ['event_id' => $eventId]);
-
         // Plan zum Event laden
         $plan = DB::table('plan')
             ->where('event', $eventId)
@@ -276,8 +271,6 @@ class PublishController extends Controller
 
         // Activities laden
         $activities = $this->fetcher->fetchActivities($plan->id);
-
-        Log::info('Activities for importantTimes', ['count' => $activities->count()]);
 
         // Hilfsfunktion: Erste Startzeit für gegebene ATD-IDs finden
         $findStart = function($ids) use ($activities) {
@@ -322,8 +315,6 @@ class PublishController extends Controller
     private function buildEventSheetHtml(string $type, int $eventId): string
     {
         $event = \App\Models\Event::findOrFail($eventId);
-
-        Log::info('Building Event Sheet HTML', ['event_id' => $eventId, 'type' => $type]);
 
         // WLAN-Passwort entschlüsseln
         $wifiPassword = '';
