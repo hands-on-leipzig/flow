@@ -43,7 +43,7 @@ class PlanExportController extends Controller
         // PDF erzeugen
         $pdf = match ($type) {
             'rooms' => $this->roomSchedulePdf($plan->id),
-            // 'teams' => $this->teamSchedulePdf($plan->id),
+            'teams' => $this->teamSchedulePdf($plan->id),
             // 'roles' => $this->roleSchedulePdf($plan->id),
             'full'  => $this->fullSchedulePdf($plan->id),
             default => null,
@@ -452,7 +452,7 @@ class PlanExportController extends Controller
         $activities = app(\App\Services\ActivityFetcherService::class)
             ->fetchActivities(
                 $planId,
-                [6, 10, 14],   // Rollen
+                [6, 10, 14],   // Rollen: Publikum E, C und generisch
                 true,          // includeRooms
                 false,         // includeGroupMeta
                 true,          // includeActivityMeta
@@ -534,4 +534,201 @@ class PlanExportController extends Controller
 
         return $pdf;
     }
+
+public function teamSchedulePdf(int $planId)
+{
+    $fetcher = app(\App\Services\ActivityFetcherService::class);
+
+    // 1) Explore (Role 3)
+    $exploreActs = collect($fetcher->fetchActivities(
+        $planId,
+        [8],   // Explore-Teams
+        true,  // includeRooms
+        false, // includeGroupMeta
+        true,  // includeActivityMeta (liefert activity_atd_name, activity_first_program_name, ...)
+        true,  // includeTeamNames (jury_team_name, table_*_team_name)
+        true   // freeBlocks
+    ));
+
+    // 2) Challenge (Role 8)
+    $challengeActs = collect($fetcher->fetchActivities(
+        $planId,
+        [3], true, false, true, true, true
+    ));
+
+    // Event laden (für Layout + QR/Link)
+    $event = DB::table('event')
+        ->join('plan', 'plan.event', '=', 'event.id')
+        ->where('plan.id', $planId)
+        ->select('event.*')
+        ->first();
+
+    // Seiten je Programm
+    $explorePages   = $this->buildExploreTeamPages($exploreActs);
+    $challengePages = $this->buildChallengeTeamPages($challengeActs);
+
+    // Explore zuerst, dann Challenge
+    $pages = array_merge($explorePages, $challengePages);
+
+    // HTML bauen
+    $html = '';
+    $lastIndex = count($pages) - 1;
+
+    foreach ($pages as $idx => $page) {
+        // innerhalb des Teams chronologisch
+        $acts = $page['acts']->sortBy('start_time');
+
+        $rows = $acts->map(function ($a) {
+            return [
+                'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+                'room'     => $a->room_name ?? '–',
+            ];
+        })->values()->all();
+
+        $html .= view('pdf.content.team_schedule', [
+            'team'  => $page['label'], // z.B. "Explore 12 – RoboKids" / "Challenge 45 – TechMasters"
+            'rows'  => $rows,
+            'event' => $event,
+        ])->render();
+
+        if ($idx !== $lastIndex) {
+            $html .= '<div style="page-break-before: always;"></div>';
+            // Alternativ: page-break-after; beide funktionieren im Wrapper-Layout
+        }
+    }
+
+    $layout = app(\App\Services\PdfLayoutService::class);
+    $finalHtml = $layout->renderLayout($event, $html, 'FLOW Teambeschilderung');
+
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')
+        ->setPaper('a4', 'landscape');
+
+    return $pdf;
+}
+
+/**
+ * EXPLORE: Teamnummer nur in `team` (Jury). 
+ * Globale Acts = `team === null` → jedem Explore-Team hinzufügen.
+ * Ergebnis: Array von Seiten ['label' => string, 'acts' => Collection], nach Teamnummer sortiert.
+ */
+private function buildExploreTeamPages(\Illuminate\Support\Collection $acts): array
+{
+    // Teamnummern + Namen sammeln
+    $teamNames = []; // [num => name]
+    $teamSet   = []; // num als key
+
+    foreach ($acts as $a) {
+        if (!is_null($a->team)) { // Jury-Teamnummer
+            $num = (int)$a->team;
+            $teamSet[$num] = true;
+            if (!empty($a->jury_team_name) && empty($teamNames[$num])) {
+                $teamNames[$num] = $a->jury_team_name;
+            }
+        }
+    }
+
+    if (empty($teamSet)) {
+        return [];
+    }
+
+    // Globale Acts (ohne Teamnummer)
+    $globalActs = $acts->filter(fn($a) => is_null($a->team));
+
+    // Pro Team: eigene + globale Acts
+    $pages = [];
+    $teamNums = array_keys($teamSet);
+    sort($teamNums, SORT_NUMERIC);
+
+    foreach ($teamNums as $num) {
+        $ownActs = $acts->filter(fn($a) => !is_null($a->team) && (int)$a->team === $num);
+
+        $label = 'Explore ' . $num;
+        if (!empty($teamNames[$num])) {
+            $label .= ' – ' . $teamNames[$num];
+        }
+
+        $pages[] = [
+            'label' => $label,
+            'acts'  => $ownActs->concat($globalActs),
+        ];
+    }
+
+    return $pages;
+}
+
+/**
+ * CHALLENGE: Teamnummer kann in `team` (Jury) ODER `table_1_team` ODER `table_2_team` stehen.
+ * Globale Acts = alle drei NULL → jedem Challenge-Team hinzufügen.
+ * Ergebnis: Array von Seiten ['label' => string, 'acts' => Collection], nach Teamnummer sortiert.
+ */
+private function buildChallengeTeamPages(\Illuminate\Support\Collection $acts): array
+{
+    // Teamnummern + (erster gefundener) Name
+    $teamNames = []; // [num => name]
+    $teamSet   = [];
+
+    foreach ($acts as $a) {
+        // Jury
+        if (!is_null($a->team)) {
+            $n = (int)$a->team;
+            $teamSet[$n] = true;
+            if (!empty($a->jury_team_name) && empty($teamNames[$n])) {
+                $teamNames[$n] = $a->jury_team_name;
+            }
+        }
+        // Table 1
+        if (!is_null($a->table_1_team)) {
+            $n = (int)$a->table_1_team;
+            $teamSet[$n] = true;
+            if (!empty($a->table_1_team_name) && empty($teamNames[$n])) {
+                $teamNames[$n] = $a->table_1_team_name;
+            }
+        }
+        // Table 2
+        if (!is_null($a->table_2_team)) {
+            $n = (int)$a->table_2_team;
+            $teamSet[$n] = true;
+            if (!empty($a->table_2_team_name) && empty($teamNames[$n])) {
+                $teamNames[$n] = $a->table_2_team_name;
+            }
+        }
+    }
+
+    if (empty($teamSet)) {
+        return [];
+    }
+
+    // Globale Acts = kein Team in allen 3 Feldern
+    $globalActs = $acts->filter(function ($a) {
+        return is_null($a->team) && is_null($a->table_1_team) && is_null($a->table_2_team);
+    });
+
+    $pages    = [];
+    $teamNums = array_keys($teamSet);
+    sort($teamNums, SORT_NUMERIC);
+
+    foreach ($teamNums as $num) {
+        // Alle Acts, die dieses Team betreffen (Jury ODER Table1 ODER Table2)
+        $ownActs = $acts->filter(function ($a) use ($num) {
+            return (!is_null($a->team) && (int)$a->team === $num)
+                || (!is_null($a->table_1_team) && (int)$a->table_1_team === $num)
+                || (!is_null($a->table_2_team) && (int)$a->table_2_team === $num);
+        });
+
+        $label = 'Challenge ' . $num;
+        if (!empty($teamNames[$num])) {
+            $label .= ' – ' . $teamNames[$num];
+        }
+
+        $pages[] = [
+            'label' => $label,
+            'acts'  => $ownActs->concat($globalActs),
+        ];
+    }
+
+    return $pages;
+}
+
 }
