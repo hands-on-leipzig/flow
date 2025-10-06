@@ -41,9 +41,6 @@ async function downloadPng(dataUrl: string, filename: string) {
 
     <!-- Plan QR -->
     <div class="flex flex-col gap-3">
-      <p class="text-sm text-gray-600">
-        Teams, Freiwillige und Gäste gelangen über diesen QR-Code zum Online-Zeitplan.
-      </p>
 
       <!-- QR + Preview nebeneinander -->
       <div class="flex flex-row gap-6 items-start">

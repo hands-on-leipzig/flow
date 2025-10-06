@@ -9,24 +9,12 @@ import { formatDateOnly, formatDateTime, formatTimeOnly } from '@/utils/dateTime
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 
-const planId = ref<number | null>(null)
 const scheduleInfo = ref<any>(null)
-const publishData = ref<{ link: string; qrcode: string } | null>(null)
 
 // Detail-Level
 const levels = ['Planung', 'Nach Anmeldeschluss', 'Überblick zum Ablauf', 'volle Details']
 const detailLevel = ref(0)
 
-// ----------------- Fetches -----------------
-async function fetchPlanIdByEventId(eventId: number) {
-  try {
-    const { data } = await axios.get(`/plans/event/${eventId}`)
-    planId.value = data?.id ?? null
-  } catch (e) {
-    console.error('Fehler beim Laden der Plan-ID:', e)
-    planId.value = null
-  }
-}
 
 async function fetchPublicationLevel(eventId: number) {
   try {
@@ -56,23 +44,11 @@ async function fetchScheduleInformation(eventId: number) {
   }
 }
 
-async function fetchPublishData(planId: number) {
-  try {
-    const { data } = await axios.get(`/publish/link/${planId}`)
-    publishData.value = data
-  } catch (e) {
-    console.error('Fehler beim Laden von Publish-Daten:', e)
-    publishData.value = null
-  }
-}
-
-// ----------------- Reaktionen -----------------
 watch(
   () => event.value?.id,
   async (id) => {
     if (!id) return
     await Promise.all([
-      fetchPlanIdByEventId(id),
       fetchPublicationLevel(id),
       fetchScheduleInformation(id),
     ])
@@ -84,9 +60,6 @@ watch(detailLevel, (lvl) => {
   if (event.value?.id) updatePublicationLevel(event.value.id, lvl)
 })
 
-watch(planId, (id) => {
-  if (id) fetchPublishData(id)
-})
 
 // ----------------- Helpers -----------------
 function isCardActive(card: number, level: number) {
@@ -120,12 +93,8 @@ const challengeTimes = computed(() => {
   return items.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
 })
 
-const carouselLink = computed(() => {
-  return event.value ? `${window.location.origin}/carousel/${event.value.id}` : ''
-})
 
 function previewOlinePlan() {
-  if (!planId.value) return
   const url = `${import.meta.env.VITE_APP_URL}/output/zeitplan.cgi?plan=${planId.value}`
   window.open(url, '_blank')
 }
@@ -138,13 +107,13 @@ function previewOlinePlan() {
     <!-- Link + Erklärung -->
     <div class="flex items-center gap-3">
       <a
-        v-if="publishData?.link"
-        :href="publishData.link"
+        v-if="event?.link"
+        :href="event?.link"
         target="_blank"
         rel="noopener"
         class="text-blue-600 underline font-medium text-base"
       >
-        {{ publishData.link }}
+        {{ event?.link }} 
       </a>
       <span class="text-sm text-gray-600">
         gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
@@ -199,7 +168,7 @@ function previewOlinePlan() {
               <!-- Card Inhalte -->
               <template v-if="idx === 0 && scheduleInfo">
                 <div class="font-semibold mb-1">Datum</div>
-                <div>{{ formatDateOnly(scheduleInfo.date) }}</div>
+                <div>{{ formatDateOnly(scheduleInfo.date) }} {{scheduleInfo.date }}</div>
                 <div class="mt-2 font-semibold">Adresse</div>
                 <div class="whitespace-pre-line text-gray-700 text-xs">
                   {{ scheduleInfo.address }}
