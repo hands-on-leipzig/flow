@@ -1,16 +1,55 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 
+// === Store & Basis ===
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const loadingWifiQr = ref(false)
 
+// === QR ===
 const qrWifiUrl = computed(() => {
   return event.value?.wifi_qrcode ? `data:image/png;base64,${event.value.wifi_qrcode}` : ''
 })
 
+// === Preview-URLs ===
+const previewPlan = ref<string | null>(null)
+const previewPlanWifi = ref<string | null>(null)
+
+// === Previews laden ===
+async function fetchPreviews() {
+  if (!event.value?.id) return
+  try {
+    const [planRes, wifiRes] = await Promise.all([
+      axios.get(`/publish/preview/plan/${event.value.id}`),
+      axios.get(`/publish/preview/planwifi/${event.value.id}`)
+    ])
+    previewPlan.value = planRes.data?.preview || null
+    previewPlanWifi.value = wifiRes.data?.preview || null
+  } catch (e) {
+    console.error('Fehler beim Laden der Previews:', e)
+  }
+}
+
+// === PDF-Downloads ===
+async function downloadPdf(type: 'plan' | 'plan_wifi') {
+  if (!event.value?.id) return
+  try {
+    const response = await axios.get(`/publish/pdf_download/${type}/${event.value.id}`, { responseType: 'blob' })
+    const filename = response.headers['x-filename'] || `FLOW_${type}.pdf`
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (e) {
+    console.error(`Fehler beim Download von ${type}:`, e)
+  }
+}
+
+// === WLAN-Daten speichern + Preview neu laden ===
 async function updateEventField(field: string, value: string) {
   if (!event.value?.id) return
   try {
@@ -18,6 +57,11 @@ async function updateEventField(field: string, value: string) {
     await axios.put(`/events/${event.value?.id}`, { [field]: value })
     const { data } = await axios.get(`/events/${event.value?.id}`)
     eventStore.selectedEvent = data
+
+    // Wenn WLAN-Daten geändert wurden → Preview neu laden
+    if (['wifi_ssid', 'wifi_password', 'wifi_instruction'].includes(field)) {
+      await fetchPreviews()
+    }
   } catch (e) {
     console.error('Fehler beim Aktualisieren:', e)
   } finally {
@@ -25,12 +69,16 @@ async function updateEventField(field: string, value: string) {
   }
 }
 
+// === PNG-Download für QR ===
 async function downloadPng(dataUrl: string, filename: string) {
   const a = document.createElement('a')
   a.href = dataUrl
   a.download = filename
   a.click()
 }
+
+// === Initial Previews laden ===
+onMounted(fetchPreviews)
 </script>
 
 <template>
@@ -67,10 +115,17 @@ async function downloadPng(dataUrl: string, filename: string) {
             class="w-full aspect-[4/3] border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm"
             style="height: 80px;"
           >
-            Preview
+            <img
+              v-if="previewPlan"
+              :src="previewPlan"
+              alt="Preview Plan"
+              class="w-full h-full object-contain rounded"
+            />
+            <span v-else>Preview</span>
           </div>
           <button
             class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+            @click="downloadPdf('plan')"
           >
             PDF
           </button>
@@ -150,10 +205,17 @@ async function downloadPng(dataUrl: string, filename: string) {
           class="w-full aspect-[4/3] border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm"
           style="height: 80px;"
         >
-          Preview
+          <img
+            v-if="previewPlanWifi"
+            :src="previewPlanWifi"
+            alt="Preview Plan mit WLAN"
+            class="w-full h-full object-contain rounded"
+          />
+          <span v-else>Preview</span>
         </div>
         <button
           class="mt-2 px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+          @click="downloadPdf('plan_wifi')"
         >
           PDF
         </button>

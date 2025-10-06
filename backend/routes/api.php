@@ -199,6 +199,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
         Route::get('/times/{planId}', [PublishController::class, 'importantTimes']); // Wichtige Zeiten für Aussenkommunikation
+        Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
     });
 
     // Plan Export controller

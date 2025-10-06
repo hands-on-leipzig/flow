@@ -143,7 +143,7 @@ class PublishController extends Controller
         ]);
     }
 
-
+/*
     public function PDFandPreview(int $planId, Request $request) : JsonResponse
     {
         $wifi = filter_var($request->query('wifi', false), FILTER_VALIDATE_BOOLEAN);
@@ -158,49 +158,7 @@ class PublishController extends Controller
             return response()->json(['error' => 'Event not found'], 404);
         }
 
-/*
 
-        // Passwort entschlüsseln
-        $wifiPassword = '';
-        if (!empty($event->wifi_password)) {
-            try {
-                $wifiPassword = Crypt::decryptString($event->wifi_password);
-            } catch (\Exception $e) {
-                // Falls es schon unverschlüsselt gespeichert war
-                $wifiPassword = $event->wifi_password;
-            }
-        }
-
-        // QR-Content abhängig vom Passwort
-        if (!empty($wifiPassword)) {
-            $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
-        } else {
-            $wifiQrContent = "WIFI:T:nopass;S:{$event->wifi_ssid};;";
-        }
-
-        $wifiQr = new \Endroid\QrCode\QrCode(
-            $wifiQrContent,
-            new \Endroid\QrCode\Encoding\Encoding('UTF-8'),
-            \Endroid\QrCode\ErrorCorrectionLevel::High,
-            300,
-            10,
-            \Endroid\QrCode\RoundBlockSizeMode::Margin,
-            new \Endroid\QrCode\Color\Color(0, 0, 0),
-            new \Endroid\QrCode\Color\Color(255, 255, 255)
-        );
-
-        $writer = new \Endroid\QrCode\Writer\PngWriter();
-
-        // Logo optional hinzufügen
-        $wifiLogo = null;
-        $wifiLogoPath = public_path("flow/wifi.png");
-        if (file_exists($wifiLogoPath)) {
-            $wifiLogo = new \Endroid\QrCode\Logo\Logo($wifiLogoPath, 100);
-        }
-
-        // QR-Code schreiben mit Logo
-        $wifiResult = $writer->write($wifiQr, $wifiLogo);
-        $wifiQrcodeRaw = base64_encode($wifiResult->getString());
 
         // Speichern in DB
         DB::table('event')
@@ -209,7 +167,7 @@ class PublishController extends Controller
                 'wifi_qrcode' => $wifiQrcodeRaw,
             ]);
 
-            */
+
 
         // HTML fürs PDF
         $contentHtml = view('pdf.content.qr_codes', [
@@ -238,7 +196,7 @@ class PublishController extends Controller
             'preview' => 'data:image/png;base64,' . base64_encode($pngData),
         ]);
     }
-
+*/
     // Informationen fürs Volk ...
 
 
@@ -411,6 +369,49 @@ class PublishController extends Controller
         return response()->json($data);
     }
 
-    
+    public function download(string $type, int $eventId)
+    {
+        // Event laden
+        $event = \App\Models\Event::findOrFail($eventId);
+
+        log::info('Generating PDF download', ['event_id' => $eventId, 'type' => $type]);
+
+        // ggf. Passwort entschlüsseln
+        $wifiPassword = '';
+        if (!empty($event->wifi_password)) {
+            try {
+                $wifiPassword = Crypt::decryptString($event->wifi_password);
+            } catch (\Exception $e) {
+                $wifiPassword = $event->wifi_password;
+            }
+        }
+
+        // HTML fürs PDF
+        $contentHtml = view('pdf.content.qr_codes', [
+            'event'        => $event,
+            'wifi'         => $type === 'plan_wifi',
+            'wifiPassword' => $wifiPassword,
+        ])->render();
+
+        $layout = app(\App\Services\PdfLayoutService::class);
+        $html   = $layout->renderLayout($event, $contentHtml, 'Event Sheet');
+
+        // PDF generieren
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
+        $pdfData = $pdf->output();
+
+        // Dateiname inkl. Datum
+        $filename = sprintf('FLOW_%s_(%s).pdf',
+            $type === 'plan_wifi' ? 'Plan_mit_WLAN' : 'Plan',
+            now()->format('d.m.y')
+        );
+
+        // ECHTER Download
+        return response($pdfData, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . rawurlencode($filename) . '"')
+            ->header('X-Filename', rawurlencode($filename))
+            ->header('Access-Control-Expose-Headers', 'X-Filename');
+    }
 
 }
