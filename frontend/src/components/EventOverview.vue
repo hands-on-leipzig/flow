@@ -211,7 +211,7 @@ const tableNames = ref(['', '', '', ''])
 const fetchTableNames = async () => {
   if (!event.value?.id) return
   try {
-    const response = await axios.get(`/events/${event.value.id}/table-names`)
+    const response = await axios.get(`/table-names/${event.value.id}`)
     const tables = response.data.table_names
 
     const names = Array(4).fill('')
@@ -238,7 +238,7 @@ const updateTableName = async () => {
       })),
     }
 
-    await axios.put(`/events/${event.value.id}/table-names`, payload)
+    await axios.put(`/table-names/${event.value.id}`, payload)
   } catch (e) {
     console.error('Fehler beim Speichern der Tischnamen:', e)
   }
