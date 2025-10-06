@@ -351,8 +351,37 @@ class PlanController extends Controller
             'start'       => $start,
             'end'         => $end,
             'room'        => null,
+            'active'      => 0,
+        ]);
+
+        $start->setTime(8, 0, 0);
+        $end->setTime(8, 30, 0);
+        
+        DB::table('extra_block')->insert([
+            'plan'        => $planId,
+            'first_program' => 2,
+            'name'        => 'Check-In FLL Explore',
+            'description' => 'Teams und Gutacher:innen bitte beim Check-In melden, damit wir wissen, dass ihr da sein.',
+            'link'        => null,
+            'start'       => $start,
+            'end'         => $end,
+            'room'        => null,
             'active'      => 1,
         ]);
+
+        DB::table('extra_block')->insert([
+            'plan'        => $planId,
+            'first_program' => 3,
+            'name'        => 'Check-In FLL Challenge',
+            'description' => 'Teams, Juror:innen und Schiedsrichter:inne bitte beim Check-In melden, damit wir wissen, dass ihr da sein.',
+            'link'        => null,
+            'start'       => $start,
+            'end'         => $end,
+            'room'        => null,
+            'active'      => 1,
+        ]);
+
+
     }
 
     public function delete(int $id)
