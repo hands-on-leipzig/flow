@@ -269,7 +269,7 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
     <!-- CUSTOM: blocks without insert_point -->
     <div class="bg-white shadow-sm rounded-xl border border-gray-200 relative">
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <h3 class="text-sm font-semibold text-gray-700">Freie Zusatzblöcke - beeinflussen den Ablauf nicht</h3>
+        <span class="text-sm text-gray-600">Diese Blöcke werden direkt in den generierten Plan kopiert.</span>
         <button class="bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
                 :disabled="saving || !planId"
                 @click="addCustom">
