@@ -16,9 +16,9 @@ const levels = ['Planung', 'Nach Anmeldeschluss', 'Überblick zum Ablauf', 'voll
 const detailLevel = ref(0)
 
 
-async function fetchPublicationLevel(eventId: number) {
+async function fetchPublicationLevel() {
   try {
-    const { data } = await axios.get(`/publish/level/${eventId}`)
+    const { data } = await axios.get(`/publish/level/${event.value?.id}`)
     detailLevel.value = (data.level ?? 1) - 1 // Radio startet bei 0
   } catch (e) {
     console.error('Fehler beim Laden des Publication Levels:', e)
@@ -26,17 +26,17 @@ async function fetchPublicationLevel(eventId: number) {
   }
 }
 
-async function updatePublicationLevel(eventId: number, level: number) {
+async function updatePublicationLevel(level: number) {
   try {
-    await axios.post(`/publish/level/${eventId}`, { level: level + 1 })
+    await axios.post(`/publish/level/${event.value?.id}`, { level: level + 1 })
   } catch (e) {
     console.error('Fehler beim Setzen des Publication Levels:', e)
   }
 }
 
-async function fetchScheduleInformation(eventId: number) {
+async function fetchScheduleInformation() {
   try {
-    const { data } = await axios.post(`/publish/information/${eventId}`, { level: 4 })
+    const { data } = await axios.post(`/publish/information/${event.value?.id}`, { level: 4 })
     scheduleInfo.value = data
   } catch (e) {
     console.error('Fehler beim Laden von Schedule Information:', e)
@@ -49,8 +49,8 @@ watch(
   async (id) => {
     if (!id) return
     await Promise.all([
-      fetchPublicationLevel(id),
-      fetchScheduleInformation(id),
+      fetchPublicationLevel()
+^     fetchScheduleInformation()
     ])
   },
   { immediate: true }
@@ -71,8 +71,8 @@ function isCardActive(card: number, level: number) {
 }
 
 const exploreTimes = computed(() => {
-  if (!scheduleInfo.value?.schedule?.explore) return []
-  const e = scheduleInfo.value.schedule.explore
+  if (!scheduleInfo.value?.plan?.explore) return []
+  const e = scheduleInfo.value.plan.explore
   const items: Array<{ label: string; time: string }> = []
   if (e.briefing?.teams) items.push({ label: 'Coach-Briefing', time: e.briefing.teams })
   if (e.briefing?.judges) items.push({ label: 'Gutachter:innen-Briefing', time: e.briefing.judges })
@@ -82,8 +82,8 @@ const exploreTimes = computed(() => {
 })
 
 const challengeTimes = computed(() => {
-  if (!scheduleInfo.value?.schedule?.challenge) return []
-  const c = scheduleInfo.value.schedule.challenge
+  if (!scheduleInfo.value?.plan?.challenge) return []
+  const c = scheduleInfo.value.plan.challenge
   const items: Array<{ label: string; time: string }> = []
   if (c.briefing?.teams) items.push({ label: 'Coach-Briefing', time: c.briefing.teams })
   if (c.briefing?.judges) items.push({ label: 'Jury-Briefing', time: c.briefing.judges })
@@ -95,7 +95,7 @@ const challengeTimes = computed(() => {
 
 
 function previewOlinePlan() {
-  const url = `${import.meta.env.VITE_APP_URL}/output/zeitplan.cgi?plan=${planId.value}`
+  const url = `${import.meta.env.VITE_APP_URL}/output/zeitplan.cgi?plan=${scheduleInfo.value?.plan.plan_id}`
   window.open(url, '_blank')
 }
 </script>
@@ -168,7 +168,7 @@ function previewOlinePlan() {
               <!-- Card Inhalte -->
               <template v-if="idx === 0 && scheduleInfo">
                 <div class="font-semibold mb-1">Datum</div>
-                <div>{{ formatDateOnly(scheduleInfo.date) }} {{scheduleInfo.date }}</div>
+                <div>{{ formatDateOnly(scheduleInfo.date) }}</div>
                 <div class="mt-2 font-semibold">Adresse</div>
                 <div class="whitespace-pre-line text-gray-700 text-xs">
                   {{ scheduleInfo.address }}
@@ -212,7 +212,7 @@ function previewOlinePlan() {
               <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
                 <div class="font-semibold mb-1">Wichtige Zeiten</div>
                 <div class="text-xs text-gray-600 mb-2">
-                  Letzte Änderung: {{ formatDateTime(scheduleInfo.schedule.last_changed) }}
+                  Letzte Änderung: {{ formatDateTime(scheduleInfo.plan.last_change) }} 
                 </div>
 
                 <div v-if="exploreTimes.length > 0">

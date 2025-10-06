@@ -268,7 +268,7 @@ class PublishController extends Controller
         $data = [
             'event_id' => $eventId,
             'level'    => $level,
-            'date'     => $drahtData['information']['date'] ?? null,
+            'date'     => $event->date,
             'address'  => $drahtData['address'] ?? null,
             // hier direkt durchreichen:
             'contact'  => $drahtData['contact'] ?? [],
@@ -288,19 +288,15 @@ class PublishController extends Controller
 
         if ($level >= 3) {
 
-            // PlanId aus der Plan-Tabelle holen (event → plan)
-            $planId = DB::table('plan')
-                ->where('event', $eventId)
-                ->value('id');        
 
-            $importantTimesResponse = $this->importantTimes($planId);
+            $importantTimesResponse = $this->importantTimes($eventId);
             $importantTimes = $importantTimesResponse->getData(true); // JSON -> Array
 
             // Ins Log schreiben
             Log::info('planController::importantTimes() data', $importantTimes);
 
             // Schedule ins Haupt-JSON einhängen
-            $data['schedule'] = $importantTimes;
+            $data['plan'] = $importantTimes;
         }
 
         return response()->json($data);
@@ -357,6 +353,8 @@ class PublishController extends Controller
     private function importantTimes(int $eventId): \Illuminate\Http\JsonResponse
     {
 
+        Log::info('Fetching important times for event', ['event_id' => $eventId]);
+
         // Plan zum Event laden
         $plan = DB::table('plan')
             ->where('event', $eventId)
@@ -369,6 +367,8 @@ class PublishController extends Controller
 
         // Activities laden
         $activities = $this->fetcher->fetchActivities($plan->id);
+
+        Log::info('Activities for importantTimes', ['count' => $activities->count()]);
 
         // Hilfsfunktion: Erste Startzeit für gegebene ATD-IDs finden
         $findStart = function($ids) use ($activities) {
@@ -384,7 +384,7 @@ class PublishController extends Controller
 
         $data = [
             'plan_id'      => $plan->id,
-            'last_changed' => $plan?->last_change,
+            'last_change' => $plan->last_change,
             'explore' => [
                 'briefing' => [
                     'teams'  => $findStart(ID_ATD_E_COACH_BRIEFING),
