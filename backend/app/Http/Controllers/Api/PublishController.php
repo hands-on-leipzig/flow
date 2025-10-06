@@ -36,18 +36,17 @@ class PublishController extends Controller
         $this->fetcher = $fetcher;
     }
 
-    public function linkAndQRcode(int $planId): JsonResponse
+    public function linkAndQRcode(int $eventId): JsonResponse
     {
-        // Plan → Event
+        // Event direkt laden
         $event = DB::table('event')
-            ->join('plan', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $planId)
-            ->select('event.*')
+            ->where('id', $eventId)
             ->first();
 
         if (!$event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
+
 
         // Wenn bereits gesetzt → zurückgeben
         if (!empty($event->link) && !empty($event->qrcode) && !empty($event->slug)) {
@@ -355,16 +354,21 @@ class PublishController extends Controller
 
    // Wichtige Zeite für die Veröffentlichung 
 
-    private function importantTimes(int $planId): \Illuminate\Http\JsonResponse
+    private function importantTimes(int $eventId): \Illuminate\Http\JsonResponse
     {
-        // Activities laden
-        $activities = $this->fetcher->fetchActivities($planId);
 
-        // Plan für last_changed
+        // Plan zum Event laden
         $plan = DB::table('plan')
-            ->select('last_change')
-            ->where('id', $planId)
+            ->where('event', $eventId)
+            ->select('id', 'last_change')
             ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan für dieses Event gefunden'], 404);
+        }
+
+        // Activities laden
+        $activities = $this->fetcher->fetchActivities($plan->id);
 
         // Hilfsfunktion: Erste Startzeit für gegebene ATD-IDs finden
         $findStart = function($ids) use ($activities) {
@@ -379,7 +383,7 @@ class PublishController extends Controller
         };
 
         $data = [
-            'plan_id'      => $planId,
+            'plan_id'      => $plan->id,
             'last_changed' => $plan?->last_change,
             'explore' => [
                 'briefing' => [

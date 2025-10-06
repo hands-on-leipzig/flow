@@ -9,7 +9,7 @@ const event = computed(() => eventStore.selectedEvent)
 async function downloadPdf(type: 'rooms' | 'teams' | 'roles' | 'full') {
   if (!event.value?.id) return
 
-  const url = `/export/pdf/${type}/${event.value.id}`
+  const url = `/export/pdf_download/${type}/${event.value.id}`
 
   try {
     const response = await axios.get(url, { responseType: 'blob' })
