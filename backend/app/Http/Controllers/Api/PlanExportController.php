@@ -40,11 +40,13 @@ class PlanExportController extends Controller
                 ->format('d.m.y')
             : '';
 
+        $maxRowsPerPage = 18; // Anzahl Zeilen pro Seite    
+
         // PDF erzeugen
         $pdf = match ($type) {
-            'rooms' => $this->roomSchedulePdf($plan->id),
-            'teams' => $this->teamSchedulePdf($plan->id),
-            'roles' => $this->roleSchedulePdf($plan->id),
+            'rooms' => $this->roomSchedulePdf($plan->id, $maxRowsPerPage),
+            'teams' => $this->teamSchedulePdf($plan->id, $maxRowsPerPage),
+            'roles' => $this->roleSchedulePdf($plan->id, $maxRowsPerPage),
             'full'  => $this->fullSchedulePdf($plan->id),
             default => null,
         };
@@ -447,7 +449,7 @@ class PlanExportController extends Controller
     }
 
 
-    public function roomSchedulePdf(int $planId)
+    public function roomSchedulePdf(int $planId, $maxRowsPerPage = 10)
     {
         $activities = app(\App\Services\ActivityFetcherService::class)
             ->fetchActivities(
@@ -480,26 +482,33 @@ class PlanExportController extends Controller
         $lastIndex = $roomKeys->count() - 1;
 
         foreach ($roomKeys as $idx => $room) {
-            $acts = $grouped->get($room)->sortBy('start_time');
+            $acts = $grouped->get($room)->sortBy([
+                ['start_time', 'asc'],
+                ['end_time', 'asc'],
+            ]);
 
             $rows = $acts->map(function ($a) {
-                // Teams aus den fetcher-Feldern zusammensetzen
                 $teamParts = [];
 
                 // Jury (Lane)
                 if (!empty($a->lane) && $a->team !== null) {
-                    // Name wenn vorhanden, sonst Nummer
-                    $teamParts[] = !empty($a->jury_team_name) ? $a->jury_team_name : (string)$a->team;
+                    $teamParts[] = !empty($a->jury_team_name)
+                        ? $a->jury_team_name
+                        : (string)$a->team;
                 }
 
                 // Tisch 1
                 if (!empty($a->table_1) && $a->table_1_team !== null) {
-                    $teamParts[] = !empty($a->table_1_team_name) ? $a->table_1_team_name : (string)$a->table_1_team;
+                    $teamParts[] = !empty($a->table_1_team_name)
+                        ? $a->table_1_team_name
+                        : (string)$a->table_1_team;
                 }
 
                 // Tisch 2
                 if (!empty($a->table_2) && $a->table_2_team !== null) {
-                    $teamParts[] = !empty($a->table_2_team_name) ? $a->table_2_team_name : (string)$a->table_2_team;
+                    $teamParts[] = !empty($a->table_2_team_name)
+                        ? $a->table_2_team_name
+                        : (string)$a->table_2_team;
                 }
 
                 $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
@@ -512,16 +521,22 @@ class PlanExportController extends Controller
                 ];
             })->values()->all();
 
-            // Teil-HTML für den Raum (ohne eigene Header/Footer)
-            $html .= view('pdf.content.room_schedule', [
-                'room' => $room,
-                'rows' => $rows,
-                'event' => $event,
-            ])->render();
+            // Tabelle in mehrere Seiten splitten
+            $chunks = array_chunk($rows, $maxRowsPerPage);
+            $chunkCount = count($chunks);
 
-            // Seitenumbruch zwischen Räumen (aber nicht nach dem letzten)
-            if ($idx !== $lastIndex) {
-                $html .= '<div style="page-break-before: always;"></div>';
+            foreach ($chunks as $chunkIndex => $chunkRows) {
+                $html .= view('pdf.content.room_schedule', [
+                    'room'  => $room,
+                    'rows'  => $chunkRows,
+                    'event' => $event,
+                ])->render();
+
+                // Seitenumbruch nach jedem Chunk (außer letzter)
+                $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
+                if (!$isLastChunk) {
+                    $html .= '<div style="page-break-before: always;"></div>';
+                }
             }
         }
 
@@ -535,7 +550,7 @@ class PlanExportController extends Controller
         return $pdf;
     }
 
-    public function teamSchedulePdf(int $planId)
+    public function teamSchedulePdf(int $planId, $maxRowsPerPage = 10)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
 
@@ -575,7 +590,7 @@ class PlanExportController extends Controller
         $lastIndex = count($pages) - 1;
 
         foreach ($pages as $idx => $page) {
-            // innerhalb des Teams chronologisch
+            // innerhalb des Teams chronologisch sortieren
             $acts = $page['acts']->sortBy([
                 ['start_time', 'asc'],
                 ['end_time', 'asc'],
@@ -590,15 +605,22 @@ class PlanExportController extends Controller
                 ];
             })->values()->all();
 
-            $html .= view('pdf.content.team_schedule', [
-                'team'  => $page['label'], // z.B. "Explore 12 – RoboKids" / "Challenge 45 – TechMasters"
-                'rows'  => $rows,
-                'event' => $event,
-            ])->render();
+            // In Seitenblöcke teilen
+            $chunks = array_chunk($rows, $maxRowsPerPage);
+            $chunkCount = count($chunks);
 
-            if ($idx !== $lastIndex) {
-                $html .= '<div style="page-break-before: always;"></div>';
-                // Alternativ: page-break-after; beide funktionieren im Wrapper-Layout
+            foreach ($chunks as $chunkIndex => $chunkRows) {
+                $html .= view('pdf.content.team_schedule', [
+                    'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
+                    'rows'  => $chunkRows,
+                    'event' => $event,
+                ])->render();
+
+                // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
+                $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
+                if (!$isLastChunk) {
+                    $html .= '<div style="page-break-before: always;"></div>';
+                }
             }
         }
 
@@ -737,115 +759,123 @@ class PlanExportController extends Controller
 
 
 
-public function roleSchedulePdf(int $planId)
+    public function roleSchedulePdf(int $planId, $maxRowsPerPage = 10)
+    {
+        $fetcher = app(\App\Services\ActivityFetcherService::class);
 
-{
-    $fetcher = app(\App\Services\ActivityFetcherService::class);
+        // === 1️⃣ EXPLORE Jury (Role 9) ===
+        $exploreActs = $fetcher->fetchActivities($planId, [9], true, false, true, true, true);
 
-    // === 1️⃣ EXPLORE Jury (Role 9) ===
-    $exploreActs = $fetcher->fetchActivities($planId, [9], true, false, true, true, true);
+        // === 2️⃣ CHALLENGE Jury (Role 4) ===
+        $challengeJuryActs = $fetcher->fetchActivities($planId, [4], true, false, true, true, true);
 
-    // === 2️⃣ CHALLENGE Jury (Role 4) ===
-    $challengeJuryActs = $fetcher->fetchActivities($planId, [4], true, false, true, true, true);
+        // === 3️⃣ CHALLENGE Robot Game – Referees (Role 5) ===
+        $challengeRefActs = $fetcher->fetchActivities($planId, [5], true, false, true, true, true);
 
-    // === 3️⃣ CHALLENGE Robot Game – Referees (Role 5) ===
-    $challengeRefActs = $fetcher->fetchActivities($planId, [5], true, false, true, true, true);
+        // === 4️⃣ CHALLENGE Robot Check (Role 11) ===
+        $challengeCheckActs = $fetcher->fetchActivities($planId, [11], true, false, true, true, true);
 
-    // === 4️⃣ CHALLENGE Robot Check (Role 11) ===
-    $challengeCheckActs = $fetcher->fetchActivities($planId, [11], true, false, true, true, true);
+        // === Event laden ===
+        $event = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->select('event.*')
+            ->first();
 
-    // === Event laden ===
-    $event = DB::table('event')
-        ->join('plan', 'plan.event', '=', 'event.id')
-        ->where('plan.id', $planId)
-        ->select('event.*')
-        ->first();
+        /**
+         * Hilfsfunktion: verteilt "allgemeine" Aktivitäten auf alle Gruppen
+         */
+        $distributeGeneric = function ($activities, $groupKey, $labelPrefix) {
+            $withKey = collect($activities)->filter(fn($a) => !empty($a->{$groupKey}));
+            $withoutKey = collect($activities)->filter(fn($a) => empty($a->{$groupKey}));
 
-    /**
-     * Hilfsfunktion: verteilt "allgemeine" Aktivitäten auf alle Gruppen
-     */
-    $distributeGeneric = function ($activities, $groupKey, $labelPrefix) {
-        $withKey = collect($activities)->filter(fn($a) => !empty($a->{$groupKey}));
-        $withoutKey = collect($activities)->filter(fn($a) => empty($a->{$groupKey}));
+            // alle vorhandenen keys finden
+            $allKeys = $withKey->pluck($groupKey)->unique()->values();
 
-        // alle vorhandenen keys finden
-        $allKeys = $withKey->pluck($groupKey)->unique()->values();
+            // allgemeine Aktivitäten duplizieren
+            foreach ($withoutKey as $generic) {
+                foreach ($allKeys as $keyValue) {
+                    $clone = clone $generic;
+                    $clone->{$groupKey} = $keyValue;
+                    $withKey->push($clone);
+                }
+            }
 
-        // allgemeine Aktivitäten duplizieren
-        foreach ($withoutKey as $generic) {
-            foreach ($allKeys as $keyValue) {
-                $clone = clone $generic;
-                $clone->{$groupKey} = $keyValue;
-                $withKey->push($clone);
+            // Gruppieren nach dem Schlüssel
+            return $withKey->groupBy(function ($a) use ($groupKey, $labelPrefix) {
+                $val = $a->{$groupKey};
+                if ($groupKey === 'lane') {
+                    return "{$labelPrefix} {$val}";                           
+                } elseif ($groupKey === 'table_1') {
+                    return "{$labelPrefix} " . ($a->table_1_name ?? $val);
+                } elseif ($groupKey === 'table_2') {
+                    return "{$labelPrefix} " . ($a->table_2_name ?? $val);
+                }
+                return "{$labelPrefix} – {$val}";
+            });
+        };
+
+        // === Gruppieren & Duplizieren ===
+        $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutachter:innen-Gruppe');
+        $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
+        $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table_1', 'FLL Challenge Schiedsrichter:innen Tisch');
+        $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table_2', 'FLL Challenge Robot-Check für Tisch');
+
+        // === Zusammenführen, sortiert nach Program-Logik ===
+        $sections = collect()
+            ->merge($exploreGrouped->sortKeys())
+            ->merge($challengeJuryGrouped->sortKeys())
+            ->merge($challengeRefGrouped->sortKeys())
+            ->merge($challengeCheckGrouped->sortKeys());
+
+        // === Rendern aller Abschnitte ===
+        $html = '';
+        $keys = $sections->keys()->values();
+        $last = $keys->count() - 1;
+
+        foreach ($keys as $i => $key) {
+            $acts = $sections[$key]->sortBy([
+                ['start_time', 'asc'],
+                ['end_time', 'asc'],
+            ]);
+
+            $rows = $acts->map(fn($a) => [
+                'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                'activity' => $a->activity_atd_name ?? $a->activity_name ?? '–',
+                'team'     => $a->jury_team_name
+                            ?? $a->table_1_team_name
+                            ?? $a->table_2_team_name
+                            ?? ($a->team ?? '–'),
+                'room'     => $a->room_name ?? '–',
+            ])->values()->all();
+
+            // Teile das Array in Seitenblöcke
+            $chunks = array_chunk($rows, $maxRowsPerPage);
+            $chunkCount = count($chunks);
+
+            foreach ($chunks as $chunkIndex => $chunkRows) {
+                $html .= view('pdf.content.role_schedule', [
+                    'title' => $key,
+                    'rows'  => $chunkRows,
+                    'event' => $event,
+                ])->render();
+
+                // Seitenumbruch nach jedem Chunk außer dem letzten
+                $isLastChunk = ($i === $last) && ($chunkIndex === $chunkCount - 1);
+                if (!$isLastChunk) {
+                    $html .= '<div style="page-break-before: always;"></div>';
+                }
             }
         }
 
-        // Gruppieren nach dem Schlüssel
-        return $withKey->groupBy(function ($a) use ($groupKey, $labelPrefix) {
-            $val = $a->{$groupKey};
-            if ($groupKey === 'lane') {
-                return "{$labelPrefix} {$val}";                           
-            } elseif ($groupKey === 'table_1') {
-                return "{$labelPrefix} " . ($a->table_1_name ?? $val);
-            } elseif ($groupKey === 'table_2') {
-                return "{$labelPrefix} " . ($a->table_2_name ?? $val);
-            }
-            return "{$labelPrefix} – {$val}";
-        });
-    };
+        // === Gesamtes Layout + PDF ===
+        $layout = app(\App\Services\PdfLayoutService::class);
+        $finalHtml = $layout->renderLayout($event, $html, 'FLOW Jury & Robot Game');
 
-    // === Gruppieren & Duplizieren ===
-    $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutachter:innen-Gruppe');
-    $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
-    $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table_1', 'FLL Challenge Schiedsrichter:innen Tisch');
-    $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table_2', 'FLL Challenge Robot-Check für Tisch');
-
-    // === Zusammenführen, sortiert nach Program-Logik ===
-    $sections = collect()
-        ->merge($exploreGrouped->sortKeys())
-        ->merge($challengeJuryGrouped->sortKeys())
-        ->merge($challengeRefGrouped->sortKeys())
-        ->merge($challengeCheckGrouped->sortKeys());
-
-    // === Rendern aller Abschnitte ===
-    $html = '';
-    $keys = $sections->keys()->values();
-    $last = $keys->count() - 1;
-
-    foreach ($keys as $i => $key) {
-        $acts = $sections[$key]->sortBy([
-            ['start_time', 'asc'],
-            ['end_time', 'asc'],
-        ]);
-        $rows = $acts->map(fn($a) => [
-            'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
-            'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-            'activity' => $a->activity_atd_name ?? $a->activity_name ?? '–',
-            'team'     => $a->jury_team_name
-                          ?? $a->table_1_team_name
-                          ?? $a->table_2_team_name
-                          ?? ($a->team ?? '–'),
-            'room'     => $a->room_name ?? '–',
-        ]);
-
-        $html .= view('pdf.content.role_schedule', [
-            'title' => $key,
-            'rows'  => $rows,
-            'event' => $event,
-        ])->render();
-
-        if ($i !== $last) {
-            $html .= '<div style="page-break-before: always;"></div>';
-        }
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
+        return $pdf;
     }
-
-    // === Gesamtes Layout + PDF ===
-    $layout = app(\App\Services\PdfLayoutService::class);
-    $finalHtml = $layout->renderLayout($event, $html, 'FLOW Jury & Robot Game');
-
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
-    return $pdf;
-}
 
 
 }
