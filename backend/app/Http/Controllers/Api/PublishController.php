@@ -158,6 +158,8 @@ class PublishController extends Controller
             return response()->json(['error' => 'Event not found'], 404);
         }
 
+/*
+
         // Passwort entschlüsseln
         $wifiPassword = '';
         if (!empty($event->wifi_password)) {
@@ -206,6 +208,8 @@ class PublishController extends Controller
             ->update([
                 'wifi_qrcode' => $wifiQrcodeRaw,
             ]);
+
+            */
 
         // HTML fürs PDF
         $contentHtml = view('pdf.content.qr_codes', [

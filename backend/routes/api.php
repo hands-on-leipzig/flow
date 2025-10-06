@@ -125,8 +125,8 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Event controller
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
-    Route::get('/events/{event}', [EventController::class, 'getEvent']);
-    Route::put('/events/{event}', [EventController::class, 'update']);
+    Route::get('/events/{eventId}', [EventController::class, 'getEvent']);
+    Route::put('/events/{eventId}', [EventController::class, 'update']);
     Route::get('/events/{event}/table-names', [EventController::class, 'getTableNames']);
     Route::put('/events/{id}/table-names', [EventController::class, 'updateTableNames']);
 

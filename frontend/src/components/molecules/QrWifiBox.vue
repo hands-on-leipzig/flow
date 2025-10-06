@@ -15,8 +15,8 @@ async function updateEventField(field: string, value: string) {
   if (!event.value?.id) return
   try {
     loadingWifiQr.value = true
-    await axios.put(`/events/${event.value.id}`, { [field]: value })
-    const { data } = await axios.get(`/events/${event.value.id}`)
+    await axios.put(`/events/${event.value?.id}`, { [field]: value })
+    const { data } = await axios.get(`/events/${event.value?.id}`)
     eventStore.selectedEvent = data
   } catch (e) {
     console.error('Fehler beim Aktualisieren:', e)
