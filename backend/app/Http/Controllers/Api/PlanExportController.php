@@ -576,7 +576,10 @@ class PlanExportController extends Controller
 
         foreach ($pages as $idx => $page) {
             // innerhalb des Teams chronologisch
-            $acts = $page['acts']->sortBy('start_time');
+            $acts = $page['acts']->sortBy([
+                ['start_time', 'asc'],
+                ['end_time', 'asc'],
+            ]);
 
             $rows = $acts->map(function ($a) {
                 return [
@@ -644,7 +647,7 @@ class PlanExportController extends Controller
         foreach ($teamNums as $num) {
             $ownActs = $acts->filter(fn($a) => !is_null($a->team) && (int)$a->team === $num);
 
-            $label = 'Explore ' . $num;
+            $label = 'FLL Explore Team ' . $num;
             if (!empty($teamNames[$num])) {
                 $label .= ' – ' . $teamNames[$num];
             }
@@ -717,7 +720,7 @@ class PlanExportController extends Controller
                     || (!is_null($a->table_2_team) && (int)$a->table_2_team === $num);
             });
 
-            $label = 'Challenge ' . $num;
+            $label = 'FLL Challenge Team ' . $num;
             if (!empty($teamNames[$num])) {
                 $label .= ' – ' . $teamNames[$num];
             }
@@ -781,21 +784,21 @@ public function roleSchedulePdf(int $planId)
         return $withKey->groupBy(function ($a) use ($groupKey, $labelPrefix) {
             $val = $a->{$groupKey};
             if ($groupKey === 'lane') {
-                return "{$labelPrefix} – Lane {$val}";
+                return "{$labelPrefix} {$val}";                           
             } elseif ($groupKey === 'table_1') {
-                return "{$labelPrefix} – Tisch " . ($a->table_1_name ?? $val);
+                return "{$labelPrefix} " . ($a->table_1_name ?? $val);
             } elseif ($groupKey === 'table_2') {
-                return "{$labelPrefix} – Tisch " . ($a->table_2_name ?? $val);
+                return "{$labelPrefix} " . ($a->table_2_name ?? $val);
             }
             return "{$labelPrefix} – {$val}";
         });
     };
 
     // === Gruppieren & Duplizieren ===
-    $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'Explore');
-    $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'Challenge Jury');
-    $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table_1', 'Challenge Robot Game');
-    $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table_2', 'Challenge Robot Check');
+    $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutacher:innen-Gruppe');
+    $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
+    $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table_1', 'FLL Challenge Schiedsrichter:innen Tisch');
+    $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table_2', 'FLL Challenge Robot-Check für Tisch');
 
     // === Zusammenführen, sortiert nach Program-Logik ===
     $sections = collect()
@@ -810,7 +813,10 @@ public function roleSchedulePdf(int $planId)
     $last = $keys->count() - 1;
 
     foreach ($keys as $i => $key) {
-        $acts = $sections[$key]->sortBy('start_time');
+        $acts = $sections[$key]->sortBy([
+            ['start_time', 'asc'],
+            ['end_time', 'asc'],
+        ]);
         $rows = $acts->map(fn($a) => [
             'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
             'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),

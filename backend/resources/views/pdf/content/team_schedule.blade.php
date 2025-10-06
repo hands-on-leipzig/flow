@@ -1,5 +1,21 @@
-<h2 style="margin-bottom: 15px; font-size: 22px; font-weight: bold;">
-    {{ $team }}
+@php
+    $icon = null;
+    $cleanTitle = $team;
+
+    if (str_contains($team, 'FLL Explore')) {
+        $icon = public_path('flow/fll_explore_h.png');
+        $cleanTitle = trim(str_replace('FLL Explore', '', $team));
+    } elseif (str_contains($team, 'FLL Challenge')) {
+        $icon = public_path('flow/fll_challenge_h.png');
+        $cleanTitle = trim(str_replace('FLL Challenge', '', $team));
+    }
+@endphp
+
+<h2 style="margin-bottom:15px; font-size:22px; font-weight:bold; font-family:sans-serif; display:flex; align-items:center; gap:10px;">
+    @if($icon)
+        <img src="file://{{ $icon }}" alt="Program Icon" style="height:28px; width:auto; vertical-align:middle;">
+    @endif
+    {{ $cleanTitle }}
 </h2>
 
 <table style="width:100%; border-collapse:collapse;">
