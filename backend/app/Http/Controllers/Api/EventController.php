@@ -158,9 +158,9 @@ class EventController extends Controller
     }
 
 
-    public function getTableNames(Event $event)
+    public function getTableNames(int $eventId)
     {
-        $tables = TableEvent::where('event', $event->id)
+        $tables = TableEvent::where('event', $eventId)
             ->orderBy('table_number')
             ->get(['table_number', 'table_name']);
 
@@ -168,30 +168,30 @@ class EventController extends Controller
             'table_names' => $tables,
         ]);
     }
-    
-    public function updateTableNames(Request $request, $event)
-    {
 
+    public function updateTableNames(Request $request, int $eventId)
+    {
         $tables = $request->input('table_names');
 
         if (!is_array($tables)) {
             return response()->json(['error' => 'Ungültiges Format'], 422);
         }
 
-        DB::transaction(function () use ($tables, $event) {
+        DB::transaction(function () use ($tables, $eventId) {
 
-            TableEvent::where('event', $event)->delete();
+            // Alte Tischnamen löschen
+            TableEvent::where('event', $eventId)->delete();
 
-
+            // Neue einfügen
             foreach ($tables as $entry) {
                 if (!isset($entry['table_number']) || !isset($entry['table_name'])) {
                     continue;
                 }
 
                 TableEvent::create([
-                    'event' => $event,
-                    'table_number' => (int)$entry['table_number'],
-                    'table_name' => $entry['table_name'],
+                    'event'         => $eventId,
+                    'table_number'  => (int) $entry['table_number'],
+                    'table_name'    => $entry['table_name'],
                 ]);
             }
         });
