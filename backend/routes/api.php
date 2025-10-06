@@ -195,16 +195,18 @@ Route::middleware(['keycloak'])->group(function () {
     // Publish controller
     Route::prefix('publish')->group(function () {
         Route::get('/link/{planId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
-        Route::get('/pdf/{planId}', [PublishController::class, 'PDFandPreview']);    // PDF mit Vorschau holen
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen   
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
         Route::get('/times/{planId}', [PublishController::class, 'importantTimes']); // Wichtige Zeiten für Aussenkommunikation
-        Route::get('/rooms/{planId}', [PublishController::class, 'roomSchedulePdf']); 
-        Route::get('/teams/{planId}', [PublishController::class, 'teamsSchedulePdf']); 
-        Route::get('/roles/{planId}', [PublishController::class, 'rolesSchedulePdf']); 
-        
     });
+
+    // Plan Export controller
+    Route::prefix('export')->group(function () { 
+        Route::get('/pdf/{planId}', [PublishController::class, 'PDFandPreview']);    // PDF mit Vorschau holen
+        Route::get('/pdf/{type}/{eventId}', [PlanExportController::class, 'download']);
+    });
+
 
     // Quality controller
     Route::prefix('quality')->group(function () {
