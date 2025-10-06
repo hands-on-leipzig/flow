@@ -133,7 +133,7 @@ class PlanExportController extends Controller
 
         $pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
 
-        return $pdf->download("Plan_$planId.pdf");
+        return $pdf;
     }
 
     /**
@@ -430,7 +430,7 @@ class PlanExportController extends Controller
     }
 
 
-       public function roomSchedulePdf(int $planId)
+    public function roomSchedulePdf(int $planId)
     {
         $activities = app(\App\Services\ActivityFetcherService::class)
             ->fetchActivities(
@@ -515,6 +515,6 @@ class PlanExportController extends Controller
         // PDF im Querformat erzeugen
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
 
-        return $pdf->download("FLOW_Raumbeschilderung_$planId.pdf");
+        return $pdf;
     }
 }
