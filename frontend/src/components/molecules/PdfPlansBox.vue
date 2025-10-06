@@ -36,7 +36,7 @@ async function downloadPdf(type: 'rooms' | 'teams' | 'roles' | 'full') {
         <h4 class="text-base font-semibold text-gray-800">Rollen (Juror:innen / Gutachter:innen / Schiedsrichter:innen)</h4>
         <p class="text-sm text-gray-600">Eine Seite pro Rolle mit allen Aktivitäten.</p>
       </div>
- <!--     <button class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="downloadPdf('roles')">PDF</button> -->
+      <button class="px-4 py-2 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="downloadPdf('roles')">PDF</button> 
     </div>
 
         <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
