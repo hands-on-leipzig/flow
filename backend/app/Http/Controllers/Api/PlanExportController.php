@@ -10,6 +10,7 @@ use App\Services\ActivityFetcherService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class PlanExportController extends Controller
 {
@@ -20,7 +21,66 @@ class PlanExportController extends Controller
         $this->activityFetcher = $activityFetcher;
     }
 
-    public function exportPdf(int $planId)
+    public function download(string $type, int $eventId)
+    {
+        // Plan zum Event finden
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id', 'last_change')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        // Datum formatieren
+        $formattedDate = $plan->last_change
+            ? \Carbon\Carbon::parse($plan->last_change)
+                ->timezone('Europe/Berlin')
+                ->format('d.m.y')
+            : '';
+
+        // PDF erzeugen
+        $pdf = match ($type) {
+            'rooms' => $this->roomSchedulePdf($plan->id),
+            // 'teams' => $this->teamSchedulePdf($plan->id),
+            // 'roles' => $this->roleSchedulePdf($plan->id),
+            'full'  => $this->fullSchedulePdf($plan->id),
+            default => null,
+        };
+
+        if (!$pdf) {
+            return response()->json(['error' => 'Unknown type'], 400);
+        }
+
+        // Dateiname abhängig vom Typ
+        $names = [
+            'rooms' => 'Räume',
+            'teams' => 'Teams',
+            'roles' => 'Rollen',
+            'full'  => 'Gesamtplan',
+        ];
+
+        $name = $names[$type] ?? ucfirst($type);
+        $filename = "FLOW_{$name}_({$formattedDate}).pdf";
+
+        // Umlaute transliterieren
+        $filename = str_replace(
+            ['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'],
+            ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'],
+            $filename
+        );
+
+        // PDF zurückgeben mit Header für Dateiname
+        return response($pdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('X-Filename', $filename)
+            ->header('Access-Control-Expose-Headers', 'X-Filename');
+
+    }
+
+
+    public function fullSchedulePdf(int $planId)
     {
         Log::info("Starte PDF-Export für Plan $planId");
 
@@ -90,7 +150,7 @@ class PlanExportController extends Controller
 
         $pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
 
-        return $pdf->download("Plan_$planId.pdf");
+        return $pdf;
     }
 
     /**
@@ -386,4 +446,92 @@ class PlanExportController extends Controller
         ];
     }
 
+
+    public function roomSchedulePdf(int $planId)
+    {
+        $activities = app(\App\Services\ActivityFetcherService::class)
+            ->fetchActivities(
+                $planId,
+                [6, 10, 14],   // Rollen
+                true,          // includeRooms
+                false,         // includeGroupMeta
+                true,          // includeActivityMeta
+                true,          // includeTeamNames
+                true           // freeBlocks
+            );
+
+        // Nur Aktivitäten mit echtem Raum
+        $activities = collect($activities)->filter(fn($a) => !empty($a->room_name) || !empty($a->room_id));
+
+        // Gruppieren nach Raum
+        $grouped = $activities->groupBy(fn($a) => $a->room_name ?? $a->room_id);
+
+        // Event laden
+        $event = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->select('event.*')
+            ->first();
+
+
+        $html = '';
+
+        $roomKeys  = $grouped->keys()->values();
+        $lastIndex = $roomKeys->count() - 1;
+
+        foreach ($roomKeys as $idx => $room) {
+            $acts = $grouped->get($room)->sortBy('start_time');
+
+            $rows = $acts->map(function ($a) {
+                // Teams aus den fetcher-Feldern zusammensetzen
+                $teamParts = [];
+
+                // Jury (Lane)
+                if (!empty($a->lane) && $a->team !== null) {
+                    // Name wenn vorhanden, sonst Nummer
+                    $teamParts[] = !empty($a->jury_team_name) ? $a->jury_team_name : (string)$a->team;
+                }
+
+                // Tisch 1
+                if (!empty($a->table_1) && $a->table_1_team !== null) {
+                    $teamParts[] = !empty($a->table_1_team_name) ? $a->table_1_team_name : (string)$a->table_1_team;
+                }
+
+                // Tisch 2
+                if (!empty($a->table_2) && $a->table_2_team !== null) {
+                    $teamParts[] = !empty($a->table_2_team_name) ? $a->table_2_team_name : (string)$a->table_2_team;
+                }
+
+                $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
+
+                return [
+                    'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                    'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                    'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+                    'team'     => $teamDisplay,
+                ];
+            })->values()->all();
+
+            // Teil-HTML für den Raum (ohne eigene Header/Footer)
+            $html .= view('pdf.content.room_schedule', [
+                'room' => $room,
+                'rows' => $rows,
+                'event' => $event,
+            ])->render();
+
+            // Seitenumbruch zwischen Räumen (aber nicht nach dem letzten)
+            if ($idx !== $lastIndex) {
+                $html .= '<div style="page-break-before: always;"></div>';
+            }
+        }
+
+        // Jetzt EIN Layout drumherum bauen
+        $layout = app(\App\Services\PdfLayoutService::class);
+        $finalHtml = $layout->renderLayout($event, $html, 'FLOW Raumbeschilderung');
+
+        // PDF im Querformat erzeugen
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
+
+        return $pdf;
+    }
 }

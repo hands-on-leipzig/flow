@@ -36,18 +36,17 @@ class PublishController extends Controller
         $this->fetcher = $fetcher;
     }
 
-    public function linkAndQRcode(int $planId): JsonResponse
+    public function linkAndQRcode(int $eventId): JsonResponse
     {
-        // Plan → Event
+        // Event direkt laden
         $event = DB::table('event')
-            ->join('plan', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $planId)
-            ->select('event.*')
+            ->where('id', $eventId)
             ->first();
 
         if (!$event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
+
 
         // Wenn bereits gesetzt → zurückgeben
         if (!empty($event->link) && !empty($event->qrcode) && !empty($event->slug)) {
@@ -144,98 +143,7 @@ class PublishController extends Controller
         ]);
     }
 
-
-    public function PDFandPreview(int $planId, Request $request) : JsonResponse
-    {
-        $wifi = filter_var($request->query('wifi', false), FILTER_VALIDATE_BOOLEAN);
-
-        $event = DB::table('event')
-            ->join('plan', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $planId)
-            ->select('event.*')
-            ->first();
-
-        if (!$event) {
-            return response()->json(['error' => 'Event not found'], 404);
-        }
-
-        // Passwort entschlüsseln
-        $wifiPassword = '';
-        if (!empty($event->wifi_password)) {
-            try {
-                $wifiPassword = Crypt::decryptString($event->wifi_password);
-            } catch (\Exception $e) {
-                // Falls es schon unverschlüsselt gespeichert war
-                $wifiPassword = $event->wifi_password;
-            }
-        }
-
-        // QR-Content abhängig vom Passwort
-        if (!empty($wifiPassword)) {
-            $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
-        } else {
-            $wifiQrContent = "WIFI:T:nopass;S:{$event->wifi_ssid};;";
-        }
-
-        $wifiQr = new \Endroid\QrCode\QrCode(
-            $wifiQrContent,
-            new \Endroid\QrCode\Encoding\Encoding('UTF-8'),
-            \Endroid\QrCode\ErrorCorrectionLevel::High,
-            300,
-            10,
-            \Endroid\QrCode\RoundBlockSizeMode::Margin,
-            new \Endroid\QrCode\Color\Color(0, 0, 0),
-            new \Endroid\QrCode\Color\Color(255, 255, 255)
-        );
-
-        $writer = new \Endroid\QrCode\Writer\PngWriter();
-
-        // Logo optional hinzufügen
-        $wifiLogo = null;
-        $wifiLogoPath = public_path("flow/wifi.png");
-        if (file_exists($wifiLogoPath)) {
-            $wifiLogo = new \Endroid\QrCode\Logo\Logo($wifiLogoPath, 100);
-        }
-
-        // QR-Code schreiben mit Logo
-        $wifiResult = $writer->write($wifiQr, $wifiLogo);
-        $wifiQrcodeRaw = base64_encode($wifiResult->getString());
-
-        // Speichern in DB
-        DB::table('event')
-            ->where('id', $event->id)
-            ->update([
-                'wifi_qrcode' => $wifiQrcodeRaw,
-            ]);
-
-        // HTML fürs PDF
-        $contentHtml = view('pdf.content.qr_codes', [
-            'event'        => $event,
-            'wifi'         => $wifi,
-            'wifiPassword' => $wifiPassword,
-        ])->render();
-
-        $layout = app(\App\Services\PdfLayoutService::class);
-        $html   = $layout->renderLayout($event, $contentHtml, 'Event Sheet');
-
-        // PDF generieren
-        $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
-        $pdfData = $pdf->output(); // Binary PDF
-
-        // PDF -> PNG konvertieren
-        $imagick = new \Imagick();
-        $imagick->setResolution(100, 100);
-        $imagick->readImageBlob($pdfData);
-        $imagick->setIteratorIndex(0); // erste Seite
-        $imagick->setImageFormat('png');
-        $pngData = $imagick->getImageBlob();
-
-        return response()->json([
-            'pdf' => 'data:application/pdf;base64,' . base64_encode($pdfData),
-            'preview' => 'data:image/png;base64,' . base64_encode($pngData),
-        ]);
-    }
-
+ 
     // Informationen fürs Volk ...
 
 
@@ -269,7 +177,7 @@ class PublishController extends Controller
         $data = [
             'event_id' => $eventId,
             'level'    => $level,
-            'date'     => $drahtData['information']['date'] ?? null,
+            'date'     => $event->date,
             'address'  => $drahtData['address'] ?? null,
             // hier direkt durchreichen:
             'contact'  => $drahtData['contact'] ?? [],
@@ -289,19 +197,12 @@ class PublishController extends Controller
 
         if ($level >= 3) {
 
-            // PlanId aus der Plan-Tabelle holen (event → plan)
-            $planId = DB::table('plan')
-                ->where('event', $eventId)
-                ->value('id');        
 
-            $importantTimesResponse = $this->importantTimes($planId);
+            $importantTimesResponse = $this->importantTimes($eventId);
             $importantTimes = $importantTimesResponse->getData(true); // JSON -> Array
 
-            // Ins Log schreiben
-            Log::info('planController::importantTimes() data', $importantTimes);
-
             // Schedule ins Haupt-JSON einhängen
-            $data['schedule'] = $importantTimes;
+            $data['plan'] = $importantTimes;
         }
 
         return response()->json($data);
@@ -355,16 +256,21 @@ class PublishController extends Controller
 
    // Wichtige Zeite für die Veröffentlichung 
 
-    private function importantTimes(int $planId): \Illuminate\Http\JsonResponse
+    private function importantTimes(int $eventId): \Illuminate\Http\JsonResponse
     {
-        // Activities laden
-        $activities = $this->fetcher->fetchActivities($planId);
 
-        // Plan für last_changed
+        // Plan zum Event laden
         $plan = DB::table('plan')
-            ->select('last_change')
-            ->where('id', $planId)
+            ->where('event', $eventId)
+            ->select('id', 'last_change')
             ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan für dieses Event gefunden'], 404);
+        }
+
+        // Activities laden
+        $activities = $this->fetcher->fetchActivities($plan->id);
 
         // Hilfsfunktion: Erste Startzeit für gegebene ATD-IDs finden
         $findStart = function($ids) use ($activities) {
@@ -379,8 +285,8 @@ class PublishController extends Controller
         };
 
         $data = [
-            'plan_id'      => $planId,
-            'last_changed' => $plan?->last_change,
+            'plan_id'      => $plan->id,
+            'last_change' => $plan->last_change,
             'explore' => [
                 'briefing' => [
                     'teams'  => $findStart(ID_ATD_E_COACH_BRIEFING),
@@ -403,91 +309,92 @@ class PublishController extends Controller
         return response()->json($data);
     }
 
- public function roomSchedulePdf(int $planId)
-{
-    $activities = app(\App\Services\ActivityFetcherService::class)
-        ->fetchActivities(
-            $planId,
-            [6, 10, 14],   // Rollen
-            true,          // includeRooms
-            false,         // includeGroupMeta
-            true,          // includeActivityMeta
-            true,          // includeTeamNames
-            true           // freeBlocks
-        );
+     /**
+     * Gemeinsamer Builder: Erzeugt HTML aus Event + Typ
+     */
+    private function buildEventSheetHtml(string $type, int $eventId): string
+    {
+        $event = \App\Models\Event::findOrFail($eventId);
 
-    // Nur Aktivitäten mit echtem Raum
-    $activities = collect($activities)->filter(fn($a) => !empty($a->room_name) || !empty($a->room_id));
-
-    // Gruppieren nach Raum
-    $grouped = $activities->groupBy(fn($a) => $a->room_name ?? $a->room_id);
-
-    // Event laden
-    $event = DB::table('event')
-        ->join('plan', 'plan.event', '=', 'event.id')
-        ->where('plan.id', $planId)
-        ->select('event.*')
-        ->first();
-
-
-    $html = '';
-
-    $roomKeys  = $grouped->keys()->values();
-    $lastIndex = $roomKeys->count() - 1;
-
-    foreach ($roomKeys as $idx => $room) {
-        $acts = $grouped->get($room)->sortBy('start_time');
-
-        $rows = $acts->map(function ($a) {
-            // Teams aus den fetcher-Feldern zusammensetzen
-            $teamParts = [];
-
-            // Jury (Lane)
-            if (!empty($a->lane) && $a->team !== null) {
-                // Name wenn vorhanden, sonst Nummer
-                $teamParts[] = !empty($a->jury_team_name) ? $a->jury_team_name : (string)$a->team;
+        // WLAN-Passwort entschlüsseln
+        $wifiPassword = '';
+        if (!empty($event->wifi_password)) {
+            try {
+                $wifiPassword = Crypt::decryptString($event->wifi_password);
+            } catch (\Exception $e) {
+                $wifiPassword = $event->wifi_password;
             }
+        }
 
-            // Tisch 1
-            if (!empty($a->table_1) && $a->table_1_team !== null) {
-                $teamParts[] = !empty($a->table_1_team_name) ? $a->table_1_team_name : (string)$a->table_1_team;
-            }
-
-            // Tisch 2
-            if (!empty($a->table_2) && $a->table_2_team !== null) {
-                $teamParts[] = !empty($a->table_2_team_name) ? $a->table_2_team_name : (string)$a->table_2_team;
-            }
-
-            $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
-
-            return [
-                'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
-                'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
-                'team'     => $teamDisplay,
-            ];
-        })->values()->all();
-
-        // Teil-HTML für den Raum (ohne eigene Header/Footer)
-        $html .= view('pdf.content.room_schedule', [
-            'room' => $room,
-            'rows' => $rows,
+        // Inhalt + Layout rendern
+        $contentHtml = view('pdf.content.qr_codes', [
+            'event'        => $event,
+            'wifi'         => $type === 'plan_wifi',
+            'wifiPassword' => $wifiPassword,
         ])->render();
 
-        // Seitenumbruch zwischen Räumen (aber nicht nach dem letzten)
-        if ($idx !== $lastIndex) {
-            $html .= '<div style="page-break-before: always;"></div>';
-        }
+        $layout = app(\App\Services\PdfLayoutService::class);
+        return $layout->renderLayout($event, $contentHtml, 'Event Sheet');
     }
 
-    // Jetzt EIN Layout drumherum bauen
-    $layout = app(\App\Services\PdfLayoutService::class);
-    $finalHtml = $layout->renderLayout($event, $html, 'FLOW Raumbeschilderung');
+    /**
+     * Gemeinsamer Renderer: Erzeugt PDF und (optional) PNG
+     */
+    private function buildEventSheetPdf(string $type, int $eventId, bool $asPng = false)
+    {
+        $html = $this->buildEventSheetHtml($type, $eventId);
 
-    // PDF im Querformat erzeugen
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
+        // PDF generieren (DomPDF)
+        $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
+        $pdfData = $pdf->output();
 
-    return $pdf->download("FLOW_Raumbeschilderung_$planId.pdf");
-}
+        if (!$asPng) {
+            return $pdfData;
+        }
 
+        // PDF -> PNG konvertieren (erste Seite)
+        $imagick = new \Imagick();
+        $imagick->setResolution(120, 120);
+        $imagick->readImageBlob($pdfData);
+        $imagick->setIteratorIndex(0);
+        $imagick->setImageFormat('png');
+        $imagick->setImageCompressionQuality(90);
+        $pngData = $imagick->getImageBlob();
+        $imagick->clear();
+        $imagick->destroy();
+
+        return $pngData;
+    }
+
+    /**
+     * PDF Download (mit Header & Dateiname)
+     */
+    public function download(string $type, int $eventId)
+    {
+        $pdfData = $this->buildEventSheetPdf($type, $eventId, false);
+
+        $formattedDate = now()->format('d.m.y');
+        $name = $type === 'plan_wifi' ? 'Plan_mit_WLAN' : 'Plan';
+        $filename = "FLOW_{$name}_({$formattedDate}).pdf";
+
+        return response($pdfData, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . rawurlencode($filename) . '"')
+            ->header('X-Filename', rawurlencode($filename))
+            ->header('Access-Control-Expose-Headers', 'X-Filename');
+    }
+
+    /**
+     * PNG Preview (aus PDF)
+     */
+    public function preview(string $type, int $eventId)
+    {
+        $pngData = $this->buildEventSheetPdf($type, $eventId, true);
+
+        return response('data:image/png;base64,' . base64_encode($pngData))
+            ->header('Content-Type', 'image/png')
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
+    }
 }

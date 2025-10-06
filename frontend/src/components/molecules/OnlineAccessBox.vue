@@ -9,28 +9,16 @@ import { formatDateOnly, formatDateTime, formatTimeOnly } from '@/utils/dateTime
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 
-const planId = ref<number | null>(null)
 const scheduleInfo = ref<any>(null)
-const publishData = ref<{ link: string; qrcode: string } | null>(null)
 
 // Detail-Level
 const levels = ['Planung', 'Nach Anmeldeschluss', 'Überblick zum Ablauf', 'volle Details']
 const detailLevel = ref(0)
 
-// ----------------- Fetches -----------------
-async function fetchPlanIdByEventId(eventId: number) {
-  try {
-    const { data } = await axios.get(`/plans/event/${eventId}`)
-    planId.value = data?.id ?? null
-  } catch (e) {
-    console.error('Fehler beim Laden der Plan-ID:', e)
-    planId.value = null
-  }
-}
 
-async function fetchPublicationLevel(eventId: number) {
+async function fetchPublicationLevel() {
   try {
-    const { data } = await axios.get(`/publish/level/${eventId}`)
+    const { data } = await axios.get(`/publish/level/${event.value?.id}`)
     detailLevel.value = (data.level ?? 1) - 1 // Radio startet bei 0
   } catch (e) {
     console.error('Fehler beim Laden des Publication Levels:', e)
@@ -38,17 +26,17 @@ async function fetchPublicationLevel(eventId: number) {
   }
 }
 
-async function updatePublicationLevel(eventId: number, level: number) {
+async function updatePublicationLevel(level: number) {
   try {
-    await axios.post(`/publish/level/${eventId}`, { level: level + 1 })
+    await axios.post(`/publish/level/${event.value?.id}`, { level: level + 1 })
   } catch (e) {
     console.error('Fehler beim Setzen des Publication Levels:', e)
   }
 }
 
-async function fetchScheduleInformation(eventId: number) {
+async function fetchScheduleInformation() {
   try {
-    const { data } = await axios.post(`/publish/information/${eventId}`, { level: 4 })
+    const { data } = await axios.post(`/publish/information/${event.value?.id}`, { level: 4 })
     scheduleInfo.value = data
   } catch (e) {
     console.error('Fehler beim Laden von Schedule Information:', e)
@@ -56,25 +44,13 @@ async function fetchScheduleInformation(eventId: number) {
   }
 }
 
-async function fetchPublishData(planId: number) {
-  try {
-    const { data } = await axios.get(`/publish/link/${planId}`)
-    publishData.value = data
-  } catch (e) {
-    console.error('Fehler beim Laden von Publish-Daten:', e)
-    publishData.value = null
-  }
-}
-
-// ----------------- Reaktionen -----------------
 watch(
   () => event.value?.id,
   async (id) => {
     if (!id) return
     await Promise.all([
-      fetchPlanIdByEventId(id),
-      fetchPublicationLevel(id),
-      fetchScheduleInformation(id),
+      fetchPublicationLevel()
+^     fetchScheduleInformation()
     ])
   },
   { immediate: true }
@@ -84,9 +60,6 @@ watch(detailLevel, (lvl) => {
   if (event.value?.id) updatePublicationLevel(event.value.id, lvl)
 })
 
-watch(planId, (id) => {
-  if (id) fetchPublishData(id)
-})
 
 // ----------------- Helpers -----------------
 function isCardActive(card: number, level: number) {
@@ -98,8 +71,8 @@ function isCardActive(card: number, level: number) {
 }
 
 const exploreTimes = computed(() => {
-  if (!scheduleInfo.value?.schedule?.explore) return []
-  const e = scheduleInfo.value.schedule.explore
+  if (!scheduleInfo.value?.plan?.explore) return []
+  const e = scheduleInfo.value.plan.explore
   const items: Array<{ label: string; time: string }> = []
   if (e.briefing?.teams) items.push({ label: 'Coach-Briefing', time: e.briefing.teams })
   if (e.briefing?.judges) items.push({ label: 'Gutachter:innen-Briefing', time: e.briefing.judges })
@@ -109,8 +82,8 @@ const exploreTimes = computed(() => {
 })
 
 const challengeTimes = computed(() => {
-  if (!scheduleInfo.value?.schedule?.challenge) return []
-  const c = scheduleInfo.value.schedule.challenge
+  if (!scheduleInfo.value?.plan?.challenge) return []
+  const c = scheduleInfo.value.plan.challenge
   const items: Array<{ label: string; time: string }> = []
   if (c.briefing?.teams) items.push({ label: 'Coach-Briefing', time: c.briefing.teams })
   if (c.briefing?.judges) items.push({ label: 'Jury-Briefing', time: c.briefing.judges })
@@ -120,13 +93,9 @@ const challengeTimes = computed(() => {
   return items.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
 })
 
-const carouselLink = computed(() => {
-  return event.value ? `${window.location.origin}/carousel/${event.value.id}` : ''
-})
 
 function previewOlinePlan() {
-  if (!planId.value) return
-  const url = `${import.meta.env.VITE_APP_URL}/output/zeitplan.cgi?plan=${planId.value}`
+  const url = `${import.meta.env.VITE_APP_URL}/output/zeitplan.cgi?plan=${scheduleInfo.value?.plan.plan_id}`
   window.open(url, '_blank')
 }
 </script>
@@ -138,13 +107,13 @@ function previewOlinePlan() {
     <!-- Link + Erklärung -->
     <div class="flex items-center gap-3">
       <a
-        v-if="publishData?.link"
-        :href="publishData.link"
+        v-if="event?.link"
+        :href="event?.link"
         target="_blank"
         rel="noopener"
         class="text-blue-600 underline font-medium text-base"
       >
-        {{ publishData.link }}
+        {{ event?.link }} 
       </a>
       <span class="text-sm text-gray-600">
         gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
@@ -243,7 +212,7 @@ function previewOlinePlan() {
               <template v-else-if="idx === 3 && scheduleInfo && scheduleInfo.level >= 3">
                 <div class="font-semibold mb-1">Wichtige Zeiten</div>
                 <div class="text-xs text-gray-600 mb-2">
-                  Letzte Änderung: {{ formatDateTime(scheduleInfo.schedule.last_changed) }}
+                  Letzte Änderung: {{ formatDateTime(scheduleInfo.plan.last_change) }} 
                 </div>
 
                 <div v-if="exploreTimes.length > 0">

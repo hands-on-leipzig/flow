@@ -125,8 +125,8 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Event controller
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
-    Route::get('/events/{event}', [EventController::class, 'getEvent']);
-    Route::put('/events/{event}', [EventController::class, 'update']);
+    Route::get('/events/{eventId}', [EventController::class, 'getEvent']);
+    Route::put('/events/{eventId}', [EventController::class, 'update']);
     Route::get('/events/{event}/table-names', [EventController::class, 'getTableNames']);
     Route::put('/events/{id}/table-names', [EventController::class, 'updateTableNames']);
 
@@ -194,14 +194,21 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Publish controller
     Route::prefix('publish')->group(function () {
-        Route::get('/link/{planId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
-        Route::get('/pdf/{planId}', [PublishController::class, 'PDFandPreview']);    // PDF mit Vorschau holen
+        Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen   
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
         Route::get('/times/{planId}', [PublishController::class, 'importantTimes']); // Wichtige Zeiten für Aussenkommunikation
-        Route::get('/rooms/{planId}', [PublishController::class, 'roomSchedulePdf']); // Raumbeschilderung als PDF
+        Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
+        Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
     });
+
+    // Plan Export controller
+    Route::prefix('export')->group(function () { 
+        Route::get('/pdf_preview/{eventId}', [PublishController::class, 'preview']);    // PDF mit Vorschau holen
+        Route::get('/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);
+    });
+
 
     // Quality controller
     Route::prefix('quality')->group(function () {
