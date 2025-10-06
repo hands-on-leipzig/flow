@@ -18,17 +18,15 @@ const previewPlan = ref<string | null>(null)
 const previewPlanWifi = ref<string | null>(null)
 
 // === Previews laden ===
-async function fetchPreviews() {
+async function loadPreview(type: 'plan' | 'plan_wifi') {
   if (!event.value?.id) return
   try {
-    const [planRes, wifiRes] = await Promise.all([
-      axios.get(`/publish/preview/plan/${event.value.id}`),
-      axios.get(`/publish/preview/planwifi/${event.value.id}`)
-    ])
-    previewPlan.value = planRes.data?.preview || null
-    previewPlanWifi.value = wifiRes.data?.preview || null
+    const timestamp = new Date().getTime() // gegen Cache
+    const { data } = await axios.get(`/publish/pdf_preview/${type}/${event.value.id}?_=${timestamp}`)
+    if (type === 'plan') previewPlan.value = data
+    else previewPlanWifi.value = data
   } catch (e) {
-    console.error('Fehler beim Laden der Previews:', e)
+    console.error(`Fehler beim Laden der Preview für ${type}:`, e)
   }
 }
 
@@ -60,7 +58,7 @@ async function updateEventField(field: string, value: string) {
 
     // Wenn WLAN-Daten geändert wurden → Preview neu laden
     if (['wifi_ssid', 'wifi_password', 'wifi_instruction'].includes(field)) {
-      await fetchPreviews()
+      await loadPreview('plan_wifi')
     }
   } catch (e) {
     console.error('Fehler beim Aktualisieren:', e)
@@ -78,7 +76,11 @@ async function downloadPng(dataUrl: string, filename: string) {
 }
 
 // === Initial Previews laden ===
-onMounted(fetchPreviews)
+onMounted(() => {
+  loadPreview('plan')
+  loadPreview('plan_wifi')
+})
+
 </script>
 
 <template>

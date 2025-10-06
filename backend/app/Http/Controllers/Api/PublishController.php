@@ -143,60 +143,7 @@ class PublishController extends Controller
         ]);
     }
 
-/*
-    public function PDFandPreview(int $planId, Request $request) : JsonResponse
-    {
-        $wifi = filter_var($request->query('wifi', false), FILTER_VALIDATE_BOOLEAN);
-
-        $event = DB::table('event')
-            ->join('plan', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $planId)
-            ->select('event.*')
-            ->first();
-
-        if (!$event) {
-            return response()->json(['error' => 'Event not found'], 404);
-        }
-
-
-
-        // Speichern in DB
-        DB::table('event')
-            ->where('id', $event->id)
-            ->update([
-                'wifi_qrcode' => $wifiQrcodeRaw,
-            ]);
-
-
-
-        // HTML fürs PDF
-        $contentHtml = view('pdf.content.qr_codes', [
-            'event'        => $event,
-            'wifi'         => $wifi,
-            'wifiPassword' => $wifiPassword,
-        ])->render();
-
-        $layout = app(\App\Services\PdfLayoutService::class);
-        $html   = $layout->renderLayout($event, $contentHtml, 'Event Sheet');
-
-        // PDF generieren
-        $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
-        $pdfData = $pdf->output(); // Binary PDF
-
-        // PDF -> PNG konvertieren
-        $imagick = new \Imagick();
-        $imagick->setResolution(100, 100);
-        $imagick->readImageBlob($pdfData);
-        $imagick->setIteratorIndex(0); // erste Seite
-        $imagick->setImageFormat('png');
-        $pngData = $imagick->getImageBlob();
-
-        return response()->json([
-            'pdf' => 'data:application/pdf;base64,' . base64_encode($pdfData),
-            'preview' => 'data:image/png;base64,' . base64_encode($pngData),
-        ]);
-    }
-*/
+ 
     // Informationen fürs Volk ...
 
 
@@ -369,14 +316,16 @@ class PublishController extends Controller
         return response()->json($data);
     }
 
-    public function download(string $type, int $eventId)
+     /**
+     * Gemeinsamer Builder: Erzeugt HTML aus Event + Typ
+     */
+    private function buildEventSheetHtml(string $type, int $eventId): string
     {
-        // Event laden
         $event = \App\Models\Event::findOrFail($eventId);
 
-        log::info('Generating PDF download', ['event_id' => $eventId, 'type' => $type]);
+        Log::info('Building Event Sheet HTML', ['event_id' => $eventId, 'type' => $type]);
 
-        // ggf. Passwort entschlüsseln
+        // WLAN-Passwort entschlüsseln
         $wifiPassword = '';
         if (!empty($event->wifi_password)) {
             try {
@@ -386,7 +335,7 @@ class PublishController extends Controller
             }
         }
 
-        // HTML fürs PDF
+        // Inhalt + Layout rendern
         $contentHtml = view('pdf.content.qr_codes', [
             'event'        => $event,
             'wifi'         => $type === 'plan_wifi',
@@ -394,19 +343,49 @@ class PublishController extends Controller
         ])->render();
 
         $layout = app(\App\Services\PdfLayoutService::class);
-        $html   = $layout->renderLayout($event, $contentHtml, 'Event Sheet');
+        return $layout->renderLayout($event, $contentHtml, 'Event Sheet');
+    }
 
-        // PDF generieren
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
+    /**
+     * Gemeinsamer Renderer: Erzeugt PDF und (optional) PNG
+     */
+    private function buildEventSheetPdf(string $type, int $eventId, bool $asPng = false)
+    {
+        $html = $this->buildEventSheetHtml($type, $eventId);
+
+        // PDF generieren (DomPDF)
+        $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
         $pdfData = $pdf->output();
 
-        // Dateiname inkl. Datum
-        $filename = sprintf('FLOW_%s_(%s).pdf',
-            $type === 'plan_wifi' ? 'Plan_mit_WLAN' : 'Plan',
-            now()->format('d.m.y')
-        );
+        if (!$asPng) {
+            return $pdfData;
+        }
 
-        // ECHTER Download
+        // PDF -> PNG konvertieren (erste Seite)
+        $imagick = new \Imagick();
+        $imagick->setResolution(120, 120);
+        $imagick->readImageBlob($pdfData);
+        $imagick->setIteratorIndex(0);
+        $imagick->setImageFormat('png');
+        $imagick->setImageCompressionQuality(90);
+        $pngData = $imagick->getImageBlob();
+        $imagick->clear();
+        $imagick->destroy();
+
+        return $pngData;
+    }
+
+    /**
+     * PDF Download (mit Header & Dateiname)
+     */
+    public function download(string $type, int $eventId)
+    {
+        $pdfData = $this->buildEventSheetPdf($type, $eventId, false);
+
+        $formattedDate = now()->format('d.m.y');
+        $name = $type === 'plan_wifi' ? 'Plan_mit_WLAN' : 'Plan';
+        $filename = "FLOW_{$name}_({$formattedDate}).pdf";
+
         return response($pdfData, 200)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="' . rawurlencode($filename) . '"')
@@ -414,4 +393,17 @@ class PublishController extends Controller
             ->header('Access-Control-Expose-Headers', 'X-Filename');
     }
 
+    /**
+     * PNG Preview (aus PDF)
+     */
+    public function preview(string $type, int $eventId)
+    {
+        $pngData = $this->buildEventSheetPdf($type, $eventId, true);
+
+        return response('data:image/png;base64,' . base64_encode($pngData))
+            ->header('Content-Type', 'image/png')
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
+    }
 }
