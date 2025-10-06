@@ -795,7 +795,7 @@ public function roleSchedulePdf(int $planId)
     };
 
     // === Gruppieren & Duplizieren ===
-    $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutacher:innen-Gruppe');
+    $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutachter:innen-Gruppe');
     $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
     $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table_1', 'FLL Challenge Schiedsrichter:innen Tisch');
     $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table_2', 'FLL Challenge Robot-Check für Tisch');
