@@ -342,6 +342,9 @@ class PublishController extends Controller
      */
     private function buildEventSheetPdf(string $type, int $eventId, bool $asPng = false)
     {
+
+        log::alert("buildEventSheetPdf: type=$type, eventId=$eventId, asPng=" . ($asPng ? 'true' : 'false'));
+
         $html = $this->buildEventSheetHtml($type, $eventId);
 
         // PDF generieren (DomPDF)
@@ -349,8 +352,13 @@ class PublishController extends Controller
         $pdfData = $pdf->output();
 
         if (!$asPng) {
+
+            log::alert("PDF generated, size: " . strlen($pdfData) . " bytes");
+
             return $pdfData;
         }
+
+        log::alert("Converting PDF to PNG...");
 
         // PDF -> PNG konvertieren (erste Seite)
         $imagick = new \Imagick();
@@ -362,6 +370,8 @@ class PublishController extends Controller
         $pngData = $imagick->getImageBlob();
         $imagick->clear();
         $imagick->destroy();
+
+        log::alert("Conversion done, PNG size: " . strlen($pngData) . " bytes");
 
         return $pngData;
     }

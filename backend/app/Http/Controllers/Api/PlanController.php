@@ -386,9 +386,20 @@ class PlanController extends Controller
 
     public function delete(int $id)
     {
-        $deleted = DB::table('plan')->where('id', $id)->delete();
+        // Event-ID zum Plan holen
+        $eventId = DB::table('plan')->where('id', $id)->value('event');
 
-         Log::info("Plan $id deletion attempted, deleted count: $deleted");
+        if ($eventId) {
+            // Zugehörige Veröffentlichungen löschen
+            $pubDeleted = DB::table('publication')->where('event', $eventId)->delete();
+            Log::info("Publications deleted for event {$eventId}: {$pubDeleted}");
+        } else {
+            Log::warning("No event found for plan {$id}, skipping publication cleanup.");
+        }
+
+        // Plan löschen
+        $deleted = DB::table('plan')->where('id', $id)->delete();
+        Log::info("Plan {$id} deletion attempted, deleted count: {$deleted}");
 
         if ($deleted === 0) {
             return response()->json([
