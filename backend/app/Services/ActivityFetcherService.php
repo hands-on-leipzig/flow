@@ -54,14 +54,19 @@ class ActivityFetcherService
 
         // Rooms (optional)
         if ($includeRooms) {
-            $q->leftJoin('m_room_type as rt', 'a.room_type', '=', 'rt.id')
+            $q->leftJoin('m_room_type as rt_room', 'a.room_type', '=', 'rt_room.id')
             ->leftJoin('room_type_room as rtr', function ($j) {
                 $j->on('rtr.room_type', '=', 'a.room_type')
                     ->on('rtr.event', '=', 'p.event');
             })
             ->leftJoin('room as r', function ($j) {
+                // (r.id = rtr.room AND r.event = p.event) OR (r.id = peb.room AND r.event = p.event)
                 $j->on('r.id', '=', 'rtr.room')
-                    ->on('r.event', '=', 'p.event');
+                    ->on('r.event', '=', 'p.event')
+                    ->orOn(function ($or) {
+                        $or->on('r.id', '=', 'peb.room')
+                        ->on('r.event', '=', 'p.event');
+                    });
             });
         }
 
@@ -166,8 +171,8 @@ class ActivityFetcherService
             $select .= ',
                 p.event as event_id,
                 a.room_type as room_type_id,
-                rt.name as room_type_name,
-                rt.sequence as room_type_sequence,
+                rt_room.name as room_type_name,
+                rt_room.sequence as room_type_sequence,
                 r.id as room_id,
                 r.name as room_name
             ';
