@@ -33,7 +33,7 @@ onMounted(async () => {
 
   // Räume laden
   const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
-  rooms.value = roomsData.rooms
+  rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
 
   // Plan-ID holen
   const { data: planData } = await axios.get(`/plans/event/${eventId.value}`)
@@ -58,12 +58,20 @@ onMounted(async () => {
   console.log('Fetched room type groups:', typeGroups.value)
   console.log('Flattened room types:', roomTypes.value)
 
-  // Zuordnungen bestehender Räume übernehmen
+  // Zuordnungen bestehender Räume übernehmen (inkl. Extra Blocks)
   const result = {}
   roomsData.rooms.forEach(room => {
+    // Normale Raumtypen
     room.room_types.forEach(rt => {
       result[rt.id] = room.id
     })
+
+    // Extra Blocks (falls vorhanden)
+    if (room.extra_blocks && Array.isArray(room.extra_blocks)) {
+      room.extra_blocks.forEach(eb => {
+        result[eb.id] = room.id
+      })
+    }
   })
   assignments.value = result
 })

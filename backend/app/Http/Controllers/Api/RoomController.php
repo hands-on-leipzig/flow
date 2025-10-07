@@ -16,43 +16,42 @@ class RoomController extends Controller
 {
     public function index(Event $event)
     {
-        $rooms = Room::where('event', $event->id)->with('roomTypes')->get();
-        $programsByName = FirstProgram::all()->keyBy(fn($p) => strtolower(trim($p->name)));
+        // Räume inkl. normaler Typen laden
+        $rooms = Room::where('event', $event->id)
+            ->with('roomTypes')
+            ->orderBy('name')
+            ->get();
 
-        $roomTypes = MRoomType::with('group')
-            ->where('level', '<=', $event->level)
-            ->orderBy('sequence')
-            ->get()
-            ->map(function ($type) use ($programsByName) {
-                $group = $type->group;
-                $groupName = strtolower(trim($group->name ?? ''));
-                $matchedProgram = $programsByName->get($groupName);
+        // Plan-ID zum Event holen
+        $plan = \DB::table('plan')->where('event', $event->id)->value('id');
 
-                return [
-                    'id' => $type->id,
-                    'name' => $type->name,
-                    'sequence' => $type->sequence,
-                    'room_type_group' => $type->room_type_group,
-                    'level' => $type->level,
-                    'group' => [
-                        'id' => $group->id ?? null,
-                        'name' => $group->name ?? null,
-                        'program' => $matchedProgram ? [
-                            'id' => $matchedProgram->id,
-                            'name' => $matchedProgram->name,
-                            'color' => "#" . $matchedProgram->color_hex,
-                        ] : null,
-                    ]
-                ];
-            });
+        if ($plan) {
+            // Extra-Blocks gruppiert nach room_id laden
+            $extraBlocksByRoom = \DB::table('extra_block')
+                ->where('plan', $plan)
+                ->select('id', 'name', 'room', 'first_program')
+                ->whereNotNull('room')
+                ->get()
+                ->groupBy('room');
+            
+            Log::debug('Extra blocks by room', $extraBlocksByRoom->toArray());
 
-        $validGroupIds = $roomTypes->pluck('group.id')->unique();
-        $groups = MRoomTypeGroup::whereIn('id', $validGroupIds)->get();
+            } else {
+
+            log('No plan found for event '.$event->id);
+            $extraBlocksByRoom = collect();
+        }
+
+        // Räume erweitern um zugehörige extra_blocks
+        $rooms->transform(function ($room) use ($extraBlocksByRoom) {
+            $room->extra_blocks = $extraBlocksByRoom->get($room->id, collect())->values();
+            return $room;
+        });
+
+        log::alert('Rooms with extra blocks', $rooms->toArray());
 
         return response()->json([
             'rooms' => $rooms,
-            'roomTypes' => $roomTypes,
-            'groups' => $groups
         ]);
     }
 
