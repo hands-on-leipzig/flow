@@ -18,7 +18,11 @@ const previewedTypeId = ref(null)
 
 // --- Farbzuweisung (vereinfacht) ---
 const getProgramColor = (type) => {
-  return type?.group?.program?.color || '#888888'
+  switch (type.first_program) {
+    case 2: return '#10B981'; // Grün (Explore)
+    case 3: return '#EF4444'; // Rot (Challenge)
+    default: return '#9CA3AF'; // Grau (Neutral)
+  }
 }
 
 // --- Lifecycle: Daten laden ---
@@ -46,6 +50,7 @@ onMounted(async () => {
     group.room_types.map(rt => ({
       id: rt.type_id,
       name: rt.type_name,
+      first_program: rt.first_program,
       group: { id: group.id, name: group.name }
     }))
   )
