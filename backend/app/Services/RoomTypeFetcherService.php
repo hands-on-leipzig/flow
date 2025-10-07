@@ -45,7 +45,7 @@ $normal = DB::table('activity_group as ag')
             'eb.id as type_id',
             'eb.name as type_name',
             DB::raw('0 as type_seq'),
-            DB::raw('0 as first_program')
+            'eb.first_program'
         )
         ->distinct()
         ->orderBy('eb.name')
