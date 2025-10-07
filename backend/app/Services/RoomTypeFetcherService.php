@@ -23,7 +23,8 @@ $normal = DB::table('activity_group as ag')
         'rg.sequence as group_seq',
         'rt.id   as type_id',
         'rt.name as type_name',
-        'rt.sequence as type_seq'
+        'rt.sequence as type_seq',
+        'rt.first_program'
     )
     ->distinct()
     ->orderBy('rg.sequence')
@@ -43,7 +44,8 @@ $normal = DB::table('activity_group as ag')
             DB::raw('999 as group_seq'),
             'eb.id as type_id',
             'eb.name as type_name',
-            DB::raw('0 as type_seq')
+            DB::raw('0 as type_seq'),
+            DB::raw('0 as first_program')
         )
         ->distinct()
         ->orderBy('eb.name')
@@ -70,7 +72,7 @@ $normal = DB::table('activity_group as ag')
                     ->map(fn($r) => [
                         'type_id' => (int) $r->type_id,
                         'type_name' => $r->type_name,
-                        'first_program' => 0, // 🔹 NEU: statisch 0
+                        'first_program' => (int) ($r->first_program ?? 0), 
                     ])
                     ->values()
                     ->all(),
