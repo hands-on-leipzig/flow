@@ -11,6 +11,7 @@ use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
+
 class RoomController extends Controller
 {
     public function index(Event $event)
@@ -87,26 +88,41 @@ class RoomController extends Controller
     public function assignRoomType(Request $request, Room $room)
     {
         $validated = $request->validate([
-            'type_id' => 'required|exists:m_room_type,id',
+            'type_id' => 'required|integer',
             'room_id' => 'nullable|exists:room,id',
             'event' => 'nullable|exists:event,id',
+            'extra_block' => 'required|boolean', // 🔹 NEU
         ]);
-        Log::debug($validated);
 
-        $type = MRoomType::findOrFail($validated['type_id']);
+        // Log::debug('Assign request', $validated);
 
-        \DB::table('room_type_room')
-            ->where('room_type', $validated['type_id'])
-            ->where('event', $validated['event'])
-            ->delete();
+        if (!$validated['extra_block']) {
+            // 🔹 Normaler Raum-Typ → Beziehung in Pivot-Tabelle
+            $type = \App\Models\MRoomType::findOrFail($validated['type_id']);
 
-        if ($validated['room_id']) {
             \DB::table('room_type_room')
-                ->insert([
+                ->where('room_type', $validated['type_id'])
+                ->where('event', $validated['event'])
+                ->delete();
+
+            if ($validated['room_id']) {
+                \DB::table('room_type_room')->insert([
                     'room_type' => $type->id,
                     'room' => $validated['room_id'],
                     'event' => $validated['event'],
                 ]);
+            }
+
+            // Log::info("Assigned normal room type {$type->id} to room {$validated['room_id']} (event {$validated['event']})");
+        } 
+        else {
+            // 🔹 Extra Block → direktes Update in Tabelle `extra_block`
+            $block = \App\Models\ExtraBlock::findOrFail($validated['type_id']);
+
+            $block->room = $validated['room_id'] ?? null;
+            $block->save();
+
+            // Log::info("Assigned extra block {$block->id} to room {$validated['room_id']}");
         }
 
         return response()->json(['success' => true]);

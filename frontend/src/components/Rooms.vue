@@ -79,19 +79,29 @@ const updateRoom = async (room) => {
 // --- Zuordnung Raum <-> Typ ---
 const assignRoomType = async (typeId, roomId) => {
   assignments.value[typeId] = roomId
+
+  const type = roomTypes.value.find(t => t.id === typeId)
+  const isExtraBlock = type?.group?.id === 999
+
   await axios.put(`/rooms/assign-types`, {
     type_id: typeId,
     room_id: roomId,
-    event: eventStore.selectedEvent?.id
+    event: eventStore.selectedEvent?.id,
+    extra_block: isExtraBlock
   })
 }
 
 const unassignRoomType = async (typeId) => {
   assignments.value[typeId] = null
+
+  const type = roomTypes.value.find(t => t.id === typeId)
+  const isExtraBlock = type?.group?.id === 999
+
   await axios.put(`/rooms/assign-types`, {
     type_id: typeId,
     room_id: null,
-    event: eventStore.selectedEvent?.id
+    event: eventStore.selectedEvent?.id,
+    extra_block: isExtraBlock
   })
 }
 
