@@ -146,8 +146,8 @@ function fromLocalInput(val: string) {
 async function addCustom() {
   if (!props.planId) return
   const baseDate = props.eventDate ? new Date(props.eventDate) : new Date()
-  const start = new Date(baseDate); start.setHours(9, 0, 0, 0)
-  const end = new Date(baseDate); end.setHours(10, 0, 0, 0)
+  const start = new Date(baseDate); start.setHours(6, 0, 0, 0)
+  const end = new Date(baseDate); end.setHours(7, 0, 0, 0)
   const draft: ExtraBlock = {
     plan: props.planId!,
     first_program: 3,
