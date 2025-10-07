@@ -105,7 +105,7 @@ class ActivityWriter
                 ->value('id');
         }
 
-        log::debug("Resolved activity_type_detail code '{$code}' to ID: " . ($cache[$code] ?? 'null'));
+        // log::debug("Resolved activity_type_detail code '{$code}' to ID: " . ($cache[$code] ?? 'null'));
 
         return $cache[$code];
     }
