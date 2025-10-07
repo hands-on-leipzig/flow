@@ -158,13 +158,15 @@ class ActivityFetcherService
             a.table_2 as table_2,
             a.table_2_team as table_2_team,
             CASE a.table_1 
-                WHEN 1 THEN COALESCE(te1.table_name, "Tisch 1")
-                WHEN 3 THEN COALESCE(te3.table_name, "Tisch 3")
-                ELSE NULL END as table_1_name,
+                WHEN 1 THEN COALESCE(te1.table_name, te3.table_name, "Tisch 1")
+                WHEN 3 THEN COALESCE(te3.table_name, te1.table_name, "Tisch 3")
+                ELSE NULL 
+            END as table_1_name,
             CASE a.table_2 
-                WHEN 2 THEN COALESCE(te2.table_name, "Tisch 2")
-                WHEN 4 THEN COALESCE(te4.table_name, "Tisch 4")
-                ELSE NULL END as table_2_name
+                WHEN 2 THEN COALESCE(te2.table_name, te4.table_name, "Tisch 2")
+                WHEN 4 THEN COALESCE(te4.table_name, te2.table_name, "Tisch 4")
+                ELSE NULL 
+            END as table_2_name
         ';
 
         if ($includeRooms) {

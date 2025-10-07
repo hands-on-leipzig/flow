@@ -840,10 +840,42 @@ class PlanExportController extends Controller
          * Hilfsfunktion: verteilt "allgemeine" Aktivitäten auf alle Gruppen
          */
         $distributeGeneric = function ($activities, $groupKey, $labelPrefix) {
+            // Falls Robot Game → gemeinsame Tisch-ID erzeugen
+            if (in_array($groupKey, ['table_1', 'table_2'])) {
+                $expanded = collect();
+                foreach ($activities as $a) {
+                    $refEntries = [];
+
+                    if (!empty($a->table_1)) {
+                        $clone = clone $a;
+                        $clone->ref_table = $a->table_1;
+                        $clone->ref_table_name = $a->table_1_name;
+                        $refEntries[] = $clone;
+                    }
+
+                    if (!empty($a->table_2)) {
+                        $clone = clone $a;
+                        $clone->ref_table = $a->table_2;
+                        $clone->ref_table_name = $a->table_2_name;
+                        $refEntries[] = $clone;
+                    }
+
+                    if (empty($refEntries)) {
+                        $refEntries[] = $a;
+                    }
+
+                    foreach ($refEntries as $entry) {
+                        $expanded->push($entry);
+                    }
+                }
+                $activities = $expanded;
+                $groupKey = 'ref_table';
+            }
+
             $withKey = collect($activities)->filter(fn($a) => !empty($a->{$groupKey}));
             $withoutKey = collect($activities)->filter(fn($a) => empty($a->{$groupKey}));
 
-            // alle vorhandenen keys finden
+            // alle vorhandenen Keys sammeln
             $allKeys = $withKey->pluck($groupKey)->unique()->values();
 
             // allgemeine Aktivitäten duplizieren
@@ -855,15 +887,13 @@ class PlanExportController extends Controller
                 }
             }
 
-            // Gruppieren nach dem Schlüssel
+            // Gruppieren nach Schlüssel
             return $withKey->groupBy(function ($a) use ($groupKey, $labelPrefix) {
                 $val = $a->{$groupKey};
                 if ($groupKey === 'lane') {
-                    return "{$labelPrefix} {$val}";                           
-                } elseif ($groupKey === 'table_1') {
-                    return "{$labelPrefix} " . ($a->table_1_name ?? $val);
-                } elseif ($groupKey === 'table_2') {
-                    return "{$labelPrefix} " . ($a->table_2_name ?? $val);
+                    return "{$labelPrefix} {$val}";
+                } elseif ($groupKey === 'ref_table') {
+                    return "{$labelPrefix} " . ($a->ref_table_name ?? "Tisch {$val}");
                 }
                 return "{$labelPrefix} – {$val}";
             });
@@ -872,15 +902,15 @@ class PlanExportController extends Controller
         // === Gruppieren & Duplizieren ===
         $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutachter:innen-Gruppe');
         $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
-        $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table_1', 'FLL Challenge Schiedsrichter:innen Tisch');
-        $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table_2', 'FLL Challenge Robot-Check für Tisch');
+        $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table_1', 'FLL Challenge Schiedsrichter:innen ');
+        $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table_2', 'FLL Challenge Robot-Check für ');
 
         // === Zusammenführen, sortiert nach Program-Logik ===
         $sections = collect()
             ->merge($exploreGrouped->sortKeys())
             ->merge($challengeJuryGrouped->sortKeys())
             ->merge($challengeRefGrouped->sortKeys())
-            ->merge($challengeCheckGrouped->sortKeys());
+           ->merge($challengeCheckGrouped->sortKeys());
 
         // === Rendern aller Abschnitte ===
         $html = '';
