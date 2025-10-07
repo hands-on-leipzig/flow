@@ -173,8 +173,22 @@ const askDeleteRoom = (room) => {
 
 const confirmDeleteRoom = async () => {
   if (!roomToDelete.value) return
-  await axios.delete(`/rooms/${roomToDelete.value.id}`)
-  rooms.value = rooms.value.filter(r => r.id !== roomToDelete.value.id)
+
+  const deletedRoomId = roomToDelete.value.id
+
+  await axios.delete(`/rooms/${deletedRoomId}`)
+
+  // Raum aus Liste entfernen
+  rooms.value = rooms.value.filter(r => r.id !== deletedRoomId)
+
+  // 🟢 Alle zugeordneten Typen (normale + extra) freigeben
+  Object.keys(assignments.value).forEach(typeId => {
+    if (assignments.value[typeId] === deletedRoomId) {
+      assignments.value[typeId] = null
+    }
+  })
+
+  // Modal schließen
   showDeleteModal.value = false
   roomToDelete.value = null
 }
