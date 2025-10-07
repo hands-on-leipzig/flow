@@ -84,6 +84,7 @@ define('ID_IP_RG_FINAL', 3);
 
 // IDs from m_room_type
 define('ID_RT_R_MATCH', 1);
+define('ID_RT_R_CHECK', 44);
 define('ID_RT_C_LANE_1', 2);
 define('ID_RT_C_LANE_2', 3);
 define('ID_RT_C_LANE_3', 4);
@@ -97,6 +98,8 @@ define('ID_RT_E_LANE_4', 11);
 define('ID_RT_E_LANE_5', 12);
 define('ID_RT_E_LANE_6', 13);
 define('ID_RT_OPENING', 14);
+define('ID_RT_E_OPENING', 46);
+define('ID_RT_C_OPENING', 45);
 define('ID_RT_C_JUDGE_BRIEFING', 15);
 define('ID_RT_E_JUDGE_BRIEFING', 16);
 define('ID_RT_C_COACH', 17);
@@ -104,6 +107,8 @@ define('ID_RT_E_COACH', 18);
 define('ID_RT_LUNCH_BREAK', 19);
 define('ID_RT_E_EXIBITION', 22);
 define('ID_RT_AWARDS', 23);
+define('ID_RT_E_AWARDS', 47);
+define('ID_RT_C_AWARDS', 48);
 define('ID_RT_C_PRESENTATIONS', 24);
 define('ID_RT_LC_JUDGE', 31);
 define('ID_RT_LC_1', 25);
@@ -242,9 +247,15 @@ function db_insert_activity(
         // Everything else
         switch ($activity_type_detail) {
             case ID_ATD_OPENING:
-            case ID_ATD_C_OPENING:
-            case ID_ATD_E_OPENING:
                 $room_type = ID_RT_OPENING;
+                break;
+
+            case ID_ATD_C_OPENING:
+                $room_type = ID_RT_C_OPENING;
+                break;
+
+            case ID_ATD_E_OPENING:
+                $room_type = ID_RT_E_OPENING;
                 break;
 
             case ID_ATD_C_OPENING_DAY_1:
@@ -255,9 +266,15 @@ function db_insert_activity(
                 break;
 
             case ID_ATD_AWARDS:
-            case ID_ATD_C_AWARDS:
-            case ID_ATD_E_AWARDS:
                 $room_type = ID_RT_AWARDS;
+                break;
+
+            case ID_ATD_C_AWARDS:
+                $room_type = ID_RT_C_AWARDS;
+                break;
+
+                case ID_ATD_E_AWARDS:
+                $room_type = ID_RT_E_AWARDS;
                 break;
 
             case ID_ATD_C_PRESENTATIONS:

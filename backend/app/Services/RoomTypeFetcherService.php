@@ -31,7 +31,7 @@ $normal = DB::table('activity_group as ag')
     ->orderBy('rt.sequence')
     ->get();
 
-    Log::info('room types normal', $normal->toArray());
+    // Log::info('room types normal', $normal->toArray());
 
     // --- Extra Blocks ---
     $extra = DB::table('activity as a')
@@ -51,11 +51,11 @@ $normal = DB::table('activity_group as ag')
         ->orderBy('eb.name')
         ->get();
 
-    Log::info('room types extra', $extra->toArray());
+    // Log::info('room types extra', $extra->toArray());
 
     // --- Zusammenführen ---
     $merged = $normal->merge($extra);
-    Log::info('room types merged', $merged->toArray());
+    // Log::info('room types merged', $merged->toArray());
 
     // --- Gruppieren für Frontend ---
     $grouped = $merged
