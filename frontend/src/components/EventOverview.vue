@@ -56,9 +56,6 @@ onMounted(async () => {
   event.value.contact = drahtData.data.contact
   event.value.information = drahtData.data.information
 
-  event.value.wifi_ssid ??= ''
-  event.value.wifi_password ??= ''
-
   teamStats.value = {
     explore: {
       capacity: drahtData.data.capacity_explore || 0,
