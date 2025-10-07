@@ -215,33 +215,31 @@ function isBlockEditable(pointId: number) {
 async function togglePoint(point: InsertPoint, enabled: boolean) {
   if (props.planId == null) return // guard
   
-  // Find existing block for this insert point and plan (regardless of active state)
+  // Finde bestehenden Block
   const existing = blocks.value.find(b => b.insert_point === point.id && b.plan === props.planId)
-  
-  if (enabled) {
-    if (!existing) {
-      // Create new block with active = true
-      const draft: ExtraBlock = {
-        plan: props.planId,
-        first_program: point.first_program ?? null,
-        insert_point: point.id,
-        name: point.ui_label,
-        description: '',
-        link: null,
-        buffer_before: 5,
-        duration: 5,
-        buffer_after: 5,
-        active: true
-      }
-      await saveBlockImmediate(draft)
-    } else {
-      // Update existing block to active = 1
-      await updateBlockActive(existing.id!, true)
+  const activeValue = enabled ? 1 : 0
+
+  if (existing?.id) {
+    // Nur aktiv/inaktiv umschalten → zentral über Parent speichern
+    scheduleUpdate(existing.id.toString(), 'active', activeValue)
+  } else if (enabled) {
+    // Neuer Block aktivieren → zentral speichern
+    const draft: ExtraBlock = {
+      plan: props.planId,
+      first_program: point.first_program ?? null,
+      insert_point: point.id,
+      name: point.ui_label,
+      description: '',
+      link: null,
+      buffer_before: 5,
+      duration: 5,
+      buffer_after: 5,
+      active: true
     }
-  } else {
-    if (existing?.id) {
-      // Set active = 0 instead of deleting
-      await updateBlockActive(existing.id, false)
+
+    // Parent informieren
+    if (props.onUpdate) {
+      props.onUpdate([{ name: `block_new_${point.id}`, value: draft }])
     }
   }
 }
@@ -272,28 +270,6 @@ async function saveBlockImmediate(block: ExtraBlock) {
     saving.value = false
   }
 }
-
-async function updateBlockActive(id: number, active: boolean) {
-  saving.value = true
-  try {
-    const {data: response} = await axios.post(`/plans/${props.planId}/extra-blocks`, {
-      id: id,
-      active: active ? 1 : 0  // Send 1 for true, 0 for false
-    })
-    const updated = response.block || response
-    
-    // Update local state
-    const blockIndex = blocks.value.findIndex(b => b.id === id)
-    if (blockIndex !== -1) {
-      blocks.value[blockIndex] = updated
-    }
-    
-    emit('changed')
-  } finally {
-    saving.value = false
-  }
-}
-
 
 function updateFixed(pointId: number, patch: Partial<ExtraBlock>) {
   const b = fixedByPoint.value[pointId]

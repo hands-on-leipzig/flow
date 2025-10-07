@@ -334,9 +334,19 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 
     // 2. Save block updates
     if (blockUpdates.length > 0) {
-      // Group block updates by block ID
       const updatesByBlock: Record<string, Record<string, any>> = {}
-      blockUpdates.forEach(({name, value}) => {
+      const newBlocks: Record<string, any> = {}
+
+      // detect new blocks (from toggle ON)
+      blockUpdates.forEach(({ name, value }) => {
+        if (name.startsWith('block_new_')) {
+          const pointId = name.split('_')[2]
+          newBlocks[pointId] = value
+        }
+      })
+
+      // detect existing block updates
+      blockUpdates.forEach(({ name, value }) => {
         // Parse: "block_31_buffer_after" -> blockId="31", field="buffer_after"
         const parts = name.split('_')
         if (parts.length >= 3) {
@@ -347,28 +357,33 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
         }
       })
 
-      // Save each block with regeneration optimization
+      // --- Save existing blocks ---
       for (const [blockId, updates] of Object.entries(updatesByBlock)) {
-        const block = {id: parseInt(blockId), ...updates}
-        
+        const block = { id: parseInt(blockId), ...updates }
+
         console.log('Sending block to API:', block)
-        console.log('Updates object:', updates)
-        
-        // Check if only non-timing fields changed
+
+        // classify change type
         const timingFields = ['start', 'end', 'buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
+        const toggleFields = ['active']
         const hasTimingChanges = Object.keys(updates).some(field => timingFields.includes(field))
-        
-        // Track if any block needs regeneration
-        if (hasTimingChanges) {
+        const hasToggleChange = Object.keys(updates).some(field => toggleFields.includes(field))
+
+        // Generator immer bei Toggle oder Timing-Änderung
+        if (hasTimingChanges || hasToggleChange) {
           needsRegeneration = true
-        }
-        
-        // Add skip_regeneration flag if only non-timing fields changed
-        if (!hasTimingChanges) {
+        } else {
           block.skip_regeneration = true
         }
-        
+
         await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, block)
+      }
+
+      // --- Save new blocks (toggle ON) ---
+      for (const [pointId, blockData] of Object.entries(newBlocks)) {
+        console.log('Creating new block for insert_point', pointId, blockData)
+        await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, blockData)
+        needsRegeneration = true // always regenerate after new block
       }
     }
   } catch (error) {

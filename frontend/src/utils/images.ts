@@ -18,7 +18,7 @@ export function programLogoSrc(first_program: string | number) {
   if (['3', 'c', 'challenge'].includes(key)) {
     return imageUrl('/flow/fll_challenge_v.png')
   }
-  return imageUrl('/flow/gray_square.png')
+  return imageUrl('/flow/hot_outline.png')
 }
 
 export function programLogoAlt(first_program: string | number) {
