@@ -34,11 +34,11 @@ class RoomController extends Controller
                 ->get()
                 ->groupBy('room');
             
-            Log::debug('Extra blocks by room', $extraBlocksByRoom->toArray());
+            // Log::debug('Extra blocks by room', $extraBlocksByRoom->toArray());
 
             } else {
 
-            log('No plan found for event '.$event->id);
+            // log('No plan found for event '.$event->id);
             $extraBlocksByRoom = collect();
         }
 
@@ -48,7 +48,7 @@ class RoomController extends Controller
             return $room;
         });
 
-        log::alert('Rooms with extra blocks', $rooms->toArray());
+        // log::alert('Rooms with extra blocks', $rooms->toArray());
 
         return response()->json([
             'rooms' => $rooms,

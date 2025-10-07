@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import draggable from 'vuedraggable'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'
 
 // --- Stores & Refs ---
 const eventStore = useEventStore()
@@ -252,15 +253,23 @@ onUnmounted(() => {
                   <template #item="{ element }">
                     <span
                       :style="{
-                        backgroundColor: getProgramColor(element),
-                        color: '#fff',
+                        border: '2px solid ' + getProgramColor(element),
+                        backgroundColor: '#fff',
+                        color: '#000',
                         opacity: isDragging && previewedTypeId === String(element.id) ? 0.6 : 1
                       }"
-                      class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1"
+                      class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
                     >
+                      <img
+                        v-if="programLogoSrc(element.first_program)"
+                        :src="programLogoSrc(element.first_program)"
+                        :alt="programLogoAlt(element.first_program)"
+                        class="w-3 h-3 flex-shrink-0"
+                      />
                       {{ element.name }}
                       <button
-                        class="text-white ml-1 text-sm"
+                        class="ml-1 text-sm"
+                        :style="{ color: '#000' }"
                         @click.stop="unassignRoomType(element.id)"
                       >
                         ✖
@@ -335,9 +344,19 @@ onUnmounted(() => {
         >
           <template #item="{ element }">
             <span
-              :style="{ backgroundColor: getProgramColor(element), color: '#fff' }"
-              class="text-xs px-2 py-1 rounded-full cursor-move"
+              :style="{
+                border: '2px solid ' + getProgramColor(element),
+                backgroundColor: '#fff',
+                color: '#000'
+              }"
+              class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
             >
+              <img
+                v-if="programLogoSrc(element.first_program)"
+                :src="programLogoSrc(element.first_program)"
+                :alt="programLogoAlt(element.first_program)"
+                class="w-3 h-3 flex-shrink-0"
+              />
               {{ element.name }}
             </span>
           </template>
