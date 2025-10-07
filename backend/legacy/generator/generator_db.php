@@ -381,14 +381,6 @@ function g_insert_point($id, $duration)
     
         db_insert_activity_group(ID_ATD_C_INSERTED);
 
-        // Read room_type from m_insert_point
-        $insert_point_row = DB::table('m_insert_point')
-            ->select('room_type')
-            ->where('id', $id)
-            ->first();
-
-        $room_type = $insert_point_row ? $insert_point_row->room_type : null;
-
         g_add_minutes($time, (int)$row->buffer_before);
 
         $time_start = clone $time;
@@ -405,7 +397,6 @@ function g_insert_point($id, $duration)
             'start' => $start,
             'end' => $end,
             'extra_block' => (int)$row->id,
-            'room_type' => $room_type,
         ]);
 
         g_add_minutes($time, (int)$row->duration + (int)$row->buffer_after);
