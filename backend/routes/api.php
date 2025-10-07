@@ -126,7 +126,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     // ExtraBlock controller
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
-    Route::get('/plans/{id}/extra-blocks-with-room-types', [ExtraBlockController::class, 'getBlocksForPlanWithRoomTypes']);
+    // Route::get('/plans/{id}/extra-blocks-with-room-types', [ExtraBlockController::class, 'getBlocksForPlanWithRoomTypes']); kann weg Thomas 2024-10-07
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::get('/insert-points', [ExtraBlockController::class, 'getInsertPoints']);
     Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
@@ -168,6 +168,10 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/rooms/assign-types', [RoomController::class, 'assignRoomType']);
     Route::put('/rooms/{room}', [RoomController::class, 'update']);
     Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
+
+    // PlanRoomType controller
+    Route::get('/room-types/{planId}', [PlanRoomTypeController::class, 'listRoomTypes']);
+
 
     // Parameter controller
     Route::get('/parameter', [ParameterController::class, 'index']);

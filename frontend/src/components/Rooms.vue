@@ -181,43 +181,37 @@ onMounted(async () => {
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
-  
-  // Fetch rooms and room types
-  const {data} = await axios.get(`/events/${eventId.value}/rooms`)
-  rooms.value = data.rooms
-  roomTypes.value = data.roomTypes
-  typeGroups.value = data.groups
 
-  // Fetch schedule parameters to get jury group configuration
-  try {
-    // Get the plan for this event
-    const {data: planData} = await axios.get(`/plans/event/${eventId.value}`)
-    
-    if (planData && planData.id) {
-      const {data: paramsData} = await axios.get(`/plans/${planData.id}/parameters`)
-      scheduleParameters.value = paramsData.reduce((acc, param) => {
-        if (param.name) {
-          acc[param.name] = param.value
-        }
-        return acc
-      }, {})
-      
-      // Fetch extra blocks for this plan (with room types for filtering)
-      const {data: extraBlocksData} = await axios.get(`/plans/${planData.id}/extra-blocks-with-room-types`)
-      extraBlocks.value = extraBlocksData
-      console.log('Fetched extra blocks:', extraBlocksData)
-      console.log('Extra blocks with insert points:', extraBlocksData.map(b => ({
-        name: b.name,
-        insert_point: b.insert_point,
-        room_type: b.insert_point?.room_type
-      })))
-    }
-  } catch (error) {
-    console.warn('Could not fetch schedule parameters or extra blocks:', error)
+  // Räume laden
+  const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
+  rooms.value = roomsData.rooms
+
+  // Plan-ID holen
+  const { data: planData } = await axios.get(`/plans/event/${eventId.value}`)
+  if (!planData?.id) {
+    console.warn('Kein Plan für Event gefunden')
+    return
   }
 
+  // 🔹 Nur ein Call: Liste der Room Types für diesen Plan
+  const { data: roomTypeGroups } = await axios.get(`/room-types/${planData.id}`)
+
+  // Struktur übernehmen
+  typeGroups.value = roomTypeGroups
+  roomTypes.value = roomTypeGroups.flatMap(group =>
+    group.room_types.map(rt => ({
+      id: rt.type_id,
+      name: rt.type_name,
+      group: { id: group.id, name: group.name }
+    }))
+  )
+
+  console.log('Fetched room type groups:', typeGroups.value)
+  console.log('Flattened room types:', roomTypes.value)
+
+  // 🔹 Zuordnungen aus bestehenden Räumen herstellen
   const result = {}
-  data.rooms.forEach(room => {
+  roomsData.rooms.forEach(room => {
     room.room_types.forEach(rt => {
       result[rt.id] = room.id
     })
@@ -453,7 +447,7 @@ onUnmounted(() => {
         </div>
 
         <draggable
-            :list="filteredRoomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
+            :list="roomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
             group="roomtypes"
             item-key="id"
             class="flex flex-wrap gap-2"
