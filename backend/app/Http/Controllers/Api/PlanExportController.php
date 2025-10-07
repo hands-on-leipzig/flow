@@ -642,14 +642,20 @@ class PlanExportController extends Controller
     {
         // Teamnummern + Namen sammeln
         $teamNames = []; // [num => name]
+        $teamHot   = []; // [num => team_number_hot]
         $teamSet   = []; // num als key
 
         foreach ($acts as $a) {
             if (!is_null($a->team)) { // Jury-Teamnummer
                 $num = (int)$a->team;
                 $teamSet[$num] = true;
+
                 if (!empty($a->jury_team_name) && empty($teamNames[$num])) {
                     $teamNames[$num] = $a->jury_team_name;
+                }
+
+                if (isset($a->jury_team_number_hot)) {
+                    $teamHot[$num] = $a->jury_team_number_hot;
                 }
             }
         }
@@ -669,9 +675,18 @@ class PlanExportController extends Controller
         foreach ($teamNums as $num) {
             $ownActs = $acts->filter(fn($a) => !is_null($a->team) && (int)$a->team === $num);
 
-            $label = 'FLL Explore Team ' . $num;
-            if (!empty($teamNames[$num])) {
-                $label .= ' – ' . $teamNames[$num];
+            // 🔹 Label nach neuer Regel
+            $teamName = $teamNames[$num] ?? null;
+            $teamHotNum = $teamHot[$num] ?? null;
+
+            if ($teamName && $teamHotNum) {
+                $label = "FLL Explore {$teamName} ({$teamHotNum})";
+            } elseif ($teamName) {
+                $label = "FLL Explore {$teamName}";
+            } elseif ($num > 0) {
+                $label = sprintf("FLL Explore T%02d", $num);
+            } else {
+                $label = "FLL Explore –";
             }
 
             $pages[] = [
@@ -689,72 +704,92 @@ class PlanExportController extends Controller
      * Ergebnis: Array von Seiten ['label' => string, 'acts' => Collection], nach Teamnummer sortiert.
      */
     private function buildChallengeTeamPages(\Illuminate\Support\Collection $acts): array
-    {
-        // Teamnummern + (erster gefundener) Name
-        $teamNames = []; // [num => name]
-        $teamSet   = [];
+{
+    $teamNames = []; // [num => name]
+    $teamHot   = []; // [num => team_number_hot]
+    $teamSet   = [];
 
-        foreach ($acts as $a) {
-            // Jury
-            if (!is_null($a->team)) {
-                $n = (int)$a->team;
-                $teamSet[$n] = true;
-                if (!empty($a->jury_team_name) && empty($teamNames[$n])) {
-                    $teamNames[$n] = $a->jury_team_name;
-                }
+    foreach ($acts as $a) {
+        // Jury
+        if (!is_null($a->team)) {
+            $n = (int)$a->team;
+            $teamSet[$n] = true;
+            if (!empty($a->jury_team_name) && empty($teamNames[$n])) {
+                $teamNames[$n] = $a->jury_team_name;
             }
-            // Table 1
-            if (!is_null($a->table_1_team)) {
-                $n = (int)$a->table_1_team;
-                $teamSet[$n] = true;
-                if (!empty($a->table_1_team_name) && empty($teamNames[$n])) {
-                    $teamNames[$n] = $a->table_1_team_name;
-                }
-            }
-            // Table 2
-            if (!is_null($a->table_2_team)) {
-                $n = (int)$a->table_2_team;
-                $teamSet[$n] = true;
-                if (!empty($a->table_2_team_name) && empty($teamNames[$n])) {
-                    $teamNames[$n] = $a->table_2_team_name;
-                }
+            if (isset($a->jury_team_number_hot)) {
+                $teamHot[$n] = $a->jury_team_number_hot;
             }
         }
 
-        if (empty($teamSet)) {
-            return [];
+        // Table 1
+        if (!is_null($a->table_1_team)) {
+            $n = (int)$a->table_1_team;
+            $teamSet[$n] = true;
+            if (!empty($a->table_1_team_name) && empty($teamNames[$n])) {
+                $teamNames[$n] = $a->table_1_team_name;
+            }
+            if (isset($a->table_1_team_number_hot)) {
+                $teamHot[$n] = $a->table_1_team_number_hot;
+            }
         }
 
-        // Globale Acts = kein Team in allen 3 Feldern
-        $globalActs = $acts->filter(function ($a) {
-            return is_null($a->team) && is_null($a->table_1_team) && is_null($a->table_2_team);
+        // Table 2
+        if (!is_null($a->table_2_team)) {
+            $n = (int)$a->table_2_team;
+            $teamSet[$n] = true;
+            if (!empty($a->table_2_team_name) && empty($teamNames[$n])) {
+                $teamNames[$n] = $a->table_2_team_name;
+            }
+            if (isset($a->table_2_team_number_hot)) {
+                $teamHot[$n] = $a->table_2_team_number_hot;
+            }
+        }
+    }
+
+    if (empty($teamSet)) {
+        return [];
+    }
+
+    // Globale Acts = kein Team in allen 3 Feldern
+    $globalActs = $acts->filter(function ($a) {
+        return is_null($a->team) && is_null($a->table_1_team) && is_null($a->table_2_team);
+    });
+
+    $pages    = [];
+    $teamNums = array_keys($teamSet);
+    sort($teamNums, SORT_NUMERIC);
+
+    foreach ($teamNums as $num) {
+        // Alle Acts, die dieses Team betreffen (Jury ODER Table1 ODER Table2)
+        $ownActs = $acts->filter(function ($a) use ($num) {
+            return (!is_null($a->team) && (int)$a->team === $num)
+                || (!is_null($a->table_1_team) && (int)$a->table_1_team === $num)
+                || (!is_null($a->table_2_team) && (int)$a->table_2_team === $num);
         });
 
-        $pages    = [];
-        $teamNums = array_keys($teamSet);
-        sort($teamNums, SORT_NUMERIC);
+        // 🔹 Label-Logik wie bei Explore
+        $teamName = $teamNames[$num] ?? null;
+        $teamHotNum = $teamHot[$num] ?? null;
 
-        foreach ($teamNums as $num) {
-            // Alle Acts, die dieses Team betreffen (Jury ODER Table1 ODER Table2)
-            $ownActs = $acts->filter(function ($a) use ($num) {
-                return (!is_null($a->team) && (int)$a->team === $num)
-                    || (!is_null($a->table_1_team) && (int)$a->table_1_team === $num)
-                    || (!is_null($a->table_2_team) && (int)$a->table_2_team === $num);
-            });
-
-            $label = 'FLL Challenge Team ' . $num;
-            if (!empty($teamNames[$num])) {
-                $label .= ' – ' . $teamNames[$num];
-            }
-
-            $pages[] = [
-                'label' => $label,
-                'acts'  => $ownActs->concat($globalActs),
-            ];
+        if ($teamName && $teamHotNum) {
+            $label = "FLL Challenge {$teamName} ({$teamHotNum})";
+        } elseif ($teamName) {
+            $label = "FLL Challenge {$teamName}";
+        } elseif ($num > 0) {
+            $label = sprintf("FLL Challenge T%02d", $num);
+        } else {
+            $label = "FLL Challenge –";
         }
 
-        return $pages;
+        $pages[] = [
+            'label' => $label,
+            'acts'  => $ownActs->concat($globalActs),
+        ];
     }
+
+    return $pages;
+}
 
 
 
@@ -843,10 +878,39 @@ class PlanExportController extends Controller
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                 'activity' => $a->activity_atd_name ?? $a->activity_name ?? '–',
-                'team'     => $a->jury_team_name
-                            ?? $a->table_1_team_name
-                            ?? $a->table_2_team_name
-                            ?? ($a->team ?? '–'),
+                'team' => (function () use ($a) {
+                    // Helper für Formatierung
+                    $fmtNameHot = function (?string $name, $hot) {
+                        if ($name && $name !== '') {
+                            return $hot !== null ? "{$name} ({$hot})" : $name;
+                        }
+                        return null;
+                    };
+                    $fmtInternal = function ($num) {
+                        if ($num !== null && $num !== '' && (int)$num > 0) {
+                            return sprintf('T%02d', (int)$num);
+                        }
+                        return null;
+                    };
+
+                    // 1) Jury
+                    $val = $fmtNameHot($a->jury_team_name ?? null, $a->jury_team_number_hot ?? null)
+                        ?? $fmtInternal(($a->jury_team ?? null) ?? ($a->team ?? null)); // $a->team ist Alias auf jury_team
+                    if ($val) return $val;
+
+                    // 2) Tisch 1
+                    $val = $fmtNameHot($a->table_1_team_name ?? null, $a->table_1_team_number_hot ?? null)
+                        ?? $fmtInternal($a->table_1_team ?? null);
+                    if ($val) return $val;
+
+                    // 3) Tisch 2
+                    $val = $fmtNameHot($a->table_2_team_name ?? null, $a->table_2_team_number_hot ?? null)
+                        ?? $fmtInternal($a->table_2_team ?? null);
+                    if ($val) return $val;
+
+                    // 4) Generisch
+                    return '–';
+                })(),
                 'room'     => $a->room_name ?? '–',
             ])->values()->all();
 
