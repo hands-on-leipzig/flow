@@ -487,58 +487,58 @@ class PlanExportController extends Controller
                 ['end_time', 'asc'],
             ]);
 
-$rows = $acts->map(function ($a) {
-    $teamParts = [];
+        $rows = $acts->map(function ($a) {
+            $teamParts = [];
 
-    // Hilfsfunktion für einheitliche Darstellung
-    $formatTeam = function ($name, $numHot, $numInternal) {
-        if (!empty($name) && !empty($numHot)) {
-            return "{$name} ({$numHot})";
-        } elseif (!empty($name)) {
-            return $name;
-        } elseif (!empty($numInternal)) {
-            return sprintf("T%02d", $numInternal);
-        } else {
-            return '–';
-        }
-    };
+            // Hilfsfunktion für einheitliche Darstellung
+            $formatTeam = function ($name, $numHot, $numInternal) {
+                if (!empty($name) && !empty($numHot)) {
+                    return "{$name} ({$numHot})";
+                } elseif (!empty($name)) {
+                    return $name;
+                } elseif (!empty($numInternal)) {
+                    return sprintf("T%02d", $numInternal);
+                } else {
+                    return '–';
+                }
+            };
 
-    // Jury (Lane)
-    if (!empty($a->lane) && $a->team !== null) {
-        $teamParts[] = $formatTeam(
-            $a->jury_team_name ?? null,
-            $a->jury_team_number_hot ?? null,
-            $a->team
-        );
-    }
+            // Jury (Lane)
+            if (!empty($a->lane) && $a->team !== null) {
+                $teamParts[] = $formatTeam(
+                    $a->jury_team_name ?? null,
+                    $a->jury_team_number_hot ?? null,
+                    $a->team
+                );
+            }
 
-    // Tisch 1
-    if (!empty($a->table_1) && $a->table_1_team !== null) {
-        $teamParts[] = $formatTeam(
-            $a->table_1_team_name ?? null,
-            $a->table_1_team_number_hot ?? null,
-            $a->table_1_team
-        );
-    }
+            // Tisch 1
+            if (!empty($a->table_1) && $a->table_1_team !== null) {
+                $teamParts[] = $formatTeam(
+                    $a->table_1_team_name ?? null,
+                    $a->table_1_team_number_hot ?? null,
+                    $a->table_1_team
+                );
+            }
 
-    // Tisch 2
-    if (!empty($a->table_2) && $a->table_2_team !== null) {
-        $teamParts[] = $formatTeam(
-            $a->table_2_team_name ?? null,
-            $a->table_2_team_number_hot ?? null,
-            $a->table_2_team
-        );
-    }
+            // Tisch 2
+            if (!empty($a->table_2) && $a->table_2_team !== null) {
+                $teamParts[] = $formatTeam(
+                    $a->table_2_team_name ?? null,
+                    $a->table_2_team_number_hot ?? null,
+                    $a->table_2_team
+                );
+            }
 
-    $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
+            $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
 
-    return [
-        'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
-        'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-        'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
-        'team'     => $teamDisplay,
-    ];
-})->values()->all();
+            return [
+                'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+                'team'     => $teamDisplay,
+            ];
+        })->values()->all();
 
             // Tabelle in mehrere Seiten splitten
             $chunks = array_chunk($rows, $maxRowsPerPage);
