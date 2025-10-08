@@ -62,24 +62,27 @@ onMounted(async () => {
     }))
   )
 
-  // --- Teams aus DRAHT laden ---
+  // --- Teams laden über neue API ---
   try {
-    const { data } = await axios.get(`/events/${eventId.value}/draht-data`)
+    const [exploreResponse, challengeResponse] = await Promise.all([
+      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'explore' } }),
+      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'challenge' } })
+    ])
 
-    exploreTeams.value = Object.entries(data.teams_explore || {}).map(([id, t]) => ({
-      id: Number(id),
-      key: `team-${id}`,               // 👈 HIER NEU
-      number: t.number ?? id,
+    exploreTeams.value = exploreResponse.data.map(t => ({
+      id: t.id,                                  // ✅ echte DB-ID
+      key: `team-${t.id}`,
+      number: t.team_number_hot,                 // ✅ Anzeige über HOT-Nummer
       name: t.name ?? 'Unbenannt',
       type: 'team',
       first_program: 2,
       group: { id: 'explore', name: 'Explore' }
     }))
 
-    challengeTeams.value = Object.entries(data.teams_challenge || {}).map(([id, t]) => ({
-      id: Number(id),
-      key: `team-${id}`,               // 👈 HIER NEU
-      number: t.number ?? id,
+    challengeTeams.value = challengeResponse.data.map(t => ({
+      id: t.id,
+      key: `team-${t.id}`,
+      number: t.team_number_hot,
       name: t.name ?? 'Unbenannt',
       type: 'team',
       first_program: 3,
