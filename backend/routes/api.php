@@ -219,6 +219,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('export')->group(function () { 
         Route::get('/pdf_preview/{eventId}', [PublishController::class, 'preview']);    // PDF mit Vorschau holen
         Route::get('/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);
+        Route::get('/ready/{eventId}', [PlanExportController::class, 'dataReadiness']);
     });
 
 
