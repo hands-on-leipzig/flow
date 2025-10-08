@@ -341,12 +341,14 @@ const getItemsInRoom = (roomId) => {
                 <draggable
                   :list="getItemsInRoom(room.id)"
                   group="assignables"
-                  item-key="id"
+                  item-key="key"
                   @add="event => handleDrop(event, room)"
                   @start="isDragging = true"
                   @end="isDragging = false"
                   class="flex flex-wrap gap-2 w-full"
                 >
+
+                
                   <template #item="{ element }">
                     <span
                       :style="{
@@ -373,6 +375,9 @@ const getItemsInRoom = (roomId) => {
                       </button>
                     </span>
                   </template>
+
+
+
                 </draggable>
               </div>
             </div>
@@ -451,7 +456,7 @@ const getItemsInRoom = (roomId) => {
           <draggable
             :list="group.items.filter(i => !assignments[`${i.type}-${i.id}`])"
             group="assignables"
-            item-key="id"
+            item-key="key"
             class="flex flex-wrap gap-2"
             @start="isDragging = true"
             @end="isDragging = false"
