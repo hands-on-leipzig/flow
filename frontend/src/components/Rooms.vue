@@ -159,7 +159,7 @@ const assignItemToRoom = async (itemKey, roomId) => {
   }
 
   if (item.type === 'team') {
-    await axios.put(`/rooms/assign-team`, {
+    await axios.put(`/rooms/assign-teams`, {
       team_id: item.id,
       room_id: roomId,
       event: eventStore.selectedEvent?.id
@@ -203,7 +203,7 @@ const unassignItemFromRoom = async (itemKey) => {
   }
 
   if (item.type === 'team') {
-    await axios.put(`/rooms/assign-team`, {
+    await axios.put(`/rooms/assign-teams`, {
       team_id: item.id,
       room_id: null,
       event: eventStore.selectedEvent?.id

@@ -126,4 +126,25 @@ class RoomController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function assignTeam(Request $request)
+    {
+        $validated = $request->validate([
+            'team_id' => 'required|integer|exists:team,id',
+            'room_id' => 'nullable|integer|exists:room,id',
+            'event' => 'required|integer|exists:event,id',
+        ]);
+
+        // Finde Plan für das Event
+        $plan = \App\Models\Plan::where('event', $validated['event'])->firstOrFail();
+
+        // Update direkt in team_plan (Eintrag muss existieren)
+        \DB::table('team_plan')
+            ->where('team', $validated['team_id'])
+            ->where('plan', $plan->id)
+            ->update(['room' => $validated['room_id']]);
+
+        return response()->json(['success' => true]);
+    }
+
 }
