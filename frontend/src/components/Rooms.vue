@@ -60,6 +60,7 @@ onMounted(async () => {
       type: 'activity',
       group: { id: group.id, name: group.name }
     }))
+
   )
 
   // --- Teams laden über neue API ---
@@ -187,6 +188,9 @@ const assignItemToRoom = async (itemKey, roomId) => {
       event: eventStore.selectedEvent?.id
     })
   }
+  // ✅ Nach erfolgreicher Änderung Readiness neu laden
+  await loadReadinessStatus()
+
 }
 
 // --- Item nach ID finden ---
@@ -231,6 +235,9 @@ const unassignItemFromRoom = async (itemKey) => {
       event: eventStore.selectedEvent?.id
     })
   }
+
+  // ✅ Nach erfolgreicher Änderung Readiness neu laden
+  await loadReadinessStatus()
 }
 
 // --- Raum erstellen ---
@@ -328,6 +335,37 @@ const getItemsInRoom = (roomId) => {
   }
   return all
 }
+
+// --- Data Readiness Status ---
+const readinessStatus = ref({
+  room_mapping_details: {
+    activities_ok: true,
+    teams_ok: true
+  }
+})
+
+// Backend-Status laden
+const loadReadinessStatus = async () => {
+  try {
+    const { data } = await axios.get(`/export/ready/${eventId.value}`)
+    readinessStatus.value = data
+  } catch (err) {
+    console.warn('Data Readiness konnte nicht geladen werden:', err)
+  }
+}
+
+// Warnings für Tabs
+const hasWarning = (tab) => {
+  const details = readinessStatus.value?.room_mapping_details || {}
+  if (tab === 'activities') return details.activities_ok === false
+  if (tab === 'teams') return details.teams_ok === false
+  return false
+}
+
+// Beim Start laden
+onMounted(async () => {
+  await loadReadinessStatus()
+})
 
 </script>
 
@@ -483,20 +521,31 @@ const getItemsInRoom = (roomId) => {
 
     <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->
     <div>
-      <div class="flex mb-4 border-b text-xl font-bold">
+      <div class="flex mb-4 border-b text-xl font-bold relative">
         <button
-          class="px-4 py-2"
+          class="px-4 py-2 relative"
           :class="activeTab === 'activities' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
           @click="activeTab = 'activities'"
         >
           Aktivitäten
+          <div
+            v-if="hasWarning('activities')"
+            class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+            title="Noch nicht alle Aktivitäten zugeordnet"
+          ></div>
         </button>
+
         <button
-          class="px-4 py-2 ml-4"
+          class="px-4 py-2 ml-4 relative"
           :class="activeTab === 'teams' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
           @click="activeTab = 'teams'"
         >
           Teams
+          <div
+            v-if="hasWarning('teams')"
+            class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+            title="Noch nicht alle Teams zugeordnet"
+          ></div>
         </button>
       </div>
 
