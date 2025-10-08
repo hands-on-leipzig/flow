@@ -76,7 +76,7 @@ class PlanRoomTypeController extends Controller
         ->values()
         ->all();
 
-        Log::info('Unmapped Room Types for plan '.$planId.': '.json_encode($unmapped));
+        // Log::info('Unmapped Room Types for plan '.$planId.': '.json_encode($unmapped));
 
         return response()->json($unmapped);
     }  
