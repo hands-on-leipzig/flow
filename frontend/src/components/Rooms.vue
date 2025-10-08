@@ -69,38 +69,27 @@ onMounted(async () => {
       axios.get(`/events/${eventId.value}/teams`, { params: { program: 'challenge' } })
     ])
 
-    // Lokales assignments-Objekt mit existierenden Room-Zuordnungen
-    const result = {}
+    exploreTeams.value = exploreResponse.data.map(t => ({
+      id: t.id,
+      key: `team-${t.id}`,
+      number: t.team_number_hot,
+      name: t.name ?? 'Unbenannt',
+      type: 'team',
+      first_program: 2,
+      room: t.room ?? null,                 // 👈 WICHTIG
+      group: { id: 'explore', name: 'Explore' }
+    }))
 
-    exploreTeams.value = exploreResponse.data.map(t => {
-      if (t.room) result[`team-${t.id}`] = t.room     // ✅ Zuordnung merken
-      return {
-        id: t.id,
-        key: `team-${t.id}`,
-        number: t.team_number_hot,
-        name: t.name ?? 'Unbenannt',
-        type: 'team',
-        first_program: 2,
-        group: { id: 'explore', name: 'Explore' }
-      }
-    })
-
-    challengeTeams.value = challengeResponse.data.map(t => {
-      if (t.room) result[`team-${t.id}`] = t.room     // ✅ Zuordnung merken
-      return {
-        id: t.id,
-        key: `team-${t.id}`,
-        number: t.team_number_hot,
-        name: t.name ?? 'Unbenannt',
-        type: 'team',
-        first_program: 3,
-        group: { id: 'challenge', name: 'Challenge' }
-      }
-    })
-
-    // ✅ Bisherige Activity-Zuordnungen erweitern um Team-Zuordnungen
-    Object.assign(assignments.value, result)
-
+    challengeTeams.value = challengeResponse.data.map(t => ({
+      id: t.id,
+      key: `team-${t.id}`,
+      number: t.team_number_hot,
+      name: t.name ?? 'Unbenannt',
+      type: 'team',
+      first_program: 3,
+      room: t.room ?? null,                 // 👈 WICHTIG
+      group: { id: 'challenge', name: 'Challenge' }
+    }))
   } catch (err) {
     console.error('Fehler beim Laden der Teams:', err)
     exploreTeams.value = []
@@ -135,15 +124,35 @@ onMounted(async () => {
     }
   ]
 
-  // --- Bestehende Zuordnungen übernehmen (typisierte Keys) ---
+
+  // --- Bestehende Zuordnungen übernehmen (Activities + Teams, typisierte Keys) ---
   const result = {}
+
+  // 1) Activities (RoomTypes + Extra Blocks)
   roomsData.rooms.forEach(room => {
-    room.room_types.forEach(rt => { result[`activity-${rt.id}`] = room.id })
-    if (room.extra_blocks && Array.isArray(room.extra_blocks)) {
-      room.extra_blocks.forEach(eb => { result[`activity-${eb.id}`] = room.id })
+    (room.room_types ?? []).forEach(rt => {
+      result[`activity-${rt.id}`] = room.id
+    })
+    ;(room.extra_blocks ?? []).forEach(eb => {
+      result[`activity-${eb.id}`] = room.id
+    })
+  })
+
+  // 2) Teams (Explore + Challenge) – nur wenn backend room mitliefert
+  ;[...exploreTeams.value, ...challengeTeams.value].forEach(team => {
+    if (team.room !== null && team.room !== undefined) {
+      result[`team-${team.id}`] = team.room
     }
   })
+
+  // 3) Zusammenführen
   assignments.value = result
+
+  // (Optional zum Prüfen)
+  // console.log('Assignments summary:', {
+  //   activities: Object.keys(result).filter(k => k.startsWith('activity-')).length,
+  //   teams: Object.keys(result).filter(k => k.startsWith('team-')).length
+  // })
 })
 
 // --- Raum bearbeiten ---
