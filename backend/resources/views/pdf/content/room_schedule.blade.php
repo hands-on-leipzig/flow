@@ -3,7 +3,7 @@
 <h2 style="margin-bottom: 15px; font-size: 22px; font-weight: bold;">
     {{ $room }}
 </h2>
-
+ 
 <table style="width:100%; border-collapse:collapse;">
     <tr valign="top">
         {{-- Linke Spalte: Tabelle --}}

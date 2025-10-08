@@ -10,7 +10,7 @@
         $cleanTitle = trim(str_replace('FLL Challenge', '', $title));
     }
 @endphp
-
+ 
 <h2 style="margin-bottom:15px; font-size:22px; font-weight:bold; font-family:sans-serif; display:flex; align-items:center; gap:10px;">
     @if($icon)
         <img src="file://{{ $icon }}" alt="Program Icon" style="height:28px; width:auto; vertical-align:middle;">
