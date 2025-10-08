@@ -1114,7 +1114,7 @@ class PlanExportController extends Controller
             'room_mapping_ok'    => !$hasUnmappedRooms && $allExploreRoomsOk && $allChallengeRoomsOk,
             'room_mapping_details' => [
                 'activities_ok' => !$hasUnmappedRooms,
-                'teams_ok'     => $$allExploreRoomsOk && $allChallengeRoomsOk,
+                'teams_ok'     => $allExploreRoomsOk && $allChallengeRoomsOk,
             ],
         ];
 
