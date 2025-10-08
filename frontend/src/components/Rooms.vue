@@ -69,31 +69,44 @@ onMounted(async () => {
       axios.get(`/events/${eventId.value}/teams`, { params: { program: 'challenge' } })
     ])
 
-    exploreTeams.value = exploreResponse.data.map(t => ({
-      id: t.id,                                  // ✅ echte DB-ID
-      key: `team-${t.id}`,
-      number: t.team_number_hot,                 // ✅ Anzeige über HOT-Nummer
-      name: t.name ?? 'Unbenannt',
-      type: 'team',
-      first_program: 2,
-      group: { id: 'explore', name: 'Explore' }
-    }))
+    // Lokales assignments-Objekt mit existierenden Room-Zuordnungen
+    const result = {}
 
-    challengeTeams.value = challengeResponse.data.map(t => ({
-      id: t.id,
-      key: `team-${t.id}`,
-      number: t.team_number_hot,
-      name: t.name ?? 'Unbenannt',
-      type: 'team',
-      first_program: 3,
-      group: { id: 'challenge', name: 'Challenge' }
-    }))
+    exploreTeams.value = exploreResponse.data.map(t => {
+      if (t.room) result[`team-${t.id}`] = t.room     // ✅ Zuordnung merken
+      return {
+        id: t.id,
+        key: `team-${t.id}`,
+        number: t.team_number_hot,
+        name: t.name ?? 'Unbenannt',
+        type: 'team',
+        first_program: 2,
+        group: { id: 'explore', name: 'Explore' }
+      }
+    })
+
+    challengeTeams.value = challengeResponse.data.map(t => {
+      if (t.room) result[`team-${t.id}`] = t.room     // ✅ Zuordnung merken
+      return {
+        id: t.id,
+        key: `team-${t.id}`,
+        number: t.team_number_hot,
+        name: t.name ?? 'Unbenannt',
+        type: 'team',
+        first_program: 3,
+        group: { id: 'challenge', name: 'Challenge' }
+      }
+    })
+
+    // ✅ Bisherige Activity-Zuordnungen erweitern um Team-Zuordnungen
+    Object.assign(assignments.value, result)
+
   } catch (err) {
     console.error('Fehler beim Laden der Teams:', err)
     exploreTeams.value = []
     challengeTeams.value = []
   }
-
+  
   // --- Zusammenführen in gemeinsame Struktur ---
   assignables.value = [
     {
