@@ -9,28 +9,33 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 const rooms = ref([])
+const assignments = ref({})
+
+// --- Gemeinsame Struktur für Activities + Teams ---
+const assignables = ref([]) // ← gemeinsame Ebene 1 (type = 'activity' | 'team')
+
+// --- Hilfslisten ---
 const roomTypes = ref([])
 const typeGroups = ref([])
-const assignments = ref({})
+const exploreTeams = ref([])
+const challengeTeams = ref([])
 
 const dragOverRoomId = ref(null)
 const isDragging = ref(false)
 const previewedTypeId = ref(null)
 
-// --- Farbzuweisung (vereinfacht) ---
-const getProgramColor = (type) => {
-  switch (type.first_program) {
-    case 2: return '#10B981'; // Grün (Explore)
-    case 3: return '#EF4444'; // Rot (Challenge)
-    default: return '#9CA3AF'; // Grau (Neutral)
+// --- Farbzuweisung ---
+const getProgramColor = (item) => {
+  switch (item.first_program) {
+    case 2: return '#10B981' // Grün (Explore)
+    case 3: return '#EF4444' // Rot (Challenge)
+    default: return '#9CA3AF' // Grau (Neutral)
   }
 }
 
-// --- Lifecycle: Daten laden ---
+// --- Lifecycle ---
 onMounted(async () => {
-  if (!eventStore.selectedEvent) {
-    await eventStore.fetchSelectedEvent()
-  }
+  if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
 
   // Räume laden
   const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
@@ -43,66 +48,79 @@ onMounted(async () => {
     return
   }
 
-  // Raumtypen vom Backend holen
+  // --- Aktivitäten (room-types) laden ---
   const { data: roomTypeGroups } = await axios.get(`/room-types/${planData.id}`)
-
   typeGroups.value = roomTypeGroups
   roomTypes.value = roomTypeGroups.flatMap(group =>
     group.room_types.map(rt => ({
       id: rt.type_id,
       name: rt.type_name,
       first_program: rt.first_program,
+      type: 'activity',
       group: { id: group.id, name: group.name }
     }))
   )
-
-  console.log('Fetched room type groups:', typeGroups.value)
-  console.log('Flattened room types:', roomTypes.value)
 
   // --- Teams aus DRAHT laden ---
   try {
     const { data } = await axios.get(`/events/${eventId.value}/draht-data`)
 
-    // Explore
     exploreTeams.value = Object.entries(data.teams_explore || {}).map(([id, t]) => ({
       id: Number(id),
       number: t.number ?? id,
       name: t.name ?? 'Unbenannt',
-      first_program: 2
+      type: 'team',
+      first_program: 2,
+      group: { id: 'explore', name: 'Explore' }
     }))
 
-    // Challenge
     challengeTeams.value = Object.entries(data.teams_challenge || {}).map(([id, t]) => ({
       id: Number(id),
       number: t.number ?? id,
       name: t.name ?? 'Unbenannt',
-      first_program: 3
+      type: 'team',
+      first_program: 3,
+      group: { id: 'challenge', name: 'Challenge' }
     }))
-
-    console.log('Fetched teams:', {
-      explore: exploreTeams.value.length,
-      challenge: challengeTeams.value.length
-    })
   } catch (err) {
-    console.error('Fehler beim Laden der Teamlisten:', err)
+    console.error('Fehler beim Laden der Teams:', err)
     exploreTeams.value = []
     challengeTeams.value = []
   }
 
+  // --- Zusammenführen in gemeinsame Struktur ---
+  assignables.value = [
+    {
+      id: 'activities',
+      type: 'activity',
+      groups: roomTypeGroups.map(g => ({
+        id: g.id,
+        name: g.name,
+        items: g.room_types.map(rt => ({
+          id: rt.type_id,
+          name: rt.type_name,
+          first_program: rt.first_program,
+          type: 'activity',
+          group: { id: g.id, name: g.name }
+        }))
+      }))
+    },
+    {
+      id: 'teams',
+      type: 'team',
+      groups: [
+        { id: 'explore', name: 'Explore', items: exploreTeams.value },
+        { id: 'challenge', name: 'Challenge', items: challengeTeams.value }
+      ]
+    }
+  ]
 
-  // Zuordnungen bestehender Räume übernehmen (inkl. Extra Blocks)
+  // --- Bestehende Zuordnungen übernehmen ---
   const result = {}
   roomsData.rooms.forEach(room => {
-    // Normale Raumtypen
-    room.room_types.forEach(rt => {
-      result[rt.id] = room.id
-    })
-
-    // Extra Blocks (falls vorhanden)
+    room.room_types.forEach(rt => { result[rt.id] = room.id })
     if (room.extra_blocks && Array.isArray(room.extra_blocks)) {
-      room.extra_blocks.forEach(eb => {
-        result[eb.id] = room.id
-      })
+      room.extra_blocks.forEach(eb => { result[eb.id] = room.id })
     }
   })
   assignments.value = result
@@ -116,33 +134,60 @@ const updateRoom = async (room) => {
   })
 }
 
-// --- Zuordnung Raum <-> Typ ---
-const assignRoomType = async (typeId, roomId) => {
-  assignments.value[typeId] = roomId
+// --- Gemeinsame Zuordnung Raum <-> Item ---
+const assignItemToRoom = async (itemId, roomId) => {
+  const item = findItemById(itemId)
+  if (!item) {
+    console.warn('Item nicht gefunden:', itemId)
+    return
+  }
 
-  const type = roomTypes.value.find(t => t.id === typeId)
-  const isExtraBlock = type?.group?.id === 999
+  assignments.value[itemId] = roomId
 
-  await axios.put(`/rooms/assign-types`, {
-    type_id: typeId,
-    room_id: roomId,
-    event: eventStore.selectedEvent?.id,
-    extra_block: isExtraBlock
-  })
+  if (item.type === 'activity') {
+    const isExtraBlock = item?.group?.id === 999
+    await axios.put(`/rooms/assign-types`, {
+      type_id: itemId,
+      room_id: roomId,
+      event: eventStore.selectedEvent?.id,
+      extra_block: isExtraBlock
+    })
+  }
+
+  if (item.type === 'team') {
+    // Backend-Call folgt später → aktuell nur lokal
+    console.log(`Team ${item.name} zu Raum ${roomId} zugeordnet (lokal)`)
+  }
 }
 
-const unassignRoomType = async (typeId) => {
-  assignments.value[typeId] = null
+// --- Item nach ID finden ---
+const findItemById = (id) => {
+  for (const category of assignables.value) {
+    for (const group of category.groups) {
+      const found = group.items.find(i => i.id === id)
+      if (found) return found
+    }
+  }
+  return null
+}
 
-  const type = roomTypes.value.find(t => t.id === typeId)
-  const isExtraBlock = type?.group?.id === 999
+// --- Unassign ---
+const unassignItemFromRoom = async (itemId) => {
+  const item = findItemById(itemId)
+  assignments.value[itemId] = null
 
-  await axios.put(`/rooms/assign-types`, {
-    type_id: typeId,
-    room_id: null,
-    event: eventStore.selectedEvent?.id,
-    extra_block: isExtraBlock
-  })
+  if (item?.type === 'activity') {
+    const isExtraBlock = item?.group?.id === 999
+    await axios.put(`/rooms/assign-types`, {
+      type_id: itemId,
+      room_id: null,
+      event: eventStore.selectedEvent?.id,
+      extra_block: isExtraBlock
+    })
+  }
+  if (item?.type === 'team') {
+    console.log(`Team ${item?.name} aus Raum entfernt (lokal)`)
+  }
 }
 
 // --- Raum erstellen ---
@@ -156,12 +201,7 @@ const newRoomCardRef = ref(null)
 
 const createRoom = async () => {
   if (isCreatingRoom.value) return
-
-  if (!newRoomName.value.trim() && !newRoomNote.value.trim()) {
-    newRoomName.value = ''
-    newRoomNote.value = ''
-    return
-  }
+  if (!newRoomName.value.trim() && !newRoomNote.value.trim()) return
 
   isCreatingRoom.value = true
   isSaving.value = true
@@ -184,9 +224,9 @@ const createRoom = async () => {
 
 // --- Drag & Drop ---
 const handleDrop = async (event, room) => {
-  const type = event.item._underlying_vm_ || event.item.__vue__
-  if (type && type.id) {
-    await assignRoomType(type.id, room.id)
+  const item = event.item.__draggable_context?.element
+  if (item && item.id) {
+    await assignItemToRoom(item.id, room.id)
   }
   dragOverRoomId.value = null
   previewedTypeId.value = null
@@ -204,22 +244,14 @@ const askDeleteRoom = (room) => {
 
 const confirmDeleteRoom = async () => {
   if (!roomToDelete.value) return
-
   const deletedRoomId = roomToDelete.value.id
-
   await axios.delete(`/rooms/${deletedRoomId}`)
-
-  // Raum aus Liste entfernen
   rooms.value = rooms.value.filter(r => r.id !== deletedRoomId)
 
-  // 🟢 Alle zugeordneten Typen (normale + extra) freigeben
-  Object.keys(assignments.value).forEach(typeId => {
-    if (assignments.value[typeId] === deletedRoomId) {
-      assignments.value[typeId] = null
-    }
+  Object.keys(assignments.value).forEach(id => {
+    if (assignments.value[id] === deletedRoomId) assignments.value[id] = null
   })
 
-  // Modal schließen
   showDeleteModal.value = false
   roomToDelete.value = null
 }
@@ -229,32 +261,28 @@ const cancelDeleteRoom = () => {
   roomToDelete.value = null
 }
 
-// --- Klick außerhalb des Eingabefelds ---
+// --- Klick außerhalb Eingabefelds ---
 const handleClickOutside = (event) => {
   if (newRoomCardRef.value && !newRoomCardRef.value.contains(event.target)) {
-    if (newRoomName.value.trim() || newRoomNote.value.trim()) {
-      createRoom()
-    }
+    if (newRoomName.value.trim() || newRoomNote.value.trim()) createRoom()
   }
 }
 
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
-
+onMounted(() => document.addEventListener('click', handleClickOutside))
+onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 const activeTab = ref('activities')
 
-// --- Team-Listen (neu, aus DRAHT) ---
-const exploreTeams = ref([])
-const challengeTeams = ref([])
-
-
-
+// Hilfsfunktion für Template
+const getItemsInRoom = (roomId) => {
+  const all = []
+  for (const category of assignables.value) {
+    for (const group of category.groups) {
+      all.push(...group.items.filter(i => assignments.value[i.id] === roomId))
+    }
+  }
+  return all
+}
 
 </script>
 
@@ -272,6 +300,7 @@ const challengeTeams = ref([])
         >
           <div class="flex justify-between items-start">
             <div class="w-full">
+              <!-- Raumname -->
               <div class="mb-2">
                 <input
                   v-model="room.name"
@@ -279,6 +308,8 @@ const challengeTeams = ref([])
                   @blur="updateRoom(room)"
                 />
               </div>
+
+              <!-- Navigationshinweis -->
               <div>
                 <input
                   v-model="room.navigation_instruction"
@@ -288,7 +319,7 @@ const challengeTeams = ref([])
                 />
               </div>
 
-              <!-- Zugeordnete Raumtypen -->
+              <!-- Gemeinsame Drop-Zone für Aktivitäten & Teams -->
               <div
                 class="flex flex-wrap mt-2 gap-2 min-h-[40px] border rounded p-2 transition-colors"
                 :class="{
@@ -298,8 +329,8 @@ const challengeTeams = ref([])
                 }"
               >
                 <draggable
-                  :list="roomTypes.filter(t => assignments[t.id] === room.id)"
-                  group="roomtypes"
+                  :list="getItemsInRoom(room.id)"
+                  group="assignables"
                   item-key="id"
                   @add="event => handleDrop(event, room)"
                   @start="isDragging = true"
@@ -310,9 +341,7 @@ const challengeTeams = ref([])
                     <span
                       :style="{
                         border: '2px solid ' + getProgramColor(element),
-                        backgroundColor: '#fff',
-                        color: '#000',
-                        opacity: isDragging && previewedTypeId === String(element.id) ? 0.6 : 1
+                        backgroundColor: '#fff'
                       }"
                       class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
                     >
@@ -322,11 +351,13 @@ const challengeTeams = ref([])
                         :alt="programLogoAlt(element.first_program)"
                         class="w-3 h-3 flex-shrink-0"
                       />
-                      {{ element.name }}
+                      <span>
+                        {{ element.name }}
+                        <template v-if="element.type === 'team'">({{ element.number }})</template>
+                      </span>
                       <button
-                        class="ml-1 text-sm"
-                        :style="{ color: '#000' }"
-                        @click.stop="unassignRoomType(element.id)"
+                        class="ml-1 text-sm text-gray-500 hover:text-black"
+                        @click.stop="unassignItemFromRoom(element.id)"
                       >
                         ✖
                       </button>
@@ -347,7 +378,7 @@ const challengeTeams = ref([])
           </div>
         </li>
 
-        <!-- 🟩 Neuer Raum (Ghost Tile) -->
+        <!-- 🟩 Neuer Raum -->
         <li
           ref="newRoomCardRef"
           class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
@@ -378,11 +409,8 @@ const challengeTeams = ref([])
       </ul>
     </div>
 
-
-
-    <!-- 🔵 Rechte Spalte: Aktivitäten / Teams -->
+    <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->
     <div>
-      <!-- Tabs -->
       <div class="flex mb-4 border-b text-xl font-bold">
         <button
           class="px-4 py-2"
@@ -400,20 +428,19 @@ const challengeTeams = ref([])
         </button>
       </div>
 
-      <!-- Aktivitäten-Liste -->
-      <div v-if="activeTab === 'activities'">
+      <!-- Dynamisch alle Gruppen aus der gemeinsamen Struktur -->
+      <div v-for="category in assignables" :key="category.id" v-show="activeTab === category.id">
         <div
-          v-for="group in typeGroups"
+          v-for="group in category.groups"
           :key="group.id"
           class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
         >
           <div class="text-lg font-semibold text-black mb-3">
             {{ group.name }}
           </div>
-
           <draggable
-            :list="roomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
-            group="roomtypes"
+            :list="group.items.filter(i => !assignments[i.id])"
+            group="assignables"
             item-key="id"
             class="flex flex-wrap gap-2"
             @start="isDragging = true"
@@ -421,10 +448,10 @@ const challengeTeams = ref([])
           >
             <template #item="{ element }">
               <span
+                v-if="element.type === 'activity'"
                 :style="{
                   border: '2px solid ' + getProgramColor(element),
-                  backgroundColor: '#fff',
-                  color: '#000'
+                  backgroundColor: '#fff'
                 }"
                 class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
               >
@@ -435,74 +462,43 @@ const challengeTeams = ref([])
                   class="w-3 h-3 flex-shrink-0"
                 />
                 {{ element.name }}
+                <button
+                  class="ml-1 text-sm text-gray-500 hover:text-black"
+                  @click.stop="unassignItemFromRoom(element.id)"
+                >
+                  ✖
+                </button>
+              </span>
+
+              <span
+                v-else-if="element.type === 'team'"
+                class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+              >
+                <span
+                  class="w-1.5 h-full rounded-l-md"
+                  :style="{ backgroundColor: getProgramColor(element) }"
+                ></span>
+                <span class="px-2 py-1 flex items-center gap-1">
+                  <img
+                    v-if="programLogoSrc(element.first_program)"
+                    :src="programLogoSrc(element.first_program)"
+                    :alt="programLogoAlt(element.first_program)"
+                    class="w-3 h-3 flex-shrink-0"
+                  />
+                  {{ element.name }} ({{ element.number }})
+                </span>
+                <button
+                  class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
+                  @click.stop="unassignItemFromRoom(element.id)"
+                >
+                  ✖
+                </button>
               </span>
             </template>
           </draggable>
         </div>
       </div>
-
-
-
-      
-<!-- Teams-Liste -->
-<div v-else>
-  <!-- Tabs übernehmen bereits die Überschrift -->
-
- <!-- Explore Teams -->
-<div v-if="exploreTeams.length" class="mb-6 bg-gray-50 border rounded-lg p-4 shadow">
-  <div class="text-lg font-semibold text-black mb-3">Explore</div>
-  <div class="flex flex-wrap gap-2">
-    <span
-      v-for="team in exploreTeams"
-      :key="team.id"
-      class="flex items-center border rounded-md text-xs bg-white shadow-sm"
-    >
-      <span class="w-1.5 h-full rounded-l-md" :style="{ backgroundColor: getProgramColor(team) }"></span>
-      <span class="px-2 py-1 flex items-center gap-1">
-        <img
-          v-if="programLogoSrc(team.first_program)"
-          :src="programLogoSrc(team.first_program)"
-          :alt="programLogoAlt(team.first_program)"
-          class="w-3 h-3 flex-shrink-0"
-        />
-        {{ team.name }} ({{ team.number }})
-      </span>
-    </span>
-  </div>
-</div>
-
-<!-- Challenge Teams -->
-<div v-if="challengeTeams.length" class="mb-6 bg-gray-50 border rounded-lg p-4 shadow">
-  <div class="text-lg font-semibold text-black mb-3">Challenge</div>
-  <div class="flex flex-wrap gap-2">
-    <span
-      v-for="team in challengeTeams"
-      :key="team.id"
-      class="flex items-center border rounded-md text-xs bg-white shadow-sm"
-    >
-      <span class="w-1.5 h-full rounded-l-md" :style="{ backgroundColor: getProgramColor(team) }"></span>
-      <span class="px-2 py-1 flex items-center gap-1">
-        <img
-          v-if="programLogoSrc(team.first_program)"
-          :src="programLogoSrc(team.first_program)"
-          :alt="programLogoAlt(team.first_program)"
-          class="w-3 h-3 flex-shrink-0"
-        />
-        {{ team.name }} ({{ team.number }})
-      </span>
-    </span>
-  </div>
-</div>
-
-
-</div>
-
-
-
     </div>
-
-
-
   </div>
 
   <!-- 🔴 Lösch-Modal -->
