@@ -84,7 +84,7 @@ async function downloadPdf(type: 'rooms' | 'teams' | 'roles' | 'full') {
               d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
           </svg>
           <span class="text-sm">
-            Achtung: Die Anzahl der angemeldeten Teams stimmt nicht mit der Anzahl im Plan überein.
+            Achtung: Die Anzahl der angemeldeten Teams stimmt nicht mit der Anzahl im Plan überein.<br>
             Das PDF sollte so nicht gedruckt werden.
           </span>
         </div>
@@ -108,7 +108,7 @@ async function downloadPdf(type: 'rooms' | 'teams' | 'roles' | 'full') {
               d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
           </svg>
           <span class="text-sm">
-            Achtung: Die Anzahl der angemeldeten Teams stimmt nicht mit der Anzahl im Plan überein.
+            Achtung: Die Anzahl der angemeldeten Teams stimmt nicht mit der Anzahl im Plan überein.<br>
             Das PDF sollte so nicht gedruckt werden.
           </span>
         </div>
@@ -128,7 +128,7 @@ async function downloadPdf(type: 'rooms' | 'teams' | 'roles' | 'full') {
               d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
           </svg>
           <span class="text-sm">
-            Achtung: Es wurden noch nicht alle Aktivitäten auf die Räume verteilt.
+            Achtung: Es wurden noch nicht alle Aktivitäten auf die Räume verteilt.<br>
             Das PDF sollte so nicht gedruckt werden.
           </span>
         </div>

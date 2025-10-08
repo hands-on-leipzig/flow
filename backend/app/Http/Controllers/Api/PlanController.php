@@ -324,6 +324,24 @@ class PlanController extends Controller
         $start = $date->copy();
         $end   = $date->copy();
 
+        
+        // --- IDs der relevanten Parameter finden ---
+        $paramIds = DB::table('m_parameter')
+            ->whereIn('name', ['e_teams', 'c_teams'])
+            ->pluck('id', 'name');
+
+        $eTeamsParamId = $paramIds['e_teams'] ?? null;
+        $cTeamsParamId = $paramIds['c_teams'] ?? null;
+
+        // --- Werte aus plan_param_value lesen ---
+        $paramValues = DB::table('plan_param_value')
+            ->where('plan', $planId)
+            ->whereIn('parameter', [$eTeamsParamId, $cTeamsParamId])
+            ->pluck('set_value', 'parameter');
+
+        $e_teams = isset($paramValues[$eTeamsParamId]) ? (int)$paramValues[$eTeamsParamId] : 0;
+        $c_teams = isset($paramValues[$cTeamsParamId]) ? (int)$paramValues[$cTeamsParamId] : 0;
+
         $start->setTime(11, 30, 0);
         $end->setTime(13, 30, 0);
 
@@ -366,7 +384,7 @@ class PlanController extends Controller
             'start'       => $start,
             'end'         => $end,
             'room'        => null,
-            'active'      => 1,
+            'active'      => $e_teams > 0 ? 1 : 0,
         ]);
 
         DB::table('extra_block')->insert([
@@ -378,7 +396,7 @@ class PlanController extends Controller
             'start'       => $start,
             'end'         => $end,
             'room'        => null,
-            'active'      => 1,
+            'active'      => $c_teams > 0 ? 1 : 0,
         ]);
 
 
