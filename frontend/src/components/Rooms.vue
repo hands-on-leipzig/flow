@@ -146,7 +146,9 @@ const assignItemToRoom = async (itemKey, roomId) => {
   const item = findItemById(itemKey)
   if (!item) return
 
+  // Lokale Zuordnung aktualisieren
   assignments.value[itemKey] = roomId
+
   if (item.type === 'activity') {
     await axios.put(`/rooms/assign-types`, {
       type_id: item.id,
@@ -154,8 +156,14 @@ const assignItemToRoom = async (itemKey, roomId) => {
       event: eventStore.selectedEvent?.id,
       extra_block: item?.group?.id === 999
     })
-  } else {
-    console.log(`Team ${item.name} zu Raum ${roomId} (lokal)`)
+  }
+
+  if (item.type === 'team') {
+    await axios.put(`/rooms/assign-team`, {
+      team_id: item.id,
+      room_id: roomId,
+      event: eventStore.selectedEvent?.id
+    })
   }
 }
 
@@ -181,6 +189,7 @@ const unassignItemFromRoom = async (itemKey) => {
   const item = findItemById(itemKey)
   if (!item) return
 
+  // Lokale Zuordnung löschen
   assignments.value[itemKey] = null
 
   if (item.type === 'activity') {
@@ -194,7 +203,11 @@ const unassignItemFromRoom = async (itemKey) => {
   }
 
   if (item.type === 'team') {
-    console.log(`Team ${item?.name} aus Raum entfernt (lokal)`)
+    await axios.put(`/rooms/assign-team`, {
+      team_id: item.id,
+      room_id: null,
+      event: eventStore.selectedEvent?.id
+    })
   }
 }
 
