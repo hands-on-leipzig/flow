@@ -1,44 +1,88 @@
-<script setup>
-import {TabGroup, TabList, Tab, TabPanels, TabPanel, Menu, MenuButton, MenuItems, MenuItem} from '@headlessui/vue'
-import {onMounted, ref, computed} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
-import {useEventStore} from '@/stores/event'
-import {useAuth} from '@/composables/useAuth'
-import dayjs from "dayjs";
-import { imageUrl } from '@/utils/images'  
+<script setup lang="ts">
+import { TabGroup, TabList, Tab, Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
+import { onMounted, ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useEventStore } from '@/stores/event'
+import { useAuth } from '@/composables/useAuth'
+import axios from 'axios'
+import dayjs from 'dayjs'
+import { imageUrl } from '@/utils/images'
 
 const eventStore = useEventStore()
 const { isAdmin, initializeUserRoles } = useAuth()
-
-onMounted(async () => {
-  // Ensure roles are initialized
-  initializeUserRoles()
-  
-  if (!eventStore.selectedEvent) {
-    await eventStore.fetchSelectedEvent()
-  }
-})
-
-const tabs = computed(() => {
-  const allTabs = [
-    {name: 'Veranstaltung', path: '/event'},
-    {name: 'Ablauf', path: '/schedule'},
-    {name: 'Teams', path: '/teams'},
-    {name: 'Räume', path: '/rooms'},
-    {name: 'Logos', path: '/logos'},
-    {name: 'Veröffentlichung', path: '/publish'},
-    {name: 'Admin', path: '/admin'},
-  ]
-  
-  // Filter out Admin tab for non-admin users
-  return allTabs.filter(tab => tab.path !== '/admin' || isAdmin.value)
-})
-const selectedTab = ref('Schedule')
 const router = useRouter()
 const route = useRoute()
 
-function isActive(path) {
-  // Remove leading slash and check if current path ends with the tab path
+// --- Readiness State ---
+const readiness = ref({
+  explore_teams_ok: true,
+  challenge_teams_ok: true,
+  room_mapping_ok: true
+})
+
+// --- Backend-Check ---
+async function checkDataReadiness() {
+  if (!eventStore.selectedEvent?.id) return
+  try {
+    const { data } = await axios.get(`/export/ready/${eventStore.selectedEvent.id}`)
+    readiness.value = {
+      explore_teams_ok: !!data.explore_teams_ok,
+      challenge_teams_ok: !!data.challenge_teams_ok,
+      room_mapping_ok: !!data.room_mapping_ok,
+    }
+  } catch (error) {
+    console.error('Fehler beim Laden der Daten-Readiness:', error)
+    readiness.value = {
+      explore_teams_ok: false,
+      challenge_teams_ok: false,
+      room_mapping_ok: false,
+    }
+  }
+}
+
+// --- Tabs definieren ---
+const tabs = computed(() => {
+  const allTabs = [
+    { name: 'Veranstaltung', path: '/event' },
+    { name: 'Ablauf', path: '/schedule' },
+    { name: 'Teams', path: '/teams' },
+    { name: 'Räume', path: '/rooms' },
+    { name: 'Logos', path: '/logos' },
+    { name: 'Veröffentlichung', path: '/publish' },
+    { name: 'Admin', path: '/admin' },
+  ]
+  return allTabs.filter(tab => tab.path !== '/admin' || isAdmin.value)
+})
+
+// --- Lifecycle ---
+onMounted(async () => {
+  initializeUserRoles()
+  if (!eventStore.selectedEvent) {
+    await eventStore.fetchSelectedEvent()
+  }
+  await checkDataReadiness()
+})
+
+// --- Helper für rote Punkte ---
+function hasWarning(tabPath: string): boolean {
+  if (!readiness.value) return false
+
+  switch (tabPath) {
+    case '/teams':
+      return eventStore.selectedEvent?.hasTeamDiscrepancy
+    case '/schedule':
+      return !readiness.value.explore_teams_ok || !readiness.value.challenge_teams_ok
+    case '/rooms':
+      return !readiness.value.room_mapping_ok
+    default:
+      return false
+  }
+}
+
+// --- UI Navigation ---
+const selectedTab = ref('Schedule')
+
+function isActive(path: string) {
   const cleanPath = path.replace(/^\//, '')
   return route.path.endsWith('/' + cleanPath) || route.path === '/plan/' + cleanPath
 }
@@ -46,6 +90,11 @@ function isActive(path) {
 function goTo(tab) {
   selectedTab.value = tab.name
   router.push(tab.path)
+}
+
+function logout() {
+  localStorage.removeItem('kc_token')
+  window.location.reload()
 }
 </script>
 
@@ -58,21 +107,20 @@ function goTo(tab) {
       <TabGroup v-model="selectedTab" as="div">
         <TabList class="flex space-x-2">
           <Tab
-              v-for="tab in tabs"
-              :key="tab.path"
-              :to="tab.path"
-              class="px-4 py-2 rounded hover:bg-gray-100 relative"
-              :class="{ 'bg-gray-200 font-medium': isActive(tab.path) }"
-              @click="goTo(tab)"
+            v-for="tab in tabs"
+            :key="tab.path"
+            :to="tab.path"
+            class="px-4 py-2 rounded hover:bg-gray-100 relative"
+            :class="{ 'bg-gray-200 font-medium': isActive(tab.path) }"
+            @click="goTo(tab)"
           >
             {{ tab.name }}
-             <div
-                 v-if="tab.path === '/teams' && eventStore.selectedEvent?.hasTeamDiscrepancy"
-                 class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
-                 title="Team-Daten weichen von DRAHT ab"
-             ></div>
+            <div
+              v-if="hasWarning(tab.path)"
+              class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+              title="Achtung: Es gibt offene Punkte in diesem Bereich"
+            ></div>
           </Tab>
-
         </TabList>
       </TabGroup>
     </div>
@@ -111,12 +159,7 @@ function goTo(tab) {
   </div>
 </template>
 
-<script>
-function logout() {
-  localStorage.removeItem('kc_token')
-  window.location.reload()
-}
-</script>
+
 
 <style scoped>
 /* Additional styles if needed */
