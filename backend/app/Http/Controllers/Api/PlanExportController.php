@@ -840,81 +840,81 @@ class PlanExportController extends Controller
          * Hilfsfunktion: verteilt "allgemeine" Aktivitäten auf alle Gruppen
          */
         $distributeGeneric = function ($activities, string $groupKey, string $labelPrefix) {
-    $collection = collect($activities);
-    $finalKey = $groupKey;
+            $collection = collect($activities);
+            $finalKey = $groupKey;
 
-    // Robot Game: table -> ref_table (+ Name)
-    if ($groupKey === 'table') {
-        $expanded = collect();
-        foreach ($collection as $a) {
-            $made = 0;
+            // Robot Game: table -> ref_table (+ Name)
+            if ($groupKey === 'table') {
+                $expanded = collect();
+                foreach ($collection as $a) {
+                    $made = 0;
 
-            if (!empty($a->table_1)) {
-                $c = clone $a;
-                $c->ref_table = (int)$a->table_1;
-                $c->ref_table_name = $a->table_1_name ?? null;
-                $expanded->push($c);
-                $made++;
+                    if (!empty($a->table_1)) {
+                        $c = clone $a;
+                        $c->ref_table = (int)$a->table_1;
+                        $c->ref_table_name = $a->table_1_name ?? null;
+                        $expanded->push($c);
+                        $made++;
+                    }
+                    if (!empty($a->table_2)) {
+                        $c = clone $a;
+                        $c->ref_table = (int)$a->table_2;
+                        $c->ref_table_name = $a->table_2_name ?? null;
+                        $expanded->push($c);
+                        $made++;
+                    }
+                    if ($made === 0) {
+                        // generisch, ohne Tisch
+                        $expanded->push($a);
+                    }
+                }
+                $collection = $expanded;
+                $finalKey = 'ref_table';
             }
-            if (!empty($a->table_2)) {
-                $c = clone $a;
-                $c->ref_table = (int)$a->table_2;
-                $c->ref_table_name = $a->table_2_name ?? null;
-                $expanded->push($c);
-                $made++;
-            }
-            if ($made === 0) {
-                // generisch, ohne Tisch
-                $expanded->push($a);
-            }
-        }
-        $collection = $expanded;
-        $finalKey = 'ref_table';
-    }
 
-    // mit/ohne Schlüssel trennen
-    $withKey    = $collection->filter(fn($a) => !empty($a->{$finalKey}));
-    $withoutKey = $collection->filter(fn($a) => empty($a->{$finalKey}));
+            // mit/ohne Schlüssel trennen
+            $withKey    = $collection->filter(fn($a) => !empty($a->{$finalKey}));
+            $withoutKey = $collection->filter(fn($a) => empty($a->{$finalKey}));
 
-    // alle vorhandenen Keys (z. B. 1,2,3,4)
-    $allKeys = $withKey->pluck($finalKey)->filter()->unique()->values();
+            // alle vorhandenen Keys (z. B. 1,2,3,4)
+            $allKeys = $withKey->pluck($finalKey)->filter()->unique()->values();
 
-    // Namens-Mapping für ref_table (übersteuerte Namen beibehalten)
-    $nameMap = [];
-    if ($finalKey === 'ref_table') {
-        $nameMap = $withKey->mapWithKeys(function ($a) use ($finalKey) {
-            $num = (int)$a->{$finalKey};
-            $name = $a->ref_table_name ?? "Tisch {$num}";
-            return [$num => $name];
-        })->toArray();
-    }
-
-    // generische Aktivitäten auf alle Keys duplizieren + Namen vererben
-    foreach ($withoutKey as $generic) {
-        foreach ($allKeys as $keyValue) {
-            $clone = clone $generic;
-            $clone->{$finalKey} = (int)$keyValue;
+            // Namens-Mapping für ref_table (übersteuerte Namen beibehalten)
+            $nameMap = [];
             if ($finalKey === 'ref_table') {
-                $clone->ref_table_name = $nameMap[(int)$keyValue] ?? "Tisch " . (int)$keyValue;
+                $nameMap = $withKey->mapWithKeys(function ($a) use ($finalKey) {
+                    $num = (int)$a->{$finalKey};
+                    $name = $a->ref_table_name ?? "Tisch {$num}";
+                    return [$num => $name];
+                })->toArray();
             }
-            $withKey->push($clone);
-        }
-    }
 
-    // Gruppieren + Label
-    return $withKey->groupBy(function ($a) use ($finalKey, $labelPrefix) {
-        if ($finalKey === 'lane') {
-            return "{$labelPrefix} {$a->lane}";
-        }
-        if ($finalKey === 'ref_table') {
-            $num  = $a->ref_table ?? null;
-            $name = $a->ref_table_name ?? ($num ? "Tisch {$num}" : 'Tisch');
-            return "{$labelPrefix}{$name}";
-        }
-        $val = $a->{$finalKey};
-        return "{$labelPrefix} – {$val}";
-    });
-};
+            // generische Aktivitäten auf alle Keys duplizieren + Namen vererben
+            foreach ($withoutKey as $generic) {
+                foreach ($allKeys as $keyValue) {
+                    $clone = clone $generic;
+                    $clone->{$finalKey} = (int)$keyValue;
+                    if ($finalKey === 'ref_table') {
+                        $clone->ref_table_name = $nameMap[(int)$keyValue] ?? "Tisch " . (int)$keyValue;
+                    }
+                    $withKey->push($clone);
+                }
+            }
+
+            // Gruppieren + Label
+            return $withKey->groupBy(function ($a) use ($finalKey, $labelPrefix) {
+                if ($finalKey === 'lane') {
+                    return "{$labelPrefix} {$a->lane}";
+                }
+                if ($finalKey === 'ref_table') {
+                    $num  = $a->ref_table ?? null;
+                    $name = $a->ref_table_name ?? ($num ? "Tisch {$num}" : 'Tisch');
+                    return "{$labelPrefix}{$name}";
+                }
+                $val = $a->{$finalKey};
+                return "{$labelPrefix} – {$val}";
+            });
+        };
 
         // === Gruppieren & Duplizieren ===
         $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutachter:innen-Gruppe');
