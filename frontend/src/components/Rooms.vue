@@ -341,7 +341,7 @@ const getItemsInRoom = (roomId) => {
                 <draggable
                   :list="getItemsInRoom(room.id)"
                   group="assignables"
-                  item-key="key"
+                  item-key="id"
                   @add="event => handleDrop(event, room)"
                   @start="isDragging = true"
                   @end="isDragging = false"
@@ -350,33 +350,55 @@ const getItemsInRoom = (roomId) => {
 
                 
                   <template #item="{ element }">
-                    <span
-                      :style="{
-                        border: '2px solid ' + getProgramColor(element),
-                        backgroundColor: '#fff'
-                      }"
-                      class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
-                    >
-                      <img
-                        v-if="programLogoSrc(element.first_program)"
-                        :src="programLogoSrc(element.first_program)"
-                        :alt="programLogoAlt(element.first_program)"
-                        class="w-3 h-3 flex-shrink-0"
-                      />
-                      <span>
-                        {{ element.name }}
-                        <template v-if="element.type === 'team'">({{ element.number }})</template>
-                      </span>
-                      <button
-                        class="ml-1 text-sm text-gray-500 hover:text-black"
-                        @click.stop="unassignItemFromRoom(element.key)"
+                    <div class="flex items-center">
+                      <!-- Activity -->
+                      <span
+                        v-if="element.type === 'activity'"
+                        :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
+                        class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
                       >
-                        ✖
-                      </button>
-                    </span>
+                        <img
+                          v-if="programLogoSrc(element.first_program)"
+                          :src="programLogoSrc(element.first_program)"
+                          :alt="programLogoAlt(element.first_program)"
+                          class="w-3 h-3 flex-shrink-0"
+                        />
+                        {{ element.name }}
+                        <button
+                          class="ml-1 text-sm text-gray-500 hover:text-black"
+                          @click.stop="unassignItemFromRoom(element.key)"
+                        >
+                          ✖
+                        </button>
+                      </span>
+
+                      <!-- Team -->
+                      <span
+                        v-else
+                        class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+                      >
+                        <span
+                            class="w-1.5 self-stretch rounded-l-md"
+                            :style="{ backgroundColor: getProgramColor(element) }"
+                          ></span>
+                        <span class="px-2 py-1 flex items-center gap-1">
+                          <img
+                            v-if="programLogoSrc(element.first_program)"
+                            :src="programLogoSrc(element.first_program)"
+                            :alt="programLogoAlt(element.first_program)"
+                            class="w-3 h-3 flex-shrink-0"
+                          />
+                          {{ element.name }} ({{ element.number }})
+                        </span>
+                        <button
+                          class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
+                          @click.stop="unassignItemFromRoom(element.key)"
+                        >
+                          ✖
+                        </button>
+                      </span>
+                    </div>
                   </template>
-
-
 
                 </draggable>
               </div>
@@ -486,10 +508,10 @@ const getItemsInRoom = (roomId) => {
                 v-else-if="element.type === 'team'"
                 class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
               >
-                <span
-                  class="w-1.5 h-full rounded-l-md"
-                  :style="{ backgroundColor: getProgramColor(element) }"
-                ></span>
+              <span
+                class="w-1.5 self-stretch rounded-l-md"
+                :style="{ backgroundColor: getProgramColor(element) }"
+              ></span>
                 <span class="px-2 py-1 flex items-center gap-1">
                   <img
                     v-if="programLogoSrc(element.first_program)"
