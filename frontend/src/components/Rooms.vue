@@ -59,6 +59,37 @@ onMounted(async () => {
   console.log('Fetched room type groups:', typeGroups.value)
   console.log('Flattened room types:', roomTypes.value)
 
+  // --- Teams aus DRAHT laden ---
+  try {
+    const { data } = await axios.get(`/events/${eventId.value}/draht-data`)
+
+    // Explore
+    exploreTeams.value = Object.entries(data.teams_explore || {}).map(([id, t]) => ({
+      id: Number(id),
+      number: t.number ?? id,
+      name: t.name ?? 'Unbenannt',
+      first_program: 2
+    }))
+
+    // Challenge
+    challengeTeams.value = Object.entries(data.teams_challenge || {}).map(([id, t]) => ({
+      id: Number(id),
+      number: t.number ?? id,
+      name: t.name ?? 'Unbenannt',
+      first_program: 3
+    }))
+
+    console.log('Fetched teams:', {
+      explore: exploreTeams.value.length,
+      challenge: challengeTeams.value.length
+    })
+  } catch (err) {
+    console.error('Fehler beim Laden der Teamlisten:', err)
+    exploreTeams.value = []
+    challengeTeams.value = []
+  }
+
+
   // Zuordnungen bestehender Räume übernehmen (inkl. Extra Blocks)
   const result = {}
   roomsData.rooms.forEach(room => {
@@ -218,17 +249,10 @@ onUnmounted(() => {
 
 const activeTab = ref('activities')
 
-// Fake-Teams
-const fakeExploreTeams = ref([
-  { id: 1, name: 'Team Green Light', number: 101 },
-  { id: 2, name: 'Mind Explorers', number: 102 }
-])
+// --- Team-Listen (neu, aus DRAHT) ---
+const exploreTeams = ref([])
+const challengeTeams = ref([])
 
-const fakeChallengeTeams = ref([
-  { id: 3, name: 'Tech Titans', number: 201 },
-  { id: 4, name: 'Robo Masters', number: 202 },
-  { id: 5, name: 'Smart Builders', number: 203 }
-])
 
 
 
@@ -423,63 +447,54 @@ const fakeChallengeTeams = ref([
 <!-- Teams-Liste -->
 <div v-else>
   <!-- Tabs übernehmen bereits die Überschrift -->
-  <!-- Explore Teams -->
-  <div class="mb-6 bg-gray-50 border rounded-lg p-4 shadow" v-if="fakeExploreTeams.length">
-    <div class="text-lg font-semibold text-black mb-3">Explore</div>
-    <div class="flex flex-wrap gap-2">
-      <span
-        v-for="team in fakeExploreTeams"
-        :key="team.id"
-        class="flex items-center border rounded-md text-xs bg-white shadow-sm"
-      >
-        <!-- Farbiger Seitenbalken -->
-        <span
-          class="w-1.5 h-full rounded-l-md"
-          :style="{ backgroundColor: getProgramColor({ first_program: 2 }) }"
-        ></span>
 
-        <!-- Inhalt -->
-        <span class="px-2 py-1 flex items-center gap-1">
-          <img
-            v-if="programLogoSrc(2)"
-            :src="programLogoSrc(2)"
-            :alt="programLogoAlt(2)"
-            class="w-3 h-3 flex-shrink-0"
-          />
-          {{ team.name }} ({{ team.number }})
-        </span>
+ <!-- Explore Teams -->
+<div v-if="exploreTeams.length" class="mb-6 bg-gray-50 border rounded-lg p-4 shadow">
+  <div class="text-lg font-semibold text-black mb-3">Explore</div>
+  <div class="flex flex-wrap gap-2">
+    <span
+      v-for="team in exploreTeams"
+      :key="team.id"
+      class="flex items-center border rounded-md text-xs bg-white shadow-sm"
+    >
+      <span class="w-1.5 h-full rounded-l-md" :style="{ backgroundColor: getProgramColor(team) }"></span>
+      <span class="px-2 py-1 flex items-center gap-1">
+        <img
+          v-if="programLogoSrc(team.first_program)"
+          :src="programLogoSrc(team.first_program)"
+          :alt="programLogoAlt(team.first_program)"
+          class="w-3 h-3 flex-shrink-0"
+        />
+        {{ team.name }} ({{ team.number }})
       </span>
-    </div>
+    </span>
   </div>
+</div>
 
-  <!-- Challenge Teams -->
-  <div class="mb-6 bg-gray-50 border rounded-lg p-4 shadow" v-if="fakeChallengeTeams.length">
-    <div class="text-lg font-semibold text-black mb-3">Challenge</div>
-    <div class="flex flex-wrap gap-2">
-      <span
-        v-for="team in fakeChallengeTeams"
-        :key="team.id"
-        class="flex items-center border rounded-md text-xs bg-white shadow-sm"
-      >
-        <!-- Farbiger Seitenbalken -->
-        <span
-          class="w-1.5 h-full rounded-l-md"
-          :style="{ backgroundColor: getProgramColor({ first_program: 3 }) }"
-        ></span>
-
-        <!-- Inhalt -->
-        <span class="px-2 py-1 flex items-center gap-1">
-          <img
-            v-if="programLogoSrc(3)"
-            :src="programLogoSrc(3)"
-            :alt="programLogoAlt(3)"
-            class="w-3 h-3 flex-shrink-0"
-          />
-          {{ team.name }} ({{ team.number }})
-        </span>
+<!-- Challenge Teams -->
+<div v-if="challengeTeams.length" class="mb-6 bg-gray-50 border rounded-lg p-4 shadow">
+  <div class="text-lg font-semibold text-black mb-3">Challenge</div>
+  <div class="flex flex-wrap gap-2">
+    <span
+      v-for="team in challengeTeams"
+      :key="team.id"
+      class="flex items-center border rounded-md text-xs bg-white shadow-sm"
+    >
+      <span class="w-1.5 h-full rounded-l-md" :style="{ backgroundColor: getProgramColor(team) }"></span>
+      <span class="px-2 py-1 flex items-center gap-1">
+        <img
+          v-if="programLogoSrc(team.first_program)"
+          :src="programLogoSrc(team.first_program)"
+          :alt="programLogoAlt(team.first_program)"
+          class="w-3 h-3 flex-shrink-0"
+        />
+        {{ team.name }} ({{ team.number }})
       </span>
-    </div>
+    </span>
   </div>
+</div>
+
+
 </div>
 
 
