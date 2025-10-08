@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\DrahtController;
+use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Models\MRole;
 use App\Models\Plan;
 use App\Models\Event;
@@ -1029,58 +1030,62 @@ class PlanExportController extends Controller
      * @param int $planId
      * @return \Illuminate\Http\JsonResponse
      */
-public function dataReadiness(int $eventId)
-{
-    // --- 1️⃣ Plan zur Event-ID finden ---
-    $plan = DB::table('plan')->where('event', $eventId)->first();
-    if (!$plan) {
-        return response()->json([
-            'explore_teams_ok'   => false,
-            'challenge_teams_ok' => false,
-            'room_mapping_ok'    => false,
-        ]);
+    public function dataReadiness(int $eventId)
+    {
+        $plan = DB::table('plan')->where('event', $eventId)->first();
+        if (!$plan) {
+            return response()->json([
+                'explore_teams_ok'   => false,
+                'challenge_teams_ok' => false,
+                'room_mapping_ok'    => false,
+            ]);
+        }
+
+        // Geplante vs. angemeldete Teams prüfen ---
+
+        $paramIds = DB::table('m_parameter')
+            ->whereIn('name', ['c_teams', 'e_teams'])
+            ->pluck('id', 'name');
+
+        $values = DB::table('plan_param_value')
+            ->where('plan', $plan->id)
+            ->whereIn('parameter', $paramIds->values())
+            ->pluck('set_value', 'parameter')
+            ->map(fn($v) => (int)$v);
+
+        $plannedChallengeTeams = $values[$paramIds['c_teams']] ?? 0;
+        $plannedExploreTeams   = $values[$paramIds['e_teams']] ?? 0;
+
+        $drahtController = app(DrahtController::class);
+        $response = $drahtController->show(Event::findOrFail($eventId));
+        $drahtData = $response->getData(true);
+
+        $registeredChallengeTeams = isset($drahtData['teams_challenge'])
+            ? count($drahtData['teams_challenge'])
+            : 0;
+
+        $registeredExploreTeams = isset($drahtData['teams_explore'])
+            ? count($drahtData['teams_explore'])
+            : 0;
+
+
+        // Raum-Mapping prüfen ---    
+        $planRoomTypeController = app(PlanRoomTypeController::class);
+        $unmappedResponse = $planRoomTypeController->unmappedRoomTypes($plan->id);
+        $unmappedList = $unmappedResponse->getData(true);
+
+        // Wenn kein RoomType ohne Mapping gefunden → alles gut
+        $hasUnmappedRooms = !empty($unmappedList);
+
+        // Ergebnis zusammensetzen ---
+        $result = [
+            'explore_teams_ok'   => ($plannedExploreTeams === $registeredExploreTeams),
+            'challenge_teams_ok' => ($plannedChallengeTeams === $registeredChallengeTeams),
+            'room_mapping_ok'    => !$hasUnmappedRooms,
+        ];
+
+        return response()->json($result);
     }
-
-    // --- 2️⃣ Erwartete Teamzahlen aus plan_param_value holen ---
-    $paramIds = DB::table('m_parameter')
-        ->whereIn('name', ['c_teams', 'e_teams'])
-        ->pluck('id', 'name');
-
-    $values = DB::table('plan_param_value')
-        ->where('plan', $plan->id)
-        ->whereIn('parameter', $paramIds->values())
-        ->pluck('set_value', 'parameter')
-        ->map(fn($v) => (int)$v);
-
-    $plannedChallengeTeams = $values[$paramIds['c_teams']] ?? 0;
-    $plannedExploreTeams   = $values[$paramIds['e_teams']] ?? 0;
-
-    // --- 3️⃣ DRAHT-Daten abrufen ---
-    $drahtController = app(DrahtController::class);
-    $response = $drahtController->show(Event::findOrFail($eventId));
-    $drahtData = $response->getData(true);
-
-    $registeredChallengeTeams = isset($drahtData['teams_challenge'])
-        ? count($drahtData['teams_challenge'])
-        : 0;
-
-    $registeredExploreTeams = isset($drahtData['teams_explore'])
-        ? count($drahtData['teams_explore'])
-        : 0;
-
-    // --- 4️⃣ Raum-Mapping prüfen ---
-    // Activities mit room_type != null müssen auch room_id != null haben
-    $hasUnmappedRooms = false;
-
-    // --- 5️⃣ Ergebnis zusammensetzen ---
-    $result = [
-        'explore_teams_ok'   => ($plannedExploreTeams === $registeredExploreTeams),
-        'challenge_teams_ok' => ($plannedChallengeTeams === $registeredChallengeTeams),
-        'room_mapping_ok'    => !$hasUnmappedRooms,
-    ];
-
-    return response()->json($result);
-}
 
 
 }
