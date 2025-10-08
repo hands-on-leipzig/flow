@@ -841,7 +841,7 @@ class PlanExportController extends Controller
          */
         $distributeGeneric = function ($activities, $groupKey, $labelPrefix) {
             // Falls Robot Game → gemeinsame Tisch-ID erzeugen
-            if (in_array($groupKey, ['table_1', 'table_2'])) {
+            if ( $groupKey === 'table') {
                 $expanded = collect();
                 foreach ($activities as $a) {
                     $refEntries = [];
@@ -902,8 +902,8 @@ class PlanExportController extends Controller
         // === Gruppieren & Duplizieren ===
         $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutachter:innen-Gruppe');
         $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
-        $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table_1', 'FLL Challenge Schiedsrichter:innen ');
-        $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table_2', 'FLL Challenge Robot-Check für ');
+        $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table', 'FLL Challenge Schiedsrichter:innen ');
+        $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table', 'FLL Challenge Robot-Check für ');
 
         // === Zusammenführen, sortiert nach Program-Logik ===
         $sections = collect()
