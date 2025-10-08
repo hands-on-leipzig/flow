@@ -115,12 +115,12 @@ onMounted(async () => {
     }
   ]
 
-  // --- Bestehende Zuordnungen übernehmen ---
+  // --- Bestehende Zuordnungen übernehmen (typisierte Keys) ---
   const result = {}
   roomsData.rooms.forEach(room => {
-    room.room_types.forEach(rt => { result[rt.id] = room.id })
+    room.room_types.forEach(rt => { result[`activity-${rt.id}`] = room.id })
     if (room.extra_blocks && Array.isArray(room.extra_blocks)) {
-      room.extra_blocks.forEach(eb => { result[eb.id] = room.id })
+      room.extra_blocks.forEach(eb => { result[`activity-${eb.id}`] = room.id })
     }
   })
   assignments.value = result
@@ -142,12 +142,13 @@ const assignItemToRoom = async (itemId, roomId) => {
     return
   }
 
-  assignments.value[itemId] = roomId
+  const key = `${item.type}-${item.id}`
+  assignments.value[key] = roomId
 
   if (item.type === 'activity') {
     const isExtraBlock = item?.group?.id === 999
     await axios.put(`/rooms/assign-types`, {
-      type_id: itemId,
+      type_id: item.id,
       room_id: roomId,
       event: eventStore.selectedEvent?.id,
       extra_block: isExtraBlock
@@ -174,18 +175,21 @@ const findItemById = (id) => {
 // --- Unassign ---
 const unassignItemFromRoom = async (itemId) => {
   const item = findItemById(itemId)
-  assignments.value[itemId] = null
+  if (!item) return
 
-  if (item?.type === 'activity') {
+  const key = `${item.type}-${item.id}`
+  assignments.value[key] = null
+
+  if (item.type === 'activity') {
     const isExtraBlock = item?.group?.id === 999
     await axios.put(`/rooms/assign-types`, {
-      type_id: itemId,
+      type_id: item.id,
       room_id: null,
       event: eventStore.selectedEvent?.id,
       extra_block: isExtraBlock
     })
   }
-  if (item?.type === 'team') {
+  if (item.type === 'team') {
     console.log(`Team ${item?.name} aus Raum entfernt (lokal)`)
   }
 }
@@ -248,8 +252,8 @@ const confirmDeleteRoom = async () => {
   await axios.delete(`/rooms/${deletedRoomId}`)
   rooms.value = rooms.value.filter(r => r.id !== deletedRoomId)
 
-  Object.keys(assignments.value).forEach(id => {
-    if (assignments.value[id] === deletedRoomId) assignments.value[id] = null
+  Object.keys(assignments.value).forEach(key => {
+    if (assignments.value[key] === deletedRoomId) assignments.value[key] = null
   })
 
   showDeleteModal.value = false
@@ -273,12 +277,12 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 const activeTab = ref('activities')
 
-// Hilfsfunktion für Template
+// Hilfsfunktion für Template (typisierte IDs)
 const getItemsInRoom = (roomId) => {
   const all = []
   for (const category of assignables.value) {
     for (const group of category.groups) {
-      all.push(...group.items.filter(i => assignments.value[i.id] === roomId))
+      all.push(...group.items.filter(i => assignments.value[`${i.type}-${i.id}`] === roomId))
     }
   }
   return all
@@ -439,13 +443,16 @@ const getItemsInRoom = (roomId) => {
             {{ group.name }}
           </div>
           <draggable
-            :list="group.items.filter(i => !assignments[i.id])"
+            :list="group.items.filter(i => !assignments[`${i.type}-${i.id}`])"
             group="assignables"
             item-key="id"
             class="flex flex-wrap gap-2"
             @start="isDragging = true"
             @end="isDragging = false"
           >
+
+
+
             <template #item="{ element }">
               <span
                 v-if="element.type === 'activity'"
@@ -495,6 +502,9 @@ const getItemsInRoom = (roomId) => {
                 </button>
               </span>
             </template>
+
+
+
           </draggable>
         </div>
       </div>
