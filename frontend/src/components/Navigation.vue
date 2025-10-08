@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { TabGroup, TabList, Tab, Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
 import { useAuth } from '@/composables/useAuth'
@@ -62,6 +62,18 @@ onMounted(async () => {
   }
   await checkDataReadiness()
 })
+
+// 👇 Watcher: prüft beim Navigieren neu
+watch(
+  () => route.path,
+  async () => {
+    // Nur prüfen, wenn Event schon geladen ist
+    if (eventStore.selectedEvent?.id) {
+      await checkDataReadiness()
+    }
+  }
+)
+
 
 // --- Helper für rote Punkte ---
 function hasWarning(tabPath: string): boolean {
