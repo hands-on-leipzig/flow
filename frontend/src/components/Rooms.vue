@@ -475,12 +475,6 @@ const getItemsInRoom = (roomId) => {
                   class="w-3 h-3 flex-shrink-0"
                 />
                 {{ element.name }}
-                <button
-                  class="ml-1 text-sm text-gray-500 hover:text-black"
-                  @click.stop="unassignItemFromRoom(element.key)"
-                >
-                  ✖
-                </button>
               </span>
 
               <span
@@ -500,12 +494,6 @@ const getItemsInRoom = (roomId) => {
                   />
                   {{ element.name }} ({{ element.number }})
                 </span>
-                <button
-                  class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
-                  @click.stop="unassignItemFromRoom(element.key)"
-                >
-                  ✖
-                </button>
               </span>
             </template>
 
