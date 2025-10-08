@@ -31,29 +31,34 @@ class PlanRoomTypeController extends Controller
      */
     public function unmappedRoomTypes(int $planId): JsonResponse
     {
-        // 1️⃣ Event ermitteln
-        $eventId = DB::table('plan')->where('id', $planId)->value('event');
-        if (!$eventId) {
+        $event = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->select('event.id as event_id', 'event.date as event_date')
+            ->first();
+
+        if (!$event) {
             return response()->json([]);
         }
 
-        // 2️⃣ Alle Room Types wie im UI holen
         $roomTypes = collect($this->fetcher->fetchRoomTypes($planId));
 
-        // 3️⃣ Gemappte normale Room Types
         $mappedNormal = DB::table('room_type_room')
-            ->where('event', $eventId)
+            ->where('event', $event->event_id)
             ->pluck('room_type')
             ->toArray();
 
-        // 4️⃣ Extra Blocks mit gesetztem Raum
         $mappedExtras = DB::table('extra_block')
             ->where('plan', $planId)
-            ->whereNotNull('room')
+            ->where(function ($q) use ($event) {
+                $q->whereNotNull('room')
+                ->orWhereDate('start', '<', $event->event_date);
+            })
             ->pluck('id')
             ->toArray();
 
-        // 5️⃣ Filtern
+        // Log::info('Mapped Normal Room Types for plan '.$planId.': '.json_encode($mappedNormal));
+
         $unmapped = $roomTypes->map(function ($group) use ($mappedNormal, $mappedExtras) {
             $isExtraGroup = ($group['id'] ?? 0) === 999;
 

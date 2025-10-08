@@ -1025,7 +1025,7 @@ class PlanExportController extends Controller
 
 
     /**
-     * Prüft, ob alle relevanten Daten für den PDF-Export konsistent und vollständig sind.
+     * Prüft, ob alle relevanten Daten konsistent und vollständig sind.
      *
      * @param int $planId
      * @return \Illuminate\Http\JsonResponse
@@ -1077,11 +1077,45 @@ class PlanExportController extends Controller
         // Wenn kein RoomType ohne Mapping gefunden → alles gut
         $hasUnmappedRooms = !empty($unmappedList);
 
-        // Ergebnis zusammensetzen ---
+        // Check if all teams have a room assigned
+
+        // --- Team-Mapping prüfen ---
+        $teamController = app(TeamController::class);
+
+        $event = Event::find($eventId);
+
+        // Explore Teams
+        $requestExplore = new \Illuminate\Http\Request();
+        $requestExplore->query->set('program', 'explore');
+        $exploreResponse = $teamController->index($requestExplore, $event);
+        $exploreTeams = collect($exploreResponse->getData(true));
+
+        // Log::debug('Explore Teams:', $exploreTeams->toArray());
+
+        // Challenge Teams
+        $requestChallenge = new \Illuminate\Http\Request();
+        $requestChallenge->query->set('program', 'challenge');
+        $challengeResponse = $teamController->index($requestChallenge, $event);
+        $challengeTeams = collect($challengeResponse->getData(true));
+
+        // Log::debug('Challenge Teams:', $challengeTeams->toArray());
+
+        // Prüfen, ob alle Teams einen Raum haben
+        $exploreWithoutRoom = $exploreTeams->whereNull('room')->count();
+        $challengeWithoutRoom = $challengeTeams->whereNull('room')->count();
+
+        $allExploreRoomsOk = $exploreTeams->isEmpty() || $exploreWithoutRoom === 0;
+        $allChallengeRoomsOk = $challengeTeams->isEmpty() || $challengeWithoutRoom === 0;
+
+        // --- Ergebnis zusammensetzen ---
         $result = [
-            'explore_teams_ok'   => ($plannedExploreTeams === $registeredExploreTeams),
-            'challenge_teams_ok' => ($plannedChallengeTeams === $registeredChallengeTeams),
-            'room_mapping_ok'    => !$hasUnmappedRooms,
+            'explore_teams_ok'   => ($plannedExploreTeams === $registeredExploreTeams) ,
+            'challenge_teams_ok' => ($plannedChallengeTeams === $registeredChallengeTeams) ,
+            'room_mapping_ok'    => !$hasUnmappedRooms && $allExploreRoomsOk && $allChallengeRoomsOk,
+            'room_mapping_details' => [
+                'activities_ok' => !$hasUnmappedRooms,
+                'teams_ok'     => $$allExploreRoomsOk && $allChallengeRoomsOk,
+            ],
         ];
 
         return response()->json($result);

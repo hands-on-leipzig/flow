@@ -61,7 +61,7 @@ class TeamController extends Controller
             ->orderBy('team.team_number_hot') // Fallback ordering
             ->get();
 
-        Log::info('Fetched teams', $teams->toArray());      
+        // Log::info('Fetched teams', $teams->toArray());      
 
         return response()->json($teams);
     }

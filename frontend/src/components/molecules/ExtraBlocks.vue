@@ -271,10 +271,18 @@ const deleteMessage = computed(() => {
 
             <td class="px-2 py-2 text-right">
               <div class="flex flex-col items-end space-y-2">
-                <ToggleSwitch :model-value="b.active !== false" @update:modelValue="toggleActive(b, $event)" :disabled="!b.id"/>
-                <button v-if="b.id" class="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-3 py-1 rounded"
-                        @click="confirmDeleteBlock(b)">
-                  Löschen
+                <ToggleSwitch
+                  :model-value="b.active !== false"
+                  @update:modelValue="toggleActive(b, $event)"
+                  :disabled="!b.id"
+                />
+                <button
+                  v-if="b.id"
+                  @click="confirmDeleteBlock(b)"
+                  class="text-red-500 hover:text-red-700"
+                  title="Block löschen"
+                >
+                  🗑️
                 </button>
               </div>
             </td>
