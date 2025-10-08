@@ -214,6 +214,24 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
+
+
+const activeTab = ref('activities')
+
+// Fake-Teams
+const fakeExploreTeams = ref([
+  { id: 1, name: 'Team Green Light', number: 101 },
+  { id: 2, name: 'Mind Explorers', number: 102 }
+])
+
+const fakeChallengeTeams = ref([
+  { id: 3, name: 'Tech Titans', number: 201 },
+  { id: 4, name: 'Robo Masters', number: 202 },
+  { id: 5, name: 'Smart Builders', number: 203 }
+])
+
+
+
 </script>
 
 <template>
@@ -336,47 +354,140 @@ onUnmounted(() => {
       </ul>
     </div>
 
-    <!-- 🔵 Rechte Spalte: Aktivitäten (Raumtypen) -->
-    <div>
-      <h2 class="text-xl font-bold mb-4">Aktivitäten</h2>
-      <div
-        v-for="group in typeGroups"
-        :key="group.id"
-        class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
-      >
-        <div class="text-lg font-semibold text-black mb-3">
-          {{ group.name }}
-        </div>
 
-        <draggable
-          :list="roomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
-          group="roomtypes"
-          item-key="id"
-          class="flex flex-wrap gap-2"
-          @start="isDragging = true"
-          @end="isDragging = false"
+
+    <!-- 🔵 Rechte Spalte: Aktivitäten / Teams -->
+    <div>
+      <!-- Tabs -->
+      <div class="flex mb-4 border-b text-xl font-bold">
+        <button
+          class="px-4 py-2"
+          :class="activeTab === 'activities' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
+          @click="activeTab = 'activities'"
         >
-          <template #item="{ element }">
-            <span
-              :style="{
-                border: '2px solid ' + getProgramColor(element),
-                backgroundColor: '#fff',
-                color: '#000'
-              }"
-              class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
-            >
-              <img
-                v-if="programLogoSrc(element.first_program)"
-                :src="programLogoSrc(element.first_program)"
-                :alt="programLogoAlt(element.first_program)"
-                class="w-3 h-3 flex-shrink-0"
-              />
-              {{ element.name }}
-            </span>
-          </template>
-        </draggable>
+          Aktivitäten
+        </button>
+        <button
+          class="px-4 py-2 ml-4"
+          :class="activeTab === 'teams' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
+          @click="activeTab = 'teams'"
+        >
+          Teams
+        </button>
       </div>
+
+      <!-- Aktivitäten-Liste -->
+      <div v-if="activeTab === 'activities'">
+        <div
+          v-for="group in typeGroups"
+          :key="group.id"
+          class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
+        >
+          <div class="text-lg font-semibold text-black mb-3">
+            {{ group.name }}
+          </div>
+
+          <draggable
+            :list="roomTypes.filter(t => t.group?.id === group.id && !assignments[t.id])"
+            group="roomtypes"
+            item-key="id"
+            class="flex flex-wrap gap-2"
+            @start="isDragging = true"
+            @end="isDragging = false"
+          >
+            <template #item="{ element }">
+              <span
+                :style="{
+                  border: '2px solid ' + getProgramColor(element),
+                  backgroundColor: '#fff',
+                  color: '#000'
+                }"
+                class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
+              >
+                <img
+                  v-if="programLogoSrc(element.first_program)"
+                  :src="programLogoSrc(element.first_program)"
+                  :alt="programLogoAlt(element.first_program)"
+                  class="w-3 h-3 flex-shrink-0"
+                />
+                {{ element.name }}
+              </span>
+            </template>
+          </draggable>
+        </div>
+      </div>
+
+
+
+      
+<!-- Teams-Liste -->
+<div v-else>
+  <!-- Tabs übernehmen bereits die Überschrift -->
+  <!-- Explore Teams -->
+  <div class="mb-6 bg-gray-50 border rounded-lg p-4 shadow" v-if="fakeExploreTeams.length">
+    <div class="text-lg font-semibold text-black mb-3">Explore</div>
+    <div class="flex flex-wrap gap-2">
+      <span
+        v-for="team in fakeExploreTeams"
+        :key="team.id"
+        class="flex items-center border rounded-md text-xs bg-white shadow-sm"
+      >
+        <!-- Farbiger Seitenbalken -->
+        <span
+          class="w-1.5 h-full rounded-l-md"
+          :style="{ backgroundColor: getProgramColor({ first_program: 2 }) }"
+        ></span>
+
+        <!-- Inhalt -->
+        <span class="px-2 py-1 flex items-center gap-1">
+          <img
+            v-if="programLogoSrc(2)"
+            :src="programLogoSrc(2)"
+            :alt="programLogoAlt(2)"
+            class="w-3 h-3 flex-shrink-0"
+          />
+          {{ team.name }} ({{ team.number }})
+        </span>
+      </span>
     </div>
+  </div>
+
+  <!-- Challenge Teams -->
+  <div class="mb-6 bg-gray-50 border rounded-lg p-4 shadow" v-if="fakeChallengeTeams.length">
+    <div class="text-lg font-semibold text-black mb-3">Challenge</div>
+    <div class="flex flex-wrap gap-2">
+      <span
+        v-for="team in fakeChallengeTeams"
+        :key="team.id"
+        class="flex items-center border rounded-md text-xs bg-white shadow-sm"
+      >
+        <!-- Farbiger Seitenbalken -->
+        <span
+          class="w-1.5 h-full rounded-l-md"
+          :style="{ backgroundColor: getProgramColor({ first_program: 3 }) }"
+        ></span>
+
+        <!-- Inhalt -->
+        <span class="px-2 py-1 flex items-center gap-1">
+          <img
+            v-if="programLogoSrc(3)"
+            :src="programLogoSrc(3)"
+            :alt="programLogoAlt(3)"
+            class="w-3 h-3 flex-shrink-0"
+          />
+          {{ team.name }} ({{ team.number }})
+        </span>
+      </span>
+    </div>
+  </div>
+</div>
+
+
+
+    </div>
+
+
+
   </div>
 
   <!-- 🔴 Lösch-Modal -->
