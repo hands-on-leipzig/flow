@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\DrahtController;
+use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Models\MRole;
 use App\Models\Plan;
 use App\Models\Event;
@@ -487,39 +489,61 @@ class PlanExportController extends Controller
                 ['end_time', 'asc'],
             ]);
 
-            $rows = $acts->map(function ($a) {
-                $teamParts = [];
+        $rows = $acts->map(function ($a) {
+            $teamParts = [];
 
-                // Jury (Lane)
-                if (!empty($a->lane) && $a->team !== null) {
-                    $teamParts[] = !empty($a->jury_team_name)
-                        ? $a->jury_team_name
-                        : (string)$a->team;
+            // Hilfsfunktion für einheitliche Darstellung
+            $formatTeam = function ($name, $numHot, $numInternal) {
+                if (!empty($name) && !empty($numHot)) {
+                    return "{$name} ({$numHot})";
+                } elseif (!empty($name)) {
+                    return $name;
+                } elseif (!empty($numInternal)) {
+                    return sprintf("T%02d", $numInternal);
+                } else {
+                    return '–';
                 }
+            };
 
-                // Tisch 1
-                if (!empty($a->table_1) && $a->table_1_team !== null) {
-                    $teamParts[] = !empty($a->table_1_team_name)
-                        ? $a->table_1_team_name
-                        : (string)$a->table_1_team;
-                }
+            // Jury (Lane)
+            if (!empty($a->lane) && $a->team !== null) {
+                $teamParts[] = $formatTeam(
+                    $a->jury_team_name ?? null,
+                    $a->jury_team_number_hot ?? null,
+                    $a->team
+                );
+            }
 
-                // Tisch 2
-                if (!empty($a->table_2) && $a->table_2_team !== null) {
-                    $teamParts[] = !empty($a->table_2_team_name)
-                        ? $a->table_2_team_name
-                        : (string)$a->table_2_team;
-                }
+            // Tisch 1
+            if (!empty($a->table_1) && $a->table_1_team !== null) {
+                $teamParts[] = $formatTeam(
+                    $a->table_1_team_name ?? null,
+                    $a->table_1_team_number_hot ?? null,
+                    $a->table_1_team
+                );
+            }
 
-                $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
+            // Tisch 2
+            if (!empty($a->table_2) && $a->table_2_team !== null) {
+                $teamParts[] = $formatTeam(
+                    $a->table_2_team_name ?? null,
+                    $a->table_2_team_number_hot ?? null,
+                    $a->table_2_team
+                );
+            }
 
-                return [
-                    'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
-                    'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                    'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
-                    'team'     => $teamDisplay,
-                ];
-            })->values()->all();
+            $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
+
+            return [
+                'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+                'team'     => $teamDisplay,
+                // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
+                'is_explore'    => in_array($a->activity_first_program_id, [0, 2]),
+                'is_challenge'  => in_array($a->activity_first_program_id, [0, 3]),
+            ];
+        })->values()->all();
 
             // Tabelle in mehrere Seiten splitten
             $chunks = array_chunk($rows, $maxRowsPerPage);
@@ -642,14 +666,20 @@ class PlanExportController extends Controller
     {
         // Teamnummern + Namen sammeln
         $teamNames = []; // [num => name]
+        $teamHot   = []; // [num => team_number_hot]
         $teamSet   = []; // num als key
 
         foreach ($acts as $a) {
             if (!is_null($a->team)) { // Jury-Teamnummer
                 $num = (int)$a->team;
                 $teamSet[$num] = true;
+
                 if (!empty($a->jury_team_name) && empty($teamNames[$num])) {
                     $teamNames[$num] = $a->jury_team_name;
+                }
+
+                if (isset($a->jury_team_number_hot)) {
+                    $teamHot[$num] = $a->jury_team_number_hot;
                 }
             }
         }
@@ -669,9 +699,18 @@ class PlanExportController extends Controller
         foreach ($teamNums as $num) {
             $ownActs = $acts->filter(fn($a) => !is_null($a->team) && (int)$a->team === $num);
 
-            $label = 'FLL Explore Team ' . $num;
-            if (!empty($teamNames[$num])) {
-                $label .= ' – ' . $teamNames[$num];
+            // 🔹 Label nach neuer Regel
+            $teamName = $teamNames[$num] ?? null;
+            $teamHotNum = $teamHot[$num] ?? null;
+
+            if ($teamName && $teamHotNum) {
+                $label = "FLL Explore {$teamName} ({$teamHotNum})";
+            } elseif ($teamName) {
+                $label = "FLL Explore {$teamName}";
+            } elseif ($num > 0) {
+                $label = sprintf("FLL Explore T%02d", $num);
+            } else {
+                $label = "FLL Explore –";
             }
 
             $pages[] = [
@@ -690,8 +729,8 @@ class PlanExportController extends Controller
      */
     private function buildChallengeTeamPages(\Illuminate\Support\Collection $acts): array
     {
-        // Teamnummern + (erster gefundener) Name
         $teamNames = []; // [num => name]
+        $teamHot   = []; // [num => team_number_hot]
         $teamSet   = [];
 
         foreach ($acts as $a) {
@@ -702,7 +741,11 @@ class PlanExportController extends Controller
                 if (!empty($a->jury_team_name) && empty($teamNames[$n])) {
                     $teamNames[$n] = $a->jury_team_name;
                 }
+                if (isset($a->jury_team_number_hot)) {
+                    $teamHot[$n] = $a->jury_team_number_hot;
+                }
             }
+
             // Table 1
             if (!is_null($a->table_1_team)) {
                 $n = (int)$a->table_1_team;
@@ -710,13 +753,20 @@ class PlanExportController extends Controller
                 if (!empty($a->table_1_team_name) && empty($teamNames[$n])) {
                     $teamNames[$n] = $a->table_1_team_name;
                 }
+                if (isset($a->table_1_team_number_hot)) {
+                    $teamHot[$n] = $a->table_1_team_number_hot;
+                }
             }
+
             // Table 2
             if (!is_null($a->table_2_team)) {
                 $n = (int)$a->table_2_team;
                 $teamSet[$n] = true;
                 if (!empty($a->table_2_team_name) && empty($teamNames[$n])) {
                     $teamNames[$n] = $a->table_2_team_name;
+                }
+                if (isset($a->table_2_team_number_hot)) {
+                    $teamHot[$n] = $a->table_2_team_number_hot;
                 }
             }
         }
@@ -725,9 +775,20 @@ class PlanExportController extends Controller
             return [];
         }
 
-        // Globale Acts = kein Team in allen 3 Feldern
-        $globalActs = $acts->filter(function ($a) {
-            return is_null($a->team) && is_null($a->table_1_team) && is_null($a->table_2_team);
+        // 🔸 IDs für Match- und Check-Aktivitäten aus der DB holen
+        $matchCheckIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', ['r_match', 'r_check'])
+            ->pluck('id')
+            ->toArray();
+
+        // 🔸 Globale Acts: kein Team, UND kein Match / kein Check
+        $globalActs = $acts->filter(function ($a) use ($matchCheckIds) {
+            $hasNoTeam = is_null($a->team) && is_null($a->table_1_team) && is_null($a->table_2_team);
+
+            // Wenn kein Team → prüfen, ob Activity-Typ einer der Match-/Check-Typen ist
+            $isMatchOrCheck = in_array($a->activity_type_detail_id, $matchCheckIds);
+
+            return $hasNoTeam && !$isMatchOrCheck;
         });
 
         $pages    = [];
@@ -742,9 +803,18 @@ class PlanExportController extends Controller
                     || (!is_null($a->table_2_team) && (int)$a->table_2_team === $num);
             });
 
-            $label = 'FLL Challenge Team ' . $num;
-            if (!empty($teamNames[$num])) {
-                $label .= ' – ' . $teamNames[$num];
+            // 🔹 Label-Logik wie bei Explore
+            $teamName = $teamNames[$num] ?? null;
+            $teamHotNum = $teamHot[$num] ?? null;
+
+            if ($teamName && $teamHotNum) {
+                $label = "FLL Challenge {$teamName} ({$teamHotNum})";
+            } elseif ($teamName) {
+                $label = "FLL Challenge {$teamName}";
+            } elseif ($num > 0) {
+                $label = sprintf("FLL Challenge T%02d", $num);
+            } else {
+                $label = "FLL Challenge –";
             }
 
             $pages[] = [
@@ -785,32 +855,79 @@ class PlanExportController extends Controller
         /**
          * Hilfsfunktion: verteilt "allgemeine" Aktivitäten auf alle Gruppen
          */
-        $distributeGeneric = function ($activities, $groupKey, $labelPrefix) {
-            $withKey = collect($activities)->filter(fn($a) => !empty($a->{$groupKey}));
-            $withoutKey = collect($activities)->filter(fn($a) => empty($a->{$groupKey}));
+        $distributeGeneric = function ($activities, string $groupKey, string $labelPrefix) {
+            $collection = collect($activities);
+            $finalKey = $groupKey;
 
-            // alle vorhandenen keys finden
-            $allKeys = $withKey->pluck($groupKey)->unique()->values();
+            // Robot Game: table -> ref_table (+ Name)
+            if ($groupKey === 'table') {
+                $expanded = collect();
+                foreach ($collection as $a) {
+                    $made = 0;
 
-            // allgemeine Aktivitäten duplizieren
+                    if (!empty($a->table_1)) {
+                        $c = clone $a;
+                        $c->ref_table = (int)$a->table_1;
+                        $c->ref_table_name = $a->table_1_name ?? null;
+                        $expanded->push($c);
+                        $made++;
+                    }
+                    if (!empty($a->table_2)) {
+                        $c = clone $a;
+                        $c->ref_table = (int)$a->table_2;
+                        $c->ref_table_name = $a->table_2_name ?? null;
+                        $expanded->push($c);
+                        $made++;
+                    }
+                    if ($made === 0) {
+                        // generisch, ohne Tisch
+                        $expanded->push($a);
+                    }
+                }
+                $collection = $expanded;
+                $finalKey = 'ref_table';
+            }
+
+            // mit/ohne Schlüssel trennen
+            $withKey    = $collection->filter(fn($a) => !empty($a->{$finalKey}));
+            $withoutKey = $collection->filter(fn($a) => empty($a->{$finalKey}));
+
+            // alle vorhandenen Keys (z. B. 1,2,3,4)
+            $allKeys = $withKey->pluck($finalKey)->filter()->unique()->values();
+
+            // Namens-Mapping für ref_table (übersteuerte Namen beibehalten)
+            $nameMap = [];
+            if ($finalKey === 'ref_table') {
+                $nameMap = $withKey->mapWithKeys(function ($a) use ($finalKey) {
+                    $num = (int)$a->{$finalKey};
+                    $name = $a->ref_table_name ?? "Tisch {$num}";
+                    return [$num => $name];
+                })->toArray();
+            }
+
+            // generische Aktivitäten auf alle Keys duplizieren + Namen vererben
             foreach ($withoutKey as $generic) {
                 foreach ($allKeys as $keyValue) {
                     $clone = clone $generic;
-                    $clone->{$groupKey} = $keyValue;
+                    $clone->{$finalKey} = (int)$keyValue;
+                    if ($finalKey === 'ref_table') {
+                        $clone->ref_table_name = $nameMap[(int)$keyValue] ?? "Tisch " . (int)$keyValue;
+                    }
                     $withKey->push($clone);
                 }
             }
 
-            // Gruppieren nach dem Schlüssel
-            return $withKey->groupBy(function ($a) use ($groupKey, $labelPrefix) {
-                $val = $a->{$groupKey};
-                if ($groupKey === 'lane') {
-                    return "{$labelPrefix} {$val}";                           
-                } elseif ($groupKey === 'table_1') {
-                    return "{$labelPrefix} " . ($a->table_1_name ?? $val);
-                } elseif ($groupKey === 'table_2') {
-                    return "{$labelPrefix} " . ($a->table_2_name ?? $val);
+            // Gruppieren + Label
+            return $withKey->groupBy(function ($a) use ($finalKey, $labelPrefix) {
+                if ($finalKey === 'lane') {
+                    return "{$labelPrefix} {$a->lane}";
                 }
+                if ($finalKey === 'ref_table') {
+                    $num  = $a->ref_table ?? null;
+                    $name = $a->ref_table_name ?? ($num ? "Tisch {$num}" : 'Tisch');
+                    return "{$labelPrefix}{$name}";
+                }
+                $val = $a->{$finalKey};
                 return "{$labelPrefix} – {$val}";
             });
         };
@@ -818,15 +935,15 @@ class PlanExportController extends Controller
         // === Gruppieren & Duplizieren ===
         $exploreGrouped       = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutachter:innen-Gruppe');
         $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
-        $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table_1', 'FLL Challenge Schiedsrichter:innen Tisch');
-        $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table_2', 'FLL Challenge Robot-Check für Tisch');
+        $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table', 'FLL Challenge Schiedsrichter:innen ');
+        $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table', 'FLL Challenge Robot-Check für ');
 
         // === Zusammenführen, sortiert nach Program-Logik ===
         $sections = collect()
             ->merge($exploreGrouped->sortKeys())
             ->merge($challengeJuryGrouped->sortKeys())
             ->merge($challengeRefGrouped->sortKeys())
-            ->merge($challengeCheckGrouped->sortKeys());
+           ->merge($challengeCheckGrouped->sortKeys());
 
         // === Rendern aller Abschnitte ===
         $html = '';
@@ -843,10 +960,39 @@ class PlanExportController extends Controller
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                 'activity' => $a->activity_atd_name ?? $a->activity_name ?? '–',
-                'team'     => $a->jury_team_name
-                            ?? $a->table_1_team_name
-                            ?? $a->table_2_team_name
-                            ?? ($a->team ?? '–'),
+                'team' => (function () use ($a) {
+                    // Helper für Formatierung
+                    $fmtNameHot = function (?string $name, $hot) {
+                        if ($name && $name !== '') {
+                            return $hot !== null ? "{$name} ({$hot})" : $name;
+                        }
+                        return null;
+                    };
+                    $fmtInternal = function ($num) {
+                        if ($num !== null && $num !== '' && (int)$num > 0) {
+                            return sprintf('T%02d', (int)$num);
+                        }
+                        return null;
+                    };
+
+                    // 1) Jury
+                    $val = $fmtNameHot($a->jury_team_name ?? null, $a->jury_team_number_hot ?? null)
+                        ?? $fmtInternal(($a->jury_team ?? null) ?? ($a->team ?? null)); // $a->team ist Alias auf jury_team
+                    if ($val) return $val;
+
+                    // 2) Tisch 1
+                    $val = $fmtNameHot($a->table_1_team_name ?? null, $a->table_1_team_number_hot ?? null)
+                        ?? $fmtInternal($a->table_1_team ?? null);
+                    if ($val) return $val;
+
+                    // 3) Tisch 2
+                    $val = $fmtNameHot($a->table_2_team_name ?? null, $a->table_2_team_number_hot ?? null)
+                        ?? $fmtInternal($a->table_2_team ?? null);
+                    if ($val) return $val;
+
+                    // 4) Generisch
+                    return '–';
+                })(),
                 'room'     => $a->room_name ?? '–',
             ])->values()->all();
 
@@ -875,6 +1021,70 @@ class PlanExportController extends Controller
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'landscape');
         return $pdf;
+    }
+
+
+    /**
+     * Prüft, ob alle relevanten Daten für den PDF-Export konsistent und vollständig sind.
+     *
+     * @param int $planId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function dataReadiness(int $eventId)
+    {
+        $plan = DB::table('plan')->where('event', $eventId)->first();
+        if (!$plan) {
+            return response()->json([
+                'explore_teams_ok'   => false,
+                'challenge_teams_ok' => false,
+                'room_mapping_ok'    => false,
+            ]);
+        }
+
+        // Geplante vs. angemeldete Teams prüfen ---
+
+        $paramIds = DB::table('m_parameter')
+            ->whereIn('name', ['c_teams', 'e_teams'])
+            ->pluck('id', 'name');
+
+        $values = DB::table('plan_param_value')
+            ->where('plan', $plan->id)
+            ->whereIn('parameter', $paramIds->values())
+            ->pluck('set_value', 'parameter')
+            ->map(fn($v) => (int)$v);
+
+        $plannedChallengeTeams = $values[$paramIds['c_teams']] ?? 0;
+        $plannedExploreTeams   = $values[$paramIds['e_teams']] ?? 0;
+
+        $drahtController = app(DrahtController::class);
+        $response = $drahtController->show(Event::findOrFail($eventId));
+        $drahtData = $response->getData(true);
+
+        $registeredChallengeTeams = isset($drahtData['teams_challenge'])
+            ? count($drahtData['teams_challenge'])
+            : 0;
+
+        $registeredExploreTeams = isset($drahtData['teams_explore'])
+            ? count($drahtData['teams_explore'])
+            : 0;
+
+
+        // Raum-Mapping prüfen ---    
+        $planRoomTypeController = app(PlanRoomTypeController::class);
+        $unmappedResponse = $planRoomTypeController->unmappedRoomTypes($plan->id);
+        $unmappedList = $unmappedResponse->getData(true);
+
+        // Wenn kein RoomType ohne Mapping gefunden → alles gut
+        $hasUnmappedRooms = !empty($unmappedList);
+
+        // Ergebnis zusammensetzen ---
+        $result = [
+            'explore_teams_ok'   => ($plannedExploreTeams === $registeredExploreTeams),
+            'challenge_teams_ok' => ($plannedChallengeTeams === $registeredChallengeTeams),
+            'room_mapping_ok'    => !$hasUnmappedRooms,
+        ];
+
+        return response()->json($result);
     }
 
 

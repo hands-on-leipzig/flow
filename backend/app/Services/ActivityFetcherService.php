@@ -18,7 +18,8 @@ class ActivityFetcherService
         bool $includeGroupMeta = false,
         bool $includeActivityMeta = false,
         bool $includeTeamNames = false,
-        bool $freeBlocks = true
+        bool $freeBlocks = true,
+        bool $include_past = false
         ) {
 
         $q = DB::table('activity as a')
@@ -27,6 +28,7 @@ class ActivityFetcherService
             ->leftJoin('m_first_program as fp', 'atd.first_program', '=', 'fp.id')
             ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
             ->join('plan as p', 'p.id', '=', 'ag.plan')
+            ->join('event as e', 'e.id', '=', 'p.event') 
             ->where('ag.plan', $plan);
 
         // Rollen-Filter (optional)
@@ -46,6 +48,11 @@ class ActivityFetcherService
             });
         }
 
+        // Filter: exclude past activities (default)
+        if (!$include_past) {
+            $q->whereColumn('a.start', '>=', 'e.date');
+        }
+
         // Group-Meta (optional)
         if ($includeGroupMeta) {
             $q->leftJoin('m_activity_type_detail as ag_atd', 'ag_atd.id', '=', 'ag.activity_type_detail')
@@ -54,14 +61,19 @@ class ActivityFetcherService
 
         // Rooms (optional)
         if ($includeRooms) {
-            $q->leftJoin('m_room_type as rt', 'a.room_type', '=', 'rt.id')
+            $q->leftJoin('m_room_type as rt_room', 'a.room_type', '=', 'rt_room.id')
             ->leftJoin('room_type_room as rtr', function ($j) {
                 $j->on('rtr.room_type', '=', 'a.room_type')
                     ->on('rtr.event', '=', 'p.event');
             })
             ->leftJoin('room as r', function ($j) {
+                // (r.id = rtr.room AND r.event = p.event) OR (r.id = peb.room AND r.event = p.event)
                 $j->on('r.id', '=', 'rtr.room')
-                    ->on('r.event', '=', 'p.event');
+                    ->on('r.event', '=', 'p.event')
+                    ->orOn(function ($or) {
+                        $or->on('r.id', '=', 'peb.room')
+                        ->on('r.event', '=', 'p.event');
+                    });
             });
         }
 
@@ -152,22 +164,24 @@ class ActivityFetcherService
             a.table_1_team as table_1_team,
             a.table_2 as table_2,
             a.table_2_team as table_2_team,
-            CASE a.table_1 
+            CASE a.table_1
                 WHEN 1 THEN COALESCE(te1.table_name, "Tisch 1")
                 WHEN 3 THEN COALESCE(te3.table_name, "Tisch 3")
-                ELSE NULL END as table_1_name,
-            CASE a.table_2 
+                ELSE NULL
+            END AS table_1_name,
+            CASE a.table_2
                 WHEN 2 THEN COALESCE(te2.table_name, "Tisch 2")
                 WHEN 4 THEN COALESCE(te4.table_name, "Tisch 4")
-                ELSE NULL END as table_2_name
+                ELSE NULL
+            END AS table_2_name
         ';
 
         if ($includeRooms) {
             $select .= ',
                 p.event as event_id,
                 a.room_type as room_type_id,
-                rt.name as room_type_name,
-                rt.sequence as room_type_sequence,
+                rt_room.name as room_type_name,
+                rt_room.sequence as room_type_sequence,
                 r.id as room_id,
                 r.name as room_name
             ';
@@ -208,8 +222,11 @@ class ActivityFetcherService
         if ($includeTeamNames) {
             $select .= ',
                 t_j.name  as jury_team_name,
+                t_j.team_number_hot  as jury_team_number_hot,
                 t_t1.name as table_1_team_name,
-                t_t2.name as table_2_team_name
+                t_t1.team_number_hot as table_1_team_number_hot,
+                t_t2.name as table_2_team_name,
+                t_t2.team_number_hot as table_2_team_number_hot
             ';
         }
 
