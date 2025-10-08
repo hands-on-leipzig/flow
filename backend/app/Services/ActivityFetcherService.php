@@ -18,7 +18,8 @@ class ActivityFetcherService
         bool $includeGroupMeta = false,
         bool $includeActivityMeta = false,
         bool $includeTeamNames = false,
-        bool $freeBlocks = true
+        bool $freeBlocks = true,
+        bool $include_past = false
         ) {
 
         $q = DB::table('activity as a')
@@ -27,6 +28,7 @@ class ActivityFetcherService
             ->leftJoin('m_first_program as fp', 'atd.first_program', '=', 'fp.id')
             ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
             ->join('plan as p', 'p.id', '=', 'ag.plan')
+            ->join('event as e', 'e.id', '=', 'p.event') 
             ->where('ag.plan', $plan);
 
         // Rollen-Filter (optional)
@@ -44,6 +46,11 @@ class ActivityFetcherService
                 $sub->whereNull('a.extra_block')   // normale Activities
                     ->orWhereNotNull('peb.insert_point'); // Extra-Blocks mit insert_point
             });
+        }
+
+        // Filter: exclude past activities (default)
+        if (!$include_past) {
+            $q->whereColumn('a.start', '>=', 'e.date');
         }
 
         // Group-Meta (optional)
