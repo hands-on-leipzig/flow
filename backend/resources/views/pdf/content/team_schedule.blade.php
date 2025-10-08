@@ -17,7 +17,7 @@
     @endif
     {{ $cleanTitle }}
 </h2>
-
+ 
 <table style="width:100%; border-collapse:collapse;">
     <tr valign="top">
         {{-- Linke Spalte: Tabelle --}}

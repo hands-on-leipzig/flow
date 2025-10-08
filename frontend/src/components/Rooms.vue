@@ -119,8 +119,8 @@ onMounted(async () => {
       id: 'teams',
       type: 'team',
       groups: [
-        { id: 'explore', name: 'Explore', items: exploreTeams.value },
-        { id: 'challenge', name: 'Challenge', items: challengeTeams.value }
+        { id: 'explore', name: 'FLL Explore', items: exploreTeams.value },
+        { id: 'challenge', name: 'FLL Challenge', items: challengeTeams.value }
       ]
     }
   ]

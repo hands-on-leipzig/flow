@@ -23,7 +23,7 @@
                         Kein Passwort erforderlich
                     @endif
                 </div>
-
+ 
                 @if (!empty($event->wifi_instruction))
                     <div style="margin:8px auto 0 auto;
                                 max-width:200px;
