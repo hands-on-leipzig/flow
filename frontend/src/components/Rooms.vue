@@ -54,6 +54,7 @@ onMounted(async () => {
   roomTypes.value = roomTypeGroups.flatMap(group =>
     group.room_types.map(rt => ({
       id: rt.type_id,
+      key: `activity-${rt.type_id}`,   // 👈 HIER NEU
       name: rt.type_name,
       first_program: rt.first_program,
       type: 'activity',
@@ -67,6 +68,7 @@ onMounted(async () => {
 
     exploreTeams.value = Object.entries(data.teams_explore || {}).map(([id, t]) => ({
       id: Number(id),
+      key: `team-${id}`,               // 👈 HIER NEU
       number: t.number ?? id,
       name: t.name ?? 'Unbenannt',
       type: 'team',
@@ -76,6 +78,7 @@ onMounted(async () => {
 
     challengeTeams.value = Object.entries(data.teams_challenge || {}).map(([id, t]) => ({
       id: Number(id),
+      key: `team-${id}`,               // 👈 HIER NEU
       number: t.number ?? id,
       name: t.name ?? 'Unbenannt',
       type: 'team',
@@ -98,6 +101,7 @@ onMounted(async () => {
         name: g.name,
         items: g.room_types.map(rt => ({
           id: rt.type_id,
+          key: `activity-${rt.type_id}`,   // ✅ gleiche Struktur wie bei Teams
           name: rt.type_name,
           first_program: rt.first_program,
           type: 'activity',
@@ -135,37 +139,34 @@ const updateRoom = async (room) => {
 }
 
 // --- Gemeinsame Zuordnung Raum <-> Item ---
-const assignItemToRoom = async (itemId, roomId) => {
-  const item = findItemById(itemId)
-  if (!item) {
-    console.warn('Item nicht gefunden:', itemId)
-    return
-  }
+const assignItemToRoom = async (itemKey, roomId) => {
+  const item = findItemById(itemKey)
+  if (!item) return
 
-  const key = `${item.type}-${item.id}`
-  assignments.value[key] = roomId
-
+  assignments.value[itemKey] = roomId
   if (item.type === 'activity') {
-    const isExtraBlock = item?.group?.id === 999
     await axios.put(`/rooms/assign-types`, {
       type_id: item.id,
       room_id: roomId,
       event: eventStore.selectedEvent?.id,
-      extra_block: isExtraBlock
+      extra_block: item?.group?.id === 999
     })
-  }
-
-  if (item.type === 'team') {
-    // Backend-Call folgt später → aktuell nur lokal
-    console.log(`Team ${item.name} zu Raum ${roomId} zugeordnet (lokal)`)
+  } else {
+    console.log(`Team ${item.name} zu Raum ${roomId} (lokal)`)
   }
 }
 
 // --- Item nach ID finden ---
-const findItemById = (id) => {
+const findItemById = (idOrKey) => {
+  const str = String(idOrKey)
+  const [prefix, num] = str.includes('-') ? str.split('-') : [null, str]
+  const normalizedId = Number(num)
+  const typeFilter = prefix === 'team' || prefix === 'activity' ? prefix : null
+
   for (const category of assignables.value) {
+    if (typeFilter && category.type !== typeFilter) continue
     for (const group of category.groups) {
-      const found = group.items.find(i => i.id === id)
+      const found = group.items.find(i => i.id === normalizedId)
       if (found) return found
     }
   }
@@ -173,12 +174,11 @@ const findItemById = (id) => {
 }
 
 // --- Unassign ---
-const unassignItemFromRoom = async (itemId) => {
-  const item = findItemById(itemId)
+const unassignItemFromRoom = async (itemKey) => {
+  const item = findItemById(itemKey)
   if (!item) return
 
-  const key = `${item.type}-${item.id}`
-  assignments.value[key] = null
+  assignments.value[itemKey] = null
 
   if (item.type === 'activity') {
     const isExtraBlock = item?.group?.id === 999
@@ -189,6 +189,7 @@ const unassignItemFromRoom = async (itemId) => {
       extra_block: isExtraBlock
     })
   }
+
   if (item.type === 'team') {
     console.log(`Team ${item?.name} aus Raum entfernt (lokal)`)
   }
@@ -230,10 +231,12 @@ const createRoom = async () => {
 const handleDrop = async (event, room) => {
   const item = event.item.__draggable_context?.element
   if (item && item.id) {
-    await assignItemToRoom(item.id, room.id)
+    const key = `${item.type}-${item.id}`
+    await assignItemToRoom(key, room.id)
+  } else {
+    console.warn('Ungültiges Item beim Drop:', item)
   }
   dragOverRoomId.value = null
-  previewedTypeId.value = null
   isDragging.value = false
 }
 
@@ -361,7 +364,7 @@ const getItemsInRoom = (roomId) => {
                       </span>
                       <button
                         class="ml-1 text-sm text-gray-500 hover:text-black"
-                        @click.stop="unassignItemFromRoom(element.id)"
+                        @click.stop="unassignItemFromRoom(element.key)"
                       >
                         ✖
                       </button>
@@ -471,7 +474,7 @@ const getItemsInRoom = (roomId) => {
                 {{ element.name }}
                 <button
                   class="ml-1 text-sm text-gray-500 hover:text-black"
-                  @click.stop="unassignItemFromRoom(element.id)"
+                  @click.stop="unassignItemFromRoom(element.key)"
                 >
                   ✖
                 </button>
@@ -496,7 +499,7 @@ const getItemsInRoom = (roomId) => {
                 </span>
                 <button
                   class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
-                  @click.stop="unassignItemFromRoom(element.id)"
+                  @click.stop="unassignItemFromRoom(element.key)"
                 >
                   ✖
                 </button>
