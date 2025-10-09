@@ -620,6 +620,7 @@ class PlanExportController extends Controller
                 ['end_time', 'asc'],
             ]);
 
+            // reguläre Aktivitäten sammeln
             $rows = $acts->map(function ($a) {
                 return [
                     'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
@@ -629,6 +630,14 @@ class PlanExportController extends Controller
                 ];
             })->values()->all();
 
+            // zusätzliche Kopfzeile für jeden Teambereich
+            array_unshift($rows, [
+                'start'    => '',
+                'end'      => '',
+                'activity' => 'Teambereich',
+                'room'     => 'Dummy',
+            ]);
+            
             // In Seitenblöcke teilen
             $chunks = array_chunk($rows, $maxRowsPerPage);
             $chunkCount = count($chunks);
