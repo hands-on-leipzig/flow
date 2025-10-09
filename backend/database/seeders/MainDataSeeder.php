@@ -16,12 +16,12 @@ class MainDataSeeder extends Seeder
         
         $this->Seedseason();
         $this->Seedlevel();
-        $this->Seedrootype();
         $this->SeedrootypeGroup();
+        $this->Seedrootype();
+        $this->SeedfirstProgram();
         $this->Seedparameter();
         $this->SeedactivityType();
         $this->SeedactivityTypeDetail();
-        $this->SeedfirstProgram();
         $this->SeedinsertPoint();
         $this->Seedrole();
         $this->Seedvisibility();
@@ -1891,6 +1891,14 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'overview_plan_column' => 'Explore',
 ),
             array (
+  'id' => 4,
+  'name' => 'Mittagspause',
+  'sequence' => 130,
+  'description' => '',
+  'first_program' => 3,
+  'overview_plan_column' => 'Challenge',
+),
+            array (
   'id' => 5,
   'name' => 'Eröffnung',
   'sequence' => 200,
@@ -1950,7 +1958,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         foreach ($data as $item) {
             DB::table('m_activity_type')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -2501,13 +2509,13 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'description' => '?',
   'link' => NULL,
   'link_text' => NULL,
-  'activity_type' => 0,
+  'activity_type' => 11,
 ),
         ];
         
         foreach ($data as $item) {
             DB::table('m_activity_type_detail')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -2889,7 +2897,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         foreach ($data as $item) {
             DB::table('m_role')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -3284,52 +3292,52 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 234,
-  'activity_type_detail' => 22,
+  'activity_type_detail' => 32,
   'role' => 3,
 ),
             array (
   'id' => 246,
-  'activity_type_detail' => 23,
+  'activity_type_detail' => 32,
   'role' => 4,
 ),
             array (
   'id' => 258,
-  'activity_type_detail' => 24,
+  'activity_type_detail' => 32,
   'role' => 5,
 ),
             array (
   'id' => 270,
-  'activity_type_detail' => 25,
+  'activity_type_detail' => 32,
   'role' => 6,
 ),
             array (
   'id' => 283,
-  'activity_type_detail' => 26,
+  'activity_type_detail' => 32,
   'role' => 8,
 ),
             array (
   'id' => 284,
-  'activity_type_detail' => 26,
+  'activity_type_detail' => 32,
   'role' => 9,
 ),
             array (
   'id' => 285,
-  'activity_type_detail' => 26,
+  'activity_type_detail' => 32,
   'role' => 10,
 ),
             array (
   'id' => 294,
-  'activity_type_detail' => 27,
+  'activity_type_detail' => 32,
   'role' => 8,
 ),
             array (
   'id' => 306,
-  'activity_type_detail' => 28,
+  'activity_type_detail' => 32,
   'role' => 9,
 ),
             array (
   'id' => 318,
-  'activity_type_detail' => 29,
+  'activity_type_detail' => 32,
   'role' => 10,
 ),
             array (
@@ -3339,17 +3347,17 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 335,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 10,
 ),
             array (
   'id' => 336,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 8,
 ),
             array (
   'id' => 337,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 9,
 ),
             array (
@@ -3439,7 +3447,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 358,
-  'activity_type_detail' => 24,
+  'activity_type_detail' => 32,
   'role' => 15,
 ),
             array (
@@ -3579,22 +3587,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 394,
-  'activity_type_detail' => 26,
+  'activity_type_detail' => 32,
   'role' => 12,
 ),
             array (
   'id' => 395,
-  'activity_type_detail' => 26,
+  'activity_type_detail' => 32,
   'role' => 7,
 ),
             array (
   'id' => 396,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 7,
 ),
             array (
   'id' => 397,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 12,
 ),
             array (
@@ -3884,22 +3892,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 456,
-  'activity_type_detail' => 26,
+  'activity_type_detail' => 32,
   'role' => 15,
 ),
             array (
   'id' => 457,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 14,
 ),
             array (
   'id' => 458,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 2,
 ),
             array (
   'id' => 459,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 15,
 ),
             array (
@@ -3914,7 +3922,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 467,
-  'activity_type_detail' => 30,
+  'activity_type_detail' => 32,
   'role' => 11,
 ),
             array (
@@ -4124,22 +4132,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 523,
-  'activity_type_detail' => 23,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
   'id' => 524,
-  'activity_type_detail' => 25,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
   'id' => 525,
-  'activity_type_detail' => 30,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
   'id' => 526,
-  'activity_type_detail' => 24,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
@@ -4149,7 +4157,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 528,
-  'activity_type_detail' => 22,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
@@ -4234,22 +4242,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 588,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 17,
 ),
             array (
   'id' => 589,
-  'activity_type_detail' => 27,
+  'activity_type_detail' => 32,
   'role' => 17,
 ),
             array (
   'id' => 590,
-  'activity_type_detail' => 29,
+  'activity_type_detail' => 32,
   'role' => 17,
 ),
             array (
   'id' => 591,
-  'activity_type_detail' => 26,
+  'activity_type_detail' => 32,
   'role' => 17,
 ),
             array (
@@ -4289,7 +4297,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 599,
-  'activity_type_detail' => 28,
+  'activity_type_detail' => 32,
   'role' => 17,
 ),
             array (
@@ -4364,27 +4372,27 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 614,
-  'activity_type_detail' => 25,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 615,
-  'activity_type_detail' => 23,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 616,
-  'activity_type_detail' => 30,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 617,
-  'activity_type_detail' => 24,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 618,
-  'activity_type_detail' => 22,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
@@ -4484,27 +4492,27 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 638,
-  'activity_type_detail' => 26,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 639,
-  'activity_type_detail' => 28,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 640,
-  'activity_type_detail' => 29,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 641,
-  'activity_type_detail' => 27,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 642,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
@@ -5059,67 +5067,67 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 772,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 6,
 ),
             array (
   'id' => 773,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 3,
 ),
             array (
   'id' => 774,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 5,
 ),
             array (
   'id' => 775,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 11,
 ),
             array (
   'id' => 776,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 4,
 ),
             array (
   'id' => 777,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 16,
 ),
             array (
   'id' => 778,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 13,
 ),
             array (
   'id' => 779,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 1,
 ),
             array (
   'id' => 780,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
   'id' => 781,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 14,
 ),
             array (
   'id' => 782,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 2,
 ),
             array (
   'id' => 783,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 15,
 ),
             array (
   'id' => 784,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
@@ -5214,7 +5222,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 812,
-  'activity_type_detail' => 24,
+  'activity_type_detail' => 32,
   'role' => 1,
 ),
             array (
