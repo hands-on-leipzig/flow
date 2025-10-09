@@ -6,47 +6,31 @@ import { useEventStore } from '@/stores/event'
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 
-const readiness = ref({
-  explore_teams_ok: true,
-  challenge_teams_ok: true,
-  room_mapping_ok: true,
-})
+// --- Readiness direkt aus Store ---
+const readiness = computed(() => eventStore.readiness)
 
-async function checkDataReadiness() {
-  if (!event.value?.id) return
-  try {
-    const { data } = await axios.get(`/export/ready/${event.value.id}`)
-    readiness.value = {
-      explore_teams_ok: !!data.explore_teams_ok,
-      challenge_teams_ok: !!data.challenge_teams_ok,
-      room_mapping_ok: !!data.room_mapping_ok,
-    }
-  } catch (error) {
-    console.error('Fehler beim Laden der Daten-Readiness:', error)
-    readiness.value = {
-      explore_teams_ok: false,
-      challenge_teams_ok: false,
-      room_mapping_ok: false,
-    }
-  }
-}
-
+// --- Beim Start sicherstellen, dass Event & Readiness geladen sind ---
 onMounted(async () => {
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
-  await checkDataReadiness()
+  if (eventStore.selectedEvent?.id) {
+    await eventStore.refreshReadiness(eventStore.selectedEvent.id)
+  }
 })
 
+// --- Wenn Event wechselt, Readiness nachladen ---
 watch(() => event.value?.id, async (id) => {
-  if (id) await checkDataReadiness()
+  if (id) await eventStore.refreshReadiness(id)
 })
 
+// --- Computed Flags ---
 const hasTeamIssues = computed(
-  () => !readiness.value.explore_teams_ok || !readiness.value.challenge_teams_ok
+  () => !readiness.value?.explore_teams_ok || !readiness.value?.challenge_teams_ok
 )
-const hasRoomIssues = computed(() => !readiness.value.room_mapping_ok)
+const hasRoomIssues = computed(() => !readiness.value?.room_mapping_ok)
 
+// --- PDF Download ---
 async function downloadPdf(type: 'rooms' | 'teams' | 'roles' | 'full') {
   if (!event.value?.id) return
   const url = `/export/pdf_download/${type}/${event.value.id}`
