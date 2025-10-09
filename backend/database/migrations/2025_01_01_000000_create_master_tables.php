@@ -49,6 +49,9 @@ return new class extends Migration
         Schema::create('m_first_program', function (Blueprint $table) {
             $table->id();
             $table->string('name', 50);
+            $table->unsignedSmallInteger('sequence')->default(0);
+            $table->string('color_hex', 10)->nullable();
+            $table->string('logo_white', 255)->nullable();
         });
 
         // Create m_parameter table
@@ -71,11 +74,28 @@ return new class extends Migration
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
+        // Create m_parameter_condition table
+        Schema::create('m_parameter_condition', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger("parameter")->nullable();
+            $table->foreign("parameter")->references("id")->on("m_parameter")->nullOnDelete();
+            $table->unsignedBigInteger("if_parameter")->nullable();
+            $table->foreign("if_parameter")->references("id")->on("m_parameter")->nullOnDelete();
+            $table->enum("is", ["=", "<", ">"])->nullable();
+            $table->string("value")->nullable();
+            $table->enum("action", ["hide", "show"])->nullable();
+        });
+
         // Create m_activity_type table
         Schema::create('m_activity_type', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
             $table->unsignedSmallInteger('sequence')->default(0);
+            $table->text('description')->nullable();
+            $table->unsignedBigInteger('first_program')->nullable();
+            $table->string('overview_plan_column', 100)->nullable();
+            
+            $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
         // Create m_activity_type_detail table
@@ -83,40 +103,72 @@ return new class extends Migration
             $table->id();
             $table->string('name', 100);
             $table->string('code', 50)->nullable();
-            $table->unsignedBigInteger('activity_type');
+            $table->string('name_preview', 100)->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
+            $table->unsignedBigInteger('first_program')->nullable();
+            $table->text('description')->nullable();
+            $table->string('link', 255)->nullable();
+            $table->string('link_text', 100)->nullable();
+            $table->unsignedBigInteger('activity_type');
             
             $table->foreign('activity_type')->references('id')->on('m_activity_type');
+            $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
         // Create m_insert_point table
         Schema::create('m_insert_point', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100);
+            $table->unsignedBigInteger('first_program')->nullable();
+            $table->unsignedBigInteger('level')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
+            $table->string('ui_label', 255)->nullable();
+            $table->text('ui_description')->nullable();
+            $table->string('room_type', 100)->nullable();
+            
+            $table->foreign('first_program')->references('id')->on('m_first_program');
+            $table->foreign('level')->references('id')->on('m_level');
         });
 
         // Create m_role table
         Schema::create('m_role', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
+            $table->string('name_short', 50)->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
+            $table->unsignedBigInteger('first_program')->nullable();
+            $table->text('description')->nullable();
+            $table->string('differentiation_type', 100)->nullable();
+            $table->text('differentiation_source')->nullable();
+            $table->string('differentiation_parameter', 100)->nullable();
+            $table->boolean('preview_matrix')->default(false);
             $table->boolean('pdf_export')->default(false);
+            
+            $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
         // Create m_visibility table
         Schema::create('m_visibility', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100);
-            $table->unsignedSmallInteger('sequence')->default(0);
+            $table->unsignedBigInteger('activity_type_detail')->nullable();
+            $table->unsignedBigInteger('role')->nullable();
+            
+            $table->foreign('activity_type_detail')->references('id')->on('m_activity_type_detail');
+            $table->foreign('role')->references('id')->on('m_role');
         });
 
         // Create m_supported_plan table
         Schema::create('m_supported_plan', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100);
-            $table->unsignedSmallInteger('sequence')->default(0);
+            $table->unsignedBigInteger('first_program')->nullable();
+            $table->unsignedSmallInteger('teams')->nullable();
+            $table->unsignedSmallInteger('lanes')->nullable();
+            $table->unsignedSmallInteger('tables')->nullable();
+            $table->boolean('calibration')->nullable();
+            $table->text('note')->nullable();
+            $table->unsignedTinyInteger('alert_level')->nullable();
             $table->boolean('suggested')->default(false);
+            
+            $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
         // Create regional_partner table
@@ -134,11 +186,11 @@ return new class extends Migration
             $table->string('slug', 255)->nullable();
             $table->unsignedSmallInteger('event_explore')->nullable();
             $table->unsignedSmallInteger('event_challenge')->nullable();
-            $table->unsignedBigInteger('regional_partner');
+            $table->unsignedBigInteger('regional_partner')->nullable();
             $table->unsignedBigInteger('level');
             $table->unsignedBigInteger('season');
-            $table->date('date');
-            $table->unsignedTinyInteger('days');
+            $table->date('date')->nullable();
+            $table->unsignedTinyInteger('days')->nullable();
             $table->string('link', 255)->nullable();
             $table->longText('qrcode')->nullable();
             $table->string('wifi_ssid', 255)->nullable();
@@ -146,9 +198,39 @@ return new class extends Migration
             $table->text('wifi_instruction')->nullable();
             $table->longText('wifi_qrcode')->nullable();
             
-            $table->foreign('regional_partner')->references('id')->on('regional_partner');
+            $table->foreign('regional_partner')->references('id')->on('regional_partner')->nullOnDelete();
             $table->foreign('level')->references('id')->on('m_level');
             $table->foreign('season')->references('id')->on('m_season');
+        });
+
+        // Create slideshow table
+        Schema::create('slideshow', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->nullable(true);
+            $table->unsignedBigInteger('event');
+            $table->integer('transition_time')->default(15);
+            $table->foreign('event')->references('id')->on('event');
+        });
+
+        // Create slide table
+        Schema::create('slide', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('type');
+            $table->json('content');
+            $table->integer('order')->default(0);
+            $table->unsignedBigInteger('slideshow');
+            $table->foreign('slideshow')->references('id')->on('slideshow')->onDelete('cascade');
+        });
+
+        // Create publication table
+        Schema::create('publication', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('event');
+            $table->integer('level');
+            $table->timestamps();
+            
+            $table->foreign('event')->references('id')->on('event')->onDelete('cascade');
         });
 
         // Create user table
@@ -208,16 +290,6 @@ return new class extends Migration
             $table->foreign('room')->references('id')->on('room');
         });
 
-        // Create team_plan table
-        Schema::create('team_plan', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('team_id');
-            $table->unsignedBigInteger('plan_id');
-            
-            $table->foreign('team_id')->references('id')->on('team');
-            $table->foreign('plan_id')->references('id')->on('plan');
-        });
-
         // Create plan table
         Schema::create('plan', function (Blueprint $table) {
             $table->id();
@@ -229,6 +301,16 @@ return new class extends Migration
             $table->foreign('event')->references('id')->on('event');
             $table->foreign('level')->references('id')->on('m_level');
             $table->foreign('first_program')->references('id')->on('m_first_program');
+        });
+
+        // Create team_plan table
+        Schema::create('team_plan', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('team_id');
+            $table->unsignedBigInteger('plan_id');
+            
+            $table->foreign('team_id')->references('id')->on('team');
+            $table->foreign('plan_id')->references('id')->on('plan');
         });
 
         // Create plan_param_value table
@@ -394,6 +476,9 @@ return new class extends Migration
         Schema::dropIfExists('team');
         Schema::dropIfExists('room_type_room');
         Schema::dropIfExists('room');
+        Schema::dropIfExists('publication');
+        Schema::dropIfExists('slide');
+        Schema::dropIfExists('slideshow');
         Schema::dropIfExists('user_regional_partner');
         Schema::dropIfExists('user');
         Schema::dropIfExists('event');
