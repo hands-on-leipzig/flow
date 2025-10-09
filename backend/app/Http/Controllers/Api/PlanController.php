@@ -37,11 +37,13 @@ class PlanController extends Controller
                 'existing' => $hasActivityGroup,  // true nur, wenn activity_group existiert
             ]);
         }
-        
+
         // Sonst anlegen
         $newId = DB::table('plan')->insertGetId([
             'name' => 'Zeitplan',
             'event' => $eventId,
+            'level' => 1, // Default to Regionalwettbewerb
+            'first_program' => 3, // Default to CHALLENGE
             'created' => Carbon::now(),
             'last_change' => Carbon::now(),
             'public' => false
@@ -84,75 +86,75 @@ class PlanController extends Controller
                 $e_mode = 1;
             }
 
-            $e1_teams = $e_teams;           
+            $e1_teams = $e_teams;
             $e1_lanes = MSupportedPlan::where('first_program', 2)->where('teams', $e_teams)->value('lanes');
-           
-        } else { 
+
+        } else {
 
             // e_mode off
             $e_mode = 0;
 
             $e1_teams = 0;
-            $e1_lanes = 0;            
-            
-        }
-        
+            $e1_lanes = 0;
 
-        if ( $c_teams > 0 ) { 
+        }
+
+
+        if ( $c_teams > 0 ) {
 
             // c_mode on
             $c_mode = 1;
 
             $j_lanes = MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes');
-            $r_tables = MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables');  
-            
+            $r_tables = MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables');
+
         } else {
 
             // c_mode off
-            $c_mode = 0;   
+            $c_mode = 0;
             $j_lanes = 0;
-            $r_tables = 0; 
+            $r_tables = 0;
 
         }
 
         PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 7],   
+            ['plan' => $newId, 'parameter' => 7],
             ['set_value' => $e_mode]);
 
         PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 6],   
+            ['plan' => $newId, 'parameter' => 6],
             ['set_value' => $e_teams]);
 
         PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 111],   
+            ['plan' => $newId, 'parameter' => 111],
             ['set_value' => $e1_teams]);
 
         PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 81],   
+            ['plan' => $newId, 'parameter' => 81],
             ['set_value' => $e1_lanes]);
 
         PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 112],   
+            ['plan' => $newId, 'parameter' => 112],
             ['set_value' => $e2_teams]);
 
         PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 117],   
+            ['plan' => $newId, 'parameter' => 117],
             ['set_value' => $e2_lanes]);
 
         PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 122],   
+            ['plan' => $newId, 'parameter' => 122],
             ['set_value' => $c_mode]);
 
         PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 22],   
+            ['plan' => $newId, 'parameter' => 22],
             ['set_value' => $c_teams]);
 
         PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 23],   
+            ['plan' => $newId, 'parameter' => 23],
             ['set_value' => $j_lanes]);
 
         PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 24],   
+            ['plan' => $newId, 'parameter' => 24],
             ['set_value' => $r_tables]);
 
 
@@ -162,7 +164,7 @@ class PlanController extends Controller
 
         // Add some default free blocks to illustrate usage
         $this->addDefaultFreeBlocks($newId);
-    
+
         return response()->json([
             'id' => $newId,
             'existing' => false,
@@ -171,7 +173,7 @@ class PlanController extends Controller
 
 
 
-    
+
     /**
      * Populate team_plan table for a newly created plan
      * Ensures every team for the event has an entry in team_plan
@@ -179,7 +181,7 @@ class PlanController extends Controller
     private function populateTeamPlanForNewPlan($planId, $eventId)
     {
         Log::info("populateTeamPlanForNewPlan called for plan $planId, event $eventId");
-        
+
         // Get all teams for this event
         $teams = Team::where('event', $eventId)->get();
         Log::info("Found " . $teams->count() . " teams for event $eventId");
@@ -259,7 +261,7 @@ class PlanController extends Controller
     private function syncTeamPlanForPlan($planId, $eventId)
     {
         Log::info("syncTeamPlanForPlan called for plan $planId, event $eventId");
-        
+
         // Get all teams for this event
         $teams = Team::where('event', $eventId)->get();
         Log::info("Found " . $teams->count() . " teams for event $eventId");
@@ -324,7 +326,7 @@ class PlanController extends Controller
         $start = $date->copy();
         $end   = $date->copy();
 
-        
+
         // --- IDs der relevanten Parameter finden ---
         $paramIds = DB::table('m_parameter')
             ->whereIn('name', ['e_teams', 'c_teams'])
@@ -347,7 +349,7 @@ class PlanController extends Controller
 
         DB::table('extra_block')->insert([
             'plan'        => $planId,
-            'first_program' => 0, 
+            'first_program' => 0,
             'name'        => 'Mittagessen',
             'description' => 'Es gibt verschiedene Gerichte für Teams, Helfer und Besucher.',
             'link'        => 'https://lecker-essen.mhhm',
@@ -359,7 +361,7 @@ class PlanController extends Controller
 
         $start->setTime(9, 0, 0);
         $end->setTime(16, 30, 0);
-        
+
         DB::table('extra_block')->insert([
             'plan'        => $planId,
             'first_program' => 0,
@@ -374,7 +376,7 @@ class PlanController extends Controller
 
         $start->setTime(8, 0, 0);
         $end->setTime(8, 30, 0);
-        
+
         DB::table('extra_block')->insert([
             'plan'        => $planId,
             'first_program' => 2,
