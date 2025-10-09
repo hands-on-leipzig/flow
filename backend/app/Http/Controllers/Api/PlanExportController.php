@@ -499,7 +499,7 @@ class PlanExportController extends Controller
                 } elseif (!empty($name)) {
                     return $name;
                 } elseif (!empty($numInternal)) {
-                    return sprintf("T%02d", $numInternal);
+                    return sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $numInternal);
                 } else {
                     return '–';
                 }
@@ -970,7 +970,7 @@ class PlanExportController extends Controller
                     };
                     $fmtInternal = function ($num) {
                         if ($num !== null && $num !== '' && (int)$num > 0) {
-                            return sprintf('T%02d', (int)$num);
+                            return sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', (int)$num);
                         }
                         return null;
                     };
