@@ -330,7 +330,7 @@ const exportAllTables = async () => {
     // Check if seeder was generated
     const seederGenerated = response.headers['x-seeder-generated'] === 'true'
     const message = seederGenerated 
-      ? 'Export completed successfully! MainDataSeeder.php has been generated for deployment.'
+      ? 'Export completed successfully! MainDataSeeder.php has been generated locally. Use "Create GitHub PR" button to update deployment.'
       : 'Export completed successfully!'
     alert(message)
   } catch (error) {
