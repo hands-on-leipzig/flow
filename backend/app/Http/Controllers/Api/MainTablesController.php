@@ -191,28 +191,19 @@ class MainTablesController extends Controller
                 'version' => '1.0'
             ];
 
-            // Save to storage
+            // Save to storage for backup/reference
             $filename = 'main-tables-export-' . now()->format('Y-m-d-H-i-s') . '.json';
             Storage::put("exports/{$filename}", json_encode($exportData, JSON_PRETTY_PRINT));
 
-            // Also save as latest export in storage
-            Storage::put('exports/main-tables-latest.json', json_encode($exportData, JSON_PRETTY_PRINT));
-            
-            // Also save in database directory for deployment (this gets deployed)
-            $dbPath = database_path('exports/main-tables-latest.json');
-            if (!is_dir(dirname($dbPath))) {
-                mkdir(dirname($dbPath), 0755, true);
-            }
-            file_put_contents($dbPath, json_encode($exportData, JSON_PRETTY_PRINT));
-
-            // Generate MainDataSeeder.php for deployment
+            // Generate MainDataSeeder.php for local use
             \Artisan::call('main-data:generate-seeder');
 
             Log::info("Main tables exported successfully", [
                 'filename' => $filename,
                 'tables' => $tables,
                 'total_records' => array_sum(array_map('count', $exportData)),
-                'seeder_generated' => true
+                'seeder_generated' => true,
+                'note' => 'Use Create GitHub PR button for deployment updates'
             ]);
 
             // Return file download

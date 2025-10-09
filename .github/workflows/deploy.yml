@@ -149,6 +149,8 @@ jobs:
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear
+            # Drop and recreate database for fresh test environment
+            php artisan db:wipe --force
             php artisan migrate --force
             php artisan storage:link
             # Fresh database setup for test environment
