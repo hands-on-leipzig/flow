@@ -708,7 +708,7 @@ class PlanExportController extends Controller
             } elseif ($teamName) {
                 $label = "FLL Explore {$teamName}";
             } elseif ($num > 0) {
-                $label = sprintf("FLL Explore T%02d", $num);
+                $label = sprintf("FLL Explore T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $num);
             } else {
                 $label = "FLL Explore –";
             }
@@ -812,7 +812,7 @@ class PlanExportController extends Controller
             } elseif ($teamName) {
                 $label = "FLL Challenge {$teamName}";
             } elseif ($num > 0) {
-                $label = sprintf("FLL Challenge T%02d", $num);
+                $label = sprintf("FLL Challenge T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $num);
             } else {
                 $label = "FLL Challenge –";
             }
