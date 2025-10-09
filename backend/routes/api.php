@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
+use App\Http\Controllers\Api\MainTablesController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\PlanExportController;
@@ -190,6 +191,20 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/', [UserRegionalPartnerController::class, 'store']);
         Route::delete('/', [UserRegionalPartnerController::class, 'destroy']);
     });
+
+    // Main Tables admin routes
+Route::prefix('admin/main-tables')->group(function () {
+    Route::get('/', [MainTablesController::class, 'index']);
+    Route::get('/export', [MainTablesController::class, 'export']);
+    Route::post('/create-pr', [MainTablesController::class, 'createPR']);
+    Route::post('/import', [MainTablesController::class, 'import']);
+    Route::get('/{table}', [MainTablesController::class, 'getTableData']);
+    Route::get('/{table}/count', [MainTablesController::class, 'getCount']);
+    Route::get('/{table}/columns', [MainTablesController::class, 'getTableColumns']);
+    Route::post('/{table}', [MainTablesController::class, 'store']);
+    Route::put('/{table}/{id}', [MainTablesController::class, 'update']);
+    Route::delete('/{table}/{id}', [MainTablesController::class, 'destroy']);
+});
 
     // DRAHT controller
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);

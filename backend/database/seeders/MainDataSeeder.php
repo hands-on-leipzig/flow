@@ -15,6 +15,20 @@ class MainDataSeeder extends Seeder
         $this->command->info('🌱 Seeding main data...');
         
         $this->Seedseason();
+        $this->Seedlevel();
+        $this->Seedrootype();
+        $this->SeedrootypeGroup();
+        $this->Seedparameter();
+        $this->SeedactivityType();
+        $this->SeedactivityTypeDetail();
+        $this->SeedfirstProgram();
+        $this->SeedinsertPoint();
+        $this->Seedrole();
+        $this->Seedvisibility();
+        $this->SeedsupportedPlan();
+        
+        $this->command->info('✅ Main data seeded successfully!');
+    }
     
     private function Seedseason()
     {
@@ -42,7 +56,6 @@ class MainDataSeeder extends Seeder
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' season');
     }
-        $this->Seedlevel();
     
     private function Seedlevel()
     {
@@ -72,7 +85,6 @@ class MainDataSeeder extends Seeder
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' level');
     }
-        $this->Seedrootype();
     
     private function Seedrootype()
     {
@@ -423,7 +435,6 @@ class MainDataSeeder extends Seeder
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' rootype');
     }
-        $this->SeedrootypeGroup();
     
     private function SeedrootypeGroup()
     {
@@ -476,7 +487,6 @@ class MainDataSeeder extends Seeder
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' rootype_group');
     }
-        $this->Seedparameter();
     
     private function Seedparameter()
     {
@@ -1850,7 +1860,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' parameter');
     }
-        $this->SeedactivityType();
     
     private function SeedactivityType()
     {
@@ -1948,7 +1957,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' activity_type');
     }
-        $this->SeedactivityTypeDetail();
     
     private function SeedactivityTypeDetail()
     {
@@ -2506,7 +2514,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' activity_type_detail');
     }
-        $this->SeedfirstProgram();
     
     private function SeedfirstProgram()
     {
@@ -2545,7 +2552,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' first_program');
     }
-        $this->SeedinsertPoint();
     
     private function SeedinsertPoint()
     {
@@ -2626,7 +2632,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' insert_point');
     }
-        $this->Seedrole();
     
     private function Seedrole()
     {
@@ -2891,7 +2896,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' role');
     }
-        $this->Seedvisibility();
     
     private function Seedvisibility()
     {
@@ -5234,7 +5238,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' visibility');
     }
-        $this->SeedsupportedPlan();
     
     private function SeedsupportedPlan()
     {
@@ -6197,8 +6200,5 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         }
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' supported_plan');
-    }
-        
-        $this->command->info('✅ Main data seeded successfully!');
     }
 }

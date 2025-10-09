@@ -90,10 +90,77 @@ class SetupTestEnvironment extends Command
     {
         $this->info('Creating master data...');
 
-        // Run the main data seeder
-        $this->call('db:seed', ['--class' => 'MainDataSeeder']);
+        // Try to import from latest export file
+        if ($this->importFromLatestExport()) {
+            $this->info('Master data imported from latest export');
+        } else {
+            // Fallback: Generate MainDataSeeder from current database
+            $this->call('main-data:generate-seeder');
+            
+            // Run the main data seeder
+            $this->call('db:seed', ['--class' => 'MainDataSeeder']);
+            
+            $this->info('Master data created from current database');
+        }
+    }
 
-        $this->info('Master data created');
+    private function importFromLatestExport()
+    {
+        try {
+            // Try database directory first (gets deployed), then storage as fallback
+            $exportPath = database_path('exports/main-tables-latest.json');
+            
+            if (!file_exists($exportPath)) {
+                $exportPath = storage_path('app/exports/main-tables-latest.json');
+                if (!file_exists($exportPath)) {
+                    $this->warn('No latest export file found in database/exports/ or storage/app/exports/');
+                    return false;
+                }
+            }
+
+            $this->info('Found latest export file, importing...');
+            $this->line("  Using file: {$exportPath}");
+            
+            $content = file_get_contents($exportPath);
+            $data = json_decode($content, true);
+            
+            if (!$data || !isset($data['_metadata'])) {
+                $this->error('Invalid export file format');
+                return false;
+            }
+
+            $tables = $data['_metadata']['tables'] ?? [];
+            $importedCounts = [];
+
+            // Disable foreign key checks for import
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+            foreach ($tables as $table) {
+                if (isset($data[$table])) {
+                    // Clear existing data
+                    DB::table($table)->truncate();
+                    
+                    // Insert new data
+                    if (!empty($data[$table])) {
+                        DB::table($table)->insert($data[$table]);
+                        $importedCounts[$table] = count($data[$table]);
+                        $this->line("  ✓ Imported {$importedCounts[$table]} records to {$table}");
+                    }
+                }
+            }
+
+            // Re-enable foreign key checks
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+            $totalImported = array_sum($importedCounts);
+            $this->info("Successfully imported {$totalImported} records from export file");
+            
+            return true;
+            
+        } catch (\Exception $e) {
+            $this->error('Failed to import from export file: ' . $e->getMessage());
+            return false;
+        }
     }
 
     private function createTestData()
