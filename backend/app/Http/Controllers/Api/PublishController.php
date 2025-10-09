@@ -390,7 +390,7 @@ class PublishController extends Controller
         return response($pdfData, 200)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="' . rawurlencode($filename) . '"')
-            ->header('X-Filename', rawurlencode($filename))
+            ->header('X-Filename', $filename)
             ->header('Access-Control-Expose-Headers', 'X-Filename');
     }
 
