@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\PublishController;
+use App\Http\Controllers\Api\PlanExportController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -36,6 +37,7 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
         'user' => $request->get('jwt'),
     ]);
 });
+
 
 // Public Carousel route
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);
@@ -79,6 +81,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/create', [PlanController::class, 'create']);
         Route::get('/event/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']);
         Route::post('/sync-team-plan/{eventId}', [PlanController::class, 'syncTeamPlanForEvent']);
+        Route::delete('/{id}', [PlanController::class, 'delete']);
     });
 
     // Preview controller
@@ -105,6 +108,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/{planId}/generate-lite', [PlanGeneratorController::class, 'generateLite']);
     });
 
+    // PlanExport controller
+    Route::get('/export/pdf/{planId}', [PlanExportController::class, 'exportPdf']);
 
     // PlanParameter controller
     // Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
@@ -114,17 +119,17 @@ Route::middleware(['keycloak'])->group(function () {
 
     // ExtraBlock controller
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
-    Route::get('/plans/{id}/extra-blocks-with-room-types', [ExtraBlockController::class, 'getBlocksForPlanWithRoomTypes']);
+    // Route::get('/plans/{id}/extra-blocks-with-room-types', [ExtraBlockController::class, 'getBlocksForPlanWithRoomTypes']); kann weg Thomas 2024-10-07
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::get('/insert-points', [ExtraBlockController::class, 'getInsertPoints']);
     Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
 
     // Event controller
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
-    Route::get('/events/{event}', [EventController::class, 'getEvent']);
-    Route::put('/events/{event}', [EventController::class, 'update']);
-    Route::get('/events/{event}/table-names', [EventController::class, 'getTableNames']);
-    Route::put('/events/{id}/table-names', [EventController::class, 'updateTableNames']);
+    Route::get('/events/{eventId}', [EventController::class, 'getEvent']);
+    Route::put('/events/{eventId}', [EventController::class, 'update']);
+    Route::get('/table-names/{eventId}', [EventController::class, 'getTableNames']);
+    Route::put('/table-names/{eventId}', [EventController::class, 'updateTableNames']);
 
     // Carousel controller
     Route::get('/slides/{slide}', [CarouselController::class, 'getSlide']);
@@ -154,8 +159,13 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/draht-data', [DrahtController::class, 'show']);
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::put('/rooms/assign-types', [RoomController::class, 'assignRoomType']);
+    Route::put('/rooms/assign-teams', [RoomController::class, 'assignTeam']);
     Route::put('/rooms/{room}', [RoomController::class, 'update']);
     Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
+
+    // PlanRoomType controller
+    Route::get('/room-types/{planId}', [PlanRoomTypeController::class, 'listRoomTypes']);
+
 
     // Parameter controller
     Route::get('/parameter', [ParameterController::class, 'index']);
@@ -190,13 +200,22 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Publish controller
     Route::prefix('publish')->group(function () {
-        Route::get('/link/{planId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
-        Route::get('/pdf/{planId}', [PublishController::class, 'PDFandPreview']);    // PDF mit Vorschau holen
+        Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen   
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
         Route::get('/times/{planId}', [PublishController::class, 'importantTimes']); // Wichtige Zeiten für Aussenkommunikation
+        Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
+        Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
     });
+
+    // Plan Export controller
+    Route::prefix('export')->group(function () { 
+        Route::get('/pdf_preview/{eventId}', [PublishController::class, 'preview']);    // PDF mit Vorschau holen
+        Route::get('/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);
+        Route::get('/ready/{eventId}', [PlanExportController::class, 'dataReadiness']);
+    });
+
 
     // Quality controller
     Route::prefix('quality')->group(function () {

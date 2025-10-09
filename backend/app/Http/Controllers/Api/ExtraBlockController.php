@@ -7,6 +7,9 @@ use App\Models\ExtraBlock;
 use App\Models\MInsertPoint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+use App\Http\Controllers\Api\PlanGeneratorController;
 
 class ExtraBlockController extends Controller
 {
@@ -70,6 +73,17 @@ class ExtraBlockController extends Controller
             ['id' => $validated['id'] ?? null],
             $validated
         );
+
+        if (!$skipRegeneration) {
+            try {
+                $generator = app(PlanGeneratorController::class);
+                $generator->generateLite($planId);
+            } catch (\Throwable $e) {
+                Log::error("Fehler bei der Regeneration des Plans {$planId}: " . $e->getMessage(), [
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
+        }
 
         // Return the block with regeneration flag
         return response()->json([

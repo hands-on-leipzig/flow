@@ -324,6 +324,24 @@ class PlanController extends Controller
         $start = $date->copy();
         $end   = $date->copy();
 
+        
+        // --- IDs der relevanten Parameter finden ---
+        $paramIds = DB::table('m_parameter')
+            ->whereIn('name', ['e_teams', 'c_teams'])
+            ->pluck('id', 'name');
+
+        $eTeamsParamId = $paramIds['e_teams'] ?? null;
+        $cTeamsParamId = $paramIds['c_teams'] ?? null;
+
+        // --- Werte aus plan_param_value lesen ---
+        $paramValues = DB::table('plan_param_value')
+            ->where('plan', $planId)
+            ->whereIn('parameter', [$eTeamsParamId, $cTeamsParamId])
+            ->pluck('set_value', 'parameter');
+
+        $e_teams = isset($paramValues[$eTeamsParamId]) ? (int)$paramValues[$eTeamsParamId] : 0;
+        $c_teams = isset($paramValues[$cTeamsParamId]) ? (int)$paramValues[$cTeamsParamId] : 0;
+
         $start->setTime(11, 30, 0);
         $end->setTime(13, 30, 0);
 
@@ -351,7 +369,67 @@ class PlanController extends Controller
             'start'       => $start,
             'end'         => $end,
             'room'        => null,
-            'active'      => 1,
+            'active'      => 0,
+        ]);
+
+        $start->setTime(8, 0, 0);
+        $end->setTime(8, 30, 0);
+        
+        DB::table('extra_block')->insert([
+            'plan'        => $planId,
+            'first_program' => 2,
+            'name'        => 'Check-In FLL Explore',
+            'description' => 'Teams und Gutacher:innen bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
+            'link'        => null,
+            'start'       => $start,
+            'end'         => $end,
+            'room'        => null,
+            'active'      => $e_teams > 0 ? 1 : 0,
+        ]);
+
+        DB::table('extra_block')->insert([
+            'plan'        => $planId,
+            'first_program' => 3,
+            'name'        => 'Check-In FLL Challenge',
+            'description' => 'Teams, Juror:innen und Schiedsrichter:inne bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
+            'link'        => null,
+            'start'       => $start,
+            'end'         => $end,
+            'room'        => null,
+            'active'      => $c_teams > 0 ? 1 : 0,
+        ]);
+
+
+    }
+
+    public function delete(int $id)
+    {
+        // Event-ID zum Plan holen
+        $eventId = DB::table('plan')->where('id', $id)->value('event');
+
+        if ($eventId) {
+            // Zugehörige Veröffentlichungen löschen
+            $pubDeleted = DB::table('publication')->where('event', $eventId)->delete();
+            Log::info("Publications deleted for event {$eventId}: {$pubDeleted}");
+        } else {
+            Log::warning("No event found for plan {$id}, skipping publication cleanup.");
+        }
+
+        // Plan löschen
+        $deleted = DB::table('plan')->where('id', $id)->delete();
+        Log::info("Plan {$id} deletion attempted, deleted count: {$deleted}");
+
+        if ($deleted === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Plan not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Plan deleted successfully',
         ]);
     }
+
 }

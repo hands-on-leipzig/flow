@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Encoding\Encoding;
 
 
 class EventController extends Controller
@@ -91,29 +93,74 @@ class EventController extends Controller
         });
     }
 
-    public function update(Request $request, Event $event)
+    public function update(Request $request, int $eventId)
     {
-        $updatableFields = [
-            'wifi_ssid',
-            'wifi_password',
-            'wifi_instruction',
-        ];
-
+        $updatableFields = ['wifi_ssid', 'wifi_password', 'wifi_instruction'];
         $data = $request->only($updatableFields);
 
+        // Passwort verschlüsseln
         if (!empty($data['wifi_password'])) {
             $data['wifi_password'] = Crypt::encryptString($data['wifi_password']);
         }
 
-        $event->update($data);
+        // Update nur für dieses Event
+        DB::table('event')->where('id', $eventId)->update($data);
+
+        // QR-Code nur erzeugen, wenn SSID oder Passwort geändert wurden
+        if (!empty($data['wifi_ssid']) || !empty($data['wifi_password'])) {
+            $event = DB::table('event')
+                ->where('id', $eventId)
+                ->select('wifi_ssid', 'wifi_password')
+                ->first();
+
+            if ($event) {
+                // Passwort entschlüsseln (oder unverschlüsselt übernehmen)
+                try {
+                    $wifiPassword = Crypt::decryptString($event->wifi_password);
+                } catch (\Exception $e) {
+                    $wifiPassword = $event->wifi_password;
+                }
+
+                if (!empty($wifiPassword)) {
+                    $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
+                } else {
+                    $wifiQrContent = "WIFI:T:nopass;S:{$event->wifi_ssid};;";
+                }
+
+                $wifiQr = new \Endroid\QrCode\QrCode(
+                    $wifiQrContent,
+                    new \Endroid\QrCode\Encoding\Encoding('UTF-8'),
+                    \Endroid\QrCode\ErrorCorrectionLevel::High,
+                    300,
+                    10,
+                    \Endroid\QrCode\RoundBlockSizeMode::Margin,
+                    new \Endroid\QrCode\Color\Color(0, 0, 0),
+                    new \Endroid\QrCode\Color\Color(255, 255, 255)
+                );
+
+
+                $writer = new \Endroid\QrCode\Writer\PngWriter();
+                $wifiLogoPath = public_path('flow/wifi.png');
+                $wifiLogo = file_exists($wifiLogoPath)
+                    ? new \Endroid\QrCode\Logo\Logo($wifiLogoPath, 100)
+                    : null;
+
+                $wifiResult = $writer->write($wifiQr, $wifiLogo);
+                $wifiQrcodeRaw = base64_encode($wifiResult->getString());
+
+                DB::table('event')
+                    ->where('id', $eventId)
+                    ->update(['wifi_qrcode' => $wifiQrcodeRaw]);
+            }
+        }
 
         return response()->json(['success' => true]);
     }
 
 
-    public function getTableNames(Event $event)
+    public function getTableNames(int $eventId)
     {
-        $tables = TableEvent::where('event', $event->id)
+        $tables = TableEvent::where('event', $eventId)
             ->orderBy('table_number')
             ->get(['table_number', 'table_name']);
 
@@ -121,30 +168,30 @@ class EventController extends Controller
             'table_names' => $tables,
         ]);
     }
-    
-    public function updateTableNames(Request $request, $event)
-    {
 
+    public function updateTableNames(Request $request, int $eventId)
+    {
         $tables = $request->input('table_names');
 
         if (!is_array($tables)) {
             return response()->json(['error' => 'Ungültiges Format'], 422);
         }
 
-        DB::transaction(function () use ($tables, $event) {
+        DB::transaction(function () use ($tables, $eventId) {
 
-            TableEvent::where('event', $event)->delete();
+            // Alte Tischnamen löschen
+            TableEvent::where('event', $eventId)->delete();
 
-
+            // Neue einfügen
             foreach ($tables as $entry) {
                 if (!isset($entry['table_number']) || !isset($entry['table_name'])) {
                     continue;
                 }
 
                 TableEvent::create([
-                    'event' => $event,
-                    'table_number' => (int)$entry['table_number'],
-                    'table_name' => $entry['table_name'],
+                    'event'         => $eventId,
+                    'table_number'  => (int) $entry['table_number'],
+                    'table_name'    => $entry['table_name'],
                 ]);
             }
         });

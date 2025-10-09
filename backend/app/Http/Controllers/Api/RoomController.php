@@ -11,47 +11,47 @@ use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
+
 class RoomController extends Controller
 {
     public function index(Event $event)
     {
-        $rooms = Room::where('event', $event->id)->with('roomTypes')->get();
-        $programsByName = FirstProgram::all()->keyBy(fn($p) => strtolower(trim($p->name)));
+        // Räume inkl. normaler Typen laden
+        $rooms = Room::where('event', $event->id)
+            ->with('roomTypes')
+            ->orderBy('name')
+            ->get();
 
-        $roomTypes = MRoomType::with('group')
-            ->where('level', '<=', $event->level)
-            ->orderBy('sequence')
-            ->get()
-            ->map(function ($type) use ($programsByName) {
-                $group = $type->group;
-                $groupName = strtolower(trim($group->name ?? ''));
-                $matchedProgram = $programsByName->get($groupName);
+        // Plan-ID zum Event holen
+        $plan = \DB::table('plan')->where('event', $event->id)->value('id');
 
-                return [
-                    'id' => $type->id,
-                    'name' => $type->name,
-                    'sequence' => $type->sequence,
-                    'room_type_group' => $type->room_type_group,
-                    'level' => $type->level,
-                    'group' => [
-                        'id' => $group->id ?? null,
-                        'name' => $group->name ?? null,
-                        'program' => $matchedProgram ? [
-                            'id' => $matchedProgram->id,
-                            'name' => $matchedProgram->name,
-                            'color' => "#" . $matchedProgram->color_hex,
-                        ] : null,
-                    ]
-                ];
-            });
+        if ($plan) {
+            // Extra-Blocks gruppiert nach room_id laden
+            $extraBlocksByRoom = \DB::table('extra_block')
+                ->where('plan', $plan)
+                ->select('id', 'name', 'room', 'first_program')
+                ->whereNotNull('room')
+                ->get()
+                ->groupBy('room');
+            
+            // Log::debug('Extra blocks by room', $extraBlocksByRoom->toArray());
 
-        $validGroupIds = $roomTypes->pluck('group.id')->unique();
-        $groups = MRoomTypeGroup::whereIn('id', $validGroupIds)->get();
+            } else {
+
+            // log('No plan found for event '.$event->id);
+            $extraBlocksByRoom = collect();
+        }
+
+        // Räume erweitern um zugehörige extra_blocks
+        $rooms->transform(function ($room) use ($extraBlocksByRoom) {
+            $room->extra_blocks = $extraBlocksByRoom->get($room->id, collect())->values();
+            return $room;
+        });
+
+        // log::alert('Rooms with extra blocks', $rooms->toArray());
 
         return response()->json([
             'rooms' => $rooms,
-            'roomTypes' => $roomTypes,
-            'groups' => $groups
         ]);
     }
 
@@ -87,28 +87,64 @@ class RoomController extends Controller
     public function assignRoomType(Request $request, Room $room)
     {
         $validated = $request->validate([
-            'type_id' => 'required|exists:m_room_type,id',
+            'type_id' => 'required|integer',
             'room_id' => 'nullable|exists:room,id',
             'event' => 'nullable|exists:event,id',
+            'extra_block' => 'required|boolean', // 🔹 NEU
         ]);
-        Log::debug($validated);
 
-        $type = MRoomType::findOrFail($validated['type_id']);
+        // Log::debug('Assign request', $validated);
 
-        \DB::table('room_type_room')
-            ->where('room_type', $validated['type_id'])
-            ->where('event', $validated['event'])
-            ->delete();
+        if (!$validated['extra_block']) {
+            // 🔹 Normaler Raum-Typ → Beziehung in Pivot-Tabelle
+            $type = \App\Models\MRoomType::findOrFail($validated['type_id']);
 
-        if ($validated['room_id']) {
             \DB::table('room_type_room')
-                ->insert([
+                ->where('room_type', $validated['type_id'])
+                ->where('event', $validated['event'])
+                ->delete();
+
+            if ($validated['room_id']) {
+                \DB::table('room_type_room')->insert([
                     'room_type' => $type->id,
                     'room' => $validated['room_id'],
                     'event' => $validated['event'],
                 ]);
+            }
+
+            // Log::info("Assigned normal room type {$type->id} to room {$validated['room_id']} (event {$validated['event']})");
+        } 
+        else {
+            // 🔹 Extra Block → direktes Update in Tabelle `extra_block`
+            $block = \App\Models\ExtraBlock::findOrFail($validated['type_id']);
+
+            $block->room = $validated['room_id'] ?? null;
+            $block->save();
+
+            // Log::info("Assigned extra block {$block->id} to room {$validated['room_id']}");
         }
 
         return response()->json(['success' => true]);
     }
+
+    public function assignTeam(Request $request)
+    {
+        $validated = $request->validate([
+            'team_id' => 'required|integer|exists:team,id',
+            'room_id' => 'nullable|integer|exists:room,id',
+            'event' => 'required|integer|exists:event,id',
+        ]);
+
+        // Finde Plan für das Event
+        $plan = \App\Models\Plan::where('event', $validated['event'])->firstOrFail();
+
+        // Update direkt in team_plan (Eintrag muss existieren)
+        \DB::table('team_plan')
+            ->where('team', $validated['team_id'])
+            ->where('plan', $plan->id)
+            ->update(['room' => $validated['room_id']]);
+
+        return response()->json(['success' => true]);
+    }
+
 }

@@ -334,9 +334,19 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 
     // 2. Save block updates
     if (blockUpdates.length > 0) {
-      // Group block updates by block ID
       const updatesByBlock: Record<string, Record<string, any>> = {}
-      blockUpdates.forEach(({name, value}) => {
+      const newBlocks: Record<string, any> = {}
+
+      // detect new blocks (from toggle ON)
+      blockUpdates.forEach(({ name, value }) => {
+        if (name.startsWith('block_new_')) {
+          const pointId = name.split('_')[2]
+          newBlocks[pointId] = value
+        }
+      })
+
+      // detect existing block updates
+      blockUpdates.forEach(({ name, value }) => {
         // Parse: "block_31_buffer_after" -> blockId="31", field="buffer_after"
         const parts = name.split('_')
         if (parts.length >= 3) {
@@ -347,28 +357,33 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
         }
       })
 
-      // Save each block with regeneration optimization
+      // --- Save existing blocks ---
       for (const [blockId, updates] of Object.entries(updatesByBlock)) {
-        const block = {id: parseInt(blockId), ...updates}
-        
+        const block = { id: parseInt(blockId), ...updates }
+
         console.log('Sending block to API:', block)
-        console.log('Updates object:', updates)
-        
-        // Check if only non-timing fields changed
+
+        // classify change type
         const timingFields = ['start', 'end', 'buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
+        const toggleFields = ['active']
         const hasTimingChanges = Object.keys(updates).some(field => timingFields.includes(field))
-        
-        // Track if any block needs regeneration
-        if (hasTimingChanges) {
+        const hasToggleChange = Object.keys(updates).some(field => toggleFields.includes(field))
+
+        // Generator immer bei Toggle oder Timing-Änderung
+        if (hasTimingChanges || hasToggleChange) {
           needsRegeneration = true
-        }
-        
-        // Add skip_regeneration flag if only non-timing fields changed
-        if (!hasTimingChanges) {
+        } else {
           block.skip_regeneration = true
         }
-        
+
         await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, block)
+      }
+
+      // --- Save new blocks (toggle ON) ---
+      for (const [pointId, blockData] of Object.entries(newBlocks)) {
+        console.log('Creating new block for insert_point', pointId, blockData)
+        await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, blockData)
+        needsRegeneration = true // always regenerate after new block
       }
     }
   } catch (error) {
@@ -381,6 +396,13 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   // 3. Generator starten nur wenn nötig (wiederverwendet runGeneratorOnce)
   if (needsRegeneration || paramUpdates.length > 0) {
     await runGeneratorOnce(afterUpdate)
+
+    // ✅ Nach erfolgreicher Generierung globalen Readiness-Status aktualisieren
+    if (eventStore.selectedEvent?.id) {
+      await eventStore.refreshReadiness(eventStore.selectedEvent.id)
+    }
+
+
   } else {
     console.log('Skipping regeneration - only non-timing extra block fields changed')
     if (afterUpdate) await afterUpdate()
@@ -483,7 +505,49 @@ onMounted(async () => {
   const rows: LaneRow[] = Array.isArray(data?.rows) ? data.rows : data
   lanesIndex.value = buildLanesIndex(rows)
   supportedPlanData.value = rows
+
+  await fetchTableNames()
 })
+
+const tableNames = ref(['', '', '', ''])
+
+const fetchTableNames = async () => {
+  if (!selectedEvent.value?.id) return
+  try {
+    const response = await axios.get(`/table-names/${selectedEvent.value.id}`)
+    const tables = response.data.table_names
+
+    const names = Array(4).fill('')
+    tables.forEach(t => {
+      if (t.table_number >= 1 && t.table_number <= 4) {
+        names[t.table_number - 1] = t.table_name ?? ''
+      }
+    })
+    tableNames.value = names
+  } catch (e) {
+    console.error('Fehler beim Laden der Tischbezeichnungen:', e)
+    tableNames.value = Array(4).fill('')
+  }
+}
+
+const updateTableName = async () => {
+  if (!selectedEvent.value?.id) return
+
+  try {
+    const payload = {
+      table_names: tableNames.value.map((name, i) => ({
+        table_number: i + 1,
+        table_name: name ?? '',
+      })),
+    }
+
+    await axios.put(`/table-names/${selectedEvent.value.id}`, payload)
+  } catch (e) {
+    console.error('Fehler beim Speichern der Tischnamen:', e)
+  }
+}
+
+
 </script>
 
 <template>
@@ -629,12 +693,38 @@ onMounted(async () => {
                     </template>
                   </template>
                 </template>
+
+
+                <!-- Robot-Game-Tische -->
+                <div class="p-4 border rounded shadow mt-4 w-full max-w-lg">
+                  <div class="flex items-center mb-3">
+                    <span class="font-medium text-gray-800">Bezeichnung der Robot-Game-Tische</span>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-4">
+                    <div v-for="(name, i) in tableNames" :key="i">
+                      <label class="block text-xs text-gray-600 mb-1">Tisch {{ i + 1 }}</label>
+                      <input
+                        v-model="tableNames[i]"
+                        class="w-full border px-3 py-1 rounded text-sm"
+                        :placeholder="`leer lassen für >>Tisch ${i + 1}<<`"
+                        type="text"
+                        @blur="updateTableName"
+                      />
+                    </div>
+                  </div>
+                </div>
+
               </div>
               <div v-else class="text-center py-8 text-gray-500">
                 <div class="text-sm font-medium mb-1">Challenge ist deaktiviert</div>
                 <div class="text-xs">Aktiviere Challenge, um Expertenparameter zu konfigurieren.</div>
               </div>
+              
             </div>
+
+
+
           </div>
         </div>
       </transition>

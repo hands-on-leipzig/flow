@@ -4,6 +4,7 @@ namespace App\Core;
 use App\Core\TimeCursor;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use DateTime;
 
 class ActivityWriter
@@ -103,6 +104,8 @@ class ActivityWriter
                 ->where('code', $code)
                 ->value('id');
         }
+
+        // log::debug("Resolved activity_type_detail code '{$code}' to ID: " . ($cache[$code] ?? 'null'));
 
         return $cache[$code];
     }
@@ -225,22 +228,23 @@ class ActivityWriter
             // activity_type_detail anhand von first_program bestimmen
             switch ((int) $row->first_program) {
                 case 3: // CHALLENGE
-                    $atdId = $this->activityTypeDetailIdFromCode('c_free');
+                    $code = 'c_free_block';
                     break;
                 case 2: // EXPLORE
-                    $atdId = $this->activityTypeDetailIdFromCode('e_free');
+                    $code = 'e_free_block';
                     break;
                 default: // gemeinsam
-                    $atdId = $this->activityTypeDetailIdFromCode('free');
+                    $code = 'g_free_block';
+                    break;
             }
 
             // Neue Activity Group anlegen
-            $gid = $this->insertActivityGroup($atdId);
+            $gid = $this->insertActivityGroup($code);
 
             // Activity mit festen Start-/Endzeiten eintragen
             DB::table('activity')->insert([
                 'activity_group'        => $gid,
-                'activity_type_detail'  => $atdId,
+                'activity_type_detail'  => $this->activityTypeDetailIdFromCode($code),
                 'start'                 => $row->start,
                 'end'                   => $row->end,
                 'extra_block'           => (int) $row->id,

@@ -220,6 +220,8 @@ public function actionNow(int $planId, Request $req): JsonResponse
         'groups'  => array_values($groups),
     ];
 
+    /*
+
     // Log: erster Group-Eintrag mit erster Activity
     if (!empty($result['groups'])) {
         $firstGroup = $result['groups'][0];
@@ -235,7 +237,7 @@ public function actionNow(int $planId, Request $req): JsonResponse
         Log::info('groupActivitiesForApi: no groups found', [
             'plan_id' => $planId,
         ]);
-    }
+    } */
 
     return $result;
     }

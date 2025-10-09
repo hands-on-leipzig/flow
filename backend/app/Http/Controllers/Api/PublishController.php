@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Services\ActivityFetcherService;
+use App\Services\PdfLayoutService;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Crypt;
 
 use Carbon\Carbon;
 
@@ -21,7 +23,6 @@ use Endroid\QrCode\Color\Color;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Logo\Logo;
 
-use Illuminate\Support\Facades\Crypt;
 
 use Barryvdh\DomPDF\Facade\Pdf;        // composer require barryvdh/laravel-dompdf
 
@@ -35,18 +36,17 @@ class PublishController extends Controller
         $this->fetcher = $fetcher;
     }
 
-    public function linkAndQRcode(int $planId): JsonResponse
+    public function linkAndQRcode(int $eventId): JsonResponse
     {
-        // Plan → Event
+        // Event direkt laden
         $event = DB::table('event')
-            ->join('plan', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $planId)
-            ->select('event.*')
+            ->where('id', $eventId)
             ->first();
 
         if (!$event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
+
 
         // Wenn bereits gesetzt → zurückgeben
         if (!empty($event->link) && !empty($event->qrcode) && !empty($event->slug)) {
@@ -143,267 +143,7 @@ class PublishController extends Controller
         ]);
     }
 
-
-    public function PDFandPreview(int $planId, Request $request) : JsonResponse
-    {
-        $wifi = filter_var($request->query('wifi', false), FILTER_VALIDATE_BOOLEAN);
-
-        $event = DB::table('event')
-            ->join('plan', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $planId)
-            ->select('event.*')
-            ->first();
-
-        if (!$event) {
-            return response()->json(['error' => 'Event not found'], 404);
-        }
-
-        // Passwort entschlüsseln
-        $wifiPassword = '';
-        if (!empty($event->wifi_password)) {
-            try {
-                $wifiPassword = Crypt::decryptString($event->wifi_password);
-            } catch (\Exception $e) {
-                // Falls es schon unverschlüsselt gespeichert war
-                $wifiPassword = $event->wifi_password;
-            }
-        }
-
-        // QR-Content abhängig vom Passwort
-        if (!empty($wifiPassword)) {
-            $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
-        } else {
-            $wifiQrContent = "WIFI:T:nopass;S:{$event->wifi_ssid};;";
-        }
-
-        $wifiQr = new \Endroid\QrCode\QrCode(
-            $wifiQrContent,
-            new \Endroid\QrCode\Encoding\Encoding('UTF-8'),
-            \Endroid\QrCode\ErrorCorrectionLevel::High,
-            300,
-            10,
-            \Endroid\QrCode\RoundBlockSizeMode::Margin,
-            new \Endroid\QrCode\Color\Color(0, 0, 0),
-            new \Endroid\QrCode\Color\Color(255, 255, 255)
-        );
-
-        $writer = new \Endroid\QrCode\Writer\PngWriter();
-
-        // Logo optional hinzufügen
-        $wifiLogo = null;
-        $wifiLogoPath = public_path("flow/wifi.png");
-        if (file_exists($wifiLogoPath)) {
-            $wifiLogo = new \Endroid\QrCode\Logo\Logo($wifiLogoPath, 100);
-        }
-
-        // QR-Code schreiben mit Logo
-        $wifiResult = $writer->write($wifiQr, $wifiLogo);
-        $wifiQrcodeRaw = base64_encode($wifiResult->getString());
-
-        // Speichern in DB
-        DB::table('event')
-            ->where('id', $event->id)
-            ->update([
-                'wifi_qrcode' => $wifiQrcodeRaw,
-            ]);
-
-        // HTML fürs PDF
-        $html = $this->buildEventHtml($event, $wifi);
-        $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
-        $pdfData = $pdf->output(); // Binary PDF
-
-        // PDF -> PNG konvertieren
-        $imagick = new \Imagick();
-        $imagick->setResolution(100, 100);
-        $imagick->readImageBlob($pdfData);
-        $imagick->setIteratorIndex(0); // erste Seite
-        $imagick->setImageFormat('png');
-        $pngData = $imagick->getImageBlob();
-
-        return response()->json([
-            'pdf' => 'data:application/pdf;base64,' . base64_encode($pdfData),
-            'preview' => 'data:image/png;base64,' . base64_encode($pngData),
-        ]);
-    }
-
-
-    private function buildEventHtml($event, bool $wifi = false): string
-    {
-        // Datum formatieren
-        $formattedDate = '';
-        if (!empty($event->date)) {
-            try {
-                $formattedDate = Carbon::parse($event->date)->format('d.m.Y');
-            } catch (\Exception $e) {
-                $formattedDate = $event->date;
-            }
-        }
-
-        // Passwort entschlüsseln
-        $wifiPassword = '';
-        if (!empty($event->wifi_password)) {
-            try {
-                $wifiPassword = Crypt::decryptString($event->wifi_password);
-            } catch (\Exception $e) {
-                $wifiPassword = $event->wifi_password;
-            }
-        }
-
-        $wifiInstructionsHtml = '';
-        if (!empty($event->wifi_instruction)) {
-            // preserve line breaks; escape HTML
-            $wifiInstructionsHtml =
-                '<div style="margin-top: 10px; font-size: 14px; color: #333; white-space: pre-line;">'
-                . e($event->wifi_instruction)
-                . '</div>';
-        }
-
-        // Explore-Logo laden
-        $exploreLogoPath = public_path('flow/fll_explore_hs.png');
-        $exploreLogoSrc = (file_exists($exploreLogoPath) && !empty($event->event_explore))
-            ? 'data:image/png;base64,' . base64_encode(file_get_contents($exploreLogoPath))
-            : '';
-
-        // Challenge-Logo laden
-        $challengeLogoPath = public_path('flow/fll_challenge_hs.png');
-        $challengeLogoSrc = (file_exists($challengeLogoPath) && !empty($event->event_challenge))
-            ? 'data:image/png;base64,' . base64_encode(file_get_contents($challengeLogoPath))
-            : '';
-
-        // Linke Zelle mit dynamischen Logos
-        $leftLogosHtml = '';
-        if ($exploreLogoSrc) {
-            $leftLogosHtml .= '<img src="'.$exploreLogoSrc.'" style="height:80px; width:auto; margin-right:10px;" />';
-        }
-        if ($challengeLogoSrc) {
-            $leftLogosHtml .= '<img src="'.$challengeLogoSrc.'" style="height:80px; width:auto;" />';
-        }
-
-
-
-        // Logos (aus /public/flow/...) als Base64 einbetten – dompdf-sicher
-        $rightLogoPath = public_path('flow/hot.png');
-
-        $rightLogoSrc = file_exists($rightLogoPath)
-            ? 'data:image/png;base64,' . base64_encode(file_get_contents($rightLogoPath))
-            : '';
-
-
-        $html = '
-        <div style="width: 100%; font-family: sans-serif; text-align: center; padding: 40px;">
-            
-            <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin-bottom:30px;">
-            <tr>
-                <td style="width:33%; text-align:left; vertical-align:top;">
-                '.$leftLogosHtml.'
-                </td>
-                <td style="width:34%; text-align:center; vertical-align:top;">
-                    <div style="font-size:20px; margin-bottom:6px; font-weight:normal;">FIRST LEGO League Wettbewerb</div>
-                    <div style="font-size:28px; font-weight:bold;">' . e($event->name) . ' ' . e($formattedDate) . '</div>
-                </td>
-                <td style="width:33%; text-align:right; vertical-align:top;">
-                ' . ($rightLogoSrc ? '<img src="'.$rightLogoSrc.'" style="height:80px; width:auto;" />' : '') . '
-                </td>
-            </tr>
-            </table>';
-
-        // Plan-QR ist immer dabei
-        $qr_plan = '
-            <div style="margin-top: 10px; font-size: 20px; color: #333;">Online Zeitplan</div>
-            <img src="data:image/png;base64,' . $event->qrcode . '" style="width:200px; height:200px;" />
-            <div style="margin-top: 10px; font-size: 16px; color: #333;">' . e($event->link) . '</div>';
-
-        if ($wifi && !empty($event->wifi_ssid) && !empty($event->wifi_qrcode)) {
-
-            // QR aus DB verwenden
-            $wifiBase64 = $event->wifi_qrcode;
-
-            // Wifi-Instructions als HTML (mit Zeilenumbrüchen, Box <= QR-Breite)
-            $wifiInstructionsHtml = '';
-            if (!empty($event->wifi_instruction)) {
-                $wifiInstructionsHtml =
-                    '<div style="margin:8px auto 0 auto;
-                                max-width:200px;
-                                border:1px solid #ccc;
-                                border-radius:6px;
-                                padding:6px;
-                                font-size:12px;
-                                color:#555;
-                                text-align:left;
-                                line-height:1.3;">'
-                    . nl2br(e(trim($event->wifi_instruction))) .
-                    '</div>';
-            }
-
-            $html .= '
-                <table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 40px;">
-                    <tr>
-                        <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
-                            ' . $qr_plan . '
-                        </td>
-                        <td style="width: 50%; text-align: center; vertical-align: top; padding: 10px;">
-                            <div style="margin-top: 10px; font-size: 20px; color: #333;">
-                                Kostenloses WLAN
-                            </div>
-                            <img src="data:image/png;base64,' . $wifiBase64 . '" style="width:200px; height:200px;" />
-                            <div style="margin-top: 10px; font-size: 14px; color: #333;">
-                                SSID: ' . e($event->wifi_ssid) . '<br/>' .
-                                (!empty($wifiPassword)
-                                    ? 'Passwort: ' . e($wifiPassword)
-                                    : 'Kein Passwort erforderlich') . '
-                            </div>
-                            ' . $wifiInstructionsHtml . '
-                        </td>
-                    </tr>
-                </table>';
-        } else {
-            // Nur Plan-QR
-            $html .= '
-                <div style="text-align: center; margin-bottom: 40px;">' 
-                    . $qr_plan .
-                '</div>';
-        }
-
-        // Logos laden
-        $logos = DB::table('logo')
-            ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
-            ->where('event_logo.event', $event->id)
-            ->select('logo.*')
-            ->get();
-
-        if ($logos->count() > 0) {
-            $html .= '
-                <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
-                    <tr>';
-
-            foreach ($logos as $logo) {
-                // Pfad in storage -> public URL
-                $logoPath = storage_path('app/public/' . $logo->path);
-
-                // Log::info('Logo path: ' . $logoPath);
-
-                if (file_exists($logoPath)) {
-                    $base64 = base64_encode(file_get_contents($logoPath));
-                    $src = 'data:image/png;base64,' . $base64;
-
-                    $html .= '
-                        <td style="text-align: center; vertical-align: middle; padding: 10px;">
-                            <img src="' . $src . '" style="height:80px; max-width:100%; object-fit: contain;" />
-                        </td>';
-                }
-            }
-
-            $html .= '
-                    </tr>
-                </table>';
-        }
-
-        $html .= '</div>'; // Wrapper schließen         
-
-        return $html;
-    }   
-
-
+ 
     // Informationen fürs Volk ...
 
 
@@ -437,7 +177,7 @@ class PublishController extends Controller
         $data = [
             'event_id' => $eventId,
             'level'    => $level,
-            'date'     => $drahtData['information']['date'] ?? null,
+            'date'     => $event->date,
             'address'  => $drahtData['address'] ?? null,
             // hier direkt durchreichen:
             'contact'  => $drahtData['contact'] ?? [],
@@ -457,19 +197,12 @@ class PublishController extends Controller
 
         if ($level >= 3) {
 
-            // PlanId aus der Plan-Tabelle holen (event → plan)
-            $planId = DB::table('plan')
-                ->where('event', $eventId)
-                ->value('id');        
 
-            $importantTimesResponse = $this->importantTimes($planId);
+            $importantTimesResponse = $this->importantTimes($eventId);
             $importantTimes = $importantTimesResponse->getData(true); // JSON -> Array
 
-            // Ins Log schreiben
-            Log::info('planController::importantTimes() data', $importantTimes);
-
             // Schedule ins Haupt-JSON einhängen
-            $data['schedule'] = $importantTimes;
+            $data['plan'] = $importantTimes;
         }
 
         return response()->json($data);
@@ -523,16 +256,21 @@ class PublishController extends Controller
 
    // Wichtige Zeite für die Veröffentlichung 
 
-    private function importantTimes(int $planId): \Illuminate\Http\JsonResponse
+    private function importantTimes(int $eventId): \Illuminate\Http\JsonResponse
     {
-        // Activities laden
-        $activities = $this->fetcher->fetchActivities($planId);
 
-        // Plan für last_changed
+        // Plan zum Event laden
         $plan = DB::table('plan')
-            ->select('last_change')
-            ->where('id', $planId)
+            ->where('event', $eventId)
+            ->select('id', 'last_change')
             ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan für dieses Event gefunden'], 404);
+        }
+
+        // Activities laden
+        $activities = $this->fetcher->fetchActivities($plan->id);
 
         // Hilfsfunktion: Erste Startzeit für gegebene ATD-IDs finden
         $findStart = function($ids) use ($activities) {
@@ -547,8 +285,8 @@ class PublishController extends Controller
         };
 
         $data = [
-            'plan_id'      => $planId,
-            'last_changed' => $plan?->last_change,
+            'plan_id'      => $plan->id,
+            'last_change' => $plan->last_change,
             'explore' => [
                 'briefing' => [
                     'teams'  => $findStart(ID_ATD_E_COACH_BRIEFING),
@@ -571,5 +309,102 @@ class PublishController extends Controller
         return response()->json($data);
     }
 
+     /**
+     * Gemeinsamer Builder: Erzeugt HTML aus Event + Typ
+     */
+    private function buildEventSheetHtml(string $type, int $eventId): string
+    {
+        $event = \App\Models\Event::findOrFail($eventId);
 
+        // WLAN-Passwort entschlüsseln
+        $wifiPassword = '';
+        if (!empty($event->wifi_password)) {
+            try {
+                $wifiPassword = Crypt::decryptString($event->wifi_password);
+            } catch (\Exception $e) {
+                $wifiPassword = $event->wifi_password;
+            }
+        }
+
+        // Inhalt + Layout rendern
+        $contentHtml = view('pdf.content.qr_codes', [
+            'event'        => $event,
+            'wifi'         => $type === 'plan_wifi',
+            'wifiPassword' => $wifiPassword,
+        ])->render();
+
+        $layout = app(\App\Services\PdfLayoutService::class);
+        return $layout->renderLayout($event, $contentHtml, 'Event Sheet');
+    }
+
+    /**
+     * Gemeinsamer Renderer: Erzeugt PDF und (optional) PNG
+     */
+    private function buildEventSheetPdf(string $type, int $eventId, bool $asPng = false)
+    {
+
+        log::alert("buildEventSheetPdf: type=$type, eventId=$eventId, asPng=" . ($asPng ? 'true' : 'false'));
+
+        $html = $this->buildEventSheetHtml($type, $eventId);
+
+        // PDF generieren (DomPDF)
+        $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
+        $pdfData = $pdf->output();
+
+        if (!$asPng) {
+
+            log::alert("PDF generated, size: " . strlen($pdfData) . " bytes");
+
+            return $pdfData;
+        }
+
+        log::alert("Converting PDF to PNG...");
+
+        // PDF -> PNG konvertieren (erste Seite)
+        $imagick = new \Imagick();
+        $imagick->setResolution(120, 120);
+        $imagick->readImageBlob($pdfData);
+        $imagick->setIteratorIndex(0);
+        $imagick->setImageFormat('png');
+        $imagick->setImageCompressionQuality(90);
+        $pngData = $imagick->getImageBlob();
+        $imagick->clear();
+        $imagick->destroy();
+
+        log::alert("Conversion done, PNG size: " . strlen($pngData) . " bytes");
+
+        return $pngData;
+    }
+
+    /**
+     * PDF Download (mit Header & Dateiname)
+     */
+    public function download(string $type, int $eventId)
+    {
+        $pdfData = $this->buildEventSheetPdf($type, $eventId, false);
+
+        $formattedDate = now()->format('d.m.y');
+        $name = $type === 'plan_wifi' ? 'Plan_mit_WLAN' : 'Plan';
+        $filename = "FLOW_{$name}_({$formattedDate}).pdf";
+
+        return response($pdfData, 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . rawurlencode($filename) . '"')
+            ->header('X-Filename', rawurlencode($filename))
+            ->header('Access-Control-Expose-Headers', 'X-Filename');
+    }
+
+    /**
+     * PNG Preview (aus PDF)
+     */
+    public function preview(string $type, int $eventId)
+    {
+        $pngData = $this->buildEventSheetPdf($type, $eventId, true);
+
+        return response('data:image/png;base64,' . base64_encode($pngData))
+            ->header('Content-Type', 'image/png')
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
+    }
 }

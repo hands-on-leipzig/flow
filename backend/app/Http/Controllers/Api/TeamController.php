@@ -11,6 +11,8 @@ use App\Models\Plan;
 use App\Http\Controllers\Api\PlanController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
 
 class TeamController extends Controller
 {
@@ -54,10 +56,12 @@ class TeamController extends Controller
                                ->limit(1);
                      });
             })
-            ->select('team.*', 'team_plan.team_number_plan')
+            ->select('team.*', 'team_plan.team_number_plan', 'team_plan.room')
             ->orderBy('team_plan.team_number_plan')
             ->orderBy('team.team_number_hot') // Fallback ordering
             ->get();
+
+        // Log::info('Fetched teams', $teams->toArray());      
 
         return response()->json($teams);
     }

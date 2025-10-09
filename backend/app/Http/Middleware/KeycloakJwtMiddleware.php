@@ -20,6 +20,12 @@ class KeycloakJwtMiddleware
 
     public function handle(Request $request, Closure $next)
     {
+        Log::info("KeycloakJwtMiddleware called", [
+            'path' => $request->path(),
+            'method' => $request->method(),
+            'has_auth_header' => $request->hasHeader('Authorization')
+        ]);
+        
         $authHeader = $request->header('Authorization');
 
         if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
@@ -66,29 +72,74 @@ class KeycloakJwtMiddleware
             }
 
             try {
+                $subject = $claims['sub'] ?? null;
+                Log::info("🔍 Looking for user with subject", [
+                    'subject' => $subject,
+                    'subject_exists' => !is_null($subject)
+                ]);
+                
                 $user = User::firstOrCreate(
-                    ['subject' => $claims['sub'] ?? null],
+                    ['subject' => $subject],
                     [
-                        'subject' => $claims['sub'] ?? null,
-                        'password' => null, // No password needed for JWT authentication
+                        'subject' => $subject,
                         'selection_event' => null,
-                        'selection_regional_partner' => null
+                        'selection_regional_partner' => null,
+                        'last_login' => now()
                     ]
                 );
 
+                // Update last_login timestamp for existing users
+                if (!$user->wasRecentlyCreated) {
+                    Log::info("Updating last_login for existing user", [
+                        'user_id' => $user->id,
+                        'subject' => $user->subject,
+                        'old_last_login' => $user->last_login,
+                        'new_last_login' => now(),
+                        'was_recently_created' => $user->wasRecentlyCreated,
+                        'in_transaction' => \DB::transactionLevel() > 0
+                    ]);
+                    
+                    try {
+                        $updateResult = $user->update(['last_login' => now()]);
+                        
+                        Log::info("Update result", [
+                            'user_id' => $user->id,
+                            'update_success' => $updateResult,
+                            'last_login_after_update' => $user->fresh()->last_login,
+                            'user_dirty' => $user->isDirty(),
+                            'user_changes' => $user->getChanges()
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error("Failed to update last_login", [
+                            'user_id' => $user->id,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
+                } else {
+                    Log::info("User was recently created, skipping last_login update", [
+                        'user_id' => $user->id,
+                        'subject' => $user->subject,
+                        'last_login' => $user->last_login
+                    ]);
+                }
+
                 // Log user creation/authentication
                 if ($user->wasRecentlyCreated) {
-                    Log::info("New user created", [
+                    Log::info("🆕 NEW USER CREATED", [
                         'user_id' => $user->id,
                         'subject' => $user->subject,
                         'roles' => $roles,
-                        'environment' => $env
+                        'environment' => $env,
+                        'last_login' => $user->last_login,
+                        'created_at' => now()
                     ]);
                 } else {
-                    Log::debug("Existing user authenticated", [
+                    Log::info("👤 EXISTING USER AUTHENTICATED", [
                         'user_id' => $user->id,
                         'subject' => $user->subject,
-                        'roles' => $roles
+                        'roles' => $roles,
+                        'last_login' => $user->last_login
                     ]);
                 }
             } catch (\Exception $e) {
