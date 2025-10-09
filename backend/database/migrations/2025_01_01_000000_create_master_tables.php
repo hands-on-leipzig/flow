@@ -251,11 +251,11 @@ return new class extends Migration
         // Create user_regional_partner table
         Schema::create('user_regional_partner', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('user_id');
-            $table->unsignedBigInteger('regional_partner_id');
+            $table->unsignedBigInteger('user');
+            $table->unsignedBigInteger('regional_partner');
             
-            $table->foreign('user_id')->references('id')->on('user');
-            $table->foreign('regional_partner_id')->references('id')->on('regional_partner');
+            $table->foreign('user')->references('id')->on('user');
+            $table->foreign('regional_partner')->references('id')->on('regional_partner');
         });
 
         // Create room table
