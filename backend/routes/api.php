@@ -38,13 +38,6 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
     ]);
 });
 
-// routes/api.php
-Route::get('/check-imagick', function () {
-    return response()->json([
-        'imagick' => extension_loaded('imagick'),
-        'version' => extension_loaded('imagick') ? \Imagick::getVersion() : null,
-    ]);
-});
 
 // Public Carousel route
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);

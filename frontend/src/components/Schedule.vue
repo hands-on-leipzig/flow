@@ -396,6 +396,13 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   // 3. Generator starten nur wenn nötig (wiederverwendet runGeneratorOnce)
   if (needsRegeneration || paramUpdates.length > 0) {
     await runGeneratorOnce(afterUpdate)
+
+    // ✅ Nach erfolgreicher Generierung globalen Readiness-Status aktualisieren
+    if (eventStore.selectedEvent?.id) {
+      await eventStore.refreshReadiness(eventStore.selectedEvent.id)
+    }
+
+
   } else {
     console.log('Skipping regeneration - only non-timing extra block fields changed')
     if (afterUpdate) await afterUpdate()

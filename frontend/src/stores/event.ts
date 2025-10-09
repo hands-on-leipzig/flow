@@ -1,16 +1,18 @@
 import {defineStore} from 'pinia'
 import axios from "axios"
-import FllEvent from "@/models/FllEvent"
+import FllEvent  from "@/models/FllEvent"
 import {DrahtService} from "@/services/drahtService"
 
 interface EventStoreState {
   selectedEvent: FllEvent | null
   selectedEventId?: number
+  readiness: any | null
 }
 
 export const useEventStore = defineStore('event', {
     state: (): EventStoreState => ({
         selectedEvent: null,
+        readiness: null, 
     }),
 
     getters: {
@@ -117,6 +119,18 @@ export const useEventStore = defineStore('event', {
             if (this.selectedEvent) {
                 await this.loadDrahtTeamData(this.selectedEvent)
             }
+        },
+    
+        async refreshReadiness(eventId: number) {
+        try {
+            const { data } = await axios.get(`/export/ready/${eventId}`)
+            this.readiness = data
+            return data
+        } catch (error) {
+            console.error('Failed to refresh readiness:', error)
+            this.readiness = null
+            return null
         }
+        },
     },
 })

@@ -2,11 +2,16 @@
 import { computed, ref, onMounted } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
+import { usePdfExport } from '@/composables/usePdfExport'
 
 // === Store & Basis ===
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
+const eventId = computed(() => event.value?.id)
 const loadingWifiQr = ref(false)
+
+// === PDF Download (neu über Composable) ===
+const { isDownloading, anyDownloading, downloadPdf } = usePdfExport()
 
 // === QR ===
 const qrWifiUrl = computed(() => {
@@ -30,30 +35,13 @@ async function loadPreview(type: 'plan' | 'plan_wifi') {
   }
 }
 
-// === PDF-Downloads ===
-async function downloadPdf(type: 'plan' | 'plan_wifi') {
-  if (!event.value?.id) return
-  try {
-    const response = await axios.get(`/publish/pdf_download/${type}/${event.value.id}`, { responseType: 'blob' })
-    const filename = response.headers['x-filename'] || `FLOW_${type}.pdf`
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (e) {
-    console.error(`Fehler beim Download von ${type}:`, e)
-  }
-}
-
 // === WLAN-Daten speichern + Preview neu laden ===
 async function updateEventField(field: string, value: string) {
-  if (!event.value?.id) return
+  if (!eventId.value) return
   try {
     loadingWifiQr.value = true
-    await axios.put(`/events/${event.value?.id}`, { [field]: value })
-    const { data } = await axios.get(`/events/${event.value?.id}`)
+    await axios.put(`/events/${eventId.value}`, { [field]: value })
+    const { data } = await axios.get(`/events/${eventId.value}`)
     eventStore.selectedEvent = data
 
     // Wenn WLAN-Daten geändert wurden → Preview neu laden
@@ -80,7 +68,6 @@ onMounted(() => {
   loadPreview('plan')
   loadPreview('plan_wifi')
 })
-
 </script>
 
 <template>
@@ -91,8 +78,6 @@ onMounted(() => {
 
     <!-- Plan QR -->
     <div class="flex flex-col gap-3">
-
-      <!-- QR + Preview nebeneinander -->
       <div class="flex flex-row gap-6 items-start">
         <!-- Linke Seite: QR-Code + PNG -->
         <div class="flex flex-col items-center w-36">
@@ -113,12 +98,11 @@ onMounted(() => {
 
         <!-- Rechte Seite: Preview + PDF -->
         <div class="flex flex-col items-center w-44">
- 
           <template v-if="previewPlan">
             <img
               :src="previewPlan"
               alt="Preview Plan mit WLAN"
-              class=" h-20 mb-2 object-contain rounded border border-gray-200"
+              class="h-20 mb-2 object-contain rounded border border-gray-200"
             />
           </template>
 
@@ -131,10 +115,16 @@ onMounted(() => {
           </template>
 
           <button
-            class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
-            @click="downloadPdf('plan')"
+            class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300 flex items-center gap-2"
+            :disabled="isDownloading.plan"
+            @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, 'Plan.pdf')"
           >
-            PDF
+            <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.plan ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </div>
       </div>
@@ -179,21 +169,16 @@ onMounted(() => {
 
     <!-- QR WLAN -->
     <div class="flex flex-row gap-6 items-start">
-      <!-- Linke Seite: QR-Code + PNG -->
       <div class="flex flex-col items-center w-36">
         <template v-if="!event?.wifi_ssid">
           <div
             class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-400 mb-2"
-          >
-            ?
-          </div>
+          >?</div>
         </template>
         <template v-else-if="loadingWifiQr">
           <div
             class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-lg text-gray-500 mb-2"
-          >
-            ⏳
-          </div>
+          >⏳</div>
         </template>
         <template v-else-if="qrWifiUrl">
           <img :src="qrWifiUrl" alt="QR Wifi" class="w-20 h-20 mb-2 object-contain" />
@@ -206,46 +191,57 @@ onMounted(() => {
         </template>
       </div>
 
-      <!-- Rechte Seite: Preview + PDF -->
       <div class="flex flex-col items-center w-44">
         <template v-if="!event?.wifi_ssid">
           <div
             class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
-          >
-            ?
-          </div>
+          >?</div>
         </template>
-
         <template v-else-if="loadingWifiQr">
           <div
             class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-500 text-sm mb-2"
-          >
-            ⏳
-          </div>
+          >⏳</div>
         </template>
-
         <template v-else-if="previewPlanWifi">
           <img
             :src="previewPlanWifi"
             alt="Preview Plan mit WLAN"
-            class=" h-20 mb-2 object-contain rounded border border-gray-200"
+            class="h-20 mb-2 object-contain rounded border border-gray-200"
           />
         </template>
-
         <template v-else>
           <div
             class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
-          >
-            Preview
-          </div>
+          >Preview</div>
         </template>
 
         <button
-          class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
-          @click="downloadPdf('plan_wifi')"
+          class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300 flex items-center gap-2"
+          :disabled="isDownloading.plan_wifi"
+          @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, 'Plan_WLAN.pdf')"
         >
-          PDF
+          <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+          </svg>
+          <span>{{ isDownloading.plan_wifi ? 'Erzeuge…' : 'PDF' }}</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Globaler Ladeindikator -->
+    <div
+      v-if="anyDownloading"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
+    >
+      <div class="bg-white px-4 py-3 rounded shadow flex items-center gap-2">
+        <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+        </svg>
+        <span>PDF wird erzeugt…</span>
       </div>
     </div>
   </div>

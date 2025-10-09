@@ -20,18 +20,17 @@ const readiness = ref({
   room_mapping_ok: true
 })
 
-// --- Backend-Check ---
+// --- Backend-Check (jetzt über Store) ---
 async function checkDataReadiness() {
   if (!eventStore.selectedEvent?.id) return
-  try {
-    const { data } = await axios.get(`/export/ready/${eventStore.selectedEvent.id}`)
+  const data = await eventStore.refreshReadiness(eventStore.selectedEvent.id)
+  if (data) {
     readiness.value = {
       explore_teams_ok: !!data.explore_teams_ok,
       challenge_teams_ok: !!data.challenge_teams_ok,
       room_mapping_ok: !!data.room_mapping_ok,
     }
-  } catch (error) {
-    console.error('Fehler beim Laden der Daten-Readiness:', error)
+  } else {
     readiness.value = {
       explore_teams_ok: false,
       challenge_teams_ok: false,
@@ -63,17 +62,29 @@ onMounted(async () => {
   await checkDataReadiness()
 })
 
+// 👇 Watch: Wenn der Store-Readiness-State sich ändert → Navigation aktualisieren
+watch(
+  () => eventStore.readiness,
+  (newVal) => {
+    if (newVal) {
+      readiness.value = {
+        explore_teams_ok: !!newVal.explore_teams_ok,
+        challenge_teams_ok: !!newVal.challenge_teams_ok,
+        room_mapping_ok: !!newVal.room_mapping_ok,
+      }
+    }
+  },
+  { deep: true, immediate: true }
+)
 // 👇 Watcher: prüft beim Navigieren neu
 watch(
   () => route.path,
   async () => {
-    // Nur prüfen, wenn Event schon geladen ist
     if (eventStore.selectedEvent?.id) {
       await checkDataReadiness()
     }
   }
 )
-
 
 // --- Helper für rote Punkte ---
 function hasWarning(tabPath: string): boolean {

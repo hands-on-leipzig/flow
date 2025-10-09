@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import draggable from 'vuedraggable'
@@ -188,8 +188,11 @@ const assignItemToRoom = async (itemKey, roomId) => {
       event: eventStore.selectedEvent?.id
     })
   }
-  // ✅ Nach erfolgreicher Änderung Readiness neu laden
-  await loadReadinessStatus()
+
+  // ✅ Nach erfolgreicher Änderung Readiness global neu laden
+  if (eventStore.selectedEvent?.id) {
+    await eventStore.refreshReadiness(eventStore.selectedEvent.id)
+  }
 
 }
 
@@ -236,8 +239,11 @@ const unassignItemFromRoom = async (itemKey) => {
     })
   }
 
-  // ✅ Nach erfolgreicher Änderung Readiness neu laden
-  await loadReadinessStatus()
+  // ✅ Nach erfolgreicher Änderung Readiness global neu laden
+  if (eventStore.selectedEvent?.id) {
+    await eventStore.refreshReadiness(eventStore.selectedEvent.id)
+  }
+
 }
 
 // --- Raum erstellen ---
@@ -336,36 +342,37 @@ const getItemsInRoom = (roomId) => {
   return all
 }
 
-// --- Data Readiness Status ---
-const readinessStatus = ref({
-  room_mapping_details: {
-    activities_ok: true,
-    teams_ok: true
+
+
+
+// --- Data Readiness: direkt aus Store ---
+
+// Reaktive Referenz auf den Store-Status
+const readinessStatus = computed(() => eventStore.readiness)
+
+// --- Beim Start einmal initial laden ---
+onMounted(async () => {
+  if (eventStore.selectedEvent?.id) {
+    await eventStore.refreshReadiness(eventStore.selectedEvent.id)
   }
 })
 
-// Backend-Status laden
-const loadReadinessStatus = async () => {
-  try {
-    const { data } = await axios.get(`/export/ready/${eventId.value}`)
-    readinessStatus.value = data
-  } catch (err) {
-    console.warn('Data Readiness konnte nicht geladen werden:', err)
-  }
-}
+// --- Watcher für Änderungen am Store (z. B. aus anderen Seiten) ---
+watch(
+  () => eventStore.readiness,
+  (newVal) => {
+    if (newVal) console.debug('Readiness aktualisiert:', newVal)
+  },
+  { deep: true }
+)
 
-// Warnings für Tabs
+// --- Helper für Warnungen ---
 const hasWarning = (tab) => {
   const details = readinessStatus.value?.room_mapping_details || {}
   if (tab === 'activities') return details.activities_ok === false
   if (tab === 'teams') return details.teams_ok === false
   return false
 }
-
-// Beim Start laden
-onMounted(async () => {
-  await loadReadinessStatus()
-})
 
 </script>
 
