@@ -165,7 +165,6 @@ return new class extends Migration {
             $table->boolean('calibration')->nullable();
             $table->text('note')->nullable();
             $table->unsignedTinyInteger('alert_level')->nullable();
-            $table->boolean('suggested')->default(false);
 
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
@@ -306,7 +305,6 @@ return new class extends Migration {
             $table->unsignedBigInteger('first_program');
             $table->timestamp('created')->nullable();
             $table->timestamp('last_change')->nullable();
-            $table->boolean('public')->default(false);
             $table->string('generator_status', 50)->nullable();
 
             $table->foreign('event')->references('id')->on('event');

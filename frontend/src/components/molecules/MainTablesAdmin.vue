@@ -3,54 +3,69 @@
     <div class="mb-6">
       <h2 class="text-2xl font-bold text-gray-900 mb-4">Main Tables Management</h2>
       
-      <!-- Table Selector -->
-      <div class="mb-4">
-        <label for="table-selector" class="block text-sm font-medium text-gray-700 mb-2">
-          Select Table to Edit:
-        </label>
-        <select
-          id="table-selector"
-          v-model="selectedTable"
-          @change="loadTableData"
-          class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">Choose a table...</option>
-          <option v-for="table in availableTables" :key="table.name" :value="table.name">
-            {{ table.displayName }} ({{ table.recordCount }} records)
-          </option>
-        </select>
+      <!-- Table Tabs -->
+      <div class="mb-6">
+        <div class="border-b border-gray-200 relative">
+          <!-- Left scroll indicator -->
+          <div 
+            v-if="showLeftScroll"
+            class="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 flex items-center justify-center cursor-pointer hover:bg-gray-50"
+            @mouseenter="scrollLeft"
+            @mouseleave="stopScrolling"
+          >
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+          </div>
+          
+          <!-- Right scroll indicator -->
+          <div 
+            v-if="showRightScroll"
+            class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 flex items-center justify-center cursor-pointer hover:bg-gray-50"
+            @mouseenter="scrollRight"
+            @mouseleave="stopScrolling"
+          >
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </div>
+          
+          <nav 
+            ref="tabContainer"
+            class="-mb-px flex space-x-6 overflow-x-auto scrollbar-hide"
+            @scroll="updateScrollIndicators"
+          >
+            <button
+              v-for="table in availableTables"
+              :key="table.name"
+              :data-table="table.name"
+              @click="selectTable(table.name)"
+              :class="[
+                selectedTable === table.name
+                  ? 'border-blue-500 text-blue-600 bg-blue-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50',
+                'whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out rounded-t-lg tab-button'
+              ]"
+            >
+              <span class="flex items-center">
+                {{ table.displayName }}
+                <span class="ml-2 text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full font-semibold">
+                  {{ table.recordCount }}
+                </span>
+              </span>
+            </button>
+          </nav>
+        </div>
       </div>
 
       <!-- Export Button -->
       <div class="mb-4">
         <button
-          @click="exportAllTables"
-          :disabled="exporting"
-          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-        >
-          <svg v-if="exporting" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <svg v-else class="-ml-1 mr-3 h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          {{ exporting ? 'Exporting...' : 'Export All Tables' }}
-        </button>
-
-        <button
           @click="createGitHubPR"
           :disabled="loading || creatingPR"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+          class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
         >
-          <svg v-if="creatingPR" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <svg v-else class="-ml-1 mr-3 h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          {{ creatingPR ? 'Creating PR...' : 'Create GitHub PR' }}
+          {{ creatingPR ? 'Creating PR...' : 'Export m_ table data' }}
         </button>
       </div>
     </div>
@@ -62,6 +77,16 @@
           {{ getTableDisplayName(selectedTable) }} - Advanced Editor
         </h3>
         <MParameter />
+      </div>
+    </div>
+
+    <!-- Special UI for m_visibility table -->
+    <div v-else-if="selectedTable === 'm_visibility'" class="bg-white shadow overflow-hidden sm:rounded-md">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">
+          {{ getTableDisplayName(selectedTable) }} - Advanced Editor
+        </h3>
+        <Visibility />
       </div>
     </div>
 
@@ -155,7 +180,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="selectedTable && selectedTable !== 'm_parameter' && tableData.length === 0" class="text-center py-12">
+    <div v-else-if="selectedTable && selectedTable !== 'm_parameter' && selectedTable !== 'm_visibility' && tableData.length === 0" class="text-center py-12">
       <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
       </svg>
@@ -175,7 +200,7 @@
     </div>
 
     <!-- Loading State -->
-    <div v-else-if="loading && selectedTable !== 'm_parameter'" class="text-center py-12">
+    <div v-else-if="loading && selectedTable !== 'm_parameter' && selectedTable !== 'm_visibility'" class="text-center py-12">
       <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -186,9 +211,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import MParameter from './MParameter.vue'
+import Visibility from './Visibility.vue'
 
 // Reactive data
 const selectedTable = ref('')
@@ -197,8 +223,13 @@ const tableColumns = ref([])
 const loading = ref(false)
 const editingRecord = ref(null)
 const editingData = ref({})
-const exporting = ref(false)
 const creatingPR = ref(false)
+
+// Scroll functionality
+const tabContainer = ref(null)
+const showLeftScroll = ref(false)
+const showRightScroll = ref(false)
+const scrollInterval = ref(null)
 
 // Available tables configuration
 const availableTables = ref([
@@ -217,8 +248,117 @@ const availableTables = ref([
 ])
 
 // Methods
+const selectTable = (tableName) => {
+  selectedTable.value = tableName
+  loadTableData()
+  
+  // Scroll to the selected tab
+  setTimeout(() => {
+    scrollToSelectedTab()
+  }, 50)
+}
+
+const scrollToSelectedTab = () => {
+  if (!tabContainer.value) return
+  
+  const selectedButton = tabContainer.value.querySelector(`button[data-table="${selectedTable.value}"]`)
+  if (selectedButton) {
+    const containerRect = tabContainer.value.getBoundingClientRect()
+    const buttonRect = selectedButton.getBoundingClientRect()
+    
+    const scrollLeft = tabContainer.value.scrollLeft
+    const buttonLeft = buttonRect.left - containerRect.left + scrollLeft
+    const buttonRight = buttonLeft + buttonRect.width
+    const containerWidth = containerRect.width
+    
+    if (buttonLeft < scrollLeft) {
+      // Button is to the left of visible area
+      tabContainer.value.scrollLeft = buttonLeft - 20
+    } else if (buttonRight > scrollLeft + containerWidth) {
+      // Button is to the right of visible area
+      tabContainer.value.scrollLeft = buttonRight - containerWidth + 20
+    }
+  }
+}
+
+// Scroll functionality methods
+const updateScrollIndicators = () => {
+  if (!tabContainer.value) return
+  
+  const container = tabContainer.value
+  const scrollLeft = container.scrollLeft
+  const scrollWidth = container.scrollWidth
+  const clientWidth = container.clientWidth
+  
+  // Add a small tolerance to account for sub-pixel rendering
+  const tolerance = 1
+  
+  showLeftScroll.value = scrollLeft > tolerance
+  showRightScroll.value = scrollLeft < (scrollWidth - clientWidth - tolerance)
+}
+
+const scrollLeft = () => {
+  if (!tabContainer.value) return
+  
+  console.log('Starting left scroll, current scrollLeft:', tabContainer.value.scrollLeft)
+  
+  // Clear any existing interval first
+  stopScrolling()
+  
+  scrollInterval.value = setInterval(() => {
+    if (tabContainer.value) {
+      const oldScrollLeft = tabContainer.value.scrollLeft
+      tabContainer.value.scrollLeft -= 15
+      console.log('Left scroll: old =', oldScrollLeft, 'new =', tabContainer.value.scrollLeft)
+      
+      // Update indicators after scrolling
+      updateScrollIndicators()
+      
+      // Stop if we've reached the beginning
+      if (tabContainer.value.scrollLeft <= 0) {
+        console.log('Reached beginning, stopping left scroll')
+        stopScrolling()
+      }
+    }
+  }, 16) // ~60fps
+}
+
+const scrollRight = () => {
+  if (!tabContainer.value) return
+  
+  console.log('Starting right scroll, current scrollLeft:', tabContainer.value.scrollLeft)
+  
+  // Clear any existing interval first
+  stopScrolling()
+  
+  scrollInterval.value = setInterval(() => {
+    if (tabContainer.value) {
+      const oldScrollLeft = tabContainer.value.scrollLeft
+      tabContainer.value.scrollLeft += 15
+      console.log('Right scroll: old =', oldScrollLeft, 'new =', tabContainer.value.scrollLeft)
+      
+      // Update indicators after scrolling
+      updateScrollIndicators()
+      
+      // Stop if we've reached the end
+      const maxScrollLeft = tabContainer.value.scrollWidth - tabContainer.value.clientWidth
+      if (tabContainer.value.scrollLeft >= maxScrollLeft) {
+        console.log('Reached end, stopping right scroll')
+        stopScrolling()
+      }
+    }
+  }, 16) // ~60fps
+}
+
+const stopScrolling = () => {
+  if (scrollInterval.value) {
+    clearInterval(scrollInterval.value)
+    scrollInterval.value = null
+  }
+}
+
 const loadTableData = async () => {
-  if (!selectedTable.value || selectedTable.value === 'm_parameter') return
+  if (!selectedTable.value || selectedTable.value === 'm_parameter' || selectedTable.value === 'm_visibility') return
   
   loading.value = true
   try {
@@ -310,37 +450,6 @@ const addNewRecord = () => {
   editingData.value = { ...newRecord }
 }
 
-const exportAllTables = async () => {
-  exporting.value = true
-  try {
-    const response = await axios.get('/admin/main-tables/export', {
-      responseType: 'blob'
-    })
-    
-    // Create download link
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', 'main-tables-data.json')
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    window.URL.revokeObjectURL(url)
-    
-    // Check if seeder was generated
-    const seederGenerated = response.headers['x-seeder-generated'] === 'true'
-    const message = seederGenerated 
-      ? 'Export completed successfully! MainDataSeeder.php has been generated locally. Use "Create GitHub PR" button to update deployment.'
-      : 'Export completed successfully!'
-    alert(message)
-  } catch (error) {
-    console.error('Error exporting tables:', error)
-    alert('Error exporting tables: ' + (error.response?.data?.message || error.message))
-  } finally {
-    exporting.value = false
-  }
-}
-
 const createGitHubPR = async () => {
   creatingPR.value = true
   try {
@@ -382,11 +491,46 @@ const getInputType = (column) => {
 // Lifecycle
 onMounted(() => {
   loadTableCounts()
+  // Initialize scroll indicators after a short delay to ensure DOM is ready
+  setTimeout(() => {
+    updateScrollIndicators()
+  }, 100)
+  
+  // Add resize listener
+  window.addEventListener('resize', updateScrollIndicators)
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  stopScrolling()
+  window.removeEventListener('resize', updateScrollIndicators)
 })
 </script>
 
 <style scoped>
 .main-tables-admin {
   max-width: 100%;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth transitions for tab interactions */
+.tab-button {
+  transition: all 0.2s ease-in-out;
+}
+
+.tab-button:hover {
+  transform: translateY(-1px);
+}
+
+.tab-button:active {
+  transform: translateY(0);
 }
 </style>

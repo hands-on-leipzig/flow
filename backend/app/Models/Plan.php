@@ -13,7 +13,6 @@ class Plan extends Model
         'event',
         'created',
         'last_change',
-        'public'
     ];
 
     public function parameters()
@@ -39,6 +38,6 @@ class Plan extends Model
     {
         return $this->hasOne(QPlan::class, 'plan');
     }
-    
+
 }
 

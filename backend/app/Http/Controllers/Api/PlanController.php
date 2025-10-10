@@ -46,7 +46,6 @@ class PlanController extends Controller
             'first_program' => 3, // Default to CHALLENGE
             'created' => Carbon::now(),
             'last_change' => Carbon::now(),
-            'public' => false
         ]);
 
         // Get DRAHT team counts for this event
@@ -63,10 +62,10 @@ class PlanController extends Controller
 
             if ($data) {
                 if (array_key_exists('capacity_explore', $data)) {
-                    $e_teams = (int) $data['capacity_explore'];
+                    $e_teams = (int)$data['capacity_explore'];
                 }
                 if (array_key_exists('capacity_challenge', $data)) {
-                    $c_teams = (int) $data['capacity_challenge'];
+                    $c_teams = (int)$data['capacity_challenge'];
                 }
             }
         }
@@ -76,9 +75,9 @@ class PlanController extends Controller
         $e2_lanes = 0;
 
 
-        if ( $e_teams > 0 ) {
+        if ($e_teams > 0) {
 
-            if ( $c_teams  == 0 ) {
+            if ($c_teams == 0) {
                 // e_mode standlone morning
                 $e_mode = 3;
             } else {
@@ -100,7 +99,7 @@ class PlanController extends Controller
         }
 
 
-        if ( $c_teams > 0 ) {
+        if ($c_teams > 0) {
 
             // c_mode on
             $c_mode = 1;
@@ -170,8 +169,6 @@ class PlanController extends Controller
             'existing' => false,
         ]);
     }
-
-
 
 
     /**
@@ -324,7 +321,7 @@ class PlanController extends Controller
 
         $date = Carbon::parse($eventDate);
         $start = $date->copy();
-        $end   = $date->copy();
+        $end = $date->copy();
 
 
         // --- IDs der relevanten Parameter finden ---
@@ -348,57 +345,57 @@ class PlanController extends Controller
         $end->setTime(13, 30, 0);
 
         DB::table('extra_block')->insert([
-            'plan'        => $planId,
+            'plan' => $planId,
             'first_program' => 0,
-            'name'        => 'Mittagessen',
+            'name' => 'Mittagessen',
             'description' => 'Es gibt verschiedene Gerichte für Teams, Helfer und Besucher.',
-            'link'        => 'https://lecker-essen.mhhm',
-            'start'       => $start,
-            'end'         => $end,
-            'room'        => null,
-            'active'      => 1,
+            'link' => 'https://lecker-essen.mhhm',
+            'start' => $start,
+            'end' => $end,
+            'room' => null,
+            'active' => 1,
         ]);
 
         $start->setTime(9, 0, 0);
         $end->setTime(16, 30, 0);
 
         DB::table('extra_block')->insert([
-            'plan'        => $planId,
+            'plan' => $planId,
             'first_program' => 0,
-            'name'        => 'Awareness',
+            'name' => 'Awareness',
             'description' => 'Awareness bedeutet, achtsam miteinander umzugehen, Grenzen zu respektieren und eine Umgebung frei von Diskriminierung, Mobbing oder unangemessenem Verhalten zu schaffen. Das Konzept bietet Anregungen zu Schutzmaßnahmen, inklusivem Miteinander und einer Kultur der Achtsamkeit, damit alle Kinder und Jugendlichen unsere Veranstaltungen als positive und sichere Erfahrung erleben.',
-            'link'        => 'https://youtube.com/shorts/vYOn38IBYX8?si=OMRuh3gsRYwle1kw',
-            'start'       => $start,
-            'end'         => $end,
-            'room'        => null,
-            'active'      => 0,
+            'link' => 'https://youtube.com/shorts/vYOn38IBYX8?si=OMRuh3gsRYwle1kw',
+            'start' => $start,
+            'end' => $end,
+            'room' => null,
+            'active' => 0,
         ]);
 
         $start->setTime(8, 0, 0);
         $end->setTime(8, 30, 0);
 
         DB::table('extra_block')->insert([
-            'plan'        => $planId,
+            'plan' => $planId,
             'first_program' => 2,
-            'name'        => 'Check-In FLL Explore',
+            'name' => 'Check-In FLL Explore',
             'description' => 'Teams und Gutacher:innen bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
-            'link'        => null,
-            'start'       => $start,
-            'end'         => $end,
-            'room'        => null,
-            'active'      => $e_teams > 0 ? 1 : 0,
+            'link' => null,
+            'start' => $start,
+            'end' => $end,
+            'room' => null,
+            'active' => $e_teams > 0 ? 1 : 0,
         ]);
 
         DB::table('extra_block')->insert([
-            'plan'        => $planId,
+            'plan' => $planId,
             'first_program' => 3,
-            'name'        => 'Check-In FLL Challenge',
+            'name' => 'Check-In FLL Challenge',
             'description' => 'Teams, Juror:innen und Schiedsrichter:inne bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
-            'link'        => null,
-            'start'       => $start,
-            'end'         => $end,
-            'room'        => null,
-            'active'      => $c_teams > 0 ? 1 : 0,
+            'link' => null,
+            'start' => $start,
+            'end' => $end,
+            'room' => null,
+            'active' => $c_teams > 0 ? 1 : 0,
         ]);
 
 
