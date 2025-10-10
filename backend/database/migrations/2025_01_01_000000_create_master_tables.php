@@ -263,6 +263,7 @@ return new class extends Migration {
             $table->string('name', 100);
             $table->unsignedBigInteger('room_type');
             $table->unsignedBigInteger('event');
+            $table->text('navigation_instructions')->nullable();
 
             $table->foreign('room_type')->references('id')->on('m_room_type');
             $table->foreign('event')->references('id')->on('event');
@@ -273,9 +274,11 @@ return new class extends Migration {
             $table->id();
             $table->unsignedBigInteger('room_type');
             $table->unsignedBigInteger('room');
+            $table->unsignedBigInteger('event');
 
             $table->foreign('room_type')->references('id')->on('m_room_type');
             $table->foreign('room')->references('id')->on('room');
+            $table->foreign('event')->references('id')->on('event');
         });
 
         // Create team table
@@ -287,6 +290,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('first_program');
             $table->integer('team_number_hot')->nullable();
             $table->boolean('noshow')->default(false);
+            $table->string('location', 255)->nullable();
 
             $table->foreign('event')->references('id')->on('event');
             $table->foreign('room')->references('id')->on('room');
@@ -414,8 +418,10 @@ return new class extends Migration {
             $table->string('name', 100);
             $table->string('filename', 255);
             $table->unsignedBigInteger('event');
+            $table->unsignedBigInteger('regional_partner')->nullable();
 
             $table->foreign('event')->references('id')->on('event');
+            $table->foreign('regional_partner')->references('id')->on('regional_partner');
         });
 
         // Create event_logo table
