@@ -276,7 +276,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('event');
 
             $table->foreign('room_type')->references('id')->on('m_room_type');
-            $table->foreign('room')->references('id')->on('room');
+            $table->foreign('room')->references('id')->on('room')->onDelete('cascade');
             $table->foreign('event')->references('id')->on('event');
         });
 
@@ -292,7 +292,7 @@ return new class extends Migration {
             $table->string('location', 255)->nullable();
 
             $table->foreign('event')->references('id')->on('event');
-            $table->foreign('room')->references('id')->on('room');
+            $table->foreign('room')->references('id')->on('room')->onDelete('set null');
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
@@ -404,7 +404,7 @@ return new class extends Migration {
             $table->foreign('activity_type')->references('id')->on('m_activity_type');
             $table->foreign('activity_type_detail')->references('id')->on('m_activity_type_detail');
             $table->foreign('event')->references('id')->on('event');
-            $table->foreign('room')->references('id')->on('room');
+            $table->foreign('room')->references('id')->on('room')->onDelete('set null');
             $table->foreign('room_type')->references('id')->on('m_room_type');
             $table->foreign('activity_group')->references('id')->on('activity_group');
             $table->foreign('extra_block')->references('id')->on('extra_block');
