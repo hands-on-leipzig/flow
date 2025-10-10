@@ -93,13 +93,6 @@ fetchConditions()
         📝 Main Tables
       </button>
 
-      <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-          :class="{ 'bg-white font-semibold shadow': activeTab === 'visibility' }"
-          @click="activeTab = 'visibility'"
-      >
-        👁️ Visibility
-      </button>
 
       <button
         class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
@@ -208,11 +201,6 @@ fetchConditions()
         </button>
       </div>
 
-      <div v-if="activeTab === 'visibility'">
-        <h2 class="text-xl font-bold mb-4">Visibility</h2>
-        <object class="w-full h-screen"
-                data="https://dev.planning.hands-on-technology.org/output/visibility.cgi"></object>
-      </div>
 
       <div v-if="activeTab === 'user-regional-partners'">
         <h2 class="text-xl font-bold mb-4">User-Regional Partner Relations</h2>
