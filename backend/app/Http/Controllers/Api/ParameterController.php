@@ -53,7 +53,21 @@ class ParameterController extends Controller
     public function listLanesOptions()
     {
         $options = DB::table('m_supported_plan')->get();
-        return response()->json($options);
+        
+        // Map database fields to expected frontend format
+        $mappedOptions = $options->map(function ($option) {
+            return [
+                'first_program' => $option->first_program,
+                'teams' => $option->teams,
+                'lanes' => $option->lanes,
+                'tables' => $option->tables,
+                'note' => $option->note,
+                'recommended' => $option->alert_level === 1, // alert_level 1 = recommended
+                'suggested' => $option->alert_level === 1, // alert_level 1 = suggested
+            ];
+        });
+        
+        return response()->json($mappedOptions);
     }
 
 

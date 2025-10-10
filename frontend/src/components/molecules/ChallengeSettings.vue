@@ -79,7 +79,10 @@ const rTables = computed(() => Number(paramMapByName.value['r_tables']?.value ||
 const tableVariantsForTeams = computed<number[]>(() => {
   const idx = props.lanesIndex?.challenge ?? {}
   const t = cTeams.value
-  if (!t) return []
+  
+  // If no teams selected yet, allow both table options
+  if (!t) return [2, 4]
+  
   const variants: number[] = []
   if (idx[`${t}|2`]?.length) variants.push(2)
   if (idx[`${t}|4`]?.length) variants.push(4)
@@ -90,7 +93,10 @@ const tableVariantsForTeams = computed<number[]>(() => {
 const allowedJuryLanes = computed<number[]>(() => {
   const idx = props.lanesIndex?.challenge ?? {}
   const t = cTeams.value
-  if (!t) return []
+  
+  // If no teams selected yet, allow common jury group options (1-6)
+  if (!t) return [1, 2, 3, 4, 5, 6]
+  
   const variants = rTables.value ? [rTables.value] : [2, 4]
   const merged = variants.flatMap(tb => idx[`${t}|${tb}`] || [])
   return Array.from(new Set(merged)).sort((a, b) => a - b)

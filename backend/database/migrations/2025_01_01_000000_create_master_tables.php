@@ -260,9 +260,9 @@ return new class extends Migration {
         Schema::create('room', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
-            $table->unsignedBigInteger('room_type');
+            $table->unsignedBigInteger('room_type')->nullable();
             $table->unsignedBigInteger('event');
-            $table->text('navigation_instructions')->nullable();
+            $table->text('navigation_instruction')->nullable();
 
             $table->foreign('room_type')->references('id')->on('m_room_type');
             $table->foreign('event')->references('id')->on('event');
@@ -371,7 +371,7 @@ return new class extends Migration {
         // Create activity_group table
         Schema::create('activity_group', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100);
+            $table->string('name', 100)->nullable();
             $table->unsignedBigInteger('event');
             $table->unsignedBigInteger('plan');
             $table->unsignedBigInteger('activity_type_detail')->nullable();
@@ -384,7 +384,7 @@ return new class extends Migration {
         // Create activity table
         Schema::create('activity', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100);
+            $table->string('name', 100)->nullable();
             $table->unsignedBigInteger('activity_type');
             $table->unsignedBigInteger('activity_type_detail')->nullable();
             $table->unsignedBigInteger('event');
@@ -413,9 +413,9 @@ return new class extends Migration {
         // Create logo table
         Schema::create('logo', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100);
-            $table->string('filename', 255);
-            $table->unsignedBigInteger('event');
+            $table->string('name', 100)->nullable();
+            $table->string('path', 255);
+            $table->unsignedBigInteger('event')->nullable();
             $table->unsignedBigInteger('regional_partner')->nullable();
 
             $table->foreign('event')->references('id')->on('event');
