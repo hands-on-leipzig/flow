@@ -688,7 +688,7 @@ if ($prepRooms->isNotEmpty()) {
             })->values()->all();
 
             // 🔹 Raumname aus team_plan → room
-            $teamRoomName = 'Dummy';
+            $teamRoomName = '!Platzhalter, weil das Team noch keinem Raum zugeordnet wurde!';
 
             $teamId = $page['team_id'] ?? null; // muss von deinen build*Pages mitgegeben werden
             if ($teamId) {
