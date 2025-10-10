@@ -372,7 +372,7 @@ return new class extends Migration {
         Schema::create('activity_group', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100)->nullable();
-            $table->unsignedBigInteger('event');
+            $table->unsignedBigInteger('event')->nullable();
             $table->unsignedBigInteger('plan');
             $table->unsignedBigInteger('activity_type_detail')->nullable();
 
@@ -385,9 +385,9 @@ return new class extends Migration {
         Schema::create('activity', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100)->nullable();
-            $table->unsignedBigInteger('activity_type');
+            $table->unsignedBigInteger('activity_type')->nullable();
             $table->unsignedBigInteger('activity_type_detail')->nullable();
-            $table->unsignedBigInteger('event');
+            $table->unsignedBigInteger('event')->nullable();
             $table->unsignedBigInteger('room')->nullable();
             $table->unsignedBigInteger('room_type')->nullable();
             $table->unsignedBigInteger('activity_group')->nullable();
