@@ -564,6 +564,63 @@ class PlanExportController extends Controller
             }
         }
 
+
+// --- 🔹 Vorbereitung: Räume aus team_plan laden ---
+$prepRooms = DB::table('team_plan')
+    ->where('plan', $planId)
+    ->whereNotNull('room')
+    ->distinct()
+    ->pluck('room');
+
+if ($prepRooms->isNotEmpty()) {
+    // Raumdetails aus room-Tabelle
+    $rooms = DB::table('room')
+        ->whereIn('id', $prepRooms)
+        ->select('id', 'name')
+        ->orderBy('name')
+        ->get();
+
+    foreach ($rooms as $room) {
+        // Teams, die diesem Raum zugeordnet sind
+        $teams = DB::table('team_plan')
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team_plan.plan', $planId)
+            ->where('team_plan.room', $room->id)
+            ->select(
+                'team.name as team_name',
+                'team.team_number_hot as team_number_hot',
+                'team.first_program as program'
+            )
+            ->orderBy('team.team_number_hot')
+            ->get();
+
+        if ($teams->isEmpty()) {
+            continue;
+        }
+
+        // Zeilen für Tabelle aufbauen
+        $rows = $teams->map(function ($t) {
+            return [
+                'is_explore'   => in_array($t->program, [0, 2]),
+                'is_challenge' => in_array($t->program, [0, 3]),
+                'team_display' => trim($t->team_name . ' (' . $t->team_number_hot . ')'),
+            ];
+        });
+
+        // Seite rendern
+        $html .= view('pdf.content.room_schedule_preparation', [
+            'room'  => $room->name,
+            'rows'  => $rows,
+            'event' => $event,
+        ])->render();
+
+        // Seitenumbruch nach jeder Raumseite
+        $html .= '<div style="page-break-before: always;"></div>';
+    }
+}
+
+
+
         // Jetzt EIN Layout drumherum bauen
         $layout = app(\App\Services\PdfLayoutService::class);
         $finalHtml = $layout->renderLayout($event, $html, 'FLOW Raumbeschilderung');
@@ -630,12 +687,33 @@ class PlanExportController extends Controller
                 ];
             })->values()->all();
 
-            // zusätzliche Kopfzeile für jeden Teambereich
+            // 🔹 Raumname aus team_plan → room
+            $teamRoomName = 'Dummy';
+
+            $teamId = $page['team_id'] ?? null; // muss von deinen build*Pages mitgegeben werden
+            if ($teamId) {
+                $roomId = DB::table('team_plan')
+                    ->where('plan', $planId)
+                    ->where('team', $teamId)
+                    ->value('room');
+
+                if ($roomId) {
+                    $roomName = DB::table('room')
+                        ->where('id', $roomId)
+                        ->value('name');
+
+                    if ($roomName) {
+                        $teamRoomName = $roomName;
+                    }
+                }
+            }
+
+            // ➕ Zusatzzeile "Teambereich"
             array_unshift($rows, [
                 'start'    => '',
                 'end'      => '',
                 'activity' => 'Teambereich',
-                'room'     => 'Dummy',
+                'room'     => $teamRoomName,
             ]);
             
             // In Seitenblöcke teilen
@@ -724,6 +802,7 @@ class PlanExportController extends Controller
 
             $pages[] = [
                 'label' => $label,
+                'team_id' => $num,
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -828,6 +907,7 @@ class PlanExportController extends Controller
 
             $pages[] = [
                 'label' => $label,
+                'team_id' => $num,
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
