@@ -5,17 +5,22 @@ use App\Core\TimeCursor;
 
 use Illuminate\Support\Collection;
 use App\Support\PlanParameter;
+use App\Support\UsesPlanParameter;
 use Illuminate\Support\Facades\DB;
 use DateTime;
 
 class MatchPlan
 {
-    private array $entries = [];
+    use UsesPlanParameter;
+
     private ActivityWriter $writer;
 
-    public function __construct(ActivityWriter $writer)
+    private array $entries = [];
+
+    public function __construct(ActivityWriter $writer, PlanParameter $params)
     {
         $this->writer = $writer;
+        $this->params = $params;  // Pflicht für Trait
     }
 
     // Create the robot game match plan regardless of the number of tables and timing

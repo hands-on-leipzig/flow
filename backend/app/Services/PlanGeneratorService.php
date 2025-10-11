@@ -20,61 +20,61 @@ class PlanGeneratorService
         }
 
         // Parameter laden
-        PlanParameter::load($planId);
+        $params = PlanParameter::load($planId);
 
         // IDs der Programme dynamisch aus DB
         $idChallenge = DB::table('m_first_program')->where('name', 'CHALLENGE')->value('id');
         $idExplore   = DB::table('m_first_program')->where('name', 'EXPLORE')->value('id');
 
         // --- Challenge prüfen ---
-        if (pp("c_teams") > 0) {
+        if ($params->get("c_teams") > 0) {
             $ok = $this->checkSupportedPlan(
                 $idChallenge,
-                pp("c_teams"),
-                pp("j_lanes"),
-                pp("r_tables")
+                $params->get("c_teams"),
+                $params->get("j_lanes"),
+                $params->get("r_tables")
             );
 
             if (!$ok) {
                 throw new \RuntimeException(
                     'Unsupported Challenge plan ' .
-                    pp("c_teams") . '-' .
-                    pp("j_lanes") . '-' .
-                    pp("r_tables")
+                    $params->get("c_teams") . '-' .
+                    $params->get("j_lanes") . '-' .
+                    $params->get("r_tables")
                 );
             }
         }
 
         // --- Explore prüfen ---
 
-        if (pp("e1_teams") > 0) {
+        if ($params->get("e1_teams") > 0) {
             $ok = $this->checkSupportedPlan(
                 $idExplore,
-                pp("e1_teams"),
-                pp("e1_lanes")
+                $params->get("e1_teams"),
+                $params->get("e1_lanes")
             );
 
             if (!$ok) {
                 throw new \RuntimeException(
                     'Unsupported Explore plan ' .
-                    pp("e1_teams") . '-' .
-                    pp("e1_lanes")
+                    $params->get("e1_teams") . '-' .
+                    $params->get("e1_lanes")
                 );
             }
         }
 
-        if (pp("e2_teams") > 0) {
+        if ($params->get("e2_teams") > 0) {
             $ok = $this->checkSupportedPlan(
                 $idExplore,
-                pp("e2_teams"),
-                pp("e2_lanes")
+                $params->get("e2_teams"),
+                $params->get("e2_lanes")
             );
 
             if (!$ok) {
                 throw new \RuntimeException(
                     'Unsupported Explore plan ' .
-                    pp("e2_teams") . '-' .
-                    pp("e2_lanes")
+                    $params->get("e2_teams") . '-' .
+                    $params->get("e2_lanes")
                 );
             }
         }

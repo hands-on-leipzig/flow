@@ -1,10 +1,12 @@
 <?php
 
-use App\Support\PlanParameter;
-use App\Support\Helpers;
+
+use App\Support\PlanParameterCompat;
 
 require_once 'generator_functions.php';
 
+require_once base_path('app/Support/PlanParameterCompat.php');
+require_once base_path('app/Support/Helpers.php');
 
 
 // ***********************************************************************************
@@ -43,11 +45,12 @@ function g_generator($plan_id) {
     g_debug_log(1, "Start " . $plan_id);
 
     // Read all parameters for the plan. Access is via pp("parameter_name")
-    PlanParameter::load($plan_id);
+    PlanParameterCompat::load($plan_id);
 
     g_debug_log(1, "Plan parameters read");
     
-    $g_event_date = new DateTime(pp("g_date"));            
+    $value = pp("g_date");
+    $g_event_date = ($value instanceof DateTime) ? clone $value : new DateTime($value);          
 
     g_debug_log(1, "Start", "e_mode");
 
@@ -56,19 +59,19 @@ function g_generator($plan_id) {
 
     if (pp("c_teams") > 0) {
         
-        PlanParameter::add("j_rounds", ceil(pp("c_teams") / pp("j_lanes")), "integer");                // Number of jury rounds in the schedule: Minimum 4 for 3x Robot Game + Test Round. Maximum 6 for fully utilized jury
-        PlanParameter::add("r_matches_per_round", ceil(pp("c_teams") / 2), "integer");                                          // need one match per two teams
-        PlanParameter::add("r_need_volunteer", pp("r_matches_per_round") != pp("c_teams") / 2, "boolean");                      // uneven number of teams --> "need a volunteer without scoring"
-        PlanParameter::add("r_asym", pp("r_tables") == 4 && ((pp("c_teams") % 4 == 1) || (pp("c_teams") % 4 == 2)), "boolean"); // 4 tables, but not multiple of 4 --> table 3/4 ends before 1/2);
+        PlanParameterCompat::add("j_rounds", ceil(pp("c_teams") / pp("j_lanes")), "integer");                // Number of jury rounds in the schedule: Minimum 4 for 3x Robot Game + Test Round. Maximum 6 for fully utilized jury
+        PlanParameterCompat::add("r_matches_per_round", ceil(pp("c_teams") / 2), "integer");                                          // need one match per two teams
+        PlanParameterCompat::add("r_need_volunteer", pp("r_matches_per_round") != pp("c_teams") / 2, "boolean");                      // uneven number of teams --> "need a volunteer without scoring"
+        PlanParameterCompat::add("r_asym", pp("r_tables") == 4 && ((pp("c_teams") % 4 == 1) || (pp("c_teams") % 4 == 2)), "boolean"); // 4 tables, but not multiple of 4 --> table 3/4 ends before 1/2);
 
     }
 
     if( pp("e1_teams") > 0) {
-        PlanParameter::add("e1_rounds", ceil(pp("e1_teams") / pp("e1_lanes")), "integer");             // Number of jury rounds in the schedule: 
+        PlanParameterCompat::add("e1_rounds", ceil(pp("e1_teams") / pp("e1_lanes")), "integer");             // Number of jury rounds in the schedule: 
     }
     
     if( pp("e2_teams") > 0) {
-        PlanParameter::add("e2_rounds", ceil(pp("e2_teams") / pp("e2_lanes")), "integer");             // Number of jury rounds in the schedule:      
+        PlanParameterCompat::add("e2_rounds", ceil(pp("e2_teams") / pp("e2_lanes")), "integer");             // Number of jury rounds in the schedule:      
     }
 
     // Other global variables

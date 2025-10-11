@@ -2,8 +2,12 @@
 
 namespace App\Core;
 
-use App\Support\PlanParameter;
 use Illuminate\Support\Facades\Log;
+
+use App\Support\PlanParameter;
+use App\Support\UsesPlanParameter;
+use App\Support\SupportedPlanChecker;
+
 
 class ChallengeGenerator
 {
@@ -22,120 +26,108 @@ class ChallengeGenerator
 
     public function presentations(): void
     {
-        $this->writer->insertActivityGroup('c_presentations');
+        $duration = pp('c_presentations') * pp('c_duration_presentation') + 5;
 
-        $duration = pp("c_presentations") * pp("c_duration_presentation") + 5;
-        $this->writer->insertActivity('c_presentations', $this->rTime, $duration);
+        $this->writer->withGroup('c_presentations', function () use ($duration) {
+            $this->writer->insertActivity('c_presentations', $this->rTime, $duration);
+        });
 
         $this->rTime->addMinutes($duration);
 
-        if (!pp("c_presentations_last")) {
-            $this->writer->insertPoint('presentations', pp("c_ready_presentations"), $this->rTime);
-        } else {
-            $this->writer->insertPoint('presentations', pp("c_ready_awards"), $this->rTime);
-        }
+        $insertPoint = pp('c_presentations_last')
+            ? 'c_ready_awards'
+            : 'c_ready_presentations';
+
+        $this->writer->insertPoint('presentations', pp($insertPoint), $this->rTime);
     }
 
     public function briefings(\DateTime $t, int $cDay): void
     {
-        // Coaches: immer vor Opening am 1. Tag
+        // === COACH BRIEFING ===
         if ($cDay === 1) {
-            $this->writer->insertActivityGroup('c_coach_briefing');
-
-            $start = (clone $t)->modify('-' . (pp("c_duration_briefing") + pp("c_ready_opening")) . ' minutes');
-            $cursor = new TimeCursor($start);
-            $this->writer->insertActivity('c_coach_briefing', $cursor, pp("c_duration_briefing"));
-        }
-
-        // Judges: Organizer entscheidet ob vor/nach Opening
-        $this->writer->insertActivityGroup('c_judge_briefing');
-
-        if (!pp("j_briefing_after_opening")) {
-            $start = (clone $t)->modify('-' . (pp("j_duration_briefing") + pp("c_ready_opening")) . ' minutes');
-            $cursor = new TimeCursor($start);
-            $this->writer->insertActivity('c_judge_briefing', $cursor, pp("j_duration_briefing"));
-        } else {
-            $this->jTime->addMinutes(pp("j_ready_briefing"));
-            $this->writer->insertActivity('c_judge_briefing', $this->jTime, pp("j_duration_briefing"));
-            $this->jTime->addMinutes(pp("j_duration_briefing"));
-        }
-
-        // Referees: beide Tage, Umfang abhängig von Tag
-        $this->writer->insertActivityGroup('r_referee_briefing');
-
-        if (!pp("r_briefing_after_opening")) {
-            if ($cDay === 1) {
-                $start = (clone $t)->modify('-' . (pp("r_duration_briefing") + pp("c_ready_opening")) . ' minutes');
+            $this->writer->withGroup('c_coach_briefing', function () use ($t) {
+                $start = (clone $t)->modify('-' . (pp('c_duration_briefing') + pp('c_ready_opening')) . ' minutes');
                 $cursor = new TimeCursor($start);
-                $this->writer->insertActivity('r_referee_briefing', $cursor, pp("r_duration_briefing"));
-            } else {
-                $start = (clone $t)->modify('-' . (pp("r_duration_briefing_2") + pp("c_ready_opening")) . ' minutes');
-                $cursor = new TimeCursor($start);
-                $this->writer->insertActivity('r_referee_briefing', $cursor, pp("r_duration_briefing_2"));
-            }
-        } else {
-            $this->rTime->addMinutes(pp("r_ready_briefing"));
-
-            if ($cDay === 1) {
-                $this->writer->insertActivity('r_referee_briefing', $this->rTime, pp("r_duration_briefing"));
-                $this->rTime->addMinutes(pp("r_duration_briefing"));
-            } else {
-                $this->writer->insertActivity('r_referee_briefing', $this->rTime, pp("r_duration_briefing_2"));
-                $this->rTime->addMinutes(pp("r_duration_briefing_2"));
-            }
+                $this->writer->insertActivity('c_coach_briefing', $cursor, pp('c_duration_briefing'));
+            });
         }
 
-        // Nachbereitung: Buffer für Judges & Referees vor erster Action
-        $this->jTime->addMinutes(pp("j_ready_action"));
-        $this->rTime->addMinutes(pp("r_ready_action"));
+        // === JUDGE BRIEFING ===
+        $this->writer->withGroup('c_judge_briefing', function () use ($t) {
+            if (!pp('j_briefing_after_opening')) {
+                $start = (clone $t)->modify('-' . (pp('j_duration_briefing') + pp('c_ready_opening')) . ' minutes');
+                $cursor = new TimeCursor($start);
+                $this->writer->insertActivity('c_judge_briefing', $cursor, pp('j_duration_briefing'));
+            } else {
+                $this->jTime->addMinutes(pp('j_ready_briefing'));
+                $this->writer->insertActivity('c_judge_briefing', $this->jTime, pp('j_duration_briefing'));
+                $this->jTime->addMinutes(pp('j_duration_briefing'));
+            }
+        });
+
+        // === REFEREE BRIEFING ===
+        $this->writer->withGroup('r_referee_briefing', function () use ($t, $cDay) {
+            if (!pp('r_briefing_after_opening')) {
+                $durationKey = $cDay === 1 ? 'r_duration_briefing' : 'r_duration_briefing_2';
+                $start = (clone $t)->modify('-' . (pp($durationKey) + pp('c_ready_opening')) . ' minutes');
+                $cursor = new TimeCursor($start);
+                $this->writer->insertActivity('r_referee_briefing', $cursor, pp($durationKey));
+            } else {
+                $this->rTime->addMinutes(pp('r_ready_briefing'));
+                $durationKey = $cDay === 1 ? 'r_duration_briefing' : 'r_duration_briefing_2';
+                $this->writer->insertActivity('r_referee_briefing', $this->rTime, pp($durationKey));
+                $this->rTime->addMinutes(pp($durationKey));
+            }
+        });
+
+        // Buffer nach Briefings
+        $this->jTime->addMinutes(pp('j_ready_action'));
+        $this->rTime->addMinutes(pp('r_ready_action'));
     }
 
     public function judgingOneRound(int $cBlock, int $jT): void
     {
-        // Neue ActivityGroup für ein Judging-Paket
-        $this->writer->insertActivityGroup('c_judging_package');
+        $this->writer->withGroup('c_judging_package', function () use ($cBlock, $jT) {
 
-        // 1) Judging WITH team
-        for ($jLane = 1; $jLane <= pp("j_lanes"); $jLane++) {
-            // Nicht alle Lanes sind zwingend belegt
-            if ($jT + $jLane <= pp("c_teams")) {
-                $this->writer->insertActivity(
-                    'c_with_team',
-                    $this->jTime,
-                    pp("j_duration_with_team"),
-                    $jLane,               // jury_lane
-                    $jT + $jLane          // jury_team
-                );
+            // 1) Judging WITH team
+            for ($jLane = 1; $jLane <= pp('j_lanes'); $jLane++) {
+                if ($jT + $jLane <= pp('c_teams')) {
+                    $this->writer->insertActivity(
+                        'c_with_team',
+                        $this->jTime,
+                        pp('j_duration_with_team'),
+                        $jLane,
+                        $jT + $jLane
+                    );
+                }
             }
-        }
-        $this->jTime->addMinutes(pp("j_duration_with_team"));
+            $this->jTime->addMinutes(pp('j_duration_with_team'));
 
-        // 2) Scoring WITHOUT team
-        for ($jLane = 1; $jLane <= pp("j_lanes"); $jLane++) {
-            if ($jT + $jLane <= pp("c_teams")) {
-                $this->writer->insertActivity(
-                    'c_scoring',
-                    $this->jTime,
-                    pp("j_duration_scoring"),
-                    $jLane,               // jury_lane
-                    $jT + $jLane          // jury_team
-                );
+            // 2) Scoring WITHOUT team
+            for ($jLane = 1; $jLane <= pp('j_lanes'); $jLane++) {
+                if ($jT + $jLane <= pp('c_teams')) {
+                    $this->writer->insertActivity(
+                        'c_scoring',
+                        $this->jTime,
+                        pp('j_duration_scoring'),
+                        $jLane,
+                        $jT + $jLane
+                    );
+                }
             }
-        }
-        $this->jTime->addMinutes(pp("j_duration_scoring"));
+            $this->jTime->addMinutes(pp('j_duration_scoring'));
 
-        // 3) Pausenlogik vor nächster Runde
-        if ((pp("j_rounds") == 4 && $cBlock == 2) ||
-            (pp("j_rounds") > 4 && $cBlock == 3)) {
-            // Lunch break (nur wenn keine harte Pause gesetzt ist)
-            if (pp('c_duration_lunch_break') == 0) {
-                $this->jTime->addMinutes(pp("j_duration_lunch"));
+            // 3) Pause / Lunch nach Runde
+            if ((pp('j_rounds') == 4 && $cBlock == 2) ||
+                (pp('j_rounds') > 4 && $cBlock == 3)) {
+                if (pp('c_duration_lunch_break') == 0) {
+                    $this->jTime->addMinutes(pp('j_duration_lunch'));
+                }
+            } elseif ($cBlock < pp('j_rounds')) {
+                $this->jTime->addMinutes(pp('j_duration_break'));
             }
-        } else {
-            // normale Pause, aber nicht nach letztem Block
-            if ($cBlock < pp("j_rounds")) {
-                $this->jTime->addMinutes(pp("j_duration_break"));
-            }
-        }
+        });
     }
+
+    
 }
