@@ -35,16 +35,13 @@ class SetupTestEnvironment extends Command
         $this->info('🚀 Setting up test environment...');
 
         try {
-            // Step 1: Purge existing data
-            $this->purgeDatabase();
-
-            // Step 2: Create master data
+            // Step 1: Create master data (database is already fresh from db:wipe)
             $this->createMasterData();
 
-            // Step 3: Create test data
+            // Step 2: Create test data
             $this->createTestData();
 
-            // Step 4: Verification
+            // Step 3: Verification
             $this->verifySetup();
 
             $this->info('✅ Test environment setup complete!');
@@ -56,44 +53,14 @@ class SetupTestEnvironment extends Command
         }
     }
 
-    private function purgeDatabase()
-    {
-        $this->info('Purging existing data...');
-
-        // Disable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-
-        $tables = [
-            'activity', 'activity_group', 'event', 'event_logo', 'extra_block', 'logo',
-            'plan', 'plan_extra_block', 'plan_param_value', 'regional_partner', 'room',
-            'room_type_room', 'table_event', 'team', 'team_plan', 'user', 'user_regional_partner',
-            'slideshow', 'slide', 'publication', 's_generator',
-            'm_activity_type', 'm_activity_type_detail', 'm_first_program', 'm_insert_point',
-            'm_level', 'm_parameter', 'm_role', 'm_room_type', 'm_room_type_group',
-            'm_season', 'm_supported_plan', 'm_visibility'
-        ];
-
-        foreach ($tables as $table) {
-            if (DB::getSchemaBuilder()->hasTable($table)) {
-                DB::table($table)->truncate();
-                $this->line("  ✓ Cleared: {$table}");
-            }
-        }
-
-        // Re-enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-
-        $this->info('Database purge completed');
-    }
-
     private function createMasterData()
     {
         $this->info('Creating master data...');
 
-        // Run the main data seeder
+        // Run the main data seeder (kept up-to-date via GitHub PRs)
         $this->call('db:seed', ['--class' => 'MainDataSeeder']);
 
-        $this->info('Master data created');
+        $this->info('Master data created from MainDataSeeder.php');
     }
 
     private function createTestData()

@@ -53,8 +53,8 @@ class TestDataSeeder extends Seeder
     {
         $this->command->info('  Seeding test events...');
         
-        // Get the first season and level
-        $season = DB::table('m_season')->first();
+        // Get season 2 and the first level
+        $season = DB::table('m_season')->where('id', 2)->first();
         $level = DB::table('m_level')->first();
         
         if (!$season || !$level) {

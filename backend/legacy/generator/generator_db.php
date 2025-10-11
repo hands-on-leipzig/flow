@@ -157,8 +157,12 @@ function db_insert_activity_group($activity_type_detail)
 {
     global $g_activity_group;
 
+    // Get the event ID from the plan
+    $event_id = DB::table('plan')->where('id', pp('g_plan'))->value('event');
+
     $id = DB::table('activity_group')->insertGetId([
         'plan' => pp('g_plan'),
+        'event' => $event_id,
         'activity_type_detail' => $activity_type_detail,
     ]);
 

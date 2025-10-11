@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 // Load Laravel environment
 require_once __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
-$app->make('Illuminate\Contracts\Console\Kernel')->bootstrap();
+$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 function exportMainData()
 {

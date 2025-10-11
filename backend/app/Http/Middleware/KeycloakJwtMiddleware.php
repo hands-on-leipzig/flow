@@ -20,12 +20,6 @@ class KeycloakJwtMiddleware
 
     public function handle(Request $request, Closure $next)
     {
-        Log::info("KeycloakJwtMiddleware called", [
-            'path' => $request->path(),
-            'method' => $request->method(),
-            'has_auth_header' => $request->hasHeader('Authorization')
-        ]);
-        
         $authHeader = $request->header('Authorization');
 
         if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
@@ -73,11 +67,7 @@ class KeycloakJwtMiddleware
 
             try {
                 $subject = $claims['sub'] ?? null;
-                Log::info("🔍 Looking for user with subject", [
-                    'subject' => $subject,
-                    'subject_exists' => !is_null($subject)
-                ]);
-                
+
                 $user = User::firstOrCreate(
                     ['subject' => $subject],
                     [
@@ -90,25 +80,10 @@ class KeycloakJwtMiddleware
 
                 // Update last_login timestamp for existing users
                 if (!$user->wasRecentlyCreated) {
-                    Log::info("Updating last_login for existing user", [
-                        'user_id' => $user->id,
-                        'subject' => $user->subject,
-                        'old_last_login' => $user->last_login,
-                        'new_last_login' => now(),
-                        'was_recently_created' => $user->wasRecentlyCreated,
-                        'in_transaction' => \DB::transactionLevel() > 0
-                    ]);
-                    
+
                     try {
                         $updateResult = $user->update(['last_login' => now()]);
-                        
-                        Log::info("Update result", [
-                            'user_id' => $user->id,
-                            'update_success' => $updateResult,
-                            'last_login_after_update' => $user->fresh()->last_login,
-                            'user_dirty' => $user->isDirty(),
-                            'user_changes' => $user->getChanges()
-                        ]);
+
                     } catch (\Exception $e) {
                         Log::error("Failed to update last_login", [
                             'user_id' => $user->id,
@@ -129,17 +104,7 @@ class KeycloakJwtMiddleware
                     Log::info("🆕 NEW USER CREATED", [
                         'user_id' => $user->id,
                         'subject' => $user->subject,
-                        'roles' => $roles,
-                        'environment' => $env,
-                        'last_login' => $user->last_login,
-                        'created_at' => now()
-                    ]);
-                } else {
-                    Log::info("👤 EXISTING USER AUTHENTICATED", [
-                        'user_id' => $user->id,
-                        'subject' => $user->subject,
-                        'roles' => $roles,
-                        'last_login' => $user->last_login
+                        'roles' => $roles
                     ]);
                 }
             } catch (\Exception $e) {
@@ -157,8 +122,7 @@ class KeycloakJwtMiddleware
             }
 
             Auth::login($user);
-            Log::debug($path);
-            Log::debug(str_starts_with($path, 'admin'));
+
             // Admin route restriction
             if (str_starts_with($path, 'api/admin') || str_starts_with($path, 'api/plans/activities/')) {
                 if (!in_array('flow-admin', $roles) && !in_array('flow_admin', $roles)) {
@@ -179,10 +143,8 @@ class KeycloakJwtMiddleware
     private function assignTestRegionalPartners($user)
     {
         try {
-            // Check if user already has regional partners assigned
             if ($user->regionalPartners()->count() > 0) {
-                Log::debug("User {$user->subject} already has regional partners assigned");
-                return; // User already has regional partners assigned
+                return;
             }
 
             // Get test regional partners (created by fresh database script)
@@ -192,7 +154,6 @@ class KeycloakJwtMiddleware
 
             if ($testRPs->count() == 0) {
                 // No test regional partners found, create them
-                Log::info("No test regional partners found, creating them for user: {$user->subject}");
                 $this->createTestRegionalPartners();
                 $testRPs = DB::table('regional_partner')
                     ->where('name', 'LIKE', 'Test Regional Partner%')
@@ -210,8 +171,6 @@ class KeycloakJwtMiddleware
                     $assignedCount++;
                 }
             }
-
-            Log::info("Assigned {$assignedCount} test regional partners to flow-tester user: {$user->subject}");
         } catch (\Exception $e) {
             Log::error("Failed to assign test regional partners to user", [
                 'user_id' => $user->id,
@@ -253,7 +212,7 @@ class KeycloakJwtMiddleware
             ]);
 
             $rpBId = DB::table('regional_partner')->insertGetId([
-                'name' => 'Test Regional Partner B', 
+                'name' => 'Test Regional Partner B',
                 'region' => 'Test Region B',
                 'dolibarr_id' => 2002
             ]);
