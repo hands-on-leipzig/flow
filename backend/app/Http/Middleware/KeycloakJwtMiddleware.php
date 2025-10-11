@@ -91,21 +91,6 @@ class KeycloakJwtMiddleware
                             'trace' => $e->getTraceAsString()
                         ]);
                     }
-                } else {
-                    Log::info("User was recently created, skipping last_login update", [
-                        'user_id' => $user->id,
-                        'subject' => $user->subject,
-                        'last_login' => $user->last_login
-                    ]);
-                }
-
-                // Log user creation/authentication
-                if ($user->wasRecentlyCreated) {
-                    Log::info("🆕 NEW USER CREATED", [
-                        'user_id' => $user->id,
-                        'subject' => $user->subject,
-                        'roles' => $roles
-                    ]);
                 }
             } catch (\Exception $e) {
                 Log::error("Failed to create or retrieve user", [
