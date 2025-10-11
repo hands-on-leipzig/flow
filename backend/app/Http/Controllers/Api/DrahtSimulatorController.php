@@ -14,19 +14,19 @@ class DrahtSimulatorController extends Controller
     public function handle(Request $request, $path = '')
     {
         Log::info("Draht Simulator called with path: /{$path}");
-        
+
         // Route to appropriate simulator method based on path
         switch ($path) {
             case 'handson/rp':
                 return $this->simulateGetAllRegions();
-                
+
             case 'handson/flow/events':
                 return $this->simulateGetAllEventsAndTeams();
-                
+
             case preg_match('/^handson\/events\/(\d+)\/scheduledata$/', $path, $matches) ? true : false:
                 $eventId = $matches[1];
                 return $this->simulateGetEventScheduleData($eventId);
-                
+
             default:
                 return response()->json(['error' => 'Simulated endpoint not found'], 404);
         }
@@ -69,7 +69,7 @@ class DrahtSimulatorController extends Controller
                 'first_program' => 2, // Explore only
                 'date' => strtotime('+30 days'),
                 'enddate' => strtotime('+30 days'),
-                'teams' => $this->generateFLLTeams(1001, 2, 6) // 6 teams for explore
+                'teams' => $this->generateFLLTeams(2, 6) // 6 teams for explore
             ],
             [
                 'id' => 1002,
@@ -78,7 +78,7 @@ class DrahtSimulatorController extends Controller
                 'first_program' => 3, // Challenge only
                 'date' => strtotime('+45 days'),
                 'enddate' => strtotime('+45 days'),
-                'teams' => $this->generateFLLTeams(1002, 3, 8) // 8 teams for challenge
+                'teams' => $this->generateFLLTeams(3, 8) // 8 teams for challenge
             ],
             [
                 'id' => 1003,
@@ -87,7 +87,7 @@ class DrahtSimulatorController extends Controller
                 'first_program' => 1, // Both Explore and Challenge
                 'date' => strtotime('+60 days'),
                 'enddate' => strtotime('+60 days'),
-                'teams' => $this->generateFLLTeams(1003, 1, 10) // 10 teams for combined
+                'teams' => $this->generateFLLTeams(1, 10) // 10 teams for combined
             ],
             [
                 'id' => 1004,
@@ -96,7 +96,7 @@ class DrahtSimulatorController extends Controller
                 'first_program' => 2, // Explore only
                 'date' => strtotime('+75 days'),
                 'enddate' => strtotime('+75 days'),
-                'teams' => $this->generateFLLTeams(1004, 2, 5) // 5 teams for explore
+                'teams' => $this->generateFLLTeams(2, 5) // 5 teams for explore
             ],
             [
                 'id' => 1005,
@@ -105,7 +105,7 @@ class DrahtSimulatorController extends Controller
                 'first_program' => 3, // Challenge only
                 'date' => strtotime('+90 days'),
                 'enddate' => strtotime('+90 days'),
-                'teams' => $this->generateFLLTeams(1005, 3, 7) // 7 teams for challenge
+                'teams' => $this->generateFLLTeams(3, 7) // 7 teams for challenge
             ]
         ]);
     }
@@ -116,14 +116,14 @@ class DrahtSimulatorController extends Controller
     private function simulateGetEventScheduleData($eventId)
     {
         $eventInfo = $this->getEventInfo($eventId);
-        
+
         $eventData = [
             'id' => (int)$eventId,
             'name' => $eventInfo['name'],
             'address' => $eventInfo['address'],
             'contact' => serialize($this->generateContacts($eventInfo)),
             'information' => $eventInfo['information'],
-            'teams' => $this->generateFLLTeams($eventId, $eventInfo['program_type'], $eventInfo['team_count']),
+            'teams' => $this->generateFLLTeams($eventInfo['program_type'], $eventInfo['team_count']),
             'capacity_teams' => $eventInfo['capacity'],
             'date' => strtotime('+' . rand(1, 90) . ' days'),
             'enddate' => strtotime('+' . rand(1, 90) . ' days'),
@@ -209,23 +209,36 @@ class DrahtSimulatorController extends Controller
     }
 
     /**
+     * Generate realistic team number
+     */
+    private function getTeamNumber($programType)
+    {
+        switch ($programType) {
+            case 2:
+                return rand(3001, 3999);
+            case 3:
+                return rand(1001, 1999);
+        }
+    }
+
+    /**
      * Generate FLL teams with realistic names
      */
-    private function generateFLLTeams($eventId, $programType, $teamCount)
+    private function generateFLLTeams($programType, $teamCount)
     {
         $teamNames = $this->getFLLTeamNames($programType);
         $teams = [];
-        
+
         for ($i = 0; $i < $teamCount; $i++) {
             $teamName = $teamNames[$i] ?? "Team " . chr(65 + $i);
             $teams[] = [
-                'id' => ($eventId * 100) + $i + 1,
+                'id' => $this->getTeamNumber($programType),
                 'name' => $teamName,
                 'first_program' => $programType === 1 ? (rand(1, 2) == 1 ? 2 : 3) : $programType,
                 'members' => $this->generateGermanMembers($i + 1)
             ];
         }
-        
+
         return $teams;
     }
 
@@ -239,24 +252,28 @@ class DrahtSimulatorController extends Controller
             'RoboRangers', 'TechTigers', 'ScienceStars', 'ExplorerElite', 'RoboRockets',
             'TechTrekkers', 'DiscoveryDynamos', 'FutureFlashers', 'RoboRunners', 'TechTitans'
         ];
-        
+
         $challengeNames = [
             'RoboChampions', 'TechMasters', 'EliteEngineers', 'RoboRulers', 'TechTitans',
             'ChallengeChamps', 'RoboRebels', 'TechThunder', 'EliteEagles', 'RoboRockets',
             'TechTornadoes', 'ChallengeCrushers', 'RoboRangers', 'TechTigers', 'EliteElites'
         ];
-        
+
         $combinedNames = [
             'RoboAllStars', 'TechElite', 'FutureChampions', 'RoboMasters', 'TechHeroes',
             'EliteExplorers', 'RoboChampions', 'TechStars', 'FutureLeaders', 'RoboElite',
             'TechChampions', 'EliteTech', 'RoboHeroes', 'TechLeaders', 'FutureElite'
         ];
-        
+
         switch ($programType) {
-            case 2: return $exploreNames;
-            case 3: return $challengeNames;
-            case 1: return $combinedNames;
-            default: return array_merge($exploreNames, $challengeNames);
+            case 2:
+                return $exploreNames;
+            case 3:
+                return $challengeNames;
+            case 1:
+                return $combinedNames;
+            default:
+                return array_merge($exploreNames, $challengeNames);
         }
     }
 
@@ -267,18 +284,18 @@ class DrahtSimulatorController extends Controller
     {
         $memberCount = rand(2, 4);
         $members = [];
-        
+
         $firstNames = [
             'male' => ['Maximilian', 'Alexander', 'Paul', 'Elias', 'Ben', 'Felix', 'Lukas', 'Noah', 'Leon', 'Jonas', 'Finn', 'Liam', 'Anton', 'Theo', 'Emil'],
             'female' => ['Mia', 'Emma', 'Hannah', 'Sophia', 'Emilia', 'Lina', 'Marie', 'Anna', 'Lea', 'Lena', 'Clara', 'Lilly', 'Amelie', 'Mila', 'Ella']
         ];
-        
+
         $lastNames = [
             'Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker', 'Schulz', 'Hoffmann',
             'Schäfer', 'Bauer', 'Koch', 'Richter', 'Klein', 'Wolf', 'Schröder', 'Neumann', 'Schwarz', 'Zimmermann',
             'Braun', 'Hofmann', 'Lange', 'Schmitt', 'Werner', 'Schmitz', 'Krause', 'Meier', 'Lehmann', 'Schmid'
         ];
-        
+
         for ($i = 0; $i < $memberCount; $i++) {
             $gender = rand(0, 1) ? 'male' : 'female';
             $firstName = $firstNames[$gender][array_rand($firstNames[$gender])];
@@ -289,7 +306,7 @@ class DrahtSimulatorController extends Controller
                 'role' => $i === 0 ? 'Team Leader' : 'Member'
             ];
         }
-        
+
         return $members;
     }
 
@@ -299,7 +316,7 @@ class DrahtSimulatorController extends Controller
     private function generateContacts($eventInfo)
     {
         $contacts = [];
-        
+
         // Primary contact (from event info)
         $contacts[] = [
             'contact' => $eventInfo['contact_name'],
@@ -310,13 +327,13 @@ class DrahtSimulatorController extends Controller
         // Generate 1-2 additional contacts
         $additionalContacts = rand(1, 2);
         $roles = ['Technical Support', 'Administration', 'Volunteer Coordinator', 'Safety Officer'];
-        
+
         for ($i = 0; $i < $additionalContacts; $i++) {
             $name = $this->generateGermanName();
             $email = $this->generateEmail($eventInfo['contact_email']);
             $phone = $this->generatePhone();
             $role = $roles[array_rand($roles)];
-            
+
             $contacts[] = [
                 'contact' => $name,
                 'contact_email' => $email,
@@ -334,7 +351,7 @@ class DrahtSimulatorController extends Controller
     {
         $firstNames = ['Anna', 'Max', 'Lisa', 'Tom', 'Sarah', 'Ben', 'Emma', 'Lukas', 'Hannah', 'Felix'];
         $lastNames = ['Schmidt', 'Müller', 'Weber', 'Wagner', 'Becker', 'Schulz', 'Hoffmann', 'Koch', 'Richter', 'Klein'];
-        
+
         return $firstNames[array_rand($firstNames)] . ' ' . $lastNames[array_rand($lastNames)];
     }
 
