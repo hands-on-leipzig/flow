@@ -54,7 +54,7 @@ define('ID_ATD_E_JUDGING_PACKAGE', 4);
 define('ID_ATD_E_WITH_TEAM', 1);
 define('ID_ATD_E_SCORING', 2);
 define('ID_ATD_E_DELIBERATIONS', 3);
-define('ID_ATD_E_AWARDS', 31);
+define('ID_ATD_E_AWARDS', 56);
 define('ID_ATD_E_COACH_BRIEFING', 38);
 define('ID_ATD_E_JUDGE_BRIEFING', 39);
 

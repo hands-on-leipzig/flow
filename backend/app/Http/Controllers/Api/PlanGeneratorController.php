@@ -54,13 +54,13 @@ class PlanGeneratorController extends Controller
     }
 
     public function generateLite(int $planId)
-{
-    // Service aufrufen
-    app(\App\Services\PlanGeneratorService::class)->generateLite($planId);
+    {
+        // Service aufrufen
+        app(\App\Services\PlanGeneratorService::class)->generateLite($planId);
 
-    return response()->json([
-        'status' => 'ok',
-        'message' => "Lite generation completed for plan {$planId}",
-    ]);
-}
+        return response()->json([
+            'status' => 'ok',
+            'message' => "Lite generation completed for plan {$planId}",
+        ]);
+    }
 }

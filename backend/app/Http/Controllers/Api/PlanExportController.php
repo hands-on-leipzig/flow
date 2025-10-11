@@ -499,7 +499,7 @@ class PlanExportController extends Controller
                 } elseif (!empty($name)) {
                     return $name;
                 } elseif (!empty($numInternal)) {
-                    return sprintf("T%02d", $numInternal);
+                    return sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $numInternal);
                 } else {
                     return '–';
                 }
@@ -564,6 +564,63 @@ class PlanExportController extends Controller
             }
         }
 
+
+// --- 🔹 Vorbereitung: Räume aus team_plan laden ---
+$prepRooms = DB::table('team_plan')
+    ->where('plan', $planId)
+    ->whereNotNull('room')
+    ->distinct()
+    ->pluck('room');
+
+if ($prepRooms->isNotEmpty()) {
+    // Raumdetails aus room-Tabelle
+    $rooms = DB::table('room')
+        ->whereIn('id', $prepRooms)
+        ->select('id', 'name')
+        ->orderBy('name')
+        ->get();
+
+    foreach ($rooms as $room) {
+        // Teams, die diesem Raum zugeordnet sind
+        $teams = DB::table('team_plan')
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team_plan.plan', $planId)
+            ->where('team_plan.room', $room->id)
+            ->select(
+                'team.name as team_name',
+                'team.team_number_hot as team_number_hot',
+                'team.first_program as program'
+            )
+            ->orderBy('team.team_number_hot')
+            ->get();
+
+        if ($teams->isEmpty()) {
+            continue;
+        }
+
+        // Zeilen für Tabelle aufbauen
+        $rows = $teams->map(function ($t) {
+            return [
+                'is_explore'   => in_array($t->program, [0, 2]),
+                'is_challenge' => in_array($t->program, [0, 3]),
+                'team_display' => trim($t->team_name . ' (' . $t->team_number_hot . ')'),
+            ];
+        });
+
+        // Seite rendern
+        $html .= view('pdf.content.room_schedule_preparation', [
+            'room'  => $room->name,
+            'rows'  => $rows,
+            'event' => $event,
+        ])->render();
+
+        // Seitenumbruch nach jeder Raumseite
+        $html .= '<div style="page-break-before: always;"></div>';
+    }
+}
+
+
+
         // Jetzt EIN Layout drumherum bauen
         $layout = app(\App\Services\PdfLayoutService::class);
         $finalHtml = $layout->renderLayout($event, $html, 'FLOW Raumbeschilderung');
@@ -620,6 +677,7 @@ class PlanExportController extends Controller
                 ['end_time', 'asc'],
             ]);
 
+            // reguläre Aktivitäten sammeln
             $rows = $acts->map(function ($a) {
                 return [
                     'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
@@ -629,6 +687,35 @@ class PlanExportController extends Controller
                 ];
             })->values()->all();
 
+            // 🔹 Raumname aus team_plan → room
+            $teamRoomName = '!Platzhalter, weil das Team noch keinem Raum zugeordnet wurde!';
+
+            $teamId = $page['team_id'] ?? null; // muss von deinen build*Pages mitgegeben werden
+            if ($teamId) {
+                $roomId = DB::table('team_plan')
+                    ->where('plan', $planId)
+                    ->where('team', $teamId)
+                    ->value('room');
+
+                if ($roomId) {
+                    $roomName = DB::table('room')
+                        ->where('id', $roomId)
+                        ->value('name');
+
+                    if ($roomName) {
+                        $teamRoomName = $roomName;
+                    }
+                }
+            }
+
+            // ➕ Zusatzzeile "Teambereich"
+            array_unshift($rows, [
+                'start'    => '',
+                'end'      => '',
+                'activity' => 'Teambereich',
+                'room'     => $teamRoomName,
+            ]);
+            
             // In Seitenblöcke teilen
             $chunks = array_chunk($rows, $maxRowsPerPage);
             $chunkCount = count($chunks);
@@ -708,13 +795,14 @@ class PlanExportController extends Controller
             } elseif ($teamName) {
                 $label = "FLL Explore {$teamName}";
             } elseif ($num > 0) {
-                $label = sprintf("FLL Explore T%02d", $num);
+                $label = sprintf("FLL Explore T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $num);
             } else {
                 $label = "FLL Explore –";
             }
 
             $pages[] = [
                 'label' => $label,
+                'team_id' => $num,
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -812,13 +900,14 @@ class PlanExportController extends Controller
             } elseif ($teamName) {
                 $label = "FLL Challenge {$teamName}";
             } elseif ($num > 0) {
-                $label = sprintf("FLL Challenge T%02d", $num);
+                $label = sprintf("FLL Challenge T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $num);
             } else {
                 $label = "FLL Challenge –";
             }
 
             $pages[] = [
                 'label' => $label,
+                'team_id' => $num,
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -970,7 +1059,7 @@ class PlanExportController extends Controller
                     };
                     $fmtInternal = function ($num) {
                         if ($num !== null && $num !== '' && (int)$num > 0) {
-                            return sprintf('T%02d', (int)$num);
+                            return sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', (int)$num);
                         }
                         return null;
                     };
