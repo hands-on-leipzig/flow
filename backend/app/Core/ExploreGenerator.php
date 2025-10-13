@@ -45,31 +45,29 @@ class ExploreGenerator
         Log::info('ExploreGenerator: Starting openings and briefings', ['group' => $group, 'challenge' => $challenge]);
 
         try {
-            $startOpening = $this->eTime->current();
+            if ($challenge) {
 
-        if ($challenge) {
+                $this->eTime->addMinutes($this->pp('g_duration_opening'));
 
-            $this->eTime->addMinutes($this->pp('g_duration_opening'));
-
-        } else {
-
-            $this->eTime->setTime($this->pp("e{$group}_start_opening"));
-
-            $this->writer->withGroup('e_opening', function () use ($group) {
-                $this->writer->insertActivity('e_opening', $this->eTime, $this->pp("e{$group}_duration_opening"));
-            });
-
-            $this->eTime->addMinutes($this->pp("e{$group}_duration_opening"));
-
-            if($group == 1) {
-                Log::info('Explore stand-alone morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
             } else {
-                Log::info('Explore stand-alone afternoon: teams=' . $this->pp('e2_teams') . ', lanes=' . $this->pp('e2_lanes') . ', rounds=' . $this->pp('e2_rounds'));
+
+                $this->eTime->setTime($this->pp("e{$group}_start_opening"));
+
+                $this->writer->withGroup('e_opening', function () use ($group) {
+                    $this->writer->insertActivity('e_opening', $this->eTime, $this->pp("e{$group}_duration_opening"));
+                });
+
+                $this->eTime->addMinutes($this->pp("e{$group}_duration_opening"));
+
+                if($group == 1) {
+                    Log::info('Explore stand-alone morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
+                } else {
+                    Log::info('Explore stand-alone afternoon: teams=' . $this->pp('e2_teams') . ', lanes=' . $this->pp('e2_lanes') . ', rounds=' . $this->pp('e2_rounds'));
+                }
+
             }
 
-        }
-
-        $this->briefings($startOpening, $group);
+            $this->briefings($this->eTime->current(), $group);
 
         } catch (\Throwable $e) {
             Log::error('ExploreGenerator: Error in openings and briefings', [

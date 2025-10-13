@@ -123,16 +123,9 @@ class ChallengeGenerator
 
             } else {
 
-
-
-
                 $this->cTime->setTime($this->pp('c_start_opening'));
                 $this->jTime = clone $this->cTime;
                 $this->rTime = clone $this->cTime;
-
-                Log::debug('First', [
-                    $this->cTime->format('H:i'),   
-                ]);
 
                 $this->writer->withGroup('c_opening', function () {
                     $this->writer->insertActivity('c_opening', $this->cTime, $this->pp('c_duration_opening'));
@@ -143,11 +136,6 @@ class ChallengeGenerator
 
                 Log::debug('Explore no integrated morning batch');
             }
-
-            Log::debug('Second', [
-                $this->cTime->format('H:i'),   
-            ]);
-
 
             $this->briefings($this->cTime->current());
 
@@ -163,37 +151,27 @@ class ChallengeGenerator
 
     public function briefings(\DateTime $t): void
     {
-        Log::debug('Challenge briefings', [
-            't' => $t->format('H:i'),   
-            'duration' => $this->pp('c_duration_briefing'), 
-            'ready_opening' => $this->pp('c_ready_opening')
-        ]);
-
 
         $this->writer->withGroup('c_briefing', function () use ($t) {
             $cursor = new TimeCursor($t);
             $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening'));
             $this->writer->insertActivity('c_briefing', $cursor, $this->pp('c_duration_briefing'));
         });
-
-        Log::debug('Challenge briefings', [
-            't' => $t->format('H:i'),   
-            'duration' => $this->pp('c_duration_briefing'), 
-            'ready_opening' => $this->pp('c_ready_opening')
-        ]);
-
         
         $this->writer->withGroup('j_briefing', function () use ($t) {
             if (!$this->pp('j_briefing_after_opening')) {
                 $cursor = new TimeCursor($t);
                 $cursor->subMinutes($this->pp('j_duration_briefing') + $this->pp('c_ready_opening'));
                 $this->writer->insertActivity('j_briefing', $cursor, $this->pp('j_duration_briefing'));
+                
+
             } else {
                 $cursor = $this->jTime->copy();
                 $cursor->addMinutes($this->pp('j_ready_briefing'));
                 $this->writer->insertActivity('j_briefing', $cursor, $this->pp('j_duration_briefing'));
-                $this->jTime->addMinutes($this->pp('j_ready_briefing') + $this->pp('j_duration_briefing') + $this->pp('j_ready_action'));
+                $this->jTime->addMinutes($this->pp('j_ready_briefing') + $this->pp('j_duration_briefing') );
             }
+            $this->jTime->addMinutes($this->pp('j_ready_action'));
         });
 
         $this->writer->withGroup('r_briefing', function () use ($t) {
@@ -205,8 +183,10 @@ class ChallengeGenerator
                 $cursor = $this->rTime->copy();
                 $cursor->addMinutes($this->pp('r_ready_briefing'));
                 $this->writer->insertActivity('r_briefing', $cursor, $this->pp('r_duration_briefing'));
-                $this->rTime->addMinutes($this->pp('r_ready_briefing') + $this->pp('r_duration_briefing') + $this->pp('r_ready_action'));
+                $this->rTime->addMinutes($this->pp('r_ready_briefing') + $this->pp('r_duration_briefing') );
             }
+
+            $this->rTime->addMinutes($this->pp('r_ready_action'));
         });
 
     }
