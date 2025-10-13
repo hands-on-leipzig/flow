@@ -54,23 +54,7 @@ class ChallengeGenerator
         return $this->matchPlan;
     }
 
-    public function presentations(): void
-    {
-        $duration = pp('c_presentations') * pp('c_duration_presentation') + 5;
-
-        $this->writer->withGroup('c_presentations', function () use ($duration) {
-            $this->writer->insertActivity('c_presentations', $this->rTime, $duration);
-        });
-
-        $this->rTime->addMinutes($duration);
-
-        $insertPoint = pp('c_presentations_last')
-            ? 'c_ready_awards'
-            : 'c_ready_presentations';
-
-        $this->writer->insertPoint('presentations', pp($insertPoint), $this->rTime);
-    }
-
+    
     
 
     public function judgingOneRound(int $cBlock, int $jT): void
@@ -216,28 +200,6 @@ class ChallengeGenerator
 
             } else {
                 Log::debug('Explore no decoupled groups');
-            }
-
-            // -----------------------------------------------------------------------------------
-            // Finale has an extra day for Live Challenge and RG test rounds
-            // -----------------------------------------------------------------------------------
-
-            if ($this->pp('g_finale')) {
-
-                // Only for the D-A-CH final we run the Live Challenge
-                // This is done on the day before the regular event
-                // Teams get extra time with the same judges they meet during the regular event
-                // In parallel test rounds for robot game are run
-
-                Log::debug('Finale mode active → starting Live Challenge day');
-
-                // Der Live-Challenge-Generator kann später eine eigene Klasse bekommen, z. B. LiveChallengeGenerator
-                // Bis dahin Platzhalter:
-                if (method_exists($this, 'generateLiveChallenge')) {
-                    $this->generateLiveChallenge();
-                } else {
-                    Log::warning('Live Challenge generation not yet implemented (TODO)');
-                }
             }
 
         } else {
@@ -529,22 +491,8 @@ class ChallengeGenerator
         }
 
         Log::info('=== FLL Challenge generation complete ===');
-    }
 
-
-    public function robotGameFinals(): void
-    {
-        // -----------------------------------------------------------------------------------
-        // FLL Challenge: Everything after judging / robot game rounds
-        // -----------------------------------------------------------------------------------
-        // 1 Judges go to deliberation
-        // 2 Selected research on main stage
-        // 3 followed by robot game finals
-        // 4 awards
-        //
-        // 2 and 3 may be flipped
-
-        // -----------------------------------------------------------------------------------
+                // -----------------------------------------------------------------------------------
         // FLL Challenge: Deliberations
         // -----------------------------------------------------------------------------------
 
@@ -556,41 +504,20 @@ class ChallengeGenerator
             $this->writer->insertActivity('c_deliberations', $this->jTime, $this->pp('j_duration_deliberations'));
         });
         $this->jTime->addMinutes($this->pp('j_duration_deliberations'));
+    }
 
+
+    public function robotGameFinals(): void
+    {
         // -----------------------------------------------------------------------------------
-        // Special for D-A-CH finale Siegen 2025: Move the next to another day. TODO
+        // FLL Challenge: Everything after judging / robot game rounds
         // -----------------------------------------------------------------------------------
-        if ($this->pp('g_finale') && $this->pp('g_days') == 3) {
-
-            // Debriefing for referees
-            $this->rTime->addMinutes($this->pp('r_duration_break'));
-            $this->writer->withGroup('r_referee_debriefing', function () {
-                // alle 0er-Params aus der alten Welt sind hier nicht nötig
-                $this->writer->insertActivity('r_referee_debriefing', $this->rTime, $this->pp('r_duration_debriefing'));
-            });
-
-            // Move to next day
-            [$h3, $m3] = explode(':', $this->pp('f_start_opening_day_3'));
-            $this->cTime->current()->setTime((int)$h3, (int)$m3);
-            $this->cTime->addMinutes(24 * 60); // +1 day
-
-            // Additional short referee briefing (morning day 3)
-            $t = $this->cTime->copy();
-            $t->addMinutes(-1 * ($this->pp('r_duration_briefing_2') + $this->pp('c_ready_opening')));
-
-            $this->writer->withGroup('r_referee_briefing', function () use ($t) {
-                $this->writer->insertActivity('r_referee_briefing', $t, $this->pp('r_duration_briefing_2'));
-            });
-
-            // Small opening day 3
-            $this->writer->withGroup('c_opening_day_3', function () {
-                $this->writer->insertActivity('c_opening_day_3', $this->cTime, $this->pp('f_duration_opening_day_3'));
-            });
-            $this->cTime->addMinutes($this->pp('f_duration_opening_day_3'));
-
-            // Buffer between opening and first action for teams and judges
-            $this->cTime->addMinutes($this->pp('f_ready_action_day_3'));
-        }
+        //  
+        // 1 Selected research on main stage
+        // 2 followed by robot game finals
+        // 3 awards
+        //
+        // 1 and 2 may be flipped
 
         // -----------------------------------------------------------------------------------
         // FLL Challenge: Research presentations on stage
@@ -612,14 +539,9 @@ class ChallengeGenerator
             $this->rTime->addMinutes($this->pp('c_ready_presentations'));
 
             // Nutzt den existierenden ChallengeGenerator
-            $this->challenge->presentations();
+            $this->presentations();
             // ChallengeGenerator verschiebt $rTime intern bereits um die Dauer
         }
-
-        // TODEL
-        // Additional 5 minutes to show who advances and for those teams to get ready
-        // (war im Legacy auskommentiert, übernehmen wir kommentiert)
-        // $this->rTime->addMinutes($this->pp('r_duration_results'));
 
         // -----------------------------------------------------------------------------------
         /// Robot-game final rounds
@@ -631,7 +553,7 @@ class ChallengeGenerator
         if ($this->pp('g_finale') && $this->pp('c_teams') >= 16) {
             // The DACH Finale is the only event running the round of best 16
             if (method_exists($this->matchPlan, 'finalRound')) {
-                $this->matchPlan->finalRound(16, $this->rTime);
+                $this->matchPlan->insertFinalRound(16, $this->rTime);
             } else {
                 // Fallback: gleiche Semantik wie r_insert_one_round für Finals (TODO: implement in MatchPlan)
                 $this->matchPlan->insertOneRound(16, $this->rTime);
@@ -641,7 +563,7 @@ class ChallengeGenerator
         // Organizer can decide not to run round of best 8
         if (($this->pp('g_finale') || $this->pp('r_quarter_final')) && $this->pp('c_teams') >= 8) {
             if (method_exists($this->matchPlan, 'finalRound')) {
-                $this->matchPlan->finalRound(8, $this->rTime);
+                $this->matchPlan->insertFinalRound(8, $this->rTime);
             } else {
                 $this->matchPlan->insertOneRound(8, $this->rTime);
             }
@@ -649,14 +571,14 @@ class ChallengeGenerator
 
         // Semi finale is a must
         if (method_exists($this->matchPlan, 'finalRound')) {
-            $this->matchPlan->finalRound(4, $this->rTime);
+            $this->matchPlan->insertFinalRound(4, $this->rTime);
         } else {
             $this->matchPlan->insertOneRound(4, $this->rTime);
         }
 
         // Final matches
         if (method_exists($this->matchPlan, 'finalRound')) {
-            $this->matchPlan->finalRound(2, $this->rTime);
+            $this->matchPlan->insertFinalRound(2, $this->rTime);
         } else {
             $this->matchPlan->insertOneRound(2, $this->rTime);
         }
@@ -668,13 +590,10 @@ class ChallengeGenerator
             // Research presentations on stage
             $this->rTime->addMinutes($this->pp('c_ready_presentations'));
 
-            $this->challenge->presentations();
+            $this->presentations();
         }
 
-        // -----------------------------------------------------------------------------------
-        // Awards
-        // -----------------------------------------------------------------------------------
-
+  
         // back to only one action a time
         $this->cTime = $this->rTime->copy();
 
@@ -687,6 +606,24 @@ class ChallengeGenerator
      
     }
     
+    public function presentations(): void
+    {
+        $duration = pp('c_presentations') * pp('c_duration_presentation') + 5;
+
+        $this->writer->withGroup('c_presentations', function () use ($duration) {
+            $this->writer->insertActivity('c_presentations', $this->rTime, $duration);
+        });
+
+        $this->rTime->addMinutes($duration);
+
+        $insertPoint = pp('c_presentations_last')
+            ? 'c_ready_awards'
+            : 'c_ready_presentations';
+
+        $this->writer->insertPoint('presentations', pp($insertPoint), $this->rTime);
+    }
+
+
     public function awards( bool $explore = false): void
     {
 
