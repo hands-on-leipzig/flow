@@ -87,27 +87,6 @@ class PlanGeneratorCore
         $this->eTime = new TimeCursor(clone $gDate);
 
         // Initialize derived parameters via generators' constructors
-        $this->prepareGenerators();
-        
-        try {
-                $this->main();
-            } catch (\Throwable $e) {
-                Log::error("Plan generation failed: {$e->getMessage()}", ['plan_id' => $this->planId]);
-                throw $e;
-            }
-        
-        Log::info("PlanGeneratorCore: Finished generation for plan {$this->planId}");
-
-        // -----------------------------------------------------------------------------------
-        // Add all free blocks.
-        // Timing does not matter, because these are parallel to other activities.
-        // -----------------------------------------------------------------------------------
-
-        $this->writer->insertFreeActivities();
-    }
-
-    private function prepareGenerators(): void
-    {
         // MatchPlan hängt nur von Writer ab
         $this->matchPlan = new MatchPlan($this->writer);
 
@@ -126,6 +105,22 @@ class PlanGeneratorCore
             $this->rTime,
             $this->planId
         );
+        
+        try {
+                $this->main();
+            } catch (\Throwable $e) {
+                Log::error("Plan generation failed: {$e->getMessage()}", ['plan_id' => $this->planId]);
+                throw $e;
+            }
+        
+        Log::info("PlanGeneratorCore: Finished generation for plan {$this->planId}");
+
+        // -----------------------------------------------------------------------------------
+        // Add all free blocks.
+        // Timing does not matter, because these are parallel to other activities.
+        // -----------------------------------------------------------------------------------
+
+        $this->writer->insertFreeActivities();
     }
 
     public function initialize(): void
