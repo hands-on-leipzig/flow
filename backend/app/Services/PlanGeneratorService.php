@@ -13,12 +13,6 @@ class PlanGeneratorService
 {
     public function isSupported(int $planId): bool
     {
-        // Plan muss existieren
-        $plan = DB::table('plan')->where('id', $planId)->first();
-        if (!$plan) {
-            return false;
-        }
-
         // Parameter laden
         $params = PlanParameter::load($planId);
 
@@ -36,12 +30,13 @@ class PlanGeneratorService
             );
 
             if (!$ok) {
-                throw new \RuntimeException(
-                    'Unsupported Challenge plan ' .
-                    $params->get("c_teams") . '-' .
-                    $params->get("j_lanes") . '-' .
-                    $params->get("r_tables")
-                );
+                Log::warning('Unsupported Challenge plan', [
+                    'plan_id' => $planId,
+                    'teams' => $params->get('c_teams'),
+                    'lanes' => $params->get('j_lanes'),
+                    'tables' => $params->get('r_tables'),
+                ]);
+                return false;
             }
         }
 
@@ -55,11 +50,12 @@ class PlanGeneratorService
             );
 
             if (!$ok) {
-                throw new \RuntimeException(
-                    'Unsupported Explore plan ' .
-                    $params->get("e1_teams") . '-' .
-                    $params->get("e1_lanes")
-                );
+                Log::warning('Unsupported Explore plan', [
+                    'plan_id' => $planId,
+                    'teams' => $params->get('e1_teams'),
+                    'lanes' => $params->get('e1_lanes'),
+                ]);
+                return false;
             }
         }
 
@@ -71,11 +67,12 @@ class PlanGeneratorService
             );
 
             if (!$ok) {
-                throw new \RuntimeException(
-                    'Unsupported Explore plan ' .
-                    $params->get("e2_teams") . '-' .
-                    $params->get("e2_lanes")
-                );
+                Log::warning('Unsupported Explore plan', [
+                    'plan_id' => $planId,
+                    'teams' => $params->get('e2_teams'),
+                    'lanes' => $params->get('e2_lanes'),
+                ]);
+                return false;
             }
         }
 
@@ -134,8 +131,11 @@ class PlanGeneratorService
             }
 
             $this->finalize($planId, 'done');
-        } catch (\RuntimeException $e) {
-            Log::error("Fehler beim Generieren des Plans {$planId}: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Fehler beim Generieren des Plans', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+            ]);
             $this->finalize($planId, 'failed');
         }
     }
@@ -152,8 +152,11 @@ class PlanGeneratorService
             }
 
             $this->finalize($planId, 'done');
-        } catch (\RuntimeException $e) {
-            Log::error("Fehler beim Generieren des Plans {$planId}: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Fehler beim Generieren des Plans', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+            ]);
             $this->finalize($planId, 'failed');
         }
     }
