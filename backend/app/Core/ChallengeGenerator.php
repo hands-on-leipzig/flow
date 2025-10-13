@@ -99,6 +99,7 @@ class ChallengeGenerator
     public function openingsAndBriefings(bool $explore = false): void
     {
         Log::info('ChallengeGenerator: Starting openings and briefings', ['explore' => $explore]);
+
         $startOpening = clone $this->cTime; 
 
         if ($explore) {
@@ -175,7 +176,6 @@ class ChallengeGenerator
     public function main(bool $explore = false)
     {
         Log::info('ChallengeGenerator: Starting main challenge generation', ['explore' => $explore]);
-        Log::info('=== FLL Challenge generation start ===');
 
         // -----------------------------------------------------------------------------------
         // FLL Challenge: Put the judging / robot game schedule together
