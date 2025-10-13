@@ -83,4 +83,12 @@ class TimeCursor
         $diff = $this->time->diff($other->current());
         return ($diff->days * 24 * 60) + ($diff->h * 60) + $diff->i;
     }
+
+    /**
+     * Deep clone implementation to ensure DateTime is properly cloned.
+     */
+    public function __clone()
+    {
+        $this->time = clone $this->time;
+    }
 }

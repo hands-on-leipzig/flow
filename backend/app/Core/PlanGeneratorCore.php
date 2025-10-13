@@ -70,6 +70,9 @@ class PlanGeneratorCore
         $cMode = $this->pp('c_mode');
         $eMode = $this->pp('e_mode');
 
+        
+
+
         if ($cMode == 1) {
             // Challenge present - instantiate ChallengeGenerator
         $this->challenge = new ChallengeGenerator(

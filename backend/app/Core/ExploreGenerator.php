@@ -12,7 +12,6 @@ class ExploreGenerator
 {
     private ActivityWriter $writer;
     private TimeCursor $eTime;
-    private TimeCursor $rTime;
 
     use UsesPlanParameter;
 
@@ -24,7 +23,6 @@ class ExploreGenerator
         // Create time cursors from base date
         $baseDate = $params->get('g_date');
         $this->eTime = new TimeCursor(clone $baseDate);
-        $this->rTime = new TimeCursor(clone $baseDate);
 
         // Derived parameters formerly computed in Core::initialize for Explore
         $e1Teams = (int) ($params->get('e1_teams') ?? 0);
@@ -47,7 +45,7 @@ class ExploreGenerator
         Log::info('ExploreGenerator: Starting openings and briefings', ['group' => $group, 'challenge' => $challenge]);
 
         try {
-            $startOpening = clone $this->eTime; 
+            $startOpening = $this->eTime->current();
 
         if ($challenge) {
 
@@ -71,7 +69,7 @@ class ExploreGenerator
 
         }
 
-        $this->briefings($startOpening->current(), $group);
+        $this->briefings($startOpening, $group);
 
         } catch (\Throwable $e) {
             Log::error('ExploreGenerator: Error in openings and briefings', [
@@ -88,20 +86,21 @@ class ExploreGenerator
     {
 
         $this->writer->withGroup('e_coach_briefing', function () use ($t, $group) {
-            $start = (clone $t)->modify('-' . ($this->pp("e{$group}_duration_briefing_t") + $this->pp("e_ready_opening")) . ' minutes');
-            $cursor = new TimeCursor($start);
+            $cursor = new TimeCursor($t);
+            $cursor->subMinutes($this->pp("e{$group}_duration_briefing_t") + $this->pp("e_ready_opening"));
             $this->writer->insertActivity('e_coach_briefing', $cursor, $this->pp("e{$group}_duration_briefing_t"));
         });
 
         $this->writer->withGroup('e_judge_briefing', function () use ($t, $group) {
             if (!$this->pp("e_briefing_after_opening_j")) {
-                $start = (clone $t)->modify('-' . ($this->pp("e{$group}_duration_briefing_j") + $this->pp("e_ready_opening")) . ' minutes');
-                $cursor = new TimeCursor($start);
+                $cursor = new TimeCursor($t);
+                $cursor->subMinutes($this->pp("e{$group}_duration_briefing_j") + $this->pp("e_ready_opening"));
                 $this->writer->insertActivity('e_judge_briefing', $cursor, $this->pp("e{$group}_duration_briefing_j"));
             } else {
-                $this->eTime->addMinutes($this->pp("e_ready_briefing"));
-                $this->writer->insertActivity('e_judge_briefing', $this->eTime, $this->pp("e{$group}_duration_briefing_j"));
-                $this->eTime->addMinutes($this->pp("e{$group}_duration_briefing_j"));
+                $cursor = $this->eTime->copy();
+                $cursor->addMinutes($this->pp("e_ready_briefing"));
+                $this->writer->insertActivity('e_judge_briefing', $cursor, $this->pp("e{$group}_duration_briefing_j"));
+                $this->eTime->addMinutes($this->pp("e_ready_briefing") + $this->pp("e{$group}_duration_briefing_j"));
             }
         });
 
