@@ -3,9 +3,7 @@
 namespace App\Core;
 
 use Illuminate\Support\Facades\Log;
-
 use App\Support\PlanParameter;
-use App\Support\UsesPlanParameter;
 
 
 class ChallengeGenerator
@@ -15,12 +13,32 @@ class ChallengeGenerator
     private TimeCursor $jTime;
     private TimeCursor $cTime;
 
-    public function __construct(ActivityWriter $writer, TimeCursor $cTime, TimeCursor $jTime, TimeCursor $rTime)
+    public function __construct(ActivityWriter $writer, TimeCursor $cTime, TimeCursor $jTime, TimeCursor $rTime, int $planId)
     {
         $this->writer = $writer;
         $this->rTime  = $rTime;
         $this->jTime  = $jTime;
         $this->cTime  = $cTime;
+
+        // Derived parameters formerly computed in Core::initialize
+        $params = PlanParameter::load($planId);
+        $cTeams = (int) ($params->get('c_teams') ?? 0);
+        if ($cTeams > 0) {
+            $jLanes = (int) ($params->get('j_lanes') ?? 1);
+            $rTables = (int) ($params->get('r_tables') ?? 0);
+
+            $jRounds = (int) ceil($cTeams / max(1, $jLanes));
+            $params->add('j_rounds', $jRounds, 'integer');
+
+            $matchesPerRound = (int) ceil($cTeams / 2);
+            $params->add('r_matches_per_round', $matchesPerRound, 'integer');
+
+            $needVolunteer = $matchesPerRound != ($cTeams / 2);
+            $params->add('r_need_volunteer', $needVolunteer, 'boolean');
+
+            $asym = $rTables == 4 && (($cTeams % 4 == 1) || ($cTeams % 4 == 2));
+            $params->add('r_asym', $asym, 'boolean');
+        }
     }
 
     public function presentations(): void

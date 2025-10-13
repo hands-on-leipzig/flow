@@ -59,8 +59,34 @@ class PlanGeneratorCore
     {
         Log::info("PlanGeneratorCore: Start generation for plan {$this->planId}");
 
-        $this->initialize();
-        
+        // Initialize Time Cursors early to allow generators to be constructed immediately
+        $gDate = clone $this->pp('g_date');
+
+        if ($this->pp('g_finale')) {
+            $lcDate = clone $gDate;
+            [$hours, $minutes] = explode(':', $this->pp('f_start_day_1'));
+            $lcDate->setTime((int)$hours, (int)$minutes);
+            $this->lcTime = new TimeCursor($lcDate);
+            $gDate->modify('+1 day');
+            $this->cDay = 2;
+        } else {
+            $this->cDay = 1;
+            $this->lcTime = new TimeCursor(new DateTime());
+        }
+
+        if ($this->pp('e_mode') == ID_E_MORNING) {
+            [$hours, $minutes] = explode(':', $this->pp('g_start_opening'));
+        } else {
+            [$hours, $minutes] = explode(':', $this->pp('c_start_opening'));
+        }
+        $gDate->setTime((int)$hours, (int)$minutes);
+
+        $this->cTime = new TimeCursor(clone $gDate);
+        $this->jTime = new TimeCursor(clone $gDate);
+        $this->rTime = new TimeCursor(clone $gDate);
+        $this->eTime = new TimeCursor(clone $gDate);
+
+        // Initialize derived parameters via generators' constructors
         $this->prepareGenerators();
         
         try {
@@ -90,16 +116,16 @@ class PlanGeneratorCore
             $this->writer,
             $this->cTime,
             $this->jTime,
-            $this->rTime
+            $this->rTime,
+            $this->planId
         );
-        $this->challenge->setParams($this->params);
 
         $this->explore = new ExploreGenerator(
             $this->writer,
             $this->eTime,
-            $this->rTime
+            $this->rTime,
+            $this->planId
         );
-        $this->explore->setParams($this->params);
     }
 
     public function initialize(): void
@@ -241,7 +267,7 @@ class PlanGeneratorCore
                 Log::debug('Explore decoupled mode active');
 
                 // Decoupled Explore day(s)
-                $explore = new ExploreGenerator($this->writer, $this->eTime, $this->rTime);
+                $explore = new ExploreGenerator($this->writer, $this->eTime, $this->rTime, $this->planId);
 
                 // Gruppe 1 (morning)
                 if (in_array($this->pp('e_mode'), [ID_E_DECOUPLED_MORNING, ID_E_DECOUPLED_BOTH]) && $this->pp('e1_teams') > 0) {
@@ -295,7 +321,7 @@ class PlanGeneratorCore
 
             Log::debug('FLL Explore only (no Challenge present)');
 
-            $explore = new ExploreGenerator($this->writer, $this->eTime, $this->rTime);
+            $explore = new ExploreGenerator($this->writer, $this->eTime, $this->rTime, $this->planId);
             $this->explore->decoupled($this->pp('g_date'));
 
         }
@@ -342,7 +368,7 @@ class PlanGeneratorCore
         // -----------------------------------------------------------------------------------
 
         // Add briefings
-        $this->challengebriefings($briefingStart->current(), $this->cDay);
+        $this->challenge->briefings($briefingStart->current(), $this->cDay);
 
         // -----------------------------------------------------------------------------------
         // FLL Explore integrated during the morning 

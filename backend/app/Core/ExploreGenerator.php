@@ -4,9 +4,7 @@ namespace App\Core;
 
 use DateTime;
 use Illuminate\Support\Facades\Log;
-
 use App\Support\PlanParameter;
-use App\Support\UsesPlanParameter;
 
 
 class ExploreGenerator
@@ -15,12 +13,27 @@ class ExploreGenerator
     private TimeCursor $eTime;
     private TimeCursor $rTime;
 
-    public function __construct(ActivityWriter $writer, TimeCursor $eTime, TimeCursor $rTime)
+    public function __construct(ActivityWriter $writer, TimeCursor $eTime, TimeCursor $rTime, int $planId)
     {
         $this->writer = $writer;
         $this->eTime  = $eTime;
         $this->rTime  = $rTime;
 
+        // Derived parameters formerly computed in Core::initialize for Explore
+        $params = PlanParameter::load($planId);
+        $e1Teams = (int) ($params->get('e1_teams') ?? 0);
+        if ($e1Teams > 0) {
+            $e1Lanes = (int) ($params->get('e1_lanes') ?? 1);
+            $e1Rounds = (int) ceil($e1Teams / max(1, $e1Lanes));
+            $params->add('e1_rounds', $e1Rounds, 'integer');
+        }
+
+        $e2Teams = (int) ($params->get('e2_teams') ?? 0);
+        if ($e2Teams > 0) {
+            $e2Lanes = (int) ($params->get('e2_lanes') ?? 1);
+            $e2Rounds = (int) ceil($e2Teams / max(1, $e2Lanes));
+            $params->add('e2_rounds', $e2Rounds, 'integer');
+        }
     }
 
     public function briefings(DateTime $openingTime, int $group): void
