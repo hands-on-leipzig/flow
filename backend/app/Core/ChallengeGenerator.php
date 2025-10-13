@@ -25,37 +25,29 @@ class ChallengeGenerator
         $this->jTime  = $jTime;
         $this->cTime  = $cTime;
 
-        // Instantiate match plan for Challenge domain
-        $this->matchPlan = new MatchPlan($this->writer);
-
-        // Derived parameters formerly computed in Core::initialize
         $params = PlanParameter::load($planId);
-        $cTeams = (int) ($params->get('c_teams') ?? 0);
-        if ($cTeams > 0) {
-            $jLanes = (int) ($params->get('j_lanes') ?? 1);
-            $rTables = (int) ($params->get('r_tables') ?? 0);
 
-            $jRounds = (int) ceil($cTeams / max(1, $jLanes));
-            $params->add('j_rounds', $jRounds, 'integer');
+        // Derived parameters 
+        $cTeams = $params->get('c_teams');
+        $jLanes = $params->get('j_lanes');
+        $rTables = $params->get('r_tables');
 
-            $matchesPerRound = (int) ceil($cTeams / 2);
-            $params->add('r_matches_per_round', $matchesPerRound, 'integer');
+        $jRounds = (int) ceil($cTeams / max(1, $jLanes));
+        $params->add('j_rounds', $jRounds, 'integer');
 
-            $needVolunteer = $matchesPerRound != ($cTeams / 2);
-            $params->add('r_need_volunteer', $needVolunteer, 'boolean');
+        $matchesPerRound = (int) ceil($cTeams / 2);
+        $params->add('r_matches_per_round', $matchesPerRound, 'integer');
 
-            $asym = $rTables == 4 && (($cTeams % 4 == 1) || ($cTeams % 4 == 2));
-            $params->add('r_asym', $asym, 'boolean');
-        }
-    }
+        $needVolunteer = $matchesPerRound != ($cTeams / 2);
+        $params->add('r_need_volunteer', $needVolunteer, 'boolean');
 
-    public function matchPlan(): MatchPlan
-    {
-        return $this->matchPlan;
-    }
-
+        $asym = $rTables == 4 && (($cTeams % 4 == 1) || ($cTeams % 4 == 2));
+        $params->add('r_asym', $asym, 'boolean');
     
-    
+        // Instantiate match plan for Challenge domain
+        $this->matchPlan = new MatchPlan($this->writer, $params);
+
+    }
 
     public function judgingOneRound(int $cBlock, int $jT): void
     {

@@ -106,7 +106,7 @@ class PlanGeneratorCore
                 // Challenge only
                 $this->challenge->openingsAndBriefings();        // check
                 $this->challenge->main();
-                $this->challenge->robotGameFinals();
+                $this->challenge->robotGameFinals();            // check
                 $this->challenge->awards();                     // check
                 
             } elseif ($eMode == 1) {
@@ -122,7 +122,7 @@ class PlanGeneratorCore
                 $this->explore->openingsAndBriefings(1, true);       // check
                 $this->explore->judgingAndDeliberations(1);          // check
                 $this->challenge->main(true);
-                $this->challenge->robotGameFinals();
+                $this->challenge->robotGameFinals();            // check
                 $this->challenge->awards();                     // check
                 
             } elseif ($eMode == 2) {
@@ -138,7 +138,7 @@ class PlanGeneratorCore
                 $this->challenge->main(true);
                 $this->explore->openingsAndBriefings(2, true);       // check
                 $this->explore->judgingAndDeliberations(2);          // check   
-                $this->challenge->robotGameFinals();
+                $this->challenge->robotGameFinals();            // check
                 $this->challenge->awards(true);                     // check
                 
             } elseif (in_array($eMode, [3, 4, 5])) {
@@ -154,7 +154,7 @@ class PlanGeneratorCore
 
                 $this->challenge->openingsAndBriefings();        // check
                 $this->challenge->main();
-                $this->challenge->robotGameFinals();
+                $this->challenge->robotGameFinals();            // check
                 $this->challenge->awards();                     // check
 
 
