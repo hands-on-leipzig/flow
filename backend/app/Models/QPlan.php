@@ -34,6 +34,27 @@ class QPlan extends Model
         'calculated',
     ];
 
+    // Type casting for proper data types
+    protected $casts = [
+        'plan' => 'integer',
+        'q_run' => 'integer',
+        'c_teams' => 'integer',
+        'r_tables' => 'integer',
+        'j_lanes' => 'integer',
+        'j_rounds' => 'integer',
+        'r_asym' => 'boolean',
+        'r_robot_check' => 'boolean',
+        'r_duration_robot_check' => 'integer',
+        'c_duration_transfer' => 'integer',
+        'q1_ok_count' => 'integer',
+        'q2_ok_count' => 'integer',
+        'q3_ok_count' => 'integer',
+        'q4_ok_count' => 'integer',
+        'q5_idle_avg' => 'float',
+        'q5_idle_stddev' => 'float',
+        'calculated' => 'boolean',
+    ];
+
     /**
      * Returns the related plan (technical plan data)
      */

@@ -47,7 +47,7 @@ const filterAsym = {
 }
 
 const plans = computed(() => {
-  return plansRaw.value.filter(plan => {
+  const filtered = plansRaw.value.filter(plan => {
     // Q-Checks
     const qFilterOk = [1, 2, 3, 4].every(q => {
       if (!filterQ[q].value) return true
@@ -77,11 +77,34 @@ const plans = computed(() => {
     const asymActive = Object.entries(filterAsym)
       .filter(([_, refVal]) => refVal.value)
       .map(([a]) => Number(a))
-    const asymFilterOk = asymActive.length === 0 || asymActive.includes(plan.r_asym)
+    const asymFilterOk = asymActive.length === 0 || asymActive.includes(Number(plan.r_asym))
 
     // Kombiniert
-    return qFilterOk && laneFilterOk && roundFilterOk && tableFilterOk && asymFilterOk
+    const result = qFilterOk && laneFilterOk && roundFilterOk && tableFilterOk && asymFilterOk
+    
+    // Debug logging
+    if (plansRaw.value.length > 0) {
+      console.log(`Plan ${plan.id} filter result:`, {
+        qFilterOk,
+        laneFilterOk,
+        roundFilterOk,
+        tableFilterOk,
+        asymFilterOk,
+        result,
+        planData: {
+          j_lanes: plan.j_lanes,
+          j_rounds: plan.j_rounds,
+          r_tables: plan.r_tables,
+          r_asym: plan.r_asym
+        }
+      })
+    }
+    
+    return result
   })
+  
+  console.log('Filtered plans count:', filtered.length)
+  return filtered
 })
 const loadPlans = async () => {
   loading.value = true
@@ -89,6 +112,8 @@ const loadPlans = async () => {
   try {
     const response = await axios.get(`/quality/qplans/${props.qrun}`)
     plansRaw.value = response.data
+    console.log('Loaded QPlans:', plansRaw.value.length)
+    console.log('Filtered QPlans:', plans.value.length)
   } catch (err) {
     console.error('Fehler beim Laden der QPlans', err)
     error.value = 'Fehler beim Laden der Pläne'
@@ -380,9 +405,9 @@ async function startRerun() {
 
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-sm" :style="{ backgroundColor: farbeQ5Idle(qplan.q5_idle_avg, qplan.c_teams) }"></div>
-            <span class="flex items-center gap-1">{{ qplan.q5_idle_avg?.toFixed(2) ?? '–' }}</span>
+            <span class="flex items-center gap-1">{{ qplan.q5_idle_avg ? qplan.q5_idle_avg.toFixed(2) : '–' }}</span>
             <div class="w-3 h-3 rounded-sm" :style="{ backgroundColor: farbeQ5Stddev(qplan.q5_idle_stddev) }"></div>
-            <span class="flex items-center gap-1">{{ qplan.q5_idle_stddev?.toFixed(2) ?? '–' }}</span>
+            <span class="flex items-center gap-1">{{ qplan.q5_idle_stddev ? qplan.q5_idle_stddev.toFixed(2) : '–' }}</span>
           </div>
         </div>
 
