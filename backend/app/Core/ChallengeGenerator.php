@@ -18,14 +18,12 @@ class ChallengeGenerator
 
     use UsesPlanParameter;
 
-    public function __construct(ActivityWriter $writer, TimeCursor $cTime, TimeCursor $jTime, TimeCursor $rTime, int $planId)
+    public function __construct(ActivityWriter $writer, TimeCursor $cTime, TimeCursor $jTime, TimeCursor $rTime, int $planId, PlanParameter $params)
     {
         $this->writer = $writer;
         $this->rTime  = $rTime;
         $this->jTime  = $jTime;
         $this->cTime  = $cTime;
-
-        $params = PlanParameter::load($planId);
 
         // Derived parameters 
         $cTeams = $params->get('c_teams');

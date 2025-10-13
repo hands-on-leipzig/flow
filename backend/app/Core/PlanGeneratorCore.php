@@ -74,7 +74,7 @@ class PlanGeneratorCore
         // Timing does not matter, because these are parallel to other activities.
         // -----------------------------------------------------------------------------------
 
-        (new FreeBlockGenerator($this->writer, $this->planId))->insertFreeActivities();
+        (new FreeBlockGenerator($this->writer, $this->planId, $this->params))->insertFreeActivities();
 
         Log::info("PlanGeneratorCore: Finished generation for plan {$this->planId}");
     }
@@ -99,7 +99,8 @@ class PlanGeneratorCore
                 $this->cTime,
                 $this->jTime,
                 $this->rTime,
-                $this->planId
+                $this->planId,
+                $this->params
             );
             
             if ($eMode == 0) {
@@ -115,7 +116,8 @@ class PlanGeneratorCore
                     $this->writer,
                     $this->eTime,
                     $this->rTime,
-                    $this->planId
+                    $this->planId,
+                    $this->params
                 );
                 
                 $this->challenge->openingsAndBriefings(true);        // check
@@ -131,7 +133,8 @@ class PlanGeneratorCore
                     $this->writer,
                     $this->eTime,
                     $this->rTime,
-                    $this->planId
+                    $this->planId,
+                    $this->params
                 );
                 
                 $this->challenge->openingsAndBriefings();        // check
@@ -149,7 +152,8 @@ class PlanGeneratorCore
                     $this->writer,
                     $this->eTime,
                     $this->rTime,
-                    $this->planId
+                    $this->planId,
+                    $this->params
                 );
 
                 $this->challenge->openingsAndBriefings();        // check
@@ -189,7 +193,8 @@ class PlanGeneratorCore
                     $this->writer,
                     $this->eTime,
                     $this->rTime,
-                    $this->planId
+                    $this->planId,
+                    $this->params
                 );
                 $this->explore->openingsAndBriefings(1);        // check
                 $this->explore->judgingAndDeliberations(1);        // check
@@ -201,7 +206,8 @@ class PlanGeneratorCore
                     $this->writer,
                     $this->eTime,
                     $this->rTime,
-                    $this->planId
+                    $this->planId,
+                    $this->params
                 );
                 $this->explore->openingsAndBriefings(2);        // check
                 $this->explore->judgingAndDeliberations(2);        // check
@@ -213,7 +219,8 @@ class PlanGeneratorCore
                     $this->writer,
                     $this->eTime,
                     $this->rTime,
-                    $this->planId
+                    $this->planId,
+                    $this->params
                 );
                 $this->explore->openingsAndBriefings(1);       // check     
                 $this->explore->judgingAndDeliberations(1);        // check

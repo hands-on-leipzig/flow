@@ -16,14 +16,13 @@ class ExploreGenerator
 
     use UsesPlanParameter;
 
-    public function __construct(ActivityWriter $writer, TimeCursor $eTime, TimeCursor $rTime, int $planId)
+    public function __construct(ActivityWriter $writer, TimeCursor $eTime, TimeCursor $rTime, int $planId, PlanParameter $params)
     {
         $this->writer = $writer;
         $this->eTime  = $eTime;
         $this->rTime  = $rTime;
 
         // Derived parameters formerly computed in Core::initialize for Explore
-        $params = PlanParameter::load($planId);
         $e1Teams = (int) ($params->get('e1_teams') ?? 0);
         if ($e1Teams > 0) {
             $e1Lanes = (int) ($params->get('e1_lanes') ?? 1);

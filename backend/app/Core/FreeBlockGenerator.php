@@ -13,13 +13,10 @@ class FreeBlockGenerator
     private ActivityWriter $writer;
     private int $planId;
 
-    public function __construct(ActivityWriter $writer, int $planId)
+    public function __construct(ActivityWriter $writer, int $planId, PlanParameter $params)
     {
         $this->writer = $writer;
         $this->planId = $planId;
-
-        // Stay consistent with other generators: load parameters here for potential derived values later
-        $params = PlanParameter::load($planId);
 
         Log::debug('FreeBlockGenerator constructed', [
             'plan_id' => $planId,
