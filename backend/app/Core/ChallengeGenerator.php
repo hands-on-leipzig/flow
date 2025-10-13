@@ -91,124 +91,6 @@ class ChallengeGenerator
         });
     }
 
-    public function main(bool $explore = false)
-    {
-
-         // Read all parameters for the plan. Access is via $this->pp('...')
-        $gDate = clone $this->pp('g_date'); // DateTime
-
-        $this->cDay = 0; // [Temp] Current day of the event. 1 = first day, 2 = second day, etc.
-
-        if ($this->pp("c_teams") > 0) {
-
-            // ***********************************************************************************
-            // FLL Challenge (with our without FLL Explore)
-            // ***********************************************************************************
-
-            // -----------------------------------------------------------------------------------
-            // Combine event date with start time of opening depending on the combination of
-            // FLL Challenge and FLL Explore
-            // -----------------------------------------------------------------------------------
-
-            // For a finale the main action is on day 2, while LC is on day 1
-            if ($this->pp('g_finale')) {
-
-                // Save the day for Live Challenge
-                $lcDate = clone $gDate;
-
-                // Combine event date with start time of day 1   
-                [$hours, $minutes] = explode(':', $this->pp('f_start_day_1'));
-                $lcDate->setTime((int)$hours, (int)$minutes);
-                $this->lcTime = new TimeCursor($lcDate);
-
-                // Add one day for the main action
-                $gDate->modify('+1 day');
-
-                // To simplify branching in the challenge main day schedule, add an indicator
-                $this->cDay = 2; // Day 2 of the event
-
-            } else {
-
-                $this->cDay = 1; // Day 1 of the event
-                $this->lcTime = new TimeCursor(new DateTime()); // neutral placeholder
-            }
-
-            // -----------------------------------------------------------------------------------
-            // Determine start time of opening depending on Explore mode
-            // -----------------------------------------------------------------------------------
-            if ($this->pp('e_mode') == ID_E_MORNING) {
-                // FLL Challenge and Explore combined during the morning
-                [$hours, $minutes] = explode(':', $this->pp('g_start_opening'));
-            } else {
-                // FLL Challenge stand-alone
-                [$hours, $minutes] = explode(':', $this->pp('c_start_opening'));
-            }
-
-            $gDate->setTime((int)$hours, (int)$minutes);
-
-            // -----------------------------------------------------------------------------------
-            // Initialize Time Cursors for all main tracks
-            // -----------------------------------------------------------------------------------
-            $this->cTime = new TimeCursor(clone $gDate); // FLL Challenge
-            $this->jTime = new TimeCursor(clone $gDate); // Judging in FLL Challenge
-            $this->rTime = new TimeCursor(clone $gDate); // Robot game in FLL Challenge
-            $this->eTime = new TimeCursor(clone $gDate); // FLL Explore judging
-
-            $this->openings();
-            $this->challenge();
-            $this->awardsAndPostRounds();
-
-            // -----------------------------------------------------------------------------------
-            // FLL Explore decoupled from FLL Challenge
-            // -----------------------------------------------------------------------------------
-
-            if (
-                $this->pp('e_mode') == ID_E_DECOUPLED_MORNING ||
-                $this->pp('e_mode') == ID_E_DECOUPLED_AFTERNOON ||
-                $this->pp('e_mode') == ID_E_DECOUPLED_BOTH
-            ) {
-                Log::debug('Explore decoupled mode active');
-
-                // Decoupled Explore day(s)
-                $explore = new ExploreGenerator($this->writer, $this->eTime, $this->rTime, $this->planId);
-
-                // Gruppe 1 (morning)
-                if (in_array($this->pp('e_mode'), [ID_E_DECOUPLED_MORNING, ID_E_DECOUPLED_BOTH]) && $this->pp('e1_teams') > 0) {
-                    Log::debug('Explore decoupled morning group');
-                    $this->explore->briefings($this->eTime, 1);
-                    $this->explore->judging(1);
-                    $this->explore->deliberationsAndAwards(1);
-                }
-
-                // Gruppe 2 (afternoon)
-                if (in_array($this->pp('e_mode'), [ID_E_DECOUPLED_AFTERNOON, ID_E_DECOUPLED_BOTH]) && $this->pp('e2_teams') > 0) {
-                    Log::debug('Explore decoupled afternoon group');
-                    $this->explore->briefings($this->eTime->current(), 2);
-                    $this->explore->judging(2);
-                    $this->explore->deliberationsAndAwards(2);
-                }
-
-            } else {
-                Log::debug('Explore no decoupled groups');
-            }
-
-        } else {
-         
-            Log::info('No FLL Challenge teams, skipping generation');
-
-            // ***********************************************************************************
-            // FLL Explore without FLL Challenge
-            // ***********************************************************************************
-
-            Log::debug('FLL Explore only (no Challenge present)');
-
-            $explore = new ExploreGenerator($this->writer, $this->eTime, $this->rTime, $this->planId);
-            $this->explore->decoupled($this->pp('g_date'));
-
-        }
-    }
-
-
     public function openingsAndBriefings(bool $explore = false): void
     {
         $startOpening = clone $this->cTime; 
@@ -284,7 +166,7 @@ class ChallengeGenerator
 
 
 
-    public function challenge(): void
+    public function main(bool $explore = false)
     {
         Log::info('=== FLL Challenge generation start ===');
 
