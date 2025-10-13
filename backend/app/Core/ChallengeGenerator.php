@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\Log;
 
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
-use App\Support\SupportedPlanChecker;
 
 
 class ChallengeGenerator

@@ -13,14 +13,12 @@ use App\Core\TimeCursor;
 
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
-use App\Support\SupportedPlanChecker;
 
 class PlanGeneratorCore
 {
     private int $planId;
     private ActivityWriter $writer;
     private PlanParameter $params;
-    private SupportedPlanChecker $checker;
 
     private TimeCursor $cTime;
     private TimeCursor $rTime;
@@ -41,7 +39,6 @@ class PlanGeneratorCore
         $this->planId = $planId;
         $this->writer = new ActivityWriter($planId);
         $this->params = PlanParameter::load($planId);
-        $this->checker = new SupportedPlanChecker();
     }
 
     // ***********************************************************************************
@@ -179,13 +176,6 @@ class PlanGeneratorCore
             // FLL Challenge (with our without FLL Explore)
             // ***********************************************************************************
 
-            SupportedPlanChecker::exists(
-                ID_FP_CHALLENGE,
-                $this->pp("c_teams"), 
-                $this->pp("j_lanes"),
-                $this->pp("r_tables")
-            );
-
             // -----------------------------------------------------------------------------------
             // Combine event date with start time of opening depending on the combination of
             // FLL Challenge and FLL Explore
@@ -264,7 +254,7 @@ class PlanGeneratorCore
                 // Gruppe 2 (afternoon)
                 if (in_array($this->pp('e_mode'), [ID_E_DECOUPLED_AFTERNOON, ID_E_DECOUPLED_BOTH]) && $this->pp('e2_teams') > 0) {
                     Log::debug('Explore decoupled afternoon group');
-                    $this->explore->briefings($this->pp(eTime), 2);
+                    $this->explore->briefings($this->eTime->current(), 2);
                     $this->explore->judging(2);
                     $this->explore->deliberationsAndAwards(2);
                 }
@@ -369,14 +359,7 @@ class PlanGeneratorCore
             Log::debug('Explore morning');
             Log::debug('Explore morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
 
-            // -----------------------------------------------------------------------------------
-            // Check if the Explore plan is supported
-            // -----------------------------------------------------------------------------------
-            SupportedPlanChecker::exists(
-                ID_FP_EXPLORE,
-                $this->pp('e1_teams'),
-                $this->pp('e1_lanes')
-            );
+            // (Supported plan checks removed)
 
             // Full FLL Explore schedule for group 1
             $this->explore->judging(1);
