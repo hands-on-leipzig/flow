@@ -22,11 +22,6 @@ class PlanGeneratorCore
     private ActivityWriter $writer;
     private PlanParameter $params;
 
-    private TimeCursor $cTime;
-    private TimeCursor $rTime;
-    private TimeCursor $jTime;
-    private TimeCursor $eTime;
-    private TimeCursor $lcTime;
 
     private ChallengeGenerator $challenge;
     private ExploreGenerator $explore;
@@ -83,11 +78,6 @@ class PlanGeneratorCore
     {
         // Base date
         $gDate = clone $this->pp('g_date');
-        // Initialize main cursors
-        $this->cTime = new TimeCursor(clone $gDate);
-        $this->jTime = new TimeCursor(clone $gDate);
-        $this->rTime = new TimeCursor(clone $gDate);
-        $this->eTime = new TimeCursor(clone $gDate);
 
         $cMode = $this->pp('c_mode');
         $eMode = $this->pp('e_mode');
@@ -96,9 +86,7 @@ class PlanGeneratorCore
             // Challenge present - instantiate ChallengeGenerator
             $this->challenge = new ChallengeGenerator(
                 $this->writer,
-                $this->cTime,
-                $this->jTime,
-                $this->rTime,
+                $gDate,
                 $this->planId,
                 $this->params
             );
@@ -114,8 +102,7 @@ class PlanGeneratorCore
                 // Challenge + Explore integrated morning
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->eTime,
-                    $this->rTime,
+                    $gDate,
                     $this->planId,
                     $this->params
                 );
@@ -131,8 +118,7 @@ class PlanGeneratorCore
                 // Challenge + Explore integrated afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->eTime,
-                    $this->rTime,
+                    $gDate,
                     $this->planId,
                     $this->params
                 );
@@ -150,8 +136,7 @@ class PlanGeneratorCore
                 // Challenge + Explore integrated afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->eTime,
-                    $this->rTime,
+                    $gDate,
                     $this->planId,
                     $this->params
                 );
@@ -191,8 +176,7 @@ class PlanGeneratorCore
                 // Explore morning only
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->eTime,
-                    $this->rTime,
+                    $gDate,
                     $this->planId,
                     $this->params
                 );
@@ -204,8 +188,7 @@ class PlanGeneratorCore
                 // Explore afternoon only
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->eTime,
-                    $this->rTime,
+                    $gDate,
                     $this->planId,
                     $this->params
                 );
@@ -217,8 +200,7 @@ class PlanGeneratorCore
                 // Explore both morning and afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->eTime,
-                    $this->rTime,
+                    $gDate,
                     $this->planId,
                     $this->params
                 );

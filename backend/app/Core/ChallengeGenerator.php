@@ -19,12 +19,14 @@ class ChallengeGenerator
 
     use UsesPlanParameter;
 
-    public function __construct(ActivityWriter $writer, TimeCursor $cTime, TimeCursor $jTime, TimeCursor $rTime, int $planId, PlanParameter $params)
+    public function __construct(ActivityWriter $writer, \DateTime $baseDate, int $planId, PlanParameter $params)
     {
         $this->writer = $writer;
-        $this->rTime  = $rTime;
-        $this->jTime  = $jTime;
-        $this->cTime  = $cTime;
+        
+        // Create time cursors from base date
+        $this->cTime = new TimeCursor(clone $baseDate);
+        $this->jTime = new TimeCursor(clone $baseDate);
+        $this->rTime = new TimeCursor(clone $baseDate);
 
         // Derived parameters 
         $cTeams = $params->get('c_teams');
