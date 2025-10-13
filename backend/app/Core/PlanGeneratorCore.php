@@ -8,9 +8,7 @@ use Illuminate\Support\Facades\Log;
 use App\Core\ActivityWriter;
 use App\Core\ChallengeGenerator;
 use App\Core\ExploreGenerator;
-use App\Core\MatchPlan;
 use App\Core\FreeBlockGenerator;
-use App\Core\TimeCursor;
 use App\Core\FinaleGenerator;
 
 use App\Support\PlanParameter;
@@ -18,22 +16,16 @@ use App\Support\UsesPlanParameter;
 
 class PlanGeneratorCore
 {
-    private int $planId;
     private ActivityWriter $writer;
     private PlanParameter $params;
 
-
     private ChallengeGenerator $challenge;
     private ExploreGenerator $explore;
-    private MatchPlan $matchPlan;
-
-    private int $cDay = 0; // Aktueller Event-Tag (1 = erster, 2 = zweiter, …)
 
     use UsesPlanParameter;
 
     public function __construct(int $planId)
     {
-        $this->planId = $planId;
         $this->writer = new ActivityWriter($planId);
         $this->params = PlanParameter::load($planId);
     }
@@ -54,12 +46,12 @@ class PlanGeneratorCore
 
     public function generate(): void
     {
-        Log::info("PlanGeneratorCore: Start generation for plan {$this->planId}");
-                
+        Log::info("PlanGeneratorCore: Start generation for plan {$this->pp('g_plan')}");
+        
         try {
                 $this->generateByMode();
             } catch (\Throwable $e) {
-                Log::error("Plan generation failed: {$e->getMessage()}", ['plan_id' => $this->planId]);
+                Log::error("Plan generation failed: {$e->getMessage()}", ['plan_id' => $this->pp('g_plan')]);
                 throw $e;
             }
         
@@ -69,25 +61,20 @@ class PlanGeneratorCore
         // Timing does not matter, because these are parallel to other activities.
         // -----------------------------------------------------------------------------------
 
-        (new FreeBlockGenerator($this->writer, $this->planId, $this->params))->insertFreeActivities();
+        (new FreeBlockGenerator($this->writer, $this->params))->insertFreeActivities();
 
-        Log::info("PlanGeneratorCore: Finished generation for plan {$this->planId}");
+        Log::info("PlanGeneratorCore: Finished generation for plan {$this->pp('g_plan')}");
     }
 
     private function generateByMode(): void
     {
-        // Base date
-        $gDate = clone $this->pp('g_date');
-
         $cMode = $this->pp('c_mode');
         $eMode = $this->pp('e_mode');
-        
+
         if ($cMode == 1) {
             // Challenge present - instantiate ChallengeGenerator
-            $this->challenge = new ChallengeGenerator(
-                $this->writer,
-                $gDate,
-                $this->planId,
+        $this->challenge = new ChallengeGenerator(
+            $this->writer,
                 $this->params
             );
             
@@ -100,12 +87,10 @@ class PlanGeneratorCore
                 
             } elseif ($eMode == 1) {
                 // Challenge + Explore integrated morning
-                $this->explore = new ExploreGenerator(
-                    $this->writer,
-                    $gDate,
-                    $this->planId,
-                    $this->params
-                );
+        $this->explore = new ExploreGenerator(
+            $this->writer,
+            $this->params
+        );
                 
                 $this->challenge->openingsAndBriefings(true);        // check
                 $this->explore->openingsAndBriefings(1, true);       // check
@@ -118,8 +103,6 @@ class PlanGeneratorCore
                 // Challenge + Explore integrated afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $gDate,
-                    $this->planId,
                     $this->params
                 );
                 
@@ -136,8 +119,6 @@ class PlanGeneratorCore
                 // Challenge + Explore integrated afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $gDate,
-                    $this->planId,
                     $this->params
                 );
 
@@ -169,15 +150,13 @@ class PlanGeneratorCore
                 }
 
             }
-            
+
         } else {
             // No Challenge - Explore only
             if ($eMode == 3) {
                 // Explore morning only
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $gDate,
-                    $this->planId,
                     $this->params
                 );
                 $this->explore->openingsAndBriefings(1);        // check
@@ -188,8 +167,6 @@ class PlanGeneratorCore
                 // Explore afternoon only
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $gDate,
-                    $this->planId,
                     $this->params
                 );
                 $this->explore->openingsAndBriefings(2);        // check
@@ -200,8 +177,6 @@ class PlanGeneratorCore
                 // Explore both morning and afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $gDate,
-                    $this->planId,
                     $this->params
                 );
                 $this->explore->openingsAndBriefings(1);       // check     

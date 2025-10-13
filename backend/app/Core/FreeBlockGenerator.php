@@ -13,13 +13,13 @@ class FreeBlockGenerator
     private ActivityWriter $writer;
     private int $planId;
 
-    public function __construct(ActivityWriter $writer, int $planId, PlanParameter $params)
+    public function __construct(ActivityWriter $writer, PlanParameter $params)
     {
         $this->writer = $writer;
-        $this->planId = $planId;
+        $this->planId = $params->get('g_plan');
 
         Log::debug('FreeBlockGenerator constructed', [
-            'plan_id' => $planId,
+            'plan_id' => $this->planId,
         ]);
     }
 

@@ -16,11 +16,12 @@ class ExploreGenerator
 
     use UsesPlanParameter;
 
-    public function __construct(ActivityWriter $writer, \DateTime $baseDate, int $planId, PlanParameter $params)
+    public function __construct(ActivityWriter $writer, PlanParameter $params)
     {
         $this->writer = $writer;
         
         // Create time cursors from base date
+        $baseDate = $params->get('g_date');
         $this->eTime = new TimeCursor(clone $baseDate);
         $this->rTime = new TimeCursor(clone $baseDate);
 
