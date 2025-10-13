@@ -174,10 +174,23 @@ class ActivityWriter
 
     public function insertPoint(string $insertPointCode, int $duration, TimeCursor $time): void
     {
-        // InsertPoint anhand Code finden
-        $insertPoint = MInsertPoint::where('code', $insertPointCode)->first();
+        // Map robot game codes to insert point IDs
+        $insertPointIdMap = [
+            'rg_tr' => 1,  // Test round -> "Nach Robot-Game Runde 3"
+            'rg_1' => 1,   // Round 1 -> "Nach Robot-Game Runde 3"
+            'rg_2' => 2,   // Round 2 -> "Nach Forschungspräsentationen"
+            'rg_3' => 3,   // Round 3 -> "Nach Robot-Game Final-Matches"
+            'presentations' => 2,  // Presentations -> "Nach Forschungspräsentationen"
+        ];
+        
+        $insertPointId = $insertPointIdMap[$insertPointCode] ?? null;
+        if (!$insertPointId) {
+            throw new \RuntimeException("Insert point code '{$insertPointCode}' not found in mapping.");
+        }
+        
+        $insertPoint = MInsertPoint::find($insertPointId);
         if (!$insertPoint) {
-            throw new \RuntimeException("Insert point code '{$insertPointCode}' not found.");
+            throw new \RuntimeException("Insert point ID '{$insertPointId}' not found in database.");
         }
 
         // passenden ExtraBlock suchen

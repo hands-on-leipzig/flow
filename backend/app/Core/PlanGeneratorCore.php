@@ -17,7 +17,6 @@ use App\Support\UsesPlanParameter;
 class PlanGeneratorCore
 {
     private ActivityWriter $writer;
-    private PlanParameter $params;
 
     private ChallengeGenerator $challenge;
     private ExploreGenerator $explore;

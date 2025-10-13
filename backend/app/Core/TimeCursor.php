@@ -44,7 +44,11 @@ class TimeCursor
      */
     public function addMinutes(int $minutes): void
     {
-        $this->time->add(new DateInterval("PT{$minutes}M"));
+        if ($minutes < 0) {
+            $this->subMinutes(abs($minutes));
+        } else {
+            $this->time->add(new DateInterval("PT{$minutes}M"));
+        }
     }
 
     /**

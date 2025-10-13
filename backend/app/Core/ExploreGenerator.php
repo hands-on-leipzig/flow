@@ -19,6 +19,7 @@ class ExploreGenerator
     public function __construct(ActivityWriter $writer, PlanParameter $params)
     {
         $this->writer = $writer;
+        $this->params = $params;
         
         // Create time cursors from base date
         $baseDate = $params->get('g_date');

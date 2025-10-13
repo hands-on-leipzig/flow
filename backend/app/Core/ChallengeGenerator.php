@@ -22,6 +22,7 @@ class ChallengeGenerator
     public function __construct(ActivityWriter $writer, PlanParameter $params)
     {
         $this->writer = $writer;
+        $this->params = $params;
         
         // Create time cursors from base date
         $baseDate = $params->get('g_date');
@@ -54,13 +55,13 @@ class ChallengeGenerator
 
     public function judgingOneRound(int $cBlock, int $jT): void
     {
-        $this->writer->withGroup('c_judging_package', function () use ($cBlock, $jT) {
+        $this->writer->withGroup('j_package', function () use ($cBlock, $jT) {
 
             // 1) Judging WITH team
             for ($jLane = 1; $jLane <= $this->pp('j_lanes'); $jLane++) {
                 if ($jT + $jLane <= $this->pp('c_teams')) {
                     $this->writer->insertActivity(
-                        'c_with_team',
+                        'j_with_team',
                         $this->jTime,
                         $this->pp('j_duration_with_team'),
                         $jLane,
@@ -74,7 +75,7 @@ class ChallengeGenerator
             for ($jLane = 1; $jLane <= $this->pp('j_lanes'); $jLane++) {
                 if ($jT + $jLane <= $this->pp('c_teams')) {
                     $this->writer->insertActivity(
-                        'c_scoring',
+                        'j_scoring',
                         $this->jTime,
                         $this->pp('j_duration_scoring'),
                         $jLane,
@@ -145,34 +146,34 @@ class ChallengeGenerator
     public function briefings(\DateTime $t): void
     {
         
-        $this->writer->withGroup('c_coach_briefing', function () use ($t) {
+        $this->writer->withGroup('c_briefing', function () use ($t) {
             $start = (clone $t)->modify('-' . ($this->pp('c_duration_briefing') + $this->pp('c_ready_opening')) . ' minutes');
             $cursor = new TimeCursor($start);
-            $this->writer->insertActivity('c_coach_briefing', $cursor, $this->pp('c_duration_briefing'));
+            $this->writer->insertActivity('c_briefing', $cursor, $this->pp('c_duration_briefing'));
         });
 
-        $this->writer->withGroup('c_judge_briefing', function () use ($t) {
+        $this->writer->withGroup('j_briefing', function () use ($t) {
             if (!$this->pp('j_briefing_after_opening')) {
                 $start = (clone $t)->modify('-' . ($this->pp('j_duration_briefing') + $this->pp('c_ready_opening')) . ' minutes');
                 $cursor = new TimeCursor($start);
-                $this->writer->insertActivity('c_judge_briefing', $cursor, $this->pp('j_duration_briefing'));
+                $this->writer->insertActivity('j_briefing', $cursor, $this->pp('j_duration_briefing'));
             } else {
                 $this->jTime->addMinutes($this->pp('j_ready_briefing'));
-                $this->writer->insertActivity('c_judge_briefing', $this->jTime, $this->pp('j_duration_briefing'));
+                $this->writer->insertActivity('j_briefing', $this->jTime, $this->pp('j_duration_briefing'));
                 $this->jTime->addMinutes($this->pp('j_duration_briefing'));
                 $this->jTime->addMinutes($this->pp('j_ready_action'));
 
             }
         });
 
-        $this->writer->withGroup('r_referee_briefing', function () use ($t) {
+        $this->writer->withGroup('r_briefing', function () use ($t) {
             if (!$this->pp('r_briefing_after_opening')) {
                 $start = (clone $t)->modify('-' . ($this->pp('r_duration_briefing') + $this->pp('c_ready_opening')) . ' minutes');
                 $cursor = new TimeCursor($start);
-                $this->writer->insertActivity('r_referee_briefing', $cursor, $this->pp('r_duration_briefing'));
+                $this->writer->insertActivity('r_briefing', $cursor, $this->pp('r_duration_briefing'));
             } else {
                 $this->rTime->addMinutes($this->pp('r_ready_briefing'));
-                $this->writer->insertActivity('r_referee_briefing', $this->rTime, $this->pp('r_duration_briefing'));
+                $this->writer->insertActivity('r_briefing', $this->rTime, $this->pp('r_duration_briefing'));
                 $this->rTime->addMinutes($this->pp('r_duration_briefing'));
                 $this->rTime->addMinutes($this->pp('r_ready_action'));
             }
@@ -223,7 +224,7 @@ class ChallengeGenerator
             // 5 or 6 lanes = 3 matches
 
             // Delay judging if needed
-            if ($this->jTime->diffInMinutes($jTimeEarliest) < 0) {
+            if ($jTimeEarliest && $this->jTime->diffInMinutes($jTimeEarliest) < 0) {
                 Log::debug("Judging delayed from {$this->jTime->format()} to {$jTimeEarliest->format()}");
                 $this->jTime = $jTimeEarliest->copy();
             }
@@ -381,8 +382,8 @@ class ChallengeGenerator
         $this->jTime->addMinutes($this->pp('j_ready_deliberations'));
 
         // Deliberation
-        $this->writer->withGroup('c_deliberations', function () {
-            $this->writer->insertActivity('c_deliberations', $this->jTime, $this->pp('j_duration_deliberations'));
+        $this->writer->withGroup('j_deliberations', function () {
+            $this->writer->insertActivity('j_deliberations', $this->jTime, $this->pp('j_duration_deliberations'));
         });
         $this->jTime->addMinutes($this->pp('j_duration_deliberations'));
 
@@ -507,7 +508,7 @@ class ChallengeGenerator
     
     public function presentations(): void
     {
-        $duration = pp('c_presentations') * pp('c_duration_presentation') + 5;
+        $duration = $this->pp('c_presentations') * $this->pp('c_duration_presentation') + 5;
 
         $this->writer->withGroup('c_presentations', function () use ($duration) {
             $this->writer->insertActivity('c_presentations', $this->rTime, $duration);
@@ -515,11 +516,11 @@ class ChallengeGenerator
 
         $this->rTime->addMinutes($duration);
 
-        $insertPoint = pp('c_presentations_last')
+        $insertPoint = $this->pp('c_presentations_last')
             ? 'c_ready_awards'
             : 'c_ready_presentations';
 
-        $this->writer->insertPoint('presentations', pp($insertPoint), $this->rTime);
+        $this->writer->insertPoint('presentations', $this->pp($insertPoint), $this->rTime);
     }
 
 
