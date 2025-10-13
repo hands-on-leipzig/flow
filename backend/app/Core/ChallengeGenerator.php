@@ -4,6 +4,7 @@ namespace App\Core;
 
 use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
+use App\Support\UsesPlanParameter;
 use App\Core\MatchPlan;
 
 
@@ -14,6 +15,8 @@ class ChallengeGenerator
     private TimeCursor $jTime;
     private TimeCursor $cTime;
     private MatchPlan $matchPlan;
+
+    use UsesPlanParameter;
 
     public function __construct(ActivityWriter $writer, TimeCursor $cTime, TimeCursor $jTime, TimeCursor $rTime, int $planId)
     {
@@ -68,49 +71,7 @@ class ChallengeGenerator
         $this->writer->insertPoint('presentations', pp($insertPoint), $this->rTime);
     }
 
-    public function briefings(\DateTime $t, int $cDay): void
-    {
-        // === COACH BRIEFING ===
-        if ($cDay === 1) {
-            $this->writer->withGroup('c_coach_briefing', function () use ($t) {
-                $start = (clone $t)->modify('-' . (pp('c_duration_briefing') + pp('c_ready_opening')) . ' minutes');
-                $cursor = new TimeCursor($start);
-                $this->writer->insertActivity('c_coach_briefing', $cursor, pp('c_duration_briefing'));
-            });
-        }
-
-        // === JUDGE BRIEFING ===
-        $this->writer->withGroup('c_judge_briefing', function () use ($t) {
-            if (!pp('j_briefing_after_opening')) {
-                $start = (clone $t)->modify('-' . (pp('j_duration_briefing') + pp('c_ready_opening')) . ' minutes');
-                $cursor = new TimeCursor($start);
-                $this->writer->insertActivity('c_judge_briefing', $cursor, pp('j_duration_briefing'));
-            } else {
-                $this->jTime->addMinutes(pp('j_ready_briefing'));
-                $this->writer->insertActivity('c_judge_briefing', $this->jTime, pp('j_duration_briefing'));
-                $this->jTime->addMinutes(pp('j_duration_briefing'));
-            }
-        });
-
-        // === REFEREE BRIEFING ===
-        $this->writer->withGroup('r_referee_briefing', function () use ($t, $cDay) {
-            if (!pp('r_briefing_after_opening')) {
-                $durationKey = $cDay === 1 ? 'r_duration_briefing' : 'r_duration_briefing_2';
-                $start = (clone $t)->modify('-' . (pp($durationKey) + pp('c_ready_opening')) . ' minutes');
-                $cursor = new TimeCursor($start);
-                $this->writer->insertActivity('r_referee_briefing', $cursor, pp($durationKey));
-            } else {
-                $this->rTime->addMinutes(pp('r_ready_briefing'));
-                $durationKey = $cDay === 1 ? 'r_duration_briefing' : 'r_duration_briefing_2';
-                $this->writer->insertActivity('r_referee_briefing', $this->rTime, pp($durationKey));
-                $this->rTime->addMinutes(pp($durationKey));
-            }
-        });
-
-        // Buffer nach Briefings
-        $this->jTime->addMinutes(pp('j_ready_action'));
-        $this->rTime->addMinutes(pp('r_ready_action'));
-    }
+    
 
     public function judgingOneRound(int $cBlock, int $jT): void
     {
@@ -298,30 +259,24 @@ class ChallengeGenerator
 
     public function openingsAndBriefings(bool $explore): void
     {
-        // -----------------------------------------------------------------------------------
-        // Challenge opening alone or joint with Explore 
-        // -----------------------------------------------------------------------------------
+        $startOpening = clone $this->cTime; 
 
-        // Save time to schedule briefings before opening
-        $briefingStart = clone $this->cTime; 
+        if ($explore) {
 
-        if ($this->pp('e_mode') == ID_E_MORNING) {
-            // joint opening  
-
-            Log::debug('Opening joint');
+            $this->cTime->setTime($this->pp('g_start_opening'));
 
             $this->writer->withGroup('g_opening', function () {
                 $this->writer->insertActivity('g_opening', $this->cTime, $this->pp('g_duration_opening'));
             });
 
-            // All domains move forward together
             $this->jTime->addMinutes($this->pp('g_duration_opening'));
             $this->rTime->addMinutes($this->pp('g_duration_opening'));
-            $this->eTime->addMinutes($this->pp('g_duration_opening'));
-        } else {
-            // FLL Challenge only during the morning
 
-            Log::debug('Opening Challenge only');
+            Log::info('Explore integrated morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
+
+        } else {
+
+            $this->cTime->setTime($this->pp('c_start_opening'));
 
             $this->writer->withGroup('c_opening', function () {
                 $this->writer->insertActivity('c_opening', $this->cTime, $this->pp('c_duration_opening'));
@@ -329,54 +284,53 @@ class ChallengeGenerator
 
             $this->jTime->addMinutes($this->pp('c_duration_opening'));
             $this->rTime->addMinutes($this->pp('c_duration_opening'));
+
+            Log::debug('Explore no integrated morning batch');
         }
 
-        // -----------------------------------------------------------------------------------
-        // Briefings before or after opening
-        // -----------------------------------------------------------------------------------
+        $this->briefings($startOpening->current());
 
-        // Add briefings
-        $this->challenge->briefings($briefingStart->current(), $this->cDay);
-
-        // -----------------------------------------------------------------------------------
-        // FLL Explore integrated during the morning 
-        // -----------------------------------------------------------------------------------
-        // Start with FLL Explore, because awards ceremony is between FLL Challenge robot game rounds
-        // Therefore, FLL Explore timing needs to be calculate first!
-        // Skip all, if there are not FLL Explore teams in the morning
-
-        if ($this->pp('e_mode') == ID_E_MORNING) {
-
-            // Add briefings
-            $this->explore->briefings($briefingStart->current(), 1);
-
-            Log::debug('Explore morning');
-            Log::debug('Explore morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
-
-            // (Supported plan checks removed)
-
-            // Full FLL Explore schedule for group 1
-            $this->explore->judging(1);
-
-            // Buffer before all judges meet for deliberations
-            $this->eTime->addMinutes($this->pp('e_ready_deliberations'));
-
-            // Deliberations
-            $this->writer->withGroup('e_deliberations', function () {
-                $this->writer->insertActivity('e_deliberations', $this->eTime, $this->pp('e1_duration_deliberations'));
-            });
-
-            $this->eTime->addMinutes($this->pp('e1_duration_deliberations'));
-
-            // Awards for FLL Explore is next:
-            // This would be the earliest time for FLL Explore awards
-            // However, robot game may not have finished yet.
-            // Thus the timing is determined further down 
-
-        } else {
-            Log::debug('Explore no morning batch');
-        }
     }
+
+    public function briefings(\DateTime $t): void
+    {
+        
+        $this->writer->withGroup('c_coach_briefing', function () use ($t) {
+            $start = (clone $t)->modify('-' . ($this->pp('c_duration_briefing') + $this->pp('c_ready_opening')) . ' minutes');
+            $cursor = new TimeCursor($start);
+            $this->writer->insertActivity('c_coach_briefing', $cursor, $this->pp('c_duration_briefing'));
+        });
+
+        $this->writer->withGroup('c_judge_briefing', function () use ($t) {
+            if (!$this->pp('j_briefing_after_opening')) {
+                $start = (clone $t)->modify('-' . ($this->pp('j_duration_briefing') + $this->pp('c_ready_opening')) . ' minutes');
+                $cursor = new TimeCursor($start);
+                $this->writer->insertActivity('c_judge_briefing', $cursor, $this->pp('j_duration_briefing'));
+            } else {
+                $this->jTime->addMinutes($this->pp('j_ready_briefing'));
+                $this->writer->insertActivity('c_judge_briefing', $this->jTime, $this->pp('j_duration_briefing'));
+                $this->jTime->addMinutes($this->pp('j_duration_briefing'));
+                $this->jTime->addMinutes($this->pp('j_ready_action'));
+
+            }
+        });
+
+        $this->writer->withGroup('r_referee_briefing', function () use ($t) {
+            if (!$this->pp('r_briefing_after_opening')) {
+                $start = (clone $t)->modify('-' . ($this->pp('r_duration_briefing') + $this->pp('c_ready_opening')) . ' minutes');
+                $cursor = new TimeCursor($start);
+                $this->writer->insertActivity('r_referee_briefing', $cursor, $this->pp('r_duration_briefing'));
+            } else {
+                $this->rTime->addMinutes($this->pp('r_ready_briefing'));
+                $this->writer->insertActivity('r_referee_briefing', $this->rTime, $this->pp('r_duration_briefing'));
+                $this->rTime->addMinutes($this->pp('r_duration_briefing'));
+                $this->rTime->addMinutes($this->pp('r_ready_action'));
+            }
+        });
+
+    }
+
+
 
     public function challenge(): void
     {

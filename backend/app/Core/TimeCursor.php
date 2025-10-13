@@ -31,6 +31,15 @@ class TimeCursor
     }
 
     /**
+     * Setzt die Zeit des Tages ohne das Datum zu ändern.
+     */
+    public function setTime(string $timeString): void
+    {
+        [$hours, $minutes] = explode(':', $timeString);
+        $this->time->setTime((int)$hours, (int)$minutes);
+    }
+
+    /**
      * Verschiebt den Cursor um X Minuten nach vorne.
      */
     public function addMinutes(int $minutes): void

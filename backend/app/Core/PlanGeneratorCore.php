@@ -119,7 +119,7 @@ class PlanGeneratorCore
                 );
                 
                 $this->challenge->openingsAndBriefings(true);
-                $this->explore->openingsAndBriefings(1);
+                $this->explore->openingsAndBriefings(1, true);
                 $this->explore->judgingAndDeliberations(1);
                 $this->challenge->main(true);
                 $this->challenge->robotGameFinals();
@@ -136,7 +136,7 @@ class PlanGeneratorCore
                 
                 $this->challenge->openingsAndBriefings(false);
                 $this->challenge->main(true);
-                $this->explore->openingsAndBriefings(2);
+                $this->explore->openingsAndBriefings(2, true);
                 $this->explore->judgingAndDeliberations(2);
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards(true);

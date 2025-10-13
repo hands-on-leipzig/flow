@@ -5,6 +5,7 @@ namespace App\Core;
 use DateTime;
 use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
+use App\Support\UsesPlanParameter;
 
 
 class ExploreGenerator
@@ -12,6 +13,8 @@ class ExploreGenerator
     private ActivityWriter $writer;
     private TimeCursor $eTime;
     private TimeCursor $rTime;
+
+    use UsesPlanParameter;
 
     public function __construct(ActivityWriter $writer, TimeCursor $eTime, TimeCursor $rTime, int $planId)
     {
@@ -36,33 +39,60 @@ class ExploreGenerator
         }
     }
 
-    public function openingsAndBriefings(int $group): void
+    public function openingsAndBriefings(int $group, bool $challenge = false): void
     {
-        Log::debug("Explore briefings for group {$group}");
+        $startOpening = clone $this->eTime; 
 
-        $dCoach = pp("e{$group}_duration_briefing_t");
-        $dJudge = pp("e{$group}_duration_briefing_j");
+        if ($challenge) {
 
-        $this->writer->withGroup('e_coach_briefing', function () use ($openingTime, $dCoach) {
-            $start = (clone $openingTime)->modify('-' . ($dCoach + pp("e_ready_opening")) . ' minutes');
+            $this->eTime->addMinutes($this->pp('g_duration_opening'));
+
+        } else {
+
+            $this->eTime->setTime($this->pp("e{$group}_start_opening"));
+
+            $this->writer->withGroup('e_opening', function () use ($group) {
+                $this->writer->insertActivity('e_opening', $this->eTime, $this->pp("e{$group}_duration_opening"));
+            });
+
+            $this->eTime->addMinutes($this->pp("e{$group}_duration_opening"));
+
+            if($group == 1) {
+                Log::info('Explore stand-alone morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
+            } else {
+                Log::info('Explore stand-alone afternoon: teams=' . $this->pp('e2_teams') . ', lanes=' . $this->pp('e2_lanes') . ', rounds=' . $this->pp('e2_rounds'));
+            }
+
+        }
+
+        $this->briefings($startOpening->current(), $group);
+
+    }
+
+    public function briefings(\DateTime $t, int $group): void
+    {
+
+        $this->writer->withGroup('e_coach_briefing', function () use ($t, $group) {
+            $start = (clone $t)->modify('-' . ($this->pp("e{$group}_duration_briefing_t") + $this->pp("e_ready_opening")) . ' minutes');
             $cursor = new TimeCursor($start);
-            $this->writer->insertActivity('e_coach_briefing', $cursor, $dCoach);
+            $this->writer->insertActivity('e_coach_briefing', $cursor, $this->pp("e{$group}_duration_briefing_t"));
         });
 
-        $this->writer->withGroup('e_judge_briefing', function () use ($openingTime, $dJudge) {
-            if (!pp("e_briefing_after_opening_j")) {
-                $start = (clone $openingTime)->modify('-' . ($dJudge + pp("e_ready_opening")) . ' minutes');
+        $this->writer->withGroup('e_judge_briefing', function () use ($t, $group) {
+            if (!$this->pp("e_briefing_after_opening_j")) {
+                $start = (clone $t)->modify('-' . ($this->pp("e{$group}_duration_briefing_j") + $this->pp("e_ready_opening")) . ' minutes');
                 $cursor = new TimeCursor($start);
-                $this->writer->insertActivity('e_judge_briefing', $cursor, $dJudge);
+                $this->writer->insertActivity('e_judge_briefing', $cursor, $this->pp("e{$group}_duration_briefing_j"));
             } else {
-                $this->eTime->addMinutes(pp("e_ready_briefing"));
-                $this->writer->insertActivity('e_judge_briefing', $this->eTime, $dJudge);
-                $this->eTime->addMinutes($dJudge);
+                $this->eTime->addMinutes($this->pp("e_ready_briefing"));
+                $this->writer->insertActivity('e_judge_briefing', $this->eTime, $this->pp("e{$group}_duration_briefing_j"));
+                $this->eTime->addMinutes($this->pp("e{$group}_duration_briefing_j"));
             }
         });
 
-        $this->eTime->addMinutes(pp("e_ready_action"));
+        $this->eTime->addMinutes($this->pp("e_ready_action"));
     }
+
 
     public function judgingAndDeliberations(int $group): void
     {
@@ -100,6 +130,16 @@ class ExploreGenerator
                 }
             }
         });
+
+                  // Buffer before all judges meet for deliberations
+                  $this->eTime->addMinutes($this->pp('e_ready_deliberations'));
+
+                  // Deliberations
+                  $this->writer->withGroup('e_deliberations', function () {
+                      $this->writer->insertActivity('e_deliberations', $this->eTime, $this->pp('e1_duration_deliberations'));
+                  });
+      
+                  $this->eTime->addMinutes($this->pp('e1_duration_deliberations'));
     }
 
     public function awards(int $group): void
