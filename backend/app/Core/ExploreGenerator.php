@@ -156,16 +156,4 @@ class ExploreGenerator
     }
 
 
-
-
-
-    public function eTime(): TimeCursor
-    {
-        return $this->eTime;
-    }
-
-    public function rTime(): TimeCursor
-    {
-        return $this->rTime;
-    }
 }
