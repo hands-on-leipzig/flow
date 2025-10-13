@@ -98,6 +98,7 @@ class ChallengeGenerator
 
     public function openingsAndBriefings(bool $explore = false): void
     {
+        Log::info('ChallengeGenerator: Starting openings and briefings', ['explore' => $explore]);
         $startOpening = clone $this->cTime; 
 
         if ($explore) {
@@ -173,6 +174,7 @@ class ChallengeGenerator
 
     public function main(bool $explore = false)
     {
+        Log::info('ChallengeGenerator: Starting main challenge generation', ['explore' => $explore]);
         Log::info('=== FLL Challenge generation start ===');
 
         // -----------------------------------------------------------------------------------
@@ -378,6 +380,7 @@ class ChallengeGenerator
 
     public function robotGameFinals(): void
     {
+        Log::info('ChallengeGenerator: Starting robot game finals');
         // -----------------------------------------------------------------------------------
         // FLL Challenge: Everything after judging / robot game rounds
         // -----------------------------------------------------------------------------------
@@ -495,6 +498,7 @@ class ChallengeGenerator
 
     public function awards( bool $explore = false): void
     {
+        Log::info('ChallengeGenerator: Starting awards', ['explore' => $explore]);
 
         if ($explore) {
 

@@ -43,6 +43,7 @@ class ExploreGenerator
 
     public function openingsAndBriefings(int $group, bool $challenge = false): void
     {
+        Log::info('ExploreGenerator: Starting openings and briefings', ['group' => $group, 'challenge' => $challenge]);
         $startOpening = clone $this->eTime; 
 
         if ($challenge) {
@@ -98,6 +99,7 @@ class ExploreGenerator
 
     public function judgingAndDeliberations(int $group): void
     {
+        Log::info('ExploreGenerator: Starting judging and deliberations', ['group' => $group]);
         Log::debug("Explore judging for group {$group}");
 
         $lanes = $this->pp("e{$group}_lanes");
@@ -146,6 +148,7 @@ class ExploreGenerator
 
     public function awards(int $group, bool $challenge = false): void   
     {
+        Log::info('ExploreGenerator: Starting awards', ['group' => $group, 'challenge' => $challenge]);
         if (!$challenge) {
 
             $this->eTime->addMinutes($this->pp("e_ready_awards"));
