@@ -70,4 +70,13 @@ class TimeCursor
     {
         return $this->time->format($format);
     }
+
+    /**
+     * Berechnet die Differenz in Minuten zu einem anderen TimeCursor.
+     */
+    public function diffInMinutes(TimeCursor $other): int
+    {
+        $diff = $this->time->diff($other->current());
+        return ($diff->days * 24 * 60) + ($diff->h * 60) + $diff->i;
+    }
 }

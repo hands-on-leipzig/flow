@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use App\Core\MatchPlan;
+use App\Core\TimeCursor;
 
 
 class ChallengeGenerator
@@ -44,6 +45,7 @@ class ChallengeGenerator
     
         // Instantiate match plan for Challenge domain
         $this->matchPlan = new MatchPlan($this->writer, $params);
+        $this->matchPlan->create();
 
     }
 
@@ -171,15 +173,6 @@ class ChallengeGenerator
         Log::info('=== FLL Challenge generation start ===');
 
         // -----------------------------------------------------------------------------------
-        // FLL Challenge
-        // -----------------------------------------------------------------------------------
-        // Robot Game and Judging run parallel in sync
-
-        // Create the robot game match plan
-        $this->matchPlan = new MatchPlan($this->writer);
-        $this->matchPlan->create();
-
-        // -----------------------------------------------------------------------------------
         // FLL Challenge: Put the judging / robot game schedule together
         // -----------------------------------------------------------------------------------
 
@@ -290,7 +283,7 @@ class ChallengeGenerator
             // -----------------------------------------------------------------------------------
 
             // judging including breaks
-            $this->challenge->judgingOneRound($cBlock, $jT);
+            $this->judgingOneRound($cBlock, $jT);
 
             // First team to start with in next block
             $jT += $this->pp('j_lanes');
@@ -355,7 +348,8 @@ class ChallengeGenerator
         // -----------------------------------------------------------------------------------
         // Synchronize after judging and robot game
         // -----------------------------------------------------------------------------------
-        $this->cTime = $this->jTime->copy()->addMinutes(-$this->pp('j_duration_scoring'));
+        $this->cTime = $this->jTime->copy();
+        $this->cTime->addMinutes(-$this->pp('j_duration_scoring'));
 
         // If RG is later, their time wins
         if ($this->rTime->current() > $this->cTime->current()) {
@@ -364,7 +358,7 @@ class ChallengeGenerator
 
         Log::info('=== FLL Challenge generation complete ===');
 
-                // -----------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------
         // FLL Challenge: Deliberations
         // -----------------------------------------------------------------------------------
 
