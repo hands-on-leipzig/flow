@@ -104,7 +104,7 @@ class PlanGeneratorCore
             
             if ($eMode == 0) {
                 // Challenge only
-                $this->challenge->openingsAndBriefings(false);
+                $this->challenge->openingsAndBriefings(false);        // check
                 $this->challenge->main(false);
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards(false);
@@ -118,9 +118,9 @@ class PlanGeneratorCore
                     $this->planId
                 );
                 
-                $this->challenge->openingsAndBriefings(true);
-                $this->explore->openingsAndBriefings(1, true);
-                $this->explore->judgingAndDeliberations(1);
+                $this->challenge->openingsAndBriefings(true);        // check
+                $this->explore->openingsAndBriefings(1, true);       // check
+                $this->explore->judgingAndDeliberations(1);          
                 $this->challenge->main(true);
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards(false);

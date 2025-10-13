@@ -98,12 +98,12 @@ class ExploreGenerator
     {
         Log::debug("Explore judging for group {$group}");
 
-        $lanes = pp("e{$group}_lanes");
-        $rounds = pp("e{$group}_rounds");
-        $teams = pp("e{$group}_teams");
+        $lanes = $this->pp("e{$group}_lanes");
+        $rounds = $this->pp("e{$group}_rounds");
+        $teams = $this->pp("e{$group}_teams");
 
-        $teamOffset = ($group === 1) ? 0 : pp("e1_teams");
-        $laneOffset = ($group === 1) ? 0 : pp("e1_lanes");
+        $teamOffset = ($group === 1) ? 0 : $this->pp("e1_teams");
+        $laneOffset = ($group === 1) ? 0 : $this->pp("e1_lanes");
 
         $this->writer->withGroup('e_judging_package', function () use ($rounds, $lanes, $teams, $teamOffset, $laneOffset) {
             for ($round = 1; $round <= $rounds; $round++) {
@@ -111,35 +111,35 @@ class ExploreGenerator
                 for ($lane = 1; $lane <= $lanes; $lane++) {
                     $team = ceil($teams / $lanes) * ($lane - 1) + $round;
                     if ($team <= $teams) {
-                        $this->writer->insertActivity('e_with_team', $this->eTime, pp("e_duration_with_team"), $lane + $laneOffset, $team + $teamOffset);
+                        $this->writer->insertActivity('e_with_team', $this->eTime, $this->pp("e_duration_with_team"), $lane + $laneOffset, $team + $teamOffset);
                     }
                 }
-                $this->eTime->addMinutes(pp("e_duration_with_team"));
+                $this->eTime->addMinutes($this->pp("e_duration_with_team"));
 
                 // Scoring
                 for ($lane = 1; $lane <= $lanes; $lane++) {
                     $team = ($lane - 1) * $rounds + $round;
                     if ($team <= $teams) {
-                        $this->writer->insertActivity('e_scoring', $this->eTime, pp("e_duration_scoring"), $lane + $laneOffset, $team + $teamOffset);
+                        $this->writer->insertActivity('e_scoring', $this->eTime, $this->pp("e_duration_scoring"), $lane + $laneOffset, $team + $teamOffset);
                     }
                 }
-                $this->eTime->addMinutes(pp("e_duration_scoring"));
+                $this->eTime->addMinutes($this->pp("e_duration_scoring"));
 
                 if ($round < $rounds) {
-                    $this->eTime->addMinutes(pp("e_duration_break"));
+                    $this->eTime->addMinutes($this->pp("e_duration_break"));
                 }
             }
         });
 
-                  // Buffer before all judges meet for deliberations
-                  $this->eTime->addMinutes($this->pp('e_ready_deliberations'));
+        // Buffer before all judges meet for deliberations
+        $this->eTime->addMinutes($this->pp('e_ready_deliberations'));
 
-                  // Deliberations
-                  $this->writer->withGroup('e_deliberations', function () {
-                      $this->writer->insertActivity('e_deliberations', $this->eTime, $this->pp('e1_duration_deliberations'));
-                  });
-      
-                  $this->eTime->addMinutes($this->pp('e1_duration_deliberations'));
+        // Deliberations
+        $this->writer->withGroup('e_deliberations', function () use ($group) {
+            $this->writer->insertActivity('e_deliberations', $this->eTime, $this->pp("e{$group}_duration_deliberations"));
+        });
+
+        $this->eTime->addMinutes($this->pp("e{$group}_duration_deliberations"));
     }
 
     public function awards(int $group): void
