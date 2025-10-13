@@ -174,6 +174,9 @@ class ActivityWriter
 
     public function insertPoint(string $insertPointCode, int $duration, TimeCursor $time): void
     {
+        return;
+
+        // TODO: Remove this once we have a proper insert point table
         // Map robot game codes to insert point IDs
         $insertPointIdMap = [
             'rg_tr' => 1,  // Test round -> "Nach Robot-Game Runde 3"

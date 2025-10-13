@@ -29,8 +29,8 @@ const loadDetails = async () => {
 
 watch(() => props.planId, loadDetails, { immediate: true })
 
-const okIcon = (val) => val === 1 ? '✓' : '⚠️'
-const okClass = (val) => val === 1 ? 'text-gray-300' : 'text-yellow-500 font-semibold'
+const okIcon = (val) => (val == 1 || val === '1') ? '✓' : '⚠️'
+const okClass = (val) => (val == 1 || val === '1') ? 'text-gray-300' : 'text-yellow-500 font-semibold'
 const warnClass = (condition) => condition ? 'text-yellow-500 font-semibold' : 'text-gray-300'
 const mismatchClass = (a, b) => a !== b ? 'text-red-500 font-semibold' : ''
 
@@ -51,7 +51,7 @@ const matchesByRound = (round) => {
     <div v-else>
       <div class="flex flex-row justify-between items-start gap-4">
         <!-- Linker Block: Timing -->
-        <div class="basis-[20%] flex-shrink-0 overflow-x-auto">
+        <div class="basis-[25%] flex-shrink-0 overflow-x-auto">
           <div class="text-sm font-semibold text-gray-600 mb-1">Transfer</div>
           <table class="table-auto text-sm border-collapse">
             <thead class="bg-gray-100">
@@ -61,6 +61,7 @@ const matchesByRound = (round) => {
                 <th class="px-2 py-1">1→2</th>
                 <th class="px-2 py-1">2→3</th>
                 <th class="px-2 py-1">3→4</th>
+                <th class="px-2 py-1">4→5</th>
                 <th class="px-2 py-1">Δ</th>
               </tr>
             </thead>
@@ -78,6 +79,9 @@ const matchesByRound = (round) => {
                 </td>
                 <td class="text-center" :class="team.q1_transition_3_4 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
                   {{ team.q1_transition_3_4 }}
+                </td>
+                <td class="text-center" :class="team.q1_transition_4_5 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
+                  {{ team.q1_transition_4_5 }}
                 </td>
                 <td class="text-center">{{ team.q5_idle_avg?.toFixed(2) ?? '–' }}</td>
               </tr>

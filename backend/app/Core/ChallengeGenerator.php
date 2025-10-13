@@ -460,7 +460,7 @@ class ChallengeGenerator
                 $this->matchPlan->insertFinalRound(16, $this->rTime);
             } else {
                 // Fallback: gleiche Semantik wie r_insert_one_round für Finals (TODO: implement in MatchPlan)
-                $this->matchPlan->insertOneRound(16, $this->rTime);
+                $this->matchPlan->insertFinalRound(16, $this->rTime);
             }
         }
 
@@ -469,7 +469,7 @@ class ChallengeGenerator
             if (method_exists($this->matchPlan, 'finalRound')) {
                 $this->matchPlan->insertFinalRound(8, $this->rTime);
             } else {
-                $this->matchPlan->insertOneRound(8, $this->rTime);
+                $this->matchPlan->insertFinalRound(8, $this->rTime);
             }
         }
 
@@ -477,14 +477,14 @@ class ChallengeGenerator
         if (method_exists($this->matchPlan, 'finalRound')) {
             $this->matchPlan->insertFinalRound(4, $this->rTime);
         } else {
-            $this->matchPlan->insertOneRound(4, $this->rTime);
+            $this->matchPlan->insertFinalRound(4, $this->rTime);
         }
 
         // Final matches
         if (method_exists($this->matchPlan, 'finalRound')) {
             $this->matchPlan->insertFinalRound(2, $this->rTime);
         } else {
-            $this->matchPlan->insertOneRound(2, $this->rTime);
+            $this->matchPlan->insertFinalRound(2, $this->rTime);
         }
 
         // -----------------------------------------------------------------------------------
