@@ -25,8 +25,11 @@ class FreeBlockGenerator
 
     public function insertFreeActivities(): void
     {
-        // Load ExtraBlocks with fixed times for this plan
-        $blocks = ExtraBlock::where('plan', $this->planId)
+        Log::info('FreeBlockGenerator: Starting free activities insertion');
+        
+        try {
+            // Load ExtraBlocks with fixed times for this plan
+            $blocks = ExtraBlock::where('plan', $this->planId)
             ->where('active', true)
             ->whereNotNull('start')
             ->get(['id', 'first_program', 'start', 'end']);
@@ -53,6 +56,15 @@ class FreeBlockGenerator
                 'end'                   => $block->end,
                 'extra_block'           => $block->id,
             ]);
+        }
+
+        } catch (\Throwable $e) {
+            Log::error('FreeBlockGenerator: Error in free activities insertion', [
+                'plan_id' => $this->planId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \RuntimeException("Failed to insert free activities: {$e->getMessage()}", 0, $e);
         }
     }
 }

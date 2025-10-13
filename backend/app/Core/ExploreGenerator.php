@@ -45,7 +45,8 @@ class ExploreGenerator
     {
         Log::info('ExploreGenerator: Starting openings and briefings', ['group' => $group, 'challenge' => $challenge]);
 
-        $startOpening = clone $this->eTime; 
+        try {
+            $startOpening = clone $this->eTime; 
 
         if ($challenge) {
 
@@ -71,6 +72,15 @@ class ExploreGenerator
 
         $this->briefings($startOpening->current(), $group);
 
+        } catch (\Throwable $e) {
+            Log::error('ExploreGenerator: Error in openings and briefings', [
+                'group' => $group,
+                'challenge' => $challenge,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \RuntimeException("Failed to generate Explore openings and briefings: {$e->getMessage()}", 0, $e);
+        }
     }
 
     public function briefings(\DateTime $t, int $group): void
@@ -102,7 +112,8 @@ class ExploreGenerator
     {
         Log::info('ExploreGenerator: Starting judging and deliberations', ['group' => $group]);
 
-        $lanes = $this->pp("e{$group}_lanes");
+        try {
+            $lanes = $this->pp("e{$group}_lanes");
         $rounds = $this->pp("e{$group}_rounds");
         $teams = $this->pp("e{$group}_teams");
 
@@ -144,13 +155,23 @@ class ExploreGenerator
         });
 
         $this->eTime->addMinutes($this->pp("e{$group}_duration_deliberations"));
+
+        } catch (\Throwable $e) {
+            Log::error('ExploreGenerator: Error in judging and deliberations', [
+                'group' => $group,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \RuntimeException("Failed to generate Explore judging and deliberations: {$e->getMessage()}", 0, $e);
+        }
     }
 
     public function awards(int $group, bool $challenge = false): void   
     {
         Log::info('ExploreGenerator: Starting awards', ['group' => $group, 'challenge' => $challenge]);
         
-        if (!$challenge) {
+        try {
+            if (!$challenge) {
 
             $this->eTime->addMinutes($this->pp("e_ready_awards"));
             $this->writer->withGroup('e_awards', function () use ($group) {
@@ -159,6 +180,15 @@ class ExploreGenerator
             $this->eTime->addMinutes($this->pp("e{$group}_duration_awards"));
         }
 
+        } catch (\Throwable $e) {
+            Log::error('ExploreGenerator: Error in awards', [
+                'group' => $group,
+                'challenge' => $challenge,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \RuntimeException("Failed to generate Explore awards: {$e->getMessage()}", 0, $e);
+        }
     }
 
 

@@ -100,7 +100,8 @@ class ChallengeGenerator
     {
         Log::info('ChallengeGenerator: Starting openings and briefings', ['explore' => $explore]);
 
-        $startOpening = clone $this->cTime; 
+        try {
+            $startOpening = clone $this->cTime; 
 
         if ($explore) {
 
@@ -131,6 +132,14 @@ class ChallengeGenerator
 
         $this->briefings($startOpening->current());
 
+        } catch (\Throwable $e) {
+            Log::error('ChallengeGenerator: Error in openings and briefings', [
+                'explore' => $explore,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \RuntimeException("Failed to generate openings and briefings: {$e->getMessage()}", 0, $e);
+        }
     }
 
     public function briefings(\DateTime $t): void
@@ -177,7 +186,8 @@ class ChallengeGenerator
     {
         Log::info('ChallengeGenerator: Starting main challenge generation', ['explore' => $explore]);
 
-        // -----------------------------------------------------------------------------------
+        try {
+            // -----------------------------------------------------------------------------------
         // FLL Challenge: Put the judging / robot game schedule together
         // -----------------------------------------------------------------------------------
 
@@ -375,13 +385,24 @@ class ChallengeGenerator
             $this->writer->insertActivity('c_deliberations', $this->jTime, $this->pp('j_duration_deliberations'));
         });
         $this->jTime->addMinutes($this->pp('j_duration_deliberations'));
+
+        } catch (\Throwable $e) {
+            Log::error('ChallengeGenerator: Error in main challenge generation', [
+                'explore' => $explore,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \RuntimeException("Failed to generate main challenge activities: {$e->getMessage()}", 0, $e);
+        }
     }
 
 
     public function robotGameFinals(): void
     {
         Log::info('ChallengeGenerator: Starting robot game finals');
-        // -----------------------------------------------------------------------------------
+        
+        try {
+            // -----------------------------------------------------------------------------------
         // FLL Challenge: Everything after judging / robot game rounds
         // -----------------------------------------------------------------------------------
         //  
@@ -475,7 +496,13 @@ class ChallengeGenerator
             $this->cTime = $this->jTime->copy();
         }
 
-     
+        } catch (\Throwable $e) {
+            Log::error('ChallengeGenerator: Error in robot game finals', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \RuntimeException("Failed to generate robot game finals: {$e->getMessage()}", 0, $e);
+        }
     }
     
     public function presentations(): void
@@ -500,7 +527,8 @@ class ChallengeGenerator
     {
         Log::info('ChallengeGenerator: Starting awards', ['explore' => $explore]);
 
-        if ($explore) {
+        try {
+            if ($explore) {
 
             Log::debug('Awards joint');
 
@@ -518,7 +546,15 @@ class ChallengeGenerator
             });
             $this->cTime->addMinutes($this->pp('c_duration_awards'));
         }
-        
+
+        } catch (\Throwable $e) {
+            Log::error('ChallengeGenerator: Error in awards', [
+                'explore' => $explore,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \RuntimeException("Failed to generate awards: {$e->getMessage()}", 0, $e);
+        }
     }
 
 }
