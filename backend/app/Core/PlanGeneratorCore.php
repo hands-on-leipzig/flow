@@ -104,10 +104,10 @@ class PlanGeneratorCore
             
             if ($eMode == 0) {
                 // Challenge only
-                $this->challenge->openingsAndBriefings(false);        // check
-                $this->challenge->main(false);
+                $this->challenge->openingsAndBriefings();        // check
+                $this->challenge->main();
                 $this->challenge->robotGameFinals();
-                $this->challenge->awards(false);
+                $this->challenge->awards();                     // check
                 
             } elseif ($eMode == 1) {
                 // Challenge + Explore integrated morning
@@ -120,10 +120,10 @@ class PlanGeneratorCore
                 
                 $this->challenge->openingsAndBriefings(true);        // check
                 $this->explore->openingsAndBriefings(1, true);       // check
-                $this->explore->judgingAndDeliberations(1);          
+                $this->explore->judgingAndDeliberations(1);          // check
                 $this->challenge->main(true);
                 $this->challenge->robotGameFinals();
-                $this->challenge->awards(false);
+                $this->challenge->awards();                     // check
                 
             } elseif ($eMode == 2) {
                 // Challenge + Explore integrated afternoon
@@ -134,12 +134,12 @@ class PlanGeneratorCore
                     $this->planId
                 );
                 
-                $this->challenge->openingsAndBriefings(false);
+                $this->challenge->openingsAndBriefings();        // check
                 $this->challenge->main(true);
-                $this->explore->openingsAndBriefings(2, true);
-                $this->explore->judgingAndDeliberations(2);
+                $this->explore->openingsAndBriefings(2, true);       // check
+                $this->explore->judgingAndDeliberations(2);          // check   
                 $this->challenge->robotGameFinals();
-                $this->challenge->awards(true);
+                $this->challenge->awards(true);                     // check
                 
             } elseif (in_array($eMode, [3, 4, 5])) {
                 // Challenge + Explore decoupled
@@ -152,31 +152,31 @@ class PlanGeneratorCore
                     $this->planId
                 );
 
-                $this->challenge->openingsAndBriefings(false);
-                $this->challenge->main(false);
+                $this->challenge->openingsAndBriefings();        // check
+                $this->challenge->main();
                 $this->challenge->robotGameFinals();
-                $this->challenge->awards(false);
+                $this->challenge->awards();                     // check
 
 
                 if ($eMode == 3) {
                     // Explore decoupled morning
-                    $this->explore->openingsAndBriefings(1);
-                    $this->explore->judgingAndDeliberations(1);
-                    $this->explore->awards(1);
+                    $this->explore->openingsAndBriefings(1);        // check
+                    $this->explore->judgingAndDeliberations(1);        // check
+                    $this->explore->awards(1);                         // check
                 } elseif ($eMode == 4) {
                     // Explore decoupled afternoon
-                    $this->explore->openingsAndBriefings(2);
-                    $this->explore->judgingAndDeliberations(2);
-                    $this->explore->awards(2);
+                    $this->explore->openingsAndBriefings(2);             // check
+                    $this->explore->judgingAndDeliberations(2);        // check
+                    $this->explore->awards(2);                         // check
                 } elseif ($eMode == 5) {
                     // Explore decoupled both  
-                    $this->explore->openingsAndBriefings(1);
-                    $this->explore->judgingAndDeliberations(1);
-                    $this->explore->awards(1);
+                    $this->explore->openingsAndBriefings(1);        // check
+                    $this->explore->judgingAndDeliberations(1);        // check
+                    $this->explore->awards(1);                         // check
                 
-                    $this->explore->openingsAndBriefings(2);
-                    $this->explore->judgingAndDeliberations(2);
-                    $this->explore->awards(2);
+                    $this->explore->openingsAndBriefings(2);        // check
+                    $this->explore->judgingAndDeliberations(2);        // check
+                    $this->explore->awards(2);                         // check
                 }
 
             }
@@ -191,9 +191,9 @@ class PlanGeneratorCore
                     $this->rTime,
                     $this->planId
                 );
-                $this->explore->openingsAndBriefings(1);
-                $this->explore->judgingAndDeliberations(1);
-                $this->explore->awards(1);
+                $this->explore->openingsAndBriefings(1);        // check
+                $this->explore->judgingAndDeliberations(1);        // check
+                $this->explore->awards(1);                         // check
                 
             } elseif ($eMode == 4) {
                 // Explore afternoon only
@@ -203,10 +203,10 @@ class PlanGeneratorCore
                     $this->rTime,
                     $this->planId
                 );
-                $this->explore->openingsAndBriefings(2);
-                $this->explore->judgingAndDeliberations(2);
-                $this->explore->awards(2);
-                
+                $this->explore->openingsAndBriefings(2);        // check
+                $this->explore->judgingAndDeliberations(2);        // check
+                $this->explore->awards(2);                         // check
+
             } elseif ($eMode == 5) {
                 // Explore both morning and afternoon
                 $this->explore = new ExploreGenerator(
@@ -215,13 +215,13 @@ class PlanGeneratorCore
                     $this->rTime,
                     $this->planId
                 );
-                $this->explore->openingsAndBriefings(1);
-                $this->explore->judgingAndDeliberations(1);
-                $this->explore->awards(1);
+                $this->explore->openingsAndBriefings(1);       // check     
+                $this->explore->judgingAndDeliberations(1);        // check
+                $this->explore->awards(1);                         // check
                 
-                $this->explore->openingsAndBriefings(2);
-                $this->explore->judgingAndDeliberations(2);
-                $this->explore->awards(2);
+                $this->explore->openingsAndBriefings(2);        // check
+                $this->explore->judgingAndDeliberations(2);        // check
+                $this->explore->awards(2);                         // check
             }
         }
     }

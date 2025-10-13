@@ -117,7 +117,7 @@ class ChallengeGenerator
         });
     }
 
-    public function main(bool $explore)
+    public function main(bool $explore = false)
     {
 
          // Read all parameters for the plan. Access is via $this->pp('...')
@@ -257,7 +257,7 @@ class ChallengeGenerator
     }
 
 
-    public function openingsAndBriefings(bool $explore): void
+    public function openingsAndBriefings(bool $explore = false): void
     {
         $startOpening = clone $this->cTime; 
 
@@ -684,17 +684,14 @@ class ChallengeGenerator
             $this->cTime = $this->jTime->copy();
         }
 
-        // FLL Explore
-        // Deliberations might have taken longer. Which is rather theoretical ...
-        if ($this->pp('e_mode') == ID_E_AFTERNOON
-            && $this->eTime->current()->getTimestamp() > $this->cTime->current()->getTimestamp()) {
-            $this->cTime = $this->eTime->copy();
-        }
+     
+    }
+    
+    public function awards( bool $explore = false): void
+    {
 
-        // Awards
-        if ($this->pp('e_mode') == ID_E_AFTERNOON) {
+        if ($explore) {
 
-            // Joint with Explore
             Log::debug('Awards joint');
 
             $this->writer->withGroup('g_awards', function () {
@@ -704,7 +701,6 @@ class ChallengeGenerator
 
         } else {
 
-            // Only Challenge
             Log::debug('Awards Challenge only');
 
             $this->writer->withGroup('c_awards', function () {
@@ -712,9 +708,7 @@ class ChallengeGenerator
             });
             $this->cTime->addMinutes($this->pp('c_duration_awards'));
         }
+        
     }
-    
-    public function awards( bool $explore): void
-    {
-    }
+
 }

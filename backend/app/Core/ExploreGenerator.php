@@ -142,34 +142,20 @@ class ExploreGenerator
         $this->eTime->addMinutes($this->pp("e{$group}_duration_deliberations"));
     }
 
-    public function awards(int $group): void
+    public function awards(int $group, bool $challenge = false): void   
     {
-        $this->eTime->addMinutes(pp("e_ready_deliberations"));
-        $this->writer->withGroup('e_deliberations', function () use ($group) {
-            $this->writer->insertActivity('e_deliberations', $this->eTime, pp("e{$group}_duration_deliberations"));
-            $this->eTime->addMinutes(pp("e{$group}_duration_deliberations"));
-        });
+        if (!$challenge) {
 
-        $this->eTime->addMinutes(pp("e_ready_awards"));
-        $this->writer->withGroup('e_awards', function () use ($group) {
-            $this->writer->insertActivity('e_awards', $this->eTime, pp("e{$group}_duration_awards"));
-            $this->eTime->addMinutes(pp("e{$group}_duration_awards"));
-        });
+            $this->eTime->addMinutes($this->pp("e_ready_awards"));
+            $this->writer->withGroup('e_awards', function () use ($group) {
+                $this->writer->insertActivity('e_awards', $this->eTime, $this->pp("e{$group}_duration_awards"));
+            });
+            $this->eTime->addMinutes($this->pp("e{$group}_duration_awards"));
+        }
+
     }
 
-    public function opening(int $group): DateTime
-    {
-        $start = explode(':', pp("e{$group}_start_opening"));
-        $this->eTime->current()->setTime((int) $start[0], (int) $start[1]);
-        $openingStart = clone $this->eTime->current();
 
-        $this->writer->withGroup('e_opening', function () use ($group) {
-            $this->writer->insertActivity('e_opening', $this->eTime, pp("e{$group}_duration_opening"));
-            $this->eTime->addMinutes(pp("e{$group}_duration_opening"));
-        });
-
-        return $openingStart;
-    }
 
 
 
