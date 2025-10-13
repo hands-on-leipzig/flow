@@ -23,6 +23,17 @@ class QPlanMatch extends Model
         'table_2_team'
     ];
 
+    // Type casting for proper data types
+    protected $casts = [
+        'q_plan' => 'integer',
+        'round' => 'integer',
+        'match_no' => 'integer',
+        'table_1' => 'integer',
+        'table_2' => 'integer',
+        'table_1_team' => 'integer',
+        'table_2_team' => 'integer',
+    ];
+
     /**
      * Returns the parent quality plan this match entry belongs to
      */

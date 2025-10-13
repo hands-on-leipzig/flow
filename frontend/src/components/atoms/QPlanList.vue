@@ -47,7 +47,7 @@ const filterAsym = {
 }
 
 const plans = computed(() => {
-  const filtered = plansRaw.value.filter(plan => {
+  return plansRaw.value.filter(plan => {
     // Q-Checks
     const qFilterOk = [1, 2, 3, 4].every(q => {
       if (!filterQ[q].value) return true
@@ -80,31 +80,8 @@ const plans = computed(() => {
     const asymFilterOk = asymActive.length === 0 || asymActive.includes(Number(plan.r_asym))
 
     // Kombiniert
-    const result = qFilterOk && laneFilterOk && roundFilterOk && tableFilterOk && asymFilterOk
-    
-    // Debug logging
-    if (plansRaw.value.length > 0) {
-      console.log(`Plan ${plan.id} filter result:`, {
-        qFilterOk,
-        laneFilterOk,
-        roundFilterOk,
-        tableFilterOk,
-        asymFilterOk,
-        result,
-        planData: {
-          j_lanes: plan.j_lanes,
-          j_rounds: plan.j_rounds,
-          r_tables: plan.r_tables,
-          r_asym: plan.r_asym
-        }
-      })
-    }
-    
-    return result
+    return qFilterOk && laneFilterOk && roundFilterOk && tableFilterOk && asymFilterOk
   })
-  
-  console.log('Filtered plans count:', filtered.length)
-  return filtered
 })
 const loadPlans = async () => {
   loading.value = true
@@ -112,8 +89,6 @@ const loadPlans = async () => {
   try {
     const response = await axios.get(`/quality/qplans/${props.qrun}`)
     plansRaw.value = response.data
-    console.log('Loaded QPlans:', plansRaw.value.length)
-    console.log('Filtered QPlans:', plans.value.length)
   } catch (err) {
     console.error('Fehler beim Laden der QPlans', err)
     error.value = 'Fehler beim Laden der Pläne'
