@@ -197,33 +197,4 @@ class ActivityWriter
         }    
     }
 
-    public function insertFreeActivities(): void
-        {
-            // Alle Extra-Blöcke mit festen Zeiten für diesen Plan laden
-            $blocks = ExtraBlock::where('plan', $this->planId)
-                ->where('active', true)
-                ->whereNotNull('start')
-                ->get(['id', 'first_program', 'start', 'end']);
-
-            foreach ($blocks as $block) {
-                // activity_type_detail anhand von first_program bestimmen
-                $code = match ((int)$block->first_program) {
-                    3 => 'c_free_block', // CHALLENGE
-                    2 => 'e_free_block', // EXPLORE
-                    default => 'g_free_block', // gemeinsam
-                };
-
-                // Neue ActivityGroup anlegen
-                $groupId = $this->insertActivityGroup($code);
-
-                // Activity mit festen Start-/Endzeiten eintragen
-                Activity::create([
-                    'activity_group'        => $groupId,
-                    'activity_type_detail'  => $this->activityTypeDetailIdFromCode($code),
-                    'start'                 => $block->start,
-                    'end'                   => $block->end,
-                    'extra_block'           => $block->id,
-                ]);
-            }
-        }
 }

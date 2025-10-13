@@ -36,7 +36,7 @@ class ExploreGenerator
         }
     }
 
-    public function briefings(DateTime $openingTime, int $group): void
+    public function openingsAndBriefings(int $group): void
     {
         Log::debug("Explore briefings for group {$group}");
 
@@ -64,7 +64,7 @@ class ExploreGenerator
         $this->eTime->addMinutes(pp("e_ready_action"));
     }
 
-    public function judging(int $group): void
+    public function judgingAndDeliberations(int $group): void
     {
         Log::debug("Explore judging for group {$group}");
 
@@ -102,7 +102,7 @@ class ExploreGenerator
         });
     }
 
-    public function deliberationsAndAwards(int $group): void
+    public function awards(int $group): void
     {
         $this->eTime->addMinutes(pp("e_ready_deliberations"));
         $this->writer->withGroup('e_deliberations', function () use ($group) {
@@ -131,14 +131,7 @@ class ExploreGenerator
         return $openingStart;
     }
 
-    public function isSupported(int $group): bool
-    {
-        return db_check_supported_plan(
-            ID_FP_EXPLORE,
-            pp("e{$group}_teams"),
-            pp("e{$group}_lanes")
-        );
-    }
+
 
     public function eTime(): TimeCursor
     {
