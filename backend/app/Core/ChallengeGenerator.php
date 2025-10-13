@@ -52,41 +52,41 @@ class ChallengeGenerator
         $this->writer->withGroup('c_judging_package', function () use ($cBlock, $jT) {
 
             // 1) Judging WITH team
-            for ($jLane = 1; $jLane <= pp('j_lanes'); $jLane++) {
-                if ($jT + $jLane <= pp('c_teams')) {
+            for ($jLane = 1; $jLane <= $this->pp('j_lanes'); $jLane++) {
+                if ($jT + $jLane <= $this->pp('c_teams')) {
                     $this->writer->insertActivity(
                         'c_with_team',
                         $this->jTime,
-                        pp('j_duration_with_team'),
+                        $this->pp('j_duration_with_team'),
                         $jLane,
                         $jT + $jLane
                     );
                 }
             }
-            $this->jTime->addMinutes(pp('j_duration_with_team'));
+            $this->jTime->addMinutes($this->pp('j_duration_with_team'));
 
             // 2) Scoring WITHOUT team
-            for ($jLane = 1; $jLane <= pp('j_lanes'); $jLane++) {
-                if ($jT + $jLane <= pp('c_teams')) {
+            for ($jLane = 1; $jLane <= $this->pp('j_lanes'); $jLane++) {
+                if ($jT + $jLane <= $this->pp('c_teams')) {
                     $this->writer->insertActivity(
                         'c_scoring',
                         $this->jTime,
-                        pp('j_duration_scoring'),
+                        $this->pp('j_duration_scoring'),
                         $jLane,
                         $jT + $jLane
                     );
                 }
             }
-            $this->jTime->addMinutes(pp('j_duration_scoring'));
+            $this->jTime->addMinutes($this->pp('j_duration_scoring'));
 
             // 3) Pause / Lunch nach Runde
-            if ((pp('j_rounds') == 4 && $cBlock == 2) ||
-                (pp('j_rounds') > 4 && $cBlock == 3)) {
-                if (pp('c_duration_lunch_break') == 0) {
-                    $this->jTime->addMinutes(pp('j_duration_lunch'));
+            if (($this->pp('j_rounds') == 4 && $cBlock == 2) ||
+                ($this->pp('j_rounds') > 4 && $cBlock == 3)) {
+                if ($this->pp('c_duration_lunch_break') == 0) {
+                    $this->jTime->addMinutes($this->pp('j_duration_lunch'));
                 }
-            } elseif ($cBlock < pp('j_rounds')) {
-                $this->jTime->addMinutes(pp('j_duration_break'));
+            } elseif ($cBlock < $this->pp('j_rounds')) {
+                $this->jTime->addMinutes($this->pp('j_duration_break'));
             }
         });
     }
