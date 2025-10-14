@@ -105,9 +105,6 @@ class ChallengeGenerator
                 $this->jTime->set($this->cTime->current());
                 $this->rTime->set($this->cTime->current());
 
-
-
-
                 $this->writer->withGroup('g_opening', function () {
                     $this->writer->insertActivity('g_opening', $this->cTime, $this->pp('g_duration_opening'));
                 });
@@ -443,81 +440,78 @@ class ChallengeGenerator
         
         try {
             // -----------------------------------------------------------------------------------
-        // FLL Challenge: Everything after judging / robot game rounds
-        // -----------------------------------------------------------------------------------
-        //  
-        // 1 Selected research on main stage
-        // 2 followed by robot game finals
-        // 3 awards
-        //
-        // 1 and 2 may be flipped
+            // FLL Challenge: Everything after judging / robot game rounds
+            // -----------------------------------------------------------------------------------
+            //  
+            // 1 Selected research on main stage
+            // 2 followed by robot game finals
+            // 3 awards
+            //
+            // 1 and 2 may be flipped
 
-        // -----------------------------------------------------------------------------------
-        // FLL Challenge: Research presentations on stage
-        // -----------------------------------------------------------------------------------
-        // Organizer may chose not to show any presentations.
-        // They can also decide to show them at the end
+            // -----------------------------------------------------------------------------------
+            // FLL Challenge: Research presentations on stage
+            // -----------------------------------------------------------------------------------
+            // Organizer may chose not to show any presentations.
+            // They can also decide to show them at the end
 
-        // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
-        $this->rTime->set($this->cTime->current());
+            // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
+            $this->rTime->set($this->cTime->current());
 
-        if ($this->pp('c_presentations') == 0 || $this->pp('c_presentations_last')) {
+            if ($this->pp('c_presentations') == 0 || $this->pp('c_presentations_last')) {
 
-            // Break for referees and time to annouce advancing teams
-            $this->rTime->addMinutes($this->pp('r_duration_break'));
+                // Break for referees and time to annouce advancing teams
+                $this->rTime->addMinutes($this->pp('r_duration_break'));
 
-        } else {
+            } else {
 
-            // Research presentations on stage
-            $this->rTime->addMinutes($this->pp('c_ready_presentations'));
+                // Research presentations on stage
+                $this->rTime->addMinutes($this->pp('c_ready_presentations'));
 
-            // Nutzt den existierenden ChallengeGenerator
-            $this->presentations();
-            // ChallengeGenerator verschiebt $rTime intern bereits um die Dauer
-        }
+                // Nutzt den existierenden ChallengeGenerator
+                $this->presentations();
+                // ChallengeGenerator verschiebt $rTime intern bereits um die Dauer
+            }
 
-        // -----------------------------------------------------------------------------------
-        /// Robot-game final rounds
-        // -----------------------------------------------------------------------------------
-        //
-        // Hinweis: die konkreten Implementierungen dieser Runden liegen im RobotGameGenerator.
-        // Wir rufen hier nur die passenden Methoden, analog zu r_final_round(N).
+            // -----------------------------------------------------------------------------------
+            /// Robot-game final rounds
+            // -----------------------------------------------------------------------------------
 
-        if ($this->pp('g_finale') && $this->pp('c_teams') >= 16) {
-            // The DACH Finale is the only event running the round of best 16
-            $this->matchPlan->insertFinalRound(16);
-        }
+            if ($this->pp('g_finale') && $this->pp('c_teams') >= 16) {
+                // The DACH Finale is the only event running the round of best 16
+                $this->matchPlan->insertFinalRound(16);
+            }
 
-        // Organizer can decide not to run round of best 8
-        if (($this->pp('g_finale') || $this->pp('r_quarter_final')) && $this->pp('c_teams') >= 8) {
-            $this->matchPlan->insertFinalRound(8);
-        }
+            // Organizer can decide not to run round of best 8
+            if (($this->pp('g_finale') || $this->pp('r_quarter_final')) && $this->pp('c_teams') >= 8) {
+                $this->matchPlan->insertFinalRound(8);
+            }
 
-        // Semi finale is a must
-        $this->matchPlan->insertFinalRound(4);
+            // Semi finale is a must
+            $this->matchPlan->insertFinalRound(4);
 
-        // Final matches
-        $this->matchPlan->insertFinalRound(2);
+            // Final matches
+            $this->matchPlan->insertFinalRound(2);
 
-        // -----------------------------------------------------------------------------------
-        // FLL Challenge: Research presentations on stage
-        // -----------------------------------------------------------------------------------
-        if ($this->pp('c_presentations') > 0 && $this->pp('c_presentations_last')) {
-            // Research presentations on stage
-            $this->rTime->addMinutes($this->pp('c_ready_presentations'));
+            // -----------------------------------------------------------------------------------
+            // FLL Challenge: Research presentations on stage
+            // -----------------------------------------------------------------------------------
+            if ($this->pp('c_presentations') > 0 && $this->pp('c_presentations_last')) {
+                // Research presentations on stage
+                $this->rTime->addMinutes($this->pp('c_ready_presentations'));
 
-            $this->presentations();
-        }
+                $this->presentations();
+            }
 
-  
-        // back to only one action a time
-        $this->cTime->set($this->rTime->current());
+    
+            // back to only one action a time
+            $this->cTime->set($this->rTime->current());
 
-        // FLL Challenge
-        // Deliberations might have taken longer, which is unlikely
-        if ($this->jTime->current()->getTimestamp() > $this->cTime->current()->getTimestamp()) {
-            $this->cTime->set($this->jTime->current());
-        }
+            // FLL Challenge
+            // Deliberations might have taken longer, which is unlikely
+            if ($this->jTime->current()->getTimestamp() > $this->cTime->current()->getTimestamp()) {
+                $this->cTime->set($this->jTime->current());
+            }
 
         } catch (\Throwable $e) {
             Log::error('ChallengeGenerator: Error in robot game finals', [

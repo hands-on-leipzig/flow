@@ -42,8 +42,6 @@ class PlanController extends Controller
         $newId = DB::table('plan')->insertGetId([
             'name' => 'Zeitplan',
             'event' => $eventId,
-            'level' => 1, // Default to Regionalwettbewerb
-            'first_program' => 3, // Default to CHALLENGE
             'created' => Carbon::now(),
             'last_change' => Carbon::now(),
         ]);

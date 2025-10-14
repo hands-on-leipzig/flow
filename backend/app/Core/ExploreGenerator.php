@@ -47,11 +47,14 @@ class ExploreGenerator
         try {
             if ($challenge) {
 
+                $startOpening = clone $this->eTime;
                 $this->eTime->addMinutes($this->pp('g_duration_opening'));
 
             } else {
 
                 $this->eTime->setTime($this->pp("e{$group}_start_opening"));
+                $startOpening = clone $this->eTime;
+
 
                 $this->writer->withGroup('e_opening', function () use ($group) {
                     $this->writer->insertActivity('e_opening', $this->eTime, $this->pp("e{$group}_duration_opening"));
@@ -67,7 +70,7 @@ class ExploreGenerator
 
             }
 
-            $this->briefings($this->eTime->current(), $group);
+            $this->briefings($startOpening->current(), $group);
 
         } catch (\Throwable $e) {
             Log::error('ExploreGenerator: Error in openings and briefings', [
@@ -82,22 +85,22 @@ class ExploreGenerator
 
     public function briefings(\DateTime $t, int $group): void
     {
-
-        $this->writer->withGroup('e_coach_briefing', function () use ($t, $group) {
+        
+        $this->writer->withGroup('e_briefing_coach', function () use ($t, $group) {
             $cursor = new TimeCursor($t);
             $cursor->subMinutes($this->pp("e{$group}_duration_briefing_t") + $this->pp("e_ready_opening"));
-            $this->writer->insertActivity('e_coach_briefing', $cursor, $this->pp("e{$group}_duration_briefing_t"));
+            $this->writer->insertActivity('e_briefing_coach', $cursor, $this->pp("e{$group}_duration_briefing_t"));
         });
 
-        $this->writer->withGroup('e_judge_briefing', function () use ($t, $group) {
+        $this->writer->withGroup('e_briefing_judge', function () use ($t, $group) {
             if (!$this->pp("e_briefing_after_opening_j")) {
                 $cursor = new TimeCursor($t);
                 $cursor->subMinutes($this->pp("e{$group}_duration_briefing_j") + $this->pp("e_ready_opening"));
-                $this->writer->insertActivity('e_judge_briefing', $cursor, $this->pp("e{$group}_duration_briefing_j"));
+                $this->writer->insertActivity('e_briefing_judge', $cursor, $this->pp("e{$group}_duration_briefing_j"));
             } else {
                 $cursor = $this->eTime->copy();
                 $cursor->addMinutes($this->pp("e_ready_briefing"));
-                $this->writer->insertActivity('e_judge_briefing', $cursor, $this->pp("e{$group}_duration_briefing_j"));
+                $this->writer->insertActivity('e_briefing_judge', $cursor, $this->pp("e{$group}_duration_briefing_j"));
                 $this->eTime->addMinutes($this->pp("e_ready_briefing") + $this->pp("e{$group}_duration_briefing_j"));
             }
         });
