@@ -62,7 +62,8 @@ class ActivityWriter
         int $duration,
         ?int $juryLane = null, ?int $juryTeam = null,
         ?int $table1 = null, ?int $table1Team = null,
-        ?int $table2 = null, ?int $table2Team = null
+        ?int $table2 = null, ?int $table2Team = null,
+        ?int $extraBlockId = null
     ): int {
         if (!$this->currentGroup) {
             throw new \RuntimeException("No activity group set before inserting activity: {$activityTypeCode}");
@@ -89,6 +90,7 @@ class ActivityWriter
             'table_1_team'         => $table1Team,
             'table_2'              => $table2,
             'table_2_team'         => $table2Team,
+            'extra_block'          => $extraBlockId,
         ]);
 
         return $activity->id;
@@ -198,7 +200,13 @@ class ActivityWriter
 
             $this->withGroup($activityCode, function () use ($extraBlock, $activityCode, $time) {
                 $time->addMinutes((int) $extraBlock->buffer_before);
-                $this->insertActivity($activityCode, $time, (int) $extraBlock->duration);
+                $this->insertActivity(
+                    $activityCode, 
+                    $time, 
+                    (int) $extraBlock->duration,
+                    null, null, null, null, null, null,
+                    $extraBlock->id  // Pass extra_block ID
+                );
                 $time->addMinutes((int) $extraBlock->duration + (int) $extraBlock->buffer_after);
             });
 
