@@ -5,6 +5,7 @@ namespace App\Core;
 use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
+use App\Support\IntegratedExploreState;
 use App\Core\RobotGameGenerator;
 use App\Core\TimeCursor;
 
@@ -17,22 +18,19 @@ class ChallengeGenerator
     private TimeCursor $cTime;
     private RobotGameGenerator $matchPlan;
 
-    // References for integrated Explore mode
-    private int $integratedExploreDuration;
-    private ?string $integratedExploreStart;
+    // Shared state for integrated Explore mode
+    private IntegratedExploreState $integratedExplore;
 
     use UsesPlanParameter;
 
     public function __construct(
         ActivityWriter $writer, 
         PlanParameter $params,
-        int &$integratedExploreDuration,
-        ?string &$integratedExploreStart
+        IntegratedExploreState $integratedExplore
     ) {
         $this->writer = $writer;
         $this->params = $params;
-        $this->integratedExploreDuration = &$integratedExploreDuration;
-        $this->integratedExploreStart = &$integratedExploreStart;
+        $this->integratedExplore = $integratedExplore;
         
         // Create time cursors from base date
         $baseDate = $params->get('g_date');
@@ -206,8 +204,7 @@ class ChallengeGenerator
                 $this->writer, 
                 $this->params, 
                 $this->rTime,
-                $this->integratedExploreDuration,
-                $this->integratedExploreStart
+                $this->integratedExplore
             );
             $this->matchPlan->createMatchPlan();
 

@@ -4,8 +4,10 @@ namespace App\Core;
 use App\Core\TimeCursor;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
+use App\Support\IntegratedExploreState;
 use Illuminate\Support\Facades\DB;
 use App\Models\MatchEntry;
 use App\Enums\ExploreMode;
@@ -18,9 +20,8 @@ class RobotGameGenerator
     private ActivityWriter $writer;
     private TimeCursor $rTime;
 
-    // References for integrated Explore mode
-    private int &$integratedExploreDuration;
-    private ?string &$integratedExploreStart;
+    // Shared state for integrated Explore mode
+    private IntegratedExploreState $integratedExplore;
 
     private array $entries = [];
 
@@ -28,14 +29,12 @@ class RobotGameGenerator
         ActivityWriter $writer, 
         PlanParameter $params, 
         TimeCursor $rTime,
-        int &$integratedExploreDuration,
-        ?string &$integratedExploreStart
+        IntegratedExploreState $integratedExplore
     ) {
         $this->writer = $writer;
         $this->params = $params;  // Pflicht für Trait
         $this->rTime = $rTime;
-        $this->integratedExploreDuration = &$integratedExploreDuration;
-        $this->integratedExploreStart = &$integratedExploreStart;
+        $this->integratedExplore = $integratedExplore;
     }
 
     // Create the robot game match plan regardless of the number of tables and timing
@@ -380,13 +379,13 @@ class RobotGameGenerator
                     $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
                     // Integrated Explore mode: coordinate with ExploreGenerator
                     // Write start time for ExploreGenerator to pick up
-                    $this->integratedExploreStart = $this->rTime->format('H:i');
+                    $this->integratedExplore->startTime = $this->rTime->format('H:i');
                     
                     // Advance rTime by the duration that Explore will use
                     // (Duration was calculated by ExploreGenerator constructor)
-                    $this->rTime->addMinutes($this->integratedExploreDuration);
+                    $this->rTime->addMinutes($this->integratedExplore->duration);
                     
-                    Log::debug("Integrated Explore: start={$this->integratedExploreStart}, duration={$this->integratedExploreDuration}");
+                    Log::debug("Integrated Explore: start={$this->integratedExplore->startTime}, duration={$this->integratedExplore->duration}");
                 } else {
                     if ($this->pp('c_duration_lunch_break') === 0) {
                         $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_lunch"), $this->rTime);

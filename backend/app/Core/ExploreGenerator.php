@@ -6,6 +6,7 @@ use DateTime;
 use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
+use App\Support\IntegratedExploreState;
 use App\Enums\ExploreMode;
 
 
@@ -14,22 +15,19 @@ class ExploreGenerator
     private ActivityWriter $writer;
     private TimeCursor $eTime;
 
-    // References for integrated Explore mode
-    private int $integratedExploreDuration;
-    private ?string $integratedExploreStart;
+    // Shared state for integrated Explore mode
+    private IntegratedExploreState $integratedExplore;
 
     use UsesPlanParameter;
 
     public function __construct(
         ActivityWriter $writer, 
         PlanParameter $params,
-        int &$integratedExploreDuration,
-        ?string &$integratedExploreStart
+        IntegratedExploreState $integratedExplore
     ) {
         $this->writer = $writer;
         $this->params = $params;
-        $this->integratedExploreDuration = &$integratedExploreDuration;
-        $this->integratedExploreStart = &$integratedExploreStart;
+        $this->integratedExplore = $integratedExplore;
         
         // Create time cursors from base date
         $baseDate = $params->get('g_date');
@@ -54,13 +52,13 @@ class ExploreGenerator
         $eMode = (int) $params->get('e_mode');
         if ($eMode == ExploreMode::INTEGRATED_MORNING->value) {
             // For morning: Explore awards are inserted after RG round 1 (lunch break)
-            $this->integratedExploreDuration = 
+            $this->integratedExplore->duration = 
                 $params->get('e_ready_awards') + 
                 $params->get('e1_duration_awards') +
                 $params->get('e_ready_awards');           // back to challenge
         } elseif ($eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
             // For afternoon: Explore opening is inserted after RG round 1 (lunch break)
-            $this->integratedExploreDuration = 
+            $this->integratedExplore->duration = 
                 $params->get('e_ready_opening') + 
                 $params->get('e2_duration_opening') + 
                 $params->get('e_ready_action');
@@ -227,14 +225,14 @@ class ExploreGenerator
     public function integratedActivity(int $eMode): void
     {
         // Check if start time was written by ChallengeGenerator
-        if ($this->integratedExploreStart === null) {
+        if ($this->integratedExplore->startTime === null) {
             Log::debug("No integratedExploreStart set, skipping integrated activity");
             return;
         }
 
         try {
             // Parse start time (HH:MM format)
-            [$hours, $minutes] = explode(':', $this->integratedExploreStart);
+            [$hours, $minutes] = explode(':', $this->integratedExplore->startTime);
             $this->eTime->current()->setTime((int)$hours, (int)$minutes);
 
             if ($eMode == ExploreMode::INTEGRATED_MORNING->value) {
@@ -247,7 +245,7 @@ class ExploreGenerator
                 $this->eTime->addMinutes($this->pp('e1_duration_awards'));
                 $this->eTime->addMinutes($this->pp('e_ready_awards'));
                 
-                Log::info("ExploreGenerator: Integrated awards inserted at {$this->integratedExploreStart}");
+                Log::info("ExploreGenerator: Integrated awards inserted at {$this->integratedExplore->startTime}");
                 
             } elseif ($eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
                 // INTEGRATED_AFTERNOON: Insert opening
@@ -260,7 +258,7 @@ class ExploreGenerator
                 });
                 $this->eTime->addMinutes($this->pp('e2_duration_opening'));
                 
-                Log::info("ExploreGenerator: Integrated opening inserted at {$this->integratedExploreStart}");
+                Log::info("ExploreGenerator: Integrated opening inserted at {$this->integratedExplore->startTime}");
 
                 $this->briefings($startOpening->current(), 2);
             

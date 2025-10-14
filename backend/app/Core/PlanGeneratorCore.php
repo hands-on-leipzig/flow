@@ -13,6 +13,7 @@ use App\Core\FinaleGenerator;
 
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
+use App\Support\IntegratedExploreState;
 use App\Enums\ExploreMode;
 
 class PlanGeneratorCore
@@ -23,8 +24,7 @@ class PlanGeneratorCore
     private ExploreGenerator $explore;
 
     // Shared state for integrated Explore mode
-    private int $integratedExploreDuration = 0;
-    private ?string $integratedExploreStart = null;
+    private IntegratedExploreState $integratedExplore;
 
     use UsesPlanParameter;
 
@@ -32,6 +32,7 @@ class PlanGeneratorCore
     {
         $this->writer = new ActivityWriter($planId);
         $this->params = PlanParameter::load($planId);
+        $this->integratedExplore = new IntegratedExploreState();
     }
 
     public function generate(): void
@@ -69,8 +70,7 @@ class PlanGeneratorCore
         $this->challenge = new ChallengeGenerator(
             $this->writer,
                 $this->params,
-                $this->integratedExploreDuration,
-                $this->integratedExploreStart
+                $this->integratedExplore
             );
             
             if ($eMode == ExploreMode::NONE->value) {
@@ -85,8 +85,7 @@ class PlanGeneratorCore
         $this->explore = new ExploreGenerator(
             $this->writer,
             $this->params,
-            $this->integratedExploreDuration,
-            $this->integratedExploreStart
+            $this->integratedExplore
         );
                 
                 $this->challenge->openingsAndBriefings(true);
