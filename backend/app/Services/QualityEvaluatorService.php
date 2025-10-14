@@ -402,24 +402,54 @@ class QualityEvaluatorService
         $minGap = $this->getParameterValueForPlan($qPlanId, 'c_duration_transfer');
         $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
 
+        // Get activity type detail IDs from database
+        $jWithTeamId = \App\Models\MActivityTypeDetail::where('code', 'j_with_team')->value('id');
+        $rMatchId = \App\Models\MActivityTypeDetail::where('code', 'r_match')->value('id');
+        $rCheckId = \App\Models\MActivityTypeDetail::where('code', 'r_check')->value('id');
+
         for ($team = 1; $team <= $teamCount; $team++) {
             // Filter activities relevant for this team
-            $teamActivities = $activities->filter(function ($a) use ($team) {
-                if ($a->activity_atd === 17) {
+            $teamActivities = $activities->filter(function ($a) use ($team, $jWithTeamId, $rMatchId, $rCheckId) {
+                if ($a->activity_atd === $jWithTeamId) {
                     return $a->jury_team === $team;
-                } elseif ($a->activity_atd === 15) {
+                } elseif ($a->activity_atd === $rMatchId || $a->activity_atd === $rCheckId) {
                     return $a->table_1_team === $team || $a->table_2_team === $team;
                 }
                 return false;
             })->sortBy('start')->values();
 
+            // Merge consecutive Robot Check + Robot Match pairs into single activities
+            $mergedActivities = [];
+            $i = 0;
+            while ($i < $teamActivities->count()) {
+                $current = $teamActivities[$i];
+                
+                // Check if current is r_check and next is r_match
+                if ($current->activity_atd === $rCheckId && 
+                    $i + 1 < $teamActivities->count() && 
+                    $teamActivities[$i + 1]->activity_atd === $rMatchId) {
+                    
+                    // Merge: use Check's start and Match's end
+                    $merged = (object) [
+                        'start' => $current->start,
+                        'end' => $teamActivities[$i + 1]->end,
+                    ];
+                    $mergedActivities[] = $merged;
+                    $i += 2; // Skip both check and match
+                } else {
+                    // Keep as is
+                    $mergedActivities[] = $current;
+                    $i++;
+                }
+            }
+
             // Calculate all 4 gaps and check if all are >= minGap
             $allTransitions = [];
             $allGapsOk = true;
 
-            for ($i = 1; $i < $teamActivities->count(); $i++) {
-                $prev = new \DateTime($teamActivities[$i - 1]->end);
-                $curr = new \DateTime($teamActivities[$i]->start);
+            for ($i = 1; $i < count($mergedActivities); $i++) {
+                $prev = new \DateTime($mergedActivities[$i - 1]->end);
+                $curr = new \DateTime($mergedActivities[$i]->start);
                 $gap = ($curr->getTimestamp() - $prev->getTimestamp()) / 60; // gap in minutes
 
                 $allTransitions[$i] = $gap;
