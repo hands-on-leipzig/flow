@@ -234,7 +234,7 @@ class ChallengeGenerator
             // 5 or 6 lanes = 3 matches
 
             // Delay judging if needed
-            if ($jTimeEarliest && $jTimeEarliest->diffInMinutes($this->jTime) > 0) {
+            if ($jTimeEarliest && $this->jTime->diffInMinutes($jTimeEarliest) > 0) {
                 Log::debug("Judging delayed from {$this->jTime->format()} to {$jTimeEarliest->format()}");
                 $this->jTime = $jTimeEarliest->copy();
             }
@@ -269,7 +269,7 @@ class ChallengeGenerator
 
             // Compare time away for judging and expectations from robot game
             // Factor in the current difference between robot game and judging
-            $rStartShift = $jT4J - $rT2M - $this->jTime->diffInMinutes($this->rTime);
+            $rStartShift = $jT4J - $rT2M - $this->rTime->diffInMinutes($this->jTime);
 
             // Delay robot game if needed
             if ($rStartShift > 0) {
@@ -356,7 +356,7 @@ class ChallengeGenerator
                 $this->pp('c_duration_lunch_break') > 0
             ) {
                 // Align both timelines
-                if ($this->jTime->diffInMinutes($this->rTime) > 0) {
+                if ($this->rTime->diffInMinutes($this->jTime) > 0) {
                     $this->rTime = $this->jTime->copy();
                 } else {
                     $this->jTime = $this->rTime->copy();
