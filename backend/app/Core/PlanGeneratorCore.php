@@ -101,8 +101,7 @@ class PlanGeneratorCore
                 $this->explore = new ExploreGenerator(
                     $this->writer,
                     $this->params,
-                    $this->integratedExploreDuration,
-                    $this->integratedExploreStart
+                    $this->integratedExplore
                 );
                 
                 $this->challenge->openingsAndBriefings();
@@ -123,8 +122,7 @@ class PlanGeneratorCore
                 $this->explore = new ExploreGenerator(
                     $this->writer,
                     $this->params,
-                    $this->integratedExploreDuration,
-                    $this->integratedExploreStart
+                    $this->integratedExplore
                 );
 
                 $this->challenge->openingsAndBriefings();
@@ -163,8 +161,7 @@ class PlanGeneratorCore
                 $this->explore = new ExploreGenerator(
                     $this->writer,
                     $this->params,
-                    $this->integratedExploreDuration,
-                    $this->integratedExploreStart
+                    $this->integratedExplore
                 );
                 $this->explore->openingsAndBriefings(1);
                 $this->explore->judgingAndDeliberations(1);
@@ -175,8 +172,7 @@ class PlanGeneratorCore
                 $this->explore = new ExploreGenerator(
                     $this->writer,
                     $this->params,
-                    $this->integratedExploreDuration,
-                    $this->integratedExploreStart
+                    $this->integratedExplore
                 );
                 $this->explore->openingsAndBriefings(2);
                 $this->explore->judgingAndDeliberations(2);
@@ -187,8 +183,7 @@ class PlanGeneratorCore
                 $this->explore = new ExploreGenerator(
                     $this->writer,
                     $this->params,
-                    $this->integratedExploreDuration,
-                    $this->integratedExploreStart
+                    $this->integratedExplore
                 );
                 $this->explore->openingsAndBriefings(1);
                 $this->explore->judgingAndDeliberations(1);
