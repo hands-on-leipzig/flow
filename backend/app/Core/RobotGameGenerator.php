@@ -360,7 +360,7 @@ class RobotGameGenerator
         // 7) Inserted Blocks / Pausen für NÄCHSTE Runde
         switch ($round) {
             case 0:
-                $this->writer->insertPoint('rg_tr', $this->pp("r_duration_break"), $this->rTime);
+                $this->writer->insertPoint('c_after_tr', $this->pp("r_duration_break"), $this->rTime);
                 break;
 
             case 1:
@@ -368,17 +368,17 @@ class RobotGameGenerator
                     e_integrated(); // Legacy-Funktion bleibt so
                 } else {
                     if ($this->pp('c_duration_lunch_break') === 0) {
-                        $this->writer->insertPoint('rg_1', $this->pp("r_duration_lunch"), $this->rTime);
+                        $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_lunch"), $this->rTime);
                     }
                 }
                 break;
 
             case 2:
-                $this->writer->insertPoint('rg_2', $this->pp("r_duration_break"), $this->rTime);
+                $this->writer->insertPoint('c_after_rg_2', $this->pp("r_duration_break"), $this->rTime);
                 break;
 
             case 3:
-                $this->writer->insertPoint('rg_3', $this->pp("r_duration_results"), $this->rTime);
+                $this->writer->insertPoint('c_after_rg_3', $this->pp("r_duration_results"), $this->rTime);
                 break;
         }
 
@@ -467,7 +467,7 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    $this->writer->insertPoint('rg_semi_final', $this->pp("r_duration_results"), $this->rTime);
+                    $this->writer->insertPoint('c_after_final_4', $this->pp("r_duration_results"), $this->rTime);
                 });
                 break;
 
@@ -483,7 +483,7 @@ class RobotGameGenerator
                     $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, false);
                     $this->rTime->addMinutes($this->pp("r_duration_match"));
 
-                    $this->writer->insertPoint('rg_final', $this->pp("c_ready_awards"), $this->rTime);
+                    $this->writer->insertPoint('c_after_final_2', $this->pp("c_ready_awards"), $this->rTime);
                 });
                 break;
         }

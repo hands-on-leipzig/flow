@@ -518,7 +518,7 @@ class ChallengeGenerator
             ? 'c_ready_awards'
             : 'c_ready_presentations';
 
-        $this->writer->insertPoint('presentations', $this->pp($insertPoint), $this->rTime);
+        $this->writer->insertPoint('c_after_presentations', $this->pp($insertPoint), $this->rTime);
     }
 
 
