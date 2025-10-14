@@ -22,6 +22,10 @@ class PlanGeneratorCore
     private ChallengeGenerator $challenge;
     private ExploreGenerator $explore;
 
+    // Shared state for integrated Explore mode
+    private int $integratedExploreDuration = 0;
+    private ?string $integratedExploreStart = null;
+
     use UsesPlanParameter;
 
     public function __construct(int $planId)
@@ -64,7 +68,9 @@ class PlanGeneratorCore
             // Challenge present - instantiate ChallengeGenerator
         $this->challenge = new ChallengeGenerator(
             $this->writer,
-                $this->params
+                $this->params,
+                $this->integratedExploreDuration,
+                $this->integratedExploreStart
             );
             
             if ($eMode == ExploreMode::NONE->value) {
@@ -78,13 +84,16 @@ class PlanGeneratorCore
                 // Challenge + Explore integrated morning
         $this->explore = new ExploreGenerator(
             $this->writer,
-            $this->params
+            $this->params,
+            $this->integratedExploreDuration,
+            $this->integratedExploreStart
         );
                 
                 $this->challenge->openingsAndBriefings(true);        // check
                 $this->explore->openingsAndBriefings(1, true);       // check
                 $this->explore->judgingAndDeliberations(1);          // check
                 $this->challenge->main(true);
+                $this->explore->integratedAwards(1);                 // Picks up timing from params
                 $this->challenge->robotGameFinals();            // check
                 $this->challenge->awards();                     // check
                 
@@ -92,13 +101,16 @@ class PlanGeneratorCore
                 // Challenge + Explore integrated afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->params
+                    $this->params,
+                    $this->integratedExploreDuration,
+                    $this->integratedExploreStart
                 );
                 
                 $this->challenge->openingsAndBriefings();        // check
                 $this->challenge->main(true);
                 $this->explore->openingsAndBriefings(2, true);       // check
-                $this->explore->judgingAndDeliberations(2);          // check   
+                $this->explore->judgingAndDeliberations(2);          // check
+                $this->explore->integratedAwards(2);                 // Picks up timing from shared state
                 $this->challenge->robotGameFinals();            // check
                 $this->challenge->awards(true);                     // check
                 
@@ -109,10 +121,11 @@ class PlanGeneratorCore
             ])) {
                 // Challenge + Explore decoupled
                 
-                // Challenge + Explore integrated afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->params
+                    $this->params,
+                    $this->integratedExploreDuration,
+                    $this->integratedExploreStart
                 );
 
                 $this->challenge->openingsAndBriefings();        // check
@@ -150,7 +163,9 @@ class PlanGeneratorCore
                 // Explore morning only
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->params
+                    $this->params,
+                    $this->integratedExploreDuration,
+                    $this->integratedExploreStart
                 );
                 $this->explore->openingsAndBriefings(1);        // check
                 $this->explore->judgingAndDeliberations(1);        // check
@@ -160,7 +175,9 @@ class PlanGeneratorCore
                 // Explore afternoon only
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->params
+                    $this->params,
+                    $this->integratedExploreDuration,
+                    $this->integratedExploreStart
                 );
                 $this->explore->openingsAndBriefings(2);        // check
                 $this->explore->judgingAndDeliberations(2);        // check
@@ -170,7 +187,9 @@ class PlanGeneratorCore
                 // Explore both morning and afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,
-                    $this->params
+                    $this->params,
+                    $this->integratedExploreDuration,
+                    $this->integratedExploreStart
                 );
                 $this->explore->openingsAndBriefings(1);       // check     
                 $this->explore->judgingAndDeliberations(1);        // check

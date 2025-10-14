@@ -18,13 +18,24 @@ class RobotGameGenerator
     private ActivityWriter $writer;
     private TimeCursor $rTime;
 
+    // References for integrated Explore mode
+    private int &$integratedExploreDuration;
+    private ?string &$integratedExploreStart;
+
     private array $entries = [];
 
-    public function __construct(ActivityWriter $writer, PlanParameter $params, TimeCursor $rTime)
-    {
+    public function __construct(
+        ActivityWriter $writer, 
+        PlanParameter $params, 
+        TimeCursor $rTime,
+        int &$integratedExploreDuration,
+        ?string &$integratedExploreStart
+    ) {
         $this->writer = $writer;
         $this->params = $params;  // Pflicht für Trait
         $this->rTime = $rTime;
+        $this->integratedExploreDuration = &$integratedExploreDuration;
+        $this->integratedExploreStart = &$integratedExploreStart;
     }
 
     // Create the robot game match plan regardless of the number of tables and timing
@@ -367,8 +378,15 @@ class RobotGameGenerator
             case 1:
                 if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
                     $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
-                    // TODO: Implement e_integrated logic for integrated Explore mode
-                    // For now, skip insert point for integrated mode
+                    // Integrated Explore mode: coordinate with ExploreGenerator
+                    // Write start time for ExploreGenerator to pick up
+                    $this->integratedExploreStart = $this->rTime->format('H:i');
+                    
+                    // Advance rTime by the duration that Explore will use
+                    // (Duration was calculated by ExploreGenerator constructor)
+                    $this->rTime->addMinutes($this->integratedExploreDuration);
+                    
+                    Log::debug("Integrated Explore: start={$this->integratedExploreStart}, duration={$this->integratedExploreDuration}");
                 } else {
                     if ($this->pp('c_duration_lunch_break') === 0) {
                         $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_lunch"), $this->rTime);

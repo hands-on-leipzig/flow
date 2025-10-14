@@ -17,12 +17,22 @@ class ChallengeGenerator
     private TimeCursor $cTime;
     private RobotGameGenerator $matchPlan;
 
+    // References for integrated Explore mode
+    private int $integratedExploreDuration;
+    private ?string $integratedExploreStart;
+
     use UsesPlanParameter;
 
-    public function __construct(ActivityWriter $writer, PlanParameter $params)
-    {
+    public function __construct(
+        ActivityWriter $writer, 
+        PlanParameter $params,
+        int &$integratedExploreDuration,
+        ?string &$integratedExploreStart
+    ) {
         $this->writer = $writer;
         $this->params = $params;
+        $this->integratedExploreDuration = &$integratedExploreDuration;
+        $this->integratedExploreStart = &$integratedExploreStart;
         
         // Create time cursors from base date
         $baseDate = $params->get('g_date');
@@ -192,7 +202,13 @@ class ChallengeGenerator
 
         try {
             // Instantiate match plan for Challenge domain (needs rTime to be initialized)
-            $this->matchPlan = new RobotGameGenerator($this->writer, $this->params, $this->rTime);
+            $this->matchPlan = new RobotGameGenerator(
+                $this->writer, 
+                $this->params, 
+                $this->rTime,
+                $this->integratedExploreDuration,
+                $this->integratedExploreStart
+            );
             $this->matchPlan->createMatchPlan();
 
             // -----------------------------------------------------------------------------------
