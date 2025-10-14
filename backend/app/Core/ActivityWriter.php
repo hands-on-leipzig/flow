@@ -189,11 +189,20 @@ class ActivityWriter
             ->first();
 
         if ($extraBlock) {
-            $this->withGroup('c_inserted', function () use ($extraBlock, $insertPoint, $time) {
+            // Determine activity type code based on first_program
+            $activityCode = match ($insertPoint->first_program) {
+                2 => 'e_inserted_block',  // Explore
+                3 => 'c_inserted_block',  // Challenge
+                default => 'g_inserted_block',  // Joint/Other
+            };
+
+            $this->withGroup($activityCode, function () use ($extraBlock, $activityCode, $time) {
                 $time->addMinutes((int) $extraBlock->buffer_before);
-                $this->insertActivity('c_inserted', $time, (int) $extraBlock->duration);
+                $this->insertActivity($activityCode, $time, (int) $extraBlock->duration);
                 $time->addMinutes((int) $extraBlock->duration + (int) $extraBlock->buffer_after);
             });
+
+            Log::debug("Block inserted at '{$insertPointCode}' using activity type '{$activityCode}'.");
         } else {
             $time->addMinutes($duration);
         }    
