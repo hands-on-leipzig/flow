@@ -13,6 +13,7 @@ use App\Core\FinaleGenerator;
 
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
+use App\Enums\ExploreMode;
 
 class PlanGeneratorCore
 {
@@ -66,14 +67,14 @@ class PlanGeneratorCore
                 $this->params
             );
             
-            if ($eMode == 0) {
+            if ($eMode == ExploreMode::NONE->value) {
                 // Challenge only
                 $this->challenge->openingsAndBriefings();        // check
                 $this->challenge->main();
                 $this->challenge->robotGameFinals();            // check
                 $this->challenge->awards();                     // check
                 
-            } elseif ($eMode == 1) {
+            } elseif ($eMode == ExploreMode::INTEGRATED_MORNING->value) {
                 // Challenge + Explore integrated morning
         $this->explore = new ExploreGenerator(
             $this->writer,
@@ -87,7 +88,7 @@ class PlanGeneratorCore
                 $this->challenge->robotGameFinals();            // check
                 $this->challenge->awards();                     // check
                 
-            } elseif ($eMode == 2) {
+            } elseif ($eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
                 // Challenge + Explore integrated afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,
@@ -101,7 +102,11 @@ class PlanGeneratorCore
                 $this->challenge->robotGameFinals();            // check
                 $this->challenge->awards(true);                     // check
                 
-            } elseif (in_array($eMode, [3, 4, 5])) {
+            } elseif (in_array($eMode, [
+                ExploreMode::DECOUPLED_MORNING->value, 
+                ExploreMode::DECOUPLED_AFTERNOON->value, 
+                ExploreMode::DECOUPLED_BOTH->value
+            ])) {
                 // Challenge + Explore decoupled
                 
                 // Challenge + Explore integrated afternoon
@@ -116,17 +121,17 @@ class PlanGeneratorCore
                 $this->challenge->awards();                     // check
 
 
-                if ($eMode == 3) {
+                if ($eMode == ExploreMode::DECOUPLED_MORNING->value) {
                     // Explore decoupled morning
                     $this->explore->openingsAndBriefings(1);        // check
                     $this->explore->judgingAndDeliberations(1);        // check
                     $this->explore->awards(1);                         // check
-                } elseif ($eMode == 4) {
+                } elseif ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
                     // Explore decoupled afternoon
                     $this->explore->openingsAndBriefings(2);             // check
                     $this->explore->judgingAndDeliberations(2);        // check
                     $this->explore->awards(2);                         // check
-                } elseif ($eMode == 5) {
+                } elseif ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
                     // Explore decoupled both  
                     $this->explore->openingsAndBriefings(1);        // check
                     $this->explore->judgingAndDeliberations(1);        // check
@@ -141,7 +146,7 @@ class PlanGeneratorCore
 
         } else {
             // No Challenge - Explore only
-            if ($eMode == 3) {
+            if ($eMode == ExploreMode::DECOUPLED_MORNING->value) {
                 // Explore morning only
                 $this->explore = new ExploreGenerator(
                     $this->writer,
@@ -151,7 +156,7 @@ class PlanGeneratorCore
                 $this->explore->judgingAndDeliberations(1);        // check
                 $this->explore->awards(1);                         // check
                 
-            } elseif ($eMode == 4) {
+            } elseif ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
                 // Explore afternoon only
                 $this->explore = new ExploreGenerator(
                     $this->writer,
@@ -161,7 +166,7 @@ class PlanGeneratorCore
                 $this->explore->judgingAndDeliberations(2);        // check
                 $this->explore->awards(2);                         // check
 
-            } elseif ($eMode == 5) {
+            } elseif ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
                 // Explore both morning and afternoon
                 $this->explore = new ExploreGenerator(
                     $this->writer,

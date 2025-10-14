@@ -8,6 +8,7 @@ use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use Illuminate\Support\Facades\DB;
 use App\Models\MatchEntry;
+use App\Enums\ExploreMode;
 use DateTime;
 
 class RobotGameGenerator
@@ -364,8 +365,10 @@ class RobotGameGenerator
                 break;
 
             case 1:
-                if ($this->pp("e_mode") == ID_E_MORNING || $this->pp("e_mode") == ID_E_AFTERNOON) {
-                    e_integrated(); // Legacy-Funktion bleibt so
+                if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
+                    $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                    // TODO: Implement e_integrated logic for integrated Explore mode
+                    // For now, skip insert point for integrated mode
                 } else {
                     if ($this->pp('c_duration_lunch_break') === 0) {
                         $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_lunch"), $this->rTime);

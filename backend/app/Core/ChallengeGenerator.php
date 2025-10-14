@@ -255,7 +255,7 @@ class ChallengeGenerator
                 // Calculate time to START of match
                 if ($this->pp('r_tables') == 2) {
                     // matches START in sequence
-                    $rT2M = $rMB * $rDuration;                                                              // Dienstag 14.10.2025: Änderung
+                    $rT2M = $rMB * $rDuration;                                                           
                 } else {
                     // matches START alternating with respective delay between STARTs
                     if ($rMB % 2 === 0) {
