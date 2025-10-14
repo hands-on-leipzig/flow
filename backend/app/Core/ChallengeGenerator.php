@@ -5,7 +5,7 @@ namespace App\Core;
 use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
-use App\Core\MatchPlan;
+use App\Core\RobotGameGenerator;
 use App\Core\TimeCursor;
 
 
@@ -15,7 +15,7 @@ class ChallengeGenerator
     private TimeCursor $rTime;
     private TimeCursor $jTime;
     private TimeCursor $cTime;
-    private MatchPlan $matchPlan;
+    private RobotGameGenerator $matchPlan;
 
     use UsesPlanParameter;
 
@@ -48,8 +48,8 @@ class ChallengeGenerator
         $params->add('r_asym', $asym, 'boolean');
     
         // Instantiate match plan for Challenge domain
-        $this->matchPlan = new MatchPlan($this->writer, $params);
-        $this->matchPlan->create();
+        $this->matchPlan = new RobotGameGenerator($this->writer, $params, $this->rTime);
+        $this->matchPlan->createMatchPlan();
 
     }
 
@@ -228,13 +228,18 @@ class ChallengeGenerator
                 ? $this->pp('r_duration_test_match')   // Test round
                 : $this->pp('r_duration_match');
 
-            // Key concept 1:
-            // teams first in robot game go to judging in NEXT round
+            Log::debug("rDuration: {$rDuration}");
+
+            // Key concept 1: teams first in robot game go to judging in NEXT round
+            // 
             // available for judging = time from start of robot game round to being in front of judges' room
             // Calculate forward from start of the round:
             // 1 or 2 lanes = 1 match
             // 3 or 4 lanes = 2 matches
             // 5 or 6 lanes = 3 matches
+
+            // The calculation of a4j = "available for judging" is down below
+            // Here the value of the last block is used.    
 
             // Delay judging if needed
             if ($this->jTime->current() < $jTimeEarliest->current()) {
@@ -242,9 +247,9 @@ class ChallengeGenerator
                 $this->jTime = clone $jTimeEarliest;
             }
 
-            // Key concept 2:
-            // teams at judging are last in CURRENT robot game round
-            // number of matches before teams must be back from judging
+            // Key concept 2: teams at judging are last in CURRENT robot game round
+            // 
+            // number of matches before (MB) teams must be back from judging
             if ($cBlock == $this->pp('j_rounds') && ($this->pp('c_teams') % $this->pp('j_lanes')) !== 0) {
                 // not all lanes filled in last round of judging
                 $rMB = $this->pp('r_matches_per_round') - ceil(($this->pp('c_teams') % $this->pp('j_lanes')) / 2);
@@ -257,10 +262,12 @@ class ChallengeGenerator
                 $rMB++;
             }
 
+            Log::debug("rMB: {$rMB}");
+
             // Calculate time to START of match
             if ($this->pp('r_tables') == 2) {
                 // matches START in sequence
-                $rT2M = ($rMB - 1) * $rDuration;
+                $rT2M = $rMB * $rDuration;                                                              // Dienstag 14.10.2025: Änderung
             } else {
                 // matches START alternating with respective delay between STARTs
                 if ($rMB % 2 === 0) {
@@ -270,9 +277,20 @@ class ChallengeGenerator
                 }
             }
 
+            Log::debug("rT2M: {$rT2M}");
+
+            // Note: No need to consider robot check!
+            // It delays the match start, but the teams have been there ealier for exactly the same amount of time.
+
             // Compare time away for judging and expectations from robot game
             // Factor in the current difference between robot game and judging
-            $rStartShift = $jT4J - $rT2M - $this->rTime->diffInMinutes($this->jTime);
+
+            Log::debug("jTime: {$this->jTime->format('H:i')}, rTime: {$this->rTime->format('H:i')}, diff: {$this->rTime->diffInMinutes($this->jTime)}");
+
+            $rStartShift = $jT4J - $rT2M - $this->rTime->diffInMinutes($this->jTime);       // Candiate
+
+            Log::debug("rStartShift: {$rStartShift}");
+
 
             // Delay robot game if needed
             if ($rStartShift > 0) {
@@ -323,29 +341,29 @@ class ChallengeGenerator
             switch ($cBlock) {
                 case 1:
                     // First judging round runs parallel to RG test round, regardless of j_rounds
-                    $this->matchPlan->insertOneRound(0, $this->rTime);
+                    $this->matchPlan->insertOneRound(0);
                     break;
                 case 2:
                     if ($this->pp('j_rounds') == 4) {
-                        $this->matchPlan->insertOneRound(1, $this->rTime);
+                        $this->matchPlan->insertOneRound(1);
                     }
                     break;
                 case 3:
                     if ($this->pp('j_rounds') == 4) {
-                        $this->matchPlan->insertOneRound(2, $this->rTime);
+                        $this->matchPlan->insertOneRound(2);
                     } else {
-                        $this->matchPlan->insertOneRound(1, $this->rTime);
+                        $this->matchPlan->insertOneRound(1);
                     }
                     break;
                 case 4:
                     if ($this->pp('j_rounds') == 4) {
-                        $this->matchPlan->insertOneRound(3, $this->rTime);
+                        $this->matchPlan->insertOneRound(3);
                     } else {
-                        $this->matchPlan->insertOneRound(2, $this->rTime);
+                        $this->matchPlan->insertOneRound(2);
                     }
                     break;
                 case 5:
-                    $this->matchPlan->insertOneRound(3, $this->rTime);
+                    $this->matchPlan->insertOneRound(3);
                     break;
                 case 6:
                     // No robot game left
@@ -459,24 +477,24 @@ class ChallengeGenerator
         /// Robot-game final rounds
         // -----------------------------------------------------------------------------------
         //
-        // Hinweis: die konkreten Implementierungen dieser Runden liegen im MatchPlan.
+        // Hinweis: die konkreten Implementierungen dieser Runden liegen im RobotGameGenerator.
         // Wir rufen hier nur die passenden Methoden, analog zu r_final_round(N).
 
         if ($this->pp('g_finale') && $this->pp('c_teams') >= 16) {
             // The DACH Finale is the only event running the round of best 16
-            $this->matchPlan->insertFinalRound(16, $this->rTime);
+            $this->matchPlan->insertFinalRound(16);
         }
 
         // Organizer can decide not to run round of best 8
         if (($this->pp('g_finale') || $this->pp('r_quarter_final')) && $this->pp('c_teams') >= 8) {
-            $this->matchPlan->insertFinalRound(8, $this->rTime);
+            $this->matchPlan->insertFinalRound(8);
         }
 
         // Semi finale is a must
-        $this->matchPlan->insertFinalRound(4, $this->rTime);
+        $this->matchPlan->insertFinalRound(4);
 
         // Final matches
-        $this->matchPlan->insertFinalRound(2, $this->rTime);
+        $this->matchPlan->insertFinalRound(2);
 
         // -----------------------------------------------------------------------------------
         // FLL Challenge: Research presentations on stage

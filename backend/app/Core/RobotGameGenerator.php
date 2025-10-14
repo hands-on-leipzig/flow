@@ -15,18 +15,20 @@ class RobotGameGenerator
     use UsesPlanParameter;
 
     private ActivityWriter $writer;
+    private TimeCursor $rTime;
 
     private array $entries = [];
 
-    public function __construct(ActivityWriter $writer, PlanParameter $params)
+    public function __construct(ActivityWriter $writer, PlanParameter $params, TimeCursor $rTime)
     {
         $this->writer = $writer;
         $this->params = $params;  // Pflicht für Trait
+        $this->rTime = $rTime;
     }
 
     // Create the robot game match plan regardless of the number of tables and timing
 
-    public function create(): void
+    public function createMatchPlan(): void
     {
         $this->entries = [];
 
@@ -280,7 +282,7 @@ class RobotGameGenerator
     }    
 
 
-    public function insertOneRound(int $round, TimeCursor $rTime)
+    public function insertOneRound(int $round)
     {
         // 1) Activity-Group nach Round setzen
         switch ($round) {
@@ -313,7 +315,7 @@ class RobotGameGenerator
             if (!($match['team_1'] === 0 && $match['team_2'] === 0)) {
                 // Achtung: insertOneMatch verändert rTime NICHT (Legacy-Semantik)
                 $this->insertOneMatch(
-                    $rTime,
+                    $this->rTime,
                     $duration,
                     $match['table_1'],
                     $match['team_1'],
@@ -326,39 +328,39 @@ class RobotGameGenerator
             // 4) Zeitachse fortschreiben (abhängig von #Tische & Round)
             if ($this->pp("r_tables") === 2) {
                 // 2 Tische: Nächstes Match wartet bis dieses zu Ende ist
-                $rTime->addMinutes($duration);
+                $this->rTime->addMinutes($duration);
             } else {
                 // 4 Tische
                 if ($round === 0) {
                     // TR: Startzeiten alternieren zwischen next_start und (match - next_start)
                     if (($match['match']) % 2 === 1) {
-                        $rTime->addMinutes($this->pp("r_duration_next_start"));
+                        $this->rTime->addMinutes($this->pp("r_duration_next_start"));
                     } else {
                         $delta = $duration - $this->pp("r_duration_next_start");
-                        $rTime->addMinutes($delta);
+                        $this->rTime->addMinutes($delta);
                     }
                 } else {
                     // RG1–3: Overlap — nächster Start alle r_duration_next_start
-                    $rTime->addMinutes($this->pp("r_duration_next_start"));
+                    $this->rTime->addMinutes($this->pp("r_duration_next_start"));
                 }
             }
         }
 
         // 5) Robot-Check addiert am Rundenende zusätzliche Zeit
         if ($this->pp("r_robot_check")) {
-            $rTime->addMinutes($this->pp("r_duration_robot_check"));
+            $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
         }
 
         // 6) Fix für 4 Tische: wenn letztes Match vorbei ist, Gesamtdauer korrigieren
         if ($this->pp("r_tables") === 4) {
             $delta = $this->pp("r_duration_match") - $this->pp("r_duration_next_start");
-            $rTime->addMinutes($delta);
+            $this->rTime->addMinutes($delta);
         }
 
         // 7) Inserted Blocks / Pausen für NÄCHSTE Runde
         switch ($round) {
             case 0:
-                $this->writer->insertPoint('rg_tr', $this->pp("r_duration_break"), $rTime);
+                $this->writer->insertPoint('rg_tr', $this->pp("r_duration_break"), $this->rTime);
                 break;
 
             case 1:
@@ -366,122 +368,122 @@ class RobotGameGenerator
                     e_integrated(); // Legacy-Funktion bleibt so
                 } else {
                     if ($this->pp('c_duration_lunch_break') === 0) {
-                        $this->writer->insertPoint('rg_1', $this->pp("r_duration_lunch"), $rTime);
+                        $this->writer->insertPoint('rg_1', $this->pp("r_duration_lunch"), $this->rTime);
                     }
                 }
                 break;
 
             case 2:
-                $this->writer->insertPoint('rg_2', $this->pp("r_duration_break"), $rTime);
+                $this->writer->insertPoint('rg_2', $this->pp("r_duration_break"), $this->rTime);
                 break;
 
             case 3:
-                $this->writer->insertPoint('rg_3', $this->pp("r_duration_results"), $rTime);
+                $this->writer->insertPoint('rg_3', $this->pp("r_duration_results"), $this->rTime);
                 break;
         }
 
     }
     
-    public function insertFinalRound(int $teamCount, TimeCursor $time): void
+    public function insertFinalRound(int $teamCount): void
     {
         switch ($teamCount) {
             case 16:
-                $this->writer->withGroup('r_final_16', function () use ($time) {
+                $this->writer->withGroup('r_final_16', function () {
                     // 4 tables alternating
                     for ($i = 0; $i < 4; $i++) {
-                        $this->insertOneMatch($time, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_16"));
-                        $time->addMinutes($this->pp("r_duration_next_start"));
+                        $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_16"));
+                        $this->rTime->addMinutes($this->pp("r_duration_next_start"));
 
-                        $this->insertOneMatch($time, $this->pp("r_duration_match"), 3, 0, 4, 0, $this->pp("r_robot_check_16"));
-                        $time->addMinutes($i < 3 ? $this->pp("r_duration_next_start") : $this->pp("r_duration_match"));
+                        $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 3, 0, 4, 0, $this->pp("r_robot_check_16"));
+                        $this->rTime->addMinutes($i < 3 ? $this->pp("r_duration_next_start") : $this->pp("r_duration_match"));
                     }
 
                     if ($this->pp("r_robot_check_16")) {
-                        $time->addMinutes($this->pp("r_duration_robot_check"));
+                        $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    $time->addMinutes($this->pp("r_duration_results"));
+                    $this->rTime->addMinutes($this->pp("r_duration_results"));
                 });
                 break;
 
             case 8:
-                $this->writer->withGroup('r_final_8', function () use ($time) {
+                $this->writer->withGroup('r_final_8', function () {
                     if ($this->pp("r_tables") == 2) {
                         for ($i = 0; $i < 4; $i++) {
-                            $this->insertOneMatch($time, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_8"));
-                            $time->addMinutes($this->pp("r_duration_match"));
+                            $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_8"));
+                            $this->rTime->addMinutes($this->pp("r_duration_match"));
                         }
                     } else {
                         for ($i = 0; $i < 2; $i++) {
-                            $this->insertOneMatch($time, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_8"));
-                            $time->addMinutes($this->pp("r_duration_next_start"));
+                            $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_8"));
+                            $this->rTime->addMinutes($this->pp("r_duration_next_start"));
 
-                            $this->insertOneMatch($time, $this->pp("r_duration_match"), 3, 0, 4, 0, $this->pp("r_robot_check_8"));
-                            $time->addMinutes($i < 1 ? $this->pp("r_duration_next_start") : $this->pp("r_duration_match"));
+                            $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 3, 0, 4, 0, $this->pp("r_robot_check_8"));
+                            $this->rTime->addMinutes($i < 1 ? $this->pp("r_duration_next_start") : $this->pp("r_duration_match"));
                         }
                     }
 
                     if ($this->pp("r_robot_check_8")) {
-                        $time->addMinutes($this->pp("r_duration_robot_check"));
+                        $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    $time->addMinutes($this->pp("r_duration_results"));
+                    $this->rTime->addMinutes($this->pp("r_duration_results"));
                 });
                 break;
 
             case 4:
-                $this->writer->withGroup('r_final_4', function () use ($time) {
+                $this->writer->withGroup('r_final_4', function () {
                     if ($this->pp("r_quarter_final")) {
                         // TODO texts: QF1..QF4
                         if ($this->pp("r_tables") == 2) {
                             for ($i = 0; $i < 2; $i++) {
-                                $this->insertOneMatch($time, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_4"));
-                                $time->addMinutes($this->pp("r_duration_match"));
+                                $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_4"));
+                                $this->rTime->addMinutes($this->pp("r_duration_match"));
                             }
                         } else {
-                            $this->insertOneMatch($time, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_4"));
-                            $time->addMinutes($this->pp("r_duration_next_start"));
+                            $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_4"));
+                            $this->rTime->addMinutes($this->pp("r_duration_next_start"));
 
-                            $this->insertOneMatch($time, $this->pp("r_duration_match"), 3, 0, 4, 0, $this->pp("r_robot_check_4"));
-                            $time->addMinutes($this->pp("r_duration_match"));
+                            $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 3, 0, 4, 0, $this->pp("r_robot_check_4"));
+                            $this->rTime->addMinutes($this->pp("r_duration_match"));
                         }
                     } else {
                         // TODO texts: RG1..RG4
                         if ($this->pp("r_tables") == 2) {
                             for ($i = 0; $i < 2; $i++) {
-                                $this->insertOneMatch($time, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_4"));
-                                $time->addMinutes($this->pp("r_duration_match"));
+                                $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_4"));
+                                $this->rTime->addMinutes($this->pp("r_duration_match"));
                             }
                         } else {
-                            $this->insertOneMatch($time, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_4"));
-                            $time->addMinutes($this->pp("r_duration_next_start"));
+                            $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_4"));
+                            $this->rTime->addMinutes($this->pp("r_duration_next_start"));
 
-                            $this->insertOneMatch($time, $this->pp("r_duration_match"), 3, 0, 4, 0, $this->pp("r_robot_check_4"));
-                            $time->addMinutes($this->pp("r_duration_match"));
+                            $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 3, 0, 4, 0, $this->pp("r_robot_check_4"));
+                            $this->rTime->addMinutes($this->pp("r_duration_match"));
                         }
                     }
 
                     if ($this->pp("r_robot_check_4")) {
-                        $time->addMinutes($this->pp("r_duration_robot_check"));
+                        $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    $this->writer->insertPoint('rg_semi_final', $this->pp("r_duration_results"), $time);
+                    $this->writer->insertPoint('rg_semi_final', $this->pp("r_duration_results"), $this->rTime);
                 });
                 break;
 
             case 2:
-                $this->writer->withGroup('r_final_2', function () use ($time) {
-                    $this->insertOneMatch($time, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_2"));
-                    $time->addMinutes($this->pp("r_duration_match"));
+                $this->writer->withGroup('r_final_2', function () {
+                    $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_2"));
+                    $this->rTime->addMinutes($this->pp("r_duration_match"));
 
                     if ($this->pp("r_robot_check_2")) {
-                        $time->addMinutes($this->pp("r_duration_robot_check"));
+                        $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    $this->insertOneMatch($time, $this->pp("r_duration_match"), 1, 0, 2, 0, false);
-                    $time->addMinutes($this->pp("r_duration_match"));
+                    $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, false);
+                    $this->rTime->addMinutes($this->pp("r_duration_match"));
 
-                    $this->writer->insertPoint('rg_final', $this->pp("c_ready_awards"), $time);
+                    $this->writer->insertPoint('rg_final', $this->pp("c_ready_awards"), $this->rTime);
                 });
                 break;
         }
