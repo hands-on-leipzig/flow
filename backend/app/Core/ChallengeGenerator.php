@@ -58,28 +58,28 @@ class ChallengeGenerator
         $this->writer->withGroup('j_package', function () use ($cBlock, $jT) {
 
             // 1) Judging WITH team
-            for ($jLane = 1; $jLane <= $this->pp('j_lanes'); $jLane++) {
-                if ($jT + $jLane <= $this->pp('c_teams')) {
+            for ($jL = 1; $jL <= $this->pp('j_lanes'); $jL++) {
+                if ($jT + $jL <= $this->pp('c_teams')) {
                     $this->writer->insertActivity(
                         'j_with_team',
                         $this->jTime,
                         $this->pp('j_duration_with_team'),
-                        $jLane,
-                        $jT + $jLane
+                        $jL,
+                        $jT + $jL
                     );
                 }
             }
             $this->jTime->addMinutes($this->pp('j_duration_with_team'));
 
             // 2) Scoring WITHOUT team
-            for ($jLane = 1; $jLane <= $this->pp('j_lanes'); $jLane++) {
-                if ($jT + $jLane <= $this->pp('c_teams')) {
+            for ($jL = 1; $jL <= $this->pp('j_lanes'); $jL++) {
+                if ($jT + $jL <= $this->pp('c_teams')) {
                     $this->writer->insertActivity(
                         'j_scoring',
                         $this->jTime,
                         $this->pp('j_duration_scoring'),
-                        $jLane,
-                        $jT + $jLane
+                        $jL,
+                        $jT + $jL
                     );
                 }
             }
@@ -464,36 +464,19 @@ class ChallengeGenerator
 
         if ($this->pp('g_finale') && $this->pp('c_teams') >= 16) {
             // The DACH Finale is the only event running the round of best 16
-            if (method_exists($this->matchPlan, 'finalRound')) {
-                $this->matchPlan->insertFinalRound(16, $this->rTime);
-            } else {
-                // Fallback: gleiche Semantik wie r_insert_one_round für Finals (TODO: implement in MatchPlan)
-                $this->matchPlan->insertFinalRound(16, $this->rTime);
-            }
+            $this->matchPlan->insertFinalRound(16, $this->rTime);
         }
 
         // Organizer can decide not to run round of best 8
         if (($this->pp('g_finale') || $this->pp('r_quarter_final')) && $this->pp('c_teams') >= 8) {
-            if (method_exists($this->matchPlan, 'finalRound')) {
-                $this->matchPlan->insertFinalRound(8, $this->rTime);
-            } else {
-                $this->matchPlan->insertFinalRound(8, $this->rTime);
-            }
+            $this->matchPlan->insertFinalRound(8, $this->rTime);
         }
 
         // Semi finale is a must
-        if (method_exists($this->matchPlan, 'finalRound')) {
-            $this->matchPlan->insertFinalRound(4, $this->rTime);
-        } else {
-            $this->matchPlan->insertFinalRound(4, $this->rTime);
-        }
+        $this->matchPlan->insertFinalRound(4, $this->rTime);
 
         // Final matches
-        if (method_exists($this->matchPlan, 'finalRound')) {
-            $this->matchPlan->insertFinalRound(2, $this->rTime);
-        } else {
-            $this->matchPlan->insertFinalRound(2, $this->rTime);
-        }
+        $this->matchPlan->insertFinalRound(2, $this->rTime);
 
         // -----------------------------------------------------------------------------------
         // FLL Challenge: Research presentations on stage

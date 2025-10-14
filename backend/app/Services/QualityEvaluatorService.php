@@ -411,7 +411,7 @@ class QualityEvaluatorService
                     return $a->table_1_team === $team || $a->table_2_team === $team;
                 }
                 return false;
-            })->values();
+            })->sortBy('start')->values();
 
             // Calculate all 4 gaps and check if all are >= minGap
             $allTransitions = [];
