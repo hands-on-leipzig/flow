@@ -9,16 +9,11 @@ class MInsertPoint extends Model
     protected $table = 'm_insert_point';
     
     protected $fillable = [
+        'code',
         'first_program',
         'level',
         'sequence',
         'ui_label',
         'ui_description',
-        'room_type'
     ];
-    
-    public function roomType()
-    {
-        return $this->belongsTo(MRoomType::class, 'room_type');
-    }
 }
