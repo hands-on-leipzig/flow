@@ -14,6 +14,7 @@ class ExploreGenerator
 {
     private ActivityWriter $writer;
     private TimeCursor $eTime;
+    private int $eMode;
 
     // Shared state for integrated Explore mode
     private IntegratedExploreState $integratedExplore;
@@ -65,18 +66,27 @@ class ExploreGenerator
         }
     }
 
-    public function openingsAndBriefings(int $group, bool $challenge = false): void
+    public function openingsAndBriefings(): void
     {
-        Log::info('ExploreGenerator: Starting openings and briefings', ['group' => $group, 'challenge' => $challenge]);
+        Log::info('ExploreGenerator: Starting openings and briefings', 'eMode' => $this->eMode');
 
         try {
-            if ($challenge) {
+            if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
 
+                $group = 1;
                 $startOpening = clone $this->eTime;
                 $this->eTime->addMinutes($this->pp('g_duration_opening'));
 
             } else {
 
+                if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value || 
+                    $this->eMode == ExploreMode::DECOUPLED_MORNING->value) {
+                    $group = 1;
+                } else if($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value || 
+                          $this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
+                    $group = 2;
+                } 
+                
                 $this->eTime->setTime($this->pp("e{$group}_start_opening"));
                 $startOpening = clone $this->eTime;
 

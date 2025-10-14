@@ -89,8 +89,8 @@ class PlanGeneratorCore
         );
                 
                 $this->challenge->openingsAndBriefings(true);
-                $this->explore->openingsAndBriefings(1, true);
-                $this->explore->judgingAndDeliberations(1);
+                $this->explore->openingsAndBriefings($eMode, true);
+                $this->explore->judgingAndDeliberations($eMode);
                 $this->challenge->main(true);
                 $this->explore->integratedActivity($eMode);
                 $this->challenge->robotGameFinals();
@@ -106,8 +106,8 @@ class PlanGeneratorCore
                 
                 $this->challenge->openingsAndBriefings();
                 $this->challenge->main(true);
-                $this->explore->openingsAndBriefings(2, true);
-                $this->explore->judgingAndDeliberations(2);
+                $this->explore->openingsAndBriefings($eMode, true);
+                $this->explore->judgingAndDeliberations($eMode);
                 $this->explore->integratedActivity($eMode);
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards(true);
