@@ -244,7 +244,7 @@ class ChallengeGenerator
                 // Delay judging if needed
                 if ($this->jTime->current() < $jTimeEarliest->current()) {
                     Log::debug("Judging delayed from {$this->jTime->format()} to {$jTimeEarliest->format()}");
-                    $this->jTime = clone $jTimeEarliest;
+                    $this->jTime->set($jTimeEarliest->current());
                 }
 
                 // Key concept 2: teams at judging are last in CURRENT robot game round
@@ -283,19 +283,20 @@ class ChallengeGenerator
                 // It delays the match start, but the teams have been there ealier for exactly the same amount of time.
 
                 // Compare time away for judging and expectations from robot game
-                // Factor in the current difference between robot game and judging
+                // Calculate target start time for robot game
 
-                Log::debug("jTime: {$this->jTime->format('H:i')}, rTime: {$this->rTime->format('H:i')}, diff: {$this->rTime->diffInMinutes($this->jTime)}");
+                Log::debug("jTime: {$this->jTime->format('H:i')}, rTime: {$this->rTime->format('H:i')}");
 
-                $rStartShift = $jT4J - $rT2M - $this->rTime->diffInMinutes($this->jTime);       // Candiate
+                // rStartTarget = jTime + (T4J - T2M)
+                $rStartTarget = clone $this->jTime;
+                $rStartTarget->addMinutes($jT4J - $rT2M);
 
-                Log::debug("rStartShift: {$rStartShift}");
+                Log::debug("rStartTarget: {$rStartTarget->format('H:i')}");
 
-
-                // Delay robot game if needed
-                if ($rStartShift > 0) {
-                    $this->rTime->addMinutes($rStartShift);
-                    Log::debug("Robot game delayed by {$rStartShift} minutes - rTime now: {$this->rTime->format('H:i')}");
+                // If rTime <= rStartTarget then rTime = rStartTarget
+                if ($this->rTime->current() <= $rStartTarget->current()) {
+                    $this->rTime->set($rStartTarget->current());
+                    Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
                 }
 
                 // -----------------------------------------------------------------------------------
@@ -326,6 +327,8 @@ class ChallengeGenerator
                 // Store this as time object
                 $jTimeEarliest = clone $this->rTime;
                 $jTimeEarliest->addMinutes($rA4J);
+
+                Log::debug("jTimeEarliest: {$jTimeEarliest->format('H:i')}");
 
                 // -----------------------------------------------------------------------------------
                 // Now we are ready to create activities for robot game and then judging
