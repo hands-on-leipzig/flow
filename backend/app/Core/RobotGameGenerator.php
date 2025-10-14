@@ -402,7 +402,7 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    $this->rTime->addMinutes($this->pp("r_duration_results"));
+                    $this->writer->insertPoint('c_after_final_16', $this->pp("r_duration_results"), $this->rTime);
                 });
                 break;
 
@@ -427,7 +427,8 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    $this->rTime->addMinutes($this->pp("r_duration_results"));
+                    $this->writer->insertPoint('c_after_final_8', $this->pp("r_duration_results"), $this->rTime);
+                    
                 });
                 break;
 
