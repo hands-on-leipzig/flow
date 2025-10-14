@@ -379,13 +379,16 @@ class RobotGameGenerator
                     $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
                     // Integrated Explore mode: coordinate with ExploreGenerator
                     // Write start time for ExploreGenerator to pick up
+                    Log::debug("RobotGameGenerator: Inserting start time for ExploreGenerator: {$this->rTime->format('H:i')}");
                     $this->integratedExplore->startTime = $this->rTime->format('H:i');
                     
                     // Advance rTime by the duration that Explore will use
                     // (Duration was calculated by ExploreGenerator constructor)
+                    Log::debug("RobotGameGenerator: Advancing rTime by {$this->integratedExplore->duration} minutes");
                     $this->rTime->addMinutes($this->integratedExplore->duration);
                     
-                    Log::debug("Integrated Explore: start={$this->integratedExplore->startTime}, duration={$this->integratedExplore->duration}");
+                    Log::debug("RobotGameGenerator: rTime after advance: {$this->rTime->format('H:i')}");
+                    
                 } else {
                     if ($this->pp('c_duration_lunch_break') === 0) {
                         $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_lunch"), $this->rTime);

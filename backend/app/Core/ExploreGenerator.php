@@ -77,6 +77,7 @@ class ExploreGenerator
             if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
 
                 $group = 1;
+                $this->eTime->setTime($this->pp("g_start_opening"));
                 $startOpening = clone $this->eTime;
                 $this->eTime->addMinutes($this->pp('g_duration_opening'));
 
@@ -268,9 +269,9 @@ class ExploreGenerator
         }
 
         try {
-            // Parse start time (HH:MM format)
-            [$hours, $minutes] = explode(':', $this->integratedExplore->startTime);
-            $this->eTime->current()->setTime((int)$hours, (int)$minutes);
+            // Set cursor to start time provided by ChallengeGenerator
+            $this->eTime->setTime($this->integratedExplore->startTime);
+            Log::info('ExploreGenerator: Integrated activity', ['eMode' => $this->eMode, 'startTime' => $this->integratedExplore->startTime, 'eTime' => $this->eTime->format('H:i')]);
 
             if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
                 // INTEGRATED_MORNING: Insert awards

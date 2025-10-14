@@ -246,7 +246,7 @@ class ChallengeGenerator
 
                 // Delay judging if needed
                 if ($this->jTime->current() < $jTimeEarliest->current()) {
-                    Log::debug("Judging delayed from {$this->jTime->format()} to {$jTimeEarliest->format()}");
+                    Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
                     $this->jTime->set($jTimeEarliest->current());
                 }
 
