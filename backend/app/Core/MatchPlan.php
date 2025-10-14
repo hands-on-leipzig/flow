@@ -100,6 +100,7 @@ class MatchPlan
                         $entry['table_2'] = 4;
                     }
                 }
+                unset($entry);
             }
         }
 
@@ -144,6 +145,7 @@ class MatchPlan
                     }
                 }
             }
+            unset($match);
         }
 
         // Special handling for asymmetric robot games
@@ -186,6 +188,7 @@ class MatchPlan
         // Save match entries to database
         $this->saveMatchEntries();
     }
+
 
     private function saveMatchEntries(): void
     {
