@@ -84,6 +84,6 @@ class QPlan extends Model
      */
     public function matches()
     {
-        return $this->hasMany(QPlanMatch::class, 'q_plan');
+        return $this->hasMany(\App\Models\MatchEntry::class, 'plan', 'plan');
     }
 }

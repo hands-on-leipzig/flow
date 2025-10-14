@@ -365,48 +365,7 @@ class QualityEvaluatorService
             ]);
         }
 
-        // Delete all previous entries for this q_plan in q_plan_match
-        DB::table('q_plan_match')->where('q_plan', $qPlanId)->delete();
-
-        // Filter only match activities (activity_atd = 15)
-        $matchActivities = $activities->filter(function ($a) {
-            return $a->activity_atd === 15;
-        });
-
-        // Map activity_group_atd to round
-        $roundMap = [8 => 0, 9 => 1, 10 => 2, 11 => 3];
-        $currentRound = null;
-        $matchCounter = 0;
-
-        foreach ($matchActivities as $activity) {
-            $round = $roundMap[$activity->activity_group_atd] ?? null;
-            if ($round === null) {
-                continue; // skip unknown round
-            }
-
-            // Reset counter when round changes
-            if ($round !== $currentRound) {
-                $currentRound = $round;
-                $matchCounter = 1;
-            } else {
-                $matchCounter++;
-            }
-
-            // Map null to 0 for teams
-            $team1 = is_null($activity->table_1_team) ? 0 : $activity->table_1_team;
-            $team2 = is_null($activity->table_2_team) ? 0 : $activity->table_2_team;
-
-            // Insert row into q_plan_match
-            DB::table('q_plan_match')->insert([
-                'q_plan' => $qPlanId,
-                'round' => $round,
-                'match_no' => $matchCounter,
-                'table_1' => $activity->table_1,
-                'table_2' => $activity->table_2,
-                'table_1_team' => $team1,
-                'table_2_team' => $team2,
-            ]);
-        }
+        // No need to build q_plan_match table as we're using match table directly
 
         return $activities;
     }
@@ -502,8 +461,11 @@ class QualityEvaluatorService
     {
         $tablesAvailable = $this->getParameterValueForPlan($qPlanId, 'r_tables');
 
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [1, 2, 3])
             ->get();
 
@@ -555,8 +517,11 @@ class QualityEvaluatorService
      */
     private function calculateQ3(int $qPlanId): void
     {
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [1, 2, 3])
             ->get();
 
@@ -597,8 +562,11 @@ class QualityEvaluatorService
      */
     private function calculateQ4(int $qPlanId): void
     {
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [0, 1])
             ->orderBy('round')
             ->get();
@@ -644,9 +612,12 @@ class QualityEvaluatorService
      */
     private function calculateQ5(int $qPlanId): void
     {
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
         // Load all matches from rounds 0 to 3, sorted by round and match number
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [0, 1, 2, 3])
             ->orderBy('round')
             ->orderBy('match_no')

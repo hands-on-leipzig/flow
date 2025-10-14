@@ -119,9 +119,12 @@ class QualityController extends Controller
     public function getQPlanDetails(int $qplanId)
     {
         $teams = \App\Models\QPlanTeam::where('q_plan', $qplanId)->get();
-        $matches = \App\Models\QPlanMatch::where('q_plan', $qplanId)->get();
-
+        
+        // Get plan ID from q_plan and fetch matches from match table
         $qplan = \App\Models\QPlan::findOrFail($qplanId);
+        $planId = $qplan->plan;
+        $matches = \App\Models\MatchEntry::where('plan', $planId)->get();
+
         $c_teams = $qplan->c_teams;
 
         // Indexiere Matches nach Runde für schnelleren Zugriff
