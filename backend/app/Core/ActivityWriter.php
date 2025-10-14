@@ -38,6 +38,7 @@ class ActivityWriter
             ->toArray();
     }
 
+
     public function insertActivityGroup(string $activityTypeDetailCode): int
     {
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeDetailCode);

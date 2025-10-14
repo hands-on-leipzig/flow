@@ -7,6 +7,7 @@ use Illuminate\Support\Collection;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use Illuminate\Support\Facades\DB;
+use App\Models\MatchEntry;
 use DateTime;
 
 class MatchPlan
@@ -180,6 +181,30 @@ class MatchPlan
             ];
 
             $this->entries = $newList;
+        }
+
+        // Save match entries to database
+        $this->saveMatchEntries();
+    }
+
+    private function saveMatchEntries(): void
+    {
+        $planId = $this->pp('g_plan');
+        
+        // Clear existing match entries for this plan
+        MatchEntry::where('plan', $planId)->delete();
+
+        // Insert new match entries
+        foreach ($this->entries as $entry) {
+            MatchEntry::create([
+                'plan' => $planId,
+                'round' => $entry['round'],
+                'match_no' => $entry['match'],
+                'table_1' => $entry['table_1'],
+                'table_2' => $entry['table_2'],
+                'table_1_team' => $entry['team_1'],
+                'table_2_team' => $entry['team_2'],
+            ]);
         }
     }
 
