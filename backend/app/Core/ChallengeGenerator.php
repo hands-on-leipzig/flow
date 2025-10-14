@@ -203,7 +203,6 @@ class ChallengeGenerator
             $jTimeEarliest = clone $this->jTime; // In block 1 judging starts immediately. No need to compare with robot game.
 
             $cBlock = 0;
-            $rStartShift = 0;
             $jT = 0; // first team index for this block
 
             // Time for judging (T4J) = how long will a team be away to judging and thus not available for robot game.
@@ -211,21 +210,15 @@ class ChallengeGenerator
 
             // Create the blocks of judging with robot game aligned
             for ($cBlock = 1; $cBlock <= $this->pp('j_rounds'); $cBlock++) {
-                Log::debug("Challenge block {$cBlock} of {$this->pp('j_rounds')}");
-                Log::debug("Timing 1 - jTime: {$this->jTime->format('H:i')}, rTime: {$this->rTime->format('H:i')}");
 
                 // -----------------------------------------------------------------------------------
                 // Adjust timing between judging and robot game
                 // -----------------------------------------------------------------------------------
 
-
-                // Debug: print current time
                 // duration of one match: test round or normal
                 $rDuration = ($cBlock == 1)
                     ? $this->pp('r_duration_test_match')   // Test round
                     : $this->pp('r_duration_match');
-
-                Log::debug("rDuration: {$rDuration}");
 
                 // Key concept 1: teams first in robot game go to judging in NEXT round
                 // 
@@ -259,8 +252,6 @@ class ChallengeGenerator
                     $rMB++;
                 }
 
-                Log::debug("rMB: {$rMB}");
-
                 // Calculate time to START of match
                 if ($this->pp('r_tables') == 2) {
                     // matches START in sequence
@@ -274,21 +265,15 @@ class ChallengeGenerator
                     }
                 }
 
-                Log::debug("rT2M: {$rT2M}");
-
                 // Note: No need to consider robot check!
                 // It delays the match start, but the teams have been there ealier for exactly the same amount of time.
 
                 // Compare time away for judging and expectations from robot game
                 // Calculate target start time for robot game
 
-                Log::debug("jTime: {$this->jTime->format('H:i')}, rTime: {$this->rTime->format('H:i')}");
-
                 // rStartTarget = jTime + (T4J - T2M)
                 $rStartTarget = clone $this->jTime;
                 $rStartTarget->addMinutes($jT4J - $rT2M);
-
-                Log::debug("rStartTarget: {$rStartTarget->format('H:i')}");
 
                 // If rTime <= rStartTarget then rTime = rStartTarget
                 if ($this->rTime->current() <= $rStartTarget->current()) {
@@ -369,9 +354,6 @@ class ChallengeGenerator
                         // No robot game left
                         break;
                 }
-
-                // Debug: Show times after activities
-                Log::debug("After activities - jTime: {$this->jTime->format('H:i')}, rTime: {$this->rTime->format('H:i')}");
 
                 // -----------------------------------------------------------------------------------
                 // If a hard lunch break is set, do it here
