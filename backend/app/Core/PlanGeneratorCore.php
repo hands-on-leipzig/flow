@@ -75,10 +75,10 @@ class PlanGeneratorCore
             
             if ($eMode == ExploreMode::NONE->value) {
                 // Challenge only
-                $this->challenge->openingsAndBriefings();        // check
+                $this->challenge->openingsAndBriefings();
                 $this->challenge->main();
-                $this->challenge->robotGameFinals();            // check
-                $this->challenge->awards();                     // check
+                $this->challenge->robotGameFinals();
+                $this->challenge->awards();
                 
             } elseif ($eMode == ExploreMode::INTEGRATED_MORNING->value) {
                 // Challenge + Explore integrated morning
@@ -89,13 +89,13 @@ class PlanGeneratorCore
             $this->integratedExploreStart
         );
                 
-                $this->challenge->openingsAndBriefings(true);        // check
-                $this->explore->openingsAndBriefings(1, true);       // check
-                $this->explore->judgingAndDeliberations(1);          // check
+                $this->challenge->openingsAndBriefings(true);
+                $this->explore->openingsAndBriefings(1, true);
+                $this->explore->judgingAndDeliberations(1);
                 $this->challenge->main(true);
-                $this->explore->integratedAwards(1);                 // Picks up timing from params
-                $this->challenge->robotGameFinals();            // check
-                $this->challenge->awards();                     // check
+                $this->explore->integratedActivity($eMode);
+                $this->challenge->robotGameFinals();
+                $this->challenge->awards();
                 
             } elseif ($eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
                 // Challenge + Explore integrated afternoon
@@ -106,13 +106,13 @@ class PlanGeneratorCore
                     $this->integratedExploreStart
                 );
                 
-                $this->challenge->openingsAndBriefings();        // check
+                $this->challenge->openingsAndBriefings();
                 $this->challenge->main(true);
-                $this->explore->openingsAndBriefings(2, true);       // check
-                $this->explore->judgingAndDeliberations(2);          // check
-                $this->explore->integratedAwards(2);                 // Picks up timing from shared state
-                $this->challenge->robotGameFinals();            // check
-                $this->challenge->awards(true);                     // check
+                $this->explore->openingsAndBriefings(2, true);
+                $this->explore->judgingAndDeliberations(2);
+                $this->explore->integratedActivity($eMode);
+                $this->challenge->robotGameFinals();
+                $this->challenge->awards(true);
                 
             } elseif (in_array($eMode, [
                 ExploreMode::DECOUPLED_MORNING->value, 
@@ -128,31 +128,31 @@ class PlanGeneratorCore
                     $this->integratedExploreStart
                 );
 
-                $this->challenge->openingsAndBriefings();        // check
+                $this->challenge->openingsAndBriefings();
                 $this->challenge->main();
-                $this->challenge->robotGameFinals();            // check
-                $this->challenge->awards();                     // check
+                $this->challenge->robotGameFinals();
+                $this->challenge->awards();
 
 
                 if ($eMode == ExploreMode::DECOUPLED_MORNING->value) {
                     // Explore decoupled morning
-                    $this->explore->openingsAndBriefings(1);        // check
-                    $this->explore->judgingAndDeliberations(1);        // check
-                    $this->explore->awards(1);                         // check
+                    $this->explore->openingsAndBriefings(1);
+                    $this->explore->judgingAndDeliberations(1);
+                    $this->explore->awards(1);
                 } elseif ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
                     // Explore decoupled afternoon
-                    $this->explore->openingsAndBriefings(2);             // check
-                    $this->explore->judgingAndDeliberations(2);        // check
-                    $this->explore->awards(2);                         // check
+                    $this->explore->openingsAndBriefings(2);
+                    $this->explore->judgingAndDeliberations(2);
+                    $this->explore->awards(2);
                 } elseif ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
                     // Explore decoupled both  
-                    $this->explore->openingsAndBriefings(1);        // check
-                    $this->explore->judgingAndDeliberations(1);        // check
-                    $this->explore->awards(1);                         // check
+                    $this->explore->openingsAndBriefings(1);
+                    $this->explore->judgingAndDeliberations(1);
+                    $this->explore->awards(1);
                 
-                    $this->explore->openingsAndBriefings(2);        // check
-                    $this->explore->judgingAndDeliberations(2);        // check
-                    $this->explore->awards(2);                         // check
+                    $this->explore->openingsAndBriefings(2);
+                    $this->explore->judgingAndDeliberations(2);
+                    $this->explore->awards(2);
                 }
 
             }
@@ -167,9 +167,9 @@ class PlanGeneratorCore
                     $this->integratedExploreDuration,
                     $this->integratedExploreStart
                 );
-                $this->explore->openingsAndBriefings(1);        // check
-                $this->explore->judgingAndDeliberations(1);        // check
-                $this->explore->awards(1);                         // check
+                $this->explore->openingsAndBriefings(1);
+                $this->explore->judgingAndDeliberations(1);
+                $this->explore->awards(1);
                 
             } elseif ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
                 // Explore afternoon only
@@ -179,9 +179,9 @@ class PlanGeneratorCore
                     $this->integratedExploreDuration,
                     $this->integratedExploreStart
                 );
-                $this->explore->openingsAndBriefings(2);        // check
-                $this->explore->judgingAndDeliberations(2);        // check
-                $this->explore->awards(2);                         // check
+                $this->explore->openingsAndBriefings(2);
+                $this->explore->judgingAndDeliberations(2);
+                $this->explore->awards(2);
 
             } elseif ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
                 // Explore both morning and afternoon
@@ -191,13 +191,13 @@ class PlanGeneratorCore
                     $this->integratedExploreDuration,
                     $this->integratedExploreStart
                 );
-                $this->explore->openingsAndBriefings(1);       // check     
-                $this->explore->judgingAndDeliberations(1);        // check
-                $this->explore->awards(1);                         // check
+                $this->explore->openingsAndBriefings(1);
+                $this->explore->judgingAndDeliberations(1);
+                $this->explore->awards(1);
                 
-                $this->explore->openingsAndBriefings(2);        // check
-                $this->explore->judgingAndDeliberations(2);        // check
-                $this->explore->awards(2);                         // check
+                $this->explore->openingsAndBriefings(2);
+                $this->explore->judgingAndDeliberations(2);
+                $this->explore->awards(2);
             }
         }
     }
