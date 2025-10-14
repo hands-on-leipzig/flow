@@ -18,9 +18,6 @@ class FreeBlockGenerator
         $this->writer = $writer;
         $this->planId = $params->get('g_plan');
 
-        Log::debug('FreeBlockGenerator constructed', [
-            'plan_id' => $this->planId,
-        ]);
     }
 
     public function insertFreeActivities(): void

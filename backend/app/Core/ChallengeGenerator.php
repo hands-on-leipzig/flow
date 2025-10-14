@@ -203,23 +203,26 @@ class ChallengeGenerator
         // -----------------------------------------------------------------------------------
 
         // Current time is the earliest available time.
-        $jTimeEarliest = $this->jTime->copy(); // In block 1 judging starts immediately. No need to compare with robot game.
+        $jTimeEarliest = clone $this->jTime; // In block 1 judging starts immediately. No need to compare with robot game.
 
         $cBlock = 0;
         $rStartShift = 0;
         $jT = 0; // first team index for this block
 
-        // Time for judging = how long will a team be away to judging and thus not available for robot game.
+        // Time for judging (T4J) = how long will a team be away to judging and thus not available for robot game.
         $jT4J = $this->pp('j_duration_with_team') + $this->pp('c_duration_transfer');
 
         // Create the blocks of judging with robot game aligned
         for ($cBlock = 1; $cBlock <= $this->pp('j_rounds'); $cBlock++) {
             Log::debug("Challenge block {$cBlock} of {$this->pp('j_rounds')}");
+            Log::debug("Timing 1 - jTime: {$this->jTime->format('H:i')}, rTime: {$this->rTime->format('H:i')}");
 
             // -----------------------------------------------------------------------------------
             // Adjust timing between judging and robot game
             // -----------------------------------------------------------------------------------
 
+
+            // Debug: print current time
             // duration of one match: test round or normal
             $rDuration = ($cBlock == 1)
                 ? $this->pp('r_duration_test_match')   // Test round
@@ -234,9 +237,9 @@ class ChallengeGenerator
             // 5 or 6 lanes = 3 matches
 
             // Delay judging if needed
-            if ($jTimeEarliest && $this->jTime->diffInMinutes($jTimeEarliest) > 0) {
+            if ($this->jTime->current() < $jTimeEarliest->current()) {
                 Log::debug("Judging delayed from {$this->jTime->format()} to {$jTimeEarliest->format()}");
-                $this->jTime = $jTimeEarliest->copy();
+                $this->jTime = clone $jTimeEarliest;
             }
 
             // Key concept 2:
@@ -274,6 +277,7 @@ class ChallengeGenerator
             // Delay robot game if needed
             if ($rStartShift > 0) {
                 $this->rTime->addMinutes($rStartShift);
+                Log::debug("Robot game delayed by {$rStartShift} minutes - rTime now: {$this->rTime->format('H:i')}");
             }
 
             // -----------------------------------------------------------------------------------
@@ -302,7 +306,8 @@ class ChallengeGenerator
             $rA4J += $this->pp('c_duration_transfer');
 
             // Store this as time object
-            $jTimeEarliest = $this->rTime->copy()->addMinutes($rA4J);
+            $jTimeEarliest = clone $this->rTime;
+            $jTimeEarliest->addMinutes($rA4J);
 
             // -----------------------------------------------------------------------------------
             // Now we are ready to create activities for robot game and then judging
@@ -347,6 +352,9 @@ class ChallengeGenerator
                     break;
             }
 
+            // Debug: Show times after activities
+            Log::debug("After activities - jTime: {$this->jTime->format('H:i')}, rTime: {$this->rTime->format('H:i')}");
+
             // -----------------------------------------------------------------------------------
             // If a hard lunch break is set, do it here
             // -----------------------------------------------------------------------------------
@@ -356,10 +364,10 @@ class ChallengeGenerator
                 $this->pp('c_duration_lunch_break') > 0
             ) {
                 // Align both timelines
-                if ($this->rTime->diffInMinutes($this->jTime) > 0) {
-                    $this->rTime = $this->jTime->copy();
+                if ($this->rTime->current() < $this->jTime->current()) {
+                    $this->rTime = clone $this->jTime;
                 } else {
-                    $this->jTime = $this->rTime->copy();
+                    $this->jTime = clone $this->rTime;
                 }
 
                 $this->writer->withGroup('c_lunch_break', function () {
@@ -374,15 +382,15 @@ class ChallengeGenerator
         // -----------------------------------------------------------------------------------
         // Synchronize after judging and robot game
         // -----------------------------------------------------------------------------------
-        $this->cTime = $this->jTime->copy();
+        
+        
+        $this->cTime = clone $this->jTime;
         $this->cTime->addMinutes(-$this->pp('j_duration_scoring'));
 
         // If RG is later, their time wins
         if ($this->rTime->current() > $this->cTime->current()) {
-            $this->cTime = $this->rTime->copy();
-        }
-
-        Log::info('=== FLL Challenge generation complete ===');
+            $this->cTime = clone $this->rTime;        
+        } 
 
         // -----------------------------------------------------------------------------------
         // FLL Challenge: Deliberations
@@ -430,7 +438,7 @@ class ChallengeGenerator
         // They can also decide to show them at the end
 
         // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
-        $this->rTime = $this->cTime->copy();
+        $this->rTime = clone $this->cTime;
 
         if ($this->pp('c_presentations') == 0 || $this->pp('c_presentations_last')) {
 
@@ -499,12 +507,12 @@ class ChallengeGenerator
 
   
         // back to only one action a time
-        $this->cTime = $this->rTime->copy();
+        $this->cTime = clone $this->rTime;
 
         // FLL Challenge
         // Deliberations might have taken longer, which is unlikely
         if ($this->jTime->current()->getTimestamp() > $this->cTime->current()->getTimestamp()) {
-            $this->cTime = $this->jTime->copy();
+            $this->cTime = clone $this->jTime;
         }
 
         } catch (\Throwable $e) {
