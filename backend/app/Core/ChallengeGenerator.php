@@ -102,8 +102,8 @@ class ChallengeGenerator
             if ($explore) {
 
                 $this->cTime->setTime($this->pp('g_start_opening'));
-                $this->jTime = clone $this->cTime;
-                $this->rTime = clone $this->cTime;
+                $this->jTime->set($this->cTime->current());
+                $this->rTime->set($this->cTime->current());
 
 
 
@@ -120,8 +120,8 @@ class ChallengeGenerator
             } else {
 
                 $this->cTime->setTime($this->pp('c_start_opening'));
-                $this->jTime = clone $this->cTime;
-                $this->rTime = clone $this->cTime;
+                $this->jTime->set($this->cTime->current());
+                $this->rTime->set($this->cTime->current());
 
                 $this->writer->withGroup('c_opening', function () {
                     $this->writer->insertActivity('c_opening', $this->cTime, $this->pp('c_duration_opening'));
@@ -386,9 +386,9 @@ class ChallengeGenerator
                 ) {
                     // Align both timelines
                     if ($this->rTime->current() < $this->jTime->current()) {
-                        $this->rTime = clone $this->jTime;
+                        $this->rTime->set($this->jTime->current());
                     } else {
-                        $this->jTime = clone $this->rTime;
+                        $this->jTime->set($this->rTime->current());
                     }
 
                     $this->writer->withGroup('c_lunch_break', function () {
@@ -405,12 +405,12 @@ class ChallengeGenerator
             // -----------------------------------------------------------------------------------
             
             
-            $this->cTime = clone $this->jTime;
+            $this->cTime->set($this->jTime->current());
             $this->cTime->addMinutes(-$this->pp('j_duration_scoring'));
 
             // If RG is later, their time wins
             if ($this->rTime->current() > $this->cTime->current()) {
-                $this->cTime = clone $this->rTime;        
+                $this->cTime->set($this->rTime->current());        
             } 
 
             // -----------------------------------------------------------------------------------
@@ -459,7 +459,7 @@ class ChallengeGenerator
         // They can also decide to show them at the end
 
         // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
-        $this->rTime = clone $this->cTime;
+        $this->rTime->set($this->cTime->current());
 
         if ($this->pp('c_presentations') == 0 || $this->pp('c_presentations_last')) {
 
@@ -511,12 +511,12 @@ class ChallengeGenerator
 
   
         // back to only one action a time
-        $this->cTime = clone $this->rTime;
+        $this->cTime->set($this->rTime->current());
 
         // FLL Challenge
         // Deliberations might have taken longer, which is unlikely
         if ($this->jTime->current()->getTimestamp() > $this->cTime->current()->getTimestamp()) {
-            $this->cTime = clone $this->jTime;
+            $this->cTime->set($this->jTime->current());
         }
 
         } catch (\Throwable $e) {

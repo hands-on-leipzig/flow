@@ -29,20 +29,6 @@ class PlanGeneratorCore
         $this->params = PlanParameter::load($planId);
     }
 
-    // ***********************************************************************************
-    // Parameter naming convention
-    // ***********************************************************************************
-    // "snake_case" is used
-    // g_ global / generic
-    // c_ FLL Challenge
-    // j_ FLL Challenge judging
-    // r_ FLL Challenge robot game
-    // e_ FLL Explore
-    // e1_ FLL Explore first group (morning)
-    // e2_ FLL Explore second group (afternoon)
-    // f_ Finale
-    // lc_ Live Challenge
-
     public function generate(): void
     {
         Log::info("PlanGeneratorCore: Start generation for plan {$this->pp('g_plan')}");
@@ -70,7 +56,7 @@ class PlanGeneratorCore
         $cMode = $this->pp('c_mode');
         $eMode = $this->pp('e_mode');
 
-        
+        Log::debug("PlanGeneratorCore: generateByMode", ['cMode' => $cMode, 'eMode' => $eMode]);
 
 
         if ($cMode == 1) {
