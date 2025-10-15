@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\CarouselController;
+use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\DrahtSimulatorController;
 use App\Http\Controllers\Api\EventController;
@@ -247,6 +248,16 @@ Route::prefix('admin/main-tables')->group(function () {
     Route::prefix('stats')->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
+    });
+
+    // Contao controller - for CMS integration
+    Route::prefix('contao')->group(function () {
+        Route::get('/test', [ContaoController::class, 'testConnection']);              // Test database connection
+        Route::get('/tables', [ContaoController::class, 'getTables']);                 // Get list of tables
+        Route::get('/structure', [ContaoController::class, 'getTableStructure']);       // Get table structure
+        Route::get('/data', [ContaoController::class, 'getData']);                     // Get data from table
+        Route::post('/data', [ContaoController::class, 'setData']);                     // Set/Update data in table
+        Route::delete('/data', [ContaoController::class, 'deleteData']);               // Delete data from table
     });
 
 });
