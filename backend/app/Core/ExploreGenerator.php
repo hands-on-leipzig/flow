@@ -53,7 +53,6 @@ class ExploreGenerator
         }
 
         // Calculate integrated Explore duration for Challenge to use
-        $this->eMode = (int) $params->get('e_mode');
         if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
             // For morning: Explore awards are inserted after RG round 1 (lunch break)
             $this->integratedExplore->duration = 
@@ -82,17 +81,26 @@ class ExploreGenerator
                 $this->eTime->addMinutes($this->pp('g_duration_opening'));
 
             } else {
+                
+                if($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
 
-                if ($this->eMode == ExploreMode::DECOUPLED_MORNING->value) {
-                    $group = 1;
-                } else if($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value || 
-                          $this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
                     $group = 2;
+                    // dont change the time cursor
+
                 } else {
-                    throw new \RuntimeException("Invalid Explore mode: {$this->eMode}");
+
+                    if ($this->eMode == ExploreMode::DECOUPLED_MORNING->value) {
+                        $group = 1;
+                    } else if($this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
+                        $group = 2;
+                    } else {
+                        throw new \RuntimeException("Invalid Explore mode: {$this->eMode}");
+                    }
+                
+                    $this->eTime->setTime($this->pp("e{$group}_start_opening"));
+
                 }
                 
-                $this->eTime->setTime($this->pp("e{$group}_start_opening"));
                 $startOpening = clone $this->eTime;
 
                 $this->writer->withGroup('e_opening', function () use ($group) {
@@ -233,25 +241,17 @@ class ExploreGenerator
         
         Log::info('ExploreGenerator: Starting awards', ['eMode' => $this->eMode, 'group' => $group, 'challenge' => $challenge]);
         
-        try {
-            if (!$challenge) {
+        if($this->eMode == ExploreMode::INTEGRATED_MORNING->value || $this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
+
+            // nothing to do. ChallengeGenerator creates the actitivy. Explore event is over afterwards
+
+        } else {
 
             $this->eTime->addMinutes($this->pp("e_ready_awards"));
             $this->writer->withGroup('e_awards', function () use ($group) {
                 $this->writer->insertActivity('e_awards', $this->eTime, $this->pp("e{$group}_duration_awards"));
             });
             $this->eTime->addMinutes($this->pp("e{$group}_duration_awards"));
-        }
-
-        } catch (\Throwable $e) {
-            Log::error('ExploreGenerator: Error in awards', [
-                'eMode' => $this->eMode,
-                'group' => $group,
-                'challenge' => $challenge,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw new \RuntimeException("Failed to generate Explore awards: {$e->getMessage()}", 0, $e);
         }
     }
 
@@ -268,55 +268,23 @@ class ExploreGenerator
             return;
         }
 
-        try {
-            // Set cursor to start time provided by ChallengeGenerator
-            $this->eTime->setTime($this->integratedExplore->startTime);
-            Log::info('ExploreGenerator: Integrated activity', ['eMode' => $this->eMode, 'startTime' => $this->integratedExplore->startTime, 'eTime' => $this->eTime->format('H:i')]);
+        // Set cursor to start time provided by ChallengeGenerator
+        $this->eTime->setTime($this->integratedExplore->startTime);
 
-            if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
-                // INTEGRATED_MORNING: Insert awards
-                $this->eTime->addMinutes($this->pp('e_ready_awards'));
-                
-                $this->writer->withGroup('e_awards', function () {
-                    $this->writer->insertActivity('e_awards', $this->eTime, $this->pp('e1_duration_awards'));
-                });
-                $this->eTime->addMinutes($this->pp('e1_duration_awards'));
-                $this->eTime->addMinutes($this->pp('e_ready_awards'));
-                
-                Log::info("ExploreGenerator: Integrated awards inserted at {$this->integratedExplore->startTime}");
-                
-            } elseif ($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
-                // INTEGRATED_AFTERNOON: Insert opening
-                $this->eTime->addMinutes($this->pp('e_ready_opening'));
-
-                $startOpening = clone $this->eTime;
-                
-                $this->writer->withGroup('e_opening', function () {
-                    $this->writer->insertActivity('e_opening', $this->eTime, $this->pp('e2_duration_opening'));
-                });
-                $this->eTime->addMinutes($this->pp('e2_duration_opening'));
-                
-                Log::info("ExploreGenerator: Integrated opening inserted at {$this->integratedExplore->startTime}");
-
-                // Derive group from eMode
-                $group = match($this->eMode) {
-                    ExploreMode::INTEGRATED_MORNING->value => 1,
-                    ExploreMode::INTEGRATED_AFTERNOON->value => 2,
-                    default => throw new \RuntimeException("integratedActivity() only valid for INTEGRATED modes"),
-                };
-                
-                $this->briefings($startOpening->current(), $group);
+        if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
+            // INTEGRATED_MORNING: Insert awards
+        
+            $this->awards();
+            Log::info("ExploreGenerator: Integrated awards inserted at {$this->integratedExplore->startTime}");
             
-            }
+        } elseif ($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
+            // INTEGRATED_AFTERNOON: Insert opening
 
-        } catch (\Throwable $e) {
-            Log::error('ExploreGenerator: Error in integrated activity', [
-                'eMode' => $this->eMode,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw new \RuntimeException("Failed to generate integrated Explore activity: {$e->getMessage()}", 0, $e);
+            $this->openingsAndBriefings();                
+            Log::info("ExploreGenerator: Integrated opening inserted at {$this->integratedExplore->startTime}");
+        
         }
+
     }
 
 }
