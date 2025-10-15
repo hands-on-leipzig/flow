@@ -76,6 +76,7 @@ class ExploreGenerator
             if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
 
                 $group = 1;
+                // ChallengeGenerator has created the opening activity. We only need to set the time cursor
                 $this->eTime->setTime($this->pp("g_start_opening"));
                 $startOpening = clone $this->eTime;
                 $this->eTime->addMinutes($this->pp('g_duration_opening'));
@@ -85,7 +86,7 @@ class ExploreGenerator
                 if($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
 
                     $group = 2;
-                    // dont change the time cursor
+                    // Time cursor already set by integratedActivity() before calling this method
 
                 } else {
 
@@ -97,6 +98,7 @@ class ExploreGenerator
                         throw new \RuntimeException("Invalid Explore mode: {$this->eMode}");
                     }
                 
+                    // Set the time cursor respectively
                     $this->eTime->setTime($this->pp("e{$group}_start_opening"));
 
                 }
