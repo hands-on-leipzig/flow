@@ -12,125 +12,132 @@ use Exception;
 class ContaoController extends Controller
 {
     /**
-     * Get data from Contao database
+     * Get tournament scores for an event
      */
-    public function getData(Request $request): JsonResponse
+    public function getScore(Request $request): JsonResponse
     {
         try {
-            $table = $request->input('table');
-            $id = $request->input('id');
-            $conditions = $request->input('conditions', []);
+            $eventId = $request->input('event_id');
             
-            if (!$table) {
-                return response()->json(['error' => 'Table parameter is required'], 400);
+            if (!$eventId) {
+                return response()->json(['error' => 'event_id parameter is required'], 400);
             }
 
-            $query = DB::connection('contao')->table($table);
-            
-            // Add conditions if provided
-            foreach ($conditions as $condition) {
-                if (isset($condition['column'], $condition['operator'], $condition['value'])) {
-                    $query->where($condition['column'], $condition['operator'], $condition['value']);
-                }
-            }
-            
-            // Get specific record by ID if provided
-            if ($id) {
-                $result = $query->where('id', $id)->first();
-                return response()->json($result);
-            }
-            
-            // Get all records
-            $result = $query->get();
-            return response()->json($result);
-            
-        } catch (Exception $e) {
-            Log::error('Contao getData error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to retrieve data from Contao'], 500);
-        }
-    }
+            $roundShowSetting = $this->getRoundsToShow($eventId);
+            $tournamentId = $this->getTournamentId($eventId);
 
-    /**
-     * Set/Update data in Contao database
-     */
-    public function setData(Request $request): JsonResponse
-    {
-        try {
-            $table = $request->input('table');
-            $data = $request->input('data');
-            $id = $request->input('id');
-            
-            if (!$table || !$data) {
-                return response()->json(['error' => 'Table and data parameters are required'], 400);
+            // Get tournament data
+            $tournament = DB::connection('contao')
+                ->table('hot_tournament')
+                ->where('region', $tournamentId)
+                ->first();
+
+            if (!$tournament) {
+                return response()->json(['error' => "No tournament found for region {$tournamentId}"], 404);
             }
 
-            // Validate data is array
-            if (!is_array($data)) {
-                return response()->json(['error' => 'Data must be an array'], 400);
-            }
+            $results = [
+                "id" => $tournament->id,
+                "name" => $tournament->name,
+                "rounds" => [],
+            ];
 
-            if ($id) {
-                // Update existing record
-                $updated = DB::connection('contao')->table($table)
-                    ->where('id', $id)
-                    ->update($data);
+            // Determine which rounds to show
+            $roundsToShow = [];
+            if ($roundShowSetting->vr1 || $roundShowSetting->vr2 || $roundShowSetting->vr3) {
+                $roundsToShow[] = "VR";
+            }
+            if ($roundShowSetting->af) $roundsToShow[] = "AF";
+            if ($roundShowSetting->vf) $roundsToShow[] = "VF";
+            if ($roundShowSetting->hf) $roundsToShow[] = "HF";
+
+            // Get scores for each round
+            foreach ($roundsToShow as $round) {
+                $scores = DB::connection('contao')
+                    ->table('hot_round as r')
+                    ->join('hot_tournament as t', 'r.tournament', '=', 't.id')
+                    ->join('hot_match as m', 'm.round', '=', 'r.id')
+                    ->join('hot_assessment as a', 'a.matchx', '=', 'm.id')
+                    ->join('hot_teams as te', 'a.team', '=', 'te.id')
+                    ->where('t.region', $tournamentId)
+                    ->where('r.type', $round)
+                    ->where('a.confirmed_team', '1')
+                    ->where('a.confirmed_referee', '1')
+                    ->orderBy('a.crdate', 'asc')
+                    ->select('te.team_name as name', 'te.id as id', 'a.points as points', 'r.matches as num_matches')
+                    ->get();
+
+                $maxPoints = [];
                 
-                if ($updated) {
-                    return response()->json(['message' => 'Record updated successfully', 'id' => $id]);
-                } else {
-                    return response()->json(['error' => 'Record not found or no changes made'], 404);
+                foreach ($scores as $score) {
+                    $teamId = $score->id;
+                    
+                    if (!isset($maxPoints[$teamId])) {
+                        $maxPoints[$teamId] = 0;
+                    }
+                    if ($score->points > $maxPoints[$teamId]) {
+                        $maxPoints[$teamId] = $score->points;
+                    }
+
+                    $results["rounds"][$round][$teamId]["scores"][] = [
+                        "points" => $score->points,
+                        "highlight" => false,
+                    ];
+
+                    $results["rounds"][$round][$teamId]["name"] = $score->name;
                 }
-            } else {
-                // Insert new record
-                $newId = DB::connection('contao')->table($table)->insertGetId($data);
-                return response()->json(['message' => 'Record created successfully', 'id' => $newId]);
-            }
-            
-        } catch (Exception $e) {
-            Log::error('Contao setData error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to save data to Contao'], 500);
-        }
-    }
-
-    /**
-     * Delete data from Contao database
-     */
-    public function deleteData(Request $request): JsonResponse
-    {
-        try {
-            $table = $request->input('table');
-            $id = $request->input('id');
-            $conditions = $request->input('conditions', []);
-            
-            if (!$table) {
-                return response()->json(['error' => 'Table parameter is required'], 400);
             }
 
-            $query = DB::connection('contao')->table($table);
-            
-            if ($id) {
-                $query->where('id', $id);
-            } else {
-                // Add conditions if provided
-                foreach ($conditions as $condition) {
-                    if (isset($condition['column'], $condition['operator'], $condition['value'])) {
-                        $query->where($condition['column'], $condition['operator'], $condition['value']);
+            // Apply round visibility settings for VR rounds
+            if (isset($results["rounds"]["VR"])) {
+                foreach ($results["rounds"]["VR"] as $teamId => $roundData) {
+                    if (!$roundShowSetting->vr1 && isset($roundData["scores"][0])) {
+                        $results["rounds"]["VR"][$teamId]["scores"][0]["points"] = 0;
+                    }
+                    if (!$roundShowSetting->vr2 && isset($roundData["scores"][1])) {
+                        $results["rounds"]["VR"][$teamId]["scores"][1]["points"] = 0;
+                    }
+                    if (!$roundShowSetting->vr3 && isset($roundData["scores"][2])) {
+                        $results["rounds"]["VR"][$teamId]["scores"][2]["points"] = 0;
                     }
                 }
             }
-            
-            $deleted = $query->delete();
-            
-            if ($deleted) {
-                return response()->json(['message' => 'Record(s) deleted successfully', 'count' => $deleted]);
-            } else {
-                return response()->json(['error' => 'No records found to delete'], 404);
-            }
-            
+
+            return response()->json($results);
+
         } catch (Exception $e) {
-            Log::error('Contao deleteData error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to delete data from Contao'], 500);
+            Log::error('Contao getScore error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to retrieve scores from Contao'], 500);
         }
+    }
+
+    /**
+     * Get rounds to show setting for an event
+     */
+    private function getRoundsToShow($eventId)
+    {
+        // This method should return the round visibility settings
+        // For now, returning default settings - you may need to adapt this
+        // based on how this data is stored in your system
+        return (object) [
+            'vr1' => true,
+            'vr2' => true,
+            'vr3' => true,
+            'af' => true,
+            'vf' => true,
+            'hf' => true,
+        ];
+    }
+
+    /**
+     * Get tournament ID for an event
+     */
+    private function getTournamentId($eventId)
+    {
+        // This method should map event_id to tournament_id
+        // For now, returning the event_id as tournament_id
+        // You may need to adapt this based on your data mapping
+        return $eventId;
     }
 
     /**
@@ -152,51 +159,6 @@ class ContaoController extends Controller
                 'message' => 'Contao database connection failed',
                 'error' => $e->getMessage()
             ], 500);
-        }
-    }
-
-    /**
-     * Get list of tables in Contao database
-     */
-    public function getTables(): JsonResponse
-    {
-        try {
-            $tables = DB::connection('contao')->select('SHOW TABLES');
-            $tableNames = array_map(function($table) {
-                return array_values((array)$table)[0];
-            }, $tables);
-            
-            return response()->json([
-                'tables' => $tableNames,
-                'count' => count($tableNames)
-            ]);
-        } catch (Exception $e) {
-            Log::error('Contao getTables error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to retrieve tables from Contao'], 500);
-        }
-    }
-
-    /**
-     * Get table structure from Contao database
-     */
-    public function getTableStructure(Request $request): JsonResponse
-    {
-        try {
-            $table = $request->input('table');
-            
-            if (!$table) {
-                return response()->json(['error' => 'Table parameter is required'], 400);
-            }
-
-            $columns = DB::connection('contao')->select("DESCRIBE {$table}");
-            
-            return response()->json([
-                'table' => $table,
-                'columns' => $columns
-            ]);
-        } catch (Exception $e) {
-            Log::error('Contao getTableStructure error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to retrieve table structure from Contao'], 500);
         }
     }
 }
