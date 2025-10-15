@@ -234,15 +234,16 @@ class ExploreGenerator
         // Derive group from eMode
         $group = match($this->eMode) {
             ExploreMode::INTEGRATED_MORNING->value, ExploreMode::DECOUPLED_MORNING->value => 1,
-            ExploreMode::INTEGRATED_AFTERNOON->value, ExploreMode::DECOUPLED_AFTERNOON->value => 2,
+            ExploreMode::DECOUPLED_AFTERNOON->value => 2,
             ExploreMode::DECOUPLED_BOTH->value => throw new \RuntimeException("awards() cannot handle DECOUPLED_BOTH mode - must be called separately for each group"),
             default => throw new \RuntimeException("Invalid Explore mode: {$this->eMode}"),
         };
         
         Log::info('ExploreGenerator: Starting awards', ['eMode' => $this->eMode, 'group' => $group, 'challenge' => $challenge]);
         
-        // action only required if NOT integrated
-        if($this->eMode == ExploreMode::DECOUPLED_MORNING->value || $this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
+        if($this->eMode == ExploreMode::INTEGRATED_MORNING->value ||
+           $this->eMode == ExploreMode::DECOUPLED_MORNING->value ||
+           $this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
 
             $this->eTime->addMinutes($this->pp("e_ready_awards"));
             $this->writer->withGroup('e_awards', function () use ($group) {
