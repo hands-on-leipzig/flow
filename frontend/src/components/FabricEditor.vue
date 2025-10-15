@@ -529,9 +529,9 @@ async function paste() {
         <h2 class="text-lg font-bold mb-4">Bild auswählen</h2>
         <div class="grid grid-cols-3 gap-4 overflow-y-auto max-h-96">
           <div v-for="img in availableImages" :key="img" class="cursor-pointer">
-            <img :src="`${img.url ? img.url + '/' : ''}${img.path}`" :alt="img.title"
+            <img :src="img.url" :alt="img.title"
                  class="w-24 h-24 object-contain rounded border"
-                 @click="insertImageFromUrl((img.url ? img.url + '/' : '') + img.path)"/>
+                 @click="insertImageFromUrl(img.url)"/>
           </div>
         </div>
         <div class="mt-6 px-4 py-2 grid grid-cols-2">

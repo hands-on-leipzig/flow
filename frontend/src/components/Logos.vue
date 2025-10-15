@@ -372,7 +372,7 @@ onMounted(async () => {
           </div>
         </div>
         <img 
-          :src="`${logo.url}/${logo.path}`" 
+          :src="logo.url" 
           alt="Logo" 
           class="h-20 mx-auto cursor-pointer hover:opacity-80 transition-opacity"
           @click="openLogoPreview(logo)"
@@ -431,7 +431,7 @@ onMounted(async () => {
         
         <div class="flex justify-center">
           <img 
-            :src="`${selectedLogoForPreview.url}/${selectedLogoForPreview.path}`" 
+            :src="selectedLogoForPreview.url" 
             :alt="selectedLogoForPreview.title || 'Logo'"
             class="max-w-full max-h-[70vh] object-contain"
           />
