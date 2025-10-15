@@ -38,6 +38,7 @@ class ActivityWriter
             ->toArray();
     }
 
+
     public function insertActivityGroup(string $activityTypeDetailCode): int
     {
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeDetailCode);
@@ -61,7 +62,8 @@ class ActivityWriter
         int $duration,
         ?int $juryLane = null, ?int $juryTeam = null,
         ?int $table1 = null, ?int $table1Team = null,
-        ?int $table2 = null, ?int $table2Team = null
+        ?int $table2 = null, ?int $table2Team = null,
+        ?int $extraBlockId = null
     ): int {
         if (!$this->currentGroup) {
             throw new \RuntimeException("No activity group set before inserting activity: {$activityTypeCode}");
@@ -88,6 +90,7 @@ class ActivityWriter
             'table_1_team'         => $table1Team,
             'table_2'              => $table2,
             'table_2_team'         => $table2Team,
+            'extra_block'          => $extraBlockId,
         ]);
 
         return $activity->id;
@@ -122,8 +125,8 @@ class ActivityWriter
         $code = strtolower($code);
 
         if ($juryLane !== null && $juryLane > 0) {
-            if (in_array($code, ['c_with_team', 'c_scoring'])) {
-                return $this->roomTypeMap['c_lane_' . $juryLane] ?? null;
+            if (in_array($code, ['j_with_team', 'j_scoring'])) {
+                return $this->roomTypeMap['j_lane_' . $juryLane] ?? null;
             }
             if (in_array($code, ['e_with_team', 'e_scoring'])) {
                 return $this->roomTypeMap['e_lane_' . $juryLane] ?? null;
@@ -174,10 +177,11 @@ class ActivityWriter
 
     public function insertPoint(string $insertPointCode, int $duration, TimeCursor $time): void
     {
-        // InsertPoint anhand Code finden
+        // Query insert point by code from database
         $insertPoint = MInsertPoint::where('code', $insertPointCode)->first();
+        
         if (!$insertPoint) {
-            throw new \RuntimeException("Insert point code '{$insertPointCode}' not found.");
+            throw new \RuntimeException("Insert point code '{$insertPointCode}' not found in database.");
         }
 
         // passenden ExtraBlock suchen
@@ -187,43 +191,29 @@ class ActivityWriter
             ->first();
 
         if ($extraBlock) {
-            $this->withGroup('c_inserted', function () use ($extraBlock, $insertPoint, $time) {
+            // Determine activity type code based on first_program
+            $activityCode = match ($insertPoint->first_program) {
+                2 => 'e_inserted_block',  // Explore
+                3 => 'c_inserted_block',  // Challenge
+                default => 'g_inserted_block',  // Joint/Other
+            };
+
+            $this->withGroup($activityCode, function () use ($extraBlock, $activityCode, $time) {
                 $time->addMinutes((int) $extraBlock->buffer_before);
-                $this->insertActivity('c_inserted', $time, (int) $extraBlock->duration);
+                $this->insertActivity(
+                    $activityCode, 
+                    $time, 
+                    (int) $extraBlock->duration,
+                    null, null, null, null, null, null,
+                    $extraBlock->id  // Pass extra_block ID
+                );
                 $time->addMinutes((int) $extraBlock->duration + (int) $extraBlock->buffer_after);
             });
+
+            Log::debug("Block inserted at '{$insertPointCode}' using activity type '{$activityCode}'.");
         } else {
             $time->addMinutes($duration);
         }    
     }
 
-    public function insertFreeActivities(): void
-        {
-            // Alle Extra-Blöcke mit festen Zeiten für diesen Plan laden
-            $blocks = ExtraBlock::where('plan', $this->planId)
-                ->where('active', true)
-                ->whereNotNull('start')
-                ->get(['id', 'first_program', 'start', 'end']);
-
-            foreach ($blocks as $block) {
-                // activity_type_detail anhand von first_program bestimmen
-                $code = match ((int)$block->first_program) {
-                    3 => 'c_free_block', // CHALLENGE
-                    2 => 'e_free_block', // EXPLORE
-                    default => 'g_free_block', // gemeinsam
-                };
-
-                // Neue ActivityGroup anlegen
-                $groupId = $this->insertActivityGroup($code);
-
-                // Activity mit festen Start-/Endzeiten eintragen
-                Activity::create([
-                    'activity_group'        => $groupId,
-                    'activity_type_detail'  => $this->activityTypeDetailIdFromCode($code),
-                    'start'                 => $block->start,
-                    'end'                   => $block->end,
-                    'extra_block'           => $block->id,
-                ]);
-            }
-        }
 }

@@ -31,11 +31,24 @@ class TimeCursor
     }
 
     /**
+     * Setzt die Zeit des Tages ohne das Datum zu ändern.
+     */
+    public function setTime(string $timeString): void
+    {
+        [$hours, $minutes] = explode(':', $timeString);
+        $this->time->setTime((int)$hours, (int)$minutes);
+    }
+
+    /**
      * Verschiebt den Cursor um X Minuten nach vorne.
      */
     public function addMinutes(int $minutes): void
     {
-        $this->time->add(new DateInterval("PT{$minutes}M"));
+        if ($minutes < 0) {
+            $this->subMinutes(abs($minutes));
+        } else {
+            $this->time->add(new DateInterval("PT{$minutes}M"));
+        }
     }
 
     /**
@@ -60,5 +73,22 @@ class TimeCursor
     public function format(string $format = 'Y-m-d H:i:s'): string
     {
         return $this->time->format($format);
+    }
+
+    /**
+     * Berechnet die Differenz in Minuten zu einem anderen TimeCursor.
+     */
+    public function diffInMinutes(TimeCursor $other): int
+    {
+        $diff = $this->time->diff($other->current());
+        return ($diff->days * 24 * 60) + ($diff->h * 60) + $diff->i;
+    }
+
+    /**
+     * Deep clone implementation to ensure DateTime is properly cloned.
+     */
+    public function __clone()
+    {
+        $this->time = clone $this->time;
     }
 }

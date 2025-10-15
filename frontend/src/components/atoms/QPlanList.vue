@@ -77,7 +77,7 @@ const plans = computed(() => {
     const asymActive = Object.entries(filterAsym)
       .filter(([_, refVal]) => refVal.value)
       .map(([a]) => Number(a))
-    const asymFilterOk = asymActive.length === 0 || asymActive.includes(plan.r_asym)
+    const asymFilterOk = asymActive.length === 0 || asymActive.includes(Number(plan.r_asym))
 
     // Kombiniert
     return qFilterOk && laneFilterOk && roundFilterOk && tableFilterOk && asymFilterOk
@@ -380,9 +380,9 @@ async function startRerun() {
 
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-sm" :style="{ backgroundColor: farbeQ5Idle(qplan.q5_idle_avg, qplan.c_teams) }"></div>
-            <span class="flex items-center gap-1">{{ qplan.q5_idle_avg?.toFixed(2) ?? '–' }}</span>
+            <span class="flex items-center gap-1">{{ qplan.q5_idle_avg ? qplan.q5_idle_avg.toFixed(2) : '–' }}</span>
             <div class="w-3 h-3 rounded-sm" :style="{ backgroundColor: farbeQ5Stddev(qplan.q5_idle_stddev) }"></div>
-            <span class="flex items-center gap-1">{{ qplan.q5_idle_stddev?.toFixed(2) ?? '–' }}</span>
+            <span class="flex items-center gap-1">{{ qplan.q5_idle_stddev ? qplan.q5_idle_stddev.toFixed(2) : '–' }}</span>
           </div>
         </div>
 

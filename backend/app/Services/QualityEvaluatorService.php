@@ -365,48 +365,7 @@ class QualityEvaluatorService
             ]);
         }
 
-        // Delete all previous entries for this q_plan in q_plan_match
-        DB::table('q_plan_match')->where('q_plan', $qPlanId)->delete();
-
-        // Filter only match activities (activity_atd = 15)
-        $matchActivities = $activities->filter(function ($a) {
-            return $a->activity_atd === 15;
-        });
-
-        // Map activity_group_atd to round
-        $roundMap = [8 => 0, 9 => 1, 10 => 2, 11 => 3];
-        $currentRound = null;
-        $matchCounter = 0;
-
-        foreach ($matchActivities as $activity) {
-            $round = $roundMap[$activity->activity_group_atd] ?? null;
-            if ($round === null) {
-                continue; // skip unknown round
-            }
-
-            // Reset counter when round changes
-            if ($round !== $currentRound) {
-                $currentRound = $round;
-                $matchCounter = 1;
-            } else {
-                $matchCounter++;
-            }
-
-            // Map null to 0 for teams
-            $team1 = is_null($activity->table_1_team) ? 0 : $activity->table_1_team;
-            $team2 = is_null($activity->table_2_team) ? 0 : $activity->table_2_team;
-
-            // Insert row into q_plan_match
-            DB::table('q_plan_match')->insert([
-                'q_plan' => $qPlanId,
-                'round' => $round,
-                'match_no' => $matchCounter,
-                'table_1' => $activity->table_1,
-                'table_2' => $activity->table_2,
-                'table_1_team' => $team1,
-                'table_2_team' => $team2,
-            ]);
-        }
+        // No need to build q_plan_match table as we're using match table directly
 
         return $activities;
     }
@@ -443,24 +402,54 @@ class QualityEvaluatorService
         $minGap = $this->getParameterValueForPlan($qPlanId, 'c_duration_transfer');
         $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
 
+        // Get activity type detail IDs from database
+        $jWithTeamId = \App\Models\MActivityTypeDetail::where('code', 'j_with_team')->value('id');
+        $rMatchId = \App\Models\MActivityTypeDetail::where('code', 'r_match')->value('id');
+        $rCheckId = \App\Models\MActivityTypeDetail::where('code', 'r_check')->value('id');
+
         for ($team = 1; $team <= $teamCount; $team++) {
             // Filter activities relevant for this team
-            $teamActivities = $activities->filter(function ($a) use ($team) {
-                if ($a->activity_atd === 17) {
+            $teamActivities = $activities->filter(function ($a) use ($team, $jWithTeamId, $rMatchId, $rCheckId) {
+                if ($a->activity_atd === $jWithTeamId) {
                     return $a->jury_team === $team;
-                } elseif ($a->activity_atd === 15) {
+                } elseif ($a->activity_atd === $rMatchId || $a->activity_atd === $rCheckId) {
                     return $a->table_1_team === $team || $a->table_2_team === $team;
                 }
                 return false;
-            })->values();
+            })->sortBy('start')->values();
+
+            // Merge consecutive Robot Check + Robot Match pairs into single activities
+            $mergedActivities = [];
+            $i = 0;
+            while ($i < $teamActivities->count()) {
+                $current = $teamActivities[$i];
+                
+                // Check if current is r_check and next is r_match
+                if ($current->activity_atd === $rCheckId && 
+                    $i + 1 < $teamActivities->count() && 
+                    $teamActivities[$i + 1]->activity_atd === $rMatchId) {
+                    
+                    // Merge: use Check's start and Match's end
+                    $merged = (object) [
+                        'start' => $current->start,
+                        'end' => $teamActivities[$i + 1]->end,
+                    ];
+                    $mergedActivities[] = $merged;
+                    $i += 2; // Skip both check and match
+                } else {
+                    // Keep as is
+                    $mergedActivities[] = $current;
+                    $i++;
+                }
+            }
 
             // Calculate all 4 gaps and check if all are >= minGap
             $allTransitions = [];
             $allGapsOk = true;
 
-            for ($i = 1; $i < $teamActivities->count(); $i++) {
-                $prev = new \DateTime($teamActivities[$i - 1]->end);
-                $curr = new \DateTime($teamActivities[$i]->start);
+            for ($i = 1; $i < count($mergedActivities); $i++) {
+                $prev = new \DateTime($mergedActivities[$i - 1]->end);
+                $curr = new \DateTime($mergedActivities[$i]->start);
                 $gap = ($curr->getTimestamp() - $prev->getTimestamp()) / 60; // gap in minutes
 
                 $allTransitions[$i] = $gap;
@@ -502,8 +491,11 @@ class QualityEvaluatorService
     {
         $tablesAvailable = $this->getParameterValueForPlan($qPlanId, 'r_tables');
 
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [1, 2, 3])
             ->get();
 
@@ -555,8 +547,11 @@ class QualityEvaluatorService
      */
     private function calculateQ3(int $qPlanId): void
     {
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [1, 2, 3])
             ->get();
 
@@ -597,8 +592,11 @@ class QualityEvaluatorService
      */
     private function calculateQ4(int $qPlanId): void
     {
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [0, 1])
             ->orderBy('round')
             ->get();
@@ -644,9 +642,12 @@ class QualityEvaluatorService
      */
     private function calculateQ5(int $qPlanId): void
     {
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
         // Load all matches from rounds 0 to 3, sorted by round and match number
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [0, 1, 2, 3])
             ->orderBy('round')
             ->orderBy('match_no')

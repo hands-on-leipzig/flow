@@ -13,12 +13,6 @@ class PlanGeneratorService
 {
     public function isSupported(int $planId): bool
     {
-        // Plan muss existieren
-        $plan = DB::table('plan')->where('id', $planId)->first();
-        if (!$plan) {
-            return false;
-        }
-
         // Parameter laden
         $params = PlanParameter::load($planId);
 
@@ -36,12 +30,13 @@ class PlanGeneratorService
             );
 
             if (!$ok) {
-                throw new \RuntimeException(
-                    'Unsupported Challenge plan ' .
-                    $params->get("c_teams") . '-' .
-                    $params->get("j_lanes") . '-' .
-                    $params->get("r_tables")
-                );
+                Log::warning('Unsupported Challenge plan', [
+                    'plan_id' => $planId,
+                    'teams' => $params->get('c_teams'),
+                    'lanes' => $params->get('j_lanes'),
+                    'tables' => $params->get('r_tables'),
+                ]);
+                return false;
             }
         }
 
@@ -55,11 +50,12 @@ class PlanGeneratorService
             );
 
             if (!$ok) {
-                throw new \RuntimeException(
-                    'Unsupported Explore plan ' .
-                    $params->get("e1_teams") . '-' .
-                    $params->get("e1_lanes")
-                );
+                Log::warning('Unsupported Explore plan', [
+                    'plan_id' => $planId,
+                    'teams' => $params->get('e1_teams'),
+                    'lanes' => $params->get('e1_lanes'),
+                ]);
+                return false;
             }
         }
 
@@ -71,11 +67,12 @@ class PlanGeneratorService
             );
 
             if (!$ok) {
-                throw new \RuntimeException(
-                    'Unsupported Explore plan ' .
-                    $params->get("e2_teams") . '-' .
-                    $params->get("e2_lanes")
-                );
+                Log::warning('Unsupported Explore plan', [
+                    'plan_id' => $planId,
+                    'teams' => $params->get('e2_teams'),
+                    'lanes' => $params->get('e2_lanes'),
+                ]);
+                return false;
             }
         }
 
@@ -122,7 +119,7 @@ class PlanGeneratorService
         GeneratePlanJob::dispatch($planId, $withQualityEvaluation);
     }
 
-    public function run(int $planId, bool $withQualityEvaluation = false): void
+    public function runOLD(int $planId, bool $withQualityEvaluation = false): void
     {
         try {
             require_once base_path("legacy/generator/generator_main.php");
@@ -134,13 +131,16 @@ class PlanGeneratorService
             }
 
             $this->finalize($planId, 'done');
-        } catch (\RuntimeException $e) {
-            Log::error("Fehler beim Generieren des Plans {$planId}: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Fehler beim Generieren des Plans', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+            ]);
             $this->finalize($planId, 'failed');
         }
     }
 
-    public function runFUTURE(int $planId, bool $withQualityEvaluation = false): void
+    public function run(int $planId, bool $withQualityEvaluation = false): void
     {
         try {
             $core = new \App\Core\PlanGeneratorCore($planId);
@@ -152,8 +152,11 @@ class PlanGeneratorService
             }
 
             $this->finalize($planId, 'done');
-        } catch (\RuntimeException $e) {
-            Log::error("Fehler beim Generieren des Plans {$planId}: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Fehler beim Generieren des Plans', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+            ]);
             $this->finalize($planId, 'failed');
         }
     }
@@ -199,6 +202,7 @@ class PlanGeneratorService
 
         // Schritt 3: Neue FreeActivities einsetzen
         $writer = new \App\Core\ActivityWriter($planId);
-        $writer->insertFreeActivities();
+        $params = \App\Support\PlanParameter::load($planId);
+        (new \App\Core\FreeBlockGenerator($writer, $params))->insertFreeActivities();
 }
 }
