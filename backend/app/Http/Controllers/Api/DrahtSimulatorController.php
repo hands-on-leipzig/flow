@@ -233,6 +233,7 @@ class DrahtSimulatorController extends Controller
             $teamName = $teamNames[$i] ?? "Team " . chr(65 + $i);
             $teams[] = [
                 'id' => $this->getTeamNumber($programType),
+                'team_number_hot' => $this->getTeamNumber($programType),
                 'name' => $teamName,
                 'first_program' => $programType === 1 ? (rand(1, 2) == 1 ? 2 : 3) : $programType,
                 'members' => $this->generateGermanMembers($i + 1)
