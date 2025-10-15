@@ -241,11 +241,8 @@ class ExploreGenerator
         
         Log::info('ExploreGenerator: Starting awards', ['eMode' => $this->eMode, 'group' => $group, 'challenge' => $challenge]);
         
-        if($this->eMode == ExploreMode::INTEGRATED_MORNING->value || $this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
-
-            // nothing to do. ChallengeGenerator creates the actitivy. Explore event is over afterwards
-
-        } else {
+        // action only required if NOT integrated
+        if($this->eMode == ExploreMode::DECOUPLED_MORNING->value || $this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
 
             $this->eTime->addMinutes($this->pp("e_ready_awards"));
             $this->writer->withGroup('e_awards', function () use ($group) {
