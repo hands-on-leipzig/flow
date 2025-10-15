@@ -130,12 +130,15 @@ class PlanGeneratorCore
                 $this->challenge->awards();
 
                 // Explore runs in parallel/separate time slots
+                // DECOUPLED_BOTH initially runs as MORNING (group 1)
                 $this->explore->openingsAndBriefings();
                 $this->explore->judgingAndDeliberations();
                 $this->explore->awards();
                 
-                // For DECOUPLED_BOTH, run the same sequence again for the second session
+                // For DECOUPLED_BOTH, run the same sequence again for the second session (afternoon)
                 if ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
+                    $this->explore->setMode(ExploreMode::DECOUPLED_AFTERNOON->value);
+                    
                     $this->explore->openingsAndBriefings();
                     $this->explore->judgingAndDeliberations();
                     $this->explore->awards();
@@ -151,12 +154,15 @@ class PlanGeneratorCore
                 $this->integratedExplore
             );
             
+            // include morning part of DECOUPLED_BOTH
             $this->explore->openingsAndBriefings();
             $this->explore->judgingAndDeliberations();
             $this->explore->awards();
             
-            // For DECOUPLED_BOTH, run the same sequence again for the second session
+            // For DECOUPLED_BOTH, run the same sequence again for the second session (afternoon)
             if ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
+                $this->explore->setMode(ExploreMode::DECOUPLED_AFTERNOON->value);
+              
                 $this->explore->openingsAndBriefings();
                 $this->explore->judgingAndDeliberations();
                 $this->explore->awards();

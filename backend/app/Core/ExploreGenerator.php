@@ -21,6 +21,12 @@ class ExploreGenerator
 
     use UsesPlanParameter;
 
+
+    public function setMode(int $eMode): void
+    {
+        $this->eMode = $eMode;
+    }
+
     public function __construct(
         ActivityWriter $writer, 
         PlanParameter $params,
@@ -65,7 +71,9 @@ class ExploreGenerator
                 $params->get('e_ready_opening') + 
                 $params->get('e2_duration_opening') + 
                 $params->get('e_ready_action');
-        }
+        };
+
+
     }
 
     public function openingsAndBriefings(): void
@@ -90,8 +98,9 @@ class ExploreGenerator
 
                 } else {
 
-                    if ($this->eMode == ExploreMode::DECOUPLED_MORNING->value) {
-                        $group = 1;
+                    if ($this->eMode == ExploreMode::DECOUPLED_MORNING->value || 
+                        $this->eMode == ExploreMode::DECOUPLED_BOTH->value) {
+                        $group = 1;  // BOTH initially treated as MORNING
                     } else if($this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
                         $group = 2;
                     } else {
@@ -177,10 +186,10 @@ class ExploreGenerator
     public function judgingAndDeliberations(): void
     {
         // Derive group from eMode
+        // DECOUPLED_BOTH is initially treated as MORNING (group 1), then switched to AFTERNOON (group 2) by caller
         $group = match($this->eMode) {
-            ExploreMode::INTEGRATED_MORNING->value, ExploreMode::DECOUPLED_MORNING->value => 1,
+            ExploreMode::INTEGRATED_MORNING->value, ExploreMode::DECOUPLED_MORNING->value, ExploreMode::DECOUPLED_BOTH->value => 1,
             ExploreMode::INTEGRATED_AFTERNOON->value, ExploreMode::DECOUPLED_AFTERNOON->value => 2,
-            ExploreMode::DECOUPLED_BOTH->value => throw new \RuntimeException("judgingAndDeliberations() cannot handle DECOUPLED_BOTH mode - must be called separately for each group"),
             default => throw new \RuntimeException("Invalid Explore mode: {$this->eMode}"),
         };
         
@@ -243,10 +252,10 @@ class ExploreGenerator
     public function awards(bool $challenge = false): void   
     {
         // Derive group from eMode
+        // DECOUPLED_BOTH is initially treated as MORNING (group 1), then switched to AFTERNOON (group 2) by caller
         $group = match($this->eMode) {
-            ExploreMode::INTEGRATED_MORNING->value, ExploreMode::DECOUPLED_MORNING->value => 1,
-            ExploreMode::DECOUPLED_AFTERNOON->value => 2,
-            ExploreMode::DECOUPLED_BOTH->value => throw new \RuntimeException("awards() cannot handle DECOUPLED_BOTH mode - must be called separately for each group"),
+            ExploreMode::INTEGRATED_MORNING->value, ExploreMode::DECOUPLED_MORNING->value, ExploreMode::DECOUPLED_BOTH->value => 1,
+            ExploreMode::INTEGRATED_AFTERNOON->value, ExploreMode::DECOUPLED_AFTERNOON->value => 2,
             default => throw new \RuntimeException("Invalid Explore mode: {$this->eMode}"),
         };
         
@@ -255,7 +264,8 @@ class ExploreGenerator
         try {
             if($this->eMode == ExploreMode::INTEGRATED_MORNING->value ||
                $this->eMode == ExploreMode::DECOUPLED_MORNING->value ||
-               $this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
+               $this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value ||
+               $this->eMode == ExploreMode::DECOUPLED_BOTH->value) {
 
                 $this->eTime->addMinutes($this->pp("e_ready_awards"));
                 $this->writer->withGroup('e_awards', function () use ($group) {
@@ -302,6 +312,9 @@ class ExploreGenerator
             } elseif ($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
                 // INTEGRATED_AFTERNOON: Insert opening
 
+                // time handed over is end of last robot game match. Need to add buffer to start of opening
+                $this->eTime->addMinutes($this->pp("e_ready_opening"));
+                
                 $this->openingsAndBriefings();                
                 Log::info("ExploreGenerator: Integrated opening inserted at {$this->integratedExplore->startTime}");
             
