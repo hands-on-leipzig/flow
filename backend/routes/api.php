@@ -49,6 +49,11 @@ if (app()->environment('local', 'staging')) {
     Route::any('/draht-simulator/{path?}', [DrahtSimulatorController::class, 'handle'])->where('path', '.*');
 }
 
+Route::prefix('contao')->group(function () {
+    Route::get('/test', [ContaoController::class, 'testConnection']);
+    Route::get('/score', [ContaoController::class, 'getScore']);
+});
+
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/selected-event', function (Request $request) {
@@ -161,6 +166,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::put('/rooms/assign-types', [RoomController::class, 'assignRoomType']);
     Route::put('/rooms/assign-teams', [RoomController::class, 'assignTeam']);
+    Route::put('/rooms/{room}/update-sequence', [RoomController::class, 'updateRoomTypeSequence']);
     Route::put('/rooms/{room}', [RoomController::class, 'update']);
     Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
 
@@ -240,10 +246,4 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
     });
-
-    Route::prefix('contao')->group(function () {
-        Route::get('/test', [ContaoController::class, 'testConnection']);
-        Route::get('/score', [ContaoController::class, 'getScore']);
-    });
-
 });

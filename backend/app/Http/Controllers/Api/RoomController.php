@@ -48,6 +48,9 @@ class RoomController extends Controller
             return $room;
         });
 
+        // Ensure roomTypes relationship is loaded and accessible
+        $rooms->load('roomTypes');
+
         // log::alert('Rooms with extra blocks', $rooms->toArray());
 
         return response()->json([
@@ -109,6 +112,7 @@ class RoomController extends Controller
                     'room_type' => $type->id,
                     'room' => $validated['room_id'],
                     'event' => $validated['event'],
+                    'sequence' => $this->getNextSequenceForRoom($validated['room_id'], $validated['event']),
                 ]);
             }
 
@@ -145,6 +149,43 @@ class RoomController extends Controller
             ->update(['room' => $validated['room_id']]);
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Update the sequence of room types within a room
+     */
+    public function updateRoomTypeSequence(Request $request, Room $room)
+    {
+        $validated = $request->validate([
+            'room_types' => 'required|array',
+            'room_types.*.room_type_id' => 'required|integer',
+            'room_types.*.sequence' => 'required|integer',
+        ]);
+
+        $eventId = $room->event;
+
+        foreach ($validated['room_types'] as $item) {
+            \DB::table('room_type_room')
+                ->where('room', $room->id)
+                ->where('room_type', $item['room_type_id'])
+                ->where('event', $eventId)
+                ->update(['sequence' => $item['sequence']]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Get the next sequence number for a room
+     */
+    private function getNextSequenceForRoom($roomId, $eventId)
+    {
+        $maxSequence = \DB::table('room_type_room')
+            ->where('room', $roomId)
+            ->where('event', $eventId)
+            ->max('sequence');
+        
+        return ($maxSequence ?? 0) + 1;
     }
 
 }

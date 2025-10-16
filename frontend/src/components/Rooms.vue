@@ -291,6 +291,83 @@ const handleDrop = async (event, room) => {
   isDragging.value = false
 }
 
+// --- Room Type Reordering ---
+const handleRoomTypeReorder = async (event, room) => {
+  console.log('=== DRAG DEBUG ===')
+  console.log('Event:', event)
+  console.log('Event.moved:', event.moved)
+  
+  // Set dragging to false
+  isDragging.value = false
+  
+  // Get room types from the current room data
+  const roomData = rooms.value.find(r => r.id === room.id)
+  if (!roomData || !roomData.room_types) return
+  
+  console.log('Room data:', roomData.room_types.map(rt => ({ id: rt.id, name: rt.name })))
+  
+  if (roomData.room_types.length === 0) return
+
+  // Use the draggable event data to determine the new order
+  if (event.moved) {
+    const { newIndex, oldIndex } = event.moved
+    console.log('Move: from', oldIndex, 'to', newIndex)
+    
+    // Create a copy of the room types array
+    const roomTypesArray = [...roomData.room_types]
+    console.log('Before move:', roomTypesArray.map(rt => ({ id: rt.id, name: rt.name })))
+    
+    // Move the item from oldIndex to newIndex
+    const [movedItem] = roomTypesArray.splice(oldIndex, 1)
+    roomTypesArray.splice(newIndex, 0, movedItem)
+    
+    console.log('After move:', roomTypesArray.map(rt => ({ id: rt.id, name: rt.name })))
+    
+    // Create sequence data based on the new order
+    const roomTypes = roomTypesArray.map((rt, index) => ({
+      room_type_id: rt.id,
+      sequence: index + 1
+    }))
+
+    console.log('Sending to API:', roomTypes)
+
+    try {
+      await axios.put(`/rooms/${room.id}/update-sequence`, {
+        room_types: roomTypes
+      })
+      
+      // Refresh room data to get updated ordering
+      await refreshRoomData()
+    } catch (error) {
+      console.error('Error updating room type sequence:', error)
+    }
+  } else {
+    console.log('No event.moved data available')
+  }
+}
+
+// --- Refresh room data ---
+const refreshRoomData = async () => {
+  try {
+    const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
+    rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
+    
+    // Update assignments based on new room data
+    const result = {}
+    roomsData.rooms.forEach(room => {
+      (room.room_types ?? []).forEach(rt => {
+        result[`activity-${rt.id}`] = room.id
+      })
+      ;(room.extra_blocks ?? []).forEach(eb => {
+        result[`activity-${eb.id}`] = room.id
+      })
+    })
+    assignments.value = result
+  } catch (error) {
+    console.error('Error refreshing room data:', error)
+  }
+}
+
 // --- Raum löschen ---
 const showDeleteModal = ref(false)
 const roomToDelete = ref(null)
@@ -334,11 +411,69 @@ const activeTab = ref('activities')
 // Hilfsfunktion für Template (typisierte IDs)
 const getItemsInRoom = (roomId) => {
   const all = []
+  
+  // Get the actual room data
+  const room = rooms.value.find(r => r.id === roomId)
+  if (!room) {
+    console.log(`Room ${roomId} not found in rooms.value`)
+    return all
+  }
+  
+  console.log(`Getting items for room ${roomId} (${room.name}):`, {
+    room_types: room.room_types?.map(rt => ({ id: rt.id, name: rt.name, sequence: rt.pivot?.sequence })),
+    extra_blocks: room.extra_blocks?.map(eb => ({ id: eb.id, name: eb.name }))
+  })
+  
+  // Add room types from the actual room data (with correct IDs and sequence)
+  if (room.room_types) {
+    room.room_types.forEach(rt => {
+      all.push({
+        id: rt.id,
+        key: `activity-${rt.id}`,
+        name: rt.name,
+        first_program: rt.first_program,
+        type: 'activity',
+        group: { id: 'room-types', name: 'Room Types' },
+        sequence: rt.pivot?.sequence || 0  // Use pivot sequence for ordering
+      })
+    })
+  }
+  
+  // Add extra blocks from the actual room data
+  if (room.extra_blocks) {
+    room.extra_blocks.forEach(eb => {
+      all.push({
+        id: eb.id,
+        key: `activity-${eb.id}`,
+        name: eb.name,
+        first_program: eb.first_program,
+        type: 'activity',
+        group: { id: 'extra-blocks', name: 'Extra Blocks' }
+      })
+    })
+  }
+  
+  // Add teams from assignments (teams don't have sequence ordering)
   for (const category of assignables.value) {
-    for (const group of category.groups) {
-      all.push(...group.items.filter(i => assignments.value[`${i.type}-${i.id}`] === roomId))
+    if (category.type === 'team') {
+      for (const group of category.groups) {
+        all.push(...group.items.filter(i => assignments.value[`${i.type}-${i.id}`] === roomId))
+      }
     }
   }
+  
+  console.log(`Items in room ${roomId}:`, all.map(item => ({ id: item.id, name: item.name, type: item.type, sequence: item.sequence })))
+  
+  // Sort by sequence for room types, keep teams at the end
+  all.sort((a, b) => {
+    if (a.type === 'activity' && b.type === 'activity') {
+      return (a.sequence || 0) - (b.sequence || 0)
+    }
+    if (a.type === 'team' && b.type === 'activity') return 1
+    if (a.type === 'activity' && b.type === 'team') return -1
+    return 0
+  })
+  
   return all
 }
 
@@ -423,6 +558,7 @@ const hasWarning = (tab) => {
                   group="assignables"
                   item-key="id"
                   @add="event => handleDrop(event, room)"
+                  @update="event => handleRoomTypeReorder(event, room)"
                   @start="isDragging = true"
                   @end="isDragging = false"
                   class="flex flex-wrap gap-2 w-full"
