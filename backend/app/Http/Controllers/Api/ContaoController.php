@@ -18,13 +18,17 @@ class ContaoController extends Controller
     {
         try {
             $eventId = $request->input('event_id');
-            
+
             if (!$eventId) {
                 return response()->json(['error' => 'event_id parameter is required'], 400);
             }
 
             $roundShowSetting = $this->getRoundsToShow($eventId);
             $tournamentId = $this->getTournamentId($eventId);
+
+            if (!$tournamentId) {
+                return response()->json(['error' => "No Contao ID found for event {$eventId}. Please set contao_id_challenge or contao_id_explore."], 404);
+            }
 
             // Get tournament data
             $tournament = DB::connection('contao')
@@ -33,7 +37,7 @@ class ContaoController extends Controller
                 ->first();
 
             if (!$tournament) {
-                return response()->json(['error' => "No tournament found for region {$tournamentId}"], 404);
+                return response()->json(['error' => "No tournament found for region {$tournamentId} in Contao database"], 404);
             }
 
             $results = [
@@ -68,10 +72,10 @@ class ContaoController extends Controller
                     ->get();
 
                 $maxPoints = [];
-                
+
                 foreach ($scores as $score) {
                     $teamId = $score->id;
-                    
+
                     if (!isset($maxPoints[$teamId])) {
                         $maxPoints[$teamId] = 0;
                     }
@@ -119,7 +123,7 @@ class ContaoController extends Controller
         // This method should return the round visibility settings
         // For now, returning default settings - you may need to adapt this
         // based on how this data is stored in your system
-        return (object) [
+        return (object)[
             'vr1' => true,
             'vr2' => true,
             'vr3' => true,
@@ -134,9 +138,23 @@ class ContaoController extends Controller
      */
     private function getTournamentId($eventId)
     {
-        // This method should map event_id to tournament_id
-        // For now, returning the event_id as tournament_id
-        // You may need to adapt this based on your data mapping
+        // Get the event and check for Contao IDs
+        $event = DB::table('event')->where('id', $eventId)->first();
+        
+        if (!$event) {
+            return null;
+        }
+        
+        // Use contao_id_challenge if available, otherwise fall back to contao_id_explore
+        if ($event->contao_id_challenge) {
+            return $event->contao_id_challenge;
+        }
+        
+        if ($event->contao_id_explore) {
+            return $event->contao_id_explore;
+        }
+        
+        // Fallback: return the event_id as tournament_id (for backward compatibility)
         return $eventId;
     }
 
