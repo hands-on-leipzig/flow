@@ -117,21 +117,84 @@ class DrahtController extends Controller
 
     public function getAllRegions()
     {
-        $res = $this->makeDrahtCall("/handson/rp");
-        if ($res->ok()) {
-            $regions = $res->json();
-            DB::statement("SET foreign_key_checks=0");
-            RegionalPartner::truncate();
-            DB::statement("SET foreign_key_checks=1");
-            foreach ($regions as $r) {
-                $region = new RegionalPartner();
-                $region->name = $r['name'];
-                $region->dolibarr_id = $r['id'];
-                $region->region = $r['name'];
-                $region->save();
+        try {
+            Log::info('Starting sync-draht-regions');
+            
+            $res = $this->makeDrahtCall("/handson/rp");
+            
+            if (!$res->ok()) {
+                Log::error('Draht API call failed', [
+                    'status' => $res->status(),
+                    'body' => $res->body()
+                ]);
+                return response()->json([
+                    'error' => 'Failed to fetch regions from Draht API',
+                    'status' => $res->status(),
+                    'message' => $res->body()
+                ], 500);
             }
-
-            return response()->json(['status' => 200]);
+            
+            $regions = $res->json();
+            Log::info('Received regions from Draht API', ['count' => count($regions)]);
+            
+            // Get existing regional partners by dolibarr_id
+            $existingRegions = RegionalPartner::whereIn('dolibarr_id', array_column($regions, 'id'))
+                ->get()
+                ->keyBy('dolibarr_id');
+            
+            $created = 0;
+            $updated = 0;
+            
+            foreach ($regions as $r) {
+                try {
+                    $dolibarrId = $r['id'];
+                    
+                    if ($existingRegions->has($dolibarrId)) {
+                        // Update existing regional partner
+                        $region = $existingRegions[$dolibarrId];
+                        $region->name = $r['name'];
+                        $region->region = $r['name'];
+                        $region->save();
+                        $updated++;
+                        Log::info('Updated regional partner', ['id' => $region->id, 'name' => $r['name']]);
+                    } else {
+                        // Create new regional partner
+                        $region = new RegionalPartner();
+                        $region->name = $r['name'];
+                        $region->dolibarr_id = $r['id'];
+                        $region->region = $r['name'];
+                        $region->save();
+                        $created++;
+                        Log::info('Created regional partner', ['id' => $region->id, 'name' => $r['name']]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Failed to save regional partner', [
+                        'data' => $r,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+            
+            Log::info('Sync completed successfully', ['created' => $created, 'updated' => $updated]);
+            
+            return response()->json([
+                'status' => 200,
+                'message' => 'Regions synced successfully',
+                'created' => $created,
+                'updated' => $updated,
+                'total' => count($regions)
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error in sync-draht-regions', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Internal server error',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
