@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\MSeason;
 use App\Models\RegionalPartner;
 use App\Models\Team;
+use App\Enums\FirstProgram;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\Controller;
@@ -234,9 +235,9 @@ class DrahtController extends Controller
                     ->where('date', date('Y-m-d', (int)$eventData['date']))
                     ->where('season', $seasonId)
                     ->where(function ($query) use ($firstProgram) {
-                        if ($firstProgram === 2) {
+                        if ($firstProgram === FirstProgram::EXPLORE->value) {
                             $query->whereNull('event_explore');
-                        } elseif ($firstProgram === 3) {
+                        } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
                             $query->whereNull('event_challenge');
                         }
                     })
@@ -245,9 +246,9 @@ class DrahtController extends Controller
                 if ($existingEvent) {
                     $updateData = [];
 
-                    if ($firstProgram === 2) {
+                    if ($firstProgram === FirstProgram::EXPLORE->value) {
                         $updateData['event_explore'] = $eventData['id'];
-                    } elseif ($firstProgram === 3) {
+                    } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
                         $updateData['event_challenge'] = $eventData['id'];
                     }
 

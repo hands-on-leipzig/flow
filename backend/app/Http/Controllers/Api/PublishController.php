@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\MActivityTypeDetail;
 use App\Services\ActivityFetcherService;
 use App\Services\PdfLayoutService;
 
@@ -299,15 +300,32 @@ class PublishController extends Controller
         // Activities laden
         $activities = $this->fetcher->fetchActivities($plan->id);
 
-        // Hilfsfunktion: Erste Startzeit für gegebene ATD-IDs finden
-        $findStart = function($ids) use ($activities) {
-            $act = $activities->first(fn($a) => in_array($a->activity_type_detail_id, (array) $ids));
+        // Activity Type Detail IDs by code (cached lookup)
+        $atdIds = MActivityTypeDetail::whereIn('code', [
+            'e_briefing_coach',
+            'e_briefing_judge',
+            'e_opening',
+            'e_awards',
+            'g_opening',
+            'g_awards',
+            'c_briefing',
+            'j_briefing',
+            'r_briefing',
+            'c_opening',
+            'c_awards',
+        ])->pluck('id', 'code');
+
+        // Hilfsfunktion: Erste Startzeit für gegebene codes finden
+        $findStart = function($codes) use ($activities, $atdIds) {
+            $ids = collect((array) $codes)->map(fn($code) => $atdIds[$code] ?? null)->filter();
+            $act = $activities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
             return $act ? $act->start_time : null;
         };
 
-        // Hilfsfunktion: Ende der Aktivität (end_time) für gegebene ATD-IDs
-        $findEnd = function($ids) use ($activities) {
-            $act = $activities->first(fn($a) => in_array($a->activity_type_detail_id, (array) $ids));
+        // Hilfsfunktion: Ende der Aktivität (end_time) für gegebene codes
+        $findEnd = function($codes) use ($activities, $atdIds) {
+            $ids = collect((array) $codes)->map(fn($code) => $atdIds[$code] ?? null)->filter();
+            $act = $activities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
             return $act ? $act->end_time : null;
         };
 
@@ -316,20 +334,20 @@ class PublishController extends Controller
             'last_change' => $plan->last_change,
             'explore' => [
                 'briefing' => [
-                    'teams'  => $findStart(ID_ATD_E_COACH_BRIEFING),
-                    'judges' => $findStart(ID_ATD_E_JUDGE_BRIEFING),
+                    'teams'  => $findStart('e_briefing_coach'),
+                    'judges' => $findStart('e_briefing_judge'),
                 ],
-                'opening' => $findStart([ID_ATD_E_OPENING, ID_ATD_OPENING]), // spezifisch oder gemeinsam
-                'end'     => $findEnd([ID_ATD_E_AWARDS, ID_ATD_AWARDS]),     // spezifisch oder gemeinsam
+                'opening' => $findStart(['e_opening', 'g_opening']), // spezifisch oder gemeinsam
+                'end'     => $findEnd(['e_awards', 'g_awards']),     // spezifisch oder gemeinsam
             ],
             'challenge' => [
                 'briefing' => [
-                    'teams'    => $findStart(ID_ATD_C_COACH_BRIEFING),
-                    'judges'   => $findStart(ID_ATD_C_JUDGE_BRIEFING),
-                    'referees' => $findStart(ID_ATD_R_REFEREE_BRIEFING),
+                    'teams'    => $findStart('c_briefing'),
+                    'judges'   => $findStart('j_briefing'),
+                    'referees' => $findStart('r_briefing'),
                 ],
-                'opening' => $findStart([ID_ATD_C_OPENING, ID_ATD_OPENING]), // spezifisch oder gemeinsam
-                'end'     => $findEnd([ID_ATD_C_AWARDS, ID_ATD_AWARDS]),     // spezifisch oder gemeinsam
+                'opening' => $findStart(['c_opening', 'g_opening']), // spezifisch oder gemeinsam
+                'end'     => $findEnd(['c_awards', 'g_awards']),     // spezifisch oder gemeinsam
             ],
         ];
 

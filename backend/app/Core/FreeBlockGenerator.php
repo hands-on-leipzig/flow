@@ -7,6 +7,7 @@ use App\Support\PlanParameter;
 use App\Models\Activity;
 use App\Models\ExtraBlock;
 use App\Models\MActivityTypeDetail;
+use App\Enums\FirstProgram;
 
 class FreeBlockGenerator
 {
@@ -34,9 +35,11 @@ class FreeBlockGenerator
         foreach ($blocks as $block) {
             // Map first_program to activity type detail code
             $code = match ((int)$block->first_program) {
-                3 => 'c_free_block', // CHALLENGE
-                2 => 'e_free_block', // EXPLORE
-                default => 'g_free_block', // joint
+                FirstProgram::CHALLENGE->value => 'c_free_block',
+                FirstProgram::EXPLORE->value => 'e_free_block',
+                FirstProgram::DISCOVER->value => 'e_free_block',  // Discover uses Explore blocks
+                FirstProgram::JOINT->value => 'g_free_block',
+                default => 'g_free_block', // Fallback for unknown
             };
 
             // Resolve activity_type_detail id

@@ -8,6 +8,8 @@ use Carbon\Carbon;
 use App\Support\PlanParameter;
 use App\Support\Helpers;
 use App\Jobs\GeneratePlanJob;
+use App\Enums\FirstProgram;
+use App\Enums\GeneratorStatus;
 
 class PlanGeneratorService
 {
@@ -16,14 +18,10 @@ class PlanGeneratorService
         // Parameter laden
         $params = PlanParameter::load($planId);
 
-        // IDs der Programme dynamisch aus DB
-        $idChallenge = DB::table('m_first_program')->where('name', 'CHALLENGE')->value('id');
-        $idExplore   = DB::table('m_first_program')->where('name', 'EXPLORE')->value('id');
-
         // --- Challenge prüfen ---
         if ($params->get("c_teams") > 0) {
             $ok = $this->checkSupportedPlan(
-                $idChallenge,
+                FirstProgram::CHALLENGE->value,
                 $params->get("c_teams"),
                 $params->get("j_lanes"),
                 $params->get("r_tables")
@@ -44,7 +42,7 @@ class PlanGeneratorService
 
         if ($params->get("e1_teams") > 0) {
             $ok = $this->checkSupportedPlan(
-                $idExplore,
+                FirstProgram::EXPLORE->value,
                 $params->get("e1_teams"),
                 $params->get("e1_lanes")
             );
@@ -61,7 +59,7 @@ class PlanGeneratorService
 
         if ($params->get("e2_teams") > 0) {
             $ok = $this->checkSupportedPlan(
-                $idExplore,
+                FirstProgram::EXPLORE->value,
                 $params->get("e2_teams"),
                 $params->get("e2_lanes")
             );
@@ -110,34 +108,13 @@ class PlanGeneratorService
 
         // Plan-Status aktualisieren
         DB::table('plan')->where('id', $planId)->update([
-            'generator_status' => 'running',
+            'generator_status' => GeneratorStatus::RUNNING->value,
         ]);
     }
 
     public function dispatchJob(int $planId, bool $withQualityEvaluation = false): void
     {
         GeneratePlanJob::dispatch($planId, $withQualityEvaluation);
-    }
-
-    public function runOLD(int $planId, bool $withQualityEvaluation = false): void
-    {
-        try {
-            require_once base_path("legacy/generator/generator_main.php");
-            g_generator($planId);
-
-            if ($withQualityEvaluation) {
-                $evaluator = new QualityEvaluatorService();
-                $evaluator->evaluatePlanId($planId);
-            }
-
-            $this->finalize($planId, 'done');
-        } catch (\Throwable $e) {
-            Log::error('Fehler beim Generieren des Plans', [
-                'plan_id' => $planId,
-                'error' => $e->getMessage(),
-            ]);
-            $this->finalize($planId, 'failed');
-        }
     }
 
     public function run(int $planId, bool $withQualityEvaluation = false): void
@@ -151,17 +128,17 @@ class PlanGeneratorService
                 $evaluator->evaluatePlanId($planId);
             }
 
-            $this->finalize($planId, 'done');
+            $this->finalize($planId, GeneratorStatus::DONE);
         } catch (\Throwable $e) {
             Log::error('Fehler beim Generieren des Plans', [
                 'plan_id' => $planId,
                 'error' => $e->getMessage(),
             ]);
-            $this->finalize($planId, 'failed');
+            $this->finalize($planId, GeneratorStatus::FAILED);
         }
     }
 
-    public function finalize(int $planId, string $status): void
+    public function finalize(int $planId, GeneratorStatus $status): void
     {
         DB::table('s_generator')
             ->where('plan', $planId)
@@ -172,16 +149,18 @@ class PlanGeneratorService
         DB::table('plan')
             ->where('id', $planId)
             ->update([
-                'generator_status' => $status,
+                'generator_status' => $status->value,
                 'last_change'      => Carbon::now(),
             ]);
     }
 
-    public function status(int $planId): string
+    public function status(int $planId): GeneratorStatus
     {
-        return DB::table('plan')
+        $value = DB::table('plan')
             ->where('id', $planId)
-            ->value('generator_status') ?? 'unknown';
+            ->value('generator_status');
+        
+        return GeneratorStatus::tryFrom($value) ?? GeneratorStatus::UNKNOWN;
     }
 
     public function generateLite(int $planId): void

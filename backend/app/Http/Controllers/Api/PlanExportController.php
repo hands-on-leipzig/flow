@@ -9,6 +9,7 @@ use App\Models\MRole;
 use App\Models\Plan;
 use App\Models\Event;
 use App\Services\ActivityFetcherService;
+use App\Enums\FirstProgram;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -540,8 +541,8 @@ class PlanExportController extends Controller
                 'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
                 'team'     => $teamDisplay,
                 // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
-                'is_explore'    => in_array($a->activity_first_program_id, [0, 2]),
-                'is_challenge'  => in_array($a->activity_first_program_id, [0, 3]),
+                'is_explore'    => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
+                'is_challenge'  => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::CHALLENGE->value]),
             ];
         })->values()->all();
 

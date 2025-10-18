@@ -1,6 +1,8 @@
 <?php
 namespace App\Services;
 
+use App\Models\MActivityTypeDetail;
+use App\Enums\FirstProgram;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -51,7 +53,7 @@ class PreviewMatrixService
         $tableRolesByProg = ['E' => [], 'C' => []]; // z.B. ['RC' => $roleObj, 'RG' => $roleObj, ...]
 
         foreach ($roles as $role) {
-            $progLetter = ((int)$role->first_program === 2) ? 'E' : 'C';
+            $progLetter = ((int)$role->first_program === FirstProgram::EXPLORE->value) ? 'E' : 'C';
             $baseShort  = (string)($role->name_short ?: $role->name);
             $shortKey   = strtoupper(substr($baseShort, 0, 2));
 
@@ -63,7 +65,7 @@ class PreviewMatrixService
         }
 
         // --- RC-Erkennung nur bei echten Robot-Check-Activities
-        $rcAtdId = defined('ID_ATD_R_CHECK') ? (int) ID_ATD_R_CHECK : (int) config('atd.ids.robot_check', 0);
+        $rcAtdId = (int) MActivityTypeDetail::where('code', 'r_check')->value('id');
         $rcTablesByProg = ['E' => [], 'C' => []];
 
         foreach ($activities as $a) {
@@ -164,7 +166,7 @@ class PreviewMatrixService
                 $role = $roles->firstWhere('id', $vr->role);
                 if (!$role) continue;
 
-                $progLetter = ((int)$role->first_program === 2) ? 'E' : 'C';
+                $progLetter = ((int)$role->first_program === FirstProgram::EXPLORE->value) ? 'E' : 'C';
                 $baseShort  = (string)($role->name_short ?: $role->name);
                 $shortKey   = strtoupper(substr($baseShort, 0, 2));
 
@@ -373,8 +375,8 @@ class PreviewMatrixService
         $chTeams = $collectTeams('CHALLENGE');
 
         // Header bauen
-        $nameShortE = (string)($teamRoles->firstWhere('first_program', 2)->name_short ?? 'Team E');
-        $nameShortC = (string)($teamRoles->firstWhere('first_program', 3)->name_short ?? 'Team C');
+        $nameShortE = (string)($teamRoles->firstWhere('first_program', FirstProgram::EXPLORE->value)->name_short ?? 'Team E');
+        $nameShortC = (string)($teamRoles->firstWhere('first_program', FirstProgram::CHALLENGE->value)->name_short ?? 'Team C');
 
         $headers = [['key' => 'time', 'title' => 'Zeit']];
         foreach ($exTeams as $n) {
