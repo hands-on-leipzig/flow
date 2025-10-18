@@ -11,6 +11,7 @@ use App\Models\Event;
 use App\Services\ActivityFetcherService;
 use App\Enums\FirstProgram;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,55 @@ class PlanExportController extends Controller
         $this->activityFetcher = $activityFetcher;
     }
 
-    public function download(string $type, int $eventId)
+    /**
+     * Get available roles for PDF export (lane/table roles with activities in plan)
+     */
+    public function availableRoles(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        // Get all roles with pdf_export enabled and differentiation_parameter = lane or table
+        $roles = MRole::where('pdf_export', true)
+            ->whereIn('differentiation_parameter', ['lane', 'table'])
+            ->orderBy('first_program')
+            ->orderBy('sequence')
+            ->get(['id', 'name', 'first_program', 'differentiation_parameter', 'sequence']);
+
+        // Filter to only roles that have activities in this plan
+        $rolesWithActivities = [];
+        foreach ($roles as $role) {
+            $activities = $this->activityFetcher->fetchActivities(
+                plan: $plan->id,
+                roles: [$role->id],
+                includeRooms: false,
+                includeGroupMeta: false,
+                includeActivityMeta: false,
+                includeTeamNames: false,
+                freeBlocks: false
+            );
+
+            if ($activities->isNotEmpty()) {
+                $rolesWithActivities[] = [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'first_program' => $role->first_program,
+                    'differentiation_parameter' => $role->differentiation_parameter,
+                ];
+            }
+        }
+
+        return response()->json(['roles' => $rolesWithActivities]);
+    }
+
+    public function download(string $type, int $eventId, Request $request)
     {
         // Plan zum Event finden
         $plan = DB::table('plan')
@@ -49,7 +98,7 @@ class PlanExportController extends Controller
         $pdf = match ($type) {
             'rooms' => $this->roomSchedulePdf($plan->id, $maxRowsPerPage),
             'teams' => $this->teamSchedulePdf($plan->id, $maxRowsPerPage),
-            'roles' => $this->roleSchedulePdf($plan->id, $maxRowsPerPage),
+            'roles' => $this->roleSchedulePdf($plan->id, $request->input('role_ids', []), $maxRowsPerPage),
             'full'  => $this->fullSchedulePdf($plan->id),
             default => null,
         };
@@ -919,21 +968,35 @@ if ($prepRooms->isNotEmpty()) {
 
 
 
-    public function roleSchedulePdf(int $planId, $maxRowsPerPage = 10)
+    public function roleSchedulePdf(int $planId, array $roleIds = [], $maxRowsPerPage = 10)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
 
-        // === 1️⃣ EXPLORE Jury (Role 9) ===
-        $exploreActs = $fetcher->fetchActivities($planId, [9], true, false, true, true, true);
+        // If no role IDs provided, use default set (backward compatibility)
+        if (empty($roleIds)) {
+            $roleIds = [9, 4, 5, 11]; // EXPLORE Jury, CHALLENGE Jury, Referees, Robot Check
+        }
 
-        // === 2️⃣ CHALLENGE Jury (Role 4) ===
-        $challengeJuryActs = $fetcher->fetchActivities($planId, [4], true, false, true, true, true);
+        // Fetch activities for all selected roles and tag them with their role_id
+        $allActivities = collect();
+        foreach ($roleIds as $roleId) {
+            $acts = $fetcher->fetchActivities($planId, [$roleId], true, false, true, true, true);
+            if ($acts->isNotEmpty()) {
+                // Add role_id to each activity for filtering
+                $acts = $acts->map(function($activity) use ($roleId) {
+                    $activity->role_id = $roleId;
+                    return $activity;
+                });
+                $allActivities = $allActivities->merge($acts);
+            }
+        }
 
-        // === 3️⃣ CHALLENGE Robot Game – Referees (Role 5) ===
-        $challengeRefActs = $fetcher->fetchActivities($planId, [5], true, false, true, true, true);
-
-        // === 4️⃣ CHALLENGE Robot Check (Role 11) ===
-        $challengeCheckActs = $fetcher->fetchActivities($planId, [11], true, false, true, true, true);
+        // Group activities by role for backward compatibility with existing logic
+        // The rest of the method expects specific variables like $exploreActs, etc.
+        $exploreActs = $allActivities->filter(fn($a) => $a->role_id == 9);
+        $challengeJuryActs = $allActivities->filter(fn($a) => $a->role_id == 4);
+        $challengeRefActs = $allActivities->filter(fn($a) => $a->role_id == 5);
+        $challengeCheckActs = $allActivities->filter(fn($a) => $a->role_id == 11);
 
         // === Event laden ===
         $event = DB::table('event')
