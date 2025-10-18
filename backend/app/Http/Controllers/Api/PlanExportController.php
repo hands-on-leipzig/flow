@@ -46,6 +46,67 @@ class PlanExportController extends Controller
     }
 
     /**
+     * Get available programs for team PDF export (programs with teams in plan)
+     */
+    public function availableTeamPrograms(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        $programs = $this->getProgramsInPlan($plan->id);
+
+        return response()->json(['programs' => $programs]);
+    }
+
+    /**
+     * Helper: Get programs that have activities in a plan
+     * @return array Array of program info with id and name
+     */
+    private function getProgramsInPlan(int $planId): array
+    {
+        $programs = [];
+
+        // Check if Explore activities exist (first_program = 2)
+        $hasExplore = DB::table('activity')
+            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+            ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+            ->where('activity_group.plan', $planId)
+            ->where('m_activity_type_detail.first_program', 2)
+            ->exists();
+
+        if ($hasExplore) {
+            $programs[] = [
+                'id' => 2,
+                'name' => 'Explore',
+            ];
+        }
+
+        // Check if Challenge activities exist (first_program = 3)
+        $hasChallenge = DB::table('activity')
+            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+            ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+            ->where('activity_group.plan', $planId)
+            ->where('m_activity_type_detail.first_program', 3)
+            ->exists();
+
+        if ($hasChallenge) {
+            $programs[] = [
+                'id' => 3,
+                'name' => 'Challenge',
+            ];
+        }
+
+        return $programs;
+    }
+
+    /**
      * Helper: Get roles that have actual assignments in a plan
      * @return array Array of role info with id, name, first_program, differentiation_parameter
      */
@@ -126,7 +187,7 @@ class PlanExportController extends Controller
         // PDF erzeugen
         $pdf = match ($type) {
             'rooms' => $this->roomSchedulePdf($plan->id, $maxRowsPerPage),
-            'teams' => $this->teamSchedulePdf($plan->id, $maxRowsPerPage),
+            'teams' => $this->teamSchedulePdf($plan->id, $request->input('program_ids', []), $maxRowsPerPage),
             'roles' => $this->roleSchedulePdf($plan->id, $request->input('role_ids', []), $maxRowsPerPage),
             'full'  => $this->fullSchedulePdf($plan->id),
             default => null,
@@ -169,6 +230,32 @@ class PlanExportController extends Controller
                     }, $roleNames);
                     
                     $name = 'Rollen_' . implode('_', $sanitizedNames);
+                }
+            }
+        }
+        
+        // Special handling for teams: add program name if only one selected
+        if ($type === 'teams') {
+            $selectedProgramIds = $request->input('program_ids', []);
+            
+            if (!empty($selectedProgramIds)) {
+                // Get all available programs for THIS plan using helper method
+                $programsInPlan = $this->getProgramsInPlan($plan->id);
+                $programIdsInPlan = array_column($programsInPlan, 'id');
+                
+                // If not all programs (that are in plan) selected, append program name
+                if (count($selectedProgramIds) < count($programIdsInPlan)) {
+                    $programNames = [];
+                    if (in_array(2, $selectedProgramIds)) {
+                        $programNames[] = 'Explore';
+                    }
+                    if (in_array(3, $selectedProgramIds)) {
+                        $programNames[] = 'Challenge';
+                    }
+                    
+                    if (!empty($programNames)) {
+                        $name = 'Teams_' . implode('_', $programNames);
+                    }
                 }
             }
         }
@@ -738,26 +825,40 @@ if ($prepRooms->isNotEmpty()) {
         return $pdf;
     }
 
-    public function teamSchedulePdf(int $planId, $maxRowsPerPage = 10)
+    public function teamSchedulePdf(int $planId, array $programIds = [], $maxRowsPerPage = 10)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
 
-        // 1) Explore (Role 3)
-        $exploreActs = collect($fetcher->fetchActivities(
-            $planId,
-            [8],   // Explore-Teams
-            true,  // includeRooms
-            false, // includeGroupMeta
-            true,  // includeActivityMeta (liefert activity_atd_name, activity_first_program_name, ...)
-            true,  // includeTeamNames (jury_team_name, table_*_team_name)
-            true   // freeBlocks
-        ));
+        // If no program IDs provided, use both (backward compatibility)
+        if (empty($programIds)) {
+            $programIds = [2, 3]; // Explore, Challenge
+        }
 
-        // 2) Challenge (Role 8)
-        $challengeActs = collect($fetcher->fetchActivities(
-            $planId,
-            [3], true, false, true, true, true
-        ));
+        $explorePages = [];
+        $challengePages = [];
+
+        // 1) Explore (Role 8) - only if program 2 selected
+        if (in_array(2, $programIds)) {
+            $exploreActs = collect($fetcher->fetchActivities(
+                $planId,
+                [8],   // Explore-Teams
+                true,  // includeRooms
+                false, // includeGroupMeta
+                true,  // includeActivityMeta (liefert activity_atd_name, activity_first_program_name, ...)
+                true,  // includeTeamNames (jury_team_name, table_*_team_name)
+                true   // freeBlocks
+            ));
+            $explorePages = $this->buildExploreTeamPages($exploreActs);
+        }
+
+        // 2) Challenge (Role 3) - only if program 3 selected
+        if (in_array(3, $programIds)) {
+            $challengeActs = collect($fetcher->fetchActivities(
+                $planId,
+                [3], true, false, true, true, true
+            ));
+            $challengePages = $this->buildChallengeTeamPages($challengeActs);
+        }
 
         // Event laden (für Layout + QR/Link)
         $event = DB::table('event')
@@ -765,10 +866,6 @@ if ($prepRooms->isNotEmpty()) {
             ->where('plan.id', $planId)
             ->select('event.*')
             ->first();
-
-        // Seiten je Programm
-        $explorePages   = $this->buildExploreTeamPages($exploreActs);
-        $challengePages = $this->buildChallengeTeamPages($challengeActs);
 
         // Explore zuerst, dann Challenge
         $pages = array_merge($explorePages, $challengePages);
