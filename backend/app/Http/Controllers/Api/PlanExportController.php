@@ -47,20 +47,38 @@ class PlanExportController extends Controller
             ->orderBy('sequence')
             ->get(['id', 'name', 'first_program', 'differentiation_parameter', 'sequence']);
 
-        // Filter to only roles that have activities in this plan
+        // Filter to only roles that have ASSIGNED activities in this plan
         $rolesWithActivities = [];
         foreach ($roles as $role) {
-            $activities = $this->activityFetcher->fetchActivities(
-                plan: $plan->id,
-                roles: [$role->id],
-                includeRooms: false,
-                includeGroupMeta: false,
-                includeActivityMeta: false,
-                includeTeamNames: false,
-                freeBlocks: false
-            );
+            // Check if there are activities with this role's lane/table actually set
+            $hasAssignments = false;
+            
+            if ($role->differentiation_parameter === 'lane') {
+                // Check if any activities have jury_lane set for this role
+                $hasAssignments = DB::table('activity')
+                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                    ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                    ->join('m_visibility', 'm_activity_type_detail.id', '=', 'm_visibility.activity_type_detail')
+                    ->where('activity_group.plan', $plan->id)
+                    ->where('m_visibility.role', $role->id)
+                    ->whereNotNull('activity.jury_lane')
+                    ->exists();
+            } elseif ($role->differentiation_parameter === 'table') {
+                // Check if any activities have table_1 or table_2 set for this role
+                $hasAssignments = DB::table('activity')
+                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                    ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                    ->join('m_visibility', 'm_activity_type_detail.id', '=', 'm_visibility.activity_type_detail')
+                    ->where('activity_group.plan', $plan->id)
+                    ->where('m_visibility.role', $role->id)
+                    ->where(function($q) {
+                        $q->whereNotNull('activity.table_1')
+                          ->orWhereNotNull('activity.table_2');
+                    })
+                    ->exists();
+            }
 
-            if ($activities->isNotEmpty()) {
+            if ($hasAssignments) {
                 $rolesWithActivities[] = [
                     'id' => $role->id,
                     'name' => $role->name,

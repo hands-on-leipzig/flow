@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useEventStore } from '@/stores/event'
 import { usePdfExport } from '@/composables/usePdfExport'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import axios from 'axios'
 
 const eventStore = useEventStore()
@@ -21,7 +22,10 @@ interface Role {
 
 const availableRoles = ref<Role[]>([])
 const selectedRoleIds = ref<Set<number>>(new Set())
-const showRoleSelector = ref(false)
+
+// Computed: split roles by program (Explore = 2, Challenge = 3)
+const exploreRoles = computed(() => availableRoles.value.filter(r => r.first_program === 2))
+const challengeRoles = computed(() => availableRoles.value.filter(r => r.first_program === 3))
 
 // Fetch available roles from backend
 async function fetchAvailableRoles() {
@@ -45,15 +49,6 @@ function toggleRole(roleId: number) {
     selectedRoleIds.value.add(roleId)
   }
   selectedRoleIds.value = new Set(selectedRoleIds.value) // Trigger reactivity
-}
-
-// Select/deselect all
-function selectAll() {
-  selectedRoleIds.value = new Set(availableRoles.value.map(r => r.id))
-}
-
-function deselectAll() {
-  selectedRoleIds.value = new Set()
 }
 
 // Computed: at least one role selected
@@ -118,96 +113,114 @@ async function downloadRolesPdf() {
 
     <!-- Rollen -->
     <div class="border-b border-gray-200 pb-3 mb-3">
-      <div class="flex justify-between items-center">
-        <div class="flex-1 pr-4">
-          <h4 class="text-base font-semibold text-gray-800">
-            Rollen (Juror:innen / Gutachter:innen / Schiedsrichter:innen)
-          </h4>
-          <p class="text-sm text-gray-600">Wähle die Rollen, die im PDF enthalten sein sollen.</p>
+      <div class="mb-2">
+        <h4 class="text-base font-semibold text-gray-800">Rollen</h4>
+        <p class="text-sm text-gray-600">Eine Seite pro Rolle mit allen Aktivitäten.</p>
+      </div>
 
-          <div
-            v-if="hasTeamIssues"
-            class="mt-2 flex items-start bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-3 rounded"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
-                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
-            </svg>
-            <span class="text-sm">
-              Achtung: Die Anzahl der angemeldeten Teams stimmt nicht mit der Anzahl im Plan überein.<br>
-              Das PDF sollte so nicht gedruckt werden.
-            </span>
+      <!-- Warning box -->
+      <div
+        v-if="hasTeamIssues"
+        class="mt-3 flex items-start bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-3 rounded"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
+             fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
+        </svg>
+        <span class="text-sm">
+          Achtung: Die Anzahl der angemeldeten Teams stimmt nicht mit der Anzahl im Plan überein.<br>
+          Das PDF sollte so nicht gedruckt werden.
+        </span>
+      </div>
+
+      <!-- No roles available message -->
+      <div v-if="availableRoles.length === 0" class="mt-4 p-4 bg-gray-50 rounded text-center text-sm text-gray-600">
+        Keine Rollen mit Aktivitäten im Plan vorhanden.
+      </div>
+
+      <!-- Role Selector - Two columns (or single column if only one program has roles) -->
+      <div 
+        v-else
+        class="mt-4 grid gap-4"
+        :class="{
+          'grid-cols-2': exploreRoles.length > 0 && challengeRoles.length > 0,
+          'grid-cols-1': exploreRoles.length === 0 || challengeRoles.length === 0
+        }"
+      >
+        <!-- Explore Roles -->
+        <div v-if="exploreRoles.length > 0" class="bg-gray-50 rounded p-3">
+          <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+            <img 
+              :src="programLogoSrc('E')" 
+              :alt="programLogoAlt('E')"
+              class="w-6 h-6 flex-shrink-0"
+            />
+            <span>FIRST LEGO League Explore</span>
+          </h5>
+          <div class="space-y-0.5">
+            <label 
+              v-for="role in exploreRoles" 
+              :key="role.id"
+              class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded"
+            >
+              <input 
+                type="checkbox" 
+                :checked="selectedRoleIds.has(role.id)"
+                @change="toggleRole(role.id)"
+                class="accent-blue-600"
+              />
+              <span class="text-sm">{{ role.name }}</span>
+            </label>
           </div>
         </div>
 
-        <div class="flex gap-2">
-          <button
-            class="px-3 py-2 bg-gray-100 rounded text-sm hover:bg-gray-200 flex items-center gap-2"
-            @click="showRoleSelector = !showRoleSelector"
-          >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-            </svg>
-            <span>{{ selectedRoleIds.size }}/{{ availableRoles.length }} Rollen</span>
-          </button>
-          
-          <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2"
-            :class="hasSelectedRoles && !isDownloading.roles 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
-            :disabled="!hasSelectedRoles || isDownloading.roles"
-            @click="downloadRolesPdf"
-          >
-            <svg v-if="isDownloading.roles" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
-            <span>{{ isDownloading.roles ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
+        <!-- Challenge Roles -->
+        <div v-if="challengeRoles.length > 0" class="bg-gray-50 rounded p-3">
+          <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+            <img 
+              :src="programLogoSrc('C')" 
+              :alt="programLogoAlt('C')"
+              class="w-6 h-6 flex-shrink-0"
+            />
+            <span>FIRST LEGO League Challenge</span>
+          </h5>
+          <div class="space-y-0.5">
+            <label 
+              v-for="role in challengeRoles" 
+              :key="role.id"
+              class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded"
+            >
+              <input 
+                type="checkbox" 
+                :checked="selectedRoleIds.has(role.id)"
+                @change="toggleRole(role.id)"
+                class="accent-blue-600"
+              />
+              <span class="text-sm">{{ role.name }}</span>
+            </label>
+          </div>
         </div>
       </div>
 
-      <!-- Role Selector (collapsible) -->
-      <div v-if="showRoleSelector" class="mt-4 border rounded p-4 bg-gray-50">
-        <div class="flex justify-between items-center mb-3">
-          <span class="text-sm font-semibold">Rollen auswählen</span>
-          <div class="flex gap-2">
-            <button 
-              class="text-xs text-blue-600 hover:underline"
-              @click="selectAll"
-            >
-              Alle auswählen
-            </button>
-            <span class="text-gray-400">|</span>
-            <button 
-              class="text-xs text-blue-600 hover:underline"
-              @click="deselectAll"
-            >
-              Alle abwählen
-            </button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-          <label 
-            v-for="role in availableRoles" 
-            :key="role.id"
-            class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-2 rounded"
-          >
-            <input 
-              type="checkbox" 
-              :checked="selectedRoleIds.has(role.id)"
-              @change="toggleRole(role.id)"
-              class="accent-blue-600"
-            />
-            <span class="text-sm">{{ role.name }}</span>
-          </label>
-        </div>
+      <!-- PDF Button -->
+      <div class="mt-4 flex justify-end">
+        <button
+          class="px-4 py-2 rounded text-sm flex items-center gap-2"
+          :class="hasSelectedRoles && !isDownloading.roles 
+            ? 'bg-gray-200 hover:bg-gray-300' 
+            : 'bg-gray-100 cursor-not-allowed opacity-50'"
+          :disabled="!hasSelectedRoles || isDownloading.roles"
+          @click="downloadRolesPdf"
+        >
+          <svg v-if="isDownloading.roles" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+          </svg>
+          <span>{{ isDownloading.roles ? 'Erzeuge…' : 'PDF' }}</span>
+        </button>
       </div>
     </div>
 
