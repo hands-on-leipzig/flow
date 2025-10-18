@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Enums\FirstProgram;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -67,46 +66,46 @@ class DrahtSimulatorController extends Controller
                 'id' => 1001,
                 'name' => 'FLL Explore Event Augsburg',
                 'region' => 2001,
-                'first_program' => FirstProgram::EXPLORE->value,
+                'first_program' => 2, // Explore only
                 'date' => strtotime('+30 days'),
                 'enddate' => strtotime('+30 days'),
-                'teams' => $this->generateFLLTeams(FirstProgram::EXPLORE->value, 6) // 6 teams for explore
+                'teams' => $this->generateFLLTeams(2, 6) // 6 teams for explore
             ],
             [
                 'id' => 1002,
                 'name' => 'FLL Challenge Event Innsbruck',
                 'region' => 2001,
-                'first_program' => FirstProgram::CHALLENGE->value,
+                'first_program' => 3, // Challenge only
                 'date' => strtotime('+45 days'),
                 'enddate' => strtotime('+45 days'),
-                'teams' => $this->generateFLLTeams(FirstProgram::CHALLENGE->value, 8) // 8 teams for challenge
+                'teams' => $this->generateFLLTeams(3, 8) // 8 teams for challenge
             ],
             [
                 'id' => 1003,
                 'name' => 'FLL Combined Event Luzern',
                 'region' => 2002,
-                'first_program' => FirstProgram::DISCOVER->value, // Both Explore and Challenge
+                'first_program' => 1, // Both Explore and Challenge
                 'date' => strtotime('+60 days'),
                 'enddate' => strtotime('+60 days'),
-                'teams' => $this->generateFLLTeams(FirstProgram::DISCOVER->value, 10) // 10 teams for combined
+                'teams' => $this->generateFLLTeams(1, 10) // 10 teams for combined
             ],
             [
                 'id' => 1004,
                 'name' => 'FLL Explore Event Bielefeld',
                 'region' => 2002,
-                'first_program' => FirstProgram::EXPLORE->value,
+                'first_program' => 2, // Explore only
                 'date' => strtotime('+75 days'),
                 'enddate' => strtotime('+75 days'),
-                'teams' => $this->generateFLLTeams(FirstProgram::EXPLORE->value, 5) // 5 teams for explore
+                'teams' => $this->generateFLLTeams(2, 5) // 5 teams for explore
             ],
             [
                 'id' => 1005,
                 'name' => 'FLL Challenge Event Graz',
                 'region' => 2003,
-                'first_program' => FirstProgram::CHALLENGE->value,
+                'first_program' => 3, // Challenge only
                 'date' => strtotime('+90 days'),
                 'enddate' => strtotime('+90 days'),
-                'teams' => $this->generateFLLTeams(FirstProgram::CHALLENGE->value, 7) // 7 teams for challenge
+                'teams' => $this->generateFLLTeams(3, 7) // 7 teams for challenge
             ]
         ]);
     }
@@ -210,15 +209,16 @@ class DrahtSimulatorController extends Controller
     }
 
     /**
-     * Generate realistic team number based on program type
+     * Generate realistic team number
      */
     private function getTeamNumber($programType)
     {
-        return match ($programType) {
-            FirstProgram::EXPLORE->value, FirstProgram::DISCOVER->value => rand(3001, 3999),
-            FirstProgram::CHALLENGE->value => rand(1001, 1999),
-            default => rand(1000, 9999),
-        };
+        switch ($programType) {
+            case 2:
+                return rand(3001, 3999);
+            case 3:
+                return rand(1001, 1999);
+        }
     }
 
     /**
@@ -231,17 +231,11 @@ class DrahtSimulatorController extends Controller
 
         for ($i = 0; $i < $teamCount; $i++) {
             $teamName = $teamNames[$i] ?? "Team " . chr(65 + $i);
-            
-            // For combined events (DISCOVER), randomly assign teams to Explore or Challenge
-            $firstProgram = $programType === FirstProgram::DISCOVER->value 
-                ? (rand(1, 2) == 1 ? FirstProgram::EXPLORE->value : FirstProgram::CHALLENGE->value)
-                : $programType;
-            
             $teams[] = [
                 'id' => $this->getTeamNumber($programType),
                 'team_number_hot' => $this->getTeamNumber($programType),
                 'name' => $teamName,
-                'first_program' => $firstProgram,
+                'first_program' => $programType === 1 ? (rand(1, 2) == 1 ? 2 : 3) : $programType,
                 'members' => $this->generateGermanMembers($i + 1)
             ];
         }

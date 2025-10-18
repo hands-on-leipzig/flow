@@ -13,15 +13,15 @@ onMounted(async () => {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
   const drahtData = await axios.get(`/events/${event.value?.id}/draht-data`)
 
-  exploreTeamsDraht.value = Object.entries(drahtData.data.teams_explore || {}).map(([id, t]) => ({
-    id: Number(id),
-    number: id,
+  exploreTeamsDraht.value = (drahtData.data.teams_explore || []).map(t => ({
+    id: t.id,
+    number: t.team_number_hot,
     name: t.name
   }))
 
-  challengeTeamsDraht.value = Object.entries(drahtData.data.teams_challenge || {}).map(([id, t]) => ({
-    id: Number(id),
-    number: id,
+  challengeTeamsDraht.value = (drahtData.data.teams_challenge || []).map(t => ({
+    id: t.id,
+    number: t.team_number_hot,
     name: t.name
   }))
 })
