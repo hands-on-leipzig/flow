@@ -9,6 +9,7 @@ use App\Support\PlanParameter;
 use App\Support\Helpers;
 use App\Jobs\GeneratePlanJob;
 use App\Enums\FirstProgram;
+use App\Enums\GeneratorStatus;
 
 class PlanGeneratorService
 {
@@ -107,7 +108,7 @@ class PlanGeneratorService
 
         // Plan-Status aktualisieren
         DB::table('plan')->where('id', $planId)->update([
-            'generator_status' => 'running',
+            'generator_status' => GeneratorStatus::RUNNING->value,
         ]);
     }
 
@@ -127,17 +128,17 @@ class PlanGeneratorService
                 $evaluator->evaluatePlanId($planId);
             }
 
-            $this->finalize($planId, 'done');
+            $this->finalize($planId, GeneratorStatus::DONE);
         } catch (\Throwable $e) {
             Log::error('Fehler beim Generieren des Plans', [
                 'plan_id' => $planId,
                 'error' => $e->getMessage(),
             ]);
-            $this->finalize($planId, 'failed');
+            $this->finalize($planId, GeneratorStatus::FAILED);
         }
     }
 
-    public function finalize(int $planId, string $status): void
+    public function finalize(int $planId, GeneratorStatus $status): void
     {
         DB::table('s_generator')
             ->where('plan', $planId)
@@ -148,16 +149,18 @@ class PlanGeneratorService
         DB::table('plan')
             ->where('id', $planId)
             ->update([
-                'generator_status' => $status,
+                'generator_status' => $status->value,
                 'last_change'      => Carbon::now(),
             ]);
     }
 
-    public function status(int $planId): string
+    public function status(int $planId): GeneratorStatus
     {
-        return DB::table('plan')
+        $value = DB::table('plan')
             ->where('id', $planId)
-            ->value('generator_status') ?? 'unknown';
+            ->value('generator_status');
+        
+        return GeneratorStatus::tryFrom($value) ?? GeneratorStatus::UNKNOWN;
     }
 
     public function generateLite(int $planId): void

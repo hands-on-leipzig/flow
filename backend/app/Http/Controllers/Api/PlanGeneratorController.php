@@ -72,7 +72,7 @@ class PlanGeneratorController extends Controller
 
         return response()->json([
             'plan_id' => $planId,
-            'status'  => $status,
+            'status'  => $status->value,
         ]);
     }
 
