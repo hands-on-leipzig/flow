@@ -28,6 +28,41 @@ class EventController extends Controller
         return response()->json($event);
     }
 
+    public function getEventBySlug($slug)
+    {
+        try {
+            $event = Event::where('slug', $slug)->first();
+
+            if (!$event) {
+                return response()->json(['error' => 'Event not found'], 404);
+            }
+
+            // Load relationships separately to avoid potential issues
+            $event->load(['seasonRel', 'levelRel', 'regionalPartner']);
+
+            // Return only public information (no sensitive data like wifi_password)
+            return response()->json([
+                'id' => $event->id,
+                'name' => $event->name,
+                'slug' => $event->slug,
+                'date' => $event->date,
+                'days' => $event->days,
+                'event_explore' => $event->event_explore,
+                'event_challenge' => $event->event_challenge,
+                'link' => $event->link,
+                'season' => $event->season,
+                'level' => $event->level,
+                'regional_partner' => $event->regional_partner,
+                'seasonRel' => $event->seasonRel,
+                'levelRel' => $event->levelRel,
+                'regionalPartnerRel' => $event->regionalPartner,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in getEventBySlug: ' . $e->getMessage());
+            return response()->json(['error' => 'Internal server error'], 500);
+        }
+    }
+
     public function getSelectableEvents()
     {
         $user = Auth::user();

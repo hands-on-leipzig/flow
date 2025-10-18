@@ -20,6 +20,8 @@ import Carousel from "@/components/Carousel.vue";
 import EditSlide from "@/components/EditSlide.vue";
 import PlanLayout from "@/components/PlanLayout.vue";
 import PresentationSettings from "@/components/molecules/PresentationSettings.vue";
+import PublicEvent from "@/components/PublicEvent.vue";
+import EventNotFound from "@/components/EventNotFound.vue";
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
@@ -53,6 +55,9 @@ const routes = [
     {path: '/presentation', redirect: '/plan/presentation'},
     {path: '/preview/:planId', redirect: to => `/plan/preview/${to.params.planId}`},
     {path: '/editSlide/:slideId', redirect: to => `/plan/editSlide/${to.params.slideId}`},
+    
+    // Public slug-based routes (must be after all specific routes)
+    {path: '/:slug', component: PublicEvent, props: true, meta: {public: true}},
 ];
 
 const router = createRouter({

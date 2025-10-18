@@ -39,10 +39,11 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 });
 
 
-// Public Carousel route
+// Public routes (no authentication required)
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);
 Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
+Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
 
 // Draht API Simulator (for test environment)
 if (app()->environment('local', 'staging')) {
