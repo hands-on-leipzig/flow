@@ -11,6 +11,7 @@ use App\Models\PlanParamValue;
 use App\Models\Plan;
 use App\Models\Event;
 use App\Models\MSupportedPlan;
+use App\Enums\FirstProgram;
 use Carbon\Carbon;
 
 use Illuminate\Support\Facades\DB;
@@ -43,7 +44,7 @@ class QualityEvaluatorService
         $eventId = $this->getOrCreateQualityEventId();
 
         // Read m_supported_plan and filter by selection
-        $supportedPlans = MSupportedPlan::where('first_program', 3)
+        $supportedPlans = MSupportedPlan::where('first_program', FirstProgram::CHALLENGE->value)
             ->orderBy('teams')
             ->orderBy('lanes')
             ->orderBy('tables')

@@ -8,6 +8,7 @@ use App\Models\MActivityTypeDetail;
 use App\Models\MRoomType;
 use App\Models\ExtraBlock;
 use App\Models\MInsertPoint;
+use App\Enums\FirstProgram;
 
 use App\Core\TimeCursor;
 use Illuminate\Support\Facades\Log;
@@ -193,9 +194,10 @@ class ActivityWriter
         if ($extraBlock) {
             // Determine activity type code based on first_program
             $activityCode = match ($insertPoint->first_program) {
-                2 => 'e_inserted_block',  // Explore
-                3 => 'c_inserted_block',  // Challenge
-                default => 'g_inserted_block',  // Joint/Other
+                FirstProgram::EXPLORE->value => 'e_inserted_block',
+                FirstProgram::CHALLENGE->value => 'c_inserted_block',
+                FirstProgram::JOINT->value => 'g_inserted_block',
+                default => 'g_inserted_block',  // Fallback for unknown
             };
 
             $this->withGroup($activityCode, function () use ($extraBlock, $activityCode, $time) {

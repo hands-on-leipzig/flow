@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use App\Support\PlanParameter;
 use App\Support\Helpers;
 use App\Jobs\GeneratePlanJob;
+use App\Enums\FirstProgram;
 
 class PlanGeneratorService
 {
@@ -16,14 +17,10 @@ class PlanGeneratorService
         // Parameter laden
         $params = PlanParameter::load($planId);
 
-        // IDs der Programme dynamisch aus DB
-        $idChallenge = DB::table('m_first_program')->where('name', 'CHALLENGE')->value('id');
-        $idExplore   = DB::table('m_first_program')->where('name', 'EXPLORE')->value('id');
-
         // --- Challenge prüfen ---
         if ($params->get("c_teams") > 0) {
             $ok = $this->checkSupportedPlan(
-                $idChallenge,
+                FirstProgram::CHALLENGE->value,
                 $params->get("c_teams"),
                 $params->get("j_lanes"),
                 $params->get("r_tables")
@@ -44,7 +41,7 @@ class PlanGeneratorService
 
         if ($params->get("e1_teams") > 0) {
             $ok = $this->checkSupportedPlan(
-                $idExplore,
+                FirstProgram::EXPLORE->value,
                 $params->get("e1_teams"),
                 $params->get("e1_lanes")
             );
@@ -61,7 +58,7 @@ class PlanGeneratorService
 
         if ($params->get("e2_teams") > 0) {
             $ok = $this->checkSupportedPlan(
-                $idExplore,
+                FirstProgram::EXPLORE->value,
                 $params->get("e2_teams"),
                 $params->get("e2_lanes")
             );

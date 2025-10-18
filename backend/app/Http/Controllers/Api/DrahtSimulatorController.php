@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Enums\FirstProgram;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -66,46 +67,46 @@ class DrahtSimulatorController extends Controller
                 'id' => 1001,
                 'name' => 'FLL Explore Event Augsburg',
                 'region' => 2001,
-                'first_program' => 2, // Explore only
+                'first_program' => FirstProgram::EXPLORE->value,
                 'date' => strtotime('+30 days'),
                 'enddate' => strtotime('+30 days'),
-                'teams' => $this->generateFLLTeams(1001, 2, 6) // 6 teams for explore
+                'teams' => $this->generateFLLTeams(1001, FirstProgram::EXPLORE->value, 6) // 6 teams for explore
             ],
             [
                 'id' => 1002,
                 'name' => 'FLL Challenge Event Innsbruck',
                 'region' => 2001,
-                'first_program' => 3, // Challenge only
+                'first_program' => FirstProgram::CHALLENGE->value,
                 'date' => strtotime('+45 days'),
                 'enddate' => strtotime('+45 days'),
-                'teams' => $this->generateFLLTeams(1002, 3, 8) // 8 teams for challenge
+                'teams' => $this->generateFLLTeams(1002, FirstProgram::CHALLENGE->value, 8) // 8 teams for challenge
             ],
             [
                 'id' => 1003,
                 'name' => 'FLL Combined Event Luzern',
                 'region' => 2002,
-                'first_program' => 1, // Both Explore and Challenge
+                'first_program' => FirstProgram::DISCOVER->value, // Both Explore and Challenge
                 'date' => strtotime('+60 days'),
                 'enddate' => strtotime('+60 days'),
-                'teams' => $this->generateFLLTeams(1003, 1, 10) // 10 teams for combined
+                'teams' => $this->generateFLLTeams(1003, FirstProgram::DISCOVER->value, 10) // 10 teams for combined
             ],
             [
                 'id' => 1004,
                 'name' => 'FLL Explore Event Bielefeld',
                 'region' => 2002,
-                'first_program' => 2, // Explore only
+                'first_program' => FirstProgram::EXPLORE->value,
                 'date' => strtotime('+75 days'),
                 'enddate' => strtotime('+75 days'),
-                'teams' => $this->generateFLLTeams(1004, 2, 5) // 5 teams for explore
+                'teams' => $this->generateFLLTeams(1004, FirstProgram::EXPLORE->value, 5) // 5 teams for explore
             ],
             [
                 'id' => 1005,
                 'name' => 'FLL Challenge Event Graz',
                 'region' => 2003,
-                'first_program' => 3, // Challenge only
+                'first_program' => FirstProgram::CHALLENGE->value,
                 'date' => strtotime('+90 days'),
                 'enddate' => strtotime('+90 days'),
-                'teams' => $this->generateFLLTeams(1005, 3, 7) // 7 teams for challenge
+                'teams' => $this->generateFLLTeams(1005, FirstProgram::CHALLENGE->value, 7) // 7 teams for challenge
             ]
         ]);
     }
@@ -218,10 +219,16 @@ class DrahtSimulatorController extends Controller
         
         for ($i = 0; $i < $teamCount; $i++) {
             $teamName = $teamNames[$i] ?? "Team " . chr(65 + $i);
+            
+            // For combined events (programType=1), randomly assign teams to Explore or Challenge
+            $firstProgram = $programType === FirstProgram::DISCOVER->value 
+                ? (rand(1, 2) == 1 ? FirstProgram::EXPLORE->value : FirstProgram::CHALLENGE->value)
+                : $programType;
+            
             $teams[] = [
                 'id' => ($eventId * 100) + $i + 1,
                 'name' => $teamName,
-                'first_program' => $programType === 1 ? (rand(1, 2) == 1 ? 2 : 3) : $programType,
+                'first_program' => $firstProgram,
                 'members' => $this->generateGermanMembers($i + 1)
             ];
         }
