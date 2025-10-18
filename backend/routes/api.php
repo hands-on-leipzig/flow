@@ -39,15 +39,23 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 });
 
 
-// Public Carousel route
+// Public routes (no authentication required)
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);
 Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
+Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
+Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
+Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 
 // Draht API Simulator (for test environment)
 if (app()->environment('local', 'staging')) {
     Route::any('/draht-simulator/{path?}', [DrahtSimulatorController::class, 'handle'])->where('path', '.*');
 }
+
+Route::prefix('contao')->group(function () {
+    Route::get('/test', [ContaoController::class, 'testConnection']);
+    Route::get('/score', [ContaoController::class, 'getScore']);
+});
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
@@ -126,6 +134,8 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Event controller
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
+    Route::get('/events/create-data', [EventController::class, 'getCreateEventData']);
+    Route::post('/events', [EventController::class, 'store']);
     Route::get('/events/{eventId}', [EventController::class, 'getEvent']);
     Route::put('/events/{eventId}', [EventController::class, 'update']);
     Route::get('/table-names/{eventId}', [EventController::class, 'getTableNames']);
@@ -161,6 +171,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::put('/rooms/assign-types', [RoomController::class, 'assignRoomType']);
     Route::put('/rooms/assign-teams', [RoomController::class, 'assignTeam']);
+    Route::put('/rooms/{room}/update-sequence', [RoomController::class, 'updateRoomTypeSequence']);
     Route::put('/rooms/{room}', [RoomController::class, 'update']);
     Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
 
@@ -209,6 +220,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
+        Route::post('/regenerate/{eventId}', [PublishController::class, 'regenerateLinkAndQRcode']); // Link und QR-Code neu generieren (Admin)
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
@@ -240,10 +252,4 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
     });
-
-    Route::prefix('contao')->group(function () {
-        Route::get('/test', [ContaoController::class, 'testConnection']);
-        Route::get('/score', [ContaoController::class, 'getScore']);
-    });
-
 });

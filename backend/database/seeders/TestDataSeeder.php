@@ -99,7 +99,7 @@ class TestDataSeeder extends Seeder
         ];
         
         foreach ($events as $eventData) {
-            Event::updateOrCreate(
+            $event = Event::updateOrCreate(
                 ['slug' => $eventData['slug']],
                 array_merge($eventData, [
                     'season' => $season->id,
@@ -108,6 +108,17 @@ class TestDataSeeder extends Seeder
                     'days' => 1
                 ])
             );
+            
+            // Generate link and QR code if event was just created (no link exists)
+            if (empty($event->link)) {
+                try {
+                    $publishController = app(\App\Http\Controllers\Api\PublishController::class);
+                    $publishController->linkAndQRcode($event->id);
+                    $this->command->line("    ✓ Generated link and QR code for event: {$event->name}");
+                } catch (\Exception $e) {
+                    $this->command->error("    ❌ Failed to generate link for event {$event->name}: " . $e->getMessage());
+                }
+            }
         }
         
         $this->command->line('    ✓ Seeded ' . count($events) . ' test events');

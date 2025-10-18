@@ -99,7 +99,7 @@ class PublishController extends Controller
         $link = str_replace(array('ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß', '/', ' '), array('ae', 'oe', 'ue', 'AE', 'OE', 'UE', 'ss', '-', '-'), $link);
 
         $slug = $link;
-        $link = config('app.url') . "/" . $link;
+        $link = config('app.frontend_url', 'http://localhost:5173') . "/" . $link;
 
 
         // QR-Code mit Endroid erzeugen
@@ -141,6 +141,33 @@ class PublishController extends Controller
             'link' => $link,
             'qrcode' => 'data:image/png;base64,' . $qrcodeRaw,
         ]);
+    }
+
+    /**
+     * Regenerate link and QR code for an event (admin only)
+     */
+    public function regenerateLinkAndQRcode(int $eventId): JsonResponse
+    {
+        // Event direkt laden
+        $event = DB::table('event')
+            ->where('id', $eventId)
+            ->first();
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        // Clear existing link and QR code to force regeneration
+        DB::table('event')
+            ->where('id', $eventId)
+            ->update([
+                'slug' => null,
+                'link' => null,
+                'qrcode' => null,
+            ]);
+
+        // Now call the existing method to regenerate
+        return $this->linkAndQRcode($eventId);
     }
 
  

@@ -15,6 +15,8 @@ class MRoomType extends Model
 
     public function rooms()
     {
-        return $this->belongsToMany(Room::class, 'room_type_room', 'room_type', 'room');
+        return $this->belongsToMany(Room::class, 'room_type_room', 'room_type', 'room')
+            ->withPivot('sequence')
+            ->orderBy('room_type_room.sequence');
     }
 }

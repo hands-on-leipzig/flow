@@ -40,13 +40,8 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
-      // Event slugs - proxy to backend slug handler
-      // Only proxy known event slugs to avoid conflicts with Vue routes
-      '^/(test-region-a-explore|test-challenge-event-a|test-region-b)$': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        rewrite: (path) => `/slug-handler.php?slug=${path.substring(1)}`
-      },
+      // Event slugs are now handled by Vue Router, not proxied to backend
+      // The backend slug-handler.php is no longer needed for frontend routing
     }
   }
 })
