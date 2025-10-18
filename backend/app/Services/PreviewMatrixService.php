@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Models\MActivityTypeDetail;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -63,7 +64,7 @@ class PreviewMatrixService
         }
 
         // --- RC-Erkennung nur bei echten Robot-Check-Activities
-        $rcAtdId = defined('ID_ATD_R_CHECK') ? (int) ID_ATD_R_CHECK : (int) config('atd.ids.robot_check', 0);
+        $rcAtdId = (int) MActivityTypeDetail::where('code', 'r_check')->value('id');
         $rcTablesByProg = ['E' => [], 'C' => []];
 
         foreach ($activities as $a) {

@@ -12,7 +12,7 @@ class SupportedPlanChecker
      * 
      * Wenn nicht, wird automatisch eine RuntimeException geworfen.
      *
-     * @param int $firstProgram  ID_FP_CHALLENGE oder ID_FP_EXPLORE
+     * @param int $firstProgram  First Program ID (3=Challenge, 2=Explore) from m_first_program table
      * @param int $teams         Anzahl Teams
      * @param int $lanes         Anzahl Lanes (Judging oder Tische)
      * @param int|null $tables   Optional: Anzahl Robot-Game-Tables
