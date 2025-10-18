@@ -143,6 +143,33 @@ class PublishController extends Controller
         ]);
     }
 
+    /**
+     * Regenerate link and QR code for an event (admin only)
+     */
+    public function regenerateLinkAndQRcode(int $eventId): JsonResponse
+    {
+        // Event direkt laden
+        $event = DB::table('event')
+            ->where('id', $eventId)
+            ->first();
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        // Clear existing link and QR code to force regeneration
+        DB::table('event')
+            ->where('id', $eventId)
+            ->update([
+                'slug' => null,
+                'link' => null,
+                'qrcode' => null,
+            ]);
+
+        // Now call the existing method to regenerate
+        return $this->linkAndQRcode($eventId);
+    }
+
  
     // Informationen fürs Volk ...
 

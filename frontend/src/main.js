@@ -97,7 +97,7 @@ router.beforeEach((to, from, next) => {
 const app = createApp(App)
 const pinia = createPinia()
 
-    axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL
+    axios.defaults.baseURL = '/api'
     axios.defaults.withCredentials = true
     
     app.config.globalProperties.$axios = axios
@@ -113,7 +113,7 @@ const pinia = createPinia()
         return config
     })
 
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL
+axios.defaults.baseURL = '/api'
 axios.defaults.withCredentials = true
 
 dayjs.locale('de')

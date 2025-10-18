@@ -1,10 +1,10 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-50 flex flex-col">
     <!-- Event Not Found -->
     <EventNotFound v-if="showNotFound" />
     
     <!-- Loading State -->
-    <div v-else-if="loading" class="flex items-center justify-center min-h-screen">
+    <div v-else-if="loading" class="flex items-center justify-center flex-1">
       <div class="text-center">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
         <p class="text-gray-600">Lade Veranstaltungsinformationen...</p>
@@ -12,7 +12,7 @@
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="flex items-center justify-center min-h-screen">
+    <div v-else-if="error" class="flex items-center justify-center flex-1">
       <div class="text-center">
         <div class="mx-auto h-16 w-16 text-red-400 mb-4">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -31,7 +31,8 @@
     </div>
 
     <!-- Event Content -->
-    <div v-else-if="event" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div v-else-if="event" class="flex-1">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Header Section -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8 overflow-hidden">
         <div class="px-6 py-8">
@@ -78,63 +79,149 @@
         </div>
       </div>
 
-      <!-- Content Sections -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Event Information -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">
-            Veranstaltungsinformationen
-          </h2>
-          <dl class="space-y-3">
-            <div>
-              <dt class="text-sm font-medium text-gray-500">Veranstaltung</dt>
-              <dd class="text-sm text-gray-900">{{ event.name }}</dd>
+      <!-- Level 1: Basic Event Information (always visible) -->
+      <div v-if="scheduleInfo" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">
+          Veranstaltungsinformationen
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 class="font-semibold mb-2">Datum & Ort</h3>
+            <p class="text-gray-700">{{ formatDateOnly(scheduleInfo.date) }}</p>
+            <div v-if="scheduleInfo.address" class="mt-2 text-sm text-gray-600 whitespace-pre-line">
+              {{ scheduleInfo.address }}
             </div>
-            <div>
-              <dt class="text-sm font-medium text-gray-500">Datum</dt>
-              <dd class="text-sm text-gray-900">{{ formatDate(event.date) }}</dd>
+          </div>
+          <div v-if="scheduleInfo.contact?.length">
+            <h3 class="font-semibold mb-2">Kontakt</h3>
+            <div class="space-y-2">
+              <div v-for="(contact, index) in scheduleInfo.contact" :key="index" class="text-sm">
+                <div class="font-medium">{{ contact.contact }}</div>
+                <div class="text-gray-600">{{ contact.contact_email }}</div>
+                <div v-if="contact.contact_infos" class="text-gray-500 text-xs">{{ contact.contact_infos }}</div>
+              </div>
             </div>
-            <div>
-              <dt class="text-sm font-medium text-gray-500">Dauer</dt>
-              <dd class="text-sm text-gray-900">{{ event.days }} Tag{{ event.days > 1 ? 'e' : '' }}</dd>
-            </div>
-            <div>
-              <dt class="text-sm font-medium text-gray-500">Regionalpartner</dt>
-              <dd class="text-sm text-gray-900">{{ event.regionalPartnerRel?.name }}</dd>
-            </div>
-            <div>
-              <dt class="text-sm font-medium text-gray-500">Region</dt>
-              <dd class="text-sm text-gray-900">{{ event.regionalPartnerRel?.region }}</dd>
-            </div>
-            <div>
-              <dt class="text-sm font-medium text-gray-500">Saison</dt>
-              <dd class="text-sm text-gray-900">{{ event.seasonRel?.year }}</dd>
-            </div>
-          </dl>
+          </div>
         </div>
+      </div>
 
-        <!-- Programs -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">
-            Programme
-          </h2>
-          <div class="space-y-4">
-            <div v-if="event.event_explore" class="flex items-center p-4 bg-green-50 rounded-lg">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-8 h-8 mr-3" />
-              <div>
-                <h3 class="font-medium text-green-900">FIRST LEGO League Explore</h3>
-                <p class="text-sm text-green-700">Für Kinder von 6-10 Jahren</p>
+      <!-- Level 2: Registration Numbers -->
+      <div v-if="isContentVisible(2) && scheduleInfo" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">
+          Anmeldestand
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div v-if="scheduleInfo.teams.explore.capacity > 0 || scheduleInfo.teams.explore.registered > 0">
+            <h3 class="font-semibold mb-2 text-green-800">FIRST LEGO League Explore</h3>
+            <div class="text-lg">
+              <span class="font-bold">{{ scheduleInfo.teams.explore.registered }}</span>
+              von <span class="font-bold">{{ scheduleInfo.teams.explore.capacity }}</span> Plätzen belegt
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div 
+                class="bg-green-600 h-2 rounded-full" 
+                :style="{ width: `${Math.min(100, (scheduleInfo.teams.explore.registered / scheduleInfo.teams.explore.capacity) * 100)}%` }"
+              ></div>
+            </div>
+          </div>
+          <div v-if="scheduleInfo.teams.challenge.capacity > 0 || scheduleInfo.teams.challenge.registered > 0">
+            <h3 class="font-semibold mb-2 text-blue-800">FIRST LEGO League Challenge</h3>
+            <div class="text-lg">
+              <span class="font-bold">{{ scheduleInfo.teams.challenge.registered }}</span>
+              von <span class="font-bold">{{ scheduleInfo.teams.challenge.capacity }}</span> Plätzen belegt
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div 
+                class="bg-blue-600 h-2 rounded-full" 
+                :style="{ width: `${Math.min(100, (scheduleInfo.teams.challenge.registered / scheduleInfo.teams.challenge.capacity) * 100)}%` }"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Level 3: Registered Teams -->
+      <div v-if="isContentVisible(3) && scheduleInfo" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">
+          Angemeldete Teams
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div v-if="scheduleInfo.teams.explore.list?.length">
+            <h3 class="font-semibold mb-3 text-green-800">FIRST LEGO League Explore</h3>
+            <div class="space-y-1">
+              <div v-for="team in scheduleInfo.teams.explore.list" :key="team" class="text-sm text-gray-700">
+                {{ team }}
               </div>
             </div>
-            <div v-if="event.event_challenge" class="flex items-center p-4 bg-blue-50 rounded-lg">
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-8 h-8 mr-3" />
-              <div>
-                <h3 class="font-medium text-blue-900">FIRST LEGO League Challenge</h3>
-                <p class="text-sm text-blue-700">Für Kinder von 9-16 Jahren</p>
+          </div>
+          <div v-if="scheduleInfo.teams.challenge.list?.length">
+            <h3 class="font-semibold mb-3 text-blue-800">FIRST LEGO League Challenge</h3>
+            <div class="space-y-1">
+              <div v-for="team in scheduleInfo.teams.challenge.list" :key="team" class="text-sm text-gray-700">
+                {{ team }}
               </div>
             </div>
-            <div v-if="!event.event_explore && !event.event_challenge" class="text-center text-gray-500 py-4">
-              Keine Programme verfügbar
+          </div>
+        </div>
+      </div>
+
+      <!-- Level 4: Schedule Information -->
+      <div v-if="isContentVisible(4) && scheduleInfo?.plan" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">
+          Wichtige Zeiten
+        </h2>
+        <div v-if="scheduleInfo.plan.last_change" class="text-sm text-gray-500 mb-4">
+          Letzte Änderung: {{ formatDateTime(scheduleInfo.plan.last_change) }}
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Explore Times -->
+          <div v-if="scheduleInfo.plan.explore">
+            <h3 class="font-semibold mb-3 text-green-800">FIRST LEGO League Explore</h3>
+            <div class="space-y-2">
+              <div v-if="scheduleInfo.plan.explore.briefing?.teams" class="flex justify-between text-sm">
+                <span>Coach-Briefing:</span>
+                <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.teams) }}</span>
+              </div>
+              <div v-if="scheduleInfo.plan.explore.briefing?.judges" class="flex justify-between text-sm">
+                <span>Gutachter:innen-Briefing:</span>
+                <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.judges) }}</span>
+              </div>
+              <div v-if="scheduleInfo.plan.explore.opening" class="flex justify-between text-sm">
+                <span>Eröffnung:</span>
+                <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.opening) }}</span>
+              </div>
+              <div v-if="scheduleInfo.plan.explore.end" class="flex justify-between text-sm">
+                <span>Ende:</span>
+                <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.end) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Challenge Times -->
+          <div v-if="scheduleInfo.plan.challenge">
+            <h3 class="font-semibold mb-3 text-blue-800">FIRST LEGO League Challenge</h3>
+            <div class="space-y-2">
+              <div v-if="scheduleInfo.plan.challenge.briefing?.teams" class="flex justify-between text-sm">
+                <span>Coach-Briefing:</span>
+                <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.teams) }}</span>
+              </div>
+              <div v-if="scheduleInfo.plan.challenge.briefing?.judges" class="flex justify-between text-sm">
+                <span>Jury-Briefing:</span>
+                <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.judges) }}</span>
+              </div>
+              <div v-if="scheduleInfo.plan.challenge.briefing?.referees" class="flex justify-between text-sm">
+                <span>Schiedsrichter-Briefing:</span>
+                <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.referees) }}</span>
+              </div>
+              <div v-if="scheduleInfo.plan.challenge.opening" class="flex justify-between text-sm">
+                <span>Eröffnung:</span>
+                <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.opening) }}</span>
+              </div>
+              <div v-if="scheduleInfo.plan.challenge.end" class="flex justify-between text-sm">
+                <span>Ende:</span>
+                <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.end) }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -148,7 +235,7 @@
           </h2>
           <div class="flex flex-col items-center space-y-4">
             <div class="bg-gray-100 p-4 rounded-lg">
-              <img :src="event.qrcode" alt="QR Code" class="w-32 h-32" />
+              <img :src="`data:image/png;base64,${event.qrcode}`" alt="QR Code" class="w-32 h-32" />
             </div>
             <p class="text-sm text-gray-600">
               Scannen Sie den QR-Code, um diese Seite zu teilen
@@ -162,12 +249,17 @@
           </div>
         </div>
       </div>
+      </div>
+    </div>
 
-      <!-- Footer -->
-      <div class="mt-8 text-center text-sm text-gray-500">
-        <p>
-          Diese Seite wird automatisch generiert. Bei Fragen wenden Sie sich an den Veranstalter.
-        </p>
+    <!-- Footer -->
+    <div class="mt-auto bg-white border-t border-gray-200 py-6">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center text-sm text-gray-500">
+          <p>
+            Diese Seite wird automatisch generiert. Bei Fragen wenden Sie sich an den Veranstalter.
+          </p>
+        </div>
       </div>
     </div>
   </div>
@@ -180,6 +272,7 @@ import axios from 'axios'
 import dayjs from 'dayjs'
 import 'dayjs/locale/de'
 import EventNotFound from './EventNotFound.vue'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'
 
 dayjs.locale('de')
 
@@ -188,6 +281,7 @@ const router = useRouter()
 const loading = ref(true)
 const error = ref(null)
 const event = ref(null)
+const scheduleInfo = ref(null)
 const showNotFound = ref(false)
 
 const loadEvent = async () => {
@@ -197,11 +291,39 @@ const loadEvent = async () => {
   try {
     console.log('Loading event with slug:', route.params.slug)
     console.log('Axios base URL:', axios.defaults.baseURL)
-    const url = `/api/events/slug/${route.params.slug}`
+    const url = `/events/slug/${route.params.slug}`
     console.log('Making request to:', url)
     const response = await axios.get(url)
     console.log('API response:', response.data)
     event.value = response.data
+    
+    // Load publication level-specific data
+    if (event.value?.id) {
+      try {
+        const scheduleResponse = await axios.get(`/publish/public-information/${event.value.id}`)
+        scheduleInfo.value = scheduleResponse.data
+        console.log('Schedule info loaded:', scheduleInfo.value)
+        
+        // If publication level is 4, redirect to zeitplan.cgi
+        if (scheduleInfo.value?.level === 4) {
+          console.log('Publication level is 4, redirecting to zeitplan.cgi')
+          // Get the plan ID for this event
+          const planResponse = await axios.get(`/plans/public/${event.value.id}`)
+          const planId = planResponse.data?.id
+          
+          if (planId) {
+            // Redirect to zeitplan.cgi with the plan ID
+            window.location.href = `/output/zeitplan.cgi?plan=${planId}`
+            return
+          } else {
+            console.warn('No plan found for event, staying on public page')
+          }
+        }
+      } catch (scheduleErr) {
+        console.warn('Could not load schedule information:', scheduleErr)
+        // Don't fail the entire load if schedule info fails
+      }
+    }
   } catch (err) {
     console.error('API error:', err)
     console.error('Error response:', err.response)
@@ -219,20 +341,23 @@ const formatDate = (dateString) => {
   return dayjs(dateString).format('DD. MMMM YYYY')
 }
 
-const programLogoSrc = (program) => {
-  const logos = {
-    'E': '/flow/fll_explore_v.png',
-    'C': '/flow/fll_challenge_v.png'
-  }
-  return logos[program] || '/flow/first_v.png'
+// Helper functions for publication levels
+const formatDateOnly = (dateString) => {
+  return dayjs(dateString).format('DD. MMMM YYYY')
 }
 
-const programLogoAlt = (program) => {
-  const alts = {
-    'E': 'FIRST LEGO League Explore Logo',
-    'C': 'FIRST LEGO League Challenge Logo'
-  }
-  return alts[program] || 'FIRST LEGO League Logo'
+const formatTimeOnly = (dateString, showSeconds = false) => {
+  return dayjs(dateString).format(showSeconds ? 'HH:mm:ss' : 'HH:mm')
+}
+
+const formatDateTime = (dateString) => {
+  return dayjs(dateString).format('DD. MMMM YYYY HH:mm')
+}
+
+// Check if content should be visible based on publication level
+const isContentVisible = (level) => {
+  if (!scheduleInfo.value) return false
+  return scheduleInfo.value.level >= level
 }
 
 onMounted(() => {
