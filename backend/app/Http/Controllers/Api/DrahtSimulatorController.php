@@ -70,7 +70,7 @@ class DrahtSimulatorController extends Controller
                 'first_program' => FirstProgram::EXPLORE->value,
                 'date' => strtotime('+30 days'),
                 'enddate' => strtotime('+30 days'),
-                'teams' => $this->generateFLLTeams(1001, FirstProgram::EXPLORE->value, 6) // 6 teams for explore
+                'teams' => $this->generateFLLTeams(FirstProgram::EXPLORE->value, 6) // 6 teams for explore
             ],
             [
                 'id' => 1002,
@@ -79,7 +79,7 @@ class DrahtSimulatorController extends Controller
                 'first_program' => FirstProgram::CHALLENGE->value,
                 'date' => strtotime('+45 days'),
                 'enddate' => strtotime('+45 days'),
-                'teams' => $this->generateFLLTeams(1002, FirstProgram::CHALLENGE->value, 8) // 8 teams for challenge
+                'teams' => $this->generateFLLTeams(FirstProgram::CHALLENGE->value, 8) // 8 teams for challenge
             ],
             [
                 'id' => 1003,
@@ -88,7 +88,7 @@ class DrahtSimulatorController extends Controller
                 'first_program' => FirstProgram::DISCOVER->value, // Both Explore and Challenge
                 'date' => strtotime('+60 days'),
                 'enddate' => strtotime('+60 days'),
-                'teams' => $this->generateFLLTeams(1003, FirstProgram::DISCOVER->value, 10) // 10 teams for combined
+                'teams' => $this->generateFLLTeams(FirstProgram::DISCOVER->value, 10) // 10 teams for combined
             ],
             [
                 'id' => 1004,
@@ -97,7 +97,7 @@ class DrahtSimulatorController extends Controller
                 'first_program' => FirstProgram::EXPLORE->value,
                 'date' => strtotime('+75 days'),
                 'enddate' => strtotime('+75 days'),
-                'teams' => $this->generateFLLTeams(1004, FirstProgram::EXPLORE->value, 5) // 5 teams for explore
+                'teams' => $this->generateFLLTeams(FirstProgram::EXPLORE->value, 5) // 5 teams for explore
             ],
             [
                 'id' => 1005,
@@ -106,7 +106,7 @@ class DrahtSimulatorController extends Controller
                 'first_program' => FirstProgram::CHALLENGE->value,
                 'date' => strtotime('+90 days'),
                 'enddate' => strtotime('+90 days'),
-                'teams' => $this->generateFLLTeams(1005, FirstProgram::CHALLENGE->value, 7) // 7 teams for challenge
+                'teams' => $this->generateFLLTeams(FirstProgram::CHALLENGE->value, 7) // 7 teams for challenge
             ]
         ]);
     }
@@ -210,9 +210,21 @@ class DrahtSimulatorController extends Controller
     }
 
     /**
+     * Generate realistic team number based on program type
+     */
+    private function getTeamNumber($programType)
+    {
+        return match ($programType) {
+            FirstProgram::EXPLORE->value, FirstProgram::DISCOVER->value => rand(3001, 3999),
+            FirstProgram::CHALLENGE->value => rand(1001, 1999),
+            default => rand(1000, 9999),
+        };
+    }
+
+    /**
      * Generate FLL teams with realistic names
      */
-    private function generateFLLTeams($eventId, $programType, $teamCount)
+    private function generateFLLTeams($programType, $teamCount)
     {
         $teamNames = $this->getFLLTeamNames($programType);
         $teams = [];
@@ -220,13 +232,14 @@ class DrahtSimulatorController extends Controller
         for ($i = 0; $i < $teamCount; $i++) {
             $teamName = $teamNames[$i] ?? "Team " . chr(65 + $i);
             
-            // For combined events (programType=1), randomly assign teams to Explore or Challenge
+            // For combined events (DISCOVER), randomly assign teams to Explore or Challenge
             $firstProgram = $programType === FirstProgram::DISCOVER->value 
                 ? (rand(1, 2) == 1 ? FirstProgram::EXPLORE->value : FirstProgram::CHALLENGE->value)
                 : $programType;
             
             $teams[] = [
-                'id' => ($eventId * 100) + $i + 1,
+                'id' => $this->getTeamNumber($programType),
+                'team_number_hot' => $this->getTeamNumber($programType),
                 'name' => $teamName,
                 'first_program' => $firstProgram,
                 'members' => $this->generateGermanMembers($i + 1)
