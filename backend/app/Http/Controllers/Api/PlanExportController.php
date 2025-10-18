@@ -11,6 +11,7 @@ use App\Models\Event;
 use App\Services\ActivityFetcherService;
 use App\Enums\FirstProgram;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,145 @@ class PlanExportController extends Controller
         $this->activityFetcher = $activityFetcher;
     }
 
-    public function download(string $type, int $eventId)
+    /**
+     * Get available roles for PDF export (lane/table roles with activities in plan)
+     */
+    public function availableRoles(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        $rolesWithActivities = $this->getRolesInPlan($plan->id);
+
+        return response()->json(['roles' => $rolesWithActivities]);
+    }
+
+    /**
+     * Get available programs for team PDF export (programs with teams in plan)
+     */
+    public function availableTeamPrograms(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        $programs = $this->getProgramsInPlan($plan->id);
+
+        return response()->json(['programs' => $programs]);
+    }
+
+    /**
+     * Helper: Get programs that have activities in a plan
+     * @return array Array of program info with id and name
+     */
+    private function getProgramsInPlan(int $planId): array
+    {
+        $programs = [];
+
+        // Check if Explore activities exist (first_program = 2)
+        $hasExplore = DB::table('activity')
+            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+            ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+            ->where('activity_group.plan', $planId)
+            ->where('m_activity_type_detail.first_program', 2)
+            ->exists();
+
+        if ($hasExplore) {
+            $programs[] = [
+                'id' => 2,
+                'name' => 'Explore',
+            ];
+        }
+
+        // Check if Challenge activities exist (first_program = 3)
+        $hasChallenge = DB::table('activity')
+            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+            ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+            ->where('activity_group.plan', $planId)
+            ->where('m_activity_type_detail.first_program', 3)
+            ->exists();
+
+        if ($hasChallenge) {
+            $programs[] = [
+                'id' => 3,
+                'name' => 'Challenge',
+            ];
+        }
+
+        return $programs;
+    }
+
+    /**
+     * Helper: Get roles that have actual assignments in a plan
+     * @return array Array of role info with id, name, first_program, differentiation_parameter
+     */
+    private function getRolesInPlan(int $planId): array
+    {
+        // Get all roles with pdf_export enabled and differentiation_parameter = lane or table
+        $roles = MRole::where('pdf_export', true)
+            ->whereIn('differentiation_parameter', ['lane', 'table'])
+            ->orderBy('first_program')
+            ->orderBy('sequence')
+            ->get(['id', 'name', 'first_program', 'differentiation_parameter', 'sequence']);
+
+        // Filter to only roles that have ASSIGNED activities in this plan
+        $rolesWithActivities = [];
+        foreach ($roles as $role) {
+            // Check if there are activities with this role's lane/table actually set
+            $hasAssignments = false;
+            
+            if ($role->differentiation_parameter === 'lane') {
+                // Check if any activities have jury_lane set for this role
+                $hasAssignments = DB::table('activity')
+                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                    ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                    ->join('m_visibility', 'm_activity_type_detail.id', '=', 'm_visibility.activity_type_detail')
+                    ->where('activity_group.plan', $planId)
+                    ->where('m_visibility.role', $role->id)
+                    ->whereNotNull('activity.jury_lane')
+                    ->exists();
+            } elseif ($role->differentiation_parameter === 'table') {
+                // Check if any activities have table_1 or table_2 set for this role
+                $hasAssignments = DB::table('activity')
+                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                    ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                    ->join('m_visibility', 'm_activity_type_detail.id', '=', 'm_visibility.activity_type_detail')
+                    ->where('activity_group.plan', $planId)
+                    ->where('m_visibility.role', $role->id)
+                    ->where(function($q) {
+                        $q->whereNotNull('activity.table_1')
+                          ->orWhereNotNull('activity.table_2');
+                    })
+                    ->exists();
+            }
+
+            if ($hasAssignments) {
+                $rolesWithActivities[] = [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'first_program' => $role->first_program,
+                    'differentiation_parameter' => $role->differentiation_parameter,
+                ];
+            }
+        }
+
+        return $rolesWithActivities;
+    }
+
+    public function download(string $type, int $eventId, Request $request)
     {
         // Plan zum Event finden
         $plan = DB::table('plan')
@@ -48,8 +187,8 @@ class PlanExportController extends Controller
         // PDF erzeugen
         $pdf = match ($type) {
             'rooms' => $this->roomSchedulePdf($plan->id, $maxRowsPerPage),
-            'teams' => $this->teamSchedulePdf($plan->id, $maxRowsPerPage),
-            'roles' => $this->roleSchedulePdf($plan->id, $maxRowsPerPage),
+            'teams' => $this->teamSchedulePdf($plan->id, $request->input('program_ids', []), $maxRowsPerPage),
+            'roles' => $this->roleSchedulePdf($plan->id, $request->input('role_ids', []), $maxRowsPerPage),
             'full'  => $this->fullSchedulePdf($plan->id),
             default => null,
         };
@@ -67,6 +206,60 @@ class PlanExportController extends Controller
         ];
 
         $name = $names[$type] ?? ucfirst($type);
+        
+        // Special handling for roles: add role names if subset selected
+        if ($type === 'roles') {
+            $selectedRoleIds = $request->input('role_ids', []);
+            
+            if (!empty($selectedRoleIds)) {
+                // Get all available roles for THIS plan using helper method
+                $rolesInPlan = $this->getRolesInPlan($plan->id);
+                $roleIdsInPlan = array_column($rolesInPlan, 'id');
+                
+                // If not all roles (that are in plan) selected, append role names
+                if (count($selectedRoleIds) < count($roleIdsInPlan)) {
+                    $roleNames = MRole::whereIn('id', $selectedRoleIds)
+                        ->orderBy('first_program')
+                        ->orderBy('sequence')
+                        ->pluck('name')
+                        ->toArray();
+                    
+                    // Sanitize role names for filename (remove special chars)
+                    $sanitizedNames = array_map(function($roleName) {
+                        return preg_replace('/[^a-zA-Z0-9]/', '', $roleName);
+                    }, $roleNames);
+                    
+                    $name = 'Rollen_' . implode('_', $sanitizedNames);
+                }
+            }
+        }
+        
+        // Special handling for teams: add program name if only one selected
+        if ($type === 'teams') {
+            $selectedProgramIds = $request->input('program_ids', []);
+            
+            if (!empty($selectedProgramIds)) {
+                // Get all available programs for THIS plan using helper method
+                $programsInPlan = $this->getProgramsInPlan($plan->id);
+                $programIdsInPlan = array_column($programsInPlan, 'id');
+                
+                // If not all programs (that are in plan) selected, append program name
+                if (count($selectedProgramIds) < count($programIdsInPlan)) {
+                    $programNames = [];
+                    if (in_array(2, $selectedProgramIds)) {
+                        $programNames[] = 'Explore';
+                    }
+                    if (in_array(3, $selectedProgramIds)) {
+                        $programNames[] = 'Challenge';
+                    }
+                    
+                    if (!empty($programNames)) {
+                        $name = 'Teams_' . implode('_', $programNames);
+                    }
+                }
+            }
+        }
+        
         $filename = "FLOW_{$name}_({$formattedDate}).pdf";
 
         // Umlaute transliterieren
@@ -632,26 +825,40 @@ if ($prepRooms->isNotEmpty()) {
         return $pdf;
     }
 
-    public function teamSchedulePdf(int $planId, $maxRowsPerPage = 10)
+    public function teamSchedulePdf(int $planId, array $programIds = [], $maxRowsPerPage = 10)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
 
-        // 1) Explore (Role 3)
-        $exploreActs = collect($fetcher->fetchActivities(
-            $planId,
-            [8],   // Explore-Teams
-            true,  // includeRooms
-            false, // includeGroupMeta
-            true,  // includeActivityMeta (liefert activity_atd_name, activity_first_program_name, ...)
-            true,  // includeTeamNames (jury_team_name, table_*_team_name)
-            true   // freeBlocks
-        ));
+        // If no program IDs provided, use both (backward compatibility)
+        if (empty($programIds)) {
+            $programIds = [2, 3]; // Explore, Challenge
+        }
 
-        // 2) Challenge (Role 8)
-        $challengeActs = collect($fetcher->fetchActivities(
-            $planId,
-            [3], true, false, true, true, true
-        ));
+        $explorePages = [];
+        $challengePages = [];
+
+        // 1) Explore (Role 8) - only if program 2 selected
+        if (in_array(2, $programIds)) {
+            $exploreActs = collect($fetcher->fetchActivities(
+                $planId,
+                [8],   // Explore-Teams
+                true,  // includeRooms
+                false, // includeGroupMeta
+                true,  // includeActivityMeta (liefert activity_atd_name, activity_first_program_name, ...)
+                true,  // includeTeamNames (jury_team_name, table_*_team_name)
+                true   // freeBlocks
+            ));
+            $explorePages = $this->buildExploreTeamPages($exploreActs);
+        }
+
+        // 2) Challenge (Role 3) - only if program 3 selected
+        if (in_array(3, $programIds)) {
+            $challengeActs = collect($fetcher->fetchActivities(
+                $planId,
+                [3], true, false, true, true, true
+            ));
+            $challengePages = $this->buildChallengeTeamPages($challengeActs);
+        }
 
         // Event laden (für Layout + QR/Link)
         $event = DB::table('event')
@@ -659,10 +866,6 @@ if ($prepRooms->isNotEmpty()) {
             ->where('plan.id', $planId)
             ->select('event.*')
             ->first();
-
-        // Seiten je Programm
-        $explorePages   = $this->buildExploreTeamPages($exploreActs);
-        $challengePages = $this->buildChallengeTeamPages($challengeActs);
 
         // Explore zuerst, dann Challenge
         $pages = array_merge($explorePages, $challengePages);
@@ -919,21 +1122,35 @@ if ($prepRooms->isNotEmpty()) {
 
 
 
-    public function roleSchedulePdf(int $planId, $maxRowsPerPage = 10)
+    public function roleSchedulePdf(int $planId, array $roleIds = [], $maxRowsPerPage = 10)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
 
-        // === 1️⃣ EXPLORE Jury (Role 9) ===
-        $exploreActs = $fetcher->fetchActivities($planId, [9], true, false, true, true, true);
+        // If no role IDs provided, use default set (backward compatibility)
+        if (empty($roleIds)) {
+            $roleIds = [9, 4, 5, 11]; // EXPLORE Jury, CHALLENGE Jury, Referees, Robot Check
+        }
 
-        // === 2️⃣ CHALLENGE Jury (Role 4) ===
-        $challengeJuryActs = $fetcher->fetchActivities($planId, [4], true, false, true, true, true);
+        // Fetch activities for all selected roles and tag them with their role_id
+        $allActivities = collect();
+        foreach ($roleIds as $roleId) {
+            $acts = $fetcher->fetchActivities($planId, [$roleId], true, false, true, true, true);
+            if ($acts->isNotEmpty()) {
+                // Add role_id to each activity for filtering
+                $acts = $acts->map(function($activity) use ($roleId) {
+                    $activity->role_id = $roleId;
+                    return $activity;
+                });
+                $allActivities = $allActivities->merge($acts);
+            }
+        }
 
-        // === 3️⃣ CHALLENGE Robot Game – Referees (Role 5) ===
-        $challengeRefActs = $fetcher->fetchActivities($planId, [5], true, false, true, true, true);
-
-        // === 4️⃣ CHALLENGE Robot Check (Role 11) ===
-        $challengeCheckActs = $fetcher->fetchActivities($planId, [11], true, false, true, true, true);
+        // Group activities by role for backward compatibility with existing logic
+        // The rest of the method expects specific variables like $exploreActs, etc.
+        $exploreActs = $allActivities->filter(fn($a) => $a->role_id == 9);
+        $challengeJuryActs = $allActivities->filter(fn($a) => $a->role_id == 4);
+        $challengeRefActs = $allActivities->filter(fn($a) => $a->role_id == 5);
+        $challengeCheckActs = $allActivities->filter(fn($a) => $a->role_id == 11);
 
         // === Event laden ===
         $event = DB::table('event')
