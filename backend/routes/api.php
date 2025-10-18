@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\CarouselController;
+use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\DrahtSimulatorController;
 use App\Http\Controllers\Api\EventController;
@@ -13,7 +14,7 @@ use App\Http\Controllers\Api\PlanGeneratorController;
 use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanActivityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
-use App\Http\Controllers\Api\MParameterController;  
+use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\TeamController;
@@ -31,8 +32,6 @@ use Illuminate\Support\Facades\Route;
 Route::get('/ping', fn() => ['pong' => true]);
 
 
-
-
 Route::get('/profile', function (Illuminate\Http\Request $request) {
     return response()->json([
         'user' => $request->get('jwt'),
@@ -40,15 +39,23 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 });
 
 
-// Public Carousel route
+// Public routes (no authentication required)
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);
 Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
+Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
+Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
+Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 
 // Draht API Simulator (for test environment)
 if (app()->environment('local', 'staging')) {
     Route::any('/draht-simulator/{path?}', [DrahtSimulatorController::class, 'handle'])->where('path', '.*');
 }
+
+Route::prefix('contao')->group(function () {
+    Route::get('/test', [ContaoController::class, 'testConnection']);
+    Route::get('/score', [ContaoController::class, 'getScore']);
+});
 
 Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
@@ -127,6 +134,8 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Event controller
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
+    Route::get('/events/create-data', [EventController::class, 'getCreateEventData']);
+    Route::post('/events', [EventController::class, 'store']);
     Route::get('/events/{eventId}', [EventController::class, 'getEvent']);
     Route::put('/events/{eventId}', [EventController::class, 'update']);
     Route::get('/table-names/{eventId}', [EventController::class, 'getTableNames']);
@@ -147,34 +156,35 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);
     Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
 
-    // Logo controller
-    Route::get('/logos', [LogoController::class, 'index']);
-    Route::post('/logos', [LogoController::class, 'store']);
-    Route::patch('/logos/{logo}', [LogoController::class, 'update']);
-    Route::delete('/logos/{logo}', [LogoController::class, 'destroy']);
-    Route::post('/logos/{logo}/toggle-event', [LogoController::class, 'toggleEvent']);
-    Route::post('/logos/update-sort-order', [LogoController::class, 'updateSortOrder']);
+    Route::prefix('logos')->group(function () {
+        Route::get('/', [LogoController::class, 'index']);
+        Route::post('/', [LogoController::class, 'store']);
+        Route::patch('/{logo}', [LogoController::class, 'update']);
+        Route::delete('/{logo}', [LogoController::class, 'destroy']);
+        Route::post('/{logo}/toggle-event', [LogoController::class, 'toggleEvent']);
+        Route::post('/update-sort-order', [LogoController::class, 'updateSortOrder']);
+    });
 
-    // Room controller
+
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);
     Route::get('/events/{event}/draht-data', [DrahtController::class, 'show']);
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::put('/rooms/assign-types', [RoomController::class, 'assignRoomType']);
     Route::put('/rooms/assign-teams', [RoomController::class, 'assignTeam']);
+    Route::put('/rooms/{room}/update-sequence', [RoomController::class, 'updateRoomTypeSequence']);
     Route::put('/rooms/{room}', [RoomController::class, 'update']);
     Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
 
-    // PlanRoomType controller
     Route::get('/room-types/{planId}', [PlanRoomTypeController::class, 'listRoomTypes']);
 
-
-    // Parameter controller
-    Route::get('/parameter', [ParameterController::class, 'index']);
-    Route::get('/parameter/condition', [ParameterController::class, 'listConditions']);
-    Route::get('/parameter/lanes-options', [ParameterController::class, 'listLanesOptions']);
-    Route::post('/parameter/condition', [ParameterController::class, 'addCondition']);
-    Route::put('/parameter/condition/{id}', [ParameterController::class, 'updateCondition']);
-    Route::delete('/parameter/condition/{id}', [ParameterController::class, 'deleteCondition']);
+    Route::prefix('parameter')->group(function () {
+        Route::get('/', [ParameterController::class, 'index']);
+        Route::get('/condition', [ParameterController::class, 'listConditions']);
+        Route::get('/lanes-options', [ParameterController::class, 'listLanesOptions']);
+        Route::post('/condition', [ParameterController::class, 'addCondition']);
+        Route::put('/condition/{id}', [ParameterController::class, 'updateCondition']);
+        Route::delete('/condition/{id}', [ParameterController::class, 'deleteCondition']);
+    });
     Route::get('/parameters/visibility', [ParameterController::class, 'visibility']);
 
     Route::prefix('mparams')->group(function () {
@@ -183,7 +193,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/{id}', [MParameterController::class, 'updateMparameter']);
     });
 
-    // User-Regional Partner relations admin routes
     Route::prefix('admin/user-regional-partners')->group(function () {
         Route::get('/', [UserRegionalPartnerController::class, 'index']);
         Route::get('/statistics', [UserRegionalPartnerController::class, 'statistics']);
@@ -192,31 +201,27 @@ Route::middleware(['keycloak'])->group(function () {
         Route::delete('/', [UserRegionalPartnerController::class, 'destroy']);
     });
 
-    // Main Tables admin routes
-Route::prefix('admin/main-tables')->group(function () {
-    Route::get('/', [MainTablesController::class, 'index']);
-    Route::get('/export', [MainTablesController::class, 'export']);
-    Route::post('/create-pr', [MainTablesController::class, 'createPR']);
-    Route::post('/import', [MainTablesController::class, 'import']);
-    Route::get('/{table}', [MainTablesController::class, 'getTableData']);
-    Route::get('/{table}/count', [MainTablesController::class, 'getCount']);
-    Route::get('/{table}/columns', [MainTablesController::class, 'getTableColumns']);
-    Route::post('/{table}', [MainTablesController::class, 'store']);
-    Route::put('/{table}/{id}', [MainTablesController::class, 'update']);
-    Route::delete('/{table}/{id}', [MainTablesController::class, 'destroy']);
-});
+    Route::prefix('admin/main-tables')->group(function () {
+        Route::get('/', [MainTablesController::class, 'index']);
+        Route::get('/export', [MainTablesController::class, 'export']);
+        Route::post('/create-pr', [MainTablesController::class, 'createPR']);
+        Route::post('/import', [MainTablesController::class, 'import']);
+        Route::get('/{table}', [MainTablesController::class, 'getTableData']);
+        Route::get('/{table}/count', [MainTablesController::class, 'getCount']);
+        Route::get('/{table}/columns', [MainTablesController::class, 'getTableColumns']);
+        Route::post('/{table}', [MainTablesController::class, 'store']);
+        Route::put('/{table}/{id}', [MainTablesController::class, 'update']);
+        Route::delete('/{table}/{id}', [MainTablesController::class, 'destroy']);
+    });
 
-    // DRAHT controller
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
-    
-    // DRAHT admin routes
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
 
-    // Publish controller
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
-        Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen   
+        Route::post('/regenerate/{eventId}', [PublishController::class, 'regenerateLinkAndQRcode']); // Link und QR-Code neu generieren (Admin)
+        Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
         Route::get('/times/{planId}', [PublishController::class, 'importantTimes']); // Wichtige Zeiten für Aussenkommunikation
@@ -224,8 +229,7 @@ Route::prefix('admin/main-tables')->group(function () {
         Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
     });
 
-    // Plan Export controller
-    Route::prefix('export')->group(function () { 
+    Route::prefix('export')->group(function () {
         Route::get('/pdf_preview/{eventId}', [PublishController::class, 'preview']);    // PDF mit Vorschau holen
         Route::get('/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);
         Route::get('/ready/{eventId}', [PlanExportController::class, 'dataReadiness']);
@@ -248,5 +252,4 @@ Route::prefix('admin/main-tables')->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
     });
-
 });

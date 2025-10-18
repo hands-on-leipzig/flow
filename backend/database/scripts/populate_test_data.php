@@ -62,6 +62,16 @@ function populateTestData()
                 'days' => 1,
                 'slug' => 'test-event-' . strtolower(str_replace(' ', '-', $rp->name))
             ]);
+            
+            // Automatically generate link and QR code for new events
+            try {
+                $publishController = new \App\Http\Controllers\Api\PublishController(app(\App\Services\ActivityFetcherService::class));
+                $publishController->linkAndQRcode($event->id);
+                echo "  ✓ Generated link and QR code for event: {$event->name}\n";
+            } catch (\Exception $e) {
+                echo "  ❌ Failed to generate link for event {$event->name}: " . $e->getMessage() . "\n";
+            }
+            
             $eventsCreated++;
             echo "  ✓ Created event: {$event->name}\n";
         } else {

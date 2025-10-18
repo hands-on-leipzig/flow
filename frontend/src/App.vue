@@ -8,11 +8,16 @@ const PATHS_HIDE_NAVIGATION = [
   "/carousel"
 ]
 
+// Check if current route is public (no navigation needed)
+const isPublicRoute = computed(() => {
+  return route.meta?.public === true
+})
+
 const router = useRouter();
 const route = useRoute();
 
 const showNavigation = computed(() => {
-  return !PATHS_HIDE_NAVIGATION.some(path => route.path.startsWith(path));
+  return !PATHS_HIDE_NAVIGATION.some(path => route.path.startsWith(path)) && !isPublicRoute.value
 })
 
 onMounted(() => {

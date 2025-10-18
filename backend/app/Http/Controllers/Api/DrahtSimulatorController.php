@@ -15,19 +15,19 @@ class DrahtSimulatorController extends Controller
     public function handle(Request $request, $path = '')
     {
         Log::info("Draht Simulator called with path: /{$path}");
-        
+
         // Route to appropriate simulator method based on path
         switch ($path) {
             case 'handson/rp':
                 return $this->simulateGetAllRegions();
-                
+
             case 'handson/flow/events':
                 return $this->simulateGetAllEventsAndTeams();
-                
+
             case preg_match('/^handson\/events\/(\d+)\/scheduledata$/', $path, $matches) ? true : false:
                 $eventId = $matches[1];
                 return $this->simulateGetEventScheduleData($eventId);
-                
+
             default:
                 return response()->json(['error' => 'Simulated endpoint not found'], 404);
         }
@@ -117,14 +117,14 @@ class DrahtSimulatorController extends Controller
     private function simulateGetEventScheduleData($eventId)
     {
         $eventInfo = $this->getEventInfo($eventId);
-        
+
         $eventData = [
             'id' => (int)$eventId,
             'name' => $eventInfo['name'],
             'address' => $eventInfo['address'],
             'contact' => serialize($this->generateContacts($eventInfo)),
             'information' => $eventInfo['information'],
-            'teams' => $this->generateFLLTeams($eventId, $eventInfo['program_type'], $eventInfo['team_count']),
+            'teams' => $this->generateFLLTeams($eventInfo['program_type'], $eventInfo['team_count']),
             'capacity_teams' => $eventInfo['capacity'],
             'date' => strtotime('+' . rand(1, 90) . ' days'),
             'enddate' => strtotime('+' . rand(1, 90) . ' days'),
@@ -228,7 +228,7 @@ class DrahtSimulatorController extends Controller
     {
         $teamNames = $this->getFLLTeamNames($programType);
         $teams = [];
-        
+
         for ($i = 0; $i < $teamCount; $i++) {
             $teamName = $teamNames[$i] ?? "Team " . chr(65 + $i);
             
@@ -245,7 +245,7 @@ class DrahtSimulatorController extends Controller
                 'members' => $this->generateGermanMembers($i + 1)
             ];
         }
-        
+
         return $teams;
     }
 
@@ -259,24 +259,28 @@ class DrahtSimulatorController extends Controller
             'RoboRangers', 'TechTigers', 'ScienceStars', 'ExplorerElite', 'RoboRockets',
             'TechTrekkers', 'DiscoveryDynamos', 'FutureFlashers', 'RoboRunners', 'TechTitans'
         ];
-        
+
         $challengeNames = [
             'RoboChampions', 'TechMasters', 'EliteEngineers', 'RoboRulers', 'TechTitans',
             'ChallengeChamps', 'RoboRebels', 'TechThunder', 'EliteEagles', 'RoboRockets',
             'TechTornadoes', 'ChallengeCrushers', 'RoboRangers', 'TechTigers', 'EliteElites'
         ];
-        
+
         $combinedNames = [
             'RoboAllStars', 'TechElite', 'FutureChampions', 'RoboMasters', 'TechHeroes',
             'EliteExplorers', 'RoboChampions', 'TechStars', 'FutureLeaders', 'RoboElite',
             'TechChampions', 'EliteTech', 'RoboHeroes', 'TechLeaders', 'FutureElite'
         ];
-        
+
         switch ($programType) {
-            case 2: return $exploreNames;
-            case 3: return $challengeNames;
-            case 1: return $combinedNames;
-            default: return array_merge($exploreNames, $challengeNames);
+            case 2:
+                return $exploreNames;
+            case 3:
+                return $challengeNames;
+            case 1:
+                return $combinedNames;
+            default:
+                return array_merge($exploreNames, $challengeNames);
         }
     }
 
@@ -287,18 +291,18 @@ class DrahtSimulatorController extends Controller
     {
         $memberCount = rand(2, 4);
         $members = [];
-        
+
         $firstNames = [
             'male' => ['Maximilian', 'Alexander', 'Paul', 'Elias', 'Ben', 'Felix', 'Lukas', 'Noah', 'Leon', 'Jonas', 'Finn', 'Liam', 'Anton', 'Theo', 'Emil'],
             'female' => ['Mia', 'Emma', 'Hannah', 'Sophia', 'Emilia', 'Lina', 'Marie', 'Anna', 'Lea', 'Lena', 'Clara', 'Lilly', 'Amelie', 'Mila', 'Ella']
         ];
-        
+
         $lastNames = [
             'Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker', 'Schulz', 'Hoffmann',
             'Schäfer', 'Bauer', 'Koch', 'Richter', 'Klein', 'Wolf', 'Schröder', 'Neumann', 'Schwarz', 'Zimmermann',
             'Braun', 'Hofmann', 'Lange', 'Schmitt', 'Werner', 'Schmitz', 'Krause', 'Meier', 'Lehmann', 'Schmid'
         ];
-        
+
         for ($i = 0; $i < $memberCount; $i++) {
             $gender = rand(0, 1) ? 'male' : 'female';
             $firstName = $firstNames[$gender][array_rand($firstNames[$gender])];
@@ -309,7 +313,7 @@ class DrahtSimulatorController extends Controller
                 'role' => $i === 0 ? 'Team Leader' : 'Member'
             ];
         }
-        
+
         return $members;
     }
 
@@ -319,7 +323,7 @@ class DrahtSimulatorController extends Controller
     private function generateContacts($eventInfo)
     {
         $contacts = [];
-        
+
         // Primary contact (from event info)
         $contacts[] = [
             'contact' => $eventInfo['contact_name'],
@@ -330,13 +334,13 @@ class DrahtSimulatorController extends Controller
         // Generate 1-2 additional contacts
         $additionalContacts = rand(1, 2);
         $roles = ['Technical Support', 'Administration', 'Volunteer Coordinator', 'Safety Officer'];
-        
+
         for ($i = 0; $i < $additionalContacts; $i++) {
             $name = $this->generateGermanName();
             $email = $this->generateEmail($eventInfo['contact_email']);
             $phone = $this->generatePhone();
             $role = $roles[array_rand($roles)];
-            
+
             $contacts[] = [
                 'contact' => $name,
                 'contact_email' => $email,
@@ -354,7 +358,7 @@ class DrahtSimulatorController extends Controller
     {
         $firstNames = ['Anna', 'Max', 'Lisa', 'Tom', 'Sarah', 'Ben', 'Emma', 'Lukas', 'Hannah', 'Felix'];
         $lastNames = ['Schmidt', 'Müller', 'Weber', 'Wagner', 'Becker', 'Schulz', 'Hoffmann', 'Koch', 'Richter', 'Klein'];
-        
+
         return $firstNames[array_rand($firstNames)] . ' ' . $lastNames[array_rand($lastNames)];
     }
 
