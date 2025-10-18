@@ -40,6 +40,17 @@ class PlanExportController extends Controller
             return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
         }
 
+        $rolesWithActivities = $this->getRolesInPlan($plan->id);
+
+        return response()->json(['roles' => $rolesWithActivities]);
+    }
+
+    /**
+     * Helper: Get roles that have actual assignments in a plan
+     * @return array Array of role info with id, name, first_program, differentiation_parameter
+     */
+    private function getRolesInPlan(int $planId): array
+    {
         // Get all roles with pdf_export enabled and differentiation_parameter = lane or table
         $roles = MRole::where('pdf_export', true)
             ->whereIn('differentiation_parameter', ['lane', 'table'])
@@ -59,7 +70,7 @@ class PlanExportController extends Controller
                     ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
                     ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
                     ->join('m_visibility', 'm_activity_type_detail.id', '=', 'm_visibility.activity_type_detail')
-                    ->where('activity_group.plan', $plan->id)
+                    ->where('activity_group.plan', $planId)
                     ->where('m_visibility.role', $role->id)
                     ->whereNotNull('activity.jury_lane')
                     ->exists();
@@ -69,7 +80,7 @@ class PlanExportController extends Controller
                     ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
                     ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
                     ->join('m_visibility', 'm_activity_type_detail.id', '=', 'm_visibility.activity_type_detail')
-                    ->where('activity_group.plan', $plan->id)
+                    ->where('activity_group.plan', $planId)
                     ->where('m_visibility.role', $role->id)
                     ->where(function($q) {
                         $q->whereNotNull('activity.table_1')
@@ -88,7 +99,7 @@ class PlanExportController extends Controller
             }
         }
 
-        return response()->json(['roles' => $rolesWithActivities]);
+        return $rolesWithActivities;
     }
 
     public function download(string $type, int $eventId, Request $request)
@@ -134,6 +145,34 @@ class PlanExportController extends Controller
         ];
 
         $name = $names[$type] ?? ucfirst($type);
+        
+        // Special handling for roles: add role names if subset selected
+        if ($type === 'roles') {
+            $selectedRoleIds = $request->input('role_ids', []);
+            
+            if (!empty($selectedRoleIds)) {
+                // Get all available roles for THIS plan using helper method
+                $rolesInPlan = $this->getRolesInPlan($plan->id);
+                $roleIdsInPlan = array_column($rolesInPlan, 'id');
+                
+                // If not all roles (that are in plan) selected, append role names
+                if (count($selectedRoleIds) < count($roleIdsInPlan)) {
+                    $roleNames = MRole::whereIn('id', $selectedRoleIds)
+                        ->orderBy('first_program')
+                        ->orderBy('sequence')
+                        ->pluck('name')
+                        ->toArray();
+                    
+                    // Sanitize role names for filename (remove special chars)
+                    $sanitizedNames = array_map(function($roleName) {
+                        return preg_replace('/[^a-zA-Z0-9]/', '', $roleName);
+                    }, $roleNames);
+                    
+                    $name = 'Rollen_' . implode('_', $sanitizedNames);
+                }
+            }
+        }
+        
         $filename = "FLOW_{$name}_({$formattedDate}).pdf";
 
         // Umlaute transliterieren
