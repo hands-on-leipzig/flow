@@ -281,6 +281,18 @@ class DrahtController extends Controller
                     };
 
                     $event = Event::create($eventAttributes);
+                    
+                    // Automatically generate link and QR code for new events using existing PublishController
+                    try {
+                        $publishController = app(\App\Http\Controllers\Api\PublishController::class);
+                        $publishController->linkAndQRcode($event->id);
+                        Log::info("Automatically generated link and QR code for new event {$event->id}");
+                    } catch (\Exception $e) {
+                        Log::error("Failed to auto-generate link and QR code for event {$event->id}", [
+                            'error' => $e->getMessage()
+                        ]);
+                        // Don't fail the entire process if link generation fails
+                    }
                 }
 
                 if (isset($eventData['teams']) && is_array($eventData['teams'])) {

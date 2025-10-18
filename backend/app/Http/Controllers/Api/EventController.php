@@ -93,6 +93,78 @@ class EventController extends Controller
         });
     }
 
+    public function getCreateEventData()
+    {
+        $regionalPartners = RegionalPartner::select('id', 'name', 'region')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($partner) {
+                return [
+                    'id' => $partner->id,
+                    'name' => $partner->name,
+                    'region' => $partner->region,
+                    'display_name' => "{$partner->name} ({$partner->region})"
+                ];
+            });
+
+        $levels = DB::table('m_level')
+            ->select('id', 'name')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'regional_partners' => $regionalPartners,
+            'levels' => $levels
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'regional_partner' => 'required|integer|exists:regional_partner,id',
+            'level' => 'required|integer|exists:m_level,id',
+            'date' => 'required|date',
+            'days' => 'integer|min:1|max:10',
+            'event_explore' => 'nullable|integer',
+            'event_challenge' => 'nullable|integer',
+        ]);
+
+        // Get the latest season
+        $season = MSeason::latest('year')->first();
+        if (!$season) {
+            return response()->json(['error' => 'No season found'], 400);
+        }
+
+        $event = Event::create([
+            'name' => $validated['name'],
+            'regional_partner' => $validated['regional_partner'],
+            'season' => $season->id,
+            'level' => $validated['level'],
+            'date' => $validated['date'],
+            'days' => $validated['days'] ?? 1,
+            'event_explore' => $validated['event_explore'] ?? null,
+            'event_challenge' => $validated['event_challenge'] ?? null,
+        ]);
+
+        // Automatically generate link and QR code for new events
+        try {
+            $publishController = app(\App\Http\Controllers\Api\PublishController::class);
+            $publishController->linkAndQRcode($event->id);
+            Log::info("Automatically generated link and QR code for new event {$event->id}");
+        } catch (\Exception $e) {
+            Log::error("Failed to auto-generate link and QR code for event {$event->id}", [
+                'error' => $e->getMessage()
+            ]);
+            // Don't fail the entire process if link generation fails
+        }
+
+        return response()->json([
+            'message' => 'Event created successfully',
+            'event' => $event->load(['seasonRel', 'levelRel'])
+        ], 201);
+    }
+
     public function update(Request $request, int $eventId)
     {
         $updatableFields = ['wifi_ssid', 'wifi_password', 'wifi_instruction'];

@@ -99,7 +99,7 @@ class PublishController extends Controller
         $link = str_replace(array('ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß', '/', ' '), array('ae', 'oe', 'ue', 'AE', 'OE', 'UE', 'ss', '-', '-'), $link);
 
         $slug = $link;
-        $link = config('app.url') . "/" . $link;
+        $link = config('app.frontend_url', 'http://localhost:5173') . "/" . $link;
 
 
         // QR-Code mit Endroid erzeugen
