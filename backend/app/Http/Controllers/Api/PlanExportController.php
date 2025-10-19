@@ -305,28 +305,74 @@ class PlanExportController extends Controller
                 continue;
             }
 
-            switch ($role->differentiation_parameter) {
-                case 'team':
-                    $this->buildTeamBlock($programGroups, $activities, $role);
-                    break;
+            // Separate free blocks from regular activities
+            $activitiesCollection = collect($activities);
+            $freeBlocks = $activitiesCollection->filter(function($a) {
+                return !is_null($a->extra_block_id) && is_null($a->extra_block_insert_point);
+            });
+            $regularActivities = $activitiesCollection->filter(function($a) {
+                return is_null($a->extra_block_id) || !is_null($a->extra_block_insert_point);
+            });
 
-                case 'lane':
-                    $this->buildLaneBlock($programGroups, $activities, $role);
-                    break;
+            // Process free blocks separately under "Freie Blöcke"
+            if ($freeBlocks->isNotEmpty()) {
+                switch ($role->differentiation_parameter) {
+                    case 'team':
+                        $this->buildTeamBlock($programGroups, $freeBlocks, $role, 'Freie Blöcke');
+                        break;
 
-                case 'table':
-                    $this->buildTableBlock($programGroups, $activities, $role);
-                    break;
+                    case 'lane':
+                        $this->buildLaneBlock($programGroups, $freeBlocks, $role, 'Freie Blöcke');
+                        break;
 
-                default:
-                    $this->buildSimpleBlock($programGroups, $activities, $role);
-                    break;
+                    case 'table':
+                        $this->buildTableBlock($programGroups, $freeBlocks, $role, 'Freie Blöcke');
+                        break;
+
+                    default:
+                        $this->buildSimpleBlock($programGroups, $freeBlocks, $role, 'Freie Blöcke');
+                        break;
+                }
+            }
+
+            // Process regular activities under their program name
+            if ($regularActivities->isNotEmpty()) {
+                switch ($role->differentiation_parameter) {
+                    case 'team':
+                        $this->buildTeamBlock($programGroups, $regularActivities, $role);
+                        break;
+
+                    case 'lane':
+                        $this->buildLaneBlock($programGroups, $regularActivities, $role);
+                        break;
+
+                    case 'table':
+                        $this->buildTableBlock($programGroups, $regularActivities, $role);
+                        break;
+
+                    default:
+                        $this->buildSimpleBlock($programGroups, $regularActivities, $role);
+                        break;
+                }
             }
         }
 
         if (empty($programGroups)) {
             return response()->json(['error' => 'Keine Aktivitäten gefunden'], 404);
         }
+
+        // Sort program groups in desired order: Freie Blöcke, Explore, Challenge
+        $sortOrder = [
+            'Freie Blöcke' => 1,
+            'FIRST LEGO League Explore' => 2,
+            'FIRST LEGO League Challenge' => 3,
+        ];
+        
+        uksort($programGroups, function($a, $b) use ($sortOrder) {
+            $orderA = $sortOrder[$a] ?? 999;
+            $orderB = $sortOrder[$b] ?? 999;
+            return $orderA <=> $orderB;
+        });
 
         // Plan + Event laden
         $plan = Plan::findOrFail($planId);
@@ -354,7 +400,7 @@ class PlanExportController extends Controller
     /**
      * Block für Team-Differenzierung
      */
-    private function buildTeamBlock(array &$programGroups, $activities, $role): void
+    private function buildTeamBlock(array &$programGroups, $activities, $role, $programNameOverride = null): void
     {
         // === Schritt 1: Activities entfalten (Lane/Table1/Table2 einzeln) ===
         $expanded   = collect();
@@ -413,7 +459,7 @@ class PlanExportController extends Controller
             // neutrales reingeben
             $allActs = $acts->concat($neutral)->sortBy('start_time');
             $firstAct = $allActs->first();
-            $programName = $firstAct->activity_first_program_name ?? 'Alles';
+            $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
 
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
@@ -439,7 +485,7 @@ class PlanExportController extends Controller
      * Block für Lane-Differenzierung (Dummy)
      */
 
-    private function buildLaneBlock(array &$programGroups, $activities, $role): void
+    private function buildLaneBlock(array &$programGroups, $activities, $role, $programNameOverride = null): void
     {
         // === Schritt 1: Activities entfalten (nur Lanes) ===
         $expanded = collect();
@@ -489,7 +535,7 @@ class PlanExportController extends Controller
         foreach ($groups->sortKeys() as $laneId => $acts) {
             $allActs     = $acts->concat($neutral)->sortBy('start_time');
             $firstAct    = $allActs->first();
-            $programName = $firstAct->activity_first_program_name ?? 'Alles';
+            $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
 
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
@@ -513,7 +559,7 @@ class PlanExportController extends Controller
     /**
      * Block für Table-Differenzierung
      */
-    private function buildTableBlock(array &$programGroups, $activities, $role): void
+    private function buildTableBlock(array &$programGroups, $activities, $role, $programNameOverride = null): void
     {
         $expanded = collect();
 
@@ -560,7 +606,7 @@ class PlanExportController extends Controller
         foreach ($groups->sortKeys() as $tableId => $acts) {
             $acts = $acts->sortBy('start_time');
             $firstAct = $acts->first();
-            $programName = $firstAct->activity_first_program_name ?? 'Alles';
+            $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
 
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
@@ -582,7 +628,7 @@ class PlanExportController extends Controller
     /**
      * Block für Rollen ohne Differenzierung
      */
-    private function buildSimpleBlock(array &$programGroups, $activities, $role): void
+    private function buildSimpleBlock(array &$programGroups, $activities, $role, $programNameOverride = null): void
     {
         if ($activities->isEmpty()) {
             return;
@@ -627,7 +673,7 @@ class PlanExportController extends Controller
 
         $acts = $activities->sortBy('start_time');
         $firstAct = $acts->first();
-        $programName = $firstAct->activity_first_program_name ?? 'Alles';
+        $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
 
         if (!isset($programGroups[$programName])) {
             $programGroups[$programName] = [];

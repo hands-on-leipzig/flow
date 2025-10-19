@@ -164,6 +164,8 @@ class ActivityFetcherService
             a.table_1_team as table_1_team,
             a.table_2 as table_2,
             a.table_2_team as table_2_team,
+            a.extra_block as extra_block_id,
+            peb.insert_point as extra_block_insert_point,
             CASE a.table_1
                 WHEN 1 THEN COALESCE(te1.table_name, "Tisch 1")
                 WHEN 3 THEN COALESCE(te3.table_name, "Tisch 3")
