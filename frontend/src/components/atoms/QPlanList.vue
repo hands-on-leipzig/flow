@@ -109,6 +109,19 @@ function ampelfarbeQ2Q3(ok, teams, lanes) {
   return '🔴'
 }
 
+function formatDistribution(count1, count2, count3, scoreAvg) {
+  // Format: "5/3/2 (77%)" meaning 5 with 3, 3 with 2, 2 with 1, avg 77%
+  const parts = []
+  if (count3 > 0) parts.push(count3)
+  if (count2 > 0) parts.push(count2)
+  if (count1 > 0) parts.push(count1)
+  
+  const distStr = parts.length > 0 ? parts.join('/') : '–'
+  const scoreStr = scoreAvg != null ? `(${scoreAvg.toFixed(0)}%)` : ''
+  
+  return `${distStr} ${scoreStr}`.trim()
+}
+
 function farbeQ5Idle(avg, teams) {
   const max = (teams - 1) / 2
   const ratio = Math.min(Math.max(avg / max, 0), 1)
@@ -369,13 +382,13 @@ async function startRerun() {
           <!-- Q2: Tische -->
           <div class="flex items-center gap-1">
             <span>{{ ampelfarbeQ2Q3(qplan.q2_ok_count, qplan.c_teams, qplan.j_lanes) }}</span>
-            <span>{{ qplan.q2_ok_count ?? '–' }}</span>
+            <span class="text-xs">{{ formatDistribution(qplan.q2_1_count, qplan.q2_2_count, qplan.q2_3_count, qplan.q2_score_avg) }}</span>
           </div>
 
           <!-- Q3: Teams -->
           <div class="flex items-center gap-1">
             <span>{{ ampelfarbeQ2Q3(qplan.q3_ok_count, qplan.c_teams, qplan.j_lanes) }}</span>
-            <span>{{ qplan.q3_ok_count ?? '–' }}</span>
+            <span class="text-xs">{{ formatDistribution(qplan.q3_1_count, qplan.q3_2_count, qplan.q3_3_count, qplan.q3_score_avg) }}</span>
           </div>
 
           <div class="flex items-center gap-2">
