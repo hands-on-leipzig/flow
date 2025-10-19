@@ -183,7 +183,8 @@ class ActivityFetcherService
                 rt_room.name as room_type_name,
                 rt_room.sequence as room_type_sequence,
                 r.id as room_id,
-                r.name as room_name
+                r.name as room_name,
+                r.navigation_instruction as room_navigation
             ';
         }
 

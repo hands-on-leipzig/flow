@@ -911,6 +911,14 @@ if ($prepRooms->isNotEmpty()) {
                     }
                 }
             }
+            
+            // Collect unique rooms with navigation for legend
+            $roomsWithNav = [];
+            foreach ($acts as $a) {
+                if (!empty($a->room_name) && !empty($a->room_navigation)) {
+                    $roomsWithNav[$a->room_name] = $a->room_navigation;
+                }
+            }
 
             // ➕ Zusatzzeile "Teambereich"
             array_unshift($rows, [
@@ -929,6 +937,7 @@ if ($prepRooms->isNotEmpty()) {
                     'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
                     'rows'  => $chunkRows,
                     'event' => $event,
+                    'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
                 ])->render();
 
                 // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
@@ -1263,6 +1272,14 @@ if ($prepRooms->isNotEmpty()) {
                 ['end_time', 'asc'],
             ]);
 
+            // Collect unique rooms with navigation for legend
+            $roomsWithNav = [];
+            foreach ($acts as $a) {
+                if (!empty($a->room_name) && !empty($a->room_navigation)) {
+                    $roomsWithNav[$a->room_name] = $a->room_navigation;
+                }
+            }
+            
             $rows = $acts->map(fn($a) => [
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
@@ -1312,6 +1329,7 @@ if ($prepRooms->isNotEmpty()) {
                     'title' => $key,
                     'rows'  => $chunkRows,
                     'event' => $event,
+                    'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
                 ])->render();
 
                 // Seitenumbruch nach jedem Chunk außer dem letzten

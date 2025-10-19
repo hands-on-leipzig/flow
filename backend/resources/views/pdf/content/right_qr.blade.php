@@ -32,4 +32,43 @@
         {{ $event->link }}
     </div>
 
+    @if(!empty($roomsWithNav) && count($roomsWithNav) > 0)
+        <div style="
+            margin-top:20px;
+            padding-top:15px;
+            border-top:1px solid #ddd;
+        ">
+            <div style="
+                font-size:14px;
+                font-weight:bold;
+                color:#222;
+                margin-bottom:8px;
+                font-family:sans-serif;
+            ">
+                Raumorientierung
+            </div>
+            
+            @foreach($roomsWithNav as $roomName => $navigation)
+                <div style="margin-bottom:8px;">
+                    <div style="
+                        font-size:13px;
+                        font-weight:bold;
+                        color:#333;
+                        font-family:sans-serif;
+                    ">
+                        {{ $roomName }}
+                    </div>
+                    <div style="
+                        font-size:11px;
+                        color:#666;
+                        font-family:sans-serif;
+                        line-height:1.3;
+                    ">
+                        {{ $navigation }}
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
 </td>

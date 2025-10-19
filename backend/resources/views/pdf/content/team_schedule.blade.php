@@ -47,7 +47,7 @@
         </td>
 
         {{-- Rechte Spalte: QR-Code --}}
-        @include('pdf.content.right_qr', ['event' => $event])
+        @include('pdf.content.right_qr', ['event' => $event, 'roomsWithNav' => $roomsWithNav ?? []])
 
     </tr>
 </table>
