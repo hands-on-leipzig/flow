@@ -97,6 +97,58 @@ class ActivityWriter
         return $activity->id;
     }
 
+    /**
+     * Bulk insert multiple activities at once.
+     * More efficient than calling insertActivity() in a loop.
+     *
+     * @param array<array{
+     *   activityTypeCode: string,
+     *   start: string,
+     *   end: string,
+     *   juryLane?: ?int,
+     *   juryTeam?: ?int,
+     *   table1?: ?int,
+     *   table1Team?: ?int,
+     *   table2?: ?int,
+     *   table2Team?: ?int,
+     *   extraBlockId?: ?int
+     * }> $activities Array of activity data
+     * @return void
+     */
+    public function insertActivitiesBulk(array $activities): void
+    {
+        if (!$this->currentGroup) {
+            throw new \RuntimeException("No activity group set before bulk inserting activities");
+        }
+
+        if (empty($activities)) {
+            return;
+        }
+
+        $data = [];
+        foreach ($activities as $act) {
+            $activityTypeDetailId = $this->activityTypeDetailIdFromCode($act['activityTypeCode']);
+            $roomType = $this->resolveRoomType($activityTypeDetailId, $act['juryLane'] ?? null);
+
+            $data[] = [
+                'activity_group'       => $this->currentGroup->id,
+                'activity_type_detail' => $activityTypeDetailId,
+                'start'                => $act['start'],
+                'end'                  => $act['end'],
+                'room_type'            => $roomType,
+                'jury_lane'            => $act['juryLane'] ?? null,
+                'jury_team'            => $act['juryTeam'] ?? null,
+                'table_1'              => $act['table1'] ?? null,
+                'table_1_team'         => $act['table1Team'] ?? null,
+                'table_2'              => $act['table2'] ?? null,
+                'table_2_team'         => $act['table2Team'] ?? null,
+                'extra_block'          => $act['extraBlockId'] ?? null,
+            ];
+        }
+
+        Activity::insert($data);
+    }
+
     public function withGroup(string $activityTypeDetailCode, \Closure $callback): void
     {
         $this->insertActivityGroup($activityTypeDetailCode);
