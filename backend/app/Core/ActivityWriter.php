@@ -264,7 +264,7 @@ class ActivityWriter
                 $time->addMinutes((int) $extraBlock->duration + (int) $extraBlock->buffer_after);
             });
 
-            Log::debug("Block inserted at '{$insertPointCode}' using activity type '{$activityCode}'.");
+            // Log::debug("Block inserted at '{$insertPointCode}' using activity type '{$activityCode}'.");
         } else {
             $time->addMinutes($duration);
         }    

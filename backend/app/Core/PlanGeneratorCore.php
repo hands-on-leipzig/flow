@@ -62,7 +62,7 @@ class PlanGeneratorCore
         $cMode = $this->pp('c_mode');
         $eMode = $this->pp('e_mode');
 
-        Log::debug("PlanGeneratorCore: generateByMode", ['cMode' => $cMode, 'eMode' => $eMode]);
+        // Log::debug("PlanGeneratorCore: generateByMode", ['cMode' => $cMode, 'eMode' => $eMode]);
 
 
         if ($cMode == 1) {
