@@ -13,10 +13,12 @@ class FreeBlockGenerator
 {
     private ActivityWriter $writer;
     private int $planId;
+    private PlanParameter $params;
 
     public function __construct(ActivityWriter $writer, PlanParameter $params)
     {
         $this->writer = $writer;
+        $this->params = $params;
         $this->planId = $params->get('g_plan');
 
     }
@@ -26,6 +28,12 @@ class FreeBlockGenerator
         Log::info('FreeBlockGenerator: Starting free activities insertion');
         
         try {
+            // Get plan configuration to check which programs are enabled
+            $eMode = $this->params->get('e_mode');
+            $cMode = $this->params->get('c_mode');
+            
+            Log::info('FreeBlockGenerator: Plan programs', ['e_mode' => $eMode, 'c_mode' => $cMode]);
+            
             // Load ExtraBlocks with fixed times for this plan
             $blocks = ExtraBlock::where('plan', $this->planId)
             ->where('active', true)
@@ -33,11 +41,24 @@ class FreeBlockGenerator
             ->get(['id', 'first_program', 'start', 'end']);
 
         foreach ($blocks as $block) {
+            $blockProgram = (int)$block->first_program;
+            
+            // Skip Explore blocks if Explore is disabled (e_mode = 0)
+            if ($blockProgram === FirstProgram::EXPLORE->value && $eMode == 0) {
+                Log::info("FreeBlockGenerator: Skipping Explore block {$block->id} (Explore disabled in plan)");
+                continue;
+            }
+            
+            // Skip Challenge blocks if Challenge is disabled (c_mode = 0)
+            if ($blockProgram === FirstProgram::CHALLENGE->value && $cMode == 0) {
+                Log::info("FreeBlockGenerator: Skipping Challenge block {$block->id} (Challenge disabled in plan)");
+                continue;
+            }
+            
             // Map first_program to activity type detail code
-            $code = match ((int)$block->first_program) {
+            $code = match ($blockProgram) {
                 FirstProgram::CHALLENGE->value => 'c_free_block',
                 FirstProgram::EXPLORE->value => 'e_free_block',
-                FirstProgram::DISCOVER->value => 'e_free_block',  // Discover uses Explore blocks
                 FirstProgram::JOINT->value => 'g_free_block',
                 default => 'g_free_block', // Fallback for unknown
             };
