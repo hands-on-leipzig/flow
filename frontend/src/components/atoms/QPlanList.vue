@@ -469,8 +469,8 @@ async function startRerun() {
           <div>{{ qplan.j_lanes }}</div>
           <div>{{ qplan.r_tables }}</div>
           <div>{{ qplan.j_rounds }}</div>
-          <div>{{ qplan.r_asym }}</div>
-          <div>{{ qplan.r_robot_check }}</div>
+          <div>{{ qplan.r_asym ? 'Ja' : 'Nein' }}</div>
+          <div>{{ qplan.r_robot_check ? 'An' : 'Aus' }}</div>
           
 
           <!-- Q1: Transfer -->
