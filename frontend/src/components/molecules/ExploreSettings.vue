@@ -13,6 +13,7 @@ const event = computed(() => eventStore.selectedEvent)
 const props = defineProps<{
   parameters: any[]
   showExplore: boolean
+  showChallenge?: boolean
   lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
   supportedPlanData?: any[] | null
 }>()
@@ -39,9 +40,10 @@ function handleToggleChange(target: HTMLInputElement) {
 
   // Update explore mode based on toggle state
   if (isChecked) {
-    // Turn on explore - default to mode 1 (integrated AM) if currently off
+    // Turn on explore - default to appropriate mode based on challenge availability
     if (eMode.value === 0) {
-      setMode(1)
+      // Default to integrated AM if challenge is enabled, otherwise separate AM
+      setMode(isChallengeEnabled.value ? 1 : 3)
     }
 
     // Use DRAHT team count as default if available, otherwise use min
@@ -82,6 +84,17 @@ const isSeparateSplit = computed(() => eMode.value === 5)
 const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2)
 const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4 || eMode.value === 5)
 const hasExplore = computed(() => props.showExplore)
+
+// Check if challenge is enabled (for disabling integrated modes)
+const isChallengeEnabled = computed(() => props.showChallenge !== false)
+
+// Watch for challenge being disabled and switch away from integrated modes
+watch(isChallengeEnabled, (enabled) => {
+  if (!enabled && (eMode.value === 1 || eMode.value === 2)) {
+    // Challenge disabled while in integrated mode - switch to separate AM
+    setMode(3)
+  }
+})
 
 /** Fancy mode changes **/
 function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5) {
@@ -529,8 +542,12 @@ const teamsPerJuryHint2 = computed(() => {
               type="button"
               class="px-2 py-1 rounded-md border text-sm transition
                    focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              :class="eMode === 1 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-              @click="setMode(1)"
+              :class="[
+                eMode === 1 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400',
+                !isChallengeEnabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''
+              ]"
+              :disabled="!isChallengeEnabled"
+              @click="isChallengeEnabled && setMode(1)"
           >
             vormittags
           </button>
@@ -538,8 +555,12 @@ const teamsPerJuryHint2 = computed(() => {
               type="button"
               class="px-2 py-1 rounded-md border text-sm transition
                    focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              :class="eMode === 2 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-              @click="setMode(2)"
+              :class="[
+                eMode === 2 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400',
+                !isChallengeEnabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''
+              ]"
+              :disabled="!isChallengeEnabled"
+              @click="isChallengeEnabled && setMode(2)"
           >
             nachmittags
           </button>

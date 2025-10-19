@@ -594,6 +594,7 @@ const updateTableName = async () => {
             <ExploreSettings
                 :parameters="parameters"
                 :show-explore="showExplore"
+                :show-challenge="showChallenge"
                 @toggle-show="(v) => showExplore = v"
                 :lanes-index="lanesIndex"
                 :supported-plan-data="supportedPlanData"
