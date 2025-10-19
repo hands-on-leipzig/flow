@@ -41,6 +41,11 @@ const filterTables = {
   4: ref(true),
 }
 
+const filterRobotCheck = {
+  1: ref(true),
+  0: ref(true),
+}
+
 const filterAsym = {
   1: ref(true),
   0: ref(true),
@@ -93,6 +98,12 @@ const plans = computed(() => {
       .map(([t]) => Number(t))
     const tableFilterOk = tablesActive.length === 0 || tablesActive.includes(plan.r_tables)
 
+    // Robot-Check (An/Aus)
+    const robotCheckActive = Object.entries(filterRobotCheck)
+      .filter(([_, refVal]) => refVal.value)
+      .map(([rc]) => Number(rc))
+    const robotCheckFilterOk = robotCheckActive.length === 0 || robotCheckActive.includes(Number(plan.r_robot_check))
+
     // RG asym (Ja/Nein)
     const asymActive = Object.entries(filterAsym)
       .filter(([_, refVal]) => refVal.value)
@@ -100,7 +111,7 @@ const plans = computed(() => {
     const asymFilterOk = asymActive.length === 0 || asymActive.includes(Number(plan.r_asym))
 
     // Kombiniert
-    return qFilterOk && laneFilterOk && roundFilterOk && tableFilterOk && asymFilterOk
+    return qFilterOk && laneFilterOk && roundFilterOk && tableFilterOk && robotCheckFilterOk && asymFilterOk
   })
 })
 const loadPlans = async () => {
@@ -222,7 +233,7 @@ async function startRerun() {
             
             <!-- Label-Teil -->
             <div class="text-sm font-medium text-gray-700">
-              Jury-Spuren:
+              Spuren:
             </div>
 
             <!-- Checkboxen -->
@@ -248,7 +259,7 @@ async function startRerun() {
             
             <!-- Label-Teil -->
             <div class="text-sm font-medium text-gray-700">
-              RG-Tische:
+              Tische:
             </div>
 
             <!-- Checkboxen -->
@@ -273,7 +284,7 @@ async function startRerun() {
             
             <!-- Label-Teil -->
             <div class="text-sm font-medium text-gray-700">
-              Jury-Runden:
+              Runden:
             </div>
 
             <!-- Checkboxen -->
@@ -294,9 +305,31 @@ async function startRerun() {
 
           </div>
 
+          <!-- Filter-Kiste: Robot-Check -->
+          <div class="border border-gray-300 rounded-md p-3 bg-white shadow-sm flex justify-between items-center mb-2">
+            
+            <!-- Label-Teil -->
+            <div class="text-sm font-medium text-gray-700">
+              Check:
+            </div>
+
+            <!-- Checkboxen -->
+            <div class="flex items-center gap-3 ml-4">
+              <label class="flex items-center gap-1 text-sm text-gray-600">
+                <input type="checkbox" v-model="filterRobotCheck[0].value" class="accent-gray-600" />
+                Aus
+              </label>
+              <label class="flex items-center gap-1 text-sm text-gray-600">
+                <input type="checkbox" v-model="filterRobotCheck[1].value" class="accent-gray-600" />
+                An
+              </label>
+            </div>
+
+          </div>
+
           <!-- Filter-Kiste: RG asym -->
           <div class="border border-gray-300 rounded-md p-3 bg-white shadow-sm flex justify-between items-center mb-2">
-            <div class="text-sm text-gray-600 mr-6">RG asym:</div>
+            <div class="text-sm font-medium text-gray-700 mr-6">RG asym:</div>
             <div class="flex items-center gap-4">
               <label class="flex items-center gap-1 text-sm text-gray-600">
                 <input type="checkbox" v-model="filterAsym[1].value" class="accent-gray-600" />
