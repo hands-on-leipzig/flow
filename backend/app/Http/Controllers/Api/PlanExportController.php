@@ -594,6 +594,7 @@ class PlanExportController extends Controller
                 $clone->lane      = $a->lane;
                 $clone->team_id   = $a->team;
                 $clone->team_name = $a->jury_team_name;
+                $clone->team_number_hot = $a->jury_team_number_hot ?? null;
                 $clone->assign    = 'Jury ' . $a->lane;
                 $expanded->push($clone);
             }
@@ -604,6 +605,7 @@ class PlanExportController extends Controller
                 $clone->lane      = null;
                 $clone->team_id   = null;
                 $clone->team_name = null;
+                $clone->team_number_hot = null;
                 $clone->assign    = '–';
                 $neutral->push($clone);
             }
@@ -614,9 +616,17 @@ class PlanExportController extends Controller
 
         // === Schritt 3: Map-Funktion ===
         $mapRow = function ($a) {
-            $teamLabel = $a->team_id
-                ? ('Team ' . $a->team_id . ($a->team_name ? ' – ' . $a->team_name : ''))
-                : '–';
+            // Build team label: "TeamName (HotNumber)" or placeholder
+            $teamLabel = '–';
+            if ($a->team_id) {
+                if ($a->team_name && $a->team_number_hot) {
+                    $teamLabel = $a->team_name . ' (' . $a->team_number_hot . ')';
+                } elseif ($a->team_name) {
+                    $teamLabel = $a->team_name;
+                } else {
+                    $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team_id);
+                }
+            }
 
             return [
                 'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
