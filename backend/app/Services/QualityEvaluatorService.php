@@ -517,6 +517,7 @@ class QualityEvaluatorService
         // Distribution counters
         $distribution = [1 => 0, 2 => 0, 3 => 0];
         $totalScore = 0;
+        $teamsProcessed = 0;
         $targetTables = ($tablesAvailable === 2) ? 2 : 3; // Target: 2 for r_tables=2, 3 for r_tables=4
 
         foreach ($teamTables as $team => $tables) {
@@ -543,15 +544,23 @@ class QualityEvaluatorService
 
             // Calculate score for this team (distinctTables / targetTables) * 100
             $totalScore += ($distinctTables / $targetTables) * 100;
+            $teamsProcessed++;
         }
+
+        Log::debug("Q2 calculation for qPlan {$qPlanId}", [
+            'c_teams' => $teamCount,
+            'teams_processed' => $teamsProcessed,
+            'distribution' => $distribution,
+            'total_score' => $totalScore,
+        ]);
 
         // Count number of teams that passed Q2
         $ok_count = QPlanTeam::where('q_plan', $qPlanId)
             ->where('q2_ok', true)
             ->count();
 
-        // Calculate average score
-        $avgScore = $teamCount > 0 ? $totalScore / $teamCount : 0;
+        // Calculate average score based on actual teams processed
+        $avgScore = $teamsProcessed > 0 ? $totalScore / $teamsProcessed : 0;
 
         DB::table('q_plan')
             ->where('id', $qPlanId)
@@ -585,8 +594,8 @@ class QualityEvaluatorService
             $t1 = $match->table_1_team;
             $t2 = $match->table_2_team;
 
-            // Skip volunteer/placeholder teams (team 0)
-            if ($t1 > 0 && $t2 > 0) {
+            // Include all teams, even team 0 (volunteer counts as a valid opponent)
+            if ($t1 !== null && $t2 !== null) {
                 $opponents[$t1][] = $t2;
                 $opponents[$t2][] = $t1;
             }
@@ -595,8 +604,14 @@ class QualityEvaluatorService
         // Distribution counters
         $distribution = [1 => 0, 2 => 0, 3 => 0];
         $totalScore = 0;
+        $teamsProcessed = 0;
 
         foreach ($opponents as $team => $faced) {
+            // Skip team 0 (volunteer) in the distribution - it's not a real team being evaluated
+            if ($team === 0) {
+                continue;
+            }
+            
             $uniqueOpponents = count(array_unique($faced));
 
             QPlanTeam::where('q_plan', $qPlanId)
@@ -613,15 +628,23 @@ class QualityEvaluatorService
 
             // Calculate score for this team (uniqueOpponents / 3) * 100
             $totalScore += ($uniqueOpponents / 3) * 100;
+            $teamsProcessed++;
         }
+
+        Log::debug("Q3 calculation for qPlan {$qPlanId}", [
+            'c_teams' => $teamCount,
+            'teams_processed' => $teamsProcessed,
+            'distribution' => $distribution,
+            'total_score' => $totalScore,
+        ]);
 
         // Count number of teams that passed Q3
         $ok_count = QPlanTeam::where('q_plan', $qPlanId)
             ->where('q3_ok', true)
             ->count();
 
-        // Calculate average score
-        $avgScore = $teamCount > 0 ? $totalScore / $teamCount : 0;
+        // Calculate average score based on actual teams processed
+        $avgScore = $teamsProcessed > 0 ? $totalScore / $teamsProcessed : 0;
 
         DB::table('q_plan')
             ->where('id', $qPlanId)
