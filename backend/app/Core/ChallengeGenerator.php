@@ -207,6 +207,9 @@ class ChallengeGenerator
                 $this->integratedExplore
             );
             $this->matchPlan->createMatchPlan();
+            
+            // Apply match rotation to improve Q2 (table diversity) and Q3 (opponent diversity)
+            $this->matchPlan->applyMatchRotation();
 
             // -----------------------------------------------------------------------------------
             // FLL Challenge: Put the judging / robot game schedule together

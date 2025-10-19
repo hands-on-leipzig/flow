@@ -11,6 +11,7 @@ use App\Support\IntegratedExploreState;
 use Illuminate\Support\Facades\DB;
 use App\Models\MatchEntry;
 use App\Enums\ExploreMode;
+use App\Services\MatchRotationService;
 use DateTime;
 
 class RobotGameGenerator
@@ -202,6 +203,153 @@ class RobotGameGenerator
         $this->saveMatchEntries();
     }
 
+    /**
+     * Apply match rotation service to improve Q2 (table diversity) and Q3 (opponent diversity)
+     * for rounds 2 and 3.
+     */
+    public function applyMatchRotation(): void
+    {
+        $planId = $this->pp('g_plan');
+        
+        // Extract team sequences from current match plan
+        $round1Seq = $this->extractRoundSequence(1);
+        $round2Seq = $this->extractRoundSequence(2);
+        $round3Seq = $this->extractRoundSequence(3);
+
+        Log::info("RobotGameGenerator: Match rotation starting", [
+            'plan_id' => $planId,
+            'c_teams' => $this->pp('c_teams'),
+            'r_tables' => $this->pp('r_tables'),
+            'j_lanes' => $this->pp('j_lanes'),
+            'round1_seq' => $round1Seq,
+            'round2_seq_before' => $round2Seq,
+            'round3_seq_before' => $round3Seq,
+        ]);
+
+        // Split rounds 2 and 3 into blocks (First, Middle, Last)
+        $round2Blocks = $this->splitIntoBlocks($round2Seq);
+        $round3Blocks = $this->splitIntoBlocks($round3Seq);
+
+        Log::info("RobotGameGenerator: Blocks split", [
+            'plan_id' => $planId,
+            'round2_blocks' => $round2Blocks,
+            'round3_blocks' => $round3Blocks,
+        ]);
+
+        // Apply rotation algorithm
+        $rotationService = new MatchRotationService();
+        $optimized = $rotationService->plan(
+            $this->pp('r_tables'),
+            $round1Seq,
+            $round2Blocks,
+            $round3Blocks
+        );
+
+        Log::info("RobotGameGenerator: Rotation completed", [
+            'plan_id' => $planId,
+            'round2_seq_after' => $optimized['round2']['seq'],
+            'round3_seq_after' => $optimized['round3']['seq'],
+            'round2_pairs' => $optimized['round2']['pairs'],
+            'round3_pairs' => $optimized['round3']['pairs'],
+        ]);
+
+        // Update entries for rounds 2 and 3 with optimized sequences
+        $this->applyOptimizedSequence(2, $optimized['round2']);
+        $this->applyOptimizedSequence(3, $optimized['round3']);
+
+        // Save the updated entries to database
+        $this->saveMatchEntries();
+
+        Log::info("RobotGameGenerator: Match rotation applied and saved for rounds 2 and 3", [
+            'plan_id' => $planId,
+        ]);
+    }
+
+    /**
+     * Extract team sequence from a round in the current match plan.
+     * Returns teams in match order (team_1, team_2, team_1, team_2, ...)
+     *
+     * @param int $round Round number (1, 2, or 3)
+     * @return int[] Array of team IDs in sequence
+     */
+    private function extractRoundSequence(int $round): array
+    {
+        // Filter entries for this round
+        $roundEntries = array_filter($this->entries, fn($e) => $e['round'] === $round);
+        
+        // Sort by match number
+        usort($roundEntries, fn($a, $b) => $a['match'] <=> $b['match']);
+        
+        // Extract team sequence
+        $sequence = [];
+        foreach ($roundEntries as $entry) {
+            $sequence[] = $entry['team_1'];
+            $sequence[] = $entry['team_2'];
+        }
+        
+        return $sequence;
+    }
+
+    /**
+     * Split a team sequence into First, Middle, Last blocks based on j_lanes.
+     * - First: first j_lanes teams
+     * - Last: last j_lanes teams
+     * - Middle: remaining teams
+     *
+     * @param int[] $sequence Team sequence
+     * @return array{first: int[], middle: int[], last: int[]}
+     */
+    private function splitIntoBlocks(array $sequence): array
+    {
+        $jLanes = $this->pp('j_lanes');
+        $total = count($sequence);
+        
+        // First j_lanes teams
+        $first = array_slice($sequence, 0, $jLanes);
+        
+        // Last j_lanes teams
+        $last = array_slice($sequence, $total - $jLanes, $jLanes);
+        
+        // Middle: everything between
+        $middle = array_slice($sequence, $jLanes, $total - 2 * $jLanes);
+        
+        return [
+            'first' => $first,
+            'middle' => $middle,
+            'last' => $last,
+        ];
+    }
+
+    /**
+     * Apply an optimized sequence to a round, updating entries.
+     *
+     * @param int $round Round number (2 or 3)
+     * @param array{seq: int[], pairs: array<array{0:int,1:int}>, tables: array<int,int>} $optimized
+     */
+    private function applyOptimizedSequence(int $round, array $optimized): void
+    {
+        // Find all entries for this round
+        $roundEntries = [];
+        foreach ($this->entries as $idx => $entry) {
+            if ($entry['round'] === $round) {
+                $roundEntries[$idx] = $entry;
+            }
+        }
+        
+        // Sort by match number to get correct order
+        uasort($roundEntries, fn($a, $b) => $a['match'] <=> $b['match']);
+        
+        // Apply optimized pairs to entries
+        $pairIndex = 0;
+        foreach ($roundEntries as $idx => $entry) {
+            if ($pairIndex < count($optimized['pairs'])) {
+                $pair = $optimized['pairs'][$pairIndex];
+                $this->entries[$idx]['team_1'] = $pair[0];
+                $this->entries[$idx]['team_2'] = $pair[1];
+                $pairIndex++;
+            }
+        }
+    }
 
     private function saveMatchEntries(): void
     {
