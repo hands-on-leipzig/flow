@@ -870,6 +870,12 @@ if ($prepRooms->isNotEmpty()) {
         // Explore zuerst, dann Challenge
         $pages = array_merge($explorePages, $challengePages);
 
+        // 🔸 IDs für Match- und Check-Aktivitäten aus der DB holen (für Tischzuordnung)
+        $matchCheckIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', ['r_match', 'r_check'])
+            ->pluck('id')
+            ->toArray();
+
         // HTML bauen
         $html = '';
         $lastIndex = count($pages) - 1;
@@ -881,13 +887,37 @@ if ($prepRooms->isNotEmpty()) {
                 ['end_time', 'asc'],
             ]);
 
+            // Get team number for table assignment lookup
+            $teamNumber = $page['team_number'] ?? null;
+
             // reguläre Aktivitäten sammeln
-            $rows = $acts->map(function ($a) {
+            $rows = $acts->map(function ($a) use ($matchCheckIds, $teamNumber) {
+                $roomDisplay = $a->room_name ?? '–';
+                
+                // 🔸 For Challenge match/check activities, append table assignment
+                if ($teamNumber && in_array($a->activity_type_detail_id, $matchCheckIds)) {
+                    $tableName = null;
+                    
+                    // Check which table this team is assigned to
+                    if (!is_null($a->table_1_team) && (int)$a->table_1_team === $teamNumber) {
+                        $tableName = $a->table_1_name;
+                    } elseif (!is_null($a->table_2_team) && (int)$a->table_2_team === $teamNumber) {
+                        $tableName = $a->table_2_name;
+                    }
+                    
+                    // Append table to room if found
+                    if ($tableName && $roomDisplay !== '–') {
+                        $roomDisplay .= ' – ' . $tableName;
+                    } elseif ($tableName) {
+                        $roomDisplay = $tableName;
+                    }
+                }
+                
                 return [
                     'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                     'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                     'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
-                    'room'     => $a->room_name ?? '–',
+                    'room'     => $roomDisplay,
                 ];
             })->values()->all();
 
@@ -1031,6 +1061,7 @@ if ($prepRooms->isNotEmpty()) {
             $pages[] = [
                 'label' => $label,
                 'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
+                'team_number' => $num, // Plan team number for table assignment lookup
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -1146,6 +1177,7 @@ if ($prepRooms->isNotEmpty()) {
             $pages[] = [
                 'label' => $label,
                 'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
+                'team_number' => $num, // Plan team number for table assignment lookup
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
