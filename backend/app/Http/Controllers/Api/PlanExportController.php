@@ -875,6 +875,12 @@ if ($prepRooms->isNotEmpty()) {
             ->whereIn('code', ['r_match', 'r_check'])
             ->pluck('id')
             ->toArray();
+        
+        // 🔸 IDs für Check-Aktivitäten (für "Check für " Präfix)
+        $checkIds = DB::table('m_activity_type_detail')
+            ->where('code', 'r_check')
+            ->pluck('id')
+            ->toArray();
 
         // HTML bauen
         $html = '';
@@ -891,7 +897,7 @@ if ($prepRooms->isNotEmpty()) {
             $teamNumber = $page['team_number'] ?? null;
 
             // reguläre Aktivitäten sammeln
-            $rows = $acts->map(function ($a) use ($matchCheckIds, $teamNumber) {
+            $rows = $acts->map(function ($a) use ($matchCheckIds, $checkIds, $teamNumber) {
                 $roomDisplay = $a->room_name ?? '–';
                 
                 // 🔸 For Challenge match/check activities, append table assignment
@@ -906,10 +912,16 @@ if ($prepRooms->isNotEmpty()) {
                     }
                     
                     // Append table to room if found
-                    if ($tableName && $roomDisplay !== '–') {
-                        $roomDisplay .= ' – ' . $tableName;
-                    } elseif ($tableName) {
-                        $roomDisplay = $tableName;
+                    if ($tableName) {
+                        // For checks, add "Check für " prefix
+                        $isCheck = in_array($a->activity_type_detail_id, $checkIds);
+                        $tableDisplay = $isCheck ? 'Check für ' . $tableName : $tableName;
+                        
+                        if ($roomDisplay !== '–') {
+                            $roomDisplay .= ' – ' . $tableDisplay;
+                        } else {
+                            $roomDisplay = $tableDisplay;
+                        }
                     }
                 }
                 
