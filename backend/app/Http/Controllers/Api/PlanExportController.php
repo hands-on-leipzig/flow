@@ -352,7 +352,7 @@ class PlanExportController extends Controller
                         break;
 
                     case 'lane':
-                        $this->buildLaneBlock($programGroups, $regularActivities, $role);
+                        $this->buildLaneBlock($programGroups, $regularActivities, $role, null, $planId);
                         break;
 
                     case 'table':
@@ -582,7 +582,7 @@ class PlanExportController extends Controller
      * Block für Lane-Differenzierung (Dummy)
      */
 
-    private function buildLaneBlock(array &$programGroups, $activities, $role, $programNameOverride = null): void
+    private function buildLaneBlock(array &$programGroups, $activities, $role, $programNameOverride = null, $planId = null): void
     {
         // === Schritt 1: Activities entfalten (nur Lanes) ===
         $expanded = collect();
@@ -628,7 +628,20 @@ class PlanExportController extends Controller
             ];
         };
 
-        // === Schritt 4: Iteration über Lanes ===
+        // === Schritt 4: Room assignments (if planId available) ===
+        $laneRooms = collect();
+        if ($planId) {
+            $roomData = DB::table('lane_plan')
+                ->join('room', 'lane_plan.room', '=', 'room.id')
+                ->where('lane_plan.plan', $planId)
+                ->select('lane_plan.lane', 'room.name as room_name')
+                ->get()
+                ->keyBy('lane');
+            
+            $laneRooms = $roomData->pluck('room_name', 'lane');
+        }
+
+        // === Schritt 5: Iteration über Lanes ===
         foreach ($groups->sortKeys() as $laneId => $acts) {
             $allActs     = $acts->concat($neutral)->sortBy('start_time');
             $firstAct    = $allActs->first();
@@ -644,7 +657,15 @@ class PlanExportController extends Controller
                 ];
             }
 
+            // Build label: "Gruppe X - Raum RoomName"
             $juryLabel = 'Gruppe ' . $laneId;
+            
+            $roomName = $laneRooms->get($laneId);
+            if ($roomName) {
+                $juryLabel .= ' – Raum ' . $roomName;
+            } else {
+                $juryLabel .= ' – Raum !Platzhalter, weil die Gruppe noch keinem Raum zugeordnet wurde!';
+            }
 
             $programGroups[$programName][$role->id]['lanes'][] = [
                 'juryLabel' => $juryLabel,
