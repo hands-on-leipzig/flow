@@ -893,6 +893,7 @@ if ($prepRooms->isNotEmpty()) {
 
             // 🔹 Raumname aus team_plan → room
             $teamRoomName = '!Platzhalter, weil das Team noch keinem Raum zugeordnet wurde!';
+            $roomData = null;
 
             $teamId = $page['team_id'] ?? null; // muss von deinen build*Pages mitgegeben werden
             if ($teamId) {
@@ -902,18 +903,26 @@ if ($prepRooms->isNotEmpty()) {
                     ->value('room');
 
                 if ($roomId) {
-                    $roomName = DB::table('room')
+                    $roomData = DB::table('room')
                         ->where('id', $roomId)
-                        ->value('name');
+                        ->select('name', 'navigation_instruction')
+                        ->first();
 
-                    if ($roomName) {
-                        $teamRoomName = $roomName;
+                    if ($roomData && $roomData->name) {
+                        $teamRoomName = $roomData->name;
                     }
                 }
             }
             
             // Collect unique rooms with navigation for legend
             $roomsWithNav = [];
+            
+            // Add team's assigned room if it has navigation
+            if ($roomData && !empty($roomData->name) && !empty($roomData->navigation_instruction)) {
+                $roomsWithNav[$roomData->name] = $roomData->navigation_instruction;
+            }
+            
+            // Add rooms from activities
             foreach ($acts as $a) {
                 if (!empty($a->room_name) && !empty($a->room_navigation)) {
                     $roomsWithNav[$a->room_name] = $a->room_navigation;
