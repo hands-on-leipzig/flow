@@ -39,35 +39,30 @@
             border-top:1px solid #ddd;
         ">
             <div style="
-                font-size:14px;
+                font-size:16px;
                 font-weight:bold;
+                margin-bottom:10px;
                 color:#222;
-                margin-bottom:8px;
                 font-family:sans-serif;
+                letter-spacing:0.3px;
             ">
-                Raumorientierung
+                Hinweise&nbsp;zu&nbsp;den&nbsp;Räumen
             </div>
             
-            @foreach($roomsWithNav as $roomName => $navigation)
-                <div style="margin-bottom:8px;">
-                    <div style="
-                        font-size:13px;
-                        font-weight:bold;
-                        color:#333;
-                        font-family:sans-serif;
-                    ">
-                        {{ $roomName }}
-                    </div>
-                    <div style="
-                        font-size:11px;
-                        color:#666;
-                        font-family:sans-serif;
-                        line-height:1.3;
-                    ">
-                        {{ $navigation }}
-                    </div>
-                </div>
-            @endforeach
+            <table style="width:100%; border-collapse:collapse;">
+                <tbody>
+                    @foreach($roomsWithNav as $roomName => $navigation)
+                        <tr>
+                            <td style="padding:3px 8px 3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif;">
+                                {{ $roomName }}
+                            </td>
+                            <td style="padding:3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif;">
+                                {{ $navigation }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
     @endif
 
