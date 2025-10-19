@@ -491,6 +491,7 @@ class QualityEvaluatorService
     private function calculateQ2(int $qPlanId): void
     {
         $tablesAvailable = $this->getParameterValueForPlan($qPlanId, 'r_tables');
+        $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
 
         // Get plan ID from q_plan
         $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
@@ -513,6 +514,11 @@ class QualityEvaluatorService
             }
         }
 
+        // Distribution counters
+        $distribution = [1 => 0, 2 => 0, 3 => 0];
+        $totalScore = 0;
+        $targetTables = ($tablesAvailable === 2) ? 2 : 3; // Target: 2 for r_tables=2, 3 for r_tables=4
+
         foreach ($teamTables as $team => $tables) {
             $distinctTables = count(array_unique($tables));
 
@@ -529,6 +535,14 @@ class QualityEvaluatorService
                     'q2_ok' => $q2_ok,
                     'q2_tables' => $distinctTables,
                 ]);
+
+            // Update distribution
+            if ($distinctTables >= 1 && $distinctTables <= 3) {
+                $distribution[$distinctTables]++;
+            }
+
+            // Calculate score for this team (distinctTables / targetTables) * 100
+            $totalScore += ($distinctTables / $targetTables) * 100;
         }
 
         // Count number of teams that passed Q2
@@ -536,11 +550,18 @@ class QualityEvaluatorService
             ->where('q2_ok', true)
             ->count();
 
+        // Calculate average score
+        $avgScore = $teamCount > 0 ? $totalScore / $teamCount : 0;
+
         DB::table('q_plan')
             ->where('id', $qPlanId)
-            ->update(['q2_ok_count' => $ok_count]);
-
-
+            ->update([
+                'q2_ok_count' => $ok_count,
+                'q2_1_count' => $distribution[1],
+                'q2_2_count' => $distribution[2],
+                'q2_3_count' => $distribution[3],
+                'q2_score_avg' => round($avgScore, 2),
+            ]);
     }
 
     /**
@@ -548,6 +569,8 @@ class QualityEvaluatorService
      */
     private function calculateQ3(int $qPlanId): void
     {
+        $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
+
         // Get plan ID from q_plan
         $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
 
@@ -562,9 +585,16 @@ class QualityEvaluatorService
             $t1 = $match->table_1_team;
             $t2 = $match->table_2_team;
 
-            $opponents[$t1][] = $t2;
-            $opponents[$t2][] = $t1;
+            // Skip volunteer/placeholder teams (team 0)
+            if ($t1 > 0 && $t2 > 0) {
+                $opponents[$t1][] = $t2;
+                $opponents[$t2][] = $t1;
+            }
         }
+
+        // Distribution counters
+        $distribution = [1 => 0, 2 => 0, 3 => 0];
+        $totalScore = 0;
 
         foreach ($opponents as $team => $faced) {
             $uniqueOpponents = count(array_unique($faced));
@@ -575,6 +605,14 @@ class QualityEvaluatorService
                     'q3_ok' => $uniqueOpponents === 3,
                     'q3_teams' => $uniqueOpponents,
                 ]);
+
+            // Update distribution
+            if ($uniqueOpponents >= 1 && $uniqueOpponents <= 3) {
+                $distribution[$uniqueOpponents]++;
+            }
+
+            // Calculate score for this team (uniqueOpponents / 3) * 100
+            $totalScore += ($uniqueOpponents / 3) * 100;
         }
 
         // Count number of teams that passed Q3
@@ -582,10 +620,18 @@ class QualityEvaluatorService
             ->where('q3_ok', true)
             ->count();
 
+        // Calculate average score
+        $avgScore = $teamCount > 0 ? $totalScore / $teamCount : 0;
+
         DB::table('q_plan')
             ->where('id', $qPlanId)
-            ->update(['q3_ok_count' => $ok_count]);
-
+            ->update([
+                'q3_ok_count' => $ok_count,
+                'q3_1_count' => $distribution[1],
+                'q3_2_count' => $distribution[2],
+                'q3_3_count' => $distribution[3],
+                'q3_score_avg' => round($avgScore, 2),
+            ]);
     }
 
     /**
