@@ -222,10 +222,13 @@ class ActivityFetcherService
 
         if ($includeTeamNames) {
             $select .= ',
+                t_j.id    as jury_team_id,
                 t_j.name  as jury_team_name,
                 t_j.team_number_hot  as jury_team_number_hot,
+                t_t1.id   as table_1_team_id,
                 t_t1.name as table_1_team_name,
                 t_t1.team_number_hot as table_1_team_number_hot,
+                t_t2.id   as table_2_team_id,
                 t_t2.name as table_2_team_name,
                 t_t2.team_number_hot as table_2_team_number_hot
             ';

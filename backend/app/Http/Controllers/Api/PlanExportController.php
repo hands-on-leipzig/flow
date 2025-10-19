@@ -964,9 +964,10 @@ if ($prepRooms->isNotEmpty()) {
      */
     private function buildExploreTeamPages(\Illuminate\Support\Collection $acts): array
     {
-        // Teamnummern + Namen sammeln
+        // Teamnummern + Namen + IDs sammeln
         $teamNames = []; // [num => name]
         $teamHot   = []; // [num => team_number_hot]
+        $teamIds   = []; // [num => actual team.id]
         $teamSet   = []; // num als key
 
         foreach ($acts as $a) {
@@ -980,6 +981,11 @@ if ($prepRooms->isNotEmpty()) {
 
                 if (isset($a->jury_team_number_hot)) {
                     $teamHot[$num] = $a->jury_team_number_hot;
+                }
+                
+                // Store actual team ID
+                if (isset($a->jury_team_id)) {
+                    $teamIds[$num] = $a->jury_team_id;
                 }
             }
         }
@@ -1015,7 +1021,7 @@ if ($prepRooms->isNotEmpty()) {
 
             $pages[] = [
                 'label' => $label,
-                'team_id' => $num,
+                'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -1032,6 +1038,7 @@ if ($prepRooms->isNotEmpty()) {
     {
         $teamNames = []; // [num => name]
         $teamHot   = []; // [num => team_number_hot]
+        $teamIds   = []; // [num => actual team.id]
         $teamSet   = [];
 
         foreach ($acts as $a) {
@@ -1045,6 +1052,9 @@ if ($prepRooms->isNotEmpty()) {
                 if (isset($a->jury_team_number_hot)) {
                     $teamHot[$n] = $a->jury_team_number_hot;
                 }
+                if (isset($a->jury_team_id) && !isset($teamIds[$n])) {
+                    $teamIds[$n] = $a->jury_team_id;
+                }
             }
 
             // Table 1
@@ -1057,6 +1067,9 @@ if ($prepRooms->isNotEmpty()) {
                 if (isset($a->table_1_team_number_hot)) {
                     $teamHot[$n] = $a->table_1_team_number_hot;
                 }
+                if (isset($a->table_1_team_id) && !isset($teamIds[$n])) {
+                    $teamIds[$n] = $a->table_1_team_id;
+                }
             }
 
             // Table 2
@@ -1068,6 +1081,9 @@ if ($prepRooms->isNotEmpty()) {
                 }
                 if (isset($a->table_2_team_number_hot)) {
                     $teamHot[$n] = $a->table_2_team_number_hot;
+                }
+                if (isset($a->table_2_team_id) && !isset($teamIds[$n])) {
+                    $teamIds[$n] = $a->table_2_team_id;
                 }
             }
         }
@@ -1120,7 +1136,7 @@ if ($prepRooms->isNotEmpty()) {
 
             $pages[] = [
                 'label' => $label,
-                'team_id' => $num,
+                'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
