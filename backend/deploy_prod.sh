@@ -115,9 +115,22 @@ php artisan view:cache
 
 print_status "Production optimization completed"
 
-# Step 4: Final verification
+# Step 4: Restart queue workers
 echo ""
-echo "Step 4: Final verification..."
+echo "Step 4: Restarting queue workers..."
+
+# Signal queue workers to restart gracefully
+php artisan queue:restart
+
+if [ $? -eq 0 ]; then
+    print_status "Queue workers signaled to restart"
+else
+    print_warning "Queue restart signal failed - workers may need manual restart"
+fi
+
+# Step 5: Final verification
+echo ""
+echo "Step 5: Final verification..."
 
 # Check if application is responding
 if curl -f -s http://localhost/api/health > /dev/null 2>&1; then
@@ -126,7 +139,7 @@ else
     print_warning "Application health check failed - please verify manually"
 fi
 
-# Step 5: Summary
+# Step 6: Summary
 echo ""
 echo "✅ Production Environment Deployment Complete!"
 echo "==============================================="
@@ -135,10 +148,12 @@ echo "Summary:"
 echo "- Database migrations completed"
 echo "- Caches cleared and optimized"
 echo "- Application optimized for production"
+echo "- Queue workers restarted"
 echo ""
 echo "Next steps:"
-echo "1. Verify application functionality"
-echo "2. Check all critical endpoints"
-echo "3. Monitor application logs"
+echo "1. Verify queue workers are running: supervisorctl status (or php artisan queue:work)"
+echo "2. Verify application functionality"
+echo "3. Check all critical endpoints"
+echo "4. Monitor application logs"
 echo ""
 echo "Production environment is live and ready."

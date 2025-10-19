@@ -45,12 +45,18 @@ class ExecuteQPlanJob implements ShouldQueue
                 'status' => 'done',
             ]);
 
-            Log::info("qRun {$this->runId}: done");
+            Log::info("ExecuteQPlanJob: qRun {$this->runId} completed");
             return;
         }
 
         $planId = $qPlan->plan;
-        Log::info("qPlan {$qPlan->id}: generation of plan {$planId} started");
+        Log::info("ExecuteQPlanJob: Processing qPlan {$qPlan->id}", [
+            'q_run' => $this->runId,
+            'plan_id' => $planId,
+            'c_teams' => $qPlan->c_teams,
+            'j_lanes' => $qPlan->j_lanes,
+            'r_tables' => $qPlan->r_tables,
+        ]);
 
         // Plan erzeugen über den Service
         $generator = new PlanGeneratorService();

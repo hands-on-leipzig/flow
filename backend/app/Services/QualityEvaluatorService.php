@@ -37,6 +37,14 @@ class QualityEvaluatorService
             throw new \Exception("Invalid JSON in q_run.selection (ID $runId): " . $e->getMessage());
         }
 
+        Log::info('QualityEvaluatorService::generateQPlansFromSelection', [
+            'q_run' => $runId,
+            'min_teams' => $selection['min_teams'] ?? 0,
+            'max_teams' => $selection['max_teams'] ?? 0,
+            'jury_lanes' => $selection['jury_lanes'] ?? [],
+            'tables' => $selection['tables'] ?? [],
+        ]);
+
         // Get all allowed parameters once to be used in the loop below
         $parameters = MParameter::all()->keyBy('name');
 
@@ -74,7 +82,7 @@ class QualityEvaluatorService
 
                 $planId = $newPlan->id;
 
-                Log::info("qRun $runId: Plan $planId {$newPlan->name} created");
+                // Log::info("qRun $runId: Plan $planId {$newPlan->name} created");
 
                 // Add the parameter values for this plan
                 PlanParamValue::create([
@@ -166,7 +174,7 @@ class QualityEvaluatorService
             $planCopy->event = $this->getOrCreateQualityEventId();
             $planCopy->save();
 
-            Log::info("qRun $newRunId: Plan {$planCopy->id} copied from {$originalPlan->id}");
+            // Log::info("qRun $newRunId: Plan {$planCopy->id} copied from {$originalPlan->id}");
 
             // QPlan-Datensatz kopieren und mit neuem Plan verknüpfen
             $copy = $original->replicate();
@@ -214,7 +222,7 @@ class QualityEvaluatorService
                 'name' => $RP_NAME,
                 'region' => 0,
             ]);
-            Log::info("Q-RP created with ID $regionalPartnerId");
+            // Log::info("Q-RP created with ID $regionalPartnerId");
         } else {
             $regionalPartnerId = $regionalPartner->id;
         }
@@ -235,7 +243,7 @@ class QualityEvaluatorService
                 'date' => Carbon::today(),
                 'days' => 1,
             ]);
-            Log::info("Q-Event created with ID $eventId");
+            // Log::info("Q-Event created with ID $eventId");
         } else {
             $eventId = $event->id;
         }
@@ -282,8 +290,7 @@ class QualityEvaluatorService
         $this->calculateQ4($qPlanId);
         $this->calculateQ5($qPlanId);
 
-        Log::info("qPlan {$qPlanId}: evaluation done");
-
+        // Log::info("qPlan {$qPlanId}: evaluation done");
     }
 
 
@@ -491,6 +498,7 @@ class QualityEvaluatorService
     private function calculateQ2(int $qPlanId): void
     {
         $tablesAvailable = $this->getParameterValueForPlan($qPlanId, 'r_tables');
+        $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
 
         // Get plan ID from q_plan
         $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
@@ -513,6 +521,12 @@ class QualityEvaluatorService
             }
         }
 
+        // Distribution counters
+        $distribution = [1 => 0, 2 => 0, 3 => 0];
+        $totalScore = 0;
+        $teamsProcessed = 0;
+        $targetTables = ($tablesAvailable === 2) ? 2 : 3; // Target: 2 for r_tables=2, 3 for r_tables=4
+
         foreach ($teamTables as $team => $tables) {
             $distinctTables = count(array_unique($tables));
 
@@ -529,18 +543,41 @@ class QualityEvaluatorService
                     'q2_ok' => $q2_ok,
                     'q2_tables' => $distinctTables,
                 ]);
+
+            // Update distribution
+            if ($distinctTables >= 1 && $distinctTables <= 3) {
+                $distribution[$distinctTables]++;
+            }
+
+            // Calculate score for this team (distinctTables / targetTables) * 100
+            $totalScore += ($distinctTables / $targetTables) * 100;
+            $teamsProcessed++;
         }
+
+        // Log::debug("Q2 calculation for qPlan {$qPlanId}", [
+        //     'c_teams' => $teamCount,
+        //     'teams_processed' => $teamsProcessed,
+        //     'distribution' => $distribution,
+        //     'total_score' => $totalScore,
+        // ]);
 
         // Count number of teams that passed Q2
         $ok_count = QPlanTeam::where('q_plan', $qPlanId)
             ->where('q2_ok', true)
             ->count();
 
+        // Calculate average score based on actual teams processed
+        $avgScore = $teamsProcessed > 0 ? $totalScore / $teamsProcessed : 0;
+
         DB::table('q_plan')
             ->where('id', $qPlanId)
-            ->update(['q2_ok_count' => $ok_count]);
-
-
+            ->update([
+                'q2_ok_count' => $ok_count,
+                'q2_1_count' => $distribution[1],
+                'q2_2_count' => $distribution[2],
+                'q2_3_count' => $distribution[3],
+                'q2_score_avg' => round($avgScore, 2),
+            ]);
     }
 
     /**
@@ -548,6 +585,8 @@ class QualityEvaluatorService
      */
     private function calculateQ3(int $qPlanId): void
     {
+        $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
+
         // Get plan ID from q_plan
         $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
 
@@ -562,11 +601,24 @@ class QualityEvaluatorService
             $t1 = $match->table_1_team;
             $t2 = $match->table_2_team;
 
-            $opponents[$t1][] = $t2;
-            $opponents[$t2][] = $t1;
+            // Include all teams, even team 0 (volunteer counts as a valid opponent)
+            if ($t1 !== null && $t2 !== null) {
+                $opponents[$t1][] = $t2;
+                $opponents[$t2][] = $t1;
+            }
         }
 
+        // Distribution counters
+        $distribution = [1 => 0, 2 => 0, 3 => 0];
+        $totalScore = 0;
+        $teamsProcessed = 0;
+
         foreach ($opponents as $team => $faced) {
+            // Skip team 0 (volunteer) in the distribution - it's not a real team being evaluated
+            if ($team === 0) {
+                continue;
+            }
+            
             $uniqueOpponents = count(array_unique($faced));
 
             QPlanTeam::where('q_plan', $qPlanId)
@@ -575,17 +627,41 @@ class QualityEvaluatorService
                     'q3_ok' => $uniqueOpponents === 3,
                     'q3_teams' => $uniqueOpponents,
                 ]);
+
+            // Update distribution
+            if ($uniqueOpponents >= 1 && $uniqueOpponents <= 3) {
+                $distribution[$uniqueOpponents]++;
+            }
+
+            // Calculate score for this team (uniqueOpponents / 3) * 100
+            $totalScore += ($uniqueOpponents / 3) * 100;
+            $teamsProcessed++;
         }
+
+        // Log::debug("Q3 calculation for qPlan {$qPlanId}", [
+        //     'c_teams' => $teamCount,
+        //     'teams_processed' => $teamsProcessed,
+        //     'distribution' => $distribution,
+        //     'total_score' => $totalScore,
+        // ]);
 
         // Count number of teams that passed Q3
         $ok_count = QPlanTeam::where('q_plan', $qPlanId)
             ->where('q3_ok', true)
             ->count();
 
+        // Calculate average score based on actual teams processed
+        $avgScore = $teamsProcessed > 0 ? $totalScore / $teamsProcessed : 0;
+
         DB::table('q_plan')
             ->where('id', $qPlanId)
-            ->update(['q3_ok_count' => $ok_count]);
-
+            ->update([
+                'q3_ok_count' => $ok_count,
+                'q3_1_count' => $distribution[1],
+                'q3_2_count' => $distribution[2],
+                'q3_3_count' => $distribution[3],
+                'q3_score_avg' => round($avgScore, 2),
+            ]);
     }
 
     /**

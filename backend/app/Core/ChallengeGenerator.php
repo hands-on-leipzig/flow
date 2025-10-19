@@ -59,51 +59,71 @@ class ChallengeGenerator
 
     public function judgingOneRound(int $cBlock, int $jT): void
     {
-        $this->writer->withGroup('j_package', function () use ($cBlock, $jT) {
+        // Capture jTime reference before entering closure
+        $jTime = $this->jTime;
+        
+        $this->writer->withGroup('j_package', function () use ($cBlock, $jT, $jTime) {
 
-            // 1) Judging WITH team
+            $activities = [];
+
+            // 1) Judging WITH team - prepare all activities
+            $withTeamStart = $jTime->current()->format('Y-m-d H:i:s');
+            $withTeamEndCursor = $jTime->copy();
+            $withTeamEndCursor->addMinutes($this->pp('j_duration_with_team'));
+            $withTeamEnd = $withTeamEndCursor->current()->format('Y-m-d H:i:s');
+            
             for ($jL = 1; $jL <= $this->pp('j_lanes'); $jL++) {
                 if ($jT + $jL <= $this->pp('c_teams')) {
-                    $this->writer->insertActivity(
-                        'j_with_team',
-                        $this->jTime,
-                        $this->pp('j_duration_with_team'),
-                        $jL,
-                        $jT + $jL
-                    );
+                    $activities[] = [
+                        'activityTypeCode' => 'j_with_team',
+                        'start' => $withTeamStart,
+                        'end' => $withTeamEnd,
+                        'juryLane' => $jL,
+                        'juryTeam' => $jT + $jL,
+                    ];
                 }
             }
-            $this->jTime->addMinutes($this->pp('j_duration_with_team'));
+            $jTime->addMinutes($this->pp('j_duration_with_team'));
 
-            // 2) Scoring WITHOUT team
+            // 2) Scoring WITHOUT team - prepare all activities
+            $scoringStart = $jTime->current()->format('Y-m-d H:i:s');
+            $scoringEndCursor = $jTime->copy();
+            $scoringEndCursor->addMinutes($this->pp('j_duration_scoring'));
+            $scoringEnd = $scoringEndCursor->current()->format('Y-m-d H:i:s');
+            
             for ($jL = 1; $jL <= $this->pp('j_lanes'); $jL++) {
                 if ($jT + $jL <= $this->pp('c_teams')) {
-                    $this->writer->insertActivity(
-                        'j_scoring',
-                        $this->jTime,
-                        $this->pp('j_duration_scoring'),
-                        $jL,
-                        $jT + $jL
-                    );
+                    $activities[] = [
+                        'activityTypeCode' => 'j_scoring',
+                        'start' => $scoringStart,
+                        'end' => $scoringEnd,
+                        'juryLane' => $jL,
+                        'juryTeam' => $jT + $jL,
+                    ];
                 }
             }
-            $this->jTime->addMinutes($this->pp('j_duration_scoring'));
+            $jTime->addMinutes($this->pp('j_duration_scoring'));
+
+            // Bulk insert all judging activities for this round
+            if (!empty($activities)) {
+                $this->writer->insertActivitiesBulk($activities);
+            }
 
             // 3) Pause / Lunch nach Runde
             if (($this->pp('j_rounds') == 4 && $cBlock == 2) ||
                 ($this->pp('j_rounds') > 4 && $cBlock == 3)) {
                 if ($this->pp('c_duration_lunch_break') == 0) {
-                    $this->jTime->addMinutes($this->pp('j_duration_lunch'));
+                    $jTime->addMinutes($this->pp('j_duration_lunch'));
                 }
             } elseif ($cBlock < $this->pp('j_rounds')) {
-                $this->jTime->addMinutes($this->pp('j_duration_break'));
+                $jTime->addMinutes($this->pp('j_duration_break'));
             }
         });
     }
 
     public function openingsAndBriefings(bool $explore = false): void
     {
-        Log::info('ChallengeGenerator: Starting openings and briefings', ['explore' => $explore]);
+        // Log::info('ChallengeGenerator: Starting openings and briefings', ['explore' => $explore]);
 
         try {
             
@@ -120,7 +140,7 @@ class ChallengeGenerator
                 $this->jTime->addMinutes($this->pp('g_duration_opening'));
                 $this->rTime->addMinutes($this->pp('g_duration_opening'));
 
-                Log::info('Explore integrated morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
+                // Log::info('Explore integrated morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
 
             } else {
 
@@ -135,7 +155,7 @@ class ChallengeGenerator
                 $this->jTime->addMinutes($this->pp('c_duration_opening'));
                 $this->rTime->addMinutes($this->pp('c_duration_opening'));
 
-                Log::debug('Explore no integrated morning batch');
+                // Log::debug('Explore no integrated morning batch');
             }
 
             $this->briefings($this->cTime->current());
@@ -196,7 +216,14 @@ class ChallengeGenerator
 
     public function main(bool $explore = false)
     {
-        Log::info('ChallengeGenerator: Starting main challenge generation', ['explore' => $explore]);
+        Log::info('ChallengeGenerator::main', [
+            'plan_id' => $this->pp('g_plan'),
+            'c_teams' => $this->pp('c_teams'),
+            'j_lanes' => $this->pp('j_lanes'),
+            'j_rounds' => $this->pp('j_rounds'),
+            'r_tables' => $this->pp('r_tables'),
+            'explore' => $explore,
+        ]);
 
         try {
             // Instantiate match plan for Challenge domain (needs rTime to be initialized)
@@ -207,6 +234,9 @@ class ChallengeGenerator
                 $this->integratedExplore
             );
             $this->matchPlan->createMatchPlan();
+            
+            // Apply match rotation to improve Q2 (table diversity) and Q3 (opponent diversity)
+            $this->matchPlan->applyMatchRotation();
 
             // -----------------------------------------------------------------------------------
             // FLL Challenge: Put the judging / robot game schedule together
@@ -246,7 +276,7 @@ class ChallengeGenerator
 
                 // Delay judging if needed
                 if ($this->jTime->current() < $jTimeEarliest->current()) {
-                    Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
+                    // Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
                     $this->jTime->set($jTimeEarliest->current());
                 }
 
@@ -291,7 +321,7 @@ class ChallengeGenerator
                 // If rTime <= rStartTarget then rTime = rStartTarget
                 if ($this->rTime->current() <= $rStartTarget->current()) {
                     $this->rTime->set($rStartTarget->current());
-                    Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
+                    // Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
                 }
 
                 // -----------------------------------------------------------------------------------
@@ -323,7 +353,7 @@ class ChallengeGenerator
                 $jTimeEarliest = clone $this->rTime;
                 $jTimeEarliest->addMinutes($rA4J);
 
-                Log::debug("jTimeEarliest: {$jTimeEarliest->format('H:i')}");
+                // Log::debug("jTimeEarliest: {$jTimeEarliest->format('H:i')}");
 
                 // -----------------------------------------------------------------------------------
                 // Now we are ready to create activities for robot game and then judging
@@ -431,7 +461,10 @@ class ChallengeGenerator
 
     public function robotGameFinals(): void
     {
-        Log::info('ChallengeGenerator: Starting robot game finals');
+        Log::info('ChallengeGenerator::robotGameFinals', [
+            'plan_id' => $this->pp('g_plan'),
+            'c_teams' => $this->pp('c_teams'),
+        ]);
         
         try {
             // -----------------------------------------------------------------------------------
@@ -537,12 +570,12 @@ class ChallengeGenerator
 
     public function awards( bool $explore = false): void
     {
-        Log::info('ChallengeGenerator: Starting awards', ['explore' => $explore]);
+        // Log::info('ChallengeGenerator: Starting awards', ['explore' => $explore]);
 
         try {
             if ($explore) {
 
-            Log::debug('Awards joint');
+            // Log::debug('Awards joint');
 
             $this->writer->withGroup('g_awards', function () {
                 $this->writer->insertActivity('g_awards', $this->cTime, $this->pp('g_duration_awards'));
@@ -551,7 +584,7 @@ class ChallengeGenerator
 
         } else {
 
-            Log::debug('Awards Challenge only');
+            // Log::debug('Awards Challenge only');
 
             $this->writer->withGroup('c_awards', function () {
                 $this->writer->insertActivity('c_awards', $this->cTime, $this->pp('c_duration_awards'));
