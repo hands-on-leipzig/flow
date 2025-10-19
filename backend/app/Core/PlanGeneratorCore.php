@@ -147,7 +147,14 @@ class PlanGeneratorCore
             }
 
         } else {
-            // No Challenge - Explore only
+            // No Challenge - check if Explore is enabled
+            if ($eMode == ExploreMode::NONE->value) {
+                // Both programs disabled - nothing to generate
+                Log::warning("PlanGeneratorCore: Both programs disabled (e_mode=0, c_mode=0) - generating empty plan");
+                return;
+            }
+            
+            // Explore only
             $this->explore = new ExploreGenerator(
                 $this->writer,
                 $this->params,
