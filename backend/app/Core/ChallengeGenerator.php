@@ -155,7 +155,7 @@ class ChallengeGenerator
                 $this->jTime->addMinutes($this->pp('c_duration_opening'));
                 $this->rTime->addMinutes($this->pp('c_duration_opening'));
 
-                Log::debug('Explore no integrated morning batch');
+                // Log::debug('Explore no integrated morning batch');
             }
 
             $this->briefings($this->cTime->current());
@@ -269,7 +269,7 @@ class ChallengeGenerator
 
                 // Delay judging if needed
                 if ($this->jTime->current() < $jTimeEarliest->current()) {
-                    Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
+                    // Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
                     $this->jTime->set($jTimeEarliest->current());
                 }
 
@@ -314,7 +314,7 @@ class ChallengeGenerator
                 // If rTime <= rStartTarget then rTime = rStartTarget
                 if ($this->rTime->current() <= $rStartTarget->current()) {
                     $this->rTime->set($rStartTarget->current());
-                    Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
+                    // Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
                 }
 
                 // -----------------------------------------------------------------------------------
@@ -346,7 +346,7 @@ class ChallengeGenerator
                 $jTimeEarliest = clone $this->rTime;
                 $jTimeEarliest->addMinutes($rA4J);
 
-                Log::debug("jTimeEarliest: {$jTimeEarliest->format('H:i')}");
+                // Log::debug("jTimeEarliest: {$jTimeEarliest->format('H:i')}");
 
                 // -----------------------------------------------------------------------------------
                 // Now we are ready to create activities for robot game and then judging
@@ -565,7 +565,7 @@ class ChallengeGenerator
         try {
             if ($explore) {
 
-            Log::debug('Awards joint');
+            // Log::debug('Awards joint');
 
             $this->writer->withGroup('g_awards', function () {
                 $this->writer->insertActivity('g_awards', $this->cTime, $this->pp('g_duration_awards'));
@@ -574,7 +574,7 @@ class ChallengeGenerator
 
         } else {
 
-            Log::debug('Awards Challenge only');
+            // Log::debug('Awards Challenge only');
 
             $this->writer->withGroup('c_awards', function () {
                 $this->writer->insertActivity('c_awards', $this->cTime, $this->pp('c_duration_awards'));

@@ -216,25 +216,25 @@ class RobotGameGenerator
         $round2Seq = $this->extractRoundSequence(2);
         $round3Seq = $this->extractRoundSequence(3);
 
-        Log::info("RobotGameGenerator: Match rotation starting", [
-            'plan_id' => $planId,
-            'c_teams' => $this->pp('c_teams'),
-            'r_tables' => $this->pp('r_tables'),
-            'j_lanes' => $this->pp('j_lanes'),
-            'round1_seq' => $round1Seq,
-            'round2_seq_before' => $round2Seq,
-            'round3_seq_before' => $round3Seq,
-        ]);
+        // Log::info("RobotGameGenerator: Match rotation starting", [
+        //     'plan_id' => $planId,
+        //     'c_teams' => $this->pp('c_teams'),
+        //     'r_tables' => $this->pp('r_tables'),
+        //     'j_lanes' => $this->pp('j_lanes'),
+        //     'round1_seq' => $round1Seq,
+        //     'round2_seq_before' => $round2Seq,
+        //     'round3_seq_before' => $round3Seq,
+        // ]);
 
         // Split rounds 2 and 3 into blocks (First, Middle, Last)
         $round2Blocks = $this->splitIntoBlocks($round2Seq);
         $round3Blocks = $this->splitIntoBlocks($round3Seq);
 
-        Log::info("RobotGameGenerator: Blocks split", [
-            'plan_id' => $planId,
-            'round2_blocks' => $round2Blocks,
-            'round3_blocks' => $round3Blocks,
-        ]);
+        // Log::info("RobotGameGenerator: Blocks split", [
+        //     'plan_id' => $planId,
+        //     'round2_blocks' => $round2Blocks,
+        //     'round3_blocks' => $round3Blocks,
+        // ]);
 
         // Apply rotation algorithm
         $rotationService = new MatchRotationService();
@@ -245,13 +245,13 @@ class RobotGameGenerator
             $round3Blocks
         );
 
-        Log::info("RobotGameGenerator: Rotation completed", [
-            'plan_id' => $planId,
-            'round2_seq_after' => $optimized['round2']['seq'],
-            'round3_seq_after' => $optimized['round3']['seq'],
-            'round2_pairs' => $optimized['round2']['pairs'],
-            'round3_pairs' => $optimized['round3']['pairs'],
-        ]);
+        // Log::info("RobotGameGenerator: Rotation completed", [
+        //     'plan_id' => $planId,
+        //     'round2_seq_after' => $optimized['round2']['seq'],
+        //     'round3_seq_after' => $optimized['round3']['seq'],
+        //     'round2_pairs' => $optimized['round2']['pairs'],
+        //     'round3_pairs' => $optimized['round3']['pairs'],
+        // ]);
 
         // Update entries for rounds 2 and 3 with optimized sequences
         $this->applyOptimizedSequence(2, $optimized['round2']);
@@ -260,9 +260,9 @@ class RobotGameGenerator
         // Save the updated entries to database
         $this->saveMatchEntries();
 
-        Log::info("RobotGameGenerator: Match rotation applied and saved for rounds 2 and 3", [
-            'plan_id' => $planId,
-        ]);
+        // Log::info("RobotGameGenerator: Match rotation applied and saved for rounds 2 and 3", [
+        //     'plan_id' => $planId,
+        // ]);
     }
 
     /**
@@ -542,15 +542,15 @@ class RobotGameGenerator
                     $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
                     // Integrated Explore mode: coordinate with ExploreGenerator
                     // Write start time for ExploreGenerator to pick up
-                    Log::debug("RobotGameGenerator: Inserting start time for ExploreGenerator: {$this->rTime->format('H:i')}");
+                    // Log::debug("RobotGameGenerator: Inserting start time for ExploreGenerator: {$this->rTime->format('H:i')}");
                     $this->integratedExplore->startTime = $this->rTime->format('H:i');
                     
                     // Advance rTime by the duration that Explore will use
                     // (Duration was calculated by ExploreGenerator constructor)
-                    Log::debug("RobotGameGenerator: Advancing rTime by {$this->integratedExplore->duration} minutes");
+                    // Log::debug("RobotGameGenerator: Advancing rTime by {$this->integratedExplore->duration} minutes");
                     $this->rTime->addMinutes($this->integratedExplore->duration);
                     
-                    Log::debug("RobotGameGenerator: rTime after advance: {$this->rTime->format('H:i')}");
+                    // Log::debug("RobotGameGenerator: rTime after advance: {$this->rTime->format('H:i')}");
                     
                 } else {
                     if ($this->pp('c_duration_lunch_break') === 0) {

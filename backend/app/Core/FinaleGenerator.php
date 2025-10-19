@@ -40,9 +40,9 @@ class FinaleGenerator
             $this->cDay = 1;
         }
 
-        Log::debug('FinaleGenerator constructed', [
-            'plan_id' => $planId,
-        ]);
+        // Log::debug('FinaleGenerator constructed', [
+        //     'plan_id' => $planId,
+        // ]);
     }
 
     public function lcTime(): TimeCursor

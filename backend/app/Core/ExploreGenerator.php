@@ -295,7 +295,7 @@ class ExploreGenerator
     {
         // Check if start time was written by ChallengeGenerator
         if ($this->integratedExplore->startTime === null) {
-            Log::debug("No integratedExploreStart set, skipping integrated activity");
+            // Log::debug("No integratedExploreStart set, skipping integrated activity");
             return;
         }
 

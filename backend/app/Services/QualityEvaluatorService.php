@@ -547,12 +547,12 @@ class QualityEvaluatorService
             $teamsProcessed++;
         }
 
-        Log::debug("Q2 calculation for qPlan {$qPlanId}", [
-            'c_teams' => $teamCount,
-            'teams_processed' => $teamsProcessed,
-            'distribution' => $distribution,
-            'total_score' => $totalScore,
-        ]);
+        // Log::debug("Q2 calculation for qPlan {$qPlanId}", [
+        //     'c_teams' => $teamCount,
+        //     'teams_processed' => $teamsProcessed,
+        //     'distribution' => $distribution,
+        //     'total_score' => $totalScore,
+        // ]);
 
         // Count number of teams that passed Q2
         $ok_count = QPlanTeam::where('q_plan', $qPlanId)
@@ -631,12 +631,12 @@ class QualityEvaluatorService
             $teamsProcessed++;
         }
 
-        Log::debug("Q3 calculation for qPlan {$qPlanId}", [
-            'c_teams' => $teamCount,
-            'teams_processed' => $teamsProcessed,
-            'distribution' => $distribution,
-            'total_score' => $totalScore,
-        ]);
+        // Log::debug("Q3 calculation for qPlan {$qPlanId}", [
+        //     'c_teams' => $teamCount,
+        //     'teams_processed' => $teamsProcessed,
+        //     'distribution' => $distribution,
+        //     'total_score' => $totalScore,
+        // ]);
 
         // Count number of teams that passed Q3
         $ok_count = QPlanTeam::where('q_plan', $qPlanId)
