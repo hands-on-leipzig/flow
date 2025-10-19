@@ -517,7 +517,7 @@ class PlanExportController extends Controller
             $teamHot = $info['hot'];
             $teamId = $info['id'];
             
-            // Build label: "TeamName (HotNumber) - Teamraum RoomName"
+            // Build label: "TeamName (HotNumber) – Teambereich RoomName"
             $label = '';
             
             // Team name part
@@ -526,7 +526,7 @@ class PlanExportController extends Controller
             } elseif ($teamName) {
                 $label = $teamName;
             } else {
-                $label = "!Platzhalter, weil nicht genügend Teams angemeldet sind!";
+                $label = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $teamNum);
             }
             
             // Room part
@@ -731,6 +731,7 @@ class PlanExportController extends Controller
                 $clone->table_id   = $a->table_1;
                 $clone->team_id    = $a->table_1_team;
                 $clone->team_name  = $a->table_1_team_name;
+                $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
                 $clone->assign     = 'Tisch ' . $a->table_1;
                 $expanded->push($clone);
             }
@@ -739,6 +740,7 @@ class PlanExportController extends Controller
                 $clone->table_id   = $a->table_2;
                 $clone->team_id    = $a->table_2_team;
                 $clone->team_name  = $a->table_2_team_name;
+                $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
                 $clone->assign     = 'Tisch ' . $a->table_2;
                 $expanded->push($clone);
             }
@@ -753,11 +755,23 @@ class PlanExportController extends Controller
 
         // Schritt 3: Map-Funktion für Rows
         $mapRow = function ($a) {
+            // Build team label: "TeamName (HotNumber)" or placeholder
+            $teamLabel = '–';
+            if ($a->team_id) {
+                if ($a->team_name && $a->team_number_hot) {
+                    $teamLabel = $a->team_name . ' (' . $a->team_number_hot . ')';
+                } elseif ($a->team_name) {
+                    $teamLabel = $a->team_name;
+                } else {
+                    $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team_id);
+                }
+            }
+
             return [
                 'start_hm'  => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'    => Carbon::parse($a->end_time)->format('H:i'),
                 'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
-                'teamLabel' => 'Team ' . $a->team_id . ($a->team_name ? ' – ' . $a->team_name : ''),
+                'teamLabel' => $teamLabel,
                 'assign'    => $a->assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
             ];
@@ -798,18 +812,29 @@ class PlanExportController extends Controller
         // Map-Funktion für Rows
         $mapRow = function ($a) {
             // Teamlabel bestimmen (falls es über Jury/Tables erkennbar ist)
-            $teamLabel = null;
-            if (!empty($a->team)) {
-                $teamLabel = 'Team ' . $a->team;
-            }
+            $teamLabel = '–';
+            
+            // Check jury team first
             if (!empty($a->jury_team_name)) {
-                $teamLabel = 'Team ' . $a->team . ' – ' . $a->jury_team_name;
-            }
-            if (!empty($a->table_1_team_name)) {
-                $teamLabel = 'Team ' . $a->table_1_team . ' – ' . $a->table_1_team_name;
-            }
-            if (!empty($a->table_2_team_name)) {
-                $teamLabel = 'Team ' . $a->table_2_team . ' – ' . $a->table_2_team_name;
+                if ($a->jury_team_number_hot) {
+                    $teamLabel = $a->jury_team_name . ' (' . $a->jury_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->jury_team_name;
+                }
+            } elseif (!empty($a->table_1_team_name)) {
+                if ($a->table_1_team_number_hot) {
+                    $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_1_team_name;
+                }
+            } elseif (!empty($a->table_2_team_name)) {
+                if ($a->table_2_team_number_hot) {
+                    $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_2_team_name;
+                }
+            } elseif (!empty($a->team)) {
+                $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
             }
 
             // Assignment (Jury/Tisch/-)
@@ -863,18 +888,29 @@ class PlanExportController extends Controller
         // Map function for rows
         $mapRow = function ($a) {
             // Teamlabel bestimmen
-            $teamLabel = null;
-            if (!empty($a->team)) {
-                $teamLabel = 'Team ' . $a->team;
-            }
+            $teamLabel = '–';
+            
+            // Check jury team first
             if (!empty($a->jury_team_name)) {
-                $teamLabel = 'Team ' . $a->team . ' – ' . $a->jury_team_name;
-            }
-            if (!empty($a->table_1_team_name)) {
-                $teamLabel = 'Team ' . $a->table_1_team . ' – ' . $a->table_1_team_name;
-            }
-            if (!empty($a->table_2_team_name)) {
-                $teamLabel = 'Team ' . $a->table_2_team . ' – ' . $a->table_2_team_name;
+                if ($a->jury_team_number_hot) {
+                    $teamLabel = $a->jury_team_name . ' (' . $a->jury_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->jury_team_name;
+                }
+            } elseif (!empty($a->table_1_team_name)) {
+                if ($a->table_1_team_number_hot) {
+                    $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_1_team_name;
+                }
+            } elseif (!empty($a->table_2_team_name)) {
+                if ($a->table_2_team_number_hot) {
+                    $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_2_team_name;
+                }
+            } elseif (!empty($a->team)) {
+                $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
             }
 
             // Assignment (Jury/Tisch/-)
