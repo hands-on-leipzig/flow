@@ -5,8 +5,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Log;
-
 /**
  * Deterministic rotation planner for rounds 2 and 3.
  *
@@ -111,60 +109,28 @@ class MatchRotationService
      */
     private function rotateOneRound(array $blocks): array
     {
-        $originalSeq = array_merge($blocks['first'], $blocks['middle'], $blocks['last']);
-        
         // 1) Anti-rematch ordering inside each block (deterministic greedy)
         $first  = $this->orderBlockAntiRematch($blocks['first']);
         $middle = $this->orderBlockAntiRematch($blocks['middle']);
         $last   = $this->orderBlockAntiRematch($blocks['last']);
 
-        Log::debug("MatchRotationService: After anti-rematch ordering", [
-            'first_before' => $blocks['first'],
-            'first_after' => $first,
-            'middle_before' => $blocks['middle'],
-            'middle_after' => $middle,
-            'last_before' => $blocks['last'],
-            'last_after' => $last,
-        ]);
-
         // 2) Handle odd-length boundaries by choosing boundary pair to avoid rematch
         // First ↔ Middle
         if ((count($first) % 2) === 1) {
             $this->fixBoundaryPair($first, $middle);
-            Log::debug("MatchRotationService: Fixed First↔Middle boundary", [
-                'first' => $first,
-                'middle' => $middle,
-            ]);
         }
         // Middle ↔ Last
         if ((count($middle) % 2) === 1) {
             $this->fixBoundaryPair($middle, $last);
-            Log::debug("MatchRotationService: Fixed Middle↔Last boundary", [
-                'middle' => $middle,
-                'last' => $last,
-            ]);
         }
 
         $seq = array_merge($first, $middle, $last);
 
         // 3) Table diversity improvement via local swaps within blocks (keep rematch-free)
-        $seqBeforeSwaps = $seq;
         $seq = $this->improveTablesByLocalSwaps($seq, [
             'firstLen'  => count($first),
             'middleLen' => count($middle),
             'lastLen'   => count($last),
-        ]);
-
-        Log::debug("MatchRotationService: After table swaps", [
-            'seq_before_swaps' => $seqBeforeSwaps,
-            'seq_after_swaps' => $seq,
-        ]);
-
-        $rematchCount = $this->countTotalRematches($seq);
-        Log::info("MatchRotationService: Round complete", [
-            'original_seq' => $originalSeq,
-            'final_seq' => $seq,
-            'rematch_count' => $rematchCount,
         ]);
 
         return $seq;
@@ -186,10 +152,6 @@ class MatchRotationService
         if ($n >= 4 && $n <= 8) {
             $bestOrdering = $this->findBestPairingForSmallBlock($candidates);
             if ($bestOrdering !== null) {
-                Log::debug("MatchRotationService: Using optimal pairing for small block", [
-                    'block_size' => $n,
-                    'ordering' => $bestOrdering,
-                ]);
                 return $bestOrdering;
             }
         }
