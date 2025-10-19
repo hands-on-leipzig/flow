@@ -123,7 +123,7 @@ class ChallengeGenerator
 
     public function openingsAndBriefings(bool $explore = false): void
     {
-        Log::info('ChallengeGenerator: Starting openings and briefings', ['explore' => $explore]);
+        // Log::info('ChallengeGenerator: Starting openings and briefings', ['explore' => $explore]);
 
         try {
             
@@ -140,7 +140,7 @@ class ChallengeGenerator
                 $this->jTime->addMinutes($this->pp('g_duration_opening'));
                 $this->rTime->addMinutes($this->pp('g_duration_opening'));
 
-                Log::info('Explore integrated morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
+                // Log::info('Explore integrated morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
 
             } else {
 
@@ -216,7 +216,14 @@ class ChallengeGenerator
 
     public function main(bool $explore = false)
     {
-        Log::info('ChallengeGenerator: Starting main challenge generation', ['explore' => $explore]);
+        Log::info('ChallengeGenerator::main', [
+            'plan_id' => $this->pp('g_plan'),
+            'c_teams' => $this->pp('c_teams'),
+            'j_lanes' => $this->pp('j_lanes'),
+            'j_rounds' => $this->pp('j_rounds'),
+            'r_tables' => $this->pp('r_tables'),
+            'explore' => $explore,
+        ]);
 
         try {
             // Instantiate match plan for Challenge domain (needs rTime to be initialized)
@@ -454,7 +461,10 @@ class ChallengeGenerator
 
     public function robotGameFinals(): void
     {
-        Log::info('ChallengeGenerator: Starting robot game finals');
+        Log::info('ChallengeGenerator::robotGameFinals', [
+            'plan_id' => $this->pp('g_plan'),
+            'c_teams' => $this->pp('c_teams'),
+        ]);
         
         try {
             // -----------------------------------------------------------------------------------
@@ -560,7 +570,7 @@ class ChallengeGenerator
 
     public function awards( bool $explore = false): void
     {
-        Log::info('ChallengeGenerator: Starting awards', ['explore' => $explore]);
+        // Log::info('ChallengeGenerator: Starting awards', ['explore' => $explore]);
 
         try {
             if ($explore) {
