@@ -39,7 +39,10 @@ class QualityController extends Controller
 
         \App\Jobs\GenerateQPlansFromSelectionJob::dispatch($qRunId);
 
-        Log::info("qRun $qRunId: generation of qPlans from selection dispatched");
+        Log::info("QualityController::startQRun", [
+            'q_run' => $qRunId,
+            'name' => $payload['name'],
+        ]);
 
         return response()->json([
             'status' => 'queued',
@@ -81,7 +84,11 @@ class QualityController extends Controller
 
         \App\Jobs\GenerateQPlansFromQPlansJob::dispatch($newRunId, $planIds);
 
-        Log::info("qRun $newRunId: copying of qPlans dispatched");
+        Log::info("QualityController::rerunQPlans", [
+            'new_q_run' => $newRunId,
+            'original_q_run' => $originalRunId,
+            'plan_count' => count($planIds),
+        ]);
 
         return response()->json([
             'status' => 'queued',
@@ -197,10 +204,12 @@ class QualityController extends Controller
                 // Also delete the plan records (they're not CASCADE deleted)
                 if (!empty($planIds)) {
                     DB::table('plan')->whereIn('id', $planIds)->delete();
-                    Log::info("qRun $qRunId: Plans deleted " . implode(',', $planIds));
                 }
                 
-                Log::info("qRun $qRunId: deleted with CASCADE");
+                Log::info("QualityController::deleteQRun", [
+                    'q_run' => $qRunId,
+                    'plans_deleted' => count($planIds),
+                ]);
                 return response()->json(['status' => 'deleted']);
             } else {
                 Log::warning("qRun $qRunId: not found");
@@ -226,7 +235,6 @@ class QualityController extends Controller
             // 2. Pläne löschen
             if ($planIds->isNotEmpty()) {
                 DB::table('plan')->whereIn('id', $planIds)->delete();
-                Log::info("qRun $qRunId: plans deleted " . implode(',', $planIds->toArray()));
             }
 
             // 3. q_plan.plan auf NULL setzen
@@ -239,7 +247,10 @@ class QualityController extends Controller
                 ->where('id', $qRunId)
                 ->update(['status' => 'compressed']);
 
-            Log::info("qRun $qRunId: compressed.");
+            Log::info("QualityController::compressQRun", [
+                'q_run' => $qRunId,
+                'plans_deleted' => $planIds->count(),
+            ]);
 
             return response()->json(['status' => 'compressed']);
         } catch (\Exception $e) {

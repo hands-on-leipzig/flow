@@ -37,6 +37,14 @@ class QualityEvaluatorService
             throw new \Exception("Invalid JSON in q_run.selection (ID $runId): " . $e->getMessage());
         }
 
+        Log::info('QualityEvaluatorService::generateQPlansFromSelection', [
+            'q_run' => $runId,
+            'min_teams' => $selection['min_teams'] ?? 0,
+            'max_teams' => $selection['max_teams'] ?? 0,
+            'jury_lanes' => $selection['jury_lanes'] ?? [],
+            'tables' => $selection['tables'] ?? [],
+        ]);
+
         // Get all allowed parameters once to be used in the loop below
         $parameters = MParameter::all()->keyBy('name');
 
@@ -74,7 +82,7 @@ class QualityEvaluatorService
 
                 $planId = $newPlan->id;
 
-                Log::info("qRun $runId: Plan $planId {$newPlan->name} created");
+                // Log::info("qRun $runId: Plan $planId {$newPlan->name} created");
 
                 // Add the parameter values for this plan
                 PlanParamValue::create([
@@ -166,7 +174,7 @@ class QualityEvaluatorService
             $planCopy->event = $this->getOrCreateQualityEventId();
             $planCopy->save();
 
-            Log::info("qRun $newRunId: Plan {$planCopy->id} copied from {$originalPlan->id}");
+            // Log::info("qRun $newRunId: Plan {$planCopy->id} copied from {$originalPlan->id}");
 
             // QPlan-Datensatz kopieren und mit neuem Plan verknüpfen
             $copy = $original->replicate();
@@ -214,7 +222,7 @@ class QualityEvaluatorService
                 'name' => $RP_NAME,
                 'region' => 0,
             ]);
-            Log::info("Q-RP created with ID $regionalPartnerId");
+            // Log::info("Q-RP created with ID $regionalPartnerId");
         } else {
             $regionalPartnerId = $regionalPartner->id;
         }
@@ -235,7 +243,7 @@ class QualityEvaluatorService
                 'date' => Carbon::today(),
                 'days' => 1,
             ]);
-            Log::info("Q-Event created with ID $eventId");
+            // Log::info("Q-Event created with ID $eventId");
         } else {
             $eventId = $event->id;
         }
@@ -282,8 +290,7 @@ class QualityEvaluatorService
         $this->calculateQ4($qPlanId);
         $this->calculateQ5($qPlanId);
 
-        Log::info("qPlan {$qPlanId}: evaluation done");
-
+        // Log::info("qPlan {$qPlanId}: evaluation done");
     }
 
 
