@@ -164,6 +164,8 @@ class ActivityFetcherService
             a.table_1_team as table_1_team,
             a.table_2 as table_2,
             a.table_2_team as table_2_team,
+            a.extra_block as extra_block_id,
+            peb.insert_point as extra_block_insert_point,
             CASE a.table_1
                 WHEN 1 THEN COALESCE(te1.table_name, "Tisch 1")
                 WHEN 3 THEN COALESCE(te3.table_name, "Tisch 3")
@@ -183,7 +185,8 @@ class ActivityFetcherService
                 rt_room.name as room_type_name,
                 rt_room.sequence as room_type_sequence,
                 r.id as room_id,
-                r.name as room_name
+                r.name as room_name,
+                r.navigation_instruction as room_navigation
             ';
         }
 
@@ -221,10 +224,13 @@ class ActivityFetcherService
 
         if ($includeTeamNames) {
             $select .= ',
+                t_j.id    as jury_team_id,
                 t_j.name  as jury_team_name,
                 t_j.team_number_hot  as jury_team_number_hot,
+                t_t1.id   as table_1_team_id,
                 t_t1.name as table_1_team_name,
                 t_t1.team_number_hot as table_1_team_number_hot,
+                t_t2.id   as table_2_team_id,
                 t_t2.name as table_2_team_name,
                 t_t2.team_number_hot as table_2_team_number_hot
             ';

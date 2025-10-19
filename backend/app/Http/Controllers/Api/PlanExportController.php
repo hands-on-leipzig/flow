@@ -288,9 +288,10 @@ class PlanExportController extends Controller
             ->get();
 
         $programGroups = [];
+        $allFreeBlocks = collect();
 
+        // First pass: collect all free blocks from all roles
         foreach ($roles as $role) {
-
             $activities = $this->activityFetcher->fetchActivities(
                 plan: $planId,
                 roles: [$role->id],
@@ -305,28 +306,82 @@ class PlanExportController extends Controller
                 continue;
             }
 
-            switch ($role->differentiation_parameter) {
-                case 'team':
-                    $this->buildTeamBlock($programGroups, $activities, $role);
-                    break;
+            $activitiesCollection = collect($activities);
+            $freeBlocks = $activitiesCollection->filter(function($a) {
+                return !is_null($a->extra_block_id) && is_null($a->extra_block_insert_point);
+            });
 
-                case 'lane':
-                    $this->buildLaneBlock($programGroups, $activities, $role);
-                    break;
+            $allFreeBlocks = $allFreeBlocks->concat($freeBlocks);
+        }
 
-                case 'table':
-                    $this->buildTableBlock($programGroups, $activities, $role);
-                    break;
+        // Deduplicate free blocks by activity_id (same block appears in multiple roles)
+        $allFreeBlocks = $allFreeBlocks->unique('activity_id');
 
-                default:
-                    $this->buildSimpleBlock($programGroups, $activities, $role);
-                    break;
+        // Build one flat table for all free blocks
+        if ($allFreeBlocks->isNotEmpty()) {
+            $this->buildFreeBlocksTable($programGroups, $allFreeBlocks);
+        }
+
+        // Second pass: process regular activities by role
+        foreach ($roles as $role) {
+            $activities = $this->activityFetcher->fetchActivities(
+                plan: $planId,
+                roles: [$role->id],
+                includeRooms: true,
+                includeGroupMeta: false,
+                includeActivityMeta: true,
+                includeTeamNames: true,
+                freeBlocks: true
+            );
+
+            if ($activities->isEmpty()) {
+                continue;
+            }
+
+            // Filter to only regular activities (not free blocks)
+            $activitiesCollection = collect($activities);
+            $regularActivities = $activitiesCollection->filter(function($a) {
+                return is_null($a->extra_block_id) || !is_null($a->extra_block_insert_point);
+            });
+
+            // Process regular activities under their program name
+            if ($regularActivities->isNotEmpty()) {
+                switch ($role->differentiation_parameter) {
+                    case 'team':
+                        $this->buildTeamBlock($programGroups, $regularActivities, $role, null, $planId);
+                        break;
+
+                    case 'lane':
+                        $this->buildLaneBlock($programGroups, $regularActivities, $role, null, $planId);
+                        break;
+
+                    case 'table':
+                        $this->buildTableBlock($programGroups, $regularActivities, $role);
+                        break;
+
+                    default:
+                        $this->buildSimpleBlock($programGroups, $regularActivities, $role);
+                        break;
+                }
             }
         }
 
         if (empty($programGroups)) {
             return response()->json(['error' => 'Keine Aktivitäten gefunden'], 404);
         }
+
+        // Sort program groups in desired order: Freie Blöcke, Explore, Challenge
+        $sortOrder = [
+            'Freie Blöcke' => 1,
+            'FIRST LEGO League Explore' => 2,
+            'FIRST LEGO League Challenge' => 3,
+        ];
+        
+        uksort($programGroups, function($a, $b) use ($sortOrder) {
+            $orderA = $sortOrder[$a] ?? 999;
+            $orderB = $sortOrder[$b] ?? 999;
+            return $orderA <=> $orderB;
+        });
 
         // Plan + Event laden
         $plan = Plan::findOrFail($planId);
@@ -354,32 +409,65 @@ class PlanExportController extends Controller
     /**
      * Block für Team-Differenzierung
      */
-    private function buildTeamBlock(array &$programGroups, $activities, $role): void
+    private function buildTeamBlock(array &$programGroups, $activities, $role, $programNameOverride = null, $planId = null): void
     {
         // === Schritt 1: Activities entfalten (Lane/Table1/Table2 einzeln) ===
         $expanded   = collect();
         $neutral    = collect(); // neutrale Zeilen merken
+        $teamInfo   = collect(); // team metadata: [team_num => [name, hot, id]]
+        
         foreach ($activities as $a) {
             if (!empty($a->lane) && !empty($a->team)) {
                 $clone = clone $a;
                 $clone->team      = $a->team;
                 $clone->team_name = $a->jury_team_name;
+                $clone->team_number_hot = $a->jury_team_number_hot ?? null;
+                $clone->team_id   = $a->jury_team_id ?? null;
                 $clone->assign    = 'Jury ' . $a->lane;
                 $expanded->push($clone);
+                
+                // Store team metadata
+                if (!$teamInfo->has($a->team)) {
+                    $teamInfo->put($a->team, [
+                        'name' => $a->jury_team_name,
+                        'hot'  => $a->jury_team_number_hot ?? null,
+                        'id'   => $a->jury_team_id ?? null,
+                    ]);
+                }
             }
             if (!empty($a->table_1) && !empty($a->table_1_team)) {
                 $clone = clone $a;
                 $clone->team      = $a->table_1_team;
                 $clone->team_name = $a->table_1_team_name;
-                $clone->assign    = 'Tisch ' . $a->table_1;
+                $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
+                $clone->team_id   = $a->table_1_team_id ?? null;
+                $clone->assign    = $a->table_1_name ?? ('Tisch ' . $a->table_1);
                 $expanded->push($clone);
+                
+                if (!$teamInfo->has($a->table_1_team)) {
+                    $teamInfo->put($a->table_1_team, [
+                        'name' => $a->table_1_team_name,
+                        'hot'  => $a->table_1_team_number_hot ?? null,
+                        'id'   => $a->table_1_team_id ?? null,
+                    ]);
+                }
             }
             if (!empty($a->table_2) && !empty($a->table_2_team)) {
                 $clone = clone $a;
                 $clone->team      = $a->table_2_team;
                 $clone->team_name = $a->table_2_team_name;
-                $clone->assign    = 'Tisch ' . $a->table_2;
+                $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
+                $clone->team_id   = $a->table_2_team_id ?? null;
+                $clone->assign    = $a->table_2_name ?? ('Tisch ' . $a->table_2);
                 $expanded->push($clone);
+                
+                if (!$teamInfo->has($a->table_2_team)) {
+                    $teamInfo->put($a->table_2_team, [
+                        'name' => $a->table_2_team_name,
+                        'hot'  => $a->table_2_team_number_hot ?? null,
+                        'id'   => $a->table_2_team_id ?? null,
+                    ]);
+                }
             }
 
             // falls gar kein Team dran hängt → in neutral sammeln
@@ -408,13 +496,71 @@ class PlanExportController extends Controller
             ];
         };
 
-        // --- Sortierung nach Team-ID ---
-        foreach ($groups->sortKeys() as $teamId => $acts) {
-            // neutrales reingeben
+        // === Schritt 4: Room assignments (if planId available) ===
+        $teamRooms = collect();
+        if ($planId) {
+            $roomData = DB::table('team_plan')
+                ->join('room', 'team_plan.room', '=', 'room.id')
+                ->where('team_plan.plan', $planId)
+                ->select('team_plan.team', 'room.name as room_name')
+                ->get()
+                ->keyBy('team');
+            
+            $teamRooms = $roomData->pluck('room_name', 'team');
+        }
+
+        // === Schritt 5: Build team data with labels ===
+        $teamData = [];
+        foreach ($groups as $teamNum => $acts) {
+            $info = $teamInfo->get($teamNum, ['name' => null, 'hot' => null, 'id' => null]);
+            $teamName = $info['name'];
+            $teamHot = $info['hot'];
+            $teamId = $info['id'];
+            
+            // Build label: "TeamName (HotNumber) – Teambereich RoomName"
+            $label = '';
+            
+            // Team name part
+            if ($teamName && $teamHot) {
+                $label = "{$teamName} ({$teamHot})";
+            } elseif ($teamName) {
+                $label = $teamName;
+            } else {
+                $label = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $teamNum);
+            }
+            
+            // Room part
+            $roomName = null;
+            if ($teamId && $teamRooms->has($teamId)) {
+                $roomName = $teamRooms->get($teamId);
+            }
+            
+            if ($roomName) {
+                $label .= " – Teambereich {$roomName}";
+            } else {
+                $label .= " – Teambereich !Platzhalter, weil das Team noch keinem Raum zugeordnet wurde!";
+            }
+            
             $allActs = $acts->concat($neutral)->sortBy('start_time');
             $firstAct = $allActs->first();
-            $programName = $firstAct->activity_first_program_name ?? 'Alles';
-
+            $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
+            
+            $teamData[] = [
+                'sortName' => $teamName ?? 'zzz', // For sorting
+                'label' => $label,
+                'programName' => $programName,
+                'acts' => $allActs,
+            ];
+        }
+        
+        // === Schritt 6: Sort by team name and add to programGroups ===
+        usort($teamData, function($a, $b) {
+            return strcasecmp($a['sortName'], $b['sortName']);
+        });
+        
+        foreach ($teamData as $td) {
+            $programName = $td['programName'];
+            
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
             }
@@ -424,13 +570,10 @@ class PlanExportController extends Controller
                     'teams' => []
                 ];
             }
-
-            $teamName  = $acts->first()->team_name ?? null;
-            $teamLabel = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
-
+            
             $programGroups[$programName][$role->id]['teams'][] = [
-                'teamLabel' => $teamLabel,
-                'rows'      => $allActs->map($mapRow)->values()->all(),
+                'teamLabel' => $td['label'],
+                'rows'      => $td['acts']->map($mapRow)->values()->all(),
             ];
         }
     }
@@ -439,7 +582,7 @@ class PlanExportController extends Controller
      * Block für Lane-Differenzierung (Dummy)
      */
 
-    private function buildLaneBlock(array &$programGroups, $activities, $role): void
+    private function buildLaneBlock(array &$programGroups, $activities, $role, $programNameOverride = null, $planId = null): void
     {
         // === Schritt 1: Activities entfalten (nur Lanes) ===
         $expanded = collect();
@@ -451,6 +594,7 @@ class PlanExportController extends Controller
                 $clone->lane      = $a->lane;
                 $clone->team_id   = $a->team;
                 $clone->team_name = $a->jury_team_name;
+                $clone->team_number_hot = $a->jury_team_number_hot ?? null;
                 $clone->assign    = 'Jury ' . $a->lane;
                 $expanded->push($clone);
             }
@@ -461,6 +605,7 @@ class PlanExportController extends Controller
                 $clone->lane      = null;
                 $clone->team_id   = null;
                 $clone->team_name = null;
+                $clone->team_number_hot = null;
                 $clone->assign    = '–';
                 $neutral->push($clone);
             }
@@ -471,9 +616,17 @@ class PlanExportController extends Controller
 
         // === Schritt 3: Map-Funktion ===
         $mapRow = function ($a) {
-            $teamLabel = $a->team_id
-                ? ('Team ' . $a->team_id . ($a->team_name ? ' – ' . $a->team_name : ''))
-                : '–';
+            // Build team label: "TeamName (HotNumber)" or placeholder
+            $teamLabel = '–';
+            if ($a->team_id) {
+                if ($a->team_name && $a->team_number_hot) {
+                    $teamLabel = $a->team_name . ' (' . $a->team_number_hot . ')';
+                } elseif ($a->team_name) {
+                    $teamLabel = $a->team_name;
+                } else {
+                    $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team_id);
+                }
+            }
 
             return [
                 'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
@@ -485,11 +638,57 @@ class PlanExportController extends Controller
             ];
         };
 
-        // === Schritt 4: Iteration über Lanes ===
+        // === Schritt 4: Room assignments (if planId available) ===
+        $laneRooms = collect();
+        if ($planId) {
+            $eventId = DB::table('plan')->where('id', $planId)->value('event');
+            if ($eventId) {
+                // Get the program for this role from the role's activities
+                $programId = null;
+                foreach ($activities as $act) {
+                    if (!empty($act->activity_first_program_id)) {
+                        $programId = $act->activity_first_program_id;
+                        break;
+                    }
+                }
+                
+                if ($programId) {
+                    // Map program to room type IDs
+                    $roomTypeIds = [];
+                    if ($programId == 2) { // Explore (ID 2)
+                        $roomTypeIds = [8, 9, 10, 11, 12]; // Begutachtung 1-5
+                    } elseif ($programId == 3) { // Challenge (ID 3)
+                        $roomTypeIds = [2, 3, 4, 5, 6]; // Jurybewertung 1-5
+                    }
+                    
+                    if (!empty($roomTypeIds)) {
+                        $roomData = DB::table('room_type_room as rtr')
+                            ->join('room as r', 'rtr.room', '=', 'r.id')
+                            ->join('m_room_type as mrt', 'rtr.room_type', '=', 'mrt.id')
+                            ->where('rtr.event', $eventId)
+                            ->whereIn('mrt.id', $roomTypeIds)
+                            ->select('mrt.id as room_type_id', 'r.name as room_name')
+                            ->get();
+                        
+                        // Map room_type_id to lane number
+                        foreach ($roomData as $rd) {
+                            if ($programId == 2) { // Explore: Begutachtung 1 (ID 8) = lane 1
+                                $laneNumber = $rd->room_type_id - 7; // Begutachtung 1 (ID 8) = lane 1
+                            } else { // Challenge: Jurybewertung 1 (ID 2) = lane 1
+                                $laneNumber = $rd->room_type_id - 1; // Jurybewertung 1 (ID 2) = lane 1
+                            }
+                            $laneRooms->put($laneNumber, $rd->room_name);
+                        }
+                    }
+                }
+            }
+        }
+
+        // === Schritt 5: Iteration über Lanes ===
         foreach ($groups->sortKeys() as $laneId => $acts) {
             $allActs     = $acts->concat($neutral)->sortBy('start_time');
             $firstAct    = $allActs->first();
-            $programName = $firstAct->activity_first_program_name ?? 'Alles';
+            $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
 
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
@@ -501,7 +700,15 @@ class PlanExportController extends Controller
                 ];
             }
 
+            // Build label: "Gruppe X - Raum RoomName"
             $juryLabel = 'Gruppe ' . $laneId;
+            
+            $roomName = $laneRooms->get($laneId);
+            if ($roomName) {
+                $juryLabel .= ' – Raum ' . $roomName;
+            } else {
+                $juryLabel .= ' – Raum !Platzhalter, weil die Gruppe noch keinem Raum zugeordnet wurde!';
+            }
 
             $programGroups[$programName][$role->id]['lanes'][] = [
                 'juryLabel' => $juryLabel,
@@ -513,7 +720,7 @@ class PlanExportController extends Controller
     /**
      * Block für Table-Differenzierung
      */
-    private function buildTableBlock(array &$programGroups, $activities, $role): void
+    private function buildTableBlock(array &$programGroups, $activities, $role, $programNameOverride = null): void
     {
         $expanded = collect();
 
@@ -524,7 +731,8 @@ class PlanExportController extends Controller
                 $clone->table_id   = $a->table_1;
                 $clone->team_id    = $a->table_1_team;
                 $clone->team_name  = $a->table_1_team_name;
-                $clone->assign     = 'Tisch ' . $a->table_1;
+                $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
+                $clone->assign     = $a->table_1_name ?? ('Tisch ' . $a->table_1);
                 $expanded->push($clone);
             }
             if (!empty($a->table_2) && !empty($a->table_2_team)) {
@@ -532,7 +740,8 @@ class PlanExportController extends Controller
                 $clone->table_id   = $a->table_2;
                 $clone->team_id    = $a->table_2_team;
                 $clone->team_name  = $a->table_2_team_name;
-                $clone->assign     = 'Tisch ' . $a->table_2;
+                $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
+                $clone->assign     = $a->table_2_name ?? ('Tisch ' . $a->table_2);
                 $expanded->push($clone);
             }
         }
@@ -546,11 +755,23 @@ class PlanExportController extends Controller
 
         // Schritt 3: Map-Funktion für Rows
         $mapRow = function ($a) {
+            // Build team label: "TeamName (HotNumber)" or placeholder
+            $teamLabel = '–';
+            if ($a->team_id) {
+                if ($a->team_name && $a->team_number_hot) {
+                    $teamLabel = $a->team_name . ' (' . $a->team_number_hot . ')';
+                } elseif ($a->team_name) {
+                    $teamLabel = $a->team_name;
+                } else {
+                    $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team_id);
+                }
+            }
+
             return [
                 'start_hm'  => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'    => Carbon::parse($a->end_time)->format('H:i'),
                 'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
-                'teamLabel' => 'Team ' . $a->team_id . ($a->team_name ? ' – ' . $a->team_name : ''),
+                'teamLabel' => $teamLabel,
                 'assign'    => $a->assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
             ];
@@ -560,7 +781,10 @@ class PlanExportController extends Controller
         foreach ($groups->sortKeys() as $tableId => $acts) {
             $acts = $acts->sortBy('start_time');
             $firstAct = $acts->first();
-            $programName = $firstAct->activity_first_program_name ?? 'Alles';
+            $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
+
+            // Get custom table name from first activity (already stored in assign field)
+            $tableLabel = $firstAct->assign ?? ('Tisch ' . $tableId);
 
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
@@ -573,7 +797,7 @@ class PlanExportController extends Controller
             }
 
             $programGroups[$programName][$role->id]['tables'][] = [
-                'tableLabel' => 'Tisch ' . $tableId,
+                'tableLabel' => $tableLabel,
                 'rows'       => $acts->map($mapRow)->values()->all(),
             ];
         }
@@ -582,7 +806,7 @@ class PlanExportController extends Controller
     /**
      * Block für Rollen ohne Differenzierung
      */
-    private function buildSimpleBlock(array &$programGroups, $activities, $role): void
+    private function buildSimpleBlock(array &$programGroups, $activities, $role, $programNameOverride = null): void
     {
         if ($activities->isEmpty()) {
             return;
@@ -591,18 +815,29 @@ class PlanExportController extends Controller
         // Map-Funktion für Rows
         $mapRow = function ($a) {
             // Teamlabel bestimmen (falls es über Jury/Tables erkennbar ist)
-            $teamLabel = null;
-            if (!empty($a->team)) {
-                $teamLabel = 'Team ' . $a->team;
-            }
+            $teamLabel = '–';
+            
+            // Check jury team first
             if (!empty($a->jury_team_name)) {
-                $teamLabel = 'Team ' . $a->team . ' – ' . $a->jury_team_name;
-            }
-            if (!empty($a->table_1_team_name)) {
-                $teamLabel = 'Team ' . $a->table_1_team . ' – ' . $a->table_1_team_name;
-            }
-            if (!empty($a->table_2_team_name)) {
-                $teamLabel = 'Team ' . $a->table_2_team . ' – ' . $a->table_2_team_name;
+                if ($a->jury_team_number_hot) {
+                    $teamLabel = $a->jury_team_name . ' (' . $a->jury_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->jury_team_name;
+                }
+            } elseif (!empty($a->table_1_team_name)) {
+                if ($a->table_1_team_number_hot) {
+                    $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_1_team_name;
+                }
+            } elseif (!empty($a->table_2_team_name)) {
+                if ($a->table_2_team_number_hot) {
+                    $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_2_team_name;
+                }
+            } elseif (!empty($a->team)) {
+                $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
             }
 
             // Assignment (Jury/Tisch/-)
@@ -610,9 +845,9 @@ class PlanExportController extends Controller
             if (!empty($a->lane)) {
                 $assign = 'Jury ' . $a->lane;
             } elseif (!empty($a->table_1)) {
-                $assign = 'Tisch ' . $a->table_1;
+                $assign = $a->table_1_name ?? ('Tisch ' . $a->table_1);
             } elseif (!empty($a->table_2)) {
-                $assign = 'Tisch ' . $a->table_2;
+                $assign = $a->table_2_name ?? ('Tisch ' . $a->table_2);
             }
 
             return [
@@ -627,7 +862,7 @@ class PlanExportController extends Controller
 
         $acts = $activities->sortBy('start_time');
         $firstAct = $acts->first();
-        $programName = $firstAct->activity_first_program_name ?? 'Alles';
+        $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
 
         if (!isset($programGroups[$programName])) {
             $programGroups[$programName] = [];
@@ -641,6 +876,78 @@ class PlanExportController extends Controller
 
         $programGroups[$programName][$role->id]['general'][] = [
             'rows' => $acts->map($mapRow)->values()->all(),
+        ];
+    }
+
+    /**
+     * Build a single flat table for all free blocks (no role sub-sections)
+     */
+    private function buildFreeBlocksTable(array &$programGroups, $activities): void
+    {
+        if ($activities->isEmpty()) {
+            return;
+        }
+
+        // Map function for rows
+        $mapRow = function ($a) {
+            // Teamlabel bestimmen
+            $teamLabel = '–';
+            
+            // Check jury team first
+            if (!empty($a->jury_team_name)) {
+                if ($a->jury_team_number_hot) {
+                    $teamLabel = $a->jury_team_name . ' (' . $a->jury_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->jury_team_name;
+                }
+            } elseif (!empty($a->table_1_team_name)) {
+                if ($a->table_1_team_number_hot) {
+                    $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_1_team_name;
+                }
+            } elseif (!empty($a->table_2_team_name)) {
+                if ($a->table_2_team_number_hot) {
+                    $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_2_team_name;
+                }
+            } elseif (!empty($a->team)) {
+                $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
+            }
+
+            // Assignment (Jury/Tisch/-)
+            $assign = '–';
+            if (!empty($a->lane)) {
+                $assign = 'Jury ' . $a->lane;
+            } elseif (!empty($a->table_1)) {
+                $assign = $a->table_1_name ?? ('Tisch ' . $a->table_1);
+            } elseif (!empty($a->table_2)) {
+                $assign = $a->table_2_name ?? ('Tisch ' . $a->table_2);
+            }
+
+            return [
+                'start_hm'  => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                'end_hm'    => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'teamLabel' => $teamLabel ?? '–',
+                'assign'    => $assign,
+                'room'      => $a->room_name ?? $a->room_type_name ?? '–',
+            ];
+        };
+
+        $acts = $activities->sortBy('start_time');
+        
+        $programName = 'Freie Blöcke';
+
+        // Create single entry with dummy role ID 0
+        $programGroups[$programName] = [
+            0 => [
+                'role'    => null,  // No role header
+                'general' => [
+                    ['rows' => $acts->map($mapRow)->values()->all()]
+                ]
+            ]
         ];
     }
 
@@ -870,6 +1177,18 @@ if ($prepRooms->isNotEmpty()) {
         // Explore zuerst, dann Challenge
         $pages = array_merge($explorePages, $challengePages);
 
+        // 🔸 IDs für Match- und Check-Aktivitäten aus der DB holen (für Tischzuordnung)
+        $matchCheckIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', ['r_match', 'r_check'])
+            ->pluck('id')
+            ->toArray();
+        
+        // 🔸 IDs für Check-Aktivitäten (für "Check für " Präfix)
+        $checkIds = DB::table('m_activity_type_detail')
+            ->where('code', 'r_check')
+            ->pluck('id')
+            ->toArray();
+
         // HTML bauen
         $html = '';
         $lastIndex = count($pages) - 1;
@@ -881,18 +1200,49 @@ if ($prepRooms->isNotEmpty()) {
                 ['end_time', 'asc'],
             ]);
 
+            // Get team number for table assignment lookup
+            $teamNumber = $page['team_number'] ?? null;
+
             // reguläre Aktivitäten sammeln
-            $rows = $acts->map(function ($a) {
+            $rows = $acts->map(function ($a) use ($matchCheckIds, $checkIds, $teamNumber) {
+                $roomDisplay = $a->room_name ?? '–';
+                
+                // 🔸 For Challenge match/check activities, append table assignment
+                if ($teamNumber && in_array($a->activity_type_detail_id, $matchCheckIds)) {
+                    $tableName = null;
+                    
+                    // Check which table this team is assigned to
+                    if (!is_null($a->table_1_team) && (int)$a->table_1_team === $teamNumber) {
+                        $tableName = $a->table_1_name;
+                    } elseif (!is_null($a->table_2_team) && (int)$a->table_2_team === $teamNumber) {
+                        $tableName = $a->table_2_name;
+                    }
+                    
+                    // Append table to room if found
+                    if ($tableName) {
+                        // For checks, add "Check für " prefix
+                        $isCheck = in_array($a->activity_type_detail_id, $checkIds);
+                        $tableDisplay = $isCheck ? 'Check für ' . $tableName : $tableName;
+                        
+                        if ($roomDisplay !== '–') {
+                            $roomDisplay .= ' – ' . $tableDisplay;
+                        } else {
+                            $roomDisplay = $tableDisplay;
+                        }
+                    }
+                }
+                
                 return [
                     'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                     'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                     'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
-                    'room'     => $a->room_name ?? '–',
+                    'room'     => $roomDisplay,
                 ];
             })->values()->all();
 
             // 🔹 Raumname aus team_plan → room
             $teamRoomName = '!Platzhalter, weil das Team noch keinem Raum zugeordnet wurde!';
+            $roomData = null;
 
             $teamId = $page['team_id'] ?? null; // muss von deinen build*Pages mitgegeben werden
             if ($teamId) {
@@ -902,13 +1252,29 @@ if ($prepRooms->isNotEmpty()) {
                     ->value('room');
 
                 if ($roomId) {
-                    $roomName = DB::table('room')
+                    $roomData = DB::table('room')
                         ->where('id', $roomId)
-                        ->value('name');
+                        ->select('name', 'navigation_instruction')
+                        ->first();
 
-                    if ($roomName) {
-                        $teamRoomName = $roomName;
+                    if ($roomData && $roomData->name) {
+                        $teamRoomName = $roomData->name;
                     }
+                }
+            }
+            
+            // Collect unique rooms with navigation for legend
+            $roomsWithNav = [];
+            
+            // Add team's assigned room if it has navigation
+            if ($roomData && !empty($roomData->name) && !empty($roomData->navigation_instruction)) {
+                $roomsWithNav[$roomData->name] = $roomData->navigation_instruction;
+            }
+            
+            // Add rooms from activities
+            foreach ($acts as $a) {
+                if (!empty($a->room_name) && !empty($a->room_navigation)) {
+                    $roomsWithNav[$a->room_name] = $a->room_navigation;
                 }
             }
 
@@ -929,6 +1295,7 @@ if ($prepRooms->isNotEmpty()) {
                     'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
                     'rows'  => $chunkRows,
                     'event' => $event,
+                    'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
                 ])->render();
 
                 // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
@@ -955,9 +1322,10 @@ if ($prepRooms->isNotEmpty()) {
      */
     private function buildExploreTeamPages(\Illuminate\Support\Collection $acts): array
     {
-        // Teamnummern + Namen sammeln
+        // Teamnummern + Namen + IDs sammeln
         $teamNames = []; // [num => name]
         $teamHot   = []; // [num => team_number_hot]
+        $teamIds   = []; // [num => actual team.id]
         $teamSet   = []; // num als key
 
         foreach ($acts as $a) {
@@ -971,6 +1339,11 @@ if ($prepRooms->isNotEmpty()) {
 
                 if (isset($a->jury_team_number_hot)) {
                     $teamHot[$num] = $a->jury_team_number_hot;
+                }
+                
+                // Store actual team ID
+                if (isset($a->jury_team_id)) {
+                    $teamIds[$num] = $a->jury_team_id;
                 }
             }
         }
@@ -1006,7 +1379,8 @@ if ($prepRooms->isNotEmpty()) {
 
             $pages[] = [
                 'label' => $label,
-                'team_id' => $num,
+                'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
+                'team_number' => $num, // Plan team number for table assignment lookup
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -1023,6 +1397,7 @@ if ($prepRooms->isNotEmpty()) {
     {
         $teamNames = []; // [num => name]
         $teamHot   = []; // [num => team_number_hot]
+        $teamIds   = []; // [num => actual team.id]
         $teamSet   = [];
 
         foreach ($acts as $a) {
@@ -1036,6 +1411,9 @@ if ($prepRooms->isNotEmpty()) {
                 if (isset($a->jury_team_number_hot)) {
                     $teamHot[$n] = $a->jury_team_number_hot;
                 }
+                if (isset($a->jury_team_id) && !isset($teamIds[$n])) {
+                    $teamIds[$n] = $a->jury_team_id;
+                }
             }
 
             // Table 1
@@ -1048,6 +1426,9 @@ if ($prepRooms->isNotEmpty()) {
                 if (isset($a->table_1_team_number_hot)) {
                     $teamHot[$n] = $a->table_1_team_number_hot;
                 }
+                if (isset($a->table_1_team_id) && !isset($teamIds[$n])) {
+                    $teamIds[$n] = $a->table_1_team_id;
+                }
             }
 
             // Table 2
@@ -1059,6 +1440,9 @@ if ($prepRooms->isNotEmpty()) {
                 }
                 if (isset($a->table_2_team_number_hot)) {
                     $teamHot[$n] = $a->table_2_team_number_hot;
+                }
+                if (isset($a->table_2_team_id) && !isset($teamIds[$n])) {
+                    $teamIds[$n] = $a->table_2_team_id;
                 }
             }
         }
@@ -1111,7 +1495,8 @@ if ($prepRooms->isNotEmpty()) {
 
             $pages[] = [
                 'label' => $label,
-                'team_id' => $num,
+                'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
+                'team_number' => $num, // Plan team number for table assignment lookup
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -1263,6 +1648,14 @@ if ($prepRooms->isNotEmpty()) {
                 ['end_time', 'asc'],
             ]);
 
+            // Collect unique rooms with navigation for legend
+            $roomsWithNav = [];
+            foreach ($acts as $a) {
+                if (!empty($a->room_name) && !empty($a->room_navigation)) {
+                    $roomsWithNav[$a->room_name] = $a->room_navigation;
+                }
+            }
+            
             $rows = $acts->map(fn($a) => [
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
@@ -1312,6 +1705,7 @@ if ($prepRooms->isNotEmpty()) {
                     'title' => $key,
                     'rows'  => $chunkRows,
                     'event' => $event,
+                    'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
                 ])->render();
 
                 // Seitenumbruch nach jedem Chunk außer dem letzten
