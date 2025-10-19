@@ -441,7 +441,7 @@ class PlanExportController extends Controller
                 $clone->team_name = $a->table_1_team_name;
                 $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
                 $clone->team_id   = $a->table_1_team_id ?? null;
-                $clone->assign    = 'Tisch ' . $a->table_1;
+                $clone->assign    = $a->table_1_name ?? ('Tisch ' . $a->table_1);
                 $expanded->push($clone);
                 
                 if (!$teamInfo->has($a->table_1_team)) {
@@ -458,7 +458,7 @@ class PlanExportController extends Controller
                 $clone->team_name = $a->table_2_team_name;
                 $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
                 $clone->team_id   = $a->table_2_team_id ?? null;
-                $clone->assign    = 'Tisch ' . $a->table_2;
+                $clone->assign    = $a->table_2_name ?? ('Tisch ' . $a->table_2);
                 $expanded->push($clone);
                 
                 if (!$teamInfo->has($a->table_2_team)) {
@@ -732,7 +732,7 @@ class PlanExportController extends Controller
                 $clone->team_id    = $a->table_1_team;
                 $clone->team_name  = $a->table_1_team_name;
                 $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
-                $clone->assign     = 'Tisch ' . $a->table_1;
+                $clone->assign     = $a->table_1_name ?? ('Tisch ' . $a->table_1);
                 $expanded->push($clone);
             }
             if (!empty($a->table_2) && !empty($a->table_2_team)) {
@@ -741,7 +741,7 @@ class PlanExportController extends Controller
                 $clone->team_id    = $a->table_2_team;
                 $clone->team_name  = $a->table_2_team_name;
                 $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
-                $clone->assign     = 'Tisch ' . $a->table_2;
+                $clone->assign     = $a->table_2_name ?? ('Tisch ' . $a->table_2);
                 $expanded->push($clone);
             }
         }
@@ -783,6 +783,9 @@ class PlanExportController extends Controller
             $firstAct = $acts->first();
             $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
 
+            // Get custom table name from first activity (already stored in assign field)
+            $tableLabel = $firstAct->assign ?? ('Tisch ' . $tableId);
+
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
             }
@@ -794,7 +797,7 @@ class PlanExportController extends Controller
             }
 
             $programGroups[$programName][$role->id]['tables'][] = [
-                'tableLabel' => 'Tisch ' . $tableId,
+                'tableLabel' => $tableLabel,
                 'rows'       => $acts->map($mapRow)->values()->all(),
             ];
         }
@@ -842,9 +845,9 @@ class PlanExportController extends Controller
             if (!empty($a->lane)) {
                 $assign = 'Jury ' . $a->lane;
             } elseif (!empty($a->table_1)) {
-                $assign = 'Tisch ' . $a->table_1;
+                $assign = $a->table_1_name ?? ('Tisch ' . $a->table_1);
             } elseif (!empty($a->table_2)) {
-                $assign = 'Tisch ' . $a->table_2;
+                $assign = $a->table_2_name ?? ('Tisch ' . $a->table_2);
             }
 
             return [
@@ -918,9 +921,9 @@ class PlanExportController extends Controller
             if (!empty($a->lane)) {
                 $assign = 'Jury ' . $a->lane;
             } elseif (!empty($a->table_1)) {
-                $assign = 'Tisch ' . $a->table_1;
+                $assign = $a->table_1_name ?? ('Tisch ' . $a->table_1);
             } elseif (!empty($a->table_2)) {
-                $assign = 'Tisch ' . $a->table_2;
+                $assign = $a->table_2_name ?? ('Tisch ' . $a->table_2);
             }
 
             return [
