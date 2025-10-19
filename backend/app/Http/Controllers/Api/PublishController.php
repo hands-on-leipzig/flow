@@ -213,12 +213,26 @@ class PublishController extends Controller
                 'explore' => [
                     'capacity'   => $drahtData['capacity_explore'] ?? 0,
                     'registered' => count($drahtData['teams_explore'] ?? []),
-                    'list'       => $level >= 2 ? array_column($drahtData['teams_explore'], 'name') : [],
+                    'list'       => $level >= 2 ? array_map(function($team) {
+                        return [
+                            'team_number_hot' => $team['team_number_hot'] ?? null,
+                            'name' => $team['name'] ?? '',
+                            'organization' => $team['organization'] ?? '',
+                            'location' => $team['location'] ?? ''
+                        ];
+                    }, $drahtData['teams_explore'] ?? []) : [],
                 ],
                 'challenge' => [
                     'capacity'   => $drahtData['capacity_challenge'] ?? 0,
                     'registered' => count($drahtData['teams_challenge'] ?? []),
-                    'list'       => $level >= 2 ? array_column($drahtData['teams_challenge'], 'name') : [],
+                    'list'       => $level >= 2 ? array_map(function($team) {
+                        return [
+                            'team_number_hot' => $team['team_number_hot'] ?? null,
+                            'name' => $team['name'] ?? '',
+                            'organization' => $team['organization'] ?? '',
+                            'location' => $team['location'] ?? ''
+                        ];
+                    }, $drahtData['teams_challenge'] ?? []) : [],
                 ],
             ],
         ];
