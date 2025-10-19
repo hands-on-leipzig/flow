@@ -1,10 +1,10 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex flex-col">
+  <div class="bg-gray-50">
     <!-- Event Not Found -->
     <EventNotFound v-if="showNotFound" />
     
     <!-- Loading State -->
-    <div v-else-if="loading" class="flex items-center justify-center flex-1">
+    <div v-else-if="loading" class="min-h-screen flex items-center justify-center">
       <div class="text-center">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
         <p class="text-gray-600">Lade Veranstaltungsinformationen...</p>
@@ -12,7 +12,7 @@
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="flex items-center justify-center flex-1">
+    <div v-else-if="error" class="min-h-screen flex items-center justify-center">
       <div class="text-center">
         <div class="mx-auto h-16 w-16 text-red-400 mb-4">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -31,8 +31,8 @@
     </div>
 
     <!-- Event Content -->
-    <div v-else-if="event" class="flex-1">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div v-else-if="event">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
       <!-- Header Section -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8 overflow-hidden">
         <div class="px-6 py-8">
@@ -58,15 +58,17 @@
             </div>
           </div>
 
-          <!-- Program Badges -->
-          <div class="flex justify-center space-x-4 mb-6">
-            <div v-if="event.event_explore" class="flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5 mr-2" />
-              <span class="font-medium">Explore</span>
+          <!-- Program Logo -->
+          <div class="flex justify-center mb-6">
+            <div v-if="event.event_explore && !event.event_challenge" class="flex items-center">
+              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-16 h-16" />
             </div>
-            <div v-if="event.event_challenge" class="flex items-center bg-blue-100 text-blue-800 px-4 py-2 rounded-full">
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5 mr-2" />
-              <span class="font-medium">Challenge</span>
+            <div v-else-if="event.event_challenge && !event.event_explore" class="flex items-center">
+              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-16 h-16" />
+            </div>
+            <div v-else-if="event.event_explore && event.event_challenge" class="flex items-center space-x-4">
+              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-12 h-12" />
+              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-12 h-12" />
             </div>
           </div>
 
@@ -105,62 +107,105 @@
         </div>
       </div>
 
-      <!-- Level 2: Registration Numbers -->
+      <!-- Level 2: Registration Numbers and Teams -->
       <div v-if="isContentVisible(2) && scheduleInfo" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">
-          Anmeldestand
+        <h2 class="text-xl font-semibold text-gray-900 mb-6">
+          Angemeldete Teams
         </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div v-if="scheduleInfo.teams.explore.capacity > 0 || scheduleInfo.teams.explore.registered > 0">
-            <h3 class="font-semibold mb-2 text-green-800">FIRST LEGO League Explore</h3>
-            <div class="text-lg">
+        
+        <!-- Explore Teams -->
+        <div v-if="scheduleInfo.teams.explore.list?.length" class="mb-8">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-900 flex items-center">
+              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-6 h-6 mr-2" />
+              FIRST LEGO League Explore
+            </h3>
+            <div v-if="scheduleInfo.teams.explore.capacity > 0" class="text-sm text-gray-600">
               <span class="font-bold">{{ scheduleInfo.teams.explore.registered }}</span>
               von <span class="font-bold">{{ scheduleInfo.teams.explore.capacity }}</span> Plätzen belegt
             </div>
-            <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
-              <div 
-                class="bg-green-600 h-2 rounded-full" 
-                :style="{ width: `${Math.min(100, (scheduleInfo.teams.explore.registered / scheduleInfo.teams.explore.capacity) * 100)}%` }"
-              ></div>
-            </div>
           </div>
-          <div v-if="scheduleInfo.teams.challenge.capacity > 0 || scheduleInfo.teams.challenge.registered > 0">
-            <h3 class="font-semibold mb-2 text-blue-800">FIRST LEGO League Challenge</h3>
-            <div class="text-lg">
+          <div v-if="scheduleInfo.teams.explore.capacity > 0" class="w-full bg-gray-200 rounded-full h-2 mb-4">
+            <div 
+              class="bg-green-600 h-2 rounded-full" 
+              :style="{ width: `${Math.min(100, (scheduleInfo.teams.explore.registered / scheduleInfo.teams.explore.capacity) * 100)}%` }"
+            ></div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Nr.</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Name</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Institution</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ort</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-for="team in scheduleInfo.teams.explore.list" :key="team.team_number_hot || team.name" class="hover:bg-gray-50">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {{ team.team_number_hot || '-' }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {{ team.name }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-900">
+                    {{ team.organization || '-' }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-900">
+                    {{ team.location || '-' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Challenge Teams -->
+        <div v-if="scheduleInfo.teams.challenge.list?.length">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-900 flex items-center">
+              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-6 h-6 mr-2" />
+              FIRST LEGO League Challenge
+            </h3>
+            <div v-if="scheduleInfo.teams.challenge.capacity > 0" class="text-sm text-gray-600">
               <span class="font-bold">{{ scheduleInfo.teams.challenge.registered }}</span>
               von <span class="font-bold">{{ scheduleInfo.teams.challenge.capacity }}</span> Plätzen belegt
             </div>
-            <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
-              <div 
-                class="bg-blue-600 h-2 rounded-full" 
-                :style="{ width: `${Math.min(100, (scheduleInfo.teams.challenge.registered / scheduleInfo.teams.challenge.capacity) * 100)}%` }"
-              ></div>
-            </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Level 3: Registered Teams -->
-      <div v-if="isContentVisible(3) && scheduleInfo" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">
-          Angemeldete Teams
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div v-if="scheduleInfo.teams.explore.list?.length">
-            <h3 class="font-semibold mb-3 text-green-800">FIRST LEGO League Explore</h3>
-            <div class="space-y-1">
-              <div v-for="team in scheduleInfo.teams.explore.list" :key="team" class="text-sm text-gray-700">
-                {{ team }}
-              </div>
-            </div>
+          <div v-if="scheduleInfo.teams.challenge.capacity > 0" class="w-full bg-gray-200 rounded-full h-2 mb-4">
+            <div 
+              class="bg-red-600 h-2 rounded-full" 
+              :style="{ width: `${Math.min(100, (scheduleInfo.teams.challenge.registered / scheduleInfo.teams.challenge.capacity) * 100)}%` }"
+            ></div>
           </div>
-          <div v-if="scheduleInfo.teams.challenge.list?.length">
-            <h3 class="font-semibold mb-3 text-blue-800">FIRST LEGO League Challenge</h3>
-            <div class="space-y-1">
-              <div v-for="team in scheduleInfo.teams.challenge.list" :key="team" class="text-sm text-gray-700">
-                {{ team }}
-              </div>
-            </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Nr.</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Name</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Institution</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ort</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr v-for="team in scheduleInfo.teams.challenge.list" :key="team.team_number_hot || team.name" class="hover:bg-gray-50">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {{ team.team_number_hot || '-' }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {{ team.name }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-900">
+                    {{ team.organization || '-' }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-900">
+                    {{ team.location || '-' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -177,7 +222,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Explore Times -->
           <div v-if="scheduleInfo.plan.explore">
-            <h3 class="font-semibold mb-3 text-green-800">FIRST LEGO League Explore</h3>
+            <h3 class="font-semibold mb-3 text-gray-900">FIRST LEGO League Explore</h3>
             <div class="space-y-2">
               <div v-if="scheduleInfo.plan.explore.briefing?.teams" class="flex justify-between text-sm">
                 <span>Coach-Briefing:</span>
@@ -200,7 +245,7 @@
 
           <!-- Challenge Times -->
           <div v-if="scheduleInfo.plan.challenge">
-            <h3 class="font-semibold mb-3 text-blue-800">FIRST LEGO League Challenge</h3>
+            <h3 class="font-semibold mb-3 text-gray-900">FIRST LEGO League Challenge</h3>
             <div class="space-y-2">
               <div v-if="scheduleInfo.plan.challenge.briefing?.teams" class="flex justify-between text-sm">
                 <span>Coach-Briefing:</span>
@@ -253,7 +298,7 @@
     </div>
 
     <!-- Footer -->
-    <div class="mt-auto bg-white border-t border-gray-200 py-6">
+    <div class="bg-white border-t border-gray-200 py-6">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center text-sm text-gray-500">
           <p>
