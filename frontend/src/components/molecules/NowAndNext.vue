@@ -1,16 +1,46 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
+import { useEventStore } from '@/stores/event'
 
 import { formatTimeOnly } from '@/utils/dateTimeFormat'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 
+// Event store
+const eventStore = useEventStore()
+const event = computed(() => eventStore.selectedEvent)
+
 // Inputs
-const planId = ref('6')
+const planId = ref<number | null>(null)
 const role = ref(14)            // Default 14 = Publikum
 const usePoint = ref(true)
 const timeStr = ref('11:00')    // HH:mm
 const intervalMin = ref(60)
+
+// Fetch plan ID for current event
+async function fetchPlanId() {
+  if (!event.value?.id) {
+    planId.value = null
+    return
+  }
+  try {
+    const response = await axios.get(`/plans/event/${event.value.id}`)
+    planId.value = response.data.id
+  } catch (error) {
+    console.error('Error fetching plan ID:', error)
+    planId.value = null
+  }
+}
+
+// Watch for event changes
+watch(() => event.value?.id, fetchPlanId, { immediate: true })
+
+// On mount, ensure event is loaded
+onMounted(async () => {
+  if (!eventStore.selectedEvent) {
+    await eventStore.fetchSelectedEvent()
+  }
+})
 
 // Rollendefinitionen
 const roles = [
@@ -119,17 +149,32 @@ function openPreview(id: string | number) {
     <!-- Controls -->
     <div class="flex flex-wrap items-end gap-3">
       <div>
-        <label class="block text-xs text-gray-500 mb-1">Plan ID</label>
-        <input v-model="planId" class="border rounded px-2 py-1 w-20" placeholder="z.B. 9255" />
+        <label class="block text-xs text-gray-500 mb-1">Event</label>
+        <div class="text-sm font-medium text-gray-700">
+          {{ event?.name || 'Kein Event ausgewählt' }}
+        </div>
       </div>
-      <button
-        v-if="planId"
-        class="mb-1 text-blue-600 hover:text-blue-800"
-        title="Vorschau öffnen"
-        @click="openPreview(planId)"
-      >
-        🧾
-      </button>
+      
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Plan ID</label>
+        <div class="flex items-center gap-2">
+          <input 
+            v-model="planId" 
+            type="number"
+            class="border rounded px-2 py-1 w-24 bg-gray-50" 
+            :placeholder="planId ? String(planId) : 'wird geladen...'"
+            readonly
+          />
+          <button
+            v-if="planId"
+            class="text-blue-600 hover:text-blue-800"
+            title="Vorschau öffnen"
+            @click="openPreview(planId)"
+          >
+            🧾
+          </button>
+        </div>
+      </div>
 
       <div>
         <label class="block text-xs text-gray-500 mb-1">Rolle</label>
