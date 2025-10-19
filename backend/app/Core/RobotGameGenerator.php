@@ -358,9 +358,9 @@ class RobotGameGenerator
         // Clear existing match entries for this plan
         MatchEntry::where('plan', $planId)->delete();
 
-        // Insert new match entries
-        foreach ($this->entries as $entry) {
-            MatchEntry::create([
+        // Prepare data for bulk insert
+        $data = array_map(function($entry) use ($planId) {
+            return [
                 'plan' => $planId,
                 'round' => $entry['round'],
                 'match_no' => $entry['match'],
@@ -368,7 +368,12 @@ class RobotGameGenerator
                 'table_2' => $entry['table_2'],
                 'table_1_team' => $entry['team_1'],
                 'table_2_team' => $entry['team_2'],
-            ]);
+            ];
+        }, $this->entries);
+
+        // Bulk insert all match entries in a single query
+        if (!empty($data)) {
+            MatchEntry::insert($data);
         }
     }
 
@@ -463,7 +468,9 @@ class RobotGameGenerator
         $filtered = array_filter($this->entries, fn ($m) => $m['round'] === $round);
         usort($filtered, fn ($a, $b) => $a['match'] <=> $b['match']);
 
-        // 3) Matches schreiben
+        // 3) Prepare activities for bulk insert
+        $activities = [];
+        
         foreach ($filtered as $match) {
             // Dauer bestimmen (TR vs RG)
             $duration = ($round === 0)
@@ -471,38 +478,46 @@ class RobotGameGenerator
                 : $this->pp("r_duration_match");
 
             // exotischer Fall: leeres TR-Match überspringen
-            if (!($match['team_1'] === 0 && $match['team_2'] === 0)) {
-                // Achtung: insertOneMatch verändert rTime NICHT (Legacy-Semantik)
-                $this->insertOneMatch(
-                    $this->rTime,
-                    $duration,
-                    $match['table_1'],
-                    $match['team_1'],
-                    $match['table_2'],
-                    $match['team_2'],
-                    $this->pp("r_robot_check")
-                );
+            if ($match['team_1'] === 0 && $match['team_2'] === 0) {
+                // Update time but don't create activity
+                $this->advanceTimeForMatch($round, $match, $duration);
+                continue;
             }
 
-            // 4) Zeitachse fortschreiben (abhängig von #Tische & Round)
-            if ($this->pp("r_tables") === 2) {
-                // 2 Tische: Nächstes Match wartet bis dieses zu Ende ist
-                $this->rTime->addMinutes($duration);
-            } else {
-                // 4 Tische
-                if ($round === 0) {
-                    // TR: Startzeiten alternieren zwischen next_start und (match - next_start)
-                    if (($match['match']) % 2 === 1) {
-                        $this->rTime->addMinutes($this->pp("r_duration_next_start"));
-                    } else {
-                        $delta = $duration - $this->pp("r_duration_next_start");
-                        $this->rTime->addMinutes($delta);
-                    }
-                } else {
-                    // RG1–3: Overlap — nächster Start alle r_duration_next_start
-                    $this->rTime->addMinutes($this->pp("r_duration_next_start"));
-                }
+            // Clone time for this match
+            $time = $this->rTime->copy();
+
+            // Add robot check activity if needed
+            if ($this->pp("r_robot_check")) {
+                $activities[] = $this->prepareActivity(
+                    'r_check',
+                    $time,
+                    $this->pp('r_duration_robot_check'),
+                    null, null,
+                    $match['table_1'], $match['team_1'],
+                    $match['table_2'], $match['team_2']
+                );
+                
+                $time->addMinutes($this->pp('r_duration_robot_check'));
             }
+
+            // Add match activity
+            $activities[] = $this->prepareActivity(
+                'r_match',
+                $time,
+                $duration,
+                null, null,
+                $match['table_1'], $match['team_1'],
+                $match['table_2'], $match['team_2']
+            );
+
+            // Advance main time cursor
+            $this->advanceTimeForMatch($round, $match, $duration);
+        }
+
+        // Bulk insert all activities for this round
+        if (!empty($activities)) {
+            $this->writer->insertActivitiesBulk($activities);
         }
 
         // 5) Robot-Check addiert am Rundenende zusätzliche Zeit
@@ -553,6 +568,60 @@ class RobotGameGenerator
                 break;
         }
 
+    }
+
+    /**
+     * Prepare activity data for bulk insert
+     */
+    private function prepareActivity(
+        string $activityTypeCode,
+        TimeCursor $time,
+        int $duration,
+        ?int $juryLane, ?int $juryTeam,
+        ?int $table1, ?int $table1Team,
+        ?int $table2, ?int $table2Team
+    ): array {
+        $start = $time->current()->format('Y-m-d H:i:s');
+        $endCursor = $time->copy();
+        $endCursor->addMinutes($duration);
+        $end = $endCursor->current()->format('Y-m-d H:i:s');
+
+        return [
+            'activityTypeCode' => $activityTypeCode,
+            'start' => $start,
+            'end' => $end,
+            'juryLane' => $juryLane,
+            'juryTeam' => $juryTeam,
+            'table1' => $table1,
+            'table1Team' => $table1Team,
+            'table2' => $table2,
+            'table2Team' => $table2Team,
+        ];
+    }
+
+    /**
+     * Advance time cursor based on match configuration
+     */
+    private function advanceTimeForMatch(int $round, array $match, int $duration): void
+    {
+        if ($this->pp("r_tables") === 2) {
+            // 2 Tische: Nächstes Match wartet bis dieses zu Ende ist
+            $this->rTime->addMinutes($duration);
+        } else {
+            // 4 Tische
+            if ($round === 0) {
+                // TR: Startzeiten alternieren zwischen next_start und (match - next_start)
+                if (($match['match']) % 2 === 1) {
+                    $this->rTime->addMinutes($this->pp("r_duration_next_start"));
+                } else {
+                    $delta = $duration - $this->pp("r_duration_next_start");
+                    $this->rTime->addMinutes($delta);
+                }
+            } else {
+                // RG1–3: Overlap — nächster Start alle r_duration_next_start
+                $this->rTime->addMinutes($this->pp("r_duration_next_start"));
+            }
+        }
     }
     
     public function insertFinalRound(int $teamCount): void

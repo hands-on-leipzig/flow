@@ -59,44 +59,64 @@ class ChallengeGenerator
 
     public function judgingOneRound(int $cBlock, int $jT): void
     {
-        $this->writer->withGroup('j_package', function () use ($cBlock, $jT) {
+        // Capture jTime reference before entering closure
+        $jTime = $this->jTime;
+        
+        $this->writer->withGroup('j_package', function () use ($cBlock, $jT, $jTime) {
 
-            // 1) Judging WITH team
+            $activities = [];
+
+            // 1) Judging WITH team - prepare all activities
+            $withTeamStart = $jTime->current()->format('Y-m-d H:i:s');
+            $withTeamEndCursor = $jTime->copy();
+            $withTeamEndCursor->addMinutes($this->pp('j_duration_with_team'));
+            $withTeamEnd = $withTeamEndCursor->current()->format('Y-m-d H:i:s');
+            
             for ($jL = 1; $jL <= $this->pp('j_lanes'); $jL++) {
                 if ($jT + $jL <= $this->pp('c_teams')) {
-                    $this->writer->insertActivity(
-                        'j_with_team',
-                        $this->jTime,
-                        $this->pp('j_duration_with_team'),
-                        $jL,
-                        $jT + $jL
-                    );
+                    $activities[] = [
+                        'activityTypeCode' => 'j_with_team',
+                        'start' => $withTeamStart,
+                        'end' => $withTeamEnd,
+                        'juryLane' => $jL,
+                        'juryTeam' => $jT + $jL,
+                    ];
                 }
             }
-            $this->jTime->addMinutes($this->pp('j_duration_with_team'));
+            $jTime->addMinutes($this->pp('j_duration_with_team'));
 
-            // 2) Scoring WITHOUT team
+            // 2) Scoring WITHOUT team - prepare all activities
+            $scoringStart = $jTime->current()->format('Y-m-d H:i:s');
+            $scoringEndCursor = $jTime->copy();
+            $scoringEndCursor->addMinutes($this->pp('j_duration_scoring'));
+            $scoringEnd = $scoringEndCursor->current()->format('Y-m-d H:i:s');
+            
             for ($jL = 1; $jL <= $this->pp('j_lanes'); $jL++) {
                 if ($jT + $jL <= $this->pp('c_teams')) {
-                    $this->writer->insertActivity(
-                        'j_scoring',
-                        $this->jTime,
-                        $this->pp('j_duration_scoring'),
-                        $jL,
-                        $jT + $jL
-                    );
+                    $activities[] = [
+                        'activityTypeCode' => 'j_scoring',
+                        'start' => $scoringStart,
+                        'end' => $scoringEnd,
+                        'juryLane' => $jL,
+                        'juryTeam' => $jT + $jL,
+                    ];
                 }
             }
-            $this->jTime->addMinutes($this->pp('j_duration_scoring'));
+            $jTime->addMinutes($this->pp('j_duration_scoring'));
+
+            // Bulk insert all judging activities for this round
+            if (!empty($activities)) {
+                $this->writer->insertActivitiesBulk($activities);
+            }
 
             // 3) Pause / Lunch nach Runde
             if (($this->pp('j_rounds') == 4 && $cBlock == 2) ||
                 ($this->pp('j_rounds') > 4 && $cBlock == 3)) {
                 if ($this->pp('c_duration_lunch_break') == 0) {
-                    $this->jTime->addMinutes($this->pp('j_duration_lunch'));
+                    $jTime->addMinutes($this->pp('j_duration_lunch'));
                 }
             } elseif ($cBlock < $this->pp('j_rounds')) {
-                $this->jTime->addMinutes($this->pp('j_duration_break'));
+                $jTime->addMinutes($this->pp('j_duration_break'));
             }
         });
     }
