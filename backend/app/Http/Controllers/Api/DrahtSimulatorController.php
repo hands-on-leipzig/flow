@@ -236,6 +236,8 @@ class DrahtSimulatorController extends Controller
                 'team_number_hot' => $this->getTeamNumber($programType),
                 'name' => $teamName,
                 'first_program' => $programType === 1 ? (rand(1, 2) == 1 ? 2 : 3) : $programType,
+                'organization' => $this->getRandomOrganization(),
+                'location' => $this->getRandomLocation(),
                 'members' => $this->generateGermanMembers($i + 1)
             ];
         }
@@ -375,5 +377,77 @@ class DrahtSimulatorController extends Controller
         $areaCode = $areaCodes[array_rand($areaCodes)];
         $number = rand(100000, 999999);
         return $areaCode . ' ' . $number;
+    }
+
+    /**
+     * Generate a random organization name
+     */
+    private function getRandomOrganization()
+    {
+        $organizations = [
+            'Grundschule Am Park',
+            'Realschule Technik',
+            'Gymnasium Einstein',
+            'Gesamtschule Zukunft',
+            'Grundschule Sonnenberg',
+            'Realschule Innovation',
+            'Gymnasium Leonardo',
+            'Gesamtschule Forscher',
+            'Grundschule Roboter',
+            'Realschule Digital',
+            'Gymnasium Technik',
+            'Gesamtschule Wissenschaft',
+            'Grundschule Entdecker',
+            'Realschule Zukunft',
+            'Gymnasium Innovation',
+            'Gesamtschule Technik',
+            'Grundschule Forscher',
+            'Realschule Wissenschaft',
+            'Gymnasium Digital',
+            'Gesamtschule Roboter'
+        ];
+
+        return $organizations[array_rand($organizations)];
+    }
+
+    /**
+     * Generate a random location/city
+     */
+    private function getRandomLocation()
+    {
+        $locations = [
+            'München',
+            'Berlin',
+            'Hamburg',
+            'Köln',
+            'Frankfurt am Main',
+            'Stuttgart',
+            'Düsseldorf',
+            'Dortmund',
+            'Essen',
+            'Leipzig',
+            'Bremen',
+            'Dresden',
+            'Hannover',
+            'Nürnberg',
+            'Duisburg',
+            'Bochum',
+            'Wuppertal',
+            'Bielefeld',
+            'Bonn',
+            'Münster',
+            'Karlsruhe',
+            'Mannheim',
+            'Augsburg',
+            'Wiesbaden',
+            'Gelsenkirchen',
+            'Mönchengladbach',
+            'Braunschweig',
+            'Chemnitz',
+            'Kiel',
+            'Aachen'
+        ];
+
+        return $locations[array_rand($locations)];
     }
 }
