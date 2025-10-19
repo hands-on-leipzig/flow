@@ -631,14 +631,22 @@ class PlanExportController extends Controller
         // === Schritt 4: Room assignments (if planId available) ===
         $laneRooms = collect();
         if ($planId) {
-            $roomData = DB::table('lane_plan')
-                ->join('room', 'lane_plan.room', '=', 'room.id')
-                ->where('lane_plan.plan', $planId)
-                ->select('lane_plan.lane', 'room.name as room_name')
-                ->get()
-                ->keyBy('lane');
-            
-            $laneRooms = $roomData->pluck('room_name', 'lane');
+            $eventId = DB::table('plan')->where('id', $planId)->value('event');
+            if ($eventId) {
+                $roomData = DB::table('room_type_room as rtr')
+                    ->join('room as r', 'rtr.room', '=', 'r.id')
+                    ->join('m_room_type as mrt', 'rtr.room_type', '=', 'mrt.id')
+                    ->where('rtr.event', $eventId)
+                    ->whereIn('mrt.id', [2, 3, 4, 5, 6]) // Jurybewertung 1-5 (corresponds to lanes 1-5)
+                    ->select('mrt.id as room_type_id', 'r.name as room_name')
+                    ->get();
+                
+                // Map room_type_id to lane number (Jurybewertung 1 = lane 1, etc.)
+                foreach ($roomData as $rd) {
+                    $laneNumber = $rd->room_type_id - 1; // Jurybewertung 1 (ID 2) = lane 1
+                    $laneRooms->put($laneNumber, $rd->room_name);
+                }
+            }
         }
 
         // === Schritt 5: Iteration über Lanes ===
