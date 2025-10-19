@@ -348,7 +348,7 @@ class PlanExportController extends Controller
             if ($regularActivities->isNotEmpty()) {
                 switch ($role->differentiation_parameter) {
                     case 'team':
-                        $this->buildTeamBlock($programGroups, $regularActivities, $role);
+                        $this->buildTeamBlock($programGroups, $regularActivities, $role, null, $planId);
                         break;
 
                     case 'lane':
@@ -409,32 +409,65 @@ class PlanExportController extends Controller
     /**
      * Block für Team-Differenzierung
      */
-    private function buildTeamBlock(array &$programGroups, $activities, $role, $programNameOverride = null): void
+    private function buildTeamBlock(array &$programGroups, $activities, $role, $programNameOverride = null, $planId = null): void
     {
         // === Schritt 1: Activities entfalten (Lane/Table1/Table2 einzeln) ===
         $expanded   = collect();
         $neutral    = collect(); // neutrale Zeilen merken
+        $teamInfo   = collect(); // team metadata: [team_num => [name, hot, id]]
+        
         foreach ($activities as $a) {
             if (!empty($a->lane) && !empty($a->team)) {
                 $clone = clone $a;
                 $clone->team      = $a->team;
                 $clone->team_name = $a->jury_team_name;
+                $clone->team_number_hot = $a->jury_team_number_hot ?? null;
+                $clone->team_id   = $a->jury_team_id ?? null;
                 $clone->assign    = 'Jury ' . $a->lane;
                 $expanded->push($clone);
+                
+                // Store team metadata
+                if (!$teamInfo->has($a->team)) {
+                    $teamInfo->put($a->team, [
+                        'name' => $a->jury_team_name,
+                        'hot'  => $a->jury_team_number_hot ?? null,
+                        'id'   => $a->jury_team_id ?? null,
+                    ]);
+                }
             }
             if (!empty($a->table_1) && !empty($a->table_1_team)) {
                 $clone = clone $a;
                 $clone->team      = $a->table_1_team;
                 $clone->team_name = $a->table_1_team_name;
+                $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
+                $clone->team_id   = $a->table_1_team_id ?? null;
                 $clone->assign    = 'Tisch ' . $a->table_1;
                 $expanded->push($clone);
+                
+                if (!$teamInfo->has($a->table_1_team)) {
+                    $teamInfo->put($a->table_1_team, [
+                        'name' => $a->table_1_team_name,
+                        'hot'  => $a->table_1_team_number_hot ?? null,
+                        'id'   => $a->table_1_team_id ?? null,
+                    ]);
+                }
             }
             if (!empty($a->table_2) && !empty($a->table_2_team)) {
                 $clone = clone $a;
                 $clone->team      = $a->table_2_team;
                 $clone->team_name = $a->table_2_team_name;
+                $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
+                $clone->team_id   = $a->table_2_team_id ?? null;
                 $clone->assign    = 'Tisch ' . $a->table_2;
                 $expanded->push($clone);
+                
+                if (!$teamInfo->has($a->table_2_team)) {
+                    $teamInfo->put($a->table_2_team, [
+                        'name' => $a->table_2_team_name,
+                        'hot'  => $a->table_2_team_number_hot ?? null,
+                        'id'   => $a->table_2_team_id ?? null,
+                    ]);
+                }
             }
 
             // falls gar kein Team dran hängt → in neutral sammeln
@@ -463,13 +496,71 @@ class PlanExportController extends Controller
             ];
         };
 
-        // --- Sortierung nach Team-ID ---
-        foreach ($groups->sortKeys() as $teamId => $acts) {
-            // neutrales reingeben
+        // === Schritt 4: Room assignments (if planId available) ===
+        $teamRooms = collect();
+        if ($planId) {
+            $roomData = DB::table('team_plan')
+                ->join('room', 'team_plan.room', '=', 'room.id')
+                ->where('team_plan.plan', $planId)
+                ->select('team_plan.team', 'room.name as room_name')
+                ->get()
+                ->keyBy('team');
+            
+            $teamRooms = $roomData->pluck('room_name', 'team');
+        }
+
+        // === Schritt 5: Build team data with labels ===
+        $teamData = [];
+        foreach ($groups as $teamNum => $acts) {
+            $info = $teamInfo->get($teamNum, ['name' => null, 'hot' => null, 'id' => null]);
+            $teamName = $info['name'];
+            $teamHot = $info['hot'];
+            $teamId = $info['id'];
+            
+            // Build label: "TeamName (HotNumber) - Teamraum RoomName"
+            $label = '';
+            
+            // Team name part
+            if ($teamName && $teamHot) {
+                $label = "{$teamName} ({$teamHot})";
+            } elseif ($teamName) {
+                $label = $teamName;
+            } else {
+                $label = "!Platzhalter, weil nicht genügend Teams angemeldet sind!";
+            }
+            
+            // Room part
+            $roomName = null;
+            if ($teamId && $teamRooms->has($teamId)) {
+                $roomName = $teamRooms->get($teamId);
+            }
+            
+            if ($roomName) {
+                $label .= " – Teambereich {$roomName}";
+            } else {
+                $label .= " – Teambereich !Platzhalter, weil das Team noch keinem Raum zugeordnet wurde!";
+            }
+            
             $allActs = $acts->concat($neutral)->sortBy('start_time');
             $firstAct = $allActs->first();
             $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
-
+            
+            $teamData[] = [
+                'sortName' => $teamName ?? 'zzz', // For sorting
+                'label' => $label,
+                'programName' => $programName,
+                'acts' => $allActs,
+            ];
+        }
+        
+        // === Schritt 6: Sort by team name and add to programGroups ===
+        usort($teamData, function($a, $b) {
+            return strcasecmp($a['sortName'], $b['sortName']);
+        });
+        
+        foreach ($teamData as $td) {
+            $programName = $td['programName'];
+            
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
             }
@@ -479,13 +570,10 @@ class PlanExportController extends Controller
                     'teams' => []
                 ];
             }
-
-            $teamName  = $acts->first()->team_name ?? null;
-            $teamLabel = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
-
+            
             $programGroups[$programName][$role->id]['teams'][] = [
-                'teamLabel' => $teamLabel,
-                'rows'      => $allActs->map($mapRow)->values()->all(),
+                'teamLabel' => $td['label'],
+                'rows'      => $td['acts']->map($mapRow)->values()->all(),
             ];
         }
     }
