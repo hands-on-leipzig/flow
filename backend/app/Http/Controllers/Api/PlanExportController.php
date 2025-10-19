@@ -633,18 +633,43 @@ class PlanExportController extends Controller
         if ($planId) {
             $eventId = DB::table('plan')->where('id', $planId)->value('event');
             if ($eventId) {
-                $roomData = DB::table('room_type_room as rtr')
-                    ->join('room as r', 'rtr.room', '=', 'r.id')
-                    ->join('m_room_type as mrt', 'rtr.room_type', '=', 'mrt.id')
-                    ->where('rtr.event', $eventId)
-                    ->whereIn('mrt.id', [2, 3, 4, 5, 6]) // Jurybewertung 1-5 (corresponds to lanes 1-5)
-                    ->select('mrt.id as room_type_id', 'r.name as room_name')
-                    ->get();
+                // Get the program for this role from the role's activities
+                $programId = null;
+                foreach ($activities as $act) {
+                    if (!empty($act->activity_first_program_id)) {
+                        $programId = $act->activity_first_program_id;
+                        break;
+                    }
+                }
                 
-                // Map room_type_id to lane number (Jurybewertung 1 = lane 1, etc.)
-                foreach ($roomData as $rd) {
-                    $laneNumber = $rd->room_type_id - 1; // Jurybewertung 1 (ID 2) = lane 1
-                    $laneRooms->put($laneNumber, $rd->room_name);
+                if ($programId) {
+                    // Map program to room type IDs
+                    $roomTypeIds = [];
+                    if ($programId == 2) { // Explore (ID 2)
+                        $roomTypeIds = [8, 9, 10, 11, 12]; // Begutachtung 1-5
+                    } elseif ($programId == 3) { // Challenge (ID 3)
+                        $roomTypeIds = [2, 3, 4, 5, 6]; // Jurybewertung 1-5
+                    }
+                    
+                    if (!empty($roomTypeIds)) {
+                        $roomData = DB::table('room_type_room as rtr')
+                            ->join('room as r', 'rtr.room', '=', 'r.id')
+                            ->join('m_room_type as mrt', 'rtr.room_type', '=', 'mrt.id')
+                            ->where('rtr.event', $eventId)
+                            ->whereIn('mrt.id', $roomTypeIds)
+                            ->select('mrt.id as room_type_id', 'r.name as room_name')
+                            ->get();
+                        
+                        // Map room_type_id to lane number
+                        foreach ($roomData as $rd) {
+                            if ($programId == 2) { // Explore: Begutachtung 1 (ID 8) = lane 1
+                                $laneNumber = $rd->room_type_id - 7; // Begutachtung 1 (ID 8) = lane 1
+                            } else { // Challenge: Jurybewertung 1 (ID 2) = lane 1
+                                $laneNumber = $rd->room_type_id - 1; // Jurybewertung 1 (ID 2) = lane 1
+                            }
+                            $laneRooms->put($laneNumber, $rd->room_name);
+                        }
+                    }
                 }
             }
         }
