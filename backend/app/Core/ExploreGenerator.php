@@ -78,7 +78,14 @@ class ExploreGenerator
 
     public function openingsAndBriefings(): void
     {
-        Log::info('ExploreGenerator: Starting openings and briefings', ['eMode' => $this->eMode]);
+        Log::info('ExploreGenerator::openingsAndBriefings', [
+            'plan_id' => $this->pp('g_plan'),
+            'e_mode' => $this->eMode,
+            'e1_teams' => $this->pp('e1_teams'),
+            'e1_lanes' => $this->pp('e1_lanes'),
+            'e2_teams' => $this->pp('e2_teams'),
+            'e2_lanes' => $this->pp('e2_lanes'),
+        ]);
 
         try {
             if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
@@ -120,19 +127,12 @@ class ExploreGenerator
 
                 $this->eTime->addMinutes($this->pp("e{$group}_duration_opening"));
 
-                if($group == 1) {
-                    Log::info('Explore stand-alone morning', [
-                        'teams' => $this->pp('e1_teams'),
-                        'lanes' => $this->pp('e1_lanes'),
-                        'rounds' => $this->pp('e1_rounds')
-                    ]);
-                } else {
-                    Log::info('Explore stand-alone afternoon', [
-                        'teams' => $this->pp('e2_teams'),
-                        'lanes' => $this->pp('e2_lanes'),
-                        'rounds' => $this->pp('e2_rounds')
-                    ]);
-                }
+                // Details already logged in function start
+                // if($group == 1) {
+                //     Log::info('Explore stand-alone morning', [...]);
+                // } else {
+                //     Log::info('Explore stand-alone afternoon', [...]);
+                // }
 
             }
 
@@ -193,7 +193,7 @@ class ExploreGenerator
             default => throw new \RuntimeException("Invalid Explore mode: {$this->eMode}"),
         };
         
-        Log::info('ExploreGenerator: Starting judging and deliberations', ['eMode' => $this->eMode, 'group' => $group]);
+        // Log::info('ExploreGenerator: Starting judging and deliberations', ['eMode' => $this->eMode, 'group' => $group]);
 
         try {
             $lanes = $this->pp("e{$group}_lanes");
@@ -259,7 +259,7 @@ class ExploreGenerator
             default => throw new \RuntimeException("Invalid Explore mode: {$this->eMode}"),
         };
         
-        Log::info('ExploreGenerator: Starting awards', ['eMode' => $this->eMode, 'group' => $group, 'challenge' => $challenge]);
+        // Log::info('ExploreGenerator: Starting awards', ['eMode' => $this->eMode, 'group' => $group, 'challenge' => $challenge]);
         
         try {
             if($this->eMode == ExploreMode::INTEGRATED_MORNING->value ||
@@ -307,7 +307,7 @@ class ExploreGenerator
                 // INTEGRATED_MORNING: Insert awards
             
                 $this->awards();
-                Log::info("ExploreGenerator: Integrated awards inserted at {$this->integratedExplore->startTime}");
+                // Log::info("ExploreGenerator: Integrated awards inserted at {$this->integratedExplore->startTime}");
                 
             } elseif ($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
                 // INTEGRATED_AFTERNOON: Insert opening
@@ -316,7 +316,7 @@ class ExploreGenerator
                 $this->eTime->addMinutes($this->pp("e_ready_opening"));
                 
                 $this->openingsAndBriefings();                
-                Log::info("ExploreGenerator: Integrated opening inserted at {$this->integratedExplore->startTime}");
+                // Log::info("ExploreGenerator: Integrated opening inserted at {$this->integratedExplore->startTime}");
             
             }
 

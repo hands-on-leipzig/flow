@@ -25,14 +25,17 @@ class FreeBlockGenerator
 
     public function insertFreeActivities(): void
     {
-        Log::info('FreeBlockGenerator: Starting free activities insertion');
+        // Get plan configuration to check which programs are enabled
+        $eMode = $this->params->get('e_mode');
+        $cMode = $this->params->get('c_mode');
+        
+        Log::info('FreeBlockGenerator::insertFreeActivities', [
+            'plan_id' => $this->planId,
+            'e_mode' => $eMode,
+            'c_mode' => $cMode,
+        ]);
         
         try {
-            // Get plan configuration to check which programs are enabled
-            $eMode = $this->params->get('e_mode');
-            $cMode = $this->params->get('c_mode');
-            
-            Log::info('FreeBlockGenerator: Plan programs', ['e_mode' => $eMode, 'c_mode' => $cMode]);
             
             // Load ExtraBlocks with fixed times for this plan
             $blocks = ExtraBlock::where('plan', $this->planId)
@@ -45,13 +48,13 @@ class FreeBlockGenerator
             
             // Skip Explore blocks if Explore is disabled (e_mode = 0)
             if ($blockProgram === FirstProgram::EXPLORE->value && $eMode == 0) {
-                Log::info("FreeBlockGenerator: Skipping Explore block {$block->id} (Explore disabled in plan)");
+                // Log::info("FreeBlockGenerator: Skipping Explore block {$block->id} (Explore disabled in plan)");
                 continue;
             }
             
             // Skip Challenge blocks if Challenge is disabled (c_mode = 0)
             if ($blockProgram === FirstProgram::CHALLENGE->value && $cMode == 0) {
-                Log::info("FreeBlockGenerator: Skipping Challenge block {$block->id} (Challenge disabled in plan)");
+                // Log::info("FreeBlockGenerator: Skipping Challenge block {$block->id} (Challenge disabled in plan)");
                 continue;
             }
             
