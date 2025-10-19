@@ -48,11 +48,31 @@ const filterAsym = {
 
 const plans = computed(() => {
   return plansRaw.value.filter(plan => {
-    // Q-Checks
+    // Q-Checks - filter for red (problematic) plans only
     const qFilterOk = [1, 2, 3, 4].every(q => {
       if (!filterQ[q].value) return true
-      const ok = plan[`q${q}_ok_count`]
-      return ok < plan.c_teams
+      
+      // Q1 and Q4: red if not all teams pass
+      if (q === 1 || q === 4) {
+        const ok = plan[`q${q}_ok_count`]
+        return ok < plan.c_teams  // Show if red (some teams failed)
+      }
+      
+      // Q2 (Tische): red based on distribution and table count
+      if (q === 2) {
+        const count1 = plan.q2_1_count ?? 0
+        const isRed = count1 > 0  // Any team with only 1 table
+        return isRed
+      }
+      
+      // Q3 (Teams): red if any team has only 1 opponent
+      if (q === 3) {
+        const count1 = plan.q3_1_count ?? 0
+        const isRed = count1 > 0
+        return isRed
+      }
+      
+      return true
     })
 
     // Jury-Spuren
@@ -103,11 +123,31 @@ function ampelfarbeQ1Q4(ok, teams) {
   return ok === teams ? '🟢' : '🔴'
 }
 
-function ampelfarbeQ2Q3(scoreAvg) {
-  if (scoreAvg == null) return '⚪'  // No data yet
-  if (scoreAvg >= 90) return '🟢'
-  if (scoreAvg >= 85) return '🟡'
-  return '🔴'
+function ampelfarbeQ2(count1, count2, rTables) {
+  // 2 tables: red if any team saw only 1 table, else green
+  if (rTables === 2) {
+    if (count1 > 0) return '🔴'
+    return '🟢'
+  }
+  
+  // 4 tables: red if _1 > 0, yellow if _2 > 0, else green
+  if (rTables === 4) {
+    if (count1 > 0) return '🔴'
+    if (count2 > 0) return '🟡'
+    return '🟢'
+  }
+  
+  // Fallback for unknown table count
+  return '⚪'
+}
+
+function ampelfarbeQ3(count1, count2) {
+  // If any team has only 1 opponent: red
+  if (count1 > 0) return '🔴'
+  // Else if any team has 2 opponents: yellow
+  if (count2 > 0) return '🟡'
+  // Else all teams have 3 opponents: green
+  return '🟢'
 }
 
 function formatDistribution(count1, count2, count3, scoreAvg) {
@@ -382,13 +422,13 @@ async function startRerun() {
 
           <!-- Q2: Tische -->
           <div class="flex items-center gap-1">
-            <span>{{ ampelfarbeQ2Q3(qplan.q2_score_avg) }}</span>
+            <span>{{ ampelfarbeQ2(qplan.q2_1_count, qplan.q2_2_count, qplan.r_tables) }}</span>
             <span class="text-xs">{{ formatDistribution(qplan.q2_1_count, qplan.q2_2_count, qplan.q2_3_count, qplan.q2_score_avg) }}</span>
           </div>
 
           <!-- Q3: Teams -->
           <div class="flex items-center gap-1">
-            <span>{{ ampelfarbeQ2Q3(qplan.q3_score_avg) }}</span>
+            <span>{{ ampelfarbeQ3(qplan.q3_1_count, qplan.q3_2_count) }}</span>
             <span class="text-xs">{{ formatDistribution(qplan.q3_1_count, qplan.q3_2_count, qplan.q3_3_count, qplan.q3_score_avg) }}</span>
           </div>
 
