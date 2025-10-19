@@ -288,9 +288,10 @@ class PlanExportController extends Controller
             ->get();
 
         $programGroups = [];
+        $allFreeBlocks = collect();
 
+        // First pass: collect all free blocks from all roles
         foreach ($roles as $role) {
-
             $activities = $this->activityFetcher->fetchActivities(
                 plan: $planId,
                 roles: [$role->id],
@@ -305,35 +306,43 @@ class PlanExportController extends Controller
                 continue;
             }
 
-            // Separate free blocks from regular activities
             $activitiesCollection = collect($activities);
             $freeBlocks = $activitiesCollection->filter(function($a) {
                 return !is_null($a->extra_block_id) && is_null($a->extra_block_insert_point);
             });
+
+            $allFreeBlocks = $allFreeBlocks->concat($freeBlocks);
+        }
+
+        // Deduplicate free blocks by activity_id (same block appears in multiple roles)
+        $allFreeBlocks = $allFreeBlocks->unique('activity_id');
+
+        // Build one flat table for all free blocks
+        if ($allFreeBlocks->isNotEmpty()) {
+            $this->buildFreeBlocksTable($programGroups, $allFreeBlocks);
+        }
+
+        // Second pass: process regular activities by role
+        foreach ($roles as $role) {
+            $activities = $this->activityFetcher->fetchActivities(
+                plan: $planId,
+                roles: [$role->id],
+                includeRooms: true,
+                includeGroupMeta: false,
+                includeActivityMeta: true,
+                includeTeamNames: true,
+                freeBlocks: true
+            );
+
+            if ($activities->isEmpty()) {
+                continue;
+            }
+
+            // Filter to only regular activities (not free blocks)
+            $activitiesCollection = collect($activities);
             $regularActivities = $activitiesCollection->filter(function($a) {
                 return is_null($a->extra_block_id) || !is_null($a->extra_block_insert_point);
             });
-
-            // Process free blocks separately under "Freie Blöcke"
-            if ($freeBlocks->isNotEmpty()) {
-                switch ($role->differentiation_parameter) {
-                    case 'team':
-                        $this->buildTeamBlock($programGroups, $freeBlocks, $role, 'Freie Blöcke');
-                        break;
-
-                    case 'lane':
-                        $this->buildLaneBlock($programGroups, $freeBlocks, $role, 'Freie Blöcke');
-                        break;
-
-                    case 'table':
-                        $this->buildTableBlock($programGroups, $freeBlocks, $role, 'Freie Blöcke');
-                        break;
-
-                    default:
-                        $this->buildSimpleBlock($programGroups, $freeBlocks, $role, 'Freie Blöcke');
-                        break;
-                }
-            }
 
             // Process regular activities under their program name
             if ($regularActivities->isNotEmpty()) {
@@ -687,6 +696,67 @@ class PlanExportController extends Controller
 
         $programGroups[$programName][$role->id]['general'][] = [
             'rows' => $acts->map($mapRow)->values()->all(),
+        ];
+    }
+
+    /**
+     * Build a single flat table for all free blocks (no role sub-sections)
+     */
+    private function buildFreeBlocksTable(array &$programGroups, $activities): void
+    {
+        if ($activities->isEmpty()) {
+            return;
+        }
+
+        // Map function for rows
+        $mapRow = function ($a) {
+            // Teamlabel bestimmen
+            $teamLabel = null;
+            if (!empty($a->team)) {
+                $teamLabel = 'Team ' . $a->team;
+            }
+            if (!empty($a->jury_team_name)) {
+                $teamLabel = 'Team ' . $a->team . ' – ' . $a->jury_team_name;
+            }
+            if (!empty($a->table_1_team_name)) {
+                $teamLabel = 'Team ' . $a->table_1_team . ' – ' . $a->table_1_team_name;
+            }
+            if (!empty($a->table_2_team_name)) {
+                $teamLabel = 'Team ' . $a->table_2_team . ' – ' . $a->table_2_team_name;
+            }
+
+            // Assignment (Jury/Tisch/-)
+            $assign = '–';
+            if (!empty($a->lane)) {
+                $assign = 'Jury ' . $a->lane;
+            } elseif (!empty($a->table_1)) {
+                $assign = 'Tisch ' . $a->table_1;
+            } elseif (!empty($a->table_2)) {
+                $assign = 'Tisch ' . $a->table_2;
+            }
+
+            return [
+                'start_hm'  => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                'end_hm'    => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'teamLabel' => $teamLabel ?? '–',
+                'assign'    => $assign,
+                'room'      => $a->room_name ?? $a->room_type_name ?? '–',
+            ];
+        };
+
+        $acts = $activities->sortBy('start_time');
+        
+        $programName = 'Freie Blöcke';
+
+        // Create single entry with dummy role ID 0
+        $programGroups[$programName] = [
+            0 => [
+                'role'    => null,  // No role header
+                'general' => [
+                    ['rows' => $acts->map($mapRow)->values()->all()]
+                ]
+            ]
         ];
     }
 

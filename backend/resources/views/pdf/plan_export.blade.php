@@ -26,7 +26,10 @@
     <h1 style="font-size:18px; margin-top:25px;">{{ $programName }}</h1>
 
     @foreach ($roles as $roleBlock)
-        <h2 style="font-size:16px; margin-top:20px;">{{ $roleBlock['role'] }}</h2>
+        {{-- Only show role header if role is not null (skip for Freie Blöcke) --}}
+        @if (!is_null($roleBlock['role']))
+            <h2 style="font-size:16px; margin-top:20px;">{{ $roleBlock['role'] }}</h2>
+        @endif
 
         {{-- Falls Teams existieren --}}
         @if (!empty($roleBlock['teams']))
@@ -52,7 +55,10 @@
         {{-- Falls General-Block existiert --}}
         @if (!empty($roleBlock['general']))
             @foreach ($roleBlock['general'] as $generalBlock)
-                @include('pdf.plan_export.general', ['generalBlock' => $generalBlock])
+                @include('pdf.plan_export.general', [
+                    'generalBlock' => $generalBlock,
+                    'showHeading' => !is_null($roleBlock['role'])
+                ])
             @endforeach
         @endif
 
