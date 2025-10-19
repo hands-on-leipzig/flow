@@ -551,20 +551,20 @@ const updateTableName = async () => {
 </script>
 
 <template>
-  <div class="h-screen p-6 flex flex-col space-y-5">
-
-    <!-- Toast notification for pending parameter updates -->
-    <div v-if="showToast"
-         class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
-      <div class="flex items-center gap-3">
-        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-        <span class="text-green-800 font-medium">Parameter-Änderungen werden gespeichert...</span>
-      </div>
-      <!--<div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
-        <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
-             :style="{ width: progress + '%' }"></div>
-      </div>-->
+  <!-- Toast notification for pending parameter updates -->
+  <div v-if="showToast"
+       class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
+    <div class="flex items-center gap-3">
+      <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+      <span class="text-green-800 font-medium">Parameter-Änderungen werden gespeichert...</span>
     </div>
+    <!--<div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
+      <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
+           :style="{ width: progress + '%' }"></div>
+    </div>-->
+  </div>
+
+  <div class="h-screen p-6 flex flex-col space-y-5">
 
     <div v-if="false" class="flex items-center space-x-4">
       <label for="plan-select" class="text-sm font-medium">Plan auswählen:</label>
@@ -594,6 +594,7 @@ const updateTableName = async () => {
             <ExploreSettings
                 :parameters="parameters"
                 :show-explore="showExplore"
+                :show-challenge="showChallenge"
                 @toggle-show="(v) => showExplore = v"
                 :lanes-index="lanesIndex"
                 :supported-plan-data="supportedPlanData"

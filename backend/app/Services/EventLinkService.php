@@ -49,7 +49,7 @@ class EventLinkService
 
             // Generate slug based on level and region
             $slug = $this->generateSlug($event, $region);
-            $link = config('app.url') . "/" . $slug;
+            $link = config('app.frontend_url', 'http://localhost:5173') . "/" . $slug;
 
             // Generate QR code
             $qrCodeRaw = $this->generateQRCode($link);
