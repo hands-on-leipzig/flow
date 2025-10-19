@@ -13,6 +13,7 @@ const { isAdmin } = useAuth()
 
 const scheduleInfo = ref<any>(null)
 const regenerating = ref(false)
+const savingPublicationLevel = ref(false)
 
 // Detail-Level
 const levels = ['Planung', 'Nach Anmeldeschluss', 'Überblick zum Ablauf', 'volle Details']
@@ -31,11 +32,17 @@ async function fetchPublicationLevel() {
 
 async function updatePublicationLevel(level: number) {
   try {
+    savingPublicationLevel.value = true
     console.log('Updating publication level to:', level + 1, 'for event:', event.value?.id)
     await axios.post(`/publish/level/${event.value?.id}`, { level: level + 1 })
     console.log('Publication level updated successfully')
+    
+    // Small delay to show the banner
+    await new Promise(resolve => setTimeout(resolve, 500))
   } catch (e) {
     console.error('Fehler beim Setzen des Publication Levels:', e)
+  } finally {
+    savingPublicationLevel.value = false
   }
 }
 
@@ -132,6 +139,15 @@ async function regenerateLinkAndQR() {
 
 <template>
   <div class="rounded-xl shadow bg-white p-6 space-y-4">
+    <!-- Toast notification for pending publication level updates -->
+    <div v-if="savingPublicationLevel"
+         class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
+      <div class="flex items-center gap-3">
+        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+        <span class="text-green-800 font-medium">Publikations-Level wird gespeichert...</span>
+      </div>
+    </div>
+
     <h2 class="text-lg font-semibold">Online – von der Planung bis zur Veranstaltung</h2>
 
     <!-- Link + Erklärung -->
