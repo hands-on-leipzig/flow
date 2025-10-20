@@ -20,7 +20,12 @@ class VisibilityController extends Controller
             $roles = DB::table('m_role')
                 ->leftJoin('m_first_program', 'm_role.first_program', '=', 'm_first_program.id')
                 ->select('m_role.id', 'm_role.name', 'm_first_program.name as program')
-                ->orderBy('m_first_program.name')
+                ->orderByRaw('CASE 
+                    WHEN m_first_program.name = "EXPLORE" THEN 1 
+                    WHEN m_first_program.name = "CHALLENGE" THEN 2 
+                    WHEN m_first_program.name IS NULL THEN 3 
+                    ELSE 4 
+                END')
                 ->orderBy('m_role.name')
                 ->get();
 
@@ -43,7 +48,12 @@ class VisibilityController extends Controller
             $activityTypes = DB::table('m_activity_type_detail')
                 ->leftJoin('m_first_program', 'm_activity_type_detail.first_program', '=', 'm_first_program.id')
                 ->select('m_activity_type_detail.id', 'm_activity_type_detail.name', 'm_first_program.name as program')
-                ->orderBy('m_first_program.name')
+                ->orderByRaw('CASE 
+                    WHEN m_first_program.name = "EXPLORE" THEN 1 
+                    WHEN m_first_program.name = "CHALLENGE" THEN 2 
+                    WHEN m_first_program.name IS NULL THEN 3 
+                    ELSE 4 
+                END')
                 ->orderBy('m_activity_type_detail.name')
                 ->get();
 
@@ -86,7 +96,12 @@ class VisibilityController extends Controller
                     $rolesQuery->where('m_role.id', $roleFilter);
                 }
             }
-            $roles = $rolesQuery->orderBy('m_first_program.name')->orderBy('m_role.name')->get();
+            $roles = $rolesQuery->orderByRaw('CASE 
+                WHEN m_first_program.name = "EXPLORE" THEN 1 
+                WHEN m_first_program.name = "CHALLENGE" THEN 2 
+                WHEN m_first_program.name IS NULL THEN 3 
+                ELSE 4 
+            END')->orderBy('m_role.name')->get();
             \Log::info('Roles query result:', ['count' => $roles->count()]);
 
             // Get activity types with filtering
@@ -94,17 +109,14 @@ class VisibilityController extends Controller
                 ->leftJoin('m_first_program', 'm_activity_type_detail.first_program', '=', 'm_first_program.id')
                 ->select('m_activity_type_detail.id', 'm_activity_type_detail.name', 'm_first_program.name as program');
             if ($activityFilter !== 'all') {
-                if ($activityFilter === '2') {
-                    $activitiesQuery->where('m_activity_type_detail.first_program', 2); // Explore
-                } elseif ($activityFilter === '3') {
-                    $activitiesQuery->where('m_activity_type_detail.first_program', 3); // Challenge
-                } elseif ($activityFilter === 'null') {
-                    $activitiesQuery->whereNull('m_activity_type_detail.first_program'); // Allgemein
-                } else {
-                    $activitiesQuery->where('m_activity_type_detail.id', $activityFilter);
-                }
+                $activitiesQuery->where('m_activity_type_detail.activity_type', $activityFilter);
             }
-            $activities = $activitiesQuery->orderBy('m_first_program.name')->orderBy('m_activity_type_detail.name')->get();
+            $activities = $activitiesQuery->orderByRaw('CASE 
+                WHEN m_first_program.name = "EXPLORE" THEN 1 
+                WHEN m_first_program.name = "CHALLENGE" THEN 2 
+                WHEN m_first_program.name IS NULL THEN 3 
+                ELSE 4 
+            END')->orderBy('m_activity_type_detail.name')->get();
             \Log::info('Activities query result:', ['count' => $activities->count()]);
 
             // Get existing visibility rules
