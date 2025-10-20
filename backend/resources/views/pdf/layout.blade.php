@@ -82,6 +82,9 @@
                 </tr>
             </table>
         @endif
+        <div style="position:absolute; bottom:5px; right:10px; font-size:8px; color:#999; font-family:sans-serif;">
+            {{ now()->timezone('Europe/Berlin')->format('d.m.Y H:i') }}
+        </div>
     </footer>
 
     {{-- CONTENT --}}

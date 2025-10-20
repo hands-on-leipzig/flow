@@ -53,7 +53,7 @@
                 <tbody>
                     @foreach($roomsWithNav as $roomName => $navigation)
                         <tr>
-                            <td style="padding:3px 8px 3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif;">
+                            <td style="padding:3px 8px 3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:nowrap;">
                                 {{ $roomName }}
                             </td>
                             <td style="padding:3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif;">
