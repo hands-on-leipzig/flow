@@ -216,23 +216,33 @@ const toggleVisibility = async (roleId, activityId, visible) => {
   toggling.value = true
   
   try {
-    await axios.post('/visibility/toggle', {
+    console.log('Toggling visibility:', { roleId, activityId, visible })
+    const response = await axios.post('/visibility/toggle', {
       role_id: roleId,
       activity_type_detail_id: activityId,
       visible: visible
     })
+    console.log('Toggle response:', response.data)
     
     // Update local state
     const role = matrix.value.find(r => r.role.id === roleId)
+    console.log('Found role:', role)
     if (role) {
       const activity = role.activities.find(a => a.activity.id === activityId)
+      console.log('Found activity:', activity)
       if (activity) {
         activity.visible = visible
+        console.log('Updated activity visibility to:', visible)
+      } else {
+        console.warn('Activity not found in matrix for role:', roleId, 'activity:', activityId)
       }
+    } else {
+      console.warn('Role not found in matrix:', roleId)
     }
   } catch (err) {
     error.value = 'Failed to update visibility'
     console.error('Failed to toggle visibility:', err)
+    console.error('Error response:', err.response?.data)
   } finally {
     toggling.value = false
   }
