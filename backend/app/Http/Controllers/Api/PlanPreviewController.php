@@ -80,4 +80,69 @@ class PlanPreviewController extends Controller
         return response()->json($matrix);
     }
 
+    /**
+     * Get Robot-Game match plan for preview
+     */
+    public function previewRobotGame(int $plan)
+    {
+        // Check if Challenge exists in this plan
+        $hasChallenge = DB::table('activity')
+            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+            ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+            ->where('activity_group.plan', $plan)
+            ->where('m_activity_type_detail.first_program', 3)
+            ->exists();
+
+        if (!$hasChallenge) {
+            return response()->json([
+                'has_challenge' => false,
+                'rounds' => []
+            ]);
+        }
+
+        // Fetch all matches for this plan
+        $matches = DB::table('match')
+            ->where('plan', $plan)
+            ->orderBy('round')
+            ->orderBy('match_no')
+            ->get();
+
+        // Group by round
+        $roundNames = [
+            0 => 'Testrunde',
+            1 => 'Runde 1',
+            2 => 'Runde 2',
+            3 => 'Runde 3',
+        ];
+
+        $rounds = [];
+        foreach ([0, 1, 2, 3] as $roundNum) {
+            $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
+            
+            if ($roundMatches->isEmpty()) {
+                continue;
+            }
+
+            $rounds[] = [
+                'round' => $roundNum,
+                'name' => $roundNames[$roundNum],
+                'matches' => $roundMatches->map(function ($match) {
+                    return [
+                        'match_id' => $match->id,
+                        'match_no' => $match->match_no,
+                        'table_1' => $match->table_1,
+                        'table_1_team' => $match->table_1_team,
+                        'table_2' => $match->table_2,
+                        'table_2_team' => $match->table_2_team,
+                    ];
+                })->toArray()
+            ];
+        }
+
+        return response()->json([
+            'has_challenge' => true,
+            'rounds' => $rounds
+        ]);
+    }
+
 }

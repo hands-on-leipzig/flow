@@ -100,7 +100,7 @@ async function load() {
   try {
     if (view.value === 'robot-game') {
       // Robot-Game match plan
-      const { data } = await axios.get(`/plans/robot-game/${effectivePlanId.value}`)
+      const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/robot-game`)
       robotGameData.value = data
       hasChallenge.value = data?.has_challenge ?? false
       headers.value = []
@@ -142,7 +142,7 @@ onMounted(async () => {
   // Load robot-game data first to check if Challenge exists
   if (effectivePlanId.value) {
     try {
-      const { data } = await axios.get(`/plans/robot-game/${effectivePlanId.value}`)
+      const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/robot-game`)
       hasChallenge.value = data?.has_challenge ?? false
     } catch (e) {
       console.error('[Preview] Failed to check Challenge existence:', e)
