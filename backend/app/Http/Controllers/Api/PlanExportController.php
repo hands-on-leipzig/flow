@@ -1083,6 +1083,9 @@ if ($prepRooms->isNotEmpty()) {
         ->orderBy('name')
         ->get();
 
+    $roomCount = $rooms->count();
+    $roomIndex = 0;
+
     foreach ($rooms as $room) {
         // Teams, die diesem Raum zugeordnet sind
         $teams = DB::table('team_plan')
@@ -1101,6 +1104,8 @@ if ($prepRooms->isNotEmpty()) {
             continue;
         }
 
+        $roomIndex++;
+
         // Zeilen für Tabelle aufbauen
         $rows = $teams->map(function ($t) {
             return [
@@ -1117,8 +1122,10 @@ if ($prepRooms->isNotEmpty()) {
             'event' => $event,
         ])->render();
 
-        // Seitenumbruch nach jeder Raumseite
-        $html .= '<div style="page-break-before: always;"></div>';
+        // Seitenumbruch nach jeder Raumseite (außer der letzten)
+        if ($roomIndex < $roomCount) {
+            $html .= '<div style="page-break-before: always;"></div>';
+        }
     }
 }
 
