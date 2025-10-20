@@ -163,7 +163,7 @@ class RobotGameGenerator
         }
 
         // Special handling for asymmetric robot games
-        if ($this->pp('r_asym')) {
+        if ($this->pp('r_asym') && $this->pp("j_rounds") != 4) {
 
             // For four tables with asymmetric robot games, we need to do more to prevent the same pair of tables being used twice
             //
@@ -174,27 +174,31 @@ class RobotGameGenerator
             // This increases the duration of TR by 10 minutes. This is handled when creating the full-day plan
             
             $newList = [];
+            $emptyMatchInserted = false;
+            
             foreach ($this->entries as $entry) {
 
-                // Change only TR only 
-
+                // For TR matches after j_lanes: increment match number to make room for empty match
                 if ($entry['round'] === 0 && $entry['match'] > $this->pp("j_lanes")) {
                     $entry['match'] += 1;
                 }
 
-                // copy all modified or unmodified entries
+                // Copy all modified or unmodified entries
                 $newList[] = $entry;
+                
+                // Insert empty match right after the last j_lanes match in TR
+                if (!$emptyMatchInserted && $entry['round'] === 0 && $entry['match'] === $this->pp("j_lanes")) {
+                    $newList[] = [
+                        'round'   => 0,
+                        'match'   => $this->pp("j_lanes") + 1,
+                        'table_1' => 3,
+                        'table_2' => 4,
+                        'team_1'  => 0,
+                        'team_2'  => 0,
+                    ];
+                    $emptyMatchInserted = true;
+                }
             }
-
-            // Insert new match after j_lanes matches
-            $newList[] = [
-                'round'   => 0,
-                'match'   => $this->pp("j_lanes") + 1,
-                'table_1' => 3,
-                'table_2' => 4,
-                'team_1'  => 0,
-                'team_2'  => 0,
-            ];
 
             $this->entries = $newList;
         }
