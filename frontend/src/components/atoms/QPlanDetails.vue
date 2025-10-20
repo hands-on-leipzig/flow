@@ -40,7 +40,16 @@ const warnClassTables = (val) => val < minRequiredTables() ? 'text-yellow-500 fo
 const iconTables = (val) => val < minRequiredTables() ? '⚠️' : '✓'
 
 const matchesByRound = (round) => {
-  return details.value?.matches?.filter(m => m.round === round) ?? []
+  const filtered = details.value?.matches?.filter(m => m.round === round) ?? []
+  // Sort by match_no to ensure chronological order
+  return filtered.sort((a, b) => a.match_no - b.match_no)
+}
+
+const formatTeam = (teamNum) => {
+  // Format team display: Team 0 = '–' (volunteer/BYE), null/undefined = empty, others = number
+  if (teamNum === null || teamNum === undefined) return ''
+  if (teamNum === 0) return '–'
+  return String(teamNum)
 }
 </script>
 
@@ -166,20 +175,20 @@ const matchesByRound = (round) => {
                     class="border-t"
                   >
                     <td class="text-center">
-                      <span v-if="match.table_1 === 1">{{ match.table_1_team }}</span>
-                      <span v-else-if="match.table_2 === 1">{{ match.table_2_team }}</span>
+                      <span v-if="match.table_1 === 1">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 1">{{ formatTeam(match.table_2_team) }}</span>
                     </td>
                     <td class="text-center">
-                      <span v-if="match.table_1 === 2">{{ match.table_1_team }}</span>
-                      <span v-else-if="match.table_2 === 2">{{ match.table_2_team }}</span>
+                      <span v-if="match.table_1 === 2">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 2">{{ formatTeam(match.table_2_team) }}</span>
                     </td>
                     <td class="text-center">
-                      <span v-if="match.table_1 === 3">{{ match.table_1_team }}</span>
-                      <span v-else-if="match.table_2 === 3">{{ match.table_2_team }}</span>
+                      <span v-if="match.table_1 === 3">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 3">{{ formatTeam(match.table_2_team) }}</span>
                     </td>
                     <td class="text-center">
-                      <span v-if="match.table_1 === 4">{{ match.table_1_team }}</span>
-                      <span v-else-if="match.table_2 === 4">{{ match.table_2_team }}</span>
+                      <span v-if="match.table_1 === 4">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 4">{{ formatTeam(match.table_2_team) }}</span>
                     </td>
                   </tr>
                 </tbody>
