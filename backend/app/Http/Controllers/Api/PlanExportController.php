@@ -1065,7 +1065,6 @@ class PlanExportController extends Controller
             }
         }
 
-
 // --- 🔹 Vorbereitung: Räume aus team_plan laden ---
 $prepRooms = DB::table('team_plan')
     ->where('plan', $planId)
@@ -1074,6 +1073,9 @@ $prepRooms = DB::table('team_plan')
     ->pluck('room');
 
 if ($prepRooms->isNotEmpty()) {
+    // Add page break before starting the preparation section
+    $html .= '<div style="page-break-before: always;"></div>';
+    
     // Raumdetails aus room-Tabelle
     $rooms = DB::table('room')
         ->whereIn('id', $prepRooms)
