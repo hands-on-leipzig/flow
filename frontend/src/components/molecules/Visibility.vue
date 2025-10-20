@@ -17,11 +17,9 @@
           class="border border-gray-300 rounded-md px-3 py-2 text-sm"
         >
           <option value="all">All Roles</option>
-          <option value="challenge">Challenge Roles</option>
-          <option value="explore">Explore Roles</option>
-          <option v-for="role in roles" :key="role.id" :value="role.id">
-            {{ role.name }}
-          </option>
+          <option value="2">Explore</option>
+          <option value="3">Challenge</option>
+          <option value="null">Allgemein</option>
         </select>
       </div>
       
@@ -33,26 +31,12 @@
           class="border border-gray-300 rounded-md px-3 py-2 text-sm"
         >
           <option value="all">All Activities</option>
-          <option value="challenge">Challenge Activities</option>
-          <option value="explore">Explore Activities</option>
-          <option v-for="activity in activities" :key="activity.id" :value="activity.id">
-            {{ activity.name }}
-          </option>
+          <option value="2">Explore</option>
+          <option value="3">Challenge</option>
+          <option value="null">Allgemein</option>
         </select>
       </div>
       
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Visibility Filter</label>
-        <select 
-          v-model="visibilityFilter" 
-          @change="loadMatrix"
-          class="border border-gray-300 rounded-md px-3 py-2 text-sm"
-        >
-          <option value="all">All</option>
-          <option value="visible">Visible Only</option>
-          <option value="hidden">Hidden Only</option>
-        </select>
-      </div>
     </div>
 
     <!-- Loading State -->
@@ -72,31 +56,37 @@
       </button>
     </div>
 
-    <!-- Matrix Table -->
+    <!-- Matrix Table (Flipped: Activities as rows, Roles as columns) -->
     <div v-else class="matrix-wrapper">
       <table class="sticky-matrix">
         <thead class="sticky-top">
           <tr>
             <th class="sticky-left bg-gray-50 font-medium text-gray-900 px-4 py-3 text-left">
-              Role
+              Activity
             </th>
             <th 
-              v-for="activity in activities" 
-              :key="activity.id"
+              v-for="role in roles" 
+              :key="role.id"
               class="bg-gray-50 font-medium text-gray-900 px-3 py-3 text-center min-w-[120px]"
             >
-              {{ activity.name }}
+              {{ role.name }}
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="role in roles" :key="role.id" class="border-b border-gray-200">
+          <tr v-for="activity in activities" :key="activity.id" class="border-b border-gray-200">
             <td class="sticky-left bg-white font-medium text-gray-900 px-4 py-3">
-              {{ role.name }}
+              <div class="flex items-center">
+                <div 
+                  class="w-3 h-3 rounded-full mr-2 flex-shrink-0"
+                  :class="getActivityColor(activity.program)"
+                ></div>
+                {{ activity.name }}
+              </div>
             </td>
             <td 
-              v-for="activity in activities" 
-              :key="activity.id"
+              v-for="role in roles" 
+              :key="role.id"
               class="px-3 py-3 text-center"
             >
               <input 
@@ -129,7 +119,6 @@ const matrix = ref([])
 // Filters
 const roleFilter = ref('all')
 const activityFilter = ref('all')
-const visibilityFilter = ref('all')
 
 // Load initial data
 onMounted(() => {
@@ -172,8 +161,7 @@ const loadMatrix = async () => {
   try {
     const params = {
       role_filter: roleFilter.value,
-      activity_filter: activityFilter.value,
-      visibility_filter: visibilityFilter.value
+      activity_filter: activityFilter.value
     }
     
     console.log('Loading matrix with params:', params)
@@ -201,6 +189,19 @@ const isVisible = (roleId, activityId) => {
   
   const activity = role.activities.find(a => a.activity.id === activityId)
   return activity ? activity.visible : false
+}
+
+const getActivityColor = (program) => {
+  switch (program) {
+    case 'CHALLENGE':
+      return 'bg-red-500'
+    case 'EXPLORE':
+      return 'bg-green-500'
+    case 'DISCOVER':
+      return 'bg-gray-500'
+    default:
+      return 'bg-gray-400'
+  }
 }
 
 const toggleVisibility = async (roleId, activityId, visible) => {
