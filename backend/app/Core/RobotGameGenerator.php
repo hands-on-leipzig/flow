@@ -33,7 +33,7 @@ class RobotGameGenerator
         IntegratedExploreState $integratedExplore
     ) {
         $this->writer = $writer;
-        $this->params = $params;  // Pflicht für Trait
+        $this->params = $params;  // Required for trait
         $this->rTime = $rTime;
         $this->integratedExplore = $integratedExplore;
     }
@@ -76,7 +76,7 @@ class RobotGameGenerator
                         $team = $this->pp("j_lanes") * ($round + 2);
                         break;
 
-                        // not all lanes may be filled in last judging round, 
+                        // Not all lanes may be filled in last judging round, 
                         // but that does not matter with six rounds, because robot game is aligned with judging 5
                 }
 
@@ -86,7 +86,7 @@ class RobotGameGenerator
                 }
             }
 
-            // fill the match-plan for the round starting with the last match, then going backwards
+            // Fill the match plan for the round starting with the last match, then going backwards
             // Start with just 2 tables. Distribution to 4 tables is done afterwards.
 
             for ($match = $this->pp("r_matches_per_round"); $match >= 1; $match--) {
@@ -405,15 +405,15 @@ class RobotGameGenerator
     ): void {
 
         // Approach: If robot check is needed, add it first and then the match. Otherwise, add the match directly.
-        // The time provide to the function is the start time of the match, regardless of robot check.
+        // The time provided to the function is the start time of the match, regardless of robot check.
 
         // $time is local to this function. $r_time needs to be adjusted by the caller of this function.
 
 
-        // Clone, damit wir die Startzeit für Robot-Check/Match korrekt festhalten
+        // Clone so we correctly capture the start time for robot check/match
         $time = $rTime->copy();
 
-        // Mit Robot-Check → zuerst Check eintragen, dann Match starten
+        // With robot check → first enter check, then start match
         if ($robotCheck) {
             $this->writer->insertActivity(
                 'r_check',
@@ -427,11 +427,11 @@ class RobotGameGenerator
                 $team2
             );
 
-            // Zeit weiterdrehen
+            // Advance time
             $time->addMinutes($this->pp('r_duration_robot_check'));
         }
 
-        // Match eintragen
+        // Enter match
         $this->writer->insertActivity(
             'r_match',
             $time,
@@ -448,7 +448,7 @@ class RobotGameGenerator
 
     public function insertOneRound(int $round)
     {
-        // 1) Activity-Group nach Round setzen
+        // 1) Set activity group based on round
         switch ($round) {
             case 0:
                 $this->writer->insertActivityGroup('r_test_round');
@@ -464,7 +464,7 @@ class RobotGameGenerator
                 break;
         }
 
-        // 2) Matches dieser Runde filtern + sortieren
+        // 2) Filter and sort matches for this round
         $filtered = array_filter($this->entries, fn ($m) => $m['round'] === $round);
         usort($filtered, fn ($a, $b) => $a['match'] <=> $b['match']);
 
@@ -472,12 +472,12 @@ class RobotGameGenerator
         $activities = [];
         
         foreach ($filtered as $match) {
-            // Dauer bestimmen (TR vs RG)
+            // Determine duration (TR vs RG)
             $duration = ($round === 0)
                 ? $this->pp("r_duration_test_match")
                 : $this->pp("r_duration_match");
 
-            // exotischer Fall: leeres TR-Match überspringen
+            // Exotic case: skip empty TR match
             if ($match['team_1'] === 0 && $match['team_2'] === 0) {
                 // Update time but don't create activity
                 $this->advanceTimeForMatch($round, $match, $duration);
@@ -520,18 +520,18 @@ class RobotGameGenerator
             $this->writer->insertActivitiesBulk($activities);
         }
 
-        // 5) Robot-Check addiert am Rundenende zusätzliche Zeit
+        // 5) Robot check adds additional time at the end of the round
         if ($this->pp("r_robot_check")) {
             $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
         }
 
-        // 6) Fix für 4 Tische: wenn letztes Match vorbei ist, Gesamtdauer korrigieren
+        // 6) Fix for 4 tables: when last match is over, correct total duration
         if ($this->pp("r_tables") === 4) {
             $delta = $this->pp("r_duration_match") - $this->pp("r_duration_next_start");
             $this->rTime->addMinutes($delta);
         }
 
-        // 7) Inserted Blocks / Pausen für NÄCHSTE Runde
+        // 7) Inserted blocks / breaks for NEXT round
         switch ($round) {
             case 0:
                 $this->writer->insertPoint('c_after_tr', $this->pp("r_duration_break"), $this->rTime);
@@ -605,12 +605,12 @@ class RobotGameGenerator
     private function advanceTimeForMatch(int $round, array $match, int $duration): void
     {
         if ($this->pp("r_tables") === 2) {
-            // 2 Tische: Nächstes Match wartet bis dieses zu Ende ist
+            // 2 tables: Next match waits until this one is finished
             $this->rTime->addMinutes($duration);
         } else {
-            // 4 Tische
+            // 4 tables
             if ($round === 0) {
-                // TR: Startzeiten alternieren zwischen next_start und (match - next_start)
+                // TR: Start times alternate between next_start and (match - next_start)
                 if (($match['match']) % 2 === 1) {
                     $this->rTime->addMinutes($this->pp("r_duration_next_start"));
                 } else {
@@ -618,7 +618,7 @@ class RobotGameGenerator
                     $this->rTime->addMinutes($delta);
                 }
             } else {
-                // RG1–3: Overlap — nächster Start alle r_duration_next_start
+                // RG1–3: Overlap — next start every r_duration_next_start
                 $this->rTime->addMinutes($this->pp("r_duration_next_start"));
             }
         }
