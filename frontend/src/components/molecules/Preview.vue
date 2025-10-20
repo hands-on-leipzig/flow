@@ -115,7 +115,7 @@ async function load() {
       activities.value = []
     } else if (view.value === 'activities') {
       // Power-User-Sicht: rohe Activities vom Backend
-      const { data } = await axios.get(`/plans/activities/${effectivePlanId.value}`)
+      const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/activities`)
       activities.value = Array.isArray(data?.groups) ? data.groups : []
       headers.value = []
       rows.value = []
