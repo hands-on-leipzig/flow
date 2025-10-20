@@ -97,10 +97,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/{planId}/roles', [PlanPreviewController::class, 'previewRoles']);
         Route::get('/{planId}/teams', [PlanPreviewController::class, 'previewTeams']);
         Route::get('/{planId}/rooms', [PlanPreviewController::class, 'previewRooms']);
+        Route::get('/{planId}/robot-game', [PlanPreviewController::class, 'previewRobotGame']);
     });
-
-    // Robot-Game matches for preview
-    Route::get('/plans/robot-game/{planId}', [PlanExportController::class, 'getRobotGameMatches']);
 
     // PlanActivity controller
     Route::prefix('plans')->group(function () {
