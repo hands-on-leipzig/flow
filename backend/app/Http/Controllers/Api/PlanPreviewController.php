@@ -204,8 +204,8 @@ class PlanPreviewController extends Controller
         $activities = $this->activities->fetchActivities(
             $plan,
             roles: [],                 // keine Rollen → alles selektieren
-            includeRooms: false,
-            includeGroupMeta: false,
+            includeRooms: true,        // Enable to get room data
+            includeGroupMeta: true,    // Enable to get group names
             includeActivityMeta: false,
             includeTeamNames: false,
             freeBlocks: true
@@ -219,6 +219,7 @@ class PlanPreviewController extends Controller
             if (!isset($groups[$groupId])) {
                 $groups[$groupId] = [
                     'activity_group_id' => $groupId,
+                    'activity_group_name' => $activity->group_atd_name ?? 'Unknown Group',
                     'activities' => []
                 ];
             }
@@ -231,10 +232,11 @@ class PlanPreviewController extends Controller
                 'activity_name' => $activity->activity_name,
                 'lane' => $activity->lane,
                 'team' => $activity->team,
-                'table_1' => $activity->table_1,
                 'table_1_team' => $activity->table_1_team,
-                'table_2' => $activity->table_2,
                 'table_2_team' => $activity->table_2_team,
+                'table_1' => $activity->table_1,
+                'table_2' => $activity->table_2,
+                'room_type_name' => $activity->room_type_name ?? '',
             ];
         }
 

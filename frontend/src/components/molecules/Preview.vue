@@ -84,13 +84,15 @@ type ActivityRow = {
   activity_name: string
   lane: number|null
   team: number|null
-  table_1: number|null
   table_1_team: number|null
-  table_2: number|null
   table_2_team: number|null
+  table_1: number|null
+  table_2: number|null
+  room_type_name: string
 }
 type ActivityGroup = {
   activity_group_id: number|null
+  activity_group_name?: string
   activities: ActivityRow[]
 }
 const activities = ref<ActivityGroup[]>([])
@@ -387,7 +389,7 @@ function formatTeam(teamNum: number | null): string {
 
         <div v-for="group in activities" :key="String(group.activity_group_id)" class="mb-6">
           <div class="font-semibold text-sm mb-2">
-            Activity Group ID: {{ group.activity_group_id ?? '–' }}
+            Activity Group ID: {{ group.activity_group_id ?? '–' }} - {{ group.activity_group_name ?? 'Unknown Group' }}
           </div>
 
           <div class="overflow-x-auto border rounded">
@@ -401,10 +403,11 @@ function formatTeam(teamNum: number | null): string {
                   <th class="px-2 py-1 text-left">Activity Name</th>
                   <th class="px-2 py-1 text-left">Lane</th>
                   <th class="px-2 py-1 text-left">Team</th>
-                  <th class="px-2 py-1 text-left">Table 1</th>
                   <th class="px-2 py-1 text-left">Table 1 Team</th>
-                  <th class="px-2 py-1 text-left">Table 2</th>
                   <th class="px-2 py-1 text-left">Table 2 Team</th>
+                  <th class="px-2 py-1 text-left">Table 1</th>
+                  <th class="px-2 py-1 text-left">Table 2</th>
+                  <th class="px-2 py-1 text-left">Room Type</th>
                 </tr>
               </thead>
               <tbody>
@@ -416,10 +419,11 @@ function formatTeam(teamNum: number | null): string {
                   <td class="px-2 py-1">{{ a.activity_name }}</td>
                   <td class="px-2 py-1">{{ a.lane ?? '' }}</td>
                   <td class="px-2 py-1">{{ a.team ?? '' }}</td>
-                  <td class="px-2 py-1">{{ a.table_1 ?? '' }}</td>
                   <td class="px-2 py-1">{{ a.table_1_team ?? '' }}</td>
-                  <td class="px-2 py-1">{{ a.table_2 ?? '' }}</td>
                   <td class="px-2 py-1">{{ a.table_2_team ?? '' }}</td>
+                  <td class="px-2 py-1">{{ a.table_1 ?? '' }}</td>
+                  <td class="px-2 py-1">{{ a.table_2 ?? '' }}</td>
+                  <td class="px-2 py-1">{{ a.room_type_name || '' }}</td>
                 </tr>
               </tbody>
             </table>
