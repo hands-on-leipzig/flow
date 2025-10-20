@@ -100,7 +100,7 @@
               <input 
                 type="checkbox" 
                 :checked="isVisible(role.id, activity.id)"
-                @change="toggleVisibility(role.id, activity.id, $event.target.checked)"
+                @click="handleCheckboxClick(role.id, activity.id, $event)"
                 class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 :disabled="toggling"
               />
@@ -108,6 +108,35 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Confirmation Dialog -->
+    <div v-if="showConfirmDialog" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+          <div class="mt-2 px-7 py-3">
+            <p class="text-sm text-gray-500">
+              Sichtbarkeit von <strong>{{ getActivityName(pendingToggle?.activityId) }}</strong><br>
+              für Rolle <strong>{{ getRoleName(pendingToggle?.roleId) }}</strong><br>
+              <strong>{{ pendingToggle?.visible ? 'einschalten' : 'ausschalten' }}</strong>?
+            </p>
+          </div>
+          <div class="flex justify-center space-x-4 mt-4">
+            <button
+              @click="confirmToggle"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Ja
+            </button>
+            <button
+              @click="cancelToggle"
+              class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+              Nein
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -123,6 +152,10 @@ const toggling = ref(false)
 const roles = ref([])
 const activities = ref([])
 const matrix = ref([])
+
+// Confirmation dialog
+const showConfirmDialog = ref(false)
+const pendingToggle = ref(null)
 
 // Filters
 const roleFilter = ref('all')
@@ -212,40 +245,69 @@ const getActivityColor = (program) => {
   }
 }
 
-const toggleVisibility = async (roleId, activityId, visible) => {
+const handleCheckboxClick = (roleId, activityId, event) => {
+  // Prevent the default checkbox behavior
+  event.preventDefault()
+  
+  // Get the current state and the new desired state
+  const currentState = isVisible(roleId, activityId)
+  const newState = !currentState
+  
+  // Store the pending toggle and show confirmation dialog
+  pendingToggle.value = { roleId, activityId, visible: newState }
+  showConfirmDialog.value = true
+}
+
+const toggleVisibility = (roleId, activityId, visible) => {
+  // Store the pending toggle and show confirmation dialog
+  pendingToggle.value = { roleId, activityId, visible }
+  showConfirmDialog.value = true
+}
+
+const confirmToggle = async () => {
+  if (!pendingToggle.value) return
+  
   toggling.value = true
+  showConfirmDialog.value = false
   
   try {
-    console.log('Toggling visibility:', { roleId, activityId, visible })
+    const { roleId, activityId, visible } = pendingToggle.value
     const response = await axios.post('/visibility/toggle', {
       role_id: roleId,
       activity_type_detail_id: activityId,
       visible: visible
     })
-    console.log('Toggle response:', response.data)
     
     // Update local state
     const role = matrix.value.find(r => r.role.id === roleId)
-    console.log('Found role:', role)
     if (role) {
       const activity = role.activities.find(a => a.activity.id === activityId)
-      console.log('Found activity:', activity)
       if (activity) {
         activity.visible = visible
-        console.log('Updated activity visibility to:', visible)
-      } else {
-        console.warn('Activity not found in matrix for role:', roleId, 'activity:', activityId)
       }
-    } else {
-      console.warn('Role not found in matrix:', roleId)
     }
   } catch (err) {
     error.value = 'Failed to update visibility'
     console.error('Failed to toggle visibility:', err)
-    console.error('Error response:', err.response?.data)
   } finally {
     toggling.value = false
+    pendingToggle.value = null
   }
+}
+
+const cancelToggle = () => {
+  showConfirmDialog.value = false
+  pendingToggle.value = null
+}
+
+const getActivityName = (activityId) => {
+  const activity = activities.value.find(a => a.id === activityId)
+  return activity ? activity.name : 'Unknown Activity'
+}
+
+const getRoleName = (roleId) => {
+  const role = roles.value.find(r => r.id === roleId)
+  return role ? role.name : 'Unknown Role'
 }
 </script>
 
