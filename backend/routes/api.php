@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\MainTablesController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\PlanExportController;
+use App\Http\Controllers\Api\VisibilityController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -253,5 +254,14 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('stats')->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
+    });
+
+    // Visibility controller
+    Route::prefix('visibility')->group(function () {
+        Route::get('/roles', [VisibilityController::class, 'getRoles']);
+        Route::get('/activity-types', [VisibilityController::class, 'getActivityTypes']);
+        Route::get('/matrix', [VisibilityController::class, 'getMatrix']);
+        Route::post('/toggle', [VisibilityController::class, 'toggleVisibility']);
+        Route::post('/bulk-toggle', [VisibilityController::class, 'bulkToggle']);
     });
 });
