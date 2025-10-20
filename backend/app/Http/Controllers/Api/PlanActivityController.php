@@ -15,62 +15,6 @@ class PlanActivityController extends Controller
 {
     public function __construct(private ActivityFetcherService $activities) {}
 
-    public function activities(int $planId): \Illuminate\Http\JsonResponse
-    {
-        // TODO do that in a standardized way and also reflect it in routes
-        // Check if user has admin role
-        $jwt = request()->attributes->get('jwt');
-        $roles = $jwt['resource_access']->flow->roles ?? [];
-
-        if (!in_array('flow-admin', $roles) && !in_array('flow_admin', $roles)) {
-            return response()->json(['error' => 'Forbidden - admin role required'], 403);
-        }
-
-        $rows = $this->activities->fetchActivities(
-            $planId,
-            roles: [],                 // keine Rollen → alles selektieren
-            includeRooms: false,
-            includeGroupMeta: false,
-            includeActivityMeta: false,
-            includeTeamNames: false,
-            freeBlocks: true
-        );
-
-        // Nach Activity-Group gruppieren
-        $groups = [];
-        foreach ($rows as $row) {
-            $gid = $row->activity_group_id ?? null;
-
-            if (!isset($groups[$gid])) {
-                $groups[$gid] = [
-                    'activity_group_id' => $gid,
-                    'activities' => [],
-                ];
-            }
-
-            $groups[$gid]['activities'][] = [
-                'activity_id'      => $row->activity_id,
-                'start_time'       => $row->start_time,   // ISO/DB-Format; Frontend formatiert
-                'end_time'         => $row->end_time,
-                'program'          => $row->program_name, // z.B. CHALLENGE / EXPLORE (falls befüllt)
-                'activity_name'    => $row->activity_name,
-                'lane'             => $row->lane,
-                'team'             => $row->team,
-                'table_1'          => $row->table_1,
-                'table_1_team'     => $row->table_1_team,
-                'table_2'          => $row->table_2,
-                'table_2_team'     => $row->table_2_team,
-            ];
-        }
-
-        // Indexe bereinigen
-        $groups = array_values($groups);
-
-        return response()->json([
-            'plan_id' => $planId,
-            'groups'  => $groups,
-        ]);
-    }
 
 public function actionNow(int $planId, Request $req): JsonResponse
     {

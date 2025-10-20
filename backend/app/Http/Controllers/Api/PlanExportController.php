@@ -1822,5 +1822,4 @@ if ($prepRooms->isNotEmpty()) {
         return response()->json($result);
     }
 
-
 }
