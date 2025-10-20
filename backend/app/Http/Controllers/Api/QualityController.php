@@ -130,7 +130,10 @@ class QualityController extends Controller
         // Get plan ID from q_plan and fetch matches from match table
         $qplan = \App\Models\QPlan::findOrFail($qplanId);
         $planId = $qplan->plan;
-        $matches = \App\Models\MatchEntry::where('plan', $planId)->get();
+        $matches = \App\Models\MatchEntry::where('plan', $planId)
+            ->orderBy('round')
+            ->orderBy('match_no')
+            ->get();
 
         $c_teams = $qplan->c_teams;
 
