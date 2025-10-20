@@ -1859,7 +1859,7 @@ if ($prepRooms->isNotEmpty()) {
 
         $rounds = [];
         foreach ([0, 1, 2, 3] as $roundNum) {
-            $roundMatches = $matches->where('round', $roundNum)->sortByDesc('match_no')->values();
+            $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
             
             if ($roundMatches->isEmpty()) {
                 continue;
