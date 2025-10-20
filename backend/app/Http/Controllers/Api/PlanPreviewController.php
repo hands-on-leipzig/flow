@@ -187,4 +187,60 @@ class PlanPreviewController extends Controller
         ]);
     }
 
+    /**
+     * Get raw activities for power-user debugging view
+     */
+    public function previewActivities(int $plan)
+    {
+        // Check admin role (same as PlanActivityController)
+        $jwt = request()->attributes->get('jwt');
+        $roles = $jwt['resource_access']->flow->roles ?? [];
+
+        if (!in_array('flow-admin', $roles) && !in_array('flow_admin', $roles)) {
+            return response()->json(['error' => 'Forbidden - admin role required'], 403);
+        }
+
+        // Fetch all activities with comprehensive data
+        $activities = $this->activities->fetchActivities(
+            $plan,
+            roles: [],                 // keine Rollen → alles selektieren
+            includeRooms: false,
+            includeGroupMeta: false,
+            includeActivityMeta: false,
+            includeTeamNames: false,
+            freeBlocks: true
+        );
+
+        // Group by Activity Group (same logic as PlanActivityController)
+        $groups = [];
+        foreach ($activities as $activity) {
+            $groupId = $activity->activity_group_id;
+            
+            if (!isset($groups[$groupId])) {
+                $groups[$groupId] = [
+                    'activity_group_id' => $groupId,
+                    'activities' => []
+                ];
+            }
+            
+            $groups[$groupId]['activities'][] = [
+                'activity_id' => $activity->activity_id,
+                'start_time' => $activity->start_time,
+                'end_time' => $activity->end_time,
+                'program' => $activity->program_name,
+                'activity_name' => $activity->activity_name,
+                'lane' => $activity->lane,
+                'team' => $activity->team,
+                'table_1' => $activity->table_1,
+                'table_1_team' => $activity->table_1_team,
+                'table_2' => $activity->table_2,
+                'table_2_team' => $activity->table_2_team,
+            ];
+        }
+
+        return response()->json([
+            'groups' => array_values($groups)
+        ]);
+    }
+
 }
