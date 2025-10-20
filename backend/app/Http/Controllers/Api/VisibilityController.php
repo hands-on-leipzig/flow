@@ -18,7 +18,7 @@ class VisibilityController extends Controller
         
         try {
             $roles = DB::table('m_role')
-                ->join('m_first_program', 'm_role.first_program', '=', 'm_first_program.id')
+                ->leftJoin('m_first_program', 'm_role.first_program', '=', 'm_first_program.id')
                 ->select('m_role.id', 'm_role.name', 'm_first_program.name as program')
                 ->orderBy('m_first_program.name')
                 ->orderBy('m_role.name')
@@ -41,7 +41,7 @@ class VisibilityController extends Controller
         
         try {
             $activityTypes = DB::table('m_activity_type_detail')
-                ->join('m_first_program', 'm_activity_type_detail.first_program', '=', 'm_first_program.id')
+                ->leftJoin('m_first_program', 'm_activity_type_detail.first_program', '=', 'm_first_program.id')
                 ->select('m_activity_type_detail.id', 'm_activity_type_detail.name', 'm_first_program.name as program')
                 ->orderBy('m_first_program.name')
                 ->orderBy('m_activity_type_detail.name')
@@ -73,13 +73,15 @@ class VisibilityController extends Controller
         try {
             // Get roles with filtering
             $rolesQuery = DB::table('m_role')
-                ->join('m_first_program', 'm_role.first_program', '=', 'm_first_program.id')
+                ->leftJoin('m_first_program', 'm_role.first_program', '=', 'm_first_program.id')
                 ->select('m_role.id', 'm_role.name', 'm_first_program.name as program');
             if ($roleFilter !== 'all') {
-                if ($roleFilter === 'challenge') {
-                    $rolesQuery->where('m_first_program.name', 'CHALLENGE');
-                } elseif ($roleFilter === 'explore') {
-                    $rolesQuery->where('m_first_program.name', 'EXPLORE');
+                if ($roleFilter === '2') {
+                    $rolesQuery->where('m_role.first_program', 2); // Explore
+                } elseif ($roleFilter === '3') {
+                    $rolesQuery->where('m_role.first_program', 3); // Challenge
+                } elseif ($roleFilter === 'null') {
+                    $rolesQuery->whereNull('m_role.first_program'); // Allgemein
                 } else {
                     $rolesQuery->where('m_role.id', $roleFilter);
                 }
@@ -89,13 +91,15 @@ class VisibilityController extends Controller
 
             // Get activity types with filtering
             $activitiesQuery = DB::table('m_activity_type_detail')
-                ->join('m_first_program', 'm_activity_type_detail.first_program', '=', 'm_first_program.id')
+                ->leftJoin('m_first_program', 'm_activity_type_detail.first_program', '=', 'm_first_program.id')
                 ->select('m_activity_type_detail.id', 'm_activity_type_detail.name', 'm_first_program.name as program');
             if ($activityFilter !== 'all') {
-                if ($activityFilter === 'challenge') {
-                    $activitiesQuery->where('m_first_program.name', 'CHALLENGE');
-                } elseif ($activityFilter === 'explore') {
-                    $activitiesQuery->where('m_first_program.name', 'EXPLORE');
+                if ($activityFilter === '2') {
+                    $activitiesQuery->where('m_activity_type_detail.first_program', 2); // Explore
+                } elseif ($activityFilter === '3') {
+                    $activitiesQuery->where('m_activity_type_detail.first_program', 3); // Challenge
+                } elseif ($activityFilter === 'null') {
+                    $activitiesQuery->whereNull('m_activity_type_detail.first_program'); // Allgemein
                 } else {
                     $activitiesQuery->where('m_activity_type_detail.id', $activityFilter);
                 }
