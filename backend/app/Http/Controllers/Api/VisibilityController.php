@@ -14,8 +14,6 @@ class VisibilityController extends Controller
      */
     public function getRoles()
     {
-        \Log::info('VisibilityController::getRoles called');
-        
         try {
             $roles = DB::table('m_role')
                 ->leftJoin('m_first_program', 'm_role.first_program', '=', 'm_first_program.id')
@@ -29,10 +27,8 @@ class VisibilityController extends Controller
                 ->orderBy('m_role.name')
                 ->get();
 
-            \Log::info('Roles found:', ['count' => $roles->count(), 'roles' => $roles->toArray()]);
             return response()->json($roles);
         } catch (\Exception $e) {
-            \Log::error('Error in getRoles:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Database error: ' . $e->getMessage()], 500);
         }
     }
@@ -42,8 +38,6 @@ class VisibilityController extends Controller
      */
     public function getActivityTypes()
     {
-        \Log::info('VisibilityController::getActivityTypes called');
-        
         try {
             $activityTypes = DB::table('m_activity_type_detail')
                 ->leftJoin('m_first_program', 'm_activity_type_detail.first_program', '=', 'm_first_program.id')
@@ -57,10 +51,8 @@ class VisibilityController extends Controller
                 ->orderBy('m_activity_type_detail.name')
                 ->get();
 
-            \Log::info('Activity types found:', ['count' => $activityTypes->count(), 'types' => $activityTypes->toArray()]);
             return response()->json($activityTypes);
         } catch (\Exception $e) {
-            \Log::error('Error in getActivityTypes:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Database error: ' . $e->getMessage()], 500);
         }
     }
@@ -70,12 +62,6 @@ class VisibilityController extends Controller
      */
     public function getMatrix(Request $request)
     {
-        \Log::info('VisibilityController::getMatrix called', [
-            'role_filter' => $request->get('role_filter', 'all'),
-            'activity_filter' => $request->get('activity_filter', 'all'),
-            'visibility_filter' => $request->get('visibility_filter', 'all')
-        ]);
-        
         $roleFilter = $request->get('role_filter', 'all');
         $activityFilter = $request->get('activity_filter', 'all');
         $visibilityFilter = $request->get('visibility_filter', 'all');
@@ -102,7 +88,6 @@ class VisibilityController extends Controller
                 WHEN m_first_program.name IS NULL THEN 3 
                 ELSE 4 
             END')->orderBy('m_role.name')->get();
-            \Log::info('Roles query result:', ['count' => $roles->count()]);
 
             // Get activity types with filtering
             $activitiesQuery = DB::table('m_activity_type_detail')
@@ -117,7 +102,6 @@ class VisibilityController extends Controller
                 WHEN m_first_program.name IS NULL THEN 3 
                 ELSE 4 
             END')->orderBy('m_activity_type_detail.name')->get();
-            \Log::info('Activities query result:', ['count' => $activities->count()]);
 
             // Get existing visibility rules
             $visibilityRules = DB::table('m_visibility')
@@ -126,7 +110,6 @@ class VisibilityController extends Controller
                 ->keyBy(function ($rule) {
                     return $rule->role . '_' . $rule->activity_type_detail;
                 });
-            \Log::info('Visibility rules found:', ['count' => $visibilityRules->count()]);
 
             // Build matrix data
             $matrix = [];
@@ -157,14 +140,12 @@ class VisibilityController extends Controller
                 $matrix[] = $row;
             }
 
-            \Log::info('Matrix built successfully:', ['matrix_rows' => count($matrix)]);
             return response()->json([
                 'roles' => $roles,
                 'activities' => $activities,
                 'matrix' => $matrix
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error in getMatrix:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Database error: ' . $e->getMessage()], 500);
         }
     }
@@ -175,8 +156,8 @@ class VisibilityController extends Controller
     public function toggleVisibility(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'role_id' => 'required|integer|exists:role,id',
-            'activity_type_detail_id' => 'required|integer|exists:activity_type_detail,id',
+            'role_id' => 'required|integer|exists:m_role,id',
+            'activity_type_detail_id' => 'required|integer|exists:m_activity_type_detail,id',
             'visible' => 'required|boolean'
         ]);
 
@@ -195,9 +176,7 @@ class VisibilityController extends Controller
                 // Insert visibility rule
                 DB::table('m_visibility')->insertOrIgnore([
                     'role' => $roleId,
-                    'activity_type_detail' => $activityTypeDetailId,
-                    'created_at' => now(),
-                    'updated_at' => now()
+                    'activity_type_detail' => $activityTypeDetailId
                 ]);
             } else {
                 // Remove visibility rule
@@ -216,7 +195,7 @@ class VisibilityController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Database error'], 500);
+            return response()->json(['error' => 'Database error: ' . $e->getMessage()], 500);
         }
     }
 
@@ -227,8 +206,8 @@ class VisibilityController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'toggles' => 'required|array',
-            'toggles.*.role_id' => 'required|integer|exists:role,id',
-            'toggles.*.activity_type_detail_id' => 'required|integer|exists:activity_type_detail,id',
+            'toggles.*.role_id' => 'required|integer|exists:m_role,id',
+            'toggles.*.activity_type_detail_id' => 'required|integer|exists:m_activity_type_detail,id',
             'toggles.*.visible' => 'required|boolean'
         ]);
 
