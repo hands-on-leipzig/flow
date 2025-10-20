@@ -7,7 +7,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 // https://vite.dev/config/
 export default defineConfig(({mode}) => {
     const env = loadEnv(mode, process.cwd(), '');
-    const baseURL = env.BASE_URL || 'http://localhost:8000';
+    const serverURL = env.SERVER_URL || 'http://localhost:8000';
 
     return {
         plugins: [
@@ -26,22 +26,22 @@ export default defineConfig(({mode}) => {
             proxy: {
                 // Blade-Views (unsere Tabelle)
                 '^/schedule/.*': {
-                    target: baseURL,
+                    target: serverURL,
                     changeOrigin: true,
                 },
                 // API-Endpunkte
                 '^/api/.*': {
-                    target: baseURL,
+                    target: serverURL,
                     changeOrigin: true,
                 },
                 // Slug handler for event routing
                 '^/slug-handler.php': {
-                    target: baseURL,
+                    target: serverURL,
                     changeOrigin: true,
                 },
                 // Output directory (zeitplan.cgi)
                 '^/output/.*': {
-                    target: baseURL,
+                    target: serverURL,
                     changeOrigin: true,
                 },
                 // Event slugs are now handled by Vue Router, not proxied to backend
