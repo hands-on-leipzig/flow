@@ -96,7 +96,8 @@ class PlanPreviewController extends Controller
         if (!$hasChallenge) {
             return response()->json([
                 'has_challenge' => false,
-                'rounds' => []
+                'rounds' => [],
+                'team_summary' => []
             ]);
         }
 
@@ -139,9 +140,50 @@ class PlanPreviewController extends Controller
             ];
         }
 
+        // Calculate team diversity metrics (Q2 and Q3)
+        // Only use rounds 1-3 (robot game rounds, not test round)
+        $robotGameMatches = $matches->whereIn('round', [1, 2, 3]);
+        
+        // Get all unique teams from matches
+        $allTeams = collect();
+        foreach ($robotGameMatches as $match) {
+            if ($match->table_1_team > 0) $allTeams->push($match->table_1_team);
+            if ($match->table_2_team > 0) $allTeams->push($match->table_2_team);
+        }
+        $uniqueTeams = $allTeams->unique()->sort()->values();
+        
+        $teamSummary = [];
+        foreach ($uniqueTeams as $team) {
+            $teamMatches = $robotGameMatches->filter(function ($match) use ($team) {
+                return $match->table_1_team == $team || $match->table_2_team == $team;
+            });
+
+            $tables = [];
+            $opponents = [];
+
+            foreach ($teamMatches as $match) {
+                // Get table this team played on
+                $table = $match->table_1_team == $team ? $match->table_1 : $match->table_2;
+                $tables[] = $table;
+
+                // Get opponent (exclude Team 0 - volunteers)
+                $opponent = $match->table_1_team == $team ? $match->table_2_team : $match->table_1_team;
+                if ($opponent > 0) {
+                    $opponents[] = $opponent;
+                }
+            }
+
+            $teamSummary[] = [
+                'team' => $team,
+                'different_tables' => count(array_unique($tables)),
+                'different_opponents' => count(array_unique($opponents))
+            ];
+        }
+
         return response()->json([
             'has_challenge' => true,
-            'rounds' => $rounds
+            'rounds' => $rounds,
+            'team_summary' => $teamSummary
         ]);
     }
 
