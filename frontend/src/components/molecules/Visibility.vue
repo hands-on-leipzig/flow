@@ -1,33 +1,273 @@
 <template>
   <div class="visibility-admin">
     <div class="mb-4">
-      <h3 class="text-lg font-medium text-gray-900 mb-2">
-        Visibility Rules Management
-      </h3>
+      
       <p class="text-sm text-gray-600 mb-4">
         Manage visibility rules for different roles and activity types.
       </p>
     </div>
-    
-    <div class="bg-white shadow overflow-hidden sm:rounded-md">
-      <div class="p-0">
-        <iframe 
-          class="w-full h-screen border-0"
-          :src="visibilityUrl"
-          title="Visibility Management"
-        ></iframe>
+
+    <!-- Filters -->
+    <div class="filters mb-4 flex gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Role Filter</label>
+        <select 
+          v-model="roleFilter" 
+          @change="loadMatrix"
+          class="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="all">All Roles</option>
+          <option value="challenge">Challenge Roles</option>
+          <option value="explore">Explore Roles</option>
+          <option v-for="role in roles" :key="role.id" :value="role.id">
+            {{ role.name }}
+          </option>
+        </select>
       </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Activity Filter</label>
+        <select 
+          v-model="activityFilter" 
+          @change="loadMatrix"
+          class="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="all">All Activities</option>
+          <option value="challenge">Challenge Activities</option>
+          <option value="explore">Explore Activities</option>
+          <option v-for="activity in activities" :key="activity.id" :value="activity.id">
+            {{ activity.name }}
+          </option>
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Visibility Filter</label>
+        <select 
+          v-model="visibilityFilter" 
+          @change="loadMatrix"
+          class="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="all">All</option>
+          <option value="visible">Visible Only</option>
+          <option value="hidden">Hidden Only</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="text-center py-8">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <p class="mt-2 text-sm text-gray-600">Loading visibility matrix...</p>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-md p-4">
+      <p class="text-sm text-red-600">{{ error }}</p>
+      <button 
+        @click="loadMatrix" 
+        class="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+      >
+        Try again
+      </button>
+    </div>
+
+    <!-- Matrix Table -->
+    <div v-else class="matrix-wrapper">
+      <table class="sticky-matrix">
+        <thead class="sticky-top">
+          <tr>
+            <th class="sticky-left bg-gray-50 font-medium text-gray-900 px-4 py-3 text-left">
+              Role
+            </th>
+            <th 
+              v-for="activity in activities" 
+              :key="activity.id"
+              class="bg-gray-50 font-medium text-gray-900 px-3 py-3 text-center min-w-[120px]"
+            >
+              {{ activity.name }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="role in roles" :key="role.id" class="border-b border-gray-200">
+            <td class="sticky-left bg-white font-medium text-gray-900 px-4 py-3">
+              {{ role.name }}
+            </td>
+            <td 
+              v-for="activity in activities" 
+              :key="activity.id"
+              class="px-3 py-3 text-center"
+            >
+              <input 
+                type="checkbox" 
+                :checked="isVisible(role.id, activity.id)"
+                @change="toggleVisibility(role.id, activity.id, $event.target.checked)"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                :disabled="toggling"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, onMounted } from 'vue'
+import axios from 'axios'
 
-const visibilityUrl = computed(() => {
-  return `https://dev.flow.hands-on-technology.org/output/visibility.cgi`
+// Reactive data
+const loading = ref(false)
+const error = ref(null)
+const toggling = ref(false)
+const roles = ref([])
+const activities = ref([])
+const matrix = ref([])
+
+// Filters
+const roleFilter = ref('all')
+const activityFilter = ref('all')
+const visibilityFilter = ref('all')
+
+// Load initial data
+onMounted(() => {
+  loadRoles()
+  loadActivities()
+  loadMatrix()
 })
+
+// API calls
+const loadRoles = async () => {
+  try {
+    console.log('Loading roles...')
+    const response = await axios.get('/visibility/roles')
+    console.log('Roles response:', response.data)
+    roles.value = response.data
+  } catch (err) {
+    console.error('Failed to load roles:', err)
+    console.error('Error response:', err.response?.data)
+    console.error('Error status:', err.response?.status)
+  }
+}
+
+const loadActivities = async () => {
+  try {
+    console.log('Loading activities...')
+    const response = await axios.get('/visibility/activity-types')
+    console.log('Activities response:', response.data)
+    activities.value = response.data
+  } catch (err) {
+    console.error('Failed to load activities:', err)
+    console.error('Error response:', err.response?.data)
+    console.error('Error status:', err.response?.status)
+  }
+}
+
+const loadMatrix = async () => {
+  loading.value = true
+  error.value = null
+  
+  try {
+    const params = {
+      role_filter: roleFilter.value,
+      activity_filter: activityFilter.value,
+      visibility_filter: visibilityFilter.value
+    }
+    
+    console.log('Loading matrix with params:', params)
+    const response = await axios.get('/visibility/matrix', { params })
+    console.log('Matrix response:', response.data)
+    
+    // Update roles and activities from matrix response
+    roles.value = response.data.roles
+    activities.value = response.data.activities
+    matrix.value = response.data.matrix
+  } catch (err) {
+    error.value = 'Failed to load visibility matrix'
+    console.error('Failed to load matrix:', err)
+    console.error('Error response:', err.response?.data)
+    console.error('Error status:', err.response?.status)
+  } finally {
+    loading.value = false
+  }
+}
+
+// Helper functions
+const isVisible = (roleId, activityId) => {
+  const role = matrix.value.find(r => r.role.id === roleId)
+  if (!role) return false
+  
+  const activity = role.activities.find(a => a.activity.id === activityId)
+  return activity ? activity.visible : false
+}
+
+const toggleVisibility = async (roleId, activityId, visible) => {
+  toggling.value = true
+  
+  try {
+    await axios.post('/visibility/toggle', {
+      role_id: roleId,
+      activity_type_detail_id: activityId,
+      visible: visible
+    })
+    
+    // Update local state
+    const role = matrix.value.find(r => r.role.id === roleId)
+    if (role) {
+      const activity = role.activities.find(a => a.activity.id === activityId)
+      if (activity) {
+        activity.visible = visible
+      }
+    }
+  } catch (err) {
+    error.value = 'Failed to update visibility'
+    console.error('Failed to toggle visibility:', err)
+  } finally {
+    toggling.value = false
+  }
+}
 </script>
+
+<style scoped>
+.matrix-wrapper {
+  overflow: auto;
+  max-height: 70vh;
+  max-width: 90vw;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+}
+
+.sticky-matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.sticky-left {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}
+
+.sticky-top.sticky-left {
+  z-index: 15;
+}
+
+.filters {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+}
+</style>
 
 <style scoped>
 .visibility-admin {
