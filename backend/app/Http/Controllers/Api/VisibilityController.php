@@ -48,7 +48,7 @@ class VisibilityController extends Controller
                     WHEN m_first_program.name IS NULL THEN 3 
                     ELSE 4 
                 END')
-                ->orderBy('m_activity_type_detail.name')
+                ->orderBy('m_activity_type_detail.sequence')
                 ->get();
 
             return response()->json($activityTypes);
@@ -101,7 +101,7 @@ class VisibilityController extends Controller
                 WHEN m_first_program.name = "CHALLENGE" THEN 2 
                 WHEN m_first_program.name IS NULL THEN 3 
                 ELSE 4 
-            END')->orderBy('m_activity_type_detail.name')->get();
+            END')->orderBy('m_activity_type_detail.sequence')->get();
 
             // Get existing visibility rules
             $visibilityRules = DB::table('m_visibility')
