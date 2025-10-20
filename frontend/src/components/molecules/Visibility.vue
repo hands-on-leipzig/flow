@@ -1,16 +1,10 @@
 <template>
   <div class="visibility-admin">
-    <div class="mb-4">
-      
-      <p class="text-sm text-gray-600 mb-4">
-        Manage visibility rules for different roles and activity types.
-      </p>
-    </div>
 
     <!-- Filters -->
-    <div class="filters mb-4 flex gap-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Activity Type</label>
+    <div class="filters mb-4 flex gap-4 items-center">
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-700">Activity Type:</label>
         <select 
           v-model="activityFilter" 
           @change="loadMatrix"
@@ -31,8 +25,8 @@
         </select>
       </div>
       
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">FIRST Program</label>
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-700">FIRST Program:</label>
         <select 
           v-model="roleFilter" 
           @change="loadMatrix"
