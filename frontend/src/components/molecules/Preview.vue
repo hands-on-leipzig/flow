@@ -33,9 +33,16 @@ type RobotGameRound = {
   matches: Match[]
 }
 
+type TeamSummary = {
+  team: number
+  different_tables: number
+  different_opponents: number
+}
+
 type RobotGameData = {
   has_challenge: boolean
   rounds: RobotGameRound[]
+  team_summary: TeamSummary[]
 }
 
 const route = useRoute()
@@ -293,46 +300,74 @@ function formatTeam(teamNum: number | null): string {
           Keine Robot-Game Daten gefunden.
         </div>
 
-        <div v-else class="flex flex-row gap-4 overflow-x-auto">
-          <div
-            v-for="round in robotGameData.rounds"
-            :key="round.round"
-            class="min-w-max"
-          >
-            <div class="text-sm font-semibold text-gray-600 mb-2">
-              {{ round.name }}
+        <div v-else class="flex flex-col gap-6">
+          <!-- Match plan by rounds -->
+          <div class="flex flex-row gap-4 overflow-x-auto">
+            <div
+              v-for="round in robotGameData.rounds"
+              :key="round.round"
+              class="min-w-max"
+            >
+              <div class="text-sm font-semibold text-gray-600 mb-2">
+                {{ round.name }}
+              </div>
+              <table class="table-auto text-sm border-collapse border border-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 1</th>
+                    <th class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 2</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 3</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 4</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="match in round.matches"
+                    :key="match.match_id"
+                    class="border-t"
+                  >
+                    <td class="text-center px-2 py-1">
+                      <span v-if="match.table_1 === 1">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 1">{{ formatTeam(match.table_2_team) }}</span>
+                    </td>
+                    <td class="text-center px-2 py-1">
+                      <span v-if="match.table_1 === 2">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 2">{{ formatTeam(match.table_2_team) }}</span>
+                    </td>
+                    <td v-if="hasTable34(round)" class="text-center px-2 py-1">
+                      <span v-if="match.table_1 === 3">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 3">{{ formatTeam(match.table_2_team) }}</span>
+                    </td>
+                    <td v-if="hasTable34(round)" class="text-center px-2 py-1">
+                      <span v-if="match.table_1 === 4">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 4">{{ formatTeam(match.table_2_team) }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
+          </div>
+
+          <!-- Team summary table -->
+          <div v-if="robotGameData.team_summary && robotGameData.team_summary.length > 0" class="mt-4">
+            <div class="text-sm font-semibold text-gray-600 mb-2">Übersicht über die Verteilung</div>
             <table class="table-auto text-sm border-collapse border border-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 1</th>
-                  <th class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 2</th>
-                  <th v-if="hasTable34(round)" class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 3</th>
-                  <th v-if="hasTable34(round)" class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 4</th>
+                  <th class="px-3 py-2 border border-gray-200 text-left font-normal">Team</th>
+                  <th class="px-3 py-2 border border-gray-200 text-center font-normal">Verschiedene Tische</th>
+                  <th class="px-3 py-2 border border-gray-200 text-center font-normal">Verschiedene Teams</th>
                 </tr>
               </thead>
               <tbody>
                 <tr
-                  v-for="match in round.matches"
-                  :key="match.match_id"
+                  v-for="summary in robotGameData.team_summary"
+                  :key="summary.team"
                   class="border-t"
                 >
-                  <td class="text-center px-2 py-1">
-                    <span v-if="match.table_1 === 1">{{ formatTeam(match.table_1_team) }}</span>
-                    <span v-else-if="match.table_2 === 1">{{ formatTeam(match.table_2_team) }}</span>
-                  </td>
-                  <td class="text-center px-2 py-1">
-                    <span v-if="match.table_1 === 2">{{ formatTeam(match.table_1_team) }}</span>
-                    <span v-else-if="match.table_2 === 2">{{ formatTeam(match.table_2_team) }}</span>
-                  </td>
-                  <td v-if="hasTable34(round)" class="text-center px-2 py-1">
-                    <span v-if="match.table_1 === 3">{{ formatTeam(match.table_1_team) }}</span>
-                    <span v-else-if="match.table_2 === 3">{{ formatTeam(match.table_2_team) }}</span>
-                  </td>
-                  <td v-if="hasTable34(round)" class="text-center px-2 py-1">
-                    <span v-if="match.table_1 === 4">{{ formatTeam(match.table_1_team) }}</span>
-                    <span v-else-if="match.table_2 === 4">{{ formatTeam(match.table_2_team) }}</span>
-                  </td>
+                  <td class="px-3 py-2 border border-gray-200">{{ summary.team }}</td>
+                  <td class="px-3 py-2 border border-gray-200 text-center">{{ summary.different_tables }}</td>
+                  <td class="px-3 py-2 border border-gray-200 text-center">{{ summary.different_opponents }}</td>
                 </tr>
               </tbody>
             </table>
