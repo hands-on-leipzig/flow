@@ -10,27 +10,35 @@
     <!-- Filters -->
     <div class="filters mb-4 flex gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Role Filter</label>
-        <select 
-          v-model="roleFilter" 
-          @change="loadMatrix"
-          class="border border-gray-300 rounded-md px-3 py-2 text-sm"
-        >
-          <option value="all">All Roles</option>
-          <option value="2">Explore</option>
-          <option value="3">Challenge</option>
-          <option value="null">Allgemein</option>
-        </select>
-      </div>
-      
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Activity Filter</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Activity Type</label>
         <select 
           v-model="activityFilter" 
           @change="loadMatrix"
           class="border border-gray-300 rounded-md px-3 py-2 text-sm"
         >
-          <option value="all">All Activities</option>
+          <option value="all">Alle</option>
+          <option value="1">Robot-Game</option>
+          <option value="2">Jury</option>
+          <option value="3">Ausstellung</option>
+          <option value="4">Mittagspause</option>
+          <option value="5">Eröffnung</option>
+          <option value="6">Preisverleihung</option>
+          <option value="7">Orga</option>
+          <option value="8">Live-Challenge</option>
+          <option value="9">Zusatzblock</option>
+          <option value="10">Eröffnung (Explore)</option>
+          <option value="11">Preisverleihung (Explore)</option>
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">FIRST Program</label>
+        <select 
+          v-model="roleFilter" 
+          @change="loadMatrix"
+          class="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="all">Alle</option>
           <option value="2">Explore</option>
           <option value="3">Challenge</option>
           <option value="null">Allgemein</option>
@@ -69,7 +77,13 @@
               :key="role.id"
               class="bg-gray-50 font-medium text-gray-900 px-3 py-3 text-center min-w-[120px]"
             >
-              {{ role.name }}
+              <div class="flex items-center justify-center">
+                <div 
+                  class="w-3 h-3 rounded-full mr-2 flex-shrink-0"
+                  :class="getActivityColor(role.program)"
+                ></div>
+                {{ role.name }}
+              </div>
             </th>
           </tr>
         </thead>
