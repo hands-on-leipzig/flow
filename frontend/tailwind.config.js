@@ -8,6 +8,9 @@ module.exports = {
         extend: {
             fontFamily: {
                 sans: ['"Uniform"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            },
+            gridTemplateColumns: {
+                '13': 'repeat(13, minmax(0, 1fr))',
             }
         },
     },

@@ -199,6 +199,13 @@ function farbeQ5Stddev(stddev) {
   return `rgb(${r},${g},0)`
 }
 
+function formatDuration(minutes) {
+  if (minutes == null) return '–'
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${hours}:${String(mins).padStart(2, '0')}`
+}
+
 function toggleExpanded(planId) {
   expandedPlanId.value = expandedPlanId.value === planId ? null : planId
 }
@@ -390,7 +397,7 @@ async function startRerun() {
 
       </div>
       <!-- Tabellenkopf -->
-      <div class="grid grid-cols-12 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
+      <div class="grid grid-cols-13 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
         <div>Plan</div>
         <div>Teams</div>
         <div>Spuren</div>
@@ -398,6 +405,7 @@ async function startRerun() {
         <div>Runden</div>
         <div>RG asym</div>
         <div>Robot check</div>
+        <div>Dauer</div>
         <div class="flex items-center gap-1">
           <input
             type="checkbox"
@@ -447,7 +455,7 @@ async function startRerun() {
         class="border-b border-gray-100"
       >
         <div
-          class="grid grid-cols-12 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
+          class="grid grid-cols-13 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
           @click="toggleExpanded(qplan.id)"
         >
           <div class="flex items-center gap-2">
@@ -472,6 +480,8 @@ async function startRerun() {
           <div>{{ qplan.r_asym ? 'Ja' : 'Nein' }}</div>
           <div>{{ qplan.r_robot_check ? 'An' : 'Aus' }}</div>
           
+          <!-- Q6: Dauer -->
+          <div>{{ formatDuration(qplan.q6_duration) }}</div>
 
           <!-- Q1: Transfer -->
           <div class="flex items-center gap-1">
