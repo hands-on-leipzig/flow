@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\PlanExportController;
 use App\Http\Controllers\Api\VisibilityController;
+use App\Http\Controllers\Api\NewsController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -261,5 +262,19 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/matrix', [VisibilityController::class, 'getMatrix']);
         Route::post('/toggle', [VisibilityController::class, 'toggleVisibility']);
         Route::post('/bulk-toggle', [VisibilityController::class, 'bulkToggle']);
+    });
+
+    // News controller
+    Route::prefix('news')->group(function () {
+        Route::get('/unread', [NewsController::class, 'getUnreadNews']);
+        Route::post('/{id}/mark-read', [NewsController::class, 'markAsRead']);
+    });
+
+    // Admin news routes (protected by api/admin path check in middleware)
+    Route::prefix('admin/news')->group(function () {
+        Route::get('/', [NewsController::class, 'index']);
+        Route::post('/', [NewsController::class, 'store']);
+        Route::delete('/{id}', [NewsController::class, 'destroy']);
+        Route::get('/{id}/stats', [NewsController::class, 'stats']);
     });
 });

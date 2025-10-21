@@ -8,6 +8,7 @@ import MParameter from '@/components/molecules/MParameter.vue'
 import NowAndNext from '@/components/molecules/NowAndNext.vue'
 import UserRegionalPartnerRelations from '@/components/molecules/UserRegionalPartnerRelations.vue'
 import MainTablesAdmin from '@/components/molecules/MainTablesAdmin.vue'
+import SystemNews from '@/components/molecules/SystemNews.vue'
 import '@vueform/multiselect/themes/default.css'
 
 const activeTab = ref('statistics')
@@ -93,6 +94,13 @@ fetchConditions()
         📝 Main Tables
       </button>
 
+      <button
+        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+        :class="{ 'bg-white font-semibold shadow': activeTab === 'system-news' }"
+        @click="activeTab = 'system-news'"
+      >
+        📰 System News
+      </button>
 
       <button
         class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
@@ -225,6 +233,10 @@ fetchConditions()
 
       <div v-if="activeTab === 'main-tables'">
         <MainTablesAdmin />
+      </div>
+
+      <div v-if="activeTab === 'system-news'">
+        <SystemNews />
       </div>
 
       <div v-if="activeTab === 'mparameter'">
