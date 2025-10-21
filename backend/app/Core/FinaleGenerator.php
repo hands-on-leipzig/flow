@@ -3,6 +3,7 @@
 namespace App\Core;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use App\Support\IntegratedExploreState;
@@ -88,14 +89,14 @@ class FinaleGenerator
         $day1Time->addMinutes($this->pp('f_ready_action_day_1'));
 
         // === LIVE CHALLENGE JUDGING (5 rounds, 5 lanes, 25 teams) ===
+        // Store the LC start time for parallel test rounds
+        $lcStartTime = clone $day1Time->current();
         $this->generateLiveChallengeJudging($day1Time);
 
+        // === TEST ROUNDS (parallel to LC, copied from Day 2 RG rounds) ===
+        $this->generateTestRounds($lcStartTime);
+
         // TODO: Implement remaining Day 1 activities
-        // Day 2 has already been generated, so we can now:
-        // - Read match plan from Day 2 robot game
-        // - Generate Test Round 1 (TR1) using Day 2 match plan (parallel to LC)
-        // - Break for robot modifications
-        // - Generate Test Round 2 (TR2) using Day 2 match plan (parallel to LC)
         // - Parties / social events
     }
 
@@ -178,6 +179,106 @@ class FinaleGenerator
             'plan_id' => $this->pp('g_plan'),
             'rounds' => 5,
         ]);
+    }
+
+    /**
+     * Generate Test Rounds for Day 1 (parallel to LC rounds)
+     * Copies match plan from Day 2 Round 1 and Round 2
+     * TR1 runs parallel to LC Round 1, TR2 runs parallel to LC Round 2
+     * 
+     * @param \DateTime $lcStartTime Start time of LC Round 1
+     */
+    private function generateTestRounds(\DateTime $lcStartTime): void
+    {
+        Log::info("FinaleGenerator: Generating Test Rounds", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
+
+        // Read matches from Day 2 for Round 1 (TR1) and Round 2 (TR2)
+        $planId = $this->pp('g_plan');
+        $matches = DB::table('match')
+            ->where('plan', $planId)
+            ->whereIn('round', [1, 2])
+            ->orderBy('round')
+            ->orderBy('match_no')
+            ->get();
+
+        if ($matches->isEmpty()) {
+            Log::warning("FinaleGenerator: No matches found for TR1/TR2", [
+                'plan_id' => $planId,
+            ]);
+            return;
+        }
+
+        // Calculate timing for each test round
+        // TR1 starts at same time as LC Round 1
+        // TR2 starts at same time as LC Round 3 (after 2 LC rounds)
+        // LC Round timing: with_team (35 min) + scoring (5 min) + break (10 min) = 50 min per round
+        $lcRoundDuration = $this->pp('lc_duration_with_team') 
+            + $this->pp('lc_duration_scoring') 
+            + $this->pp('lc_duration_break');
+
+        foreach ($matches as $match) {
+            $testRound = $match->round; // 1 or 2
+            
+            // Calculate start time: TR1 at LC start, TR2 at LC start + 2 round durations (LC Round 3)
+            $trStartTime = clone $lcStartTime;
+            if ($testRound == 2) {
+                $offset = 2 * $lcRoundDuration; // Skip 2 LC rounds to align with LC Round 3
+                $trStartTime->modify("+{$offset} minutes");
+            }
+
+            // Generate robot game activities for this match
+            $this->generateRobotGameMatch(
+                $match,
+                0, // Round 0 = Test Round
+                $trStartTime
+            );
+        }
+
+        Log::info("FinaleGenerator: Test Rounds complete", [
+            'plan_id' => $planId,
+            'matches' => $matches->count(),
+        ]);
+    }
+
+    /**
+     * Generate robot game activities for a single match
+     */
+    private function generateRobotGameMatch($match, int $round, \DateTime $startTime): void
+    {
+        $cursor = new TimeCursor($startTime);
+        
+        $this->writer->withGroup('r_match', function () use ($match, $round, $cursor) {
+            // Calculate match timing based on round type
+            $duration = ($round == 0) 
+                ? $this->pp('r_duration_test_match')   // Test round
+                : $this->pp('r_duration_match');       // Regular round
+            
+            $start = $cursor->current()->format('Y-m-d H:i:s');
+            $cursor->addMinutes($duration);
+            $end = $cursor->current()->format('Y-m-d H:i:s');
+
+            // Insert match activities for both tables
+            $activities = [];
+            
+            // Table 1
+            if ($match->table_1 > 0) {
+                $activities[] = [
+                    'activityTypeCode' => 'r_match',
+                    'start' => $start,
+                    'end' => $end,
+                    'table1' => $match->table_1,
+                    'table1Team' => $match->table_1_team,
+                    'table2' => $match->table_2,
+                    'table2Team' => $match->table_2_team,
+                ];
+            }
+
+            if (!empty($activities)) {
+                $this->writer->insertActivitiesBulk($activities);
+            }
+        });
     }
 
     /**
