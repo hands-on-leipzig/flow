@@ -1065,7 +1065,6 @@ class PlanExportController extends Controller
             }
         }
 
-
 // --- 🔹 Vorbereitung: Räume aus team_plan laden ---
 $prepRooms = DB::table('team_plan')
     ->where('plan', $planId)
@@ -1074,12 +1073,18 @@ $prepRooms = DB::table('team_plan')
     ->pluck('room');
 
 if ($prepRooms->isNotEmpty()) {
+    // Add page break before starting the preparation section
+    $html .= '<div style="page-break-before: always;"></div>';
+    
     // Raumdetails aus room-Tabelle
     $rooms = DB::table('room')
         ->whereIn('id', $prepRooms)
         ->select('id', 'name')
         ->orderBy('name')
         ->get();
+
+    $roomCount = $rooms->count();
+    $roomIndex = 0;
 
     foreach ($rooms as $room) {
         // Teams, die diesem Raum zugeordnet sind
@@ -1099,6 +1104,8 @@ if ($prepRooms->isNotEmpty()) {
             continue;
         }
 
+        $roomIndex++;
+
         // Zeilen für Tabelle aufbauen
         $rows = $teams->map(function ($t) {
             return [
@@ -1115,8 +1122,10 @@ if ($prepRooms->isNotEmpty()) {
             'event' => $event,
         ])->render();
 
-        // Seitenumbruch nach jeder Raumseite
-        $html .= '<div style="page-break-before: always;"></div>';
+        // Seitenumbruch nach jeder Raumseite (außer der letzten)
+        if ($roomIndex < $roomCount) {
+            $html .= '<div style="page-break-before: always;"></div>';
+        }
     }
 }
 

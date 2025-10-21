@@ -291,7 +291,7 @@ class ChallengeGenerator
                 }
 
                 // If asymmetrical match plan, one empty match is added into the test round.
-                if ($cBlock == 1 && $this->pp('r_asym')) {
+                if ($cBlock == 1 && $this->pp('r_asym') && $this->pp("j_rounds") != 4) {
                     $rMB++;
                 }
 

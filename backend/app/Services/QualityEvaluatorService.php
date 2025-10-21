@@ -189,6 +189,7 @@ class QualityEvaluatorService
             $copy->q4_ok_count = null;
             $copy->q5_idle_avg = null;
             $copy->q5_idle_stddev = null;
+            $copy->q6_duration = null;
             $copy->calculated = 0;
 
             $copy->save();
@@ -278,7 +279,7 @@ class QualityEvaluatorService
 
 
     /**
-     * Main entry point to evaluate all quality metrics (Q1–Q4) for a given plan.
+     * Main entry point to evaluate all quality metrics (Q1–Q6) for a given plan.
      */
     public function evaluate(int $qPlanId): void
     {
@@ -289,6 +290,7 @@ class QualityEvaluatorService
         $this->calculateQ3($qPlanId);
         $this->calculateQ4($qPlanId);
         $this->calculateQ5($qPlanId);
+        $this->calculateQ6($qPlanId, $activities);
 
         // Log::info("qPlan {$qPlanId}: evaluation done");
     }
@@ -789,6 +791,37 @@ class QualityEvaluatorService
             ->update([
                 'q5_idle_avg' => $mean,
                 'q5_idle_stddev' => $stdDev,
+            ]);
+    }
+
+    /**
+     * Calculate Q6: Overall event duration from first to last activity across all teams.
+     */
+    private function calculateQ6(int $qPlanId, Collection $activities): void
+    {
+        if ($activities->isEmpty()) {
+            return;
+        }
+
+        // Find the earliest start time across all activities
+        $firstStart = $activities->min('start');
+        
+        // Find the latest end time across all activities
+        $lastEnd = $activities->max('end');
+
+        if (!$firstStart || !$lastEnd) {
+            return;
+        }
+
+        // Calculate duration in minutes
+        $startTime = new \DateTime($firstStart);
+        $endTime = new \DateTime($lastEnd);
+        $durationMinutes = ($endTime->getTimestamp() - $startTime->getTimestamp()) / 60;
+
+        // Update q_plan with Q6 duration
+        QPlan::where('id', $qPlanId)
+            ->update([
+                'q6_duration' => round($durationMinutes),
             ]);
     }
 
