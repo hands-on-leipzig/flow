@@ -145,15 +145,17 @@ const expertParams = computed(() =>
 )
 
 const finaleParams = computed(() =>
-    parameters.value.filter((p: Parameter) =>
-        p.level === 3 &&
-        (p.context === 'input' || p.context === 'expert') &&
-        !isTimeParam(p) &&
-        !isSpecial(p) &&
-        ((p.first_program === 2 && showExplore.value) ||
-            (p.first_program === 3 && showChallenge.value) ||
-            (p.first_program !== 2 && p.first_program !== 3))
-    )
+    parameters.value
+        .filter((p: Parameter) =>
+            p.level === 3 &&
+            (p.context === 'input' || p.context === 'expert') &&
+            !isTimeParam(p) &&
+            !isSpecial(p) &&
+            ((p.first_program === 2 && showExplore.value) ||
+                (p.first_program === 3 && showChallenge.value) ||
+                (p.first_program !== 2 && p.first_program !== 3))
+        )
+        .sort((a: Parameter, b: Parameter) => (a.sequence || 0) - (b.sequence || 0))
 )
 
 function updateByName(name: string, value: any) {
@@ -746,16 +748,22 @@ const updateTableName = async () => {
       <transition name="fade">
         <div v-if="openGroup === 'finals'" class="p-4">
           <div class="grid grid-cols-2 gap-6 max-h-[600px] overflow-y-auto">
-            <template v-for="param in finaleParams" :key="param.id">
-              <ParameterField
-                  v-if="visibilityMap[param.id]"
-                  :param="param"
-                  :disabled="disabledMap[param.id]"
-                  :with-label="true"
-                  :horizontal="true"
-                  @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
-              />
-            </template>
+            <!-- Left column: Empty or info text -->
+            <div></div>
+            
+            <!-- Right column: All finale parameters -->
+            <div>
+              <template v-for="param in finaleParams" :key="param.id">
+                <ParameterField
+                    v-if="visibilityMap[param.id]"
+                    :param="param"
+                    :disabled="disabledMap[param.id]"
+                    :with-label="true"
+                    :horizontal="true"
+                    @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
+                />
+              </template>
+            </div>
           </div>
         </div>
       </transition>
