@@ -761,16 +761,15 @@ const updateTableName = async () => {
       <transition name="fade">
         <div v-if="openGroup === 'finals'" class="p-4">
           <div class="grid grid-cols-2 gap-6 max-h-[600px] overflow-y-auto">
-            <!-- Left column: Input parameters (like Zeiten section) -->
-            <div class="space-y-3">
+            <!-- Left column: Input parameters -->
+            <div>
               <template v-for="param in finaleInputParams" :key="param.id">
                 <ParameterField
                     v-if="visibilityMap[param.id]"
                     :param="param"
                     :disabled="disabledMap[param.id]"
                     :with-label="true"
-                    :horizontal="false"
-                    :compact="true"
+                    :horizontal="true"
                     @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
                 />
               </template>
