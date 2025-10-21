@@ -88,15 +88,88 @@ class FinaleGenerator
         // === TRANSITION TO ACTIVITIES ===
         $day1Time->addMinutes($this->pp('f_ready_action_day_1'));
 
+        // === LIVE CHALLENGE JUDGING (5 rounds, 5 lanes, 25 teams) ===
+        $this->generateLiveChallengeJudging($day1Time);
+
         // TODO: Implement remaining Day 1 activities
         // Day 2 has already been generated, so we can now:
-        // - Read team-to-lane assignments from Day 2 judging
         // - Read match plan from Day 2 robot game
-        // - Generate Live Challenge activities (parallel to test rounds)
-        // - Generate Test Round 1 (TR1) using Day 2 team assignments
+        // - Generate Test Round 1 (TR1) using Day 2 match plan (parallel to LC)
         // - Break for robot modifications
-        // - Generate Test Round 2 (TR2) using Day 2 team assignments
+        // - Generate Test Round 2 (TR2) using Day 2 match plan (parallel to LC)
         // - Parties / social events
+    }
+
+    /**
+     * Generate Live Challenge judging for Day 1
+     * Simple logic: 25 teams, 5 lanes, 5 rounds
+     * Teams 1-5 in round 1, teams 6-10 in round 2, etc.
+     */
+    private function generateLiveChallengeJudging(TimeCursor $lcTime): void
+    {
+        Log::info("FinaleGenerator: Generating Live Challenge judging", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
+
+        // 5 rounds with 5 teams each (25 teams total)
+        for ($round = 1; $round <= 5; $round++) {
+            $startTeam = ($round - 1) * 5; // Round 1: 0, Round 2: 5, Round 3: 10, etc.
+
+            $this->writer->withGroup('lc_package', function () use ($round, $startTeam, $lcTime) {
+                $activities = [];
+
+                // LC WITH team - all 5 lanes in parallel
+                $withTeamStart = $lcTime->current()->format('Y-m-d H:i:s');
+                $withTeamEndCursor = $lcTime->copy();
+                $withTeamEndCursor->addMinutes($this->pp('lc_duration_with_team'));
+                $withTeamEnd = $withTeamEndCursor->current()->format('Y-m-d H:i:s');
+
+                for ($lane = 1; $lane <= 5; $lane++) {
+                    $team = $startTeam + $lane;
+                    $activities[] = [
+                        'activityTypeCode' => 'lc_with_team',
+                        'start' => $withTeamStart,
+                        'end' => $withTeamEnd,
+                        'juryLane' => $lane,
+                        'juryTeam' => $team,
+                    ];
+                }
+                $lcTime->addMinutes($this->pp('lc_duration_with_team'));
+
+                // LC Scoring/Deliberations WITHOUT team - all 5 lanes in parallel
+                $scoringStart = $lcTime->current()->format('Y-m-d H:i:s');
+                $scoringEndCursor = $lcTime->copy();
+                $scoringEndCursor->addMinutes($this->pp('lc_duration_scoring'));
+                $scoringEnd = $scoringEndCursor->current()->format('Y-m-d H:i:s');
+
+                for ($lane = 1; $lane <= 5; $lane++) {
+                    $team = $startTeam + $lane;
+                    $activities[] = [
+                        'activityTypeCode' => 'lc_scoring',
+                        'start' => $scoringStart,
+                        'end' => $scoringEnd,
+                        'juryLane' => $lane,
+                        'juryTeam' => $team,
+                    ];
+                }
+                $lcTime->addMinutes($this->pp('lc_duration_scoring'));
+
+                // Bulk insert all LC activities for this round
+                if (!empty($activities)) {
+                    $this->writer->insertActivitiesBulk($activities);
+                }
+            });
+
+            // Add break between rounds (except after last round)
+            if ($round < 5) {
+                $lcTime->addMinutes($this->pp('lc_duration_break'));
+            }
+        }
+
+        Log::info("FinaleGenerator: Live Challenge judging complete", [
+            'plan_id' => $this->pp('g_plan'),
+            'rounds' => 5,
+        ]);
     }
 
     /**
