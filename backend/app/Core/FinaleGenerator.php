@@ -13,12 +13,11 @@ class FinaleGenerator
     use UsesPlanParameter;
 
     private ActivityWriter $writer;
-    private PlanParameter $params;
 
     public function __construct(ActivityWriter $writer, PlanParameter $params)
     {
         $this->writer = $writer;
-        $this->params = $params;
+        $this->params = $params; // Defined in UsesPlanParameter trait
 
         Log::info('FinaleGenerator constructed', [
             'plan_id' => $params->get('g_plan'),
@@ -80,8 +79,8 @@ class FinaleGenerator
         // Reset time to opening start
         $day1Time = new TimeCursor($openingStart);
         
-        $this->writer->withGroup('f_opening_day_1', function () use ($day1Time) {
-            $this->writer->insertActivity('f_opening_day_1', $day1Time, $this->pp('f_duration_opening_day_1'));
+        $this->writer->withGroup('c_opening_day_1', function () use ($day1Time) {
+            $this->writer->insertActivity('c_opening_day_1', $day1Time, $this->pp('f_duration_opening_day_1'));
         });
         $day1Time->addMinutes($this->pp('f_duration_opening_day_1'));
 
@@ -165,6 +164,15 @@ class FinaleGenerator
                 $lcTime->addMinutes($this->pp('lc_duration_break'));
             }
         }
+
+        // === LC DELIBERATIONS (after all 5 rounds) ===
+        // Judges come together to discuss and finalize scores
+        $lcTime->addMinutes($this->pp('lc_ready_deliberations'));
+        
+        $this->writer->withGroup('lc_deliberations', function () use ($lcTime) {
+            $this->writer->insertActivity('lc_deliberations', $lcTime, $this->pp('lc_duration_deliberations'));
+        });
+        $lcTime->addMinutes($this->pp('lc_duration_deliberations'));
 
         Log::info("FinaleGenerator: Live Challenge judging complete", [
             'plan_id' => $this->pp('g_plan'),
