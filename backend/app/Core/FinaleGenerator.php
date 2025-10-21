@@ -29,6 +29,9 @@ class FinaleGenerator
     /**
      * Main generation method for finale events
      * Handles complete 2-day generation: Day 1 (Live Challenge + Test Rounds) and Day 2 (Main Competition)
+     * 
+     * Note: Day 2 is generated first to create judging and robot game match plans.
+     * Day 1 then copies the team-to-lane assignments from Day 2.
      */
     public function generate(): void
     {
@@ -37,11 +40,13 @@ class FinaleGenerator
             'e_mode' => $this->pp('e_mode'),
         ]);
 
-        // Generate Day 1: Live Challenge + Test Rounds
-        $this->generateDay1();
-
-        // Generate Day 2: Main Competition + Explore (if enabled)
+        // Generate Day 2 FIRST: Creates judging lanes and robot game match plan
+        // This establishes the team-to-lane assignments that Day 1 will reuse
         $this->generateDay2();
+
+        // Generate Day 1: Live Challenge + Test Rounds
+        // Uses the same team-to-lane assignments as Day 2
+        $this->generateDay1();
 
         Log::info("FinaleGenerator: Generation complete", [
             'plan_id' => $this->pp('g_plan'),
@@ -49,13 +54,10 @@ class FinaleGenerator
     }
 
     /**
-     * Generate Day 1 activities
-     * - Opening ceremony
-     * - Live Challenge (parallel to TR1)
-     * - Break for robot modifications
-     * - Live Challenge (parallel to TR2)
-     * - Briefings
-     * - Parties
+     * Generate Day 1 activities (Live Challenge Day)
+     * Timeline: Briefings → Opening → LC/TR1 → Break → LC/TR2 → Parties
+     * 
+     * IMPORTANT: Called AFTER generateDay2() to reuse team-to-lane assignments
      */
     private function generateDay1(): void
     {
@@ -63,14 +65,66 @@ class FinaleGenerator
             'plan_id' => $this->pp('g_plan'),
         ]);
 
-        // TODO: Implement Day 1 generation
-        // - Opening ceremony (f_start_opening_day_1, f_duration_opening_day_1)
-        // - Live Challenge activities (parallel to test rounds)
-        // - Test Round 1 (TR1)
-        // - Break for modifications (f_ready_action_day_1)
-        // - Test Round 2 (TR2)
-        // - Jury briefing (f_duration_briefing_day_1)
+        // Initialize time cursor for Day 1
+        // Start at opening ceremony time, then work backwards for briefings
+        $day1Time = new TimeCursor($this->pp('g_date'));
+        $day1Time->setTime($this->pp('f_start_opening_day_1'));
+
+        // Store opening start time for later use
+        $openingStart = clone $day1Time->current();
+
+        // === BRIEFINGS (before opening, working backwards) ===
+        $this->generateDay1Briefings($openingStart);
+
+        // === OPENING CEREMONY ===
+        // Reset time to opening start
+        $day1Time = new TimeCursor($openingStart);
+        
+        $this->writer->withGroup('f_opening_day_1', function () use ($day1Time) {
+            $this->writer->insertActivity('f_opening_day_1', $day1Time, $this->pp('f_duration_opening_day_1'));
+        });
+        $day1Time->addMinutes($this->pp('f_duration_opening_day_1'));
+
+        // === TRANSITION TO ACTIVITIES ===
+        $day1Time->addMinutes($this->pp('f_ready_action_day_1'));
+
+        // TODO: Implement remaining Day 1 activities
+        // Day 2 has already been generated, so we can now:
+        // - Read team-to-lane assignments from Day 2 judging
+        // - Read match plan from Day 2 robot game
+        // - Generate Live Challenge activities (parallel to test rounds)
+        // - Generate Test Round 1 (TR1) using Day 2 team assignments
+        // - Break for robot modifications
+        // - Generate Test Round 2 (TR2) using Day 2 team assignments
         // - Parties / social events
+    }
+
+    /**
+     * Generate Day 1 briefings (working backwards from opening time)
+     * Three briefings: Coaches, Robot Game Referees, Live Challenge Judges
+     */
+    private function generateDay1Briefings(\DateTime $openingStart): void
+    {
+        // Coach briefing (c_briefing)
+        $this->writer->withGroup('c_briefing', function () use ($openingStart) {
+            $cursor = new TimeCursor($openingStart);
+            $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening'));
+            $this->writer->insertActivity('c_briefing', $cursor, $this->pp('c_duration_briefing'));
+        });
+
+        // Robot Game referee briefing (r_briefing)
+        $this->writer->withGroup('r_briefing', function () use ($openingStart) {
+            $cursor = new TimeCursor($openingStart);
+            $cursor->subMinutes($this->pp('r_duration_briefing') + $this->pp('c_ready_opening'));
+            $this->writer->insertActivity('r_briefing', $cursor, $this->pp('r_duration_briefing'));
+        });
+
+        // Live Challenge judge briefing (lc_briefing)
+        $this->writer->withGroup('lc_briefing', function () use ($openingStart) {
+            $cursor = new TimeCursor($openingStart);
+            $cursor->subMinutes($this->pp('lc_duration_briefing') + $this->pp('c_ready_opening'));
+            $this->writer->insertActivity('lc_briefing', $cursor, $this->pp('lc_duration_briefing'));
+        });
     }
 
     /**
