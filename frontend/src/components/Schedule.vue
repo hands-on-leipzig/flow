@@ -144,11 +144,24 @@ const expertParams = computed(() =>
         .sort((a: Parameter, b: Parameter) => (a.first_program || 0) - (b.first_program || 0))
 )
 
-const finaleParams = computed(() =>
+const finaleInputParams = computed(() =>
     parameters.value
         .filter((p: Parameter) =>
             p.level === 3 &&
-            (p.context === 'input' || p.context === 'expert') &&
+            p.context === 'input' &&
+            !isSpecial(p) &&
+            ((p.first_program === 2 && showExplore.value) ||
+                (p.first_program === 3 && showChallenge.value) ||
+                (p.first_program !== 2 && p.first_program !== 3))
+        )
+        .sort((a: Parameter, b: Parameter) => (a.sequence || 0) - (b.sequence || 0))
+)
+
+const finaleExpertParams = computed(() =>
+    parameters.value
+        .filter((p: Parameter) =>
+            p.level === 3 &&
+            p.context === 'expert' &&
             !isTimeParam(p) &&
             !isSpecial(p) &&
             ((p.first_program === 2 && showExplore.value) ||
@@ -748,12 +761,24 @@ const updateTableName = async () => {
       <transition name="fade">
         <div v-if="openGroup === 'finals'" class="p-4">
           <div class="grid grid-cols-2 gap-6 max-h-[600px] overflow-y-auto">
-            <!-- Left column: Empty or info text -->
-            <div></div>
+            <!-- Left column: Input parameters (like Zeiten section) -->
+            <div class="space-y-3">
+              <template v-for="param in finaleInputParams" :key="param.id">
+                <ParameterField
+                    v-if="visibilityMap[param.id]"
+                    :param="param"
+                    :disabled="disabledMap[param.id]"
+                    :with-label="true"
+                    :horizontal="false"
+                    :compact="true"
+                    @update="(param: Parameter) => handleParamUpdate({name: param.name, value: param.value})"
+                />
+              </template>
+            </div>
             
-            <!-- Right column: All finale parameters -->
+            <!-- Right column: Expert parameters -->
             <div>
-              <template v-for="param in finaleParams" :key="param.id">
+              <template v-for="param in finaleExpertParams" :key="param.id">
                 <ParameterField
                     v-if="visibilityMap[param.id]"
                     :param="param"
