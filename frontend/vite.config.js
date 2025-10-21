@@ -7,7 +7,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 // https://vite.dev/config/
 export default defineConfig(({mode}) => {
     const env = loadEnv(mode, process.cwd(), '');
-    const serverURL = env.SERVER_URL || 'http://localhost:8000';
+    const serverURL = env.VITE_FILES_BASE_URL || 'http://localhost:8000';
 
     return {
         plugins: [
@@ -44,6 +44,11 @@ export default defineConfig(({mode}) => {
                     target: serverURL,
                     changeOrigin: true,
                 },
+                // Public images
+                '^/flow/.*': {
+                    target: serverURL,
+                    changeOrigin: true,
+                }
                 // Event slugs are now handled by Vue Router, not proxied to backend
                 // The backend slug-handler.php is no longer needed for frontend routing
             }
