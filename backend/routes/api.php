@@ -259,6 +259,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('visibility')->group(function () {
         Route::get('/roles', [VisibilityController::class, 'getRoles']);
         Route::get('/activity-types', [VisibilityController::class, 'getActivityTypes']);
+        Route::get('/activity-type-categories', [VisibilityController::class, 'getActivityTypeCategories']);
         Route::get('/matrix', [VisibilityController::class, 'getMatrix']);
         Route::post('/toggle', [VisibilityController::class, 'toggleVisibility']);
         Route::post('/bulk-toggle', [VisibilityController::class, 'bulkToggle']);

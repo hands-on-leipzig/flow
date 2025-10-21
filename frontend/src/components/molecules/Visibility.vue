@@ -11,17 +11,13 @@
           class="border border-gray-300 rounded-md px-3 py-2 text-sm"
         >
           <option value="all">Alle</option>
-          <option value="1">Robot-Game</option>
-          <option value="2">Jury</option>
-          <option value="3">Ausstellung</option>
-          <option value="4">Mittagspause</option>
-          <option value="5">Eröffnung</option>
-          <option value="6">Preisverleihung</option>
-          <option value="7">Orga</option>
-          <option value="8">Live-Challenge</option>
-          <option value="9">Zusatzblock</option>
-          <option value="10">Eröffnung (Explore)</option>
-          <option value="11">Preisverleihung (Explore)</option>
+          <option 
+            v-for="category in activityTypeCategories" 
+            :key="category.id" 
+            :value="category.id"
+          >
+            {{ category.name }}
+          </option>
         </select>
       </div>
       
@@ -152,6 +148,7 @@ const toggling = ref(false)
 const roles = ref([])
 const activities = ref([])
 const matrix = ref([])
+const activityTypeCategories = ref([])
 
 // Confirmation dialog
 const showConfirmDialog = ref(false)
@@ -165,8 +162,19 @@ const activityFilter = ref('all')
 onMounted(() => {
   loadRoles()
   loadActivities()
+  loadActivityTypeCategories()
   loadMatrix()
 })
+
+// Load activity type categories for filter dropdown
+const loadActivityTypeCategories = async () => {
+  try {
+    const response = await axios.get('/visibility/activity-type-categories')
+    activityTypeCategories.value = response.data
+  } catch (err) {
+    console.error('Failed to load activity type categories:', err)
+  }
+}
 
 // API calls
 const loadRoles = async () => {

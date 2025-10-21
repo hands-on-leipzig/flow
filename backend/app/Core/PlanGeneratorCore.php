@@ -64,6 +64,13 @@ class PlanGeneratorCore
 
         // Log::debug("PlanGeneratorCore: generateByMode", ['cMode' => $cMode, 'eMode' => $eMode]);
 
+        // Check for finale event (level 3) - special 2-day generation path
+        if ($this->pp('g_finale')) {
+            // Finale event - delegate to FinaleGenerator for complete 2-day generation
+            $finale = new FinaleGenerator($this->writer, $this->params);
+            $finale->generate();
+            return;
+        }
 
         if ($cMode == 1) {
             // Challenge present - instantiate ChallengeGenerator
@@ -176,11 +183,4 @@ class PlanGeneratorCore
             }
         }
     }
-
-    
-
-
-
-
-
 }

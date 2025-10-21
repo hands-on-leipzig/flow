@@ -3,57 +3,518 @@
 namespace App\Core;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use App\Support\PlanParameter;
+use App\Support\UsesPlanParameter;
+use App\Support\IntegratedExploreState;
+use App\Enums\ExploreMode;
 
 class FinaleGenerator
 {
-    private ActivityWriter $writer;
-    private TimeCursor $cTime;   // Challenge/main timeline used for awards etc.
-    private TimeCursor $rTime;   // Robot game timeline (final rounds)
-    private TimeCursor $lcTime;  // Live Challenge timeline (day before)
-    private int $cDay = 1;       // Event day for main action: 1 or 2
+    use UsesPlanParameter;
 
-    public function __construct(ActivityWriter $writer, TimeCursor $cTime, TimeCursor $rTime, TimeCursor $lcTime, int $planId)
+    private ActivityWriter $writer;
+
+    public function __construct(ActivityWriter $writer, PlanParameter $params)
     {
         $this->writer = $writer;
-        $this->cTime  = $cTime;
-        $this->rTime  = $rTime;
-        $this->lcTime = $lcTime;
+        $this->params = $params; // Defined in UsesPlanParameter trait
 
-        // Keep consistent with other generators: read parameters here.
-        $params = PlanParameter::load($planId);
+        Log::info('FinaleGenerator constructed', [
+            'plan_id' => $params->get('g_plan'),
+            'c_teams' => $params->get('c_teams'),
+        ]);
+    }
 
-        // Determine Live Challenge day and main event day based on parameters
-        $gDate = clone $params->get('g_date'); // DateTime
-        if ((bool) $params->get('g_finale')) {
-            $lcDate = clone $gDate;
-            [$hours, $minutes] = explode(':', (string) $params->get('f_start_day_1'));
-            $lcDate->setTime((int)$hours, (int)$minutes);
-            $this->lcTime = new TimeCursor($lcDate);
+    /**
+     * Main generation method for finale events
+     * Handles complete 2-day generation: Day 1 (Live Challenge + Test Rounds) and Day 2 (Main Competition)
+     * 
+     * Note: Day 2 is generated first to create judging and robot game match plans.
+     * Day 1 then copies the team-to-lane assignments from Day 2.
+     */
+    public function generate(): void
+    {
+        Log::info("FinaleGenerator: Start generation", [
+            'plan_id' => $this->pp('g_plan'),
+            'e_mode' => $this->pp('e_mode'),
+        ]);
 
-            // Main action on next day
-            $gDate->modify('+1 day');
-            $this->cDay = 2;
-        } else {
-            // Neutral placeholder when no finale
-            $this->lcTime = new TimeCursor(new \DateTime());
-            $this->cDay = 1;
+        // Generate Day 2 FIRST: Creates judging lanes and robot game match plan
+        // This establishes the team-to-lane assignments that Day 1 will reuse
+        $this->generateDay2();
+
+        // Generate Day 1: Live Challenge + Test Rounds
+        // Uses the same team-to-lane assignments as Day 2
+        $this->generateDay1();
+
+        Log::info("FinaleGenerator: Generation complete", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
+    }
+
+    /**
+     * Generate Day 1 activities (Live Challenge Day)
+     * Timeline: Briefings → Opening → LC/TR1 → Break → LC/TR2 → Parties
+     * 
+     * IMPORTANT: Called AFTER generateDay2() to reuse team-to-lane assignments
+     */
+    private function generateDay1(): void
+    {
+        Log::info("FinaleGenerator: Generating Day 1", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
+
+        // Initialize time cursor for Day 1
+        // Start at opening ceremony time, then work backwards for briefings
+        $day1Time = new TimeCursor($this->pp('g_date'));
+        $day1Time->setTime($this->pp('f_start_opening_day_1'));
+
+        // Store opening start time for later use
+        $openingStart = clone $day1Time->current();
+
+        // === BRIEFINGS (before opening, working backwards) ===
+        $this->generateDay1Briefings($openingStart);
+
+        // === OPENING CEREMONY ===
+        // Reset time to opening start
+        $day1Time = new TimeCursor($openingStart);
+        
+        $this->writer->withGroup('c_opening_day_1', function () use ($day1Time) {
+            $this->writer->insertActivity('c_opening_day_1', $day1Time, $this->pp('f_duration_opening_day_1'));
+        });
+        $day1Time->addMinutes($this->pp('f_duration_opening_day_1'));
+
+        // === TRANSITION TO ACTIVITIES ===
+        $day1Time->addMinutes($this->pp('f_ready_action_day_1'));
+
+        // === LIVE CHALLENGE JUDGING + TEST ROUNDS (interleaved) ===
+        // LC has 5 rounds, TR1 runs parallel to LC Round 1, TR2 runs parallel to LC Round 4
+        $this->generateLiveChallengeWithTestRounds($day1Time);
+
+        // === PARTIES ===
+        $this->generateDay1Parties();
+    }
+
+    /**
+     * Generate Live Challenge judging with test rounds interleaved
+     * LC: 5 rounds with 5 lanes (25 teams)
+     * TR1 runs parallel to LC Round 1
+     * TR2 runs parallel to LC Round 4
+     */
+    private function generateLiveChallengeWithTestRounds(TimeCursor $lcTime): void
+    {
+        Log::info("FinaleGenerator: Generating Live Challenge judging with test rounds", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
+
+        // Read matches from Day 2 for test rounds
+        $planId = $this->pp('g_plan');
+        $round1Matches = DB::table('match')
+            ->where('plan', $planId)
+            ->where('round', 1)
+            ->orderBy('match_no')
+            ->get();
+            
+        $round2Matches = DB::table('match')
+            ->where('plan', $planId)
+            ->where('round', 2)
+            ->orderBy('match_no')
+            ->get();
+
+        // 5 rounds of LC with test rounds interleaved
+        for ($round = 1; $round <= 5; $round++) {
+            $startTeam = ($round - 1) * 5; // Round 1: 0, Round 2: 5, Round 3: 10, etc.
+            
+            // Store start time for this LC round
+            $lcRoundStartTime = clone $lcTime->current();
+
+            // === GENERATE TEST ROUND if this is round 1 or 4 ===
+            if ($round == 1 && $round1Matches->isNotEmpty()) {
+                // TR1 parallel to LC Round 1
+                $this->insertTestRound(1, $round1Matches, $lcRoundStartTime);
+            } elseif ($round == 4 && $round2Matches->isNotEmpty()) {
+                // TR2 parallel to LC Round 4
+                $tr2EndTime = $this->insertTestRound(2, $round2Matches, $lcRoundStartTime);
+                
+                // After TR2: Referee break and debrief
+                $this->generateRefereeDebriefAfterTR2($tr2EndTime);
+            }
+
+            $this->writer->withGroup('lc_package', function () use ($round, $startTeam, $lcTime) {
+                $activities = [];
+
+                // LC WITH team - all 5 lanes in parallel
+                $withTeamStart = $lcTime->current()->format('Y-m-d H:i:s');
+                $withTeamEndCursor = $lcTime->copy();
+                $withTeamEndCursor->addMinutes($this->pp('lc_duration_with_team'));
+                $withTeamEnd = $withTeamEndCursor->current()->format('Y-m-d H:i:s');
+
+                for ($lane = 1; $lane <= 5; $lane++) {
+                    $team = $startTeam + $lane;
+                    $activities[] = [
+                        'activityTypeCode' => 'lc_with_team',
+                        'start' => $withTeamStart,
+                        'end' => $withTeamEnd,
+                        'juryLane' => $lane,
+                        'juryTeam' => $team,
+                    ];
+                }
+                $lcTime->addMinutes($this->pp('lc_duration_with_team'));
+
+                // LC Scoring/Deliberations WITHOUT team - all 5 lanes in parallel
+                $scoringStart = $lcTime->current()->format('Y-m-d H:i:s');
+                $scoringEndCursor = $lcTime->copy();
+                $scoringEndCursor->addMinutes($this->pp('lc_duration_scoring'));
+                $scoringEnd = $scoringEndCursor->current()->format('Y-m-d H:i:s');
+
+                for ($lane = 1; $lane <= 5; $lane++) {
+                    $team = $startTeam + $lane;
+                    $activities[] = [
+                        'activityTypeCode' => 'lc_scoring',
+                        'start' => $scoringStart,
+                        'end' => $scoringEnd,
+                        'juryLane' => $lane,
+                        'juryTeam' => $team,
+                    ];
+                }
+                $lcTime->addMinutes($this->pp('lc_duration_scoring'));
+
+                // Bulk insert all LC activities for this round
+                if (!empty($activities)) {
+                    $this->writer->insertActivitiesBulk($activities);
+                }
+            });
+
+            // Add break between rounds (except after last round)
+            if ($round < 5) {
+                $lcTime->addMinutes($this->pp('lc_duration_break'));
+            }
         }
 
-        // Log::debug('FinaleGenerator constructed', [
-        //     'plan_id' => $planId,
-        // ]);
+        // === LC DELIBERATIONS (after all 5 rounds) ===
+        // Judges come together to discuss and finalize scores
+        $lcTime->addMinutes($this->pp('lc_ready_deliberations'));
+        
+        $this->writer->withGroup('lc_deliberations', function () use ($lcTime) {
+            $this->writer->insertActivity('lc_deliberations', $lcTime, $this->pp('lc_duration_deliberations'));
+        });
+        $lcTime->addMinutes($this->pp('lc_duration_deliberations'));
+
+        Log::info("FinaleGenerator: Live Challenge judging complete", [
+            'plan_id' => $this->pp('g_plan'),
+            'rounds' => 5,
+        ]);
     }
 
-    public function lcTime(): TimeCursor
+    /**
+     * Insert a test round with all its matches
+     * Mirrors RobotGameGenerator::insertOneRound() logic for test rounds
+     * 
+     * @param int $testRoundNumber 1 or 2
+     * @param \Illuminate\Support\Collection $matches Matches for this test round
+     * @param \DateTime $startTime Start time for this test round
+     * @return \DateTime End time of this test round
+     */
+    private function insertTestRound(int $testRoundNumber, $matches, \DateTime $startTime): \DateTime
     {
-        return $this->lcTime;
+        // Create activity group for this test round
+        // Both TR1 and TR2 use the same 'r_test_round' group code
+        $this->writer->insertActivityGroup('r_test_round');
+
+        // Initialize time cursor for this test round
+        $trTime = new TimeCursor($startTime);
+        
+        $activities = [];
+        $matchNumber = 0;
+        
+        foreach ($matches as $match) {
+            $matchNumber++;
+            $duration = $this->pp('r_duration_test_match');
+
+            // Skip empty matches (both teams = 0)
+            if ($match->table_1_team == 0 && $match->table_2_team == 0) {
+                // Still advance time for empty matches
+                $this->advanceTimeForTestMatch($trTime, $matchNumber, $duration);
+                continue;
+            }
+
+            // Clone time for this match
+            $time = $trTime->copy();
+
+            // Add robot check activity if enabled
+            if ($this->pp('r_robot_check')) {
+                $activities[] = $this->prepareActivity(
+                    'r_check',
+                    $time,
+                    $this->pp('r_duration_robot_check'),
+                    null, null,
+                    $match->table_1, $match->table_1_team,
+                    $match->table_2, $match->table_2_team
+                );
+                
+                $time->addMinutes($this->pp('r_duration_robot_check'));
+            }
+
+            // Add match activity
+            $activities[] = $this->prepareActivity(
+                'r_match',
+                $time,
+                $duration,
+                null, null,
+                $match->table_1, $match->table_1_team,
+                $match->table_2, $match->table_2_team
+            );
+
+            // Advance time cursor based on table configuration
+            $this->advanceTimeForTestMatch($trTime, $matchNumber, $duration);
+        }
+
+        // Bulk insert all activities for this test round
+        if (!empty($activities)) {
+            $this->writer->insertActivitiesBulk($activities);
+        }
+
+        // Robot check adds additional time at the end of the round (once for all matches)
+        if ($this->pp('r_robot_check')) {
+            $trTime->addMinutes($this->pp('r_duration_robot_check'));
+        }
+
+        // Fix for 4 tables: when last match is over, correct total duration
+        $delta = $this->pp('r_duration_test_match') - $this->pp('r_duration_next_start');
+        $trTime->addMinutes($delta);
+        
+        // Return end time for potential follow-up activities
+        return $trTime->current();
     }
 
-    public function cDay(): int
+    /**
+     * Generate referee debrief after TR2
+     * Referees take a break and then meet to debrief
+     */
+    private function generateRefereeDebriefAfterTR2(\DateTime $tr2EndTime): void
     {
-        return $this->cDay;
+        // Create time cursor starting from end of TR2
+        $refTime = new TimeCursor($tr2EndTime);
+        
+        // Add break before debrief
+        $refTime->addMinutes($this->pp('r_duration_break'));
+        
+        // Referee debriefing
+        $this->writer->withGroup('r_debriefing', function () use ($refTime) {
+            $this->writer->insertActivity('r_debriefing', $refTime, $this->pp('r_duration_debriefing'));
+        });
+        
+        Log::info("FinaleGenerator: Referee debrief after TR2 complete", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
+    }
+
+    /**
+     * Advance time cursor for test rounds with 4 tables
+     * Matches run in pairs: tables 1+2 parallel to tables 3+4
+     * 
+     * @param TimeCursor $trTime Time cursor to advance
+     * @param int $matchNumber Current match number (1-based)
+     * @param int $duration Match duration
+     */
+    private function advanceTimeForTestMatch(TimeCursor $trTime, int $matchNumber, int $duration): void
+    {
+        // Finale always uses 4 tables
+        // Matches run in pairs (tables 1+2 parallel to tables 3+4)
+        // Timing alternates between odd and even matches
+        
+        if ($matchNumber % 2 === 1) {
+            // Odd match (1, 3, 5...): Tables 1+2
+            // Next match (tables 3+4) starts after r_duration_next_start
+            $trTime->addMinutes($this->pp('r_duration_next_start'));
+        } else {
+            // Even match (2, 4, 6...): Tables 3+4
+            // Next match waits for this one to finish
+            $delta = $duration - $this->pp('r_duration_next_start');
+            $trTime->addMinutes($delta);
+        }
+    }
+
+    /**
+     * Prepare activity data for bulk insert
+     * Mirrors RobotGameGenerator::prepareActivity()
+     */
+    private function prepareActivity(
+        string $activityTypeCode,
+        TimeCursor $time,
+        int $duration,
+        ?int $juryLane, ?int $juryTeam,
+        ?int $table1, ?int $table1Team,
+        ?int $table2, ?int $table2Team
+    ): array {
+        $start = $time->current()->format('Y-m-d H:i:s');
+        $endCursor = $time->copy();
+        $endCursor->addMinutes($duration);
+        $end = $endCursor->current()->format('Y-m-d H:i:s');
+
+        return [
+            'activityTypeCode' => $activityTypeCode,
+            'start' => $start,
+            'end' => $end,
+            'juryLane' => $juryLane,
+            'juryTeam' => $juryTeam,
+            'table1' => $table1,
+            'table1Team' => $table1Team,
+            'table2' => $table2,
+            'table2Team' => $table2Team,
+        ];
+    }
+
+    /**
+     * Generate parties for Day 1
+     * Team party and volunteer party at fixed times
+     */
+    private function generateDay1Parties(): void
+    {
+        Log::info("FinaleGenerator: Generating Day 1 parties", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
+
+        // Team Party
+        $teamPartyTime = new TimeCursor($this->pp('g_date'));
+        $teamPartyTime->setTime($this->pp('g_start_party_teams'));
+        
+        $this->writer->withGroup('g_party_teams', function () use ($teamPartyTime) {
+            $this->writer->insertActivity('g_party_teams', $teamPartyTime, $this->pp('g_duration_party_teams'));
+        });
+
+        // Volunteer Party
+        $volunteerPartyTime = new TimeCursor($this->pp('g_date'));
+        $volunteerPartyTime->setTime($this->pp('g_start_party_volunteers'));
+        
+        $this->writer->withGroup('g_party_volunteers', function () use ($volunteerPartyTime) {
+            $this->writer->insertActivity('g_party_volunteers', $volunteerPartyTime, $this->pp('g_duration_party_volunteers'));
+        });
+
+        Log::info("FinaleGenerator: Day 1 parties complete", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
+    }
+
+    /**
+     * Generate Day 1 briefings (working backwards from opening time)
+     * Three briefings: Coaches, Robot Game Referees, Live Challenge Judges
+     */
+    private function generateDay1Briefings(\DateTime $openingStart): void
+    {
+        // Coach briefing (c_briefing)
+        $this->writer->withGroup('c_briefing', function () use ($openingStart) {
+            $cursor = new TimeCursor($openingStart);
+            $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening'));
+            $this->writer->insertActivity('c_briefing', $cursor, $this->pp('c_duration_briefing'));
+        });
+
+        // Robot Game referee briefing (r_briefing)
+        $this->writer->withGroup('r_briefing', function () use ($openingStart) {
+            $cursor = new TimeCursor($openingStart);
+            $cursor->subMinutes($this->pp('r_duration_briefing') + $this->pp('c_ready_opening'));
+            $this->writer->insertActivity('r_briefing', $cursor, $this->pp('r_duration_briefing'));
+        });
+
+        // Live Challenge judge briefing (lc_briefing)
+        $this->writer->withGroup('lc_briefing', function () use ($openingStart) {
+            $cursor = new TimeCursor($openingStart);
+            $cursor->subMinutes($this->pp('lc_duration_briefing') + $this->pp('c_ready_opening'));
+            $this->writer->insertActivity('lc_briefing', $cursor, $this->pp('lc_duration_briefing'));
+        });
+    }
+
+    /**
+     * Generate Day 2 activities
+     * - Opening ceremony
+     * - 5 rounds of judging (5 lanes, same team assignment as Day 1)
+     * - 3 Robot Game rounds (R1, R2, R3 - no test rounds on Day 2)
+     * - Robot Game Finals (16→8→4→2)
+     * - Awards ceremony
+     * - Explore activities (if enabled) based on e_mode
+     */
+    private function generateDay2(): void
+    {
+        Log::info("FinaleGenerator: Generating Day 2", [
+            'plan_id' => $this->pp('g_plan'),
+            'e_mode' => $this->pp('e_mode'),
+        ]);
+
+        $eMode = $this->pp('e_mode');
+
+        // Assume Explore is present (e_mode > 0) for finale events
+        // Mirror the structure from PlanGeneratorCore but adapted for finale Day 2
+
+        if ($eMode == ExploreMode::INTEGRATED_MORNING->value) {
+            // Challenge + Explore integrated morning
+            $this->generateDay2IntegratedMorning();
+            
+        } elseif ($eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
+            // Challenge + Explore integrated afternoon
+            $this->generateDay2IntegratedAfternoon();
+            
+        } elseif (in_array($eMode, [
+            ExploreMode::DECOUPLED_MORNING->value,
+            ExploreMode::DECOUPLED_AFTERNOON->value,
+            ExploreMode::DECOUPLED_BOTH->value
+        ])) {
+            // Challenge + Explore decoupled
+            $this->generateDay2Decoupled();
+        }
+    }
+
+    /**
+     * Generate Day 2 with Explore integrated in morning
+     * Opening → Explore judging → Challenge judging/RG → Explore activity → Finals → Awards
+     */
+    private function generateDay2IntegratedMorning(): void
+    {
+        // TODO: Implement Day 2 Integrated Morning
+        // - Opening ceremony (Challenge + Explore together)
+        // - Explore: Opening & Briefings
+        // - Explore: Judging & Deliberations
+        // - Challenge: 5 rounds of judging + 3 RG rounds
+        // - Explore: Integrated activity
+        // - Robot Game Finals (16→8→4→2)
+        // - Challenge: Awards
+    }
+
+    /**
+     * Generate Day 2 with Explore integrated in afternoon
+     * Opening → Challenge judging/RG → Explore activity → Explore judging → Finals → Awards (with Explore)
+     */
+    private function generateDay2IntegratedAfternoon(): void
+    {
+        // TODO: Implement Day 2 Integrated Afternoon
+        // - Opening ceremony (Challenge only)
+        // - Challenge: 5 rounds of judging + 3 RG rounds
+        // - Explore: Integrated activity
+        // - Explore: Judging & Deliberations
+        // - Robot Game Finals (16→8→4→2)
+        // - Awards (Challenge + Explore together)
+    }
+
+    /**
+     * Generate Day 2 with Explore decoupled
+     * Challenge and Explore run in parallel/separate time slots
+     */
+    private function generateDay2Decoupled(): void
+    {
+        // TODO: Implement Day 2 Decoupled
+        // - Opening ceremony (Challenge only)
+        // - Challenge: 5 rounds of judging + 3 RG rounds
+        // - Robot Game Finals (16→8→4→2)
+        // - Challenge: Awards
+        // 
+        // Explore runs in parallel/separate:
+        // - Explore: Opening & Briefings (session 1)
+        // - Explore: Judging & Deliberations (session 1)
+        // - Explore: Awards (session 1)
+        //
+        // If DECOUPLED_BOTH:
+        // - Explore: Opening & Briefings (session 2)
+        // - Explore: Judging & Deliberations (session 2)
+        // - Explore: Awards (session 2)
     }
 }
-
-

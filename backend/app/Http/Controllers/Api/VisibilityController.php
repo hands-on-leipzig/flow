@@ -34,6 +34,23 @@ class VisibilityController extends Controller
     }
 
     /**
+     * Get activity type categories for filter dropdown
+     */
+    public function getActivityTypeCategories()
+    {
+        try {
+            $categories = DB::table('m_activity_type')
+                ->select('id', 'name')
+                ->orderBy('id')
+                ->get();
+
+            return response()->json($categories);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Database error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Get all activity types for visibility matrix
      */
     public function getActivityTypes()
