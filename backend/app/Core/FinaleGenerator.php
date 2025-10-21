@@ -89,11 +89,11 @@ class FinaleGenerator
         $day1Time->addMinutes($this->pp('f_ready_action_day_1'));
 
         // === LIVE CHALLENGE JUDGING + TEST ROUNDS (interleaved) ===
-        // LC has 5 rounds, TR1 runs parallel to LC Round 1, TR2 runs parallel to LC Round 3
+        // LC has 5 rounds, TR1 runs parallel to LC Round 1, TR2 runs parallel to LC Round 4
         $this->generateLiveChallengeWithTestRounds($day1Time);
 
-        // TODO: Implement remaining Day 1 activities
-        // - Parties / social events
+        // === PARTIES ===
+        $this->generateDay1Parties();
     }
 
     /**
@@ -364,6 +364,37 @@ class FinaleGenerator
             'table2' => $table2,
             'table2Team' => $table2Team,
         ];
+    }
+
+    /**
+     * Generate parties for Day 1
+     * Team party and volunteer party at fixed times
+     */
+    private function generateDay1Parties(): void
+    {
+        Log::info("FinaleGenerator: Generating Day 1 parties", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
+
+        // Team Party
+        $teamPartyTime = new TimeCursor($this->pp('g_date'));
+        $teamPartyTime->setTime($this->pp('g_start_party_teams'));
+        
+        $this->writer->withGroup('g_party_teams', function () use ($teamPartyTime) {
+            $this->writer->insertActivity('g_party_teams', $teamPartyTime, $this->pp('g_duration_party_teams'));
+        });
+
+        // Volunteer Party
+        $volunteerPartyTime = new TimeCursor($this->pp('g_date'));
+        $volunteerPartyTime->setTime($this->pp('g_start_party_volunteers'));
+        
+        $this->writer->withGroup('g_party_volunteers', function () use ($volunteerPartyTime) {
+            $this->writer->insertActivity('g_party_volunteers', $volunteerPartyTime, $this->pp('g_duration_party_volunteers'));
+        });
+
+        Log::info("FinaleGenerator: Day 1 parties complete", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
     }
 
     /**
