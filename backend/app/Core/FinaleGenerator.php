@@ -135,7 +135,10 @@ class FinaleGenerator
                 $this->insertTestRound(1, $round1Matches, $lcRoundStartTime);
             } elseif ($round == 4 && $round2Matches->isNotEmpty()) {
                 // TR2 parallel to LC Round 4
-                $this->insertTestRound(2, $round2Matches, $lcRoundStartTime);
+                $tr2EndTime = $this->insertTestRound(2, $round2Matches, $lcRoundStartTime);
+                
+                // After TR2: Referee break and debrief
+                $this->generateRefereeDebriefAfterTR2($tr2EndTime);
             }
 
             $this->writer->withGroup('lc_package', function () use ($round, $startTeam, $lcTime) {
@@ -211,8 +214,9 @@ class FinaleGenerator
      * @param int $testRoundNumber 1 or 2
      * @param \Illuminate\Support\Collection $matches Matches for this test round
      * @param \DateTime $startTime Start time for this test round
+     * @return \DateTime End time of this test round
      */
-    private function insertTestRound(int $testRoundNumber, $matches, \DateTime $startTime): void
+    private function insertTestRound(int $testRoundNumber, $matches, \DateTime $startTime): \DateTime
     {
         // Create activity group for this test round
         // Both TR1 and TR2 use the same 'r_test_round' group code
@@ -279,6 +283,31 @@ class FinaleGenerator
         // Fix for 4 tables: when last match is over, correct total duration
         $delta = $this->pp('r_duration_test_match') - $this->pp('r_duration_next_start');
         $trTime->addMinutes($delta);
+        
+        // Return end time for potential follow-up activities
+        return $trTime->current();
+    }
+
+    /**
+     * Generate referee debrief after TR2
+     * Referees take a break and then meet to debrief
+     */
+    private function generateRefereeDebriefAfterTR2(\DateTime $tr2EndTime): void
+    {
+        // Create time cursor starting from end of TR2
+        $refTime = new TimeCursor($tr2EndTime);
+        
+        // Add break before debrief
+        $refTime->addMinutes($this->pp('r_duration_break'));
+        
+        // Referee debriefing
+        $this->writer->withGroup('r_debriefing', function () use ($refTime) {
+            $this->writer->insertActivity('r_debriefing', $refTime, $this->pp('r_duration_debriefing'));
+        });
+        
+        Log::info("FinaleGenerator: Referee debrief after TR2 complete", [
+            'plan_id' => $this->pp('g_plan'),
+        ]);
     }
 
     /**
