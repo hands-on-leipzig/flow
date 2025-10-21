@@ -264,9 +264,6 @@ class FinaleGenerator
 
             // Advance time cursor based on table configuration
             $this->advanceTimeForTestMatch($trTime, $matchNumber, $duration);
-            if ($this->pp('r_robot_check')) {
-                $trTime->addMinutes($this->pp('r_duration_robot_check'));
-            }
         }
 
         // Bulk insert all activities for this test round
@@ -274,10 +271,14 @@ class FinaleGenerator
             $this->writer->insertActivitiesBulk($activities);
         }
 
-        // Add robot check buffer at end if enabled
+        // Robot check adds additional time at the end of the round (once for all matches)
         if ($this->pp('r_robot_check')) {
             $trTime->addMinutes($this->pp('r_duration_robot_check'));
         }
+
+        // Fix for 4 tables: when last match is over, correct total duration
+        $delta = $this->pp('r_duration_test_match') - $this->pp('r_duration_next_start');
+        $trTime->addMinutes($delta);
     }
 
     /**
