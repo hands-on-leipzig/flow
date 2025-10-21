@@ -132,6 +132,9 @@ const expertParams = computed(() =>
         .filter((p: Parameter) => {
           if (p.context !== 'expert') return false
           
+          // Exclude level 3 parameters (they go in Finalparameter section)
+          if (p.level === 3) return false
+          
           // Filter based on toggle states
           if (p.first_program === 2 && !showExplore.value) return false // Explore disabled
           if (p.first_program === 3 && !showChallenge.value) return false // Challenge disabled
@@ -143,7 +146,8 @@ const expertParams = computed(() =>
 
 const finaleParams = computed(() =>
     parameters.value.filter((p: Parameter) =>
-        p.context === 'finale' &&
+        p.level === 3 &&
+        (p.context === 'input' || p.context === 'expert') &&
         !isTimeParam(p) &&
         !isSpecial(p) &&
         ((p.first_program === 2 && showExplore.value) ||
