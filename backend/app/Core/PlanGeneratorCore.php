@@ -64,6 +64,11 @@ class PlanGeneratorCore
 
         // Log::debug("PlanGeneratorCore: generateByMode", ['cMode' => $cMode, 'eMode' => $eMode]);
 
+        // Check for finale event (level 3) - special 2-day generation path
+        if ($this->pp('g_finale')) {
+            $this->generateFinale($eMode);
+            return;
+        }
 
         if ($cMode == 1) {
             // Challenge present - instantiate ChallengeGenerator
@@ -177,10 +182,16 @@ class PlanGeneratorCore
         }
     }
 
-    
-
-
-
-
-
+    /**
+     * Generate plan for finale event (level 3) - 2-day DACH Finale
+     * Delegates to FinaleGenerator for complete 2-day generation
+     */
+    private function generateFinale(int $eMode): void
+    {
+        // Initialize finale generator - handles complete 2-day generation
+        $finale = new FinaleGenerator($this->writer, $this->params);
+        
+        // Generate both Day 1 and Day 2, including Explore if enabled
+        $finale->generate($eMode, $this->integratedExplore);
+    }
 }
