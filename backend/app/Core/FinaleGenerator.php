@@ -88,32 +88,55 @@ class FinaleGenerator
         // === TRANSITION TO ACTIVITIES ===
         $day1Time->addMinutes($this->pp('f_ready_action_day_1'));
 
-        // === LIVE CHALLENGE JUDGING (5 rounds, 5 lanes, 25 teams) ===
-        // Store the LC start time for parallel test rounds
-        $lcStartTime = clone $day1Time->current();
-        $this->generateLiveChallengeJudging($day1Time);
-
-        // === TEST ROUNDS (parallel to LC, copied from Day 2 RG rounds) ===
-        $this->generateTestRounds($lcStartTime);
+        // === LIVE CHALLENGE JUDGING + TEST ROUNDS (interleaved) ===
+        // LC has 5 rounds, TR1 runs parallel to LC Round 1, TR2 runs parallel to LC Round 3
+        $this->generateLiveChallengeWithTestRounds($day1Time);
 
         // TODO: Implement remaining Day 1 activities
         // - Parties / social events
     }
 
     /**
-     * Generate Live Challenge judging for Day 1
-     * Simple logic: 25 teams, 5 lanes, 5 rounds
-     * Teams 1-5 in round 1, teams 6-10 in round 2, etc.
+     * Generate Live Challenge judging with test rounds interleaved
+     * LC: 5 rounds with 5 lanes (25 teams)
+     * TR1 runs parallel to LC Round 1
+     * TR2 runs parallel to LC Round 3
      */
-    private function generateLiveChallengeJudging(TimeCursor $lcTime): void
+    private function generateLiveChallengeWithTestRounds(TimeCursor $lcTime): void
     {
-        Log::info("FinaleGenerator: Generating Live Challenge judging", [
+        Log::info("FinaleGenerator: Generating Live Challenge judging with test rounds", [
             'plan_id' => $this->pp('g_plan'),
         ]);
 
-        // 5 rounds with 5 teams each (25 teams total)
+        // Read matches from Day 2 for test rounds
+        $planId = $this->pp('g_plan');
+        $round1Matches = DB::table('match')
+            ->where('plan', $planId)
+            ->where('round', 1)
+            ->orderBy('match_no')
+            ->get();
+            
+        $round2Matches = DB::table('match')
+            ->where('plan', $planId)
+            ->where('round', 2)
+            ->orderBy('match_no')
+            ->get();
+
+        // 5 rounds of LC with test rounds interleaved
         for ($round = 1; $round <= 5; $round++) {
             $startTeam = ($round - 1) * 5; // Round 1: 0, Round 2: 5, Round 3: 10, etc.
+            
+            // Store start time for this LC round
+            $lcRoundStartTime = clone $lcTime->current();
+
+            // === GENERATE TEST ROUND if this is round 1 or 3 ===
+            if ($round == 1 && $round1Matches->isNotEmpty()) {
+                // TR1 parallel to LC Round 1
+                $this->insertTestRound(1, $round1Matches, $lcRoundStartTime);
+            } elseif ($round == 3 && $round2Matches->isNotEmpty()) {
+                // TR2 parallel to LC Round 3
+                $this->insertTestRound(2, $round2Matches, $lcRoundStartTime);
+            }
 
             $this->writer->withGroup('lc_package', function () use ($round, $startTeam, $lcTime) {
                 $activities = [];
@@ -178,68 +201,6 @@ class FinaleGenerator
         Log::info("FinaleGenerator: Live Challenge judging complete", [
             'plan_id' => $this->pp('g_plan'),
             'rounds' => 5,
-        ]);
-    }
-
-    /**
-     * Generate Test Rounds for Day 1 (parallel to LC rounds)
-     * Copies match plan from Day 2 Round 1 and Round 2 to create TR1 and TR2
-     * Uses same logic as RobotGameGenerator::insertOneRound() for test rounds
-     * TR1 runs parallel to LC Round 1, TR2 runs parallel to LC Round 3
-     * 
-     * @param \DateTime $lcStartTime Start time of LC Round 1
-     */
-    private function generateTestRounds(\DateTime $lcStartTime): void
-    {
-        Log::info("FinaleGenerator: Generating Test Rounds", [
-            'plan_id' => $this->pp('g_plan'),
-        ]);
-
-        // Read matches from Day 2 for Round 1 (becomes TR1) and Round 2 (becomes TR2)
-        $planId = $this->pp('g_plan');
-        $round1Matches = DB::table('match')
-            ->where('plan', $planId)
-            ->where('round', 1)
-            ->orderBy('match_no')
-            ->get();
-            
-        $round2Matches = DB::table('match')
-            ->where('plan', $planId)
-            ->where('round', 2)
-            ->orderBy('match_no')
-            ->get();
-
-        if ($round1Matches->isEmpty() && $round2Matches->isEmpty()) {
-            Log::warning("FinaleGenerator: No matches found for TR1/TR2", [
-                'plan_id' => $planId,
-            ]);
-            return;
-        }
-
-        // Calculate LC round duration for timing offset
-        // LC Round timing: with_team (35 min) + scoring (5 min) + break (10 min) = 50 min per round
-        $lcRoundDuration = $this->pp('lc_duration_with_team') 
-            + $this->pp('lc_duration_scoring') 
-            + $this->pp('lc_duration_break');
-
-        // === TEST ROUND 1 (parallel to LC Round 1) ===
-        if ($round1Matches->isNotEmpty()) {
-            $tr1StartTime = clone $lcStartTime;
-            $this->insertTestRound(1, $round1Matches, $tr1StartTime);
-        }
-
-        // === TEST ROUND 2 (parallel to LC Round 3) ===
-        if ($round2Matches->isNotEmpty()) {
-            $tr2StartTime = clone $lcStartTime;
-            $offset = 2 * $lcRoundDuration; // Skip 2 LC rounds to align with LC Round 3
-            $tr2StartTime->modify("+{$offset} minutes");
-            $this->insertTestRound(2, $round2Matches, $tr2StartTime);
-        }
-
-        Log::info("FinaleGenerator: Test Rounds complete", [
-            'plan_id' => $planId,
-            'tr1_matches' => $round1Matches->count(),
-            'tr2_matches' => $round2Matches->count(),
         ]);
     }
 
