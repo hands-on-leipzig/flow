@@ -100,7 +100,7 @@ class FinaleGenerator
      * Generate Live Challenge judging with test rounds interleaved
      * LC: 5 rounds with 5 lanes (25 teams)
      * TR1 runs parallel to LC Round 1
-     * TR2 runs parallel to LC Round 3
+     * TR2 runs parallel to LC Round 4
      */
     private function generateLiveChallengeWithTestRounds(TimeCursor $lcTime): void
     {
@@ -129,12 +129,12 @@ class FinaleGenerator
             // Store start time for this LC round
             $lcRoundStartTime = clone $lcTime->current();
 
-            // === GENERATE TEST ROUND if this is round 1 or 3 ===
+            // === GENERATE TEST ROUND if this is round 1 or 4 ===
             if ($round == 1 && $round1Matches->isNotEmpty()) {
                 // TR1 parallel to LC Round 1
                 $this->insertTestRound(1, $round1Matches, $lcRoundStartTime);
-            } elseif ($round == 3 && $round2Matches->isNotEmpty()) {
-                // TR2 parallel to LC Round 3
+            } elseif ($round == 4 && $round2Matches->isNotEmpty()) {
+                // TR2 parallel to LC Round 4
                 $this->insertTestRound(2, $round2Matches, $lcRoundStartTime);
             }
 
