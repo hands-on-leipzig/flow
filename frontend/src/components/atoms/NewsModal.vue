@@ -11,6 +11,7 @@ const props = defineProps({
 const emit = defineEmits(['markRead'])
 
 const handleMarkRead = () => {
+  console.log('NewsModal handleMarkRead called', { newsId: props.news.id, news: props.news })
   emit('markRead', props.news.id)
 }
 

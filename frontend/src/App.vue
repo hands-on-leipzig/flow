@@ -35,9 +35,13 @@ const checkForUnreadNews = async () => {
 
   try {
     const response = await axios.get('/news/unread')
-    if (response.data) {
+    // Check if response.data exists and has an id (not null)
+    if (response.data && response.data.id) {
+      console.log('Unread news received:', response.data)
       currentNews.value = response.data
       showNewsModal.value = true
+    } else {
+      console.log('No unread news')
     }
   } catch (error) {
     // Silently fail - news check should not disrupt user experience
@@ -47,6 +51,11 @@ const checkForUnreadNews = async () => {
 
 // Mark news as read and close modal
 const markNewsAsRead = async (newsId) => {
+  if (!newsId) {
+    console.error('markNewsAsRead called without newsId', { newsId, currentNews: currentNews.value })
+    return
+  }
+
   try {
     await axios.post(`/news/${newsId}/mark-read`)
     showNewsModal.value = false
