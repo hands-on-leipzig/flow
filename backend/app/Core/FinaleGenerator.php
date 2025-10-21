@@ -29,26 +29,23 @@ class FinaleGenerator
     /**
      * Main generation method for finale events
      * Handles complete 2-day generation: Day 1 (Live Challenge + Test Rounds) and Day 2 (Main Competition)
-     * 
-     * @param int $eMode Explore mode (if Explore teams present)
-     * @param IntegratedExploreState $integratedExplore Shared state for Explore integration
      */
-    public function generate(int $eMode, IntegratedExploreState $integratedExplore): void
+    public function generate(): void
     {
         Log::info("FinaleGenerator: Start generation", [
             'plan_id' => $this->pp('g_plan'),
-            'e_mode' => $eMode,
+            'e_mode' => $this->pp('e_mode'),
         ]);
 
         // Generate Day 1: Live Challenge + Test Rounds
         $this->generateDay1();
 
         // Generate Day 2: Main Competition
-        $this->generateDay2($integratedExplore);
+        $this->generateDay2();
 
         // Generate Explore activities (if enabled)
-        if ($eMode != ExploreMode::NONE->value) {
-            $this->generateExplore($eMode, $integratedExplore);
+        if ($this->pp('e_mode') != ExploreMode::NONE->value) {
+            $this->generateExplore();
         }
 
         Log::info("FinaleGenerator: Generation complete", [
@@ -88,10 +85,8 @@ class FinaleGenerator
      * - 3 Robot Game rounds (R1, R2, R3 - no test rounds on Day 2)
      * - Robot Game Finals (16→8→4→2)
      * - Awards ceremony
-     * 
-     * @param IntegratedExploreState $integratedExplore Shared state for potential Explore integration
      */
-    private function generateDay2(IntegratedExploreState $integratedExplore): void
+    private function generateDay2(): void
     {
         Log::info("FinaleGenerator: Generating Day 2", [
             'plan_id' => $this->pp('g_plan'),
@@ -112,22 +107,19 @@ class FinaleGenerator
     /**
      * Generate Explore activities for finale
      * Finale only supports DECOUPLED modes for Explore
-     * 
-     * @param int $eMode Explore mode
-     * @param IntegratedExploreState $integratedExplore Shared state
      */
-    private function generateExplore(int $eMode, IntegratedExploreState $integratedExplore): void
+    private function generateExplore(): void
     {
         Log::info("FinaleGenerator: Generating Explore activities", [
             'plan_id' => $this->pp('g_plan'),
-            'e_mode' => $eMode,
+            'e_mode' => $this->pp('e_mode'),
         ]);
 
         // Initialize Explore generator
         $explore = new ExploreGenerator(
             $this->writer,
             $this->params,
-            $integratedExplore
+            new IntegratedExploreState()
         );
 
         // Run explore activities (decoupled from Challenge)
@@ -136,7 +128,7 @@ class FinaleGenerator
         $explore->awards();
 
         // Support DECOUPLED_BOTH if needed (two separate sessions)
-        if ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
+        if ($this->pp('e_mode') == ExploreMode::DECOUPLED_BOTH->value) {
             $explore->setMode(ExploreMode::DECOUPLED_AFTERNOON->value);
 
             $explore->openingsAndBriefings();
