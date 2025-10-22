@@ -172,13 +172,16 @@ class ChallengeGenerator
 
     public function briefings(\DateTime $t): void
     {
-
-        $this->writer->withGroup('c_briefing', function () use ($t) {
-            $cursor = new TimeCursor($t);
-            $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening'));
-            $this->writer->insertActivity('c_briefing', $cursor, $this->pp('c_duration_briefing'));
-        });
+        // Coach briefing - skip for finale (already on Day 1)
+        if (!$this->pp('g_finale')) {
+            $this->writer->withGroup('c_briefing', function () use ($t) {
+                $cursor = new TimeCursor($t);
+                $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening'));
+                $this->writer->insertActivity('c_briefing', $cursor, $this->pp('c_duration_briefing'));
+            });
+        }
         
+        // Jury briefing - same logic for finale and normal events
         $this->writer->withGroup('j_briefing', function () use ($t) {
             if (!$this->pp('j_briefing_after_opening')) {
                 $cursor = new TimeCursor($t);
@@ -195,16 +198,21 @@ class ChallengeGenerator
             $this->jTime->addMinutes($this->pp('j_ready_action'));
         });
 
-        $this->writer->withGroup('r_briefing', function () use ($t) {
+        // Referee briefing - use r_duration_briefing_2 for finale Day 2
+        $refereeBriefingDuration = $this->pp('g_finale') 
+            ? $this->pp('r_duration_briefing_2') 
+            : $this->pp('r_duration_briefing');
+
+        $this->writer->withGroup('r_briefing', function () use ($t, $refereeBriefingDuration) {
             if (!$this->pp('r_briefing_after_opening')) {
                 $cursor = new TimeCursor($t);
-                $cursor->subMinutes($this->pp('r_duration_briefing') + $this->pp('c_ready_opening'));
-                $this->writer->insertActivity('r_briefing', $cursor, $this->pp('r_duration_briefing'));
+                $cursor->subMinutes($refereeBriefingDuration + $this->pp('c_ready_opening'));
+                $this->writer->insertActivity('r_briefing', $cursor, $refereeBriefingDuration);
             } else {
                 $cursor = $this->rTime->copy();
                 $cursor->addMinutes($this->pp('r_ready_briefing'));
-                $this->writer->insertActivity('r_briefing', $cursor, $this->pp('r_duration_briefing'));
-                $this->rTime->addMinutes($this->pp('r_ready_briefing') + $this->pp('r_duration_briefing') );
+                $this->writer->insertActivity('r_briefing', $cursor, $refereeBriefingDuration);
+                $this->rTime->addMinutes($this->pp('r_ready_briefing') + $refereeBriefingDuration);
             }
 
             $this->rTime->addMinutes($this->pp('r_ready_action'));
