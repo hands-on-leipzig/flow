@@ -38,9 +38,23 @@ class FinaleGenerator
             'e_mode' => $this->pp('e_mode'),
         ]);
 
+        // Store original date (Day 1)
+        $originalDate = $this->pp('g_date');
+        
+        // Advance date by one day for Day 2 generation
+        $day2Date = (clone $originalDate)->modify('+1 day');
+        $this->params->add('g_date', $day2Date, 'date');
+        
+        Log::info("FinaleGenerator: Generating Day 2", ['date' => $day2Date->format('Y-m-d')]);
+        
         // Generate Day 2 FIRST: Creates judging lanes and robot game match plan
         // This establishes the team-to-lane assignments that Day 1 will reuse
         $this->generateDay2();
+
+        // Restore original date for Day 1 generation
+        $this->params->add('g_date', $originalDate, 'date');
+        
+        Log::info("FinaleGenerator: Generating Day 1", ['date' => $originalDate->format('Y-m-d')]);
 
         // Generate Day 1: Live Challenge + Test Rounds
         // Uses the same team-to-lane assignments as Day 2
