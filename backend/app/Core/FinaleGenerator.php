@@ -6,8 +6,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
-use App\Support\IntegratedExploreState;
-use App\Enums\ExploreMode;
 
 class FinaleGenerator
 {
@@ -40,9 +38,23 @@ class FinaleGenerator
             'e_mode' => $this->pp('e_mode'),
         ]);
 
+        // Store original date (Day 1)
+        $originalDate = $this->pp('g_date');
+        
+        // Advance date by one day for Day 2 generation
+        $day2Date = (clone $originalDate)->modify('+1 day');
+        $this->params->add('g_date', $day2Date->format('Y-m-d'), 'date');
+        
+        Log::info("FinaleGenerator: Generating Day 2", ['date' => $day2Date->format('Y-m-d')]);
+        
         // Generate Day 2 FIRST: Creates judging lanes and robot game match plan
         // This establishes the team-to-lane assignments that Day 1 will reuse
         $this->generateDay2();
+
+        // Restore original date for Day 1 generation
+        $this->params->add('g_date', $originalDate->format('Y-m-d'), 'date');
+        
+        Log::info("FinaleGenerator: Generating Day 1", ['date' => $originalDate->format('Y-m-d')]);
 
         // Generate Day 1: Live Challenge + Test Rounds
         // Uses the same team-to-lane assignments as Day 2
@@ -434,6 +446,11 @@ class FinaleGenerator
      * - Awards ceremony
      * - Explore activities (if enabled) based on e_mode
      */
+    /**
+     * Generate Day 2 activities (Main Competition Day)
+     * Simply delegates to PlanGeneratorCore's one-day event generation with our modified params
+     * All finale-specific logic (briefings, RG mapping, finals) is already in the existing generators
+     */
     private function generateDay2(): void
     {
         Log::info("FinaleGenerator: Generating Day 2", [
@@ -441,80 +458,9 @@ class FinaleGenerator
             'e_mode' => $this->pp('e_mode'),
         ]);
 
-        $eMode = $this->pp('e_mode');
-
-        // Assume Explore is present (e_mode > 0) for finale events
-        // Mirror the structure from PlanGeneratorCore but adapted for finale Day 2
-
-        if ($eMode == ExploreMode::INTEGRATED_MORNING->value) {
-            // Challenge + Explore integrated morning
-            $this->generateDay2IntegratedMorning();
-            
-        } elseif ($eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
-            // Challenge + Explore integrated afternoon
-            $this->generateDay2IntegratedAfternoon();
-            
-        } elseif (in_array($eMode, [
-            ExploreMode::DECOUPLED_MORNING->value,
-            ExploreMode::DECOUPLED_AFTERNOON->value,
-            ExploreMode::DECOUPLED_BOTH->value
-        ])) {
-            // Challenge + Explore decoupled
-            $this->generateDay2Decoupled();
-        }
+        // Day 2 is a standard one-day event - reuse the existing logic with our params
+        $core = new PlanGeneratorCore($this->pp('g_plan'), $this->params);
+        $core->generateOneDayEvent();
     }
 
-    /**
-     * Generate Day 2 with Explore integrated in morning
-     * Opening → Explore judging → Challenge judging/RG → Explore activity → Finals → Awards
-     */
-    private function generateDay2IntegratedMorning(): void
-    {
-        // TODO: Implement Day 2 Integrated Morning
-        // - Opening ceremony (Challenge + Explore together)
-        // - Explore: Opening & Briefings
-        // - Explore: Judging & Deliberations
-        // - Challenge: 5 rounds of judging + 3 RG rounds
-        // - Explore: Integrated activity
-        // - Robot Game Finals (16→8→4→2)
-        // - Challenge: Awards
-    }
-
-    /**
-     * Generate Day 2 with Explore integrated in afternoon
-     * Opening → Challenge judging/RG → Explore activity → Explore judging → Finals → Awards (with Explore)
-     */
-    private function generateDay2IntegratedAfternoon(): void
-    {
-        // TODO: Implement Day 2 Integrated Afternoon
-        // - Opening ceremony (Challenge only)
-        // - Challenge: 5 rounds of judging + 3 RG rounds
-        // - Explore: Integrated activity
-        // - Explore: Judging & Deliberations
-        // - Robot Game Finals (16→8→4→2)
-        // - Awards (Challenge + Explore together)
-    }
-
-    /**
-     * Generate Day 2 with Explore decoupled
-     * Challenge and Explore run in parallel/separate time slots
-     */
-    private function generateDay2Decoupled(): void
-    {
-        // TODO: Implement Day 2 Decoupled
-        // - Opening ceremony (Challenge only)
-        // - Challenge: 5 rounds of judging + 3 RG rounds
-        // - Robot Game Finals (16→8→4→2)
-        // - Challenge: Awards
-        // 
-        // Explore runs in parallel/separate:
-        // - Explore: Opening & Briefings (session 1)
-        // - Explore: Judging & Deliberations (session 1)
-        // - Explore: Awards (session 1)
-        //
-        // If DECOUPLED_BOTH:
-        // - Explore: Opening & Briefings (session 2)
-        // - Explore: Judging & Deliberations (session 2)
-        // - Explore: Awards (session 2)
-    }
 }

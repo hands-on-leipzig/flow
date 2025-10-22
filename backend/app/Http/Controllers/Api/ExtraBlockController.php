@@ -14,9 +14,18 @@ use App\Http\Controllers\Api\PlanGeneratorController;
 
 class ExtraBlockController extends Controller
 {
-    public function getInsertPoints()
+    public function getInsertPoints(Request $request)
     {
-        $insert_points = MInsertPoint::all();
+        $eventLevel = $request->query('level');
+        
+        // If event level is provided, filter insert points by level
+        if ($eventLevel !== null) {
+            $insert_points = MInsertPoint::where('level', '<=', $eventLevel)->get();
+        } else {
+            // No level provided, return all insert points
+            $insert_points = MInsertPoint::all();
+        }
+        
         return response()->json($insert_points);
     }
 

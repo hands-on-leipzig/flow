@@ -135,8 +135,7 @@ class PlanGeneratorService
     public function run(int $planId, bool $withQualityEvaluation = false): void
     {
         try {
-            $core = new \App\Core\PlanGeneratorCore($planId);
-            $core->generate();
+            \App\Core\PlanGeneratorCore::generate($planId);
 
             if ($withQualityEvaluation) {
                 $evaluator = new QualityEvaluatorService();

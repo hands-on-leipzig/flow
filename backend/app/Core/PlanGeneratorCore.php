@@ -28,21 +28,24 @@ class PlanGeneratorCore
 
     use UsesPlanParameter;
 
-    public function __construct(int $planId)
+    public function __construct(int $planId, PlanParameter $params)
     {
         $this->writer = new ActivityWriter($planId);
-        $this->params = PlanParameter::load($planId);
+        $this->params = $params;
         $this->integratedExplore = new IntegratedExploreState();
     }
 
-    public function generate(): void
+    public static function generate(int $planId): void
     {
-        Log::info("PlanGeneratorCore: Start generation for plan {$this->pp('g_plan')}");
+        Log::info("PlanGeneratorCore: Start generation for plan {$planId}");
+        
+        $params = PlanParameter::load($planId);
+        $instance = new self($planId, $params);
         
         try {
-                $this->generateByMode();
+                $instance->generateByMode();
             } catch (\Throwable $e) {
-                Log::error("Plan generation failed: {$e->getMessage()}", ['plan_id' => $this->pp('g_plan')]);
+                Log::error("Plan generation failed: {$e->getMessage()}", ['plan_id' => $planId]);
                 throw $e;
             }
         
@@ -52,18 +55,13 @@ class PlanGeneratorCore
         // Timing does not matter, because these are parallel to other activities.
         // -----------------------------------------------------------------------------------
 
-        (new FreeBlockGenerator($this->writer, $this->params))->insertFreeActivities();
+        (new FreeBlockGenerator($instance->writer, $instance->params))->insertFreeActivities();
 
-        Log::info("PlanGeneratorCore: Finished generation for plan {$this->pp('g_plan')}");
+        Log::info("PlanGeneratorCore: Finished generation for plan {$planId}");
     }
 
     private function generateByMode(): void
     {
-        $cMode = $this->pp('c_mode');
-        $eMode = $this->pp('e_mode');
-
-        // Log::debug("PlanGeneratorCore: generateByMode", ['cMode' => $cMode, 'eMode' => $eMode]);
-
         // Check for finale event (level 3) - special 2-day generation path
         if ($this->pp('g_finale')) {
             // Finale event - delegate to FinaleGenerator for complete 2-day generation
@@ -71,6 +69,21 @@ class PlanGeneratorCore
             $finale->generate();
             return;
         }
+
+        // Normal events - use standard one-day generation
+        $this->generateOneDayEvent();
+    }
+
+    /**
+     * Generate a standard one-day event
+     * This method can be called by both normal events and Finale Day 2
+     */
+    public function generateOneDayEvent(): void
+    {
+        $cMode = $this->pp('c_mode');
+        $eMode = $this->pp('e_mode');
+
+        // Log::debug("PlanGeneratorCore: generateOneDayEvent", ['cMode' => $cMode, 'eMode' => $eMode]);
 
         if ($cMode == 1) {
             // Challenge present - instantiate ChallengeGenerator
