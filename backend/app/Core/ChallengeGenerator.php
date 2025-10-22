@@ -535,13 +535,13 @@ class ChallengeGenerator
             /// Robot-game final rounds
             // -----------------------------------------------------------------------------------
 
-            if ($this->pp('g_finale') && $this->pp('c_teams') >= 16) {
-                // The DACH Finale is the only event running the round of best 16
+            // Round of best 16 (optional, only for finale events)
+            if ($this->pp('g_finale') && $this->pp('r_final_16')) {
                 $this->matchPlan->insertFinalRound(16);
             }
 
-            // Organizer can decide not to run round of best 8
-            if (($this->pp('g_finale') || $this->pp('r_quarter_final')) && $this->pp('c_teams') >= 8) {
+            // Round of best 8 (optional, auto-enabled if r_final_16 is active)
+            if ($this->pp('r_final_8') || $this->pp('r_final_16')) {
                 $this->matchPlan->insertFinalRound(8);
             }
 

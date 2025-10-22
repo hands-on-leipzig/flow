@@ -1043,7 +1043,7 @@ Bei Eingabe von 0, wird der Block komplett übersprungen.',
 ),
             array (
   'id' => 39,
-  'name' => 'r_quarter_final',
+  'name' => 'r_final_8',
   'context' => 'expert',
   'level' => 1,
   'type' => 'boolean',

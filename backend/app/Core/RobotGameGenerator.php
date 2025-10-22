@@ -694,7 +694,7 @@ class RobotGameGenerator
 
             case 4:
                 $this->writer->withGroup('r_final_4', function () {
-                    if ($this->pp("r_quarter_final")) {
+                    if ($this->pp("r_final_8")) {
                         // TODO texts: QF1..QF4
                         if ($this->pp("r_tables") == 2) {
                             for ($i = 0; $i < 2; $i++) {
