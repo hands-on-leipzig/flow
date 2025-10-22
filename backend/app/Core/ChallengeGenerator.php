@@ -366,36 +366,58 @@ class ChallengeGenerator
                 $jT += $this->pp('j_lanes');
 
                 // Robot Game rounds depending on block and config
-                switch ($cBlock) {
-                    case 1:
-                        // First judging round runs parallel to RG test round, regardless of j_rounds
-                        $this->matchPlan->insertOneRound(0);
-                        break;
-                    case 2:
-                        if ($this->pp('j_rounds') == 4) {
-                            $this->matchPlan->insertOneRound(1);
-                        }
-                        break;
-                    case 3:
-                        if ($this->pp('j_rounds') == 4) {
-                            $this->matchPlan->insertOneRound(2);
-                        } else {
-                            $this->matchPlan->insertOneRound(1);
-                        }
-                        break;
-                    case 4:
-                        if ($this->pp('j_rounds') == 4) {
+                if ($this->pp('g_finale')) {
+                    // Finale Day 2: TR already on Day 1, start with regular rounds
+                    switch ($cBlock) {
+                        case 1:
+                            $this->matchPlan->insertOneRound(1);  // R1
+                            break;
+                        case 2:
+                            // No robot game
+                            break;
+                        case 3:
+                            $this->matchPlan->insertOneRound(2);  // R2
+                            break;
+                        case 4:
+                            $this->matchPlan->insertOneRound(3);  // R3
+                            break;
+                        case 5:
+                            // No robot game (Finals or Awards will be added separately)
+                            break;
+                    }
+                } else {
+                    // Normal event mapping
+                    switch ($cBlock) {
+                        case 1:
+                            // First judging round runs parallel to RG test round, regardless of j_rounds
+                            $this->matchPlan->insertOneRound(0);
+                            break;
+                        case 2:
+                            if ($this->pp('j_rounds') == 4) {
+                                $this->matchPlan->insertOneRound(1);
+                            }
+                            break;
+                        case 3:
+                            if ($this->pp('j_rounds') == 4) {
+                                $this->matchPlan->insertOneRound(2);
+                            } else {
+                                $this->matchPlan->insertOneRound(1);
+                            }
+                            break;
+                        case 4:
+                            if ($this->pp('j_rounds') == 4) {
+                                $this->matchPlan->insertOneRound(3);
+                            } else {
+                                $this->matchPlan->insertOneRound(2);
+                            }
+                            break;
+                        case 5:
                             $this->matchPlan->insertOneRound(3);
-                        } else {
-                            $this->matchPlan->insertOneRound(2);
-                        }
-                        break;
-                    case 5:
-                        $this->matchPlan->insertOneRound(3);
-                        break;
-                    case 6:
-                        // No robot game left
-                        break;
+                            break;
+                        case 6:
+                            // No robot game left
+                            break;
+                    }
                 }
 
                 // -----------------------------------------------------------------------------------
