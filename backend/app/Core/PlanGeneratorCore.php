@@ -59,11 +59,6 @@ class PlanGeneratorCore
 
     private function generateByMode(): void
     {
-        $cMode = $this->pp('c_mode');
-        $eMode = $this->pp('e_mode');
-
-        // Log::debug("PlanGeneratorCore: generateByMode", ['cMode' => $cMode, 'eMode' => $eMode]);
-
         // Check for finale event (level 3) - special 2-day generation path
         if ($this->pp('g_finale')) {
             // Finale event - delegate to FinaleGenerator for complete 2-day generation
@@ -71,6 +66,21 @@ class PlanGeneratorCore
             $finale->generate();
             return;
         }
+
+        // Normal events - use standard one-day generation
+        $this->generateOneDayEvent();
+    }
+
+    /**
+     * Generate a standard one-day event
+     * This method can be called by both normal events and Finale Day 2
+     */
+    public function generateOneDayEvent(): void
+    {
+        $cMode = $this->pp('c_mode');
+        $eMode = $this->pp('e_mode');
+
+        // Log::debug("PlanGeneratorCore: generateOneDayEvent", ['cMode' => $cMode, 'eMode' => $eMode]);
 
         if ($cMode == 1) {
             // Challenge present - instantiate ChallengeGenerator
