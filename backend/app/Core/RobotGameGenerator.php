@@ -55,34 +55,50 @@ class RobotGameGenerator
                 // TR is easy: Teams starting with judging are last in TR
                 $team = $this->pp("j_lanes");
             } else {
-                switch ($this->pp("j_rounds")) {
-                    case 4:
-                        if ($round < 3) {
-                            $team = $this->pp("j_lanes") * ($round + 1);
-                        } else {
-                            $team = $this->pp("c_teams");
-                        }
-                        break;
+                if ($this->pp('g_finale')) {
+                    // Finale Day 2: Different team starting positions (no TR on Day 2)
+                    switch ($round) {
+                        case 1:
+                            $team = $this->pp("j_lanes") * 1;  // 1 * 5 = 5
+                            break;
+                        case 2:
+                            $team = $this->pp("j_lanes") * 3;  // 3 * 5 = 15
+                            break;
+                        case 3:
+                            $team = $this->pp("j_lanes") * 4;  // 4 * 5 = 20
+                            break;
+                    }
+                } else {
+                    // Normal event team starting positions
+                    switch ($this->pp("j_rounds")) {
+                        case 4:
+                            if ($round < 3) {
+                                $team = $this->pp("j_lanes") * ($round + 1);
+                            } else {
+                                $team = $this->pp("c_teams");
+                            }
+                            break;
 
-                    case 5:
-                        if ($round < 3) {
+                        case 5:
+                            if ($round < 3) {
+                                $team = $this->pp("j_lanes") * ($round + 2);
+                            } else {
+                                $team = $this->pp("c_teams");
+                            }
+                            break;
+
+                        case 6:
                             $team = $this->pp("j_lanes") * ($round + 2);
-                        } else {
-                            $team = $this->pp("c_teams");
-                        }
-                        break;
+                            break;
 
-                    case 6:
-                        $team = $this->pp("j_lanes") * ($round + 2);
-                        break;
+                            // Not all lanes may be filled in last judging round, 
+                            // but that does not matter with six rounds, because robot game is aligned with judging 5
+                    }
 
-                        // Not all lanes may be filled in last judging round, 
-                        // but that does not matter with six rounds, because robot game is aligned with judging 5
-                }
-
-                // If we have an odd number of teams, start with volunteer
-                if ($team == $this->pp("c_teams") && $this->pp("r_need_volunteer")) {
-                    $team = $this->pp("c_teams") + 1;
+                    // If we have an odd number of teams, start with volunteer
+                    if ($team == $this->pp("c_teams") && $this->pp("r_need_volunteer")) {
+                        $team = $this->pp("c_teams") + 1;
+                    }
                 }
             }
 
