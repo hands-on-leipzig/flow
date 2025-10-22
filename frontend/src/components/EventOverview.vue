@@ -84,7 +84,7 @@ onMounted(async () => {
               <div>
                 <h3 class="font-semibold mb-2">Daten</h3>
                 <p>Datum: {{ dayjs(event?.date).format('dddd, DD.MM.YYYY') }}</p>
-                <p v-if="event?.days > 1">bis: {{ dayjs(event?.enddate).format('dddd, DD.MM.YYYY') }}</p>
+                <p v-if="event?.days > 1">bis: {{ dayjs(event?.date).add(event?.days - 1, 'day').format('dddd, DD.MM.YYYY') }}</p>
                 <p>Art: {{ event?.level_rel.name }}</p>
                 <p>Saison: {{ event?.season_rel.name }}</p>
               </div>
