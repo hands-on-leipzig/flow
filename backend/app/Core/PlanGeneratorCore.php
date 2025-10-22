@@ -28,21 +28,24 @@ class PlanGeneratorCore
 
     use UsesPlanParameter;
 
-    public function __construct(int $planId)
+    public function __construct(int $planId, PlanParameter $params)
     {
         $this->writer = new ActivityWriter($planId);
-        $this->params = PlanParameter::load($planId);
+        $this->params = $params;
         $this->integratedExplore = new IntegratedExploreState();
     }
 
-    public function generate(): void
+    public static function generate(int $planId): void
     {
-        Log::info("PlanGeneratorCore: Start generation for plan {$this->pp('g_plan')}");
+        Log::info("PlanGeneratorCore: Start generation for plan {$planId}");
+        
+        $params = PlanParameter::load($planId);
+        $instance = new self($planId, $params);
         
         try {
-                $this->generateByMode();
+                $instance->generateByMode();
             } catch (\Throwable $e) {
-                Log::error("Plan generation failed: {$e->getMessage()}", ['plan_id' => $this->pp('g_plan')]);
+                Log::error("Plan generation failed: {$e->getMessage()}", ['plan_id' => $planId]);
                 throw $e;
             }
         
@@ -52,9 +55,9 @@ class PlanGeneratorCore
         // Timing does not matter, because these are parallel to other activities.
         // -----------------------------------------------------------------------------------
 
-        (new FreeBlockGenerator($this->writer, $this->params))->insertFreeActivities();
+        (new FreeBlockGenerator($instance->writer, $instance->params))->insertFreeActivities();
 
-        Log::info("PlanGeneratorCore: Finished generation for plan {$this->pp('g_plan')}");
+        Log::info("PlanGeneratorCore: Finished generation for plan {$planId}");
     }
 
     private function generateByMode(): void

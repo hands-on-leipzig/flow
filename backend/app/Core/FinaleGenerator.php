@@ -43,7 +43,7 @@ class FinaleGenerator
         
         // Advance date by one day for Day 2 generation
         $day2Date = (clone $originalDate)->modify('+1 day');
-        $this->params->add('g_date', $day2Date, 'date');
+        $this->params->add('g_date', $day2Date->format('Y-m-d'), 'date');
         
         Log::info("FinaleGenerator: Generating Day 2", ['date' => $day2Date->format('Y-m-d')]);
         
@@ -52,7 +52,7 @@ class FinaleGenerator
         $this->generateDay2();
 
         // Restore original date for Day 1 generation
-        $this->params->add('g_date', $originalDate, 'date');
+        $this->params->add('g_date', $originalDate->format('Y-m-d'), 'date');
         
         Log::info("FinaleGenerator: Generating Day 1", ['date' => $originalDate->format('Y-m-d')]);
 
@@ -448,7 +448,7 @@ class FinaleGenerator
      */
     /**
      * Generate Day 2 activities (Main Competition Day)
-     * Simply delegates to PlanGeneratorCore's one-day event generation
+     * Simply delegates to PlanGeneratorCore's one-day event generation with our modified params
      * All finale-specific logic (briefings, RG mapping, finals) is already in the existing generators
      */
     private function generateDay2(): void
@@ -458,8 +458,8 @@ class FinaleGenerator
             'e_mode' => $this->pp('e_mode'),
         ]);
 
-        // Day 2 is a standard one-day event - reuse the existing logic
-        $core = new PlanGeneratorCore($this->pp('g_plan'));
+        // Day 2 is a standard one-day event - reuse the existing logic with our params
+        $core = new PlanGeneratorCore($this->pp('g_plan'), $this->params);
         $core->generateOneDayEvent();
     }
 
