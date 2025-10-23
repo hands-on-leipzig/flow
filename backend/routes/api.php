@@ -235,6 +235,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/ready/{eventId}', [PlanExportController::class, 'dataReadiness']);
         Route::get('/available-roles/{eventId}', [PlanExportController::class, 'availableRoles']);
         Route::get('/available-team-programs/{eventId}', [PlanExportController::class, 'availableTeamPrograms']);
+        Route::get('/event-overview/{planId}', [PlanExportController::class, 'eventOverviewPdf']);
     });
 
 
