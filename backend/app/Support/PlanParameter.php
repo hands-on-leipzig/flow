@@ -121,6 +121,17 @@ class PlanParameter
             return;
         }
 
+        // Skip validation for all team parameters - they are used for support plan checking elsewhere
+        if (str_ends_with($param->name, '_teams')) {
+            return;
+        }
+
+        // Special handling for time parameters
+        if ($param->type === 'time') {
+            $this->validateTimeParameter($param, $value);
+            return;
+        }
+
         $numericValue = $this->cast($value, $param->type);
         
         // Validate range
@@ -142,6 +153,42 @@ class PlanParameter
                 throw new RuntimeException("Parameter '{$param->name}' value {$numericValue} does not follow step formula (min: {$min}, step: {$step}).");
             }
         }
+    }
+
+    /**
+     * Validates time parameters with step constraints.
+     */
+    private function validateTimeParameter(object $param, mixed $value): void
+    {
+        // Convert time strings to minutes for validation
+        $valueMinutes = $this->timeToMinutes($value);
+        $minMinutes = $this->timeToMinutes($param->min);
+        $maxMinutes = $this->timeToMinutes($param->max);
+        
+        // Validate range
+        if ($param->min !== null && $valueMinutes < $minMinutes) {
+            throw new RuntimeException("Parameter '{$param->name}' value {$value} is before minimum {$param->min}.");
+        }
+        
+        if ($param->max !== null && $valueMinutes > $maxMinutes) {
+            throw new RuntimeException("Parameter '{$param->name}' value {$value} is after maximum {$param->max}.");
+        }
+        
+        // Validate step formula for time: minutes must be multiples of step
+        if ($param->step !== null && $param->step > 0) {
+            if ($valueMinutes % $param->step !== 0) {
+                throw new RuntimeException("Parameter '{$param->name}' value {$value} does not follow step formula (step: {$param->step} minutes).");
+            }
+        }
+    }
+
+    /**
+     * Converts time string (HH:MM) to minutes since midnight.
+     */
+    private function timeToMinutes(string $time): int
+    {
+        [$hours, $minutes] = explode(':', $time);
+        return (int)$hours * 60 + (int)$minutes;
     }
 
     /**
