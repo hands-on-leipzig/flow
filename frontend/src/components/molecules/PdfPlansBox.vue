@@ -173,11 +173,67 @@ async function downloadTeamsPdf() {
     isDownloading.value['teams'] = false
   }
 }
+
+// Download event overview PDF
+async function downloadEventOverviewPdf() {
+  if (!eventId.value) return
+  
+  isDownloading.value['overview'] = true
+  try {
+    // Get the plan ID for this event
+    const planResponse = await axios.get(`/plans/event/${eventId.value}`)
+    const planId = planResponse.data.id
+    
+    const response = await axios.get(
+      `/export/event-overview/${planId}`,
+      { responseType: 'blob' }
+    )
+
+    const filename = response.headers['x-filename'] || 'Übersichtsplan.pdf'
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (error) {
+    console.error('Fehler beim PDF-Download (Übersichtsplan):', error)
+  } finally {
+    isDownloading.value['overview'] = false
+  }
+}
 </script>
 
 <template>
   <div class="rounded-xl shadow bg-white p-6 flex flex-col">
     <h3 class="text-lg font-semibold mb-4">Pläne als PDF</h3>
+
+    <!-- Übersichtsplan -->
+    <div class="border-b border-gray-200 pb-3 mb-3">
+      <div class="mb-2">
+        <h4 class="text-base font-semibold text-gray-800">Übersichtsplan</h4>
+        <p class="text-sm text-gray-600">Alle Aktivitäten auf einen Blick - Chronologische Übersicht der Hauptaktivitäten.</p>
+      </div>
+
+      <!-- PDF Button -->
+      <div class="mt-4 flex justify-end">
+        <button
+          class="px-4 py-2 rounded text-sm flex items-center gap-2"
+          :class="!isDownloading.overview 
+            ? 'bg-gray-200 hover:bg-gray-300' 
+            : 'bg-gray-100 cursor-not-allowed opacity-50'"
+          :disabled="isDownloading.overview"
+          @click="downloadEventOverviewPdf()"
+        >
+          <svg v-if="isDownloading.overview" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+          </svg>
+          <span>{{ isDownloading.overview ? 'Erzeuge…' : 'PDF' }}</span>
+        </button>
+      </div>
+    </div>
 
     <!-- Räume -->
     <div class="border-b border-gray-200 pb-3 mb-3">
