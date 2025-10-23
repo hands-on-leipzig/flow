@@ -77,6 +77,11 @@ function validateValue(value, param) {
   // Clear previous error
   validationError.value = ''
   
+  // Special validation for time inputs (hh:mm format)
+  if (param.type === 'time') {
+    return validateTimeValue(value)
+  }
+  
   // Skip validation for non-numeric types
   if (param.type !== 'integer' && param.type !== 'decimal') {
     return true
@@ -111,6 +116,26 @@ function validateValue(value, param) {
       validationError.value = `Nur ${step}er-Schritte erlaubt`
       return false
     }
+  }
+  
+  return true
+}
+
+function validateTimeValue(timeValue) {
+  // Check if time format is valid (hh:mm)
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/
+  if (!timeRegex.test(timeValue)) {
+    validationError.value = 'Ungültiges Zeitformat (hh:mm)'
+    return false
+  }
+  
+  // Extract minutes and check if they are multiples of 5
+  const [, , minutes] = timeValue.match(timeRegex)
+  const minutesNum = parseInt(minutes, 10)
+  
+  if (minutesNum % 5 !== 0) {
+    validationError.value = 'Nur 5-Min-Schritte erlaubt.'
+    return false
   }
   
   return true
@@ -262,13 +287,21 @@ const isDefaultValue = computed(() => {
             type="time"
             v-model="localValue"
             @change="emitChange"
+            @input="validateValue(localValue, param)"
             :disabled="disabled"
-            class="w-24 border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
+            class="w-24 border rounded px-2 py-1 text-sm shadow-sm"
             :class="{ 
               'opacity-50 cursor-not-allowed': disabled,
-              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
+              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled,
+              'border-red-300 bg-red-50': validationError,
+              'border-gray-300': !validationError
             }"
         />
+        <!-- Validation error tooltip -->
+        <div v-if="validationError" 
+             class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-red-500 pointer-events-none">
+          ⚠️
+        </div>
       </div>
 
       <!-- Text inputs with default value overlay -->
