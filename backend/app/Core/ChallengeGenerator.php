@@ -340,7 +340,7 @@ class ChallengeGenerator
                 // Calculate a4j for concept 1 above
                 // -----------------------------------------------------------------------------------
 
-                if ($this->pp('j_rounds') > 4 && $cBlock == 2 || $this->pp('j_rounds') == 6 && $cBlock == 5) {
+                if ($this->pp('j_rounds') > 4 && $cBlock == 2) {
 
                         // for plans with more than 4 rounds, juding rounds 1 and 2 are aligned with just one robot game round
                         // for plans with 6 rounds, judging rounds 5 and 6 are aligned with just one robot game round
