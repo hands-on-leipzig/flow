@@ -209,6 +209,7 @@ class ActivityFetcherService
         // --- Group-Meta: ebenfalls bei Extra-Block Name/Description aus peb.* (auch wenn es formal Group-Meta ist)
         if ($includeGroupMeta) {
             $select .= ',
+                ag.activity_type_detail    as activity_type_group,
                 CASE 
                     WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.name, ag_atd.name)
                     ELSE ag_atd.name

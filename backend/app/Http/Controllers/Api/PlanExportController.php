@@ -1831,4 +1831,104 @@ if ($prepRooms->isNotEmpty()) {
         return response()->json($result);
     }
 
+    /**
+     * Generate event overview PDF - chronological list of activity groups
+     */
+    public function eventOverviewPdf(int $planId)
+    {
+        try {
+            // Get all activities using the central fetcher service
+            $activities = $this->activityFetcher->fetchActivities(
+                plan: $planId,
+                includeGroupMeta: true,
+                freeBlocks: true
+            );
+
+            if ($activities->isEmpty()) {
+                return response()->json(['error' => 'No activities found for this plan'], 404);
+            }
+
+            // Group activities by activity_type_group and calculate min/max times
+            $groupedActivities = $activities->groupBy('activity_type_group');
+            
+            // Debug: Log grouping information
+            Log::info('Event overview PDF grouping', [
+                'plan_id' => $planId,
+                'total_activities' => $activities->count(),
+                'group_count' => $groupedActivities->count(),
+                'group_ids' => $groupedActivities->keys()->toArray()
+            ]);
+            
+            // Debug: Check first few activities
+            if ($activities->count() > 0) {
+                $firstActivity = $activities->first();
+                Log::info('First activity debug', [
+                    'start_time' => $firstActivity->start_time,
+                    'start_time_type' => gettype($firstActivity->start_time),
+                    'parsed_start' => Carbon::parse($firstActivity->start_time)->format('Y-m-d H:i:s')
+                ]);
+            }
+            
+            $eventOverview = [];
+
+            foreach ($groupedActivities as $groupId => $groupActivities) {
+                $startTimes = $groupActivities->pluck('start_time')->map(function($time) {
+                    return Carbon::parse($time);
+                });
+                $endTimes = $groupActivities->pluck('end_time')->map(function($time) {
+                    return Carbon::parse($time);
+                });
+
+                $earliestStart = $startTimes->min();
+                $latestEnd = $endTimes->max();
+
+                // Get group metadata from first activity
+                $firstActivity = $groupActivities->first();
+                
+                $eventOverview[] = [
+                    'group_id' => $groupId,
+                    'group_name' => $firstActivity->group_atd_name ?? 'Unknown Group',
+                    'group_description' => $firstActivity->group_description ?? '',
+                    'earliest_start' => $earliestStart,
+                    'latest_end' => $latestEnd,
+                    'duration_minutes' => $earliestStart->diffInMinutes($latestEnd),
+                    'activity_count' => $groupActivities->count()
+                ];
+            }
+
+            // Sort by earliest start time
+            usort($eventOverview, function($a, $b) {
+                return $a['earliest_start']->timestamp - $b['earliest_start']->timestamp;
+            });
+
+            // Group by day for display
+            $eventsByDay = [];
+            foreach ($eventOverview as $event) {
+                $dayKey = $event['earliest_start']->format('Y-m-d');
+                if (!isset($eventsByDay[$dayKey])) {
+                    $eventsByDay[$dayKey] = [
+                        'date' => $event['earliest_start'],
+                        'events' => []
+                    ];
+                }
+                $eventsByDay[$dayKey]['events'][] = $event;
+            }
+
+            // Generate PDF
+            $pdf = Pdf::loadView('pdf.event-overview', [
+                'eventsByDay' => $eventsByDay,
+                'planId' => $planId
+            ]);
+
+            return $pdf->download('event-overview.pdf');
+
+        } catch (\Exception $e) {
+            Log::error('Event overview PDF generation failed', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'PDF generation failed'], 500);
+        }
+    }
+
 }
