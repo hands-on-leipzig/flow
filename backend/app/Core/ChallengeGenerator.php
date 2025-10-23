@@ -262,14 +262,18 @@ class ChallengeGenerator
             // Create the blocks of judging with robot game aligned
             for ($cBlock = 1; $cBlock <= $this->pp('j_rounds'); $cBlock++) {
 
+                log::debug("cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}");
+
+
                 // -----------------------------------------------------------------------------------
                 // Adjust timing between judging and robot game
                 // -----------------------------------------------------------------------------------
 
                 // duration of one match: test round or normal
-                $rDuration = ($cBlock == 1)
-                    ? $this->pp('r_duration_test_match')   // Test round
-                    : $this->pp('r_duration_match');
+                // For finale events, all Day 2 rounds are normal rounds (no test rounds on Day 2)
+                $rDuration = ($cBlock == 1 && !$this->pp('g_finale'))
+                    ? $this->pp('r_duration_test_match')   // Test round (only for non-finale events)
+                    : $this->pp('r_duration_match');        // Normal round (all finale rounds, or non-finale block > 1)
 
                 // Key concept 1: teams first in robot game go to judging in NEXT round
                 // 
@@ -284,7 +288,7 @@ class ChallengeGenerator
 
                 // Delay judging if needed
                 if ($this->jTime->current() < $jTimeEarliest->current()) {
-                    // Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
+                    Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
                     $this->jTime->set($jTimeEarliest->current());
                 }
 
@@ -329,7 +333,7 @@ class ChallengeGenerator
                 // If rTime <= rStartTarget then rTime = rStartTarget
                 if ($this->rTime->current() <= $rStartTarget->current()) {
                     $this->rTime->set($rStartTarget->current());
-                    // Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
+                    Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
                 }
 
                 // -----------------------------------------------------------------------------------

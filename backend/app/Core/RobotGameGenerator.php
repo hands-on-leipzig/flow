@@ -558,29 +558,50 @@ class RobotGameGenerator
                 break;
 
             case 1:
-                if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
-                    $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
-                    // Integrated Explore mode: coordinate with ExploreGenerator
-                    // Write start time for ExploreGenerator to pick up
-                    // Log::debug("RobotGameGenerator: Inserting start time for ExploreGenerator: {$this->rTime->format('H:i')}");
-                    $this->integratedExplore->startTime = $this->rTime->format('H:i');
-                    
-                    // Advance rTime by the duration that Explore will use
-                    // (Duration was calculated by ExploreGenerator constructor)
-                    // Log::debug("RobotGameGenerator: Advancing rTime by {$this->integratedExplore->duration} minutes");
-                    $this->rTime->addMinutes($this->integratedExplore->duration);
-                    
-                    // Log::debug("RobotGameGenerator: rTime after advance: {$this->rTime->format('H:i')}");
-                    
+                if ($this->pp('g_finale')) {
+                    // Finale: Simple break after RG1
+                    $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_break"), $this->rTime);
                 } else {
-                    if ($this->pp('c_duration_lunch_break') === 0) {
-                        $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_lunch"), $this->rTime);
+                    // Normal events: Handle Explore integration and lunch break
+                    if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
+                        $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                        // Integrated Explore mode: coordinate with ExploreGenerator
+                        // Write start time for ExploreGenerator to pick up
+                        // Log::debug("RobotGameGenerator: Inserting start time for ExploreGenerator: {$this->rTime->format('H:i')}");
+                        $this->integratedExplore->startTime = $this->rTime->format('H:i');
+                        
+                        // Advance rTime by the duration that Explore will use
+                        // (Duration was calculated by ExploreGenerator constructor)
+                        // Log::debug("RobotGameGenerator: Advancing rTime by {$this->integratedExplore->duration} minutes");
+                        $this->rTime->addMinutes($this->integratedExplore->duration);
+                        
+                        // Log::debug("RobotGameGenerator: rTime after advance: {$this->rTime->format('H:i')}");
+                        
+                    } else {
+                        if ($this->pp('c_duration_lunch_break') === 0) {
+                            $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_lunch"), $this->rTime);
+                        }
                     }
                 }
                 break;
 
             case 2:
-                $this->writer->insertPoint('c_after_rg_2', $this->pp("r_duration_break"), $this->rTime);
+                if ($this->pp('g_finale')) {
+                    // Finale: Everything that was in case 1 for normal events
+                    if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
+                        $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                        // Integrated Explore mode: coordinate with ExploreGenerator
+                        $this->integratedExplore->startTime = $this->rTime->format('H:i');
+                        $this->rTime->addMinutes($this->integratedExplore->duration);
+                    } else {
+                        if ($this->pp('c_duration_lunch_break') === 0) {
+                            $this->writer->insertPoint('c_after_rg_2', $this->pp("r_duration_lunch"), $this->rTime);
+                        }
+                    }
+                } else {
+                    // Normal events: Regular break after RG2
+                    $this->writer->insertPoint('c_after_rg_2', $this->pp("r_duration_break"), $this->rTime);
+                }
                 break;
 
             case 3:
