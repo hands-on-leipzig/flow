@@ -32,7 +32,6 @@
       "Database\\Seeders\\": "database/seeders/"
     },
     "files": [
-      "app/Support/Helpers.php"
     ]
   },
   "scripts": {
