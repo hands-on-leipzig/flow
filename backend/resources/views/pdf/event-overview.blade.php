@@ -18,6 +18,22 @@ foreach($eventsByDay as $dayKey => $dayData) {
         <div style="margin-left: 20px;">';
     
     foreach($dayData['events'] as $event) {
+        // Determine program icon
+        $programIcon = '';
+        if (isset($event['group_first_program_id']) && $event['group_first_program_id'] !== null) {
+            if ($event['group_first_program_id'] == 2) {
+                $programIcon = '<img src="file://' . public_path('flow/fll_explore_v.png') . '" alt="Explore" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" />';
+            } elseif ($event['group_first_program_id'] == 3) {
+                $programIcon = '<img src="file://' . public_path('flow/fll_challenge_v.png') . '" alt="Challenge" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" />';
+            } else {
+                $programIcon = '<img src="file://' . public_path('flow/first_v.png') . '" alt="FIRST" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" />';
+            }
+        } else {
+            // Show both icons when no program ID is available (Explore first)
+            $programIcon = '<img src="file://' . public_path('flow/fll_explore_v.png') . '" alt="Explore" style="width: 20px; height: 20px; margin-right: 4px; vertical-align: middle;" />';
+            $programIcon .= '<img src="file://' . public_path('flow/fll_challenge_v.png') . '" alt="Challenge" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" />';
+        }
+        
         $contentHtml .= '
             <div style="border-left: 4px solid #3498db; padding: 15px 20px; margin-bottom: 15px; background-color: #f8f9fa; border-radius: 0 5px 5px 0;">
                 
@@ -26,8 +42,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     <div style="font-family: monospace; font-size: 14px; color: #666; margin-bottom: 4px;">
                         ' . $event['earliest_start']->format('H:i') . ' - ' . $event['latest_end']->format('H:i') . '
                     </div>
-                    <h3 style="margin: 0; color: #2c3e50; font-size: 16px; font-weight: bold;">
-                        ' . htmlspecialchars($event['group_name']) . '
+                    <h3 style="margin: 0; color: #2c3e50; font-size: 16px; font-weight: bold; display: flex; align-items: center;">
+                        ' . $programIcon . htmlspecialchars($event['group_name']) . '
                     </h3>';
         
         if($event['group_description']) {
