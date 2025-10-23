@@ -5,7 +5,7 @@
     <title>{{ $title ?? 'Dokument' }}</title>
     <style>
         @page {
-            size: A4 landscape;
+            size: A4 portrait;
             margin: 120px 40px 100px 40px; /* top, right, bottom, left */
         }
 
