@@ -9,8 +9,8 @@ use DateTime;
 /**
  * PlanParameter
  *
- * Lädt und kapselt alle Parameter für einen Plan (inkl. Event-Infos, Overrides, Typkonvertierung).
- * Keine statischen Zustände – jede Instanz ist unabhängig.
+ * Loads and encapsulates all parameters for a plan (including event info, overrides, type conversion).
+ * No static state – each instance is independent.
  */
 class PlanParameter
 {
@@ -22,7 +22,7 @@ class PlanParameter
     }
 
     /**
-     * Factory-Methode – syntaktischer Zucker.
+     * Factory method – syntactic sugar.
      */
     public static function load(int $planId): self
     {
@@ -30,7 +30,7 @@ class PlanParameter
     }
 
     /**
-     * Gibt den Wert eines Parameters zurück.
+     * Returns the value of a parameter.
      */
     public function get(string $key): mixed
     {
@@ -53,7 +53,7 @@ class PlanParameter
     }
 
     /**
-     * Interner Initialisierer – lädt Event- und Plan-Daten aus der DB.
+     * Internal initializer – loads event and plan data from DB.
      */
     private function init(): void
     {
@@ -81,13 +81,13 @@ class PlanParameter
         $this->add('g_days', $event->days, 'integer');
         $this->add('g_finale', ((int)$event->level === 3), 'boolean');
 
-        // Basisparameter aus m_parameter
+        // Base parameters from m_parameter
         $base = DB::table('m_parameter')
-            ->select('id', 'name', 'type', 'value')
+            ->select('id', 'name', 'type', 'value', 'min', 'max', 'step')
             ->get()
             ->keyBy('id');
 
-        // Plan-spezifische Overrides
+        // Plan-specific overrides
         $overrides = DB::table('plan_param_value')
             ->select('parameter', 'set_value')
             ->where('plan', $this->planId)
@@ -99,6 +99,11 @@ class PlanParameter
                 ? $overrides[$id]->set_value
                 : $row->value;
 
+            // Validate parameter constraints if override exists
+            if ($overrides->has($id)) {
+                $this->validateParameter($row, $raw);
+            }
+
             $this->params[$row->name] = [
                 'value' => $this->cast($raw, $row->type),
                 'type'  => $row->type,
@@ -107,7 +112,87 @@ class PlanParameter
     }
 
     /**
-     * Typkonvertierung entsprechend Datenbankschema.
+     * Validates parameter constraints (min, max, step).
+     */
+    private function validateParameter(object $param, mixed $value): void
+    {
+        // Skip validation if constraints are not set
+        if ($param->min === null && $param->max === null && $param->step === null) {
+            return;
+        }
+
+        // Skip validation for all team parameters - they are used for support plan checking elsewhere
+        if (str_ends_with($param->name, '_teams')) {
+            return;
+        }
+
+        // Special handling for time parameters
+        if ($param->type === 'time') {
+            $this->validateTimeParameter($param, $value);
+            return;
+        }
+
+        $numericValue = $this->cast($value, $param->type);
+        
+        // Validate range
+        if ($param->min !== null && $numericValue < $param->min) {
+            throw new RuntimeException("Parameter '{$param->name}' value {$numericValue} is below minimum {$param->min}.");
+        }
+        
+        if ($param->max !== null && $numericValue > $param->max) {
+            throw new RuntimeException("Parameter '{$param->name}' value {$numericValue} is above maximum {$param->max}.");
+        }
+        
+        // Validate step formula: value must be min + n * step
+        if ($param->step !== null && $param->step > 0) {
+            $min = $param->min ?? 0;
+            $step = $param->step;
+            $expectedValue = $min + (int)(($numericValue - $min) / $step) * $step;
+            
+            if (abs($numericValue - $expectedValue) > 0.0001) { // Allow small floating point errors
+                throw new RuntimeException("Parameter '{$param->name}' value {$numericValue} does not follow step formula (min: {$min}, step: {$step}).");
+            }
+        }
+    }
+
+    /**
+     * Validates time parameters with step constraints.
+     */
+    private function validateTimeParameter(object $param, mixed $value): void
+    {
+        // Convert time strings to minutes for validation
+        $valueMinutes = $this->timeToMinutes($value);
+        $minMinutes = $this->timeToMinutes($param->min);
+        $maxMinutes = $this->timeToMinutes($param->max);
+        
+        // Validate range
+        if ($param->min !== null && $valueMinutes < $minMinutes) {
+            throw new RuntimeException("Parameter '{$param->name}' value {$value} is before minimum {$param->min}.");
+        }
+        
+        if ($param->max !== null && $valueMinutes > $maxMinutes) {
+            throw new RuntimeException("Parameter '{$param->name}' value {$value} is after maximum {$param->max}.");
+        }
+        
+        // Validate step formula for time: minutes must be multiples of step
+        if ($param->step !== null && $param->step > 0) {
+            if ($valueMinutes % $param->step !== 0) {
+                throw new RuntimeException("Parameter '{$param->name}' value {$value} does not follow step formula (step: {$param->step} minutes).");
+            }
+        }
+    }
+
+    /**
+     * Converts time string (HH:MM) to minutes since midnight.
+     */
+    private function timeToMinutes(string $time): int
+    {
+        [$hours, $minutes] = explode(':', $time);
+        return (int)$hours * 60 + (int)$minutes;
+    }
+
+    /**
+     * Type conversion according to database schema.
      */
     private function cast(mixed $value, ?string $type): mixed
     {
@@ -123,7 +208,7 @@ class PlanParameter
     }
 
     /**
-     * Optional: gibt alle Parameter (Debugging, Tests)
+     * Optional: returns all parameters (debugging, tests)
      */
     public function all(): array
     {

@@ -262,14 +262,18 @@ class ChallengeGenerator
             // Create the blocks of judging with robot game aligned
             for ($cBlock = 1; $cBlock <= $this->pp('j_rounds'); $cBlock++) {
 
+                log::debug("Before: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
+
+
                 // -----------------------------------------------------------------------------------
                 // Adjust timing between judging and robot game
                 // -----------------------------------------------------------------------------------
 
                 // duration of one match: test round or normal
-                $rDuration = ($cBlock == 1)
-                    ? $this->pp('r_duration_test_match')   // Test round
-                    : $this->pp('r_duration_match');
+                // For finale events, all Day 2 rounds are normal rounds (no test rounds on Day 2)
+                $rDuration = ($cBlock == 1 && !$this->pp('g_finale'))
+                    ? $this->pp('r_duration_test_match')   // Test round (only for non-finale events)
+                    : $this->pp('r_duration_match');        // Normal round (all finale rounds, or non-finale block > 1)
 
                 // Key concept 1: teams first in robot game go to judging in NEXT round
                 // 
@@ -284,7 +288,7 @@ class ChallengeGenerator
 
                 // Delay judging if needed
                 if ($this->jTime->current() < $jTimeEarliest->current()) {
-                    // Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
+                    Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
                     $this->jTime->set($jTimeEarliest->current());
                 }
 
@@ -329,39 +333,50 @@ class ChallengeGenerator
                 // If rTime <= rStartTarget then rTime = rStartTarget
                 if ($this->rTime->current() <= $rStartTarget->current()) {
                     $this->rTime->set($rStartTarget->current());
-                    // Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
+                    Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
                 }
 
                 // -----------------------------------------------------------------------------------
-                // Calculate a4j for concept 1
+                // Calculate a4j for concept 1 above
                 // -----------------------------------------------------------------------------------
 
-                $rMB = ceil($this->pp('j_lanes') / 2);
+                if ($this->pp('j_rounds') > 4 && $cBlock == 2 || $this->pp('j_rounds') == 6 && $cBlock == 5) {
 
-                // calculate time to END of the match
-                if ($this->pp('r_tables') == 2) {
-                    $rA4J = $rMB * $rDuration;
+                        // for plans with more than 4 rounds, juding rounds 1 and 2 are aligned with just one robot game round
+                        // for plans with 6 rounds, judging rounds 5 and 6 are aligned with just one robot game round
+                        $rA4J = 0; 
+
                 } else {
-                    if ($rMB % 2 === 0) {
-                        $rA4J = $rMB / 2 * $rDuration + $this->pp('r_duration_next_start');
+
+                    $rMB = ceil($this->pp('j_lanes') / 2);
+
+                    // calculate time to END of the match
+                    if ($this->pp('r_tables') == 2) {
+                        $rA4J = $rMB * $rDuration;
                     } else {
-                        $rA4J = ($rMB + 1) / 2 * $rDuration;
+                        if ($rMB % 2 === 0) {
+                            $rA4J = $rMB / 2 * $rDuration + $this->pp('r_duration_next_start');
+                        } else {
+                            $rA4J = ($rMB + 1) / 2 * $rDuration;
+                        }
                     }
+        
+                    // Robot check shifts everything, but just once.
+                    if ($this->pp('r_robot_check')) {
+                        $rA4J += $this->pp('r_duration_robot_check');
+                    }
+
+                    // Time for transfer from robot game to judges' room
+                    $rA4J += $this->pp('c_duration_transfer');
+
                 }
-
-                // Robot check shifts everything, but just once.
-                if ($this->pp('r_robot_check')) {
-                    $rA4J += $this->pp('r_duration_robot_check');
-                }
-
-                // Time for transfer from robot game to judges' room
-                $rA4J += $this->pp('c_duration_transfer');
-
+                
                 // Store this as time object
                 $jTimeEarliest = clone $this->rTime;
                 $jTimeEarliest->addMinutes($rA4J);
 
-                // Log::debug("jTimeEarliest: {$jTimeEarliest->format('H:i')}");
+                log::debug("After: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
+
 
                 // -----------------------------------------------------------------------------------
                 // Now we are ready to create activities for robot game and then judging
