@@ -1865,7 +1865,8 @@ if ($prepRooms->isNotEmpty()) {
                 Log::info('First activity debug', [
                     'start_time' => $firstActivity->start_time,
                     'start_time_type' => gettype($firstActivity->start_time),
-                    'parsed_start' => Carbon::parse($firstActivity->start_time)->format('Y-m-d H:i:s')
+                    'parsed_start' => Carbon::parse($firstActivity->start_time)->format('Y-m-d H:i:s'),
+                    'group_first_program_id' => $firstActivity->group_first_program_id ?? 'not set'
                 ]);
             }
             
@@ -1889,6 +1890,7 @@ if ($prepRooms->isNotEmpty()) {
                     'group_id' => $groupId,
                     'group_name' => $firstActivity->group_atd_name ?? 'Unknown Group',
                     'group_description' => $firstActivity->group_description ?? '',
+                    'group_first_program_id' => $firstActivity->group_first_program_id ?? null,
                     'earliest_start' => $earliestStart,
                     'latest_end' => $latestEnd,
                     'duration_minutes' => $earliestStart->diffInMinutes($latestEnd),
