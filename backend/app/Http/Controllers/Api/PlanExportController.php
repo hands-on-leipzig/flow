@@ -1848,15 +1848,15 @@ if ($prepRooms->isNotEmpty()) {
                 return response()->json(['error' => 'No activities found for this plan'], 404);
             }
 
-            // Group activities by activity_type_group and calculate min/max times
-            $groupedActivities = $activities->groupBy('activity_type_group');
+            // Group activities by activity_group_id to ensure each group appears as separate block
+            $groupedActivities = $activities->groupBy('activity_group_id');
             
             // Debug: Log grouping information
             Log::info('Event overview PDF grouping', [
                 'plan_id' => $planId,
                 'total_activities' => $activities->count(),
                 'group_count' => $groupedActivities->count(),
-                'group_ids' => $groupedActivities->keys()->toArray()
+                'activity_group_ids' => $groupedActivities->keys()->toArray()
             ]);
             
             // Debug: Check first few activities
