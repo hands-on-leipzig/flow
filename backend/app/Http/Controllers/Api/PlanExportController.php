@@ -1547,6 +1547,7 @@ if ($prepRooms->isNotEmpty()) {
         $challengeJuryActs = $allActivities->filter(fn($a) => $a->role_id == 4);
         $challengeRefActs = $allActivities->filter(fn($a) => $a->role_id == 5);
         $challengeCheckActs = $allActivities->filter(fn($a) => $a->role_id == 11);
+        $liveChallengeActs = $allActivities->filter(fn($a) => $a->role_id == 16);
 
         // === Event laden ===
         $event = DB::table('event')
@@ -1640,13 +1641,15 @@ if ($prepRooms->isNotEmpty()) {
         $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
         $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table', 'FLL Challenge Schiedsrichter:innen ');
         $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table', 'FLL Challenge Robot-Check für ');
+        $liveChallengeGrouped = $distributeGeneric($liveChallengeActs, 'lane', 'Live-Challenge Jury-Gruppe');
 
         // === Zusammenführen, sortiert nach Program-Logik ===
         $sections = collect()
             ->merge($exploreGrouped->sortKeys())
             ->merge($challengeJuryGrouped->sortKeys())
             ->merge($challengeRefGrouped->sortKeys())
-           ->merge($challengeCheckGrouped->sortKeys());
+           ->merge($challengeCheckGrouped->sortKeys())
+           ->merge($liveChallengeGrouped->sortKeys());
 
         // === Rendern aller Abschnitte ===
         $html = '';
