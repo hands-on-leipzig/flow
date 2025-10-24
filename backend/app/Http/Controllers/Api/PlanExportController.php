@@ -1842,8 +1842,7 @@ if ($prepRooms->isNotEmpty()) {
                 plan: $planId,
                 roles: [6, 10, 14],   // Rollen: Publikum E, C und generisch
                 includeGroupMeta: true,
-                freeBlocks: true,
-                include_past: true     // Include all days for multi-day events
+                freeBlocks: true
             );
 
             if ($activities->isEmpty()) {

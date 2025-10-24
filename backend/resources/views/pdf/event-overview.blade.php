@@ -1,10 +1,6 @@
 @php
 $contentHtml = '
-<div style="font-family: sans-serif; line-height: 1.6; color: #333;">
-    
-    <h1 style="text-align: center; margin-bottom: 30px; color: #2c3e50; font-size: 24px;">
-        Übersichtsplan
-    </h1>';
+<div style="font-family: sans-serif; line-height: 1.6; color: #333;">';
 
 // Calculate global time range for all days
 $globalEarliestHour = null;
@@ -256,4 +252,10 @@ $contentHtml .= '
 </div>';
 @endphp
 
-@include('pdf.layout_portrait', ['title' => 'Übersichtsplan - Alle Aktivitäten auf einen Blick'])
+@include('pdf.layout_portrait', [
+    'title' => 'FLOW Übersichtsplan',
+    'header' => [
+        'centerTitleTop' => 'FIRST LEGO League Wettbewerb',
+        'centerTitleMain' => 'FLOW Übersichtsplan'
+    ]
+])

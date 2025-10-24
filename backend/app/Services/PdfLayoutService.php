@@ -19,7 +19,7 @@ class PdfLayoutService
         // Footerlogos
         $footerLogos = $this->buildFooterLogos($event->id);
 
-        return View::make('pdf.layout', [
+        return View::make('pdf.layout_landscape', [
             'title'       => $title,
             'header'      => $header,
             'footerLogos' => $footerLogos,
