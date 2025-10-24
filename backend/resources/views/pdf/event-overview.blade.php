@@ -34,13 +34,6 @@ foreach($eventsByDay as $dayKey => $dayData) {
 $startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
 $endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 0, 0);
 
-// Debug: Log the time range
-\Log::info('Time range debug', [
-    'globalEarliestHour' => $globalEarliestHour,
-    'globalLatestHour' => $globalLatestHour,
-    'startTime' => $startTime->format('H:i'),
-    'endTime' => $endTime->format('H:i')
-]);
 
 // Generate all 10-minute slots
 $timeSlots = [];
@@ -97,12 +90,6 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $remainingWidth = 90;
         $columnWidth = $remainingWidth / $actualHtmlColumns;
         
-        // Debug: Log column names being used in template
-        \Log::info('Blade template column names', [
-            'columnNames' => $columnNames,
-            'actualHtmlColumns' => $actualHtmlColumns,
-            'columnWidth' => $columnWidth
-        ]);
         
         // Generate headers with merged cells
         foreach($columnNames as $columnName) {
@@ -188,17 +175,6 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $eventColumn = $item['event']['group_overview_plan_column'] ?? 'Allgemein';
                 $eventProgram = $item['event']['group_first_program_id'];
                 
-                // Debug: Log Check-In events
-                if (strpos($item['event']['group_name'], 'Check-In') !== false) {
-                    \Log::info('Blade template Check-In debug', [
-                        'group_name' => $item['event']['group_name'],
-                        'eventColumn' => $eventColumn,
-                        'eventProgram' => $eventProgram,
-                        'columnName' => $columnName,
-                        'slotTime' => $slotTime,
-                        'start_slot' => $item['start_slot']
-                    ]);
-                }
                 
                 // Only check events that match this column
                 if ($eventColumn !== $columnName) {
@@ -208,16 +184,6 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 // Check time slot matching
                 $matches = $item['start_slot'] == $slotTime;
                 
-                // Debug: Log successful matches
-                if ($matches && strpos($item['event']['group_name'], 'Check-In') !== false) {
-                    \Log::info('Successful Check-In match', [
-                        'group_name' => $item['event']['group_name'],
-                        'eventColumn' => $eventColumn,
-                        'columnName' => $columnName,
-                        'slotTime' => $slotTime,
-                        'start_slot' => $item['start_slot']
-                    ]);
-                }
                 
                 return $matches;
             });
