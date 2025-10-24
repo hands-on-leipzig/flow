@@ -218,6 +218,8 @@ class ActivityFetcherService
                 ag_atd.first_program       as group_first_program_id,
                 ag_fp.name                 as group_first_program_name,
                 ag_at.overview_plan_column as group_overview_plan_column,
+                a.extra_block as is_extra_block,
+                ag.activity_type_detail as activity_type_detail,
                 CASE 
                     WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.description, ag_atd.description)
                     ELSE ag_atd.description

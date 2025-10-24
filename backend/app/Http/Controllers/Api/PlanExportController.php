@@ -1852,23 +1852,21 @@ if ($prepRooms->isNotEmpty()) {
             // Group activities by activity_group_id to ensure each group appears as separate block
             $groupedActivities = $activities->groupBy('activity_group_id');
             
-            // Debug: Log grouping information
-            Log::info('Event overview PDF grouping', [
-                'plan_id' => $planId,
-                'total_activities' => $activities->count(),
-                'group_count' => $groupedActivities->count(),
-                'activity_group_ids' => $groupedActivities->keys()->toArray()
-            ]);
+            // Debug: Check Check-In activities
+            $checkInActivities = $activities->filter(function($activity) {
+                return strpos($activity->group_atd_name ?? '', 'Check-In') !== false;
+            });
             
-            // Debug: Check first few activities
-            if ($activities->count() > 0) {
-                $firstActivity = $activities->first();
-                Log::info('First activity debug', [
-                    'start_time' => $firstActivity->start_time,
-                    'start_time_type' => gettype($firstActivity->start_time),
-                    'parsed_start' => Carbon::parse($firstActivity->start_time)->format('Y-m-d H:i:s'),
-                    'group_first_program_id' => $firstActivity->group_first_program_id ?? 'not set'
-                ]);
+            if ($checkInActivities->count() > 0) {
+                foreach ($checkInActivities as $activity) {
+                    Log::info('Check-In activity debug', [
+                        'group_name' => $activity->group_atd_name,
+                        'group_overview_plan_column' => $activity->group_overview_plan_column,
+                        'group_first_program_id' => $activity->group_first_program_id,
+                        'is_extra_block' => $activity->is_extra_block,
+                        'activity_type_detail' => $activity->activity_type_detail
+                    ]);
+                }
             }
             
             $eventOverview = [];
@@ -1905,6 +1903,31 @@ if ($prepRooms->isNotEmpty()) {
                 return $a['earliest_start']->timestamp - $b['earliest_start']->timestamp;
             });
 
+            // Manual assignment of free blocks to program-specific Allgemein columns
+            foreach ($eventOverview as &$event) {
+                // Debug: Log the event details
+                if (strpos($event['group_name'], 'Check-In') !== false) {
+                    Log::info('Check-In event debug', [
+                        'group_name' => $event['group_name'],
+                        'group_overview_plan_column' => $event['group_overview_plan_column'],
+                        'group_first_program_id' => $event['group_first_program_id'],
+                        'is_allgemein' => $event['group_overview_plan_column'] === 'Allgemein',
+                        'has_program' => $event['group_first_program_id'] !== null
+                    ]);
+                }
+                
+                if (($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null) && $event['group_first_program_id'] !== null) {
+                    // This is a free block - assign to program-specific Allgemein column
+                    if ($event['group_first_program_id'] == 2) {
+                        $event['group_overview_plan_column'] = 'Allgemein-2'; // Explore
+                        Log::info('Assigned Check-In Explore to Allgemein-2', ['group_name' => $event['group_name']]);
+                    } elseif ($event['group_first_program_id'] == 3) {
+                        $event['group_overview_plan_column'] = 'Allgemein-3'; // Challenge
+                        Log::info('Assigned Check-In Challenge to Allgemein-3', ['group_name' => $event['group_name']]);
+                    }
+                }
+            }
+
             
             // Get unique columns with their first_program for sorting
             $columnsWithProgram = collect($eventOverview)
@@ -1923,12 +1946,6 @@ if ($prepRooms->isNotEmpty()) {
                 ])
                 ->values();
 
-            // Debug: Log the raw data
-            Log::info('Raw event overview data', [
-                'eventOverview' => $eventOverview,
-                'columnsWithProgram' => $columnsWithProgram->toArray()
-            ]);
-            
             // Create unique column identifiers that include first_program for Allgemein
             $columnNames = $columnsWithProgram
                 ->map(function($item) {
@@ -1957,7 +1974,6 @@ if ($prepRooms->isNotEmpty()) {
                 'count' => count($columnNames)
             ]);
 
-            
 
             // Group by day for display
             $eventsByDay = [];

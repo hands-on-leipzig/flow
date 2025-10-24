@@ -34,6 +34,14 @@ foreach($eventsByDay as $dayKey => $dayData) {
 $startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
 $endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 0, 0);
 
+// Debug: Log the time range
+\Log::info('Time range debug', [
+    'globalEarliestHour' => $globalEarliestHour,
+    'globalLatestHour' => $globalLatestHour,
+    'startTime' => $startTime->format('H:i'),
+    'endTime' => $endTime->format('H:i')
+]);
+
 // Generate all 5-minute slots
 $timeSlots = [];
 $current = $startTime->copy();
@@ -68,6 +76,12 @@ foreach($eventsByDay as $dayKey => $dayData) {
             'Robot-Game' => '#8e44ad',
             'Allgemein' => '#95a5a6'
         ];
+        
+        // Debug: Log column names being used in template
+        \Log::info('Blade template column names', [
+            'columnNames' => $columnNames,
+            'count' => count($columnNames)
+        ]);
         
             foreach($columnNames as $columnName) {
                 // Use column name as display name to show uniqueness
@@ -122,9 +136,36 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $eventColumn = $item['event']['group_overview_plan_column'] ?? 'Allgemein';
                 $eventProgram = $item['event']['group_first_program_id'];
                 
-                // Handle column matching - now events have correct column assignments
-                $matches = $eventColumn == $columnName && $item['start_slot'] == $slotTime;
+                // Debug: Log Check-In events
+                if (strpos($item['event']['group_name'], 'Check-In') !== false) {
+                    \Log::info('Blade template Check-In debug', [
+                        'group_name' => $item['event']['group_name'],
+                        'eventColumn' => $eventColumn,
+                        'eventProgram' => $eventProgram,
+                        'columnName' => $columnName,
+                        'slotTime' => $slotTime,
+                        'start_slot' => $item['start_slot']
+                    ]);
+                }
                 
+                // Only check events that match this column
+                if ($eventColumn !== $columnName) {
+                    return false;
+                }
+                
+                // Check time slot matching
+                $matches = $item['start_slot'] == $slotTime;
+                
+                // Debug: Log successful matches
+                if ($matches && strpos($item['event']['group_name'], 'Check-In') !== false) {
+                    \Log::info('Successful Check-In match', [
+                        'group_name' => $item['event']['group_name'],
+                        'eventColumn' => $eventColumn,
+                        'columnName' => $columnName,
+                        'slotTime' => $slotTime,
+                        'start_slot' => $item['start_slot']
+                    ]);
+                }
                 
                 return $matches;
             });
