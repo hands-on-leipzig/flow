@@ -1940,10 +1940,27 @@ if ($prepRooms->isNotEmpty()) {
                 ->unique(function($item) {
                     return $item['overview_plan_column'] . '|' . $item['first_program'];
                 })
-                ->sortBy([
-                    ['first_program', 'asc'],
-                    ['overview_plan_column', 'asc']
-                ])
+                ->sortBy(function($item) {
+                    // Custom sorting to ensure specific column order
+                    $column = $item['overview_plan_column'];
+                    $program = $item['first_program'];
+                    
+                    // Define custom order for the last four columns
+                    $customOrder = [
+                        'Allgemein-3' => 1,
+                        'Challenge' => 2,
+                        'Robot-Game' => 3,
+                        'Live-Challenge' => 4
+                    ];
+                    
+                    // For the last four columns, use custom order
+                    if (isset($customOrder[$column])) {
+                        return $program * 1000 + $customOrder[$column];
+                    }
+                    
+                    // For other columns, use original sorting
+                    return $program * 1000 + ($column === null ? 999 : 0);
+                })
                 ->values();
 
             // Create unique column identifiers that include first_program for Allgemein

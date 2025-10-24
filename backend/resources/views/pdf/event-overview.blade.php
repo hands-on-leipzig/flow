@@ -72,8 +72,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $columnColors = [
             'Explore' => '#27ae60',
             'Challenge' => '#e74c3c', 
-            'Live-Challenge' => '#f39c12',
-            'Robot-Game' => '#8e44ad',
+            'Live-Challenge' => '#8e44ad',
+            'Robot-Game' => '#f39c12',
             'Allgemein' => '#95a5a6'
         ];
         
@@ -94,7 +94,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
             }
             $color = $columnColors[$baseColor] ?? '#95a5a6';
                 $contentHtml .= '
-                    <th style="width: ' . $columnWidth . '%; background-color: ' . $color . '; color: white; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold;">' . htmlspecialchars($displayName) . '</th>';
+                    <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold;">' . htmlspecialchars($displayName) . '</th>';
         }
         
         $contentHtml .= '
@@ -189,8 +189,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $columnColors = [
                     'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
                     'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
-                    'Live-Challenge' => ['bg' => '#fef5e7', 'border' => '#f39c12'],
-                    'Robot-Game' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
+                    'Live-Challenge' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
+                    'Robot-Game' => ['bg' => '#fef5e7', 'border' => '#f39c12'],
                     'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']
                 ];
                 
