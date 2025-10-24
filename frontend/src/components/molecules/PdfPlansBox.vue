@@ -122,6 +122,11 @@ const hasRoomIssues = computed(() => !readiness.value?.room_mapping_ok)
 // --- PDF Download (Composable) ---
 const { isDownloading, anyDownloading, downloadPdf } = usePdfExport()
 
+// --- Worker Shifts Modal ---
+const showModal = ref(false)
+const workerShifts = ref<any>(null)
+const isLoadingShifts = ref(false)
+
 // Download roles PDF with selected roles
 async function downloadRolesPdf() {
   if (!eventId.value || !hasSelectedRoles.value) return
@@ -201,6 +206,30 @@ async function downloadEventOverviewPdf() {
   } finally {
     isDownloading.value['overview'] = false
   }
+}
+
+// Fetch worker shifts and show modal
+async function showWorkerShiftsModal() {
+  if (!eventId.value) return
+  
+  isLoadingShifts.value = true
+  showModal.value = true
+  
+  try {
+    const { data } = await axios.get(`/export/worker-shifts/${eventId.value}`)
+    workerShifts.value = data
+  } catch (error) {
+    console.error('Failed to fetch worker shifts:', error)
+    workerShifts.value = { error: 'Fehler beim Laden der Schichten' }
+  } finally {
+    isLoadingShifts.value = false
+  }
+}
+
+// Close modal
+function closeModal() {
+  showModal.value = false
+  workerShifts.value = null
 }
 </script>
 
@@ -372,8 +401,17 @@ async function downloadEventOverviewPdf() {
         </div>
       </div>
 
-      <!-- PDF Button -->
-      <div class="mt-4 flex justify-end">
+      <!-- Buttons -->
+      <div class="mt-4 flex justify-between">
+        <!-- HERO Schichten Button -->
+        <button
+          class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+          @click="showWorkerShiftsModal"
+        >
+          <span>HERO Schichten</span>
+        </button>
+        
+        <!-- PDF Button -->
         <button
           class="px-4 py-2 rounded text-sm flex items-center gap-2"
           :class="hasSelectedRoles && !isDownloading.roles 
@@ -526,6 +564,62 @@ async function downloadEventOverviewPdf() {
           </svg>
           <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Worker Shifts Modal -->
+    <div
+      v-if="showModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click="closeModal"
+    >
+      <div 
+        class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden"
+        @click.stop
+      >
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-gray-900">HERO Schichten</h3>
+          <button
+            @click="closeModal"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Modal Content -->
+        <div class="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+          <div v-if="isLoadingShifts" class="flex items-center justify-center py-8">
+            <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span class="ml-3 text-gray-600">Lade Schichten...</span>
+          </div>
+          
+          <div v-else-if="workerShifts?.error" class="text-center py-8 text-red-600">
+            {{ workerShifts.error }}
+          </div>
+          
+          <div v-else-if="workerShifts?.shifts" class="space-y-6">
+            <div v-for="role in workerShifts.shifts" :key="role.role_name" class="border border-gray-200 rounded-lg p-4">
+              <h4 class="text-lg font-semibold text-gray-900 mb-3">{{ role.role_name }}</h4>
+              <div class="space-y-2">
+                <div v-for="shift in role.shifts" :key="shift.day" class="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
+                  <span class="font-medium text-gray-700">{{ shift.day }}</span>
+                  <span class="text-gray-600">{{ shift.start }} - {{ shift.end }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div v-else class="text-center py-8 text-gray-500">
+            Keine Schichten verfügbar
+          </div>
+        </div>
       </div>
     </div>
 

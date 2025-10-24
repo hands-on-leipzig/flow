@@ -2158,4 +2158,82 @@ if ($prepRooms->isNotEmpty()) {
         return 'data:' . $mime . ';base64,' . base64_encode($data);
     }
 
+    /**
+     * Get worker shifts for roles with differentiation_parameter
+     */
+    public function workerShifts(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        // Get roles with differentiation_parameter
+        $roles = DB::table('m_role')
+            ->whereNotNull('differentiation_parameter')
+            ->select('id', 'name', 'differentiation_parameter')
+            ->get();
+
+        $shifts = [];
+
+        foreach ($roles as $role) {
+            // Fetch activities for this role
+            $activities = collect($this->activityFetcher->fetchActivities(
+                $plan->id,
+                [$role->id],
+                true,  // includeRooms
+                false, // includeGroupMeta
+                true,  // includeActivityMeta
+                true,  // includeTeamNames
+                true   // freeBlocks
+            ));
+
+            if ($activities->isEmpty()) {
+                continue;
+            }
+
+            // Group activities by day
+            $activitiesByDay = [];
+            foreach ($activities as $activity) {
+                $dayKey = \Carbon\Carbon::parse($activity->start_time)->format('Y-m-d');
+                if (!isset($activitiesByDay[$dayKey])) {
+                    $activitiesByDay[$dayKey] = [];
+                }
+                $activitiesByDay[$dayKey][] = $activity;
+            }
+
+            // Calculate shifts for each day
+            $roleShifts = [];
+            foreach ($activitiesByDay as $dayKey => $dayActivities) {
+                $startTimes = collect($dayActivities)->pluck('start_time')->map(function($time) {
+                    return \Carbon\Carbon::parse($time);
+                });
+                $endTimes = collect($dayActivities)->pluck('end_time')->map(function($time) {
+                    return \Carbon\Carbon::parse($time);
+                });
+
+                $earliestStart = $startTimes->min();
+                $latestEnd = $endTimes->max();
+
+                $roleShifts[] = [
+                    'day' => $dayKey,
+                    'start' => $earliestStart->format('H:i'),
+                    'end' => $latestEnd->format('H:i')
+                ];
+            }
+
+            $shifts[] = [
+                'role_name' => $role->name,
+                'shifts' => $roleShifts
+            ];
+        }
+
+        return response()->json(['shifts' => $shifts]);
+    }
+
 }
