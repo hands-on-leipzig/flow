@@ -67,4 +67,4 @@ $contentHtml .= '
 </div>';
 @endphp
 
-@include('pdf.layout', ['title' => 'Übersichtsplan - Alle Aktivitäten auf einen Blick'])
+@include('pdf.layout_portrait', ['title' => 'Übersichtsplan - Alle Aktivitäten auf einen Blick'])

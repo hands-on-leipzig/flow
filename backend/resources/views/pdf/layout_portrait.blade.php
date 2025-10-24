@@ -5,7 +5,7 @@
     <title>{{ $title ?? 'Dokument' }}</title>
     <style>
         @page {
-            size: A4 landscape;
+            size: A4 portrait;
             margin: 120px 40px 100px 40px; /* top, right, bottom, left */
         }
 
@@ -33,9 +33,17 @@
             height: 80px;
         }
 
-        .logos img { height:80px; margin:0 5px; }
-        .center { text-align: center; }
-        table { width: 100%; border-collapse: collapse; }
+        /* Content */
+        main {
+            margin-top: 0;
+        }
+
+        /* Header/Footer Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
         td { vertical-align: top; }
     </style>
 </head>
