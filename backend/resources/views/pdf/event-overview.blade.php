@@ -58,6 +58,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
         </h2>';
     }
 
+    $contentHtml .= '
         <!-- Time Grid Layout -->
         <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
             <thead>
