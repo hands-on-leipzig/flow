@@ -80,7 +80,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
         // Time column with rowspan for full hours
         if ($isFullHour) {
             $contentHtml .= '
-                    <td rowspan="6" style="padding: 2px; border: 1px solid #ddd; font-size: 10px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
+                    <td rowspan="12" style="padding: 2px; border: 1px solid #ddd; font-size: 10px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
         }
         
         // Find events starting at this time slot for each column
