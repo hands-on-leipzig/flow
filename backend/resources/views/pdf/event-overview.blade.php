@@ -28,7 +28,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
 
 // Create 5-minute grid from global earliest hour to latest hour
 $startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
-$endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 0, 0);
+$endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 59, 59); // End of the last hour
 
 
 // Generate all 10-minute slots

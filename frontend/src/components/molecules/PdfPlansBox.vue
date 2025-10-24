@@ -212,7 +212,7 @@ async function downloadEventOverviewPdf() {
     <div class="border-b border-gray-200 pb-3 mb-3">
       <div class="mb-2">
         <h4 class="text-base font-semibold text-gray-800">Übersichtsplan</h4>
-        <p class="text-sm text-gray-600">Alle Aktivitäten auf einen Blick - Chronologische Übersicht der Hauptaktivitäten.</p>
+        <p class="text-sm text-gray-600">Alle Aktivitäten des Tages auf einer Seite.</p>
       </div>
 
       <!-- PDF Button -->
