@@ -1837,9 +1837,10 @@ if ($prepRooms->isNotEmpty()) {
     public function eventOverviewPdf(int $planId)
     {
         try {
-            // Get all activities using the central fetcher service
+            // Get public activities using the same filtering as rooms plan
             $activities = $this->activityFetcher->fetchActivities(
                 plan: $planId,
+                roles: [6, 10, 14],   // Rollen: Publikum E, C und generisch
                 includeGroupMeta: true,
                 freeBlocks: true
             );
