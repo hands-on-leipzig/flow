@@ -10,6 +10,7 @@ $contentHtml = '
 $globalEarliestHour = null;
 $globalLatestHour = null;
 
+// First pass: calculate global time range
 foreach($eventsByDay as $dayKey => $dayData) {
     $allEvents = collect($dayData['events']);
     $earliestStart = $allEvents->min('earliest_start');
@@ -41,6 +42,7 @@ while ($current->lt($endTime)) {
     $current->addMinutes(5);
 }
 
+// Second pass: generate content for each day
 foreach($eventsByDay as $dayKey => $dayData) {
     $allEvents = collect($dayData['events']);
     
