@@ -1922,11 +1922,13 @@ if ($prepRooms->isNotEmpty()) {
                 ])
                 ->values();
             
-            // Extract column names in sorted order
+            // Extract column names in sorted order, ensuring uniqueness
             $columnNames = $columnsWithProgram
                 ->map(function($item) {
                     return $item['overview_plan_column'] ?? 'Allgemein';
                 })
+                ->unique()
+                ->values()
                 ->toArray();
 
             // Group by day for display

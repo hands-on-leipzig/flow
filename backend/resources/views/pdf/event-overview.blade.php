@@ -109,22 +109,16 @@ foreach($eventsByDay as $dayKey => $dayData) {
         foreach($columnNames as $columnName) {
             // Find events for this column
             $columnEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime, $columnName) {
-                if ($columnName === 'Allgemein') {
-                    return (!isset($item['event']['group_overview_plan_column']) || 
-                           $item['event']['group_overview_plan_column'] === null) &&
-                           $item['start_slot'] == $slotTime;
-                } else {
-                    return isset($item['event']['group_overview_plan_column']) && 
-                           $item['event']['group_overview_plan_column'] == $columnName &&
-                           $item['start_slot'] == $slotTime;
-                }
+                $eventColumn = $item['event']['group_overview_plan_column'] ?? 'Allgemein';
+                return $eventColumn == $columnName && $item['start_slot'] == $slotTime;
             });
             
             if ($columnEvents->count() > 0) {
                 $event = $columnEvents->first()['event'];
                 $rowspan = $columnEvents->first()['rowspan'];
                 
-                // Get column color
+                // Get color based on the event's actual overview_plan_column, not the column name
+                $eventColumn = $event['group_overview_plan_column'] ?? 'Allgemein';
                 $columnColors = [
                     'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
                     'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
@@ -133,7 +127,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']
                 ];
                 
-                $colors = $columnColors[$columnName] ?? ['bg' => '#f5f5f5', 'border' => '#95a5a6'];
+                $colors = $columnColors[$eventColumn] ?? ['bg' => '#f5f5f5', 'border' => '#95a5a6'];
                 
                 $contentHtml .= '
                     <td rowspan="' . $rowspan . '" style="background-color: ' . $colors['bg'] . '; border-left: 3px solid ' . $colors['border'] . '; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
