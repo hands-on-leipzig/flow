@@ -56,7 +56,8 @@ class ActivityFetcherService
         // Group-Meta (optional)
         if ($includeGroupMeta) {
             $q->leftJoin('m_activity_type_detail as ag_atd', 'ag_atd.id', '=', 'ag.activity_type_detail')
-            ->leftJoin('m_first_program as ag_fp', 'ag_fp.id', '=', 'ag_atd.first_program');
+            ->leftJoin('m_first_program as ag_fp', 'ag_fp.id', '=', 'ag_atd.first_program')
+            ->leftJoin('m_activity_type as ag_at', 'ag_at.id', '=', 'ag_atd.activity_type');
         }
 
         // Rooms (optional)
@@ -208,8 +209,6 @@ class ActivityFetcherService
 
         // --- Group-Meta: ebenfalls bei Extra-Block Name/Description aus peb.* (auch wenn es formal Group-Meta ist)
         if ($includeGroupMeta) {
-            $q->leftJoin('m_activity_type as ag_at', 'ag_at.id', '=', 'ag_atd.activity_type');
-            
             $select .= ',
                 ag.activity_type_detail    as activity_type_group,
                 CASE 
