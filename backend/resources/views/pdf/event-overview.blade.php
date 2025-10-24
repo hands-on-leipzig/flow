@@ -55,10 +55,25 @@ foreach($eventsByDay as $dayKey => $dayData) {
         <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
             <thead>
                 <tr>
-                    <th style="width: 15%; background-color: #f8f9fa; padding: 8px; border: 1px solid #ddd; font-size: 12px; font-weight: bold;">Zeit</th>
-                    <th style="width: 28.33%; background-color: #27ae60; color: white; padding: 8px; border: 1px solid #ddd; font-size: 12px; font-weight: bold;">Explore</th>
-                    <th style="width: 28.33%; background-color: #e74c3c; color: white; padding: 8px; border: 1px solid #ddd; font-size: 12px; font-weight: bold;">Challenge</th>
-                    <th style="width: 28.33%; background-color: #95a5a6; color: white; padding: 8px; border: 1px solid #ddd; font-size: 12px; font-weight: bold;">Allgemein</th>
+                    <th style="width: 15%; background-color: #f8f9fa; padding: 8px; border: 1px solid #ddd; font-size: 12px; font-weight: bold;">Zeit</th>';
+        
+        // Dynamic column headers
+        $columnWidth = 85 / count($columnNames);
+        $columnColors = [
+            'Explore' => '#27ae60',
+            'Challenge' => '#e74c3c', 
+            'Live-Challenge' => '#f39c12',
+            'Robot-Game' => '#8e44ad',
+            'Allgemein' => '#95a5a6'
+        ];
+        
+        foreach($columnNames as $columnName) {
+            $color = $columnColors[$columnName] ?? '#95a5a6';
+            $contentHtml .= '
+                    <th style="width: ' . $columnWidth . '%; background-color: ' . $color . '; color: white; padding: 8px; border: 1px solid #ddd; font-size: 12px; font-weight: bold;">' . htmlspecialchars($columnName) . '</th>';
+        }
+        
+        $contentHtml .= '
                 </tr>
             </thead>
             <tbody>';
@@ -90,62 +105,44 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     <td rowspan="12" style="padding: 2px; border: 1px solid #ddd; font-size: 10px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
         }
         
-        // Find events starting at this time slot for each column using overview_plan_column
-        $exploreEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime) {
-            return isset($item['event']['group_overview_plan_column']) && 
-                   $item['event']['group_overview_plan_column'] == 'Explore' &&
-                   $item['start_slot'] == $slotTime;
-        });
-        
-        $challengeEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime) {
-            return isset($item['event']['group_overview_plan_column']) && 
-                   $item['event']['group_overview_plan_column'] == 'Challenge' &&
-                   $item['start_slot'] == $slotTime;
-        });
-        
-        $generalEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime) {
-            return (!isset($item['event']['group_overview_plan_column']) || 
-                   ($item['event']['group_overview_plan_column'] != 'Explore' && $item['event']['group_overview_plan_column'] != 'Challenge')) &&
-                   $item['start_slot'] == $slotTime;
-        });
-        
-        // Explore column
-        if ($exploreEvents->count() > 0) {
-            $event = $exploreEvents->first()['event'];
-            $rowspan = $exploreEvents->first()['rowspan'];
-            $contentHtml .= '
-                    <td rowspan="' . $rowspan . '" style="background-color: #d5f4e6; border-left: 3px solid #27ae60; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
+        // Dynamic column generation
+        foreach($columnNames as $columnName) {
+            // Find events for this column
+            $columnEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime, $columnName) {
+                if ($columnName === 'Allgemein') {
+                    return (!isset($item['event']['group_overview_plan_column']) || 
+                           $item['event']['group_overview_plan_column'] === null) &&
+                           $item['start_slot'] == $slotTime;
+                } else {
+                    return isset($item['event']['group_overview_plan_column']) && 
+                           $item['event']['group_overview_plan_column'] == $columnName &&
+                           $item['start_slot'] == $slotTime;
+                }
+            });
+            
+            if ($columnEvents->count() > 0) {
+                $event = $columnEvents->first()['event'];
+                $rowspan = $columnEvents->first()['rowspan'];
+                
+                // Get column color
+                $columnColors = [
+                    'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
+                    'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
+                    'Live-Challenge' => ['bg' => '#fef5e7', 'border' => '#f39c12'],
+                    'Robot-Game' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
+                    'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']
+                ];
+                
+                $colors = $columnColors[$columnName] ?? ['bg' => '#f5f5f5', 'border' => '#95a5a6'];
+                
+                $contentHtml .= '
+                    <td rowspan="' . $rowspan . '" style="background-color: ' . $colors['bg'] . '; border-left: 3px solid ' . $colors['border'] . '; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
                         ' . htmlspecialchars($event['group_name']) . '
                     </td>';
-        } else {
-            $contentHtml .= '
+            } else {
+                $contentHtml .= '
                     <td style="padding: 0; border: 1px solid #ddd; height: 8px;"></td>';
-        }
-        
-        // Challenge column
-        if ($challengeEvents->count() > 0) {
-            $event = $challengeEvents->first()['event'];
-            $rowspan = $challengeEvents->first()['rowspan'];
-            $contentHtml .= '
-                    <td rowspan="' . $rowspan . '" style="background-color: #fdeaea; border-left: 3px solid #e74c3c; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
-                        ' . htmlspecialchars($event['group_name']) . '
-                    </td>';
-        } else {
-            $contentHtml .= '
-                    <td style="padding: 0; border: 1px solid #ddd; height: 8px;"></td>';
-        }
-        
-        // General column
-        if ($generalEvents->count() > 0) {
-            $event = $generalEvents->first()['event'];
-            $rowspan = $generalEvents->first()['rowspan'];
-            $contentHtml .= '
-                    <td rowspan="' . $rowspan . '" style="background-color: #f5f5f5; border-left: 3px solid #95a5a6; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
-                        ' . htmlspecialchars($event['group_name']) . '
-                    </td>';
-        } else {
-            $contentHtml .= '
-                    <td style="padding: 0; border: 1px solid #ddd; height: 8px;"></td>';
+            }
         }
         
         $contentHtml .= '

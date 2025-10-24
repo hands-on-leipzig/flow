@@ -1905,6 +1905,24 @@ if ($prepRooms->isNotEmpty()) {
                 return $a['earliest_start']->timestamp - $b['earliest_start']->timestamp;
             });
 
+            // Get unique column names from overview_plan_column
+            $columnNames = collect($eventOverview)
+                ->pluck('group_overview_plan_column')
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values()
+                ->toArray();
+            
+            // Add null/empty values as "Allgemein" if they exist
+            $hasGeneralColumn = collect($eventOverview)
+                ->pluck('group_overview_plan_column')
+                ->contains(null);
+            
+            if ($hasGeneralColumn) {
+                $columnNames[] = 'Allgemein';
+            }
+
             // Group by day for display
             $eventsByDay = [];
             foreach ($eventOverview as $event) {
@@ -1921,6 +1939,7 @@ if ($prepRooms->isNotEmpty()) {
             // Generate PDF
             $pdf = Pdf::loadView('pdf.event-overview', [
                 'eventsByDay' => $eventsByDay,
+                'columnNames' => $columnNames,
                 'planId' => $planId
             ]);
 
