@@ -7,24 +7,31 @@ $contentHtml = '
     </h1>';
 
 // Calculate global time range for all days
-$globalEarliestStart = null;
-$globalLatestEnd = null;
+$globalEarliestHour = null;
+$globalLatestHour = null;
+
 foreach($eventsByDay as $dayKey => $dayData) {
     $allEvents = collect($dayData['events']);
     $earliestStart = $allEvents->min('earliest_start');
     $latestEnd = $allEvents->max('latest_end');
     
-    if ($globalEarliestStart === null || $earliestStart->lt($globalEarliestStart)) {
-        $globalEarliestStart = $earliestStart;
+    // Find earliest and latest hours for this day
+    $dayEarliestHour = $earliestStart->hour;
+    $dayLatestHour = $latestEnd->hour;
+    if ($latestEnd->minute > 0) $dayLatestHour++; // Round up if there are minutes
+    
+    // Update global min/max hours
+    if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
+        $globalEarliestHour = $dayEarliestHour;
     }
-    if ($globalLatestEnd === null || $latestEnd->gt($globalLatestEnd)) {
-        $globalLatestEnd = $latestEnd;
+    if ($globalLatestHour === null || $dayLatestHour > $globalLatestHour) {
+        $globalLatestHour = $dayLatestHour;
     }
 }
 
-// Create 5-minute grid from global earliest start to latest end
-$startTime = $globalEarliestStart->copy()->startOfHour();
-$endTime = $globalLatestEnd->copy()->addHour()->startOfHour();
+// Create 5-minute grid from global earliest hour to latest hour
+$startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
+$endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 0, 0);
 
 // Generate all 5-minute slots
 $timeSlots = [];
