@@ -91,7 +91,11 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $columnWidth = $remainingWidth / $actualHtmlColumns;
         
         
-        // Generate headers with merged cells
+        // Check if Allgemein-2 and Allgemein-3 exist to determine merge behavior
+        $hasAllgemein2 = in_array('Allgemein-2', $columnNames);
+        $hasAllgemein3 = in_array('Allgemein-3', $columnNames);
+        
+        // Generate headers with conditional merging
         foreach($columnNames as $columnName) {
             $displayName = $columnName;
             $baseColor = $displayName;
@@ -106,15 +110,33 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $contentHtml .= '
                     <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
             } elseif ($columnName === 'Allgemein-2') {
-                // Merged cell for Allgemein-2 + Explore
-                $headerContent = '<img src="file://' . public_path('flow/fll_explore_h.png') . '" style="height: 20px; width: auto;">';
-                $contentHtml .= '
-                    <th colspan="2" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                if ($hasAllgemein2) {
+                    // Merged cell for Allgemein-2 + Explore
+                    $headerContent = '<img src="file://' . public_path('flow/fll_explore_h.png') . '" style="height: 20px; width: auto;">';
+                    $contentHtml .= '
+                        <th colspan="2" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                }
             } elseif ($columnName === 'Allgemein-3') {
-                // Merged cell for Allgemein-3 + Challenge
-                $headerContent = '<img src="file://' . public_path('flow/fll_challenge_h.png') . '" style="height: 20px; width: auto;">';
-                $contentHtml .= '
-                    <th colspan="2" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                if ($hasAllgemein3) {
+                    // Merged cell for Allgemein-3 + Challenge
+                    $headerContent = '<img src="file://' . public_path('flow/fll_challenge_h.png') . '" style="height: 20px; width: auto;">';
+                    $contentHtml .= '
+                        <th colspan="2" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                }
+            } elseif ($columnName === 'Explore') {
+                // Explore gets icon only if Allgemein-2 doesn't exist
+                if (!$hasAllgemein2) {
+                    $headerContent = '<img src="file://' . public_path('flow/fll_explore_h.png') . '" style="height: 20px; width: auto;">';
+                    $contentHtml .= '
+                        <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                }
+            } elseif ($columnName === 'Challenge') {
+                // Challenge gets icon only if Allgemein-3 doesn't exist
+                if (!$hasAllgemein3) {
+                    $headerContent = '<img src="file://' . public_path('flow/fll_challenge_h.png') . '" style="height: 20px; width: auto;">';
+                    $contentHtml .= '
+                        <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                }
             } elseif ($columnName === 'Robot-Game') {
                 // Keep as is for Robot-Game
                 $headerContent = htmlspecialchars($displayName);
@@ -126,7 +148,6 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $contentHtml .= '
                     <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
             }
-            // Skip Explore and Challenge as they are merged with Allgemein-2 and Allgemein-3
         }
         
         $contentHtml .= '
