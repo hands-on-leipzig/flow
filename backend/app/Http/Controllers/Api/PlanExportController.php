@@ -1905,23 +1905,29 @@ if ($prepRooms->isNotEmpty()) {
                 return $a['earliest_start']->timestamp - $b['earliest_start']->timestamp;
             });
 
-            // Get unique column names from overview_plan_column
-            $columnNames = collect($eventOverview)
-                ->pluck('group_overview_plan_column')
-                ->filter()
-                ->unique()
-                ->sort()
-                ->values()
+            // Get unique columns with their first_program for sorting
+            $columnsWithProgram = collect($eventOverview)
+                ->map(function($event) {
+                    return [
+                        'overview_plan_column' => $event['group_overview_plan_column'],
+                        'first_program' => $event['group_first_program_id']
+                    ];
+                })
+                ->unique(function($item) {
+                    return $item['overview_plan_column'] . '|' . $item['first_program'];
+                })
+                ->sortBy([
+                    ['first_program', 'asc'],
+                    ['overview_plan_column', 'asc']
+                ])
+                ->values();
+            
+            // Extract column names in sorted order
+            $columnNames = $columnsWithProgram
+                ->map(function($item) {
+                    return $item['overview_plan_column'] ?? 'Allgemein';
+                })
                 ->toArray();
-            
-            // Add null/empty values as "Allgemein" if they exist
-            $hasGeneralColumn = collect($eventOverview)
-                ->pluck('group_overview_plan_column')
-                ->contains(null);
-            
-            if ($hasGeneralColumn) {
-                $columnNames[] = 'Allgemein';
-            }
 
             // Group by day for display
             $eventsByDay = [];
