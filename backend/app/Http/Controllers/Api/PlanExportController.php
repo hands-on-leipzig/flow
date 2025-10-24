@@ -1043,6 +1043,8 @@ class PlanExportController extends Controller
                 // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
                 'is_explore'    => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
                 'is_challenge'  => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::CHALLENGE->value]),
+                // Add date information for day grouping
+                'start_date' => \Carbon\Carbon::parse($a->start_time),
             ];
         })->values()->all();
 
