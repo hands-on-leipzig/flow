@@ -69,14 +69,16 @@ foreach($eventsByDay as $dayKey => $dayData) {
             'Allgemein' => '#95a5a6'
         ];
         
-        foreach($columnNames as $columnName) {
-            // Clean up column name for display
-            $displayName = $columnName;
-            if (strpos($columnName, 'Allgemein-') === 0) {
-                $displayName = 'Allgemein';
-            }
+            foreach($columnNames as $columnName) {
+                // Use column name as display name to show uniqueness
+                $displayName = $columnName;
             
-            $color = $columnColors[$displayName] ?? '#95a5a6';
+            // Map unique column names to colors
+            $baseColor = $displayName;
+            if (strpos($displayName, 'Allgemein-') === 0) {
+                $baseColor = 'Allgemein';
+            }
+            $color = $columnColors[$baseColor] ?? '#95a5a6';
             $contentHtml .= '
                     <th style="width: ' . $columnWidth . '%; background-color: ' . $color . '; color: white; padding: 4px; border: 1px solid #ddd; font-size: 10px; font-weight: bold;">' . htmlspecialchars($displayName) . '</th>';
         }
@@ -120,18 +122,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $eventColumn = $item['event']['group_overview_plan_column'] ?? 'Allgemein';
                 $eventProgram = $item['event']['group_first_program_id'];
                 
-                // Handle unique column matching
-                if ($columnName === 'Allgemein') {
-                    // Match events with null first_program to the base Allgemein column
-                    $matches = $eventColumn === 'Allgemein' && $eventProgram === null && $item['start_slot'] == $slotTime;
-                } elseif (strpos($columnName, 'Allgemein-') === 0) {
-                    // Match events with specific first_program to the numbered Allgemein column
-                    $expectedProgram = (int) substr($columnName, 10); // Extract number after 'Allgemein-'
-                    $matches = $eventColumn === 'Allgemein' && $eventProgram === $expectedProgram && $item['start_slot'] == $slotTime;
-                } else {
-                    // Regular column matching
-                    $matches = $eventColumn == $columnName && $item['start_slot'] == $slotTime;
-                }
+                // Handle column matching - now events have correct column assignments
+                $matches = $eventColumn == $columnName && $item['start_slot'] == $slotTime;
                 
                 
                 return $matches;

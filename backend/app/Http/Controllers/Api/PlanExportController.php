@@ -1922,11 +1922,21 @@ if ($prepRooms->isNotEmpty()) {
                     ['overview_plan_column', 'asc']
                 ])
                 ->values();
+
+            // Debug: Log the raw data
+            Log::info('Raw event overview data', [
+                'eventOverview' => $eventOverview,
+                'columnsWithProgram' => $columnsWithProgram->toArray()
+            ]);
             
             // Create unique column identifiers that include first_program for Allgemein
             $columnNames = $columnsWithProgram
                 ->map(function($item) {
                     $columnName = $item['overview_plan_column'] ?? 'Allgemein';
+                    // Handle empty strings as well as null
+                    if (empty($columnName)) {
+                        $columnName = 'Allgemein';
+                    }
                     // For Allgemein columns, include first_program to make them unique
                     if ($columnName === 'Allgemein') {
                         $program = $item['first_program'];
@@ -1940,6 +1950,13 @@ if ($prepRooms->isNotEmpty()) {
                 })
                 ->values()
                 ->toArray();
+
+            // Debug: Log the final column names
+            Log::info('Final column names', [
+                'columnNames' => $columnNames,
+                'count' => count($columnNames)
+            ]);
+
             
 
             // Group by day for display
