@@ -39,16 +39,24 @@ while ($current->lt($endTime)) {
     $current->addMinutes(10);
 }
 
+// Check if this is a multi-day event
+$isMultiDay = count($eventsByDay) > 1;
+
 // Second pass: generate content for each day
 foreach($eventsByDay as $dayKey => $dayData) {
     $allEvents = collect($dayData['events']);
     
     $contentHtml .= '
-    <div style="margin-bottom: 30px; page-break-inside: avoid;">
+    <div style="margin-bottom: 30px; page-break-inside: avoid;">';
+    
+    // Only show day header for multi-day events
+    if ($isMultiDay) {
+        $contentHtml .= '
         <!-- Day Header -->
         <h2 style="background-color: #34495e; color: white; padding: 8px 12px; margin: 0 0 10px 0; font-size: 16px; border-radius: 3px;">
             ' . $dayData['date']->locale('de')->isoFormat('dddd, DD.MM.YYYY') . '
-        </h2>
+        </h2>';
+    }
 
         <!-- Time Grid Layout -->
         <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
