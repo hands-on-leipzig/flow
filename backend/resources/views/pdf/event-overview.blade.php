@@ -252,10 +252,4 @@ $contentHtml .= '
 </div>';
 @endphp
 
-@include('pdf.layout_portrait', [
-    'title' => 'FLOW Übersichtsplan',
-    'header' => [
-        'centerTitleTop' => 'FIRST LEGO League Wettbewerb',
-        'centerTitleMain' => 'FLOW Übersichtsplan'
-    ]
-])
+{!! $contentHtml !!}

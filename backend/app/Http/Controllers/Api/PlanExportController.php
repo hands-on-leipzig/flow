@@ -1971,12 +1971,37 @@ if ($prepRooms->isNotEmpty()) {
                 $eventsByDay[$dayKey]['events'][] = $event;
             }
 
-            // Generate PDF
-            $pdf = Pdf::loadView('pdf.event-overview', [
+            // Get event data for header
+            $event = DB::table('event')
+                ->join('plan', 'plan.event', '=', 'event.id')
+                ->where('plan.id', $planId)
+                ->select('event.*')
+                ->first();
+
+            if (!$event) {
+                return response()->json(['error' => 'Event not found'], 404);
+            }
+
+            // Generate content HTML using the event-overview template
+            $contentHtml = view('pdf.event-overview', [
                 'eventsByDay' => $eventsByDay,
                 'columnNames' => $columnNames,
                 'planId' => $planId
-            ]);
+            ])->render();
+
+            // Use portrait layout specifically for overview PDF
+            $header = $this->buildHeaderData($event);
+            $footerLogos = $this->buildFooterLogos($event->id);
+            
+            $finalHtml = view('pdf.layout_portrait', [
+                'title' => 'FLOW Übersichtsplan',
+                'header' => $header,
+                'footerLogos' => $footerLogos,
+                'contentHtml' => $contentHtml,
+            ])->render();
+
+            // Generate PDF in portrait orientation
+            $pdf = Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'portrait');
 
             return $pdf->download('event-overview.pdf');
 
@@ -1987,6 +2012,78 @@ if ($prepRooms->isNotEmpty()) {
             ]);
             return response()->json(['error' => 'PDF generation failed'], 500);
         }
+    }
+
+    /**
+     * Build header data for PDF (copied from PdfLayoutService)
+     */
+    private function buildHeaderData(object $event): array
+    {
+        $formattedDate = '';
+        if (!empty($event->date)) {
+            try {
+                $formattedDate = Carbon::parse($event->date)->format('d.m.Y');
+            } catch (\Throwable $e) {
+                $formattedDate = (string) $event->date;
+            }
+        }
+
+        $leftLogos = [];
+        if (!empty($event->event_explore)) {
+            $leftLogos[] = $this->toDataUri(public_path('flow/fll_explore_hs.png'));
+        }
+        if (!empty($event->event_challenge)) {
+            $leftLogos[] = $this->toDataUri(public_path('flow/fll_challenge_hs.png'));
+        }
+        $leftLogos = array_values(array_filter($leftLogos));
+
+        $rightLogo = $this->toDataUri(public_path('flow/hot.png'));
+
+        return [
+            'leftLogos'       => $leftLogos,
+            'centerTitleTop'  => 'FIRST LEGO League Wettbewerb',
+            'centerTitleMain' => trim(($event->name ?? '') . ' ' . $formattedDate),
+            'rightLogo'       => $rightLogo,
+        ];
+    }
+
+    /**
+     * Build footer logos for PDF (copied from PdfLayoutService)
+     */
+    private function buildFooterLogos(int $eventId): array
+    {
+        $logos = DB::table('logo')
+            ->join('event_logo', 'logo.id', '=', 'event_logo.logo')
+            ->where('event_logo.event', $eventId)
+            ->select('logo.path')
+            ->get();
+
+        $dataUris = [];
+        foreach ($logos as $logo) {
+            $path = storage_path('app/public/' . $logo->path);
+            $uri  = $this->toDataUri($path);
+            if ($uri) {
+                $dataUris[] = $uri;
+            }
+        }
+
+        return $dataUris;
+    }
+
+    /**
+     * Convert file to data URI (copied from PdfLayoutService)
+     */
+    private function toDataUri(string $path): ?string
+    {
+        if (!is_file($path)) {
+            return null;
+        }
+        $mime = mime_content_type($path) ?: 'image/png';
+        $data = @file_get_contents($path);
+        if ($data === false) {
+            return null;
+        }
+        return 'data:' . $mime . ';base64,' . base64_encode($data);
     }
 
 }
