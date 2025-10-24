@@ -110,7 +110,14 @@ foreach($eventsByDay as $dayKey => $dayData) {
             // Find events for this column
             $columnEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime, $columnName) {
                 $eventColumn = $item['event']['group_overview_plan_column'] ?? 'Allgemein';
-                return $eventColumn == $columnName && $item['start_slot'] == $slotTime;
+                $matches = $eventColumn == $columnName && $item['start_slot'] == $slotTime;
+                
+                // Debug logging for first few events
+                if ($matches && $slotTime == '10:30') {
+                    error_log("DEBUG: Event '{$item['event']['group_name']}' assigned to column '{$columnName}' (event column: '{$eventColumn}')");
+                }
+                
+                return $matches;
             });
             
             if ($columnEvents->count() > 0) {
