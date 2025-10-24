@@ -231,6 +231,15 @@ function closeModal() {
   showModal.value = false
   workerShifts.value = null
 }
+
+// Format date as dd.mm.yyyy
+function formatDate(dateString: string): string {
+  const date = new Date(dateString)
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}.${month}.${year}`
+}
 </script>
 
 <template>
@@ -604,16 +613,27 @@ function closeModal() {
             {{ workerShifts.error }}
           </div>
           
-          <div v-else-if="workerShifts?.shifts" class="space-y-6">
-            <div v-for="role in workerShifts.shifts" :key="role.role_name" class="border border-gray-200 rounded-lg p-4">
-              <h4 class="text-lg font-semibold text-gray-900 mb-3">{{ role.role_name }}</h4>
-              <div class="space-y-2">
-                <div v-for="shift in role.shifts" :key="shift.day" class="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
-                  <span class="font-medium text-gray-700">{{ shift.day }}</span>
-                  <span class="text-gray-600">{{ shift.start }} - {{ shift.end }}</span>
-                </div>
-              </div>
-            </div>
+          <div v-else-if="workerShifts?.shifts" class="overflow-x-auto">
+            <table class="min-w-full border-collapse border border-gray-300">
+              <thead>
+                <tr class="bg-gray-50">
+                  <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Rolle</th>
+                  <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Datum</th>
+                  <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">von</th>
+                  <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">bis</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="role in workerShifts.shifts" :key="role.role_name">
+                  <tr v-for="(shift, index) in role.shifts" :key="`${role.role_name}-${shift.day}`" class="hover:bg-gray-50">
+                    <td v-if="index === 0" :rowspan="role.shifts.length" class="border border-gray-300 px-4 py-2 font-medium text-gray-900">{{ role.role_name }}</td>
+                    <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ formatDate(shift.day) }}</td>
+                    <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.start }}</td>
+                    <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.end }}</td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
           
           <div v-else class="text-center py-8 text-gray-500">
