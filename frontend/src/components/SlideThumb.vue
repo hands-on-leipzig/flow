@@ -4,6 +4,7 @@ import SlideContentRenderer from "./slideTypes/SlideContentRenderer.vue";
 import {mdiTrashCanOutline, mdiPencil} from '@mdi/js';
 import SvgIcon from '@jamescoyle/vue-icon';
 import axios from "axios";
+import IconDraggable from "@/components/icons/IconDraggable.vue";
 
 const props = defineProps<{
   slide: Slide
@@ -47,9 +48,7 @@ const componentSlide = Slide.fromObject(props.slide);
 
       <div class="flex items-center cursor-pointer gap-1">
         <div class="drag-handle cursor-grab p-1 rounded" title="Ziehen" draggable="false">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M10 6h2v2h-2V6zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2zM4 6h2v2H4V6zm0 4h2v2H4v-2zm0 4h2v2H4v-2zm12-8h2v2h-2V6zm0 4h2v2h-2v-2zm0 4h2v2h-2v-2z" fill="currentColor"/>
-          </svg>
+          <IconDraggable/>
         </div>
         <input type="checkbox" class="sr-only"
                :checked="slide.active === 1" @change="toggleActive"
