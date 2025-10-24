@@ -42,12 +42,12 @@ $endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 0, 0);
     'endTime' => $endTime->format('H:i')
 ]);
 
-// Generate all 5-minute slots
+// Generate all 10-minute slots
 $timeSlots = [];
 $current = $startTime->copy();
 while ($current->lt($endTime)) {
     $timeSlots[] = $current->copy();
-    $current->addMinutes(5);
+    $current->addMinutes(10);
 }
 
 // Second pass: generate content for each day
@@ -65,7 +65,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
         <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
             <thead>
                 <tr>
-                    <th style="width: 8%; background-color: #f8f9fa; padding: 4px; border: 1px solid #ddd; font-size: 10px; font-weight: bold;">Zeit</th>';
+                    <th style="width: 8%; background-color: #f8f9fa; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold;">Zeit</th>';
         
         // Dynamic column headers
         $columnWidth = 92 / count($columnNames);
@@ -93,8 +93,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $baseColor = 'Allgemein';
             }
             $color = $columnColors[$baseColor] ?? '#95a5a6';
-            $contentHtml .= '
-                    <th style="width: ' . $columnWidth . '%; background-color: ' . $color . '; color: white; padding: 4px; border: 1px solid #ddd; font-size: 10px; font-weight: bold;">' . htmlspecialchars($displayName) . '</th>';
+                $contentHtml .= '
+                    <th style="width: ' . $columnWidth . '%; background-color: ' . $color . '; color: white; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold;">' . htmlspecialchars($displayName) . '</th>';
         }
         
         $contentHtml .= '
@@ -106,7 +106,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
     $eventsWithRowspan = [];
     foreach($allEvents as $event) {
         $duration = $event['earliest_start']->diffInMinutes($event['latest_end']);
-        $rowspan = max(1, ceil($duration / 5));
+        $rowspan = max(1, ceil($duration / 10));
         $eventsWithRowspan[] = [
             'event' => $event,
             'rowspan' => $rowspan,
@@ -117,7 +117,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
     // Track occupied cells (column => end time slot index)
     $occupiedCells = [];
     
-    // Generate 5-minute rows
+    // Generate 10-minute rows
     foreach ($timeSlots as $index => $slot) {
         $isFullHour = $slot->minute == 0;
         $timeLabel = $isFullHour ? $slot->format('H:i') : '';
@@ -126,10 +126,10 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $contentHtml .= '
                 <tr>';
         
-        // Time column with rowspan for full hours
+        // Time column with rowspan for full hours (6 × 10min = 60min)
         if ($isFullHour) {
             $contentHtml .= '
-                    <td rowspan="12" style="padding: 1px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
+                    <td rowspan="6" style="padding: 1px; border: 1px solid #ddd; font-size: 8px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
         }
         
         // Dynamic column generation
@@ -196,9 +196,13 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 
                 $colors = $columnColors[$eventColumn] ?? ['bg' => '#f5f5f5', 'border' => '#95a5a6'];
                 
+                $startTime = $event['earliest_start']->format('H:i');
+                $endTime = $event['latest_end']->format('H:i');
+                
                 $contentHtml .= '
-                    <td rowspan="' . $rowspan . '" style="background-color: ' . $colors['bg'] . '; border-left: 3px solid ' . $colors['border'] . '; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
-                        ' . htmlspecialchars($event['group_name']) . '
+                    <td rowspan="' . $rowspan . '" style="background-color: ' . $colors['bg'] . '; border-left: 3px solid ' . $colors['border'] . '; padding: 1px 2px; font-size: 8px; font-weight: bold; vertical-align: middle;">
+                        ' . htmlspecialchars($event['group_name']) . '<br>
+                        <span style="font-weight: normal; font-size: 7px;">' . $startTime . ' - ' . $endTime . '</span>
                     </td>';
             } else {
                 $contentHtml .= '
