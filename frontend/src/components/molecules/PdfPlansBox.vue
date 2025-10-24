@@ -613,27 +613,32 @@ function formatDate(dateString: string): string {
             {{ workerShifts.error }}
           </div>
           
-          <div v-else-if="workerShifts?.shifts" class="overflow-x-auto">
-            <table class="min-w-full border-collapse border border-gray-300">
-              <thead>
-                <tr class="bg-gray-50">
-                  <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Rolle</th>
-                  <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Datum</th>
-                  <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">von</th>
-                  <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">bis</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template v-for="role in workerShifts.shifts" :key="role.role_name">
-                  <tr v-for="(shift, index) in role.shifts" :key="`${role.role_name}-${shift.day}`" class="hover:bg-gray-50">
-                    <td v-if="index === 0" :rowspan="role.shifts.length" class="border border-gray-300 px-4 py-2 font-medium text-gray-900">{{ role.role_name }}</td>
-                    <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ formatDate(shift.day) }}</td>
-                    <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.start }}</td>
-                    <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.end }}</td>
+          <div v-else-if="workerShifts?.shifts" class="space-y-4">
+            <p class="text-sm text-gray-600 italic">Jede Zeile wird in HERO zu eine Schicht.</p>
+            <div class="overflow-x-auto">
+              <table class="min-w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr class="bg-gray-50">
+                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Datum</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Treffpunkt</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Beginn</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Ende</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Label</th>
                   </tr>
-                </template>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <template v-for="role in workerShifts.shifts" :key="role.role_name">
+                    <tr v-for="(shift, index) in role.shifts" :key="`${role.role_name}-${shift.day}`" class="hover:bg-gray-50">
+                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ formatDate(shift.day) }}</td>
+                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.start }}</td>
+                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.start }}</td>
+                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.end }}</td>
+                      <td class="border border-gray-300 px-4 py-2 font-medium text-gray-900">{{ role.role_name }}</td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
           </div>
           
           <div v-else class="text-center py-8 text-gray-500">
