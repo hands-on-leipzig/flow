@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Logo extends Model
 {
-    protected $fillable = ['title', 'link', 'path', 'regional_partner'];
+    protected $fillable = ['name', 'link', 'path', 'regional_partner'];
     protected $table = 'logo';
     protected $appends = ['url'];
     public $timestamps = false;
