@@ -207,8 +207,16 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     return false;
                 }
                 
-                // Check time slot matching
-                $matches = $item['start_slot'] == $slotTime;
+                // Check time slot matching - handle 5-minute grid activities on 10-minute template grid
+                $slotTimeStr = is_object($slotTime) ? $slotTime->format('H:i') : $slotTime;
+                $startSlotStr = is_object($item['start_slot']) ? $item['start_slot']->format('H:i') : $item['start_slot'];
+                
+                // Check if activity starts in current 10-minute slot OR in the next 5-minute slot
+                $slotTimeObj = is_object($slotTime) ? $slotTime : \Carbon\Carbon::createFromFormat('H:i', $slotTime);
+                $nextSlotTime = $slotTimeObj->copy()->addMinutes(5);
+                $nextSlotTimeStr = $nextSlotTime->format('H:i');
+                
+                $matches = ($startSlotStr == $slotTimeStr) || ($startSlotStr == $nextSlotTimeStr);
                 
                 
                 return $matches;
