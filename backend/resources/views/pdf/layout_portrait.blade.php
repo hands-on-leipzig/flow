@@ -56,21 +56,21 @@
                 <td style="width:33%; text-align:left;">
                     @if(!empty($header['leftLogos']))
                         @foreach($header['leftLogos'] as $src)
-                            <img src="{{ $src }}" style="height:80px; width:auto; margin-right:10px;" />
+                            <img src="{{ $src }}" style="height:50px; width:auto; margin-right:8px;" />
                         @endforeach
                     @endif
                 </td>
                 <td style="width:34%; text-align:center;">
-                    <div style="font-size:20px; margin-bottom:6px;">
+                    <div style="font-size:14px; margin-bottom:4px;">
                         {{ $header['centerTitleTop'] ?? '' }}
                     </div>
-                    <div style="font-size:28px; font-weight:bold;">
+                    <div style="font-size:18px; font-weight:bold;">
                         {{ $header['centerTitleMain'] ?? '' }}
                     </div>
                 </td>
                 <td style="width:33%; text-align:right;">
                     @if(!empty($header['rightLogo']))
-                        <img src="{{ $header['rightLogo'] }}" style="height:80px; width:auto;" />
+                        <img src="{{ $header['rightLogo'] }}" style="height:50px; width:auto;" />
                     @endif
                 </td>
             </tr>
