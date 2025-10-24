@@ -2173,9 +2173,10 @@ if ($prepRooms->isNotEmpty()) {
             return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
         }
 
-        // Get roles with differentiation_parameter
+        // Get roles with differentiation_parameter (exclude role ID 3)
         $roles = DB::table('m_role')
             ->whereNotNull('differentiation_parameter')
+            ->where('id', '!=', 3)
             ->select('id', 'name', 'differentiation_parameter')
             ->get();
 

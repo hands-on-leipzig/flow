@@ -614,7 +614,7 @@ function formatDate(dateString: string): string {
           </div>
           
           <div v-else-if="workerShifts?.shifts" class="space-y-4">
-            <p class="text-sm text-gray-600 italic">Jede Zeile wird in HERO zu eine Schicht.</p>
+            <p class="text-sm text-gray-600 italic">Zu jeder Zeile sollte in HERO eine Schicht angelegt werden.</p>
             <div class="overflow-x-auto">
               <table class="min-w-full border-collapse border border-gray-300">
                 <thead>
