@@ -18,23 +18,38 @@ class PlanGeneratorService
         // Parameter laden
         $params = PlanParameter::load($planId);
 
-        // --- Challenge prüfen ---
-        if ($params->get("c_teams") > 0) {
-            $ok = $this->checkSupportedPlan(
-                FirstProgram::CHALLENGE->value,
-                $params->get("c_teams"),
-                $params->get("j_lanes"),
-                $params->get("r_tables")
-            );
-
-            if (!$ok) {
-                Log::warning('Unsupported Challenge plan', [
+        // --- Finale validation ---
+        // Finale events (level 3) require exactly 25 Challenge teams
+        if ($params->get('g_finale')) {
+            if ($params->get('c_teams') != 25) {
+                Log::warning('Finale event requires exactly 25 Challenge teams', [
                     'plan_id' => $planId,
-                    'teams' => $params->get('c_teams'),
-                    'lanes' => $params->get('j_lanes'),
-                    'tables' => $params->get('r_tables'),
+                    'c_teams' => $params->get('c_teams'),
+                    'g_finale' => true,
                 ]);
                 return false;
+            }
+            // For finale with 25 teams, no need to check m_supported_plan
+            // There is only one supported configuration
+        } else {
+            // --- Challenge prüfen (non-finale events) ---
+            if ($params->get("c_teams") > 0) {
+                $ok = $this->checkSupportedPlan(
+                    FirstProgram::CHALLENGE->value,
+                    $params->get("c_teams"),
+                    $params->get("j_lanes"),
+                    $params->get("r_tables")
+                );
+
+                if (!$ok) {
+                    Log::warning('Unsupported Challenge plan', [
+                        'plan_id' => $planId,
+                        'teams' => $params->get('c_teams'),
+                        'lanes' => $params->get('j_lanes'),
+                        'tables' => $params->get('r_tables'),
+                    ]);
+                    return false;
+                }
             }
         }
 
@@ -120,8 +135,7 @@ class PlanGeneratorService
     public function run(int $planId, bool $withQualityEvaluation = false): void
     {
         try {
-            $core = new \App\Core\PlanGeneratorCore($planId);
-            $core->generate();
+            \App\Core\PlanGeneratorCore::generate($planId);
 
             if ($withQualityEvaluation) {
                 $evaluator = new QualityEvaluatorService();

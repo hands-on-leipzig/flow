@@ -172,13 +172,16 @@ class ChallengeGenerator
 
     public function briefings(\DateTime $t): void
     {
-
-        $this->writer->withGroup('c_briefing', function () use ($t) {
-            $cursor = new TimeCursor($t);
-            $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening'));
-            $this->writer->insertActivity('c_briefing', $cursor, $this->pp('c_duration_briefing'));
-        });
+        // Coach briefing - skip for finale (already on Day 1)
+        if (!$this->pp('g_finale')) {
+            $this->writer->withGroup('c_briefing', function () use ($t) {
+                $cursor = new TimeCursor($t);
+                $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening'));
+                $this->writer->insertActivity('c_briefing', $cursor, $this->pp('c_duration_briefing'));
+            });
+        }
         
+        // Jury briefing - same logic for finale and normal events
         $this->writer->withGroup('j_briefing', function () use ($t) {
             if (!$this->pp('j_briefing_after_opening')) {
                 $cursor = new TimeCursor($t);
@@ -195,16 +198,21 @@ class ChallengeGenerator
             $this->jTime->addMinutes($this->pp('j_ready_action'));
         });
 
-        $this->writer->withGroup('r_briefing', function () use ($t) {
+        // Referee briefing - use r_duration_briefing_2 for finale Day 2
+        $refereeBriefingDuration = $this->pp('g_finale') 
+            ? $this->pp('r_duration_briefing_2') 
+            : $this->pp('r_duration_briefing');
+
+        $this->writer->withGroup('r_briefing', function () use ($t, $refereeBriefingDuration) {
             if (!$this->pp('r_briefing_after_opening')) {
                 $cursor = new TimeCursor($t);
-                $cursor->subMinutes($this->pp('r_duration_briefing') + $this->pp('c_ready_opening'));
-                $this->writer->insertActivity('r_briefing', $cursor, $this->pp('r_duration_briefing'));
+                $cursor->subMinutes($refereeBriefingDuration + $this->pp('c_ready_opening'));
+                $this->writer->insertActivity('r_briefing', $cursor, $refereeBriefingDuration);
             } else {
                 $cursor = $this->rTime->copy();
                 $cursor->addMinutes($this->pp('r_ready_briefing'));
-                $this->writer->insertActivity('r_briefing', $cursor, $this->pp('r_duration_briefing'));
-                $this->rTime->addMinutes($this->pp('r_ready_briefing') + $this->pp('r_duration_briefing') );
+                $this->writer->insertActivity('r_briefing', $cursor, $refereeBriefingDuration);
+                $this->rTime->addMinutes($this->pp('r_ready_briefing') + $refereeBriefingDuration);
             }
 
             $this->rTime->addMinutes($this->pp('r_ready_action'));
@@ -254,14 +262,18 @@ class ChallengeGenerator
             // Create the blocks of judging with robot game aligned
             for ($cBlock = 1; $cBlock <= $this->pp('j_rounds'); $cBlock++) {
 
+                log::debug("Before: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
+
+
                 // -----------------------------------------------------------------------------------
                 // Adjust timing between judging and robot game
                 // -----------------------------------------------------------------------------------
 
                 // duration of one match: test round or normal
-                $rDuration = ($cBlock == 1)
-                    ? $this->pp('r_duration_test_match')   // Test round
-                    : $this->pp('r_duration_match');
+                // For finale events, all Day 2 rounds are normal rounds (no test rounds on Day 2)
+                $rDuration = ($cBlock == 1 && !$this->pp('g_finale'))
+                    ? $this->pp('r_duration_test_match')   // Test round (only for non-finale events)
+                    : $this->pp('r_duration_match');        // Normal round (all finale rounds, or non-finale block > 1)
 
                 // Key concept 1: teams first in robot game go to judging in NEXT round
                 // 
@@ -276,7 +288,7 @@ class ChallengeGenerator
 
                 // Delay judging if needed
                 if ($this->jTime->current() < $jTimeEarliest->current()) {
-                    // Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
+                    Log::debug("Judging delayed to: {$jTimeEarliest->format('H:i')}");
                     $this->jTime->set($jTimeEarliest->current());
                 }
 
@@ -321,39 +333,50 @@ class ChallengeGenerator
                 // If rTime <= rStartTarget then rTime = rStartTarget
                 if ($this->rTime->current() <= $rStartTarget->current()) {
                     $this->rTime->set($rStartTarget->current());
-                    // Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
+                    Log::debug("Robot game delayed to: {$this->rTime->format('H:i')}");
                 }
 
                 // -----------------------------------------------------------------------------------
-                // Calculate a4j for concept 1
+                // Calculate a4j for concept 1 above
                 // -----------------------------------------------------------------------------------
 
-                $rMB = ceil($this->pp('j_lanes') / 2);
+                if ($this->pp('j_rounds') > 4 && $cBlock == 2) {
 
-                // calculate time to END of the match
-                if ($this->pp('r_tables') == 2) {
-                    $rA4J = $rMB * $rDuration;
+                        // for plans with more than 4 rounds, juding rounds 1 and 2 are aligned with just one robot game round
+                        // for plans with 6 rounds, judging rounds 5 and 6 are aligned with just one robot game round
+                        $rA4J = 0; 
+
                 } else {
-                    if ($rMB % 2 === 0) {
-                        $rA4J = $rMB / 2 * $rDuration + $this->pp('r_duration_next_start');
+
+                    $rMB = ceil($this->pp('j_lanes') / 2);
+
+                    // calculate time to END of the match
+                    if ($this->pp('r_tables') == 2) {
+                        $rA4J = $rMB * $rDuration;
                     } else {
-                        $rA4J = ($rMB + 1) / 2 * $rDuration;
+                        if ($rMB % 2 === 0) {
+                            $rA4J = $rMB / 2 * $rDuration + $this->pp('r_duration_next_start');
+                        } else {
+                            $rA4J = ($rMB + 1) / 2 * $rDuration;
+                        }
                     }
+        
+                    // Robot check shifts everything, but just once.
+                    if ($this->pp('r_robot_check')) {
+                        $rA4J += $this->pp('r_duration_robot_check');
+                    }
+
+                    // Time for transfer from robot game to judges' room
+                    $rA4J += $this->pp('c_duration_transfer');
+
                 }
-
-                // Robot check shifts everything, but just once.
-                if ($this->pp('r_robot_check')) {
-                    $rA4J += $this->pp('r_duration_robot_check');
-                }
-
-                // Time for transfer from robot game to judges' room
-                $rA4J += $this->pp('c_duration_transfer');
-
+                
                 // Store this as time object
                 $jTimeEarliest = clone $this->rTime;
                 $jTimeEarliest->addMinutes($rA4J);
 
-                // Log::debug("jTimeEarliest: {$jTimeEarliest->format('H:i')}");
+                log::debug("After: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
+
 
                 // -----------------------------------------------------------------------------------
                 // Now we are ready to create activities for robot game and then judging
@@ -366,36 +389,58 @@ class ChallengeGenerator
                 $jT += $this->pp('j_lanes');
 
                 // Robot Game rounds depending on block and config
-                switch ($cBlock) {
-                    case 1:
-                        // First judging round runs parallel to RG test round, regardless of j_rounds
-                        $this->matchPlan->insertOneRound(0);
-                        break;
-                    case 2:
-                        if ($this->pp('j_rounds') == 4) {
-                            $this->matchPlan->insertOneRound(1);
-                        }
-                        break;
-                    case 3:
-                        if ($this->pp('j_rounds') == 4) {
-                            $this->matchPlan->insertOneRound(2);
-                        } else {
-                            $this->matchPlan->insertOneRound(1);
-                        }
-                        break;
-                    case 4:
-                        if ($this->pp('j_rounds') == 4) {
+                if ($this->pp('g_finale')) {
+                    // Finale Day 2: TR already on Day 1, start with regular rounds
+                    switch ($cBlock) {
+                        case 1:
+                            $this->matchPlan->insertOneRound(1);  // R1
+                            break;
+                        case 2:
+                            // No robot game
+                            break;
+                        case 3:
+                            $this->matchPlan->insertOneRound(2);  // R2
+                            break;
+                        case 4:
+                            $this->matchPlan->insertOneRound(3);  // R3
+                            break;
+                        case 5:
+                            // No robot game (Finals or Awards will be added separately)
+                            break;
+                    }
+                } else {
+                    // Normal event mapping
+                    switch ($cBlock) {
+                        case 1:
+                            // First judging round runs parallel to RG test round, regardless of j_rounds
+                            $this->matchPlan->insertOneRound(0);
+                            break;
+                        case 2:
+                            if ($this->pp('j_rounds') == 4) {
+                                $this->matchPlan->insertOneRound(1);
+                            }
+                            break;
+                        case 3:
+                            if ($this->pp('j_rounds') == 4) {
+                                $this->matchPlan->insertOneRound(2);
+                            } else {
+                                $this->matchPlan->insertOneRound(1);
+                            }
+                            break;
+                        case 4:
+                            if ($this->pp('j_rounds') == 4) {
+                                $this->matchPlan->insertOneRound(3);
+                            } else {
+                                $this->matchPlan->insertOneRound(2);
+                            }
+                            break;
+                        case 5:
                             $this->matchPlan->insertOneRound(3);
-                        } else {
-                            $this->matchPlan->insertOneRound(2);
-                        }
-                        break;
-                    case 5:
-                        $this->matchPlan->insertOneRound(3);
-                        break;
-                    case 6:
-                        // No robot game left
-                        break;
+                            break;
+                        case 6:
+                            // No robot game left
+                            break;
+                    }
                 }
 
                 // -----------------------------------------------------------------------------------
@@ -505,13 +550,13 @@ class ChallengeGenerator
             /// Robot-game final rounds
             // -----------------------------------------------------------------------------------
 
-            if ($this->pp('g_finale') && $this->pp('c_teams') >= 16) {
-                // The DACH Finale is the only event running the round of best 16
+            // Round of best 16 (optional, only for finale events)
+            if ($this->pp('g_finale') && $this->pp('r_final_16')) {
                 $this->matchPlan->insertFinalRound(16);
             }
 
-            // Organizer can decide not to run round of best 8
-            if (($this->pp('g_finale') || $this->pp('r_quarter_final')) && $this->pp('c_teams') >= 8) {
+            // Round of best 8 (optional, auto-enabled if r_final_16 is active)
+            if ($this->pp('r_final_8') || $this->pp('r_final_16')) {
                 $this->matchPlan->insertFinalRound(8);
             }
 

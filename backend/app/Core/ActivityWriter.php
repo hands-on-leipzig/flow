@@ -12,6 +12,7 @@ use App\Enums\FirstProgram;
 
 use App\Core\TimeCursor;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class ActivityWriter
 {
@@ -235,6 +236,19 @@ class ActivityWriter
         
         if (!$insertPoint) {
             throw new \RuntimeException("Insert point code '{$insertPointCode}' not found in database.");
+        }
+
+        // Get event level to check if insert point is applicable
+        $eventLevel = (int) DB::table('plan')
+            ->join('event', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $this->planId)
+            ->value('event.level');
+
+        // Only process insert point if event level >= insert point level
+        if ($eventLevel < $insertPoint->level) {
+            // Insert point not applicable for this event level, just advance time
+            $time->addMinutes($duration);
+            return;
         }
 
         // passenden ExtraBlock suchen
