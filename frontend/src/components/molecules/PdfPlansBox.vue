@@ -405,7 +405,7 @@ function closeModal() {
       <div class="mt-4 flex justify-between">
         <!-- HERO Schichten Button -->
         <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+          class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
           @click="showWorkerShiftsModal"
         >
           <span>HERO Schichten</span>
