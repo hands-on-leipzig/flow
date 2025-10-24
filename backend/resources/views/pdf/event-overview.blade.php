@@ -6,23 +6,36 @@ $contentHtml = '
         Übersichtsplan
     </h1>';
 
+// Calculate global time range for all days
+$globalEarliestStart = null;
+$globalLatestEnd = null;
 foreach($eventsByDay as $dayKey => $dayData) {
-    // Calculate time range for the day
     $allEvents = collect($dayData['events']);
     $earliestStart = $allEvents->min('earliest_start');
     $latestEnd = $allEvents->max('latest_end');
     
-    // Create 5-minute grid from earliest start to latest end
-    $startTime = $earliestStart->copy()->startOfHour();
-    $endTime = $latestEnd->copy()->addHour()->startOfHour();
-    
-    // Generate all 5-minute slots
-    $timeSlots = [];
-    $current = $startTime->copy();
-    while ($current->lt($endTime)) {
-        $timeSlots[] = $current->copy();
-        $current->addMinutes(5);
+    if ($globalEarliestStart === null || $earliestStart->lt($globalEarliestStart)) {
+        $globalEarliestStart = $earliestStart;
     }
+    if ($globalLatestEnd === null || $latestEnd->gt($globalLatestEnd)) {
+        $globalLatestEnd = $latestEnd;
+    }
+}
+
+// Create 5-minute grid from global earliest start to latest end
+$startTime = $globalEarliestStart->copy()->startOfHour();
+$endTime = $globalLatestEnd->copy()->addHour()->startOfHour();
+
+// Generate all 5-minute slots
+$timeSlots = [];
+$current = $startTime->copy();
+while ($current->lt($endTime)) {
+    $timeSlots[] = $current->copy();
+    $current->addMinutes(5);
+}
+
+foreach($eventsByDay as $dayKey => $dayData) {
+    $allEvents = collect($dayData['events']);
     
     $contentHtml .= '
     <div style="margin-bottom: 30px; page-break-inside: avoid;">
@@ -62,71 +75,73 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $slotTime = $slot->format('H:i');
         
         $contentHtml .= '
-                <tr>
-                    <td style="padding: 2px; border: 1px solid #ddd; font-size: 10px; font-weight: bold; background-color: #f8f9fa; text-align: center;">' . $timeLabel . '</td>
-                    <td style="padding: 0; border: 1px solid #ddd; vertical-align: top; height: 8px;">';
+                <tr>';
         
-        // Find Explore events starting at this time slot
+        // Time column with rowspan for full hours
+        if ($isFullHour) {
+            $contentHtml .= '
+                    <td rowspan="6" style="padding: 2px; border: 1px solid #ddd; font-size: 10px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
+        }
+        
+        // Find events starting at this time slot for each column
         $exploreEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime) {
             return isset($item['event']['group_first_program_id']) && 
                    $item['event']['group_first_program_id'] == 2 &&
                    $item['start_slot'] == $slotTime;
         });
         
-        foreach($exploreEvents as $item) {
-            $event = $item['event'];
-            $rowspan = $item['rowspan'];
-            
-            $contentHtml .= '
-                        <td rowspan="' . $rowspan . '" style="background-color: #d5f4e6; border-left: 3px solid #27ae60; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
-                            ' . htmlspecialchars($event['group_name']) . '
-                        </td>';
-        }
-        
-        $contentHtml .= '
-                    </td>
-                    <td style="padding: 0; border: 1px solid #ddd; vertical-align: top; height: 8px;">';
-        
-        // Find Challenge events starting at this time slot
         $challengeEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime) {
             return isset($item['event']['group_first_program_id']) && 
                    $item['event']['group_first_program_id'] == 3 &&
                    $item['start_slot'] == $slotTime;
         });
         
-        foreach($challengeEvents as $item) {
-            $event = $item['event'];
-            $rowspan = $item['rowspan'];
-            
-            $contentHtml .= '
-                        <td rowspan="' . $rowspan . '" style="background-color: #fdeaea; border-left: 3px solid #e74c3c; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
-                            ' . htmlspecialchars($event['group_name']) . '
-                        </td>';
-        }
-        
-        $contentHtml .= '
-                    </td>
-                    <td style="padding: 0; border: 1px solid #ddd; vertical-align: top; height: 8px;">';
-        
-        // Find General events starting at this time slot
         $generalEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime) {
             return (!isset($item['event']['group_first_program_id']) || 
                    ($item['event']['group_first_program_id'] != 2 && $item['event']['group_first_program_id'] != 3)) &&
                    $item['start_slot'] == $slotTime;
         });
         
-        foreach($generalEvents as $item) {
-            $event = $item['event'];
-            $rowspan = $item['rowspan'];
-            
+        // Explore column
+        if ($exploreEvents->count() > 0) {
+            $event = $exploreEvents->first()['event'];
+            $rowspan = $exploreEvents->first()['rowspan'];
             $contentHtml .= '
-                        <td rowspan="' . $rowspan . '" style="background-color: #f5f5f5; border-left: 3px solid #95a5a6; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
-                            ' . htmlspecialchars($event['group_name']) . '
-                        </td>';
+                    <td rowspan="' . $rowspan . '" style="background-color: #d5f4e6; border-left: 3px solid #27ae60; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
+                        ' . htmlspecialchars($event['group_name']) . '
+                    </td>';
+        } else {
+            $contentHtml .= '
+                    <td style="padding: 0; border: 1px solid #ddd; height: 8px;"></td>';
+        }
+        
+        // Challenge column
+        if ($challengeEvents->count() > 0) {
+            $event = $challengeEvents->first()['event'];
+            $rowspan = $challengeEvents->first()['rowspan'];
+            $contentHtml .= '
+                    <td rowspan="' . $rowspan . '" style="background-color: #fdeaea; border-left: 3px solid #e74c3c; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
+                        ' . htmlspecialchars($event['group_name']) . '
+                    </td>';
+        } else {
+            $contentHtml .= '
+                    <td style="padding: 0; border: 1px solid #ddd; height: 8px;"></td>';
+        }
+        
+        // General column
+        if ($generalEvents->count() > 0) {
+            $event = $generalEvents->first()['event'];
+            $rowspan = $generalEvents->first()['rowspan'];
+            $contentHtml .= '
+                    <td rowspan="' . $rowspan . '" style="background-color: #f5f5f5; border-left: 3px solid #95a5a6; padding: 2px 4px; font-size: 9px; font-weight: bold; vertical-align: middle;">
+                        ' . htmlspecialchars($event['group_name']) . '
+                    </td>';
+        } else {
+            $contentHtml .= '
+                    <td style="padding: 0; border: 1px solid #ddd; height: 8px;"></td>';
         }
         
         $contentHtml .= '
-                    </td>
                 </tr>';
     }
     
