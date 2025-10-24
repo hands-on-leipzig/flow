@@ -208,6 +208,8 @@ class ActivityFetcherService
 
         // --- Group-Meta: ebenfalls bei Extra-Block Name/Description aus peb.* (auch wenn es formal Group-Meta ist)
         if ($includeGroupMeta) {
+            $q->leftJoin('m_activity_type as ag_at', 'ag_at.id', '=', 'ag_atd.activity_type');
+            
             $select .= ',
                 ag.activity_type_detail    as activity_type_group,
                 CASE 
@@ -216,6 +218,7 @@ class ActivityFetcherService
                 END                        as group_atd_name,
                 ag_atd.first_program       as group_first_program_id,
                 ag_fp.name                 as group_first_program_name,
+                ag_at.overview_plan_column as group_overview_plan_column,
                 CASE 
                     WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.description, ag_atd.description)
                     ELSE ag_atd.description

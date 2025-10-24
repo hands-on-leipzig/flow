@@ -90,22 +90,22 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     <td rowspan="12" style="padding: 2px; border: 1px solid #ddd; font-size: 10px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
         }
         
-        // Find events starting at this time slot for each column
+        // Find events starting at this time slot for each column using overview_plan_column
         $exploreEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime) {
-            return isset($item['event']['group_first_program_id']) && 
-                   $item['event']['group_first_program_id'] == 2 &&
+            return isset($item['event']['group_overview_plan_column']) && 
+                   $item['event']['group_overview_plan_column'] == 'Explore' &&
                    $item['start_slot'] == $slotTime;
         });
         
         $challengeEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime) {
-            return isset($item['event']['group_first_program_id']) && 
-                   $item['event']['group_first_program_id'] == 3 &&
+            return isset($item['event']['group_overview_plan_column']) && 
+                   $item['event']['group_overview_plan_column'] == 'Challenge' &&
                    $item['start_slot'] == $slotTime;
         });
         
         $generalEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime) {
-            return (!isset($item['event']['group_first_program_id']) || 
-                   ($item['event']['group_first_program_id'] != 2 && $item['event']['group_first_program_id'] != 3)) &&
+            return (!isset($item['event']['group_overview_plan_column']) || 
+                   ($item['event']['group_overview_plan_column'] != 'Explore' && $item['event']['group_overview_plan_column'] != 'Challenge')) &&
                    $item['start_slot'] == $slotTime;
         });
         

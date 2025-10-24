@@ -1892,6 +1892,7 @@ if ($prepRooms->isNotEmpty()) {
                     'group_name' => $firstActivity->group_atd_name ?? 'Unknown Group',
                     'group_description' => $firstActivity->group_description ?? '',
                     'group_first_program_id' => $firstActivity->group_first_program_id ?? null,
+                    'group_overview_plan_column' => $firstActivity->group_overview_plan_column ?? null,
                     'earliest_start' => $earliestStart,
                     'latest_end' => $latestEnd,
                     'duration_minutes' => $earliestStart->diffInMinutes($latestEnd),
