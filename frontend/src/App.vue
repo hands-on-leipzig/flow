@@ -6,10 +6,6 @@ import axios from "axios";
 const Navigation = defineAsyncComponent(() => import('@/components/Navigation.vue'));
 const NewsModal = defineAsyncComponent(() => import('@/components/atoms/NewsModal.vue'));
 
-const PATHS_HIDE_NAVIGATION = [
-  "/carousel"
-]
-
 // Check if current route is public (no navigation needed)
 const isPublicRoute = computed(() => {
   return route.meta?.public === true
@@ -17,10 +13,6 @@ const isPublicRoute = computed(() => {
 
 const router = useRouter();
 const route = useRoute();
-
-const showNavigation = computed(() => {
-  return !PATHS_HIDE_NAVIGATION.some(path => route.path.startsWith(path)) && !isPublicRoute.value
-})
 
 // News Modal State
 const currentNews = ref(null)
@@ -79,15 +71,12 @@ onMounted(() => {
   if (window.location.pathname === "/") {
     router.push("/event")
   }
-  
-  // Check for unread news on initial load
-  checkForUnreadNews()
 })
 </script>
 
 <template>
-  <div class="h-screen flex flex-col w-full font-sans" :class="{ 'px-10': showNavigation }">
-    <Navigation v-if="showNavigation"/>
+  <div class="h-screen flex flex-col w-full font-sans" :class="{ 'px-10': !isPublicRoute }">
+    <Navigation v-if="!isPublicRoute"/>
 
     <router-view class="flex-1 shadow-lg"/>
 
