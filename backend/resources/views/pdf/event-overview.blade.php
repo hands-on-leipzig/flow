@@ -114,6 +114,9 @@ foreach($eventsByDay as $dayKey => $dayData) {
         ];
     }
     
+    // Track occupied cells (column => end time slot index)
+    $occupiedCells = [];
+    
     // Generate 5-minute rows
     foreach ($timeSlots as $index => $slot) {
         $isFullHour = $slot->minute == 0;
@@ -131,6 +134,10 @@ foreach($eventsByDay as $dayKey => $dayData) {
         
         // Dynamic column generation
         foreach($columnNames as $columnName) {
+            // Skip if this cell is occupied by a rowspan from a previous row
+            if (isset($occupiedCells[$columnName]) && $occupiedCells[$columnName] > $index) {
+                continue;
+            }
             // Find events for this column
             $columnEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime, $columnName) {
                 $eventColumn = $item['event']['group_overview_plan_column'] ?? 'Allgemein';
@@ -173,6 +180,9 @@ foreach($eventsByDay as $dayKey => $dayData) {
             if ($columnEvents->count() > 0) {
                 $event = $columnEvents->first()['event'];
                 $rowspan = $columnEvents->first()['rowspan'];
+                
+                // Mark this column as occupied for the next N-1 rows
+                $occupiedCells[$columnName] = $index + $rowspan;
                 
                 // Get color based on the event's actual overview_plan_column, not the column name
                 $eventColumn = $event['group_overview_plan_column'] ?? 'Allgemein';
