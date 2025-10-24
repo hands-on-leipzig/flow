@@ -1705,6 +1705,8 @@ if ($prepRooms->isNotEmpty()) {
                     return '–';
                 })(),
                 'room'     => $a->room_name ?? '–',
+                // Add date information for day grouping
+                'start_date' => \Carbon\Carbon::parse($a->start_time),
             ])->values()->all();
 
             // Teile das Array in Seitenblöcke
