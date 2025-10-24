@@ -2022,7 +2022,17 @@ if ($prepRooms->isNotEmpty()) {
         $formattedDate = '';
         if (!empty($event->date)) {
             try {
-                $formattedDate = Carbon::parse($event->date)->format('d.m.Y');
+                $startDate = Carbon::parse($event->date);
+                
+                // Check if this is a multi-day event
+                if (!empty($event->days) && $event->days > 1) {
+                    // Multi-day event: show date range
+                    $endDate = $startDate->copy()->addDays($event->days - 1);
+                    $formattedDate = $startDate->format('d.m') . '-' . $endDate->format('d.m.Y');
+                } else {
+                    // Single-day event: show just the date
+                    $formattedDate = $startDate->format('d.m.Y');
+                }
             } catch (\Throwable $e) {
                 $formattedDate = (string) $event->date;
             }
