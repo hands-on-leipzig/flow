@@ -9,21 +9,21 @@ $contentHtml = '
 $isFirstDay = true;
 foreach($eventsByDay as $dayKey => $dayData) {
     // Add page break before each day except the first
-    $pageBreakStyle = $isFirstDay ? '' : 'page-break-before: always;';
+    $pageBreakStyle = $isFirstDay ? '' : 'page-break-before: always; page-break-inside: avoid;';
     
     $contentHtml .= '
-    <div style="margin-bottom: 30px; ' . $pageBreakStyle . '">
+    <div style="margin-bottom: 20px; ' . $pageBreakStyle . '">
         <!-- Day Header -->
-        <h2 style="background-color: #34495e; color: white; padding: 10px 15px; margin: 0 0 15px 0; font-size: 18px; border-radius: 5px;">
+        <h2 style="background-color: #34495e; color: white; padding: 8px 12px; margin: 0 0 10px 0; font-size: 16px; border-radius: 3px;">
             ' . $dayData['date']->locale('de')->isoFormat('dddd, DD.MM.YYYY') . '
         </h2>
 
         <!-- Three Column Layout -->
-        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+        <table style="width: 100%; border-collapse: collapse; table-layout: fixed; page-break-inside: avoid;">
             <tr>
                 <!-- Left Column: Explore -->
-                <td style="width: 33.33%; vertical-align: top; background-color: #f0f8f0; padding: 10px; border-radius: 5px;">
-                    <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 14px; text-align: center; background-color: #27ae60; color: white; padding: 5px; border-radius: 3px;">
+                <td style="width: 33.33%; vertical-align: top; background-color: #f0f8f0; padding: 8px; border-radius: 3px;">
+                    <h3 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 12px; text-align: center; background-color: #27ae60; color: white; padding: 4px; border-radius: 2px;">
                         FIRST LEGO League Explore
                     </h3>
                     <div>';
@@ -35,17 +35,17 @@ foreach($eventsByDay as $dayKey => $dayData) {
     
     foreach($exploreEvents as $event) {
         $contentHtml .= '
-                    <div style="border-left: 4px solid #27ae60; padding: 10px 15px; margin-bottom: 10px; background-color: #ffffff; border-radius: 0 5px 5px 0;">
-                        <div style="font-family: monospace; font-size: 12px; color: #666; margin-bottom: 3px;">
+                    <div style="border-left: 3px solid #27ae60; padding: 6px 8px; margin-bottom: 6px; background-color: #ffffff; border-radius: 0 3px 3px 0; page-break-inside: avoid;">
+                        <div style="font-family: monospace; font-size: 10px; color: #666; margin-bottom: 2px;">
                             ' . $event['earliest_start']->format('H:i') . ' - ' . $event['latest_end']->format('H:i') . '
                         </div>
-                        <div style="font-size: 14px; font-weight: bold; color: #2c3e50;">
+                        <div style="font-size: 12px; font-weight: bold; color: #2c3e50;">
                             ' . htmlspecialchars($event['group_name']) . '
                         </div>';
         
         if($event['group_description']) {
             $contentHtml .= '
-                        <div style="font-size: 11px; color: #555; font-style: italic; margin-top: 2px;">
+                        <div style="font-size: 9px; color: #555; font-style: italic; margin-top: 1px;">
                             ' . htmlspecialchars($event['group_description']) . '
                         </div>';
         }
@@ -59,8 +59,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 </td>
                 
                 <!-- Middle Column: Challenge -->
-                <td style="width: 33.33%; vertical-align: top; background-color: #f8f0f0; padding: 10px; border-radius: 5px;">
-                    <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 14px; text-align: center; background-color: #e74c3c; color: white; padding: 5px; border-radius: 3px;">
+                <td style="width: 33.33%; vertical-align: top; background-color: #f8f0f0; padding: 8px; border-radius: 3px;">
+                    <h3 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 12px; text-align: center; background-color: #e74c3c; color: white; padding: 4px; border-radius: 2px;">
                         FIRST LEGO League Challenge
                     </h3>
                     <div>';
@@ -72,17 +72,17 @@ foreach($eventsByDay as $dayKey => $dayData) {
     
     foreach($challengeEvents as $event) {
         $contentHtml .= '
-                    <div style="border-left: 4px solid #e74c3c; padding: 10px 15px; margin-bottom: 10px; background-color: #ffffff; border-radius: 0 5px 5px 0;">
-                        <div style="font-family: monospace; font-size: 12px; color: #666; margin-bottom: 3px;">
+                    <div style="border-left: 3px solid #e74c3c; padding: 6px 8px; margin-bottom: 6px; background-color: #ffffff; border-radius: 0 3px 3px 0; page-break-inside: avoid;">
+                        <div style="font-family: monospace; font-size: 10px; color: #666; margin-bottom: 2px;">
                             ' . $event['earliest_start']->format('H:i') . ' - ' . $event['latest_end']->format('H:i') . '
                         </div>
-                        <div style="font-size: 14px; font-weight: bold; color: #2c3e50;">
+                        <div style="font-size: 12px; font-weight: bold; color: #2c3e50;">
                             ' . htmlspecialchars($event['group_name']) . '
                         </div>';
         
         if($event['group_description']) {
             $contentHtml .= '
-                        <div style="font-size: 11px; color: #555; font-style: italic; margin-top: 2px;">
+                        <div style="font-size: 9px; color: #555; font-style: italic; margin-top: 1px;">
                             ' . htmlspecialchars($event['group_description']) . '
                         </div>';
         }
@@ -96,8 +96,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 </td>
                 
                 <!-- Right Column: Other/General -->
-                <td style="width: 33.33%; vertical-align: top; background-color: #f5f5f5; padding: 10px; border-radius: 5px;">
-                    <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 14px; text-align: center; background-color: #95a5a6; color: white; padding: 5px; border-radius: 3px;">
+                <td style="width: 33.33%; vertical-align: top; background-color: #f5f5f5; padding: 8px; border-radius: 3px;">
+                    <h3 style="margin: 0 0 8px 0; color: #2c3e50; font-size: 12px; text-align: center; background-color: #95a5a6; color: white; padding: 4px; border-radius: 2px;">
                         Allgemein
                     </h3>
                     <div>';
@@ -110,17 +110,17 @@ foreach($eventsByDay as $dayKey => $dayData) {
     
     foreach($otherEvents as $event) {
         $contentHtml .= '
-                    <div style="border-left: 4px solid #95a5a6; padding: 10px 15px; margin-bottom: 10px; background-color: #ffffff; border-radius: 0 5px 5px 0;">
-                        <div style="font-family: monospace; font-size: 12px; color: #666; margin-bottom: 3px;">
+                    <div style="border-left: 3px solid #95a5a6; padding: 6px 8px; margin-bottom: 6px; background-color: #ffffff; border-radius: 0 3px 3px 0; page-break-inside: avoid;">
+                        <div style="font-family: monospace; font-size: 10px; color: #666; margin-bottom: 2px;">
                             ' . $event['earliest_start']->format('H:i') . ' - ' . $event['latest_end']->format('H:i') . '
                         </div>
-                        <div style="font-size: 14px; font-weight: bold; color: #2c3e50;">
+                        <div style="font-size: 12px; font-weight: bold; color: #2c3e50;">
                             ' . htmlspecialchars($event['group_name']) . '
                         </div>';
         
         if($event['group_description']) {
             $contentHtml .= '
-                        <div style="font-size: 11px; color: #555; font-style: italic; margin-top: 2px;">
+                        <div style="font-size: 9px; color: #555; font-style: italic; margin-top: 1px;">
                             ' . htmlspecialchars($event['group_description']) . '
                         </div>';
         }
