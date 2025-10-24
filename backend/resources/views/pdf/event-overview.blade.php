@@ -6,9 +6,13 @@ $contentHtml = '
         Übersichtsplan
     </h1>';
 
+$isFirstDay = true;
 foreach($eventsByDay as $dayKey => $dayData) {
+    // Add page break before each day except the first
+    $pageBreakStyle = $isFirstDay ? '' : 'page-break-before: always;';
+    
     $contentHtml .= '
-    <div style="margin-bottom: 30px;">
+    <div style="margin-bottom: 30px; ' . $pageBreakStyle . '">
         <!-- Day Header -->
         <h2 style="background-color: #34495e; color: white; padding: 10px 15px; margin: 0 0 15px 0; font-size: 18px; border-radius: 5px;">
             ' . $dayData['date']->locale('de')->isoFormat('dddd, DD.MM.YYYY') . '
@@ -61,6 +65,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
     $contentHtml .= '
         </div>
     </div>';
+    
+    $isFirstDay = false;
 }
 
 $contentHtml .= '
