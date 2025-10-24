@@ -181,6 +181,7 @@ function copyUrl(url) {
         <draggable v-model="slideshow.slides" :key="slidesKey"
                    class="flex flex-wrap gap-2 ü-5 bg-gray-800 rounded-xl" ghost-class="ghost" group="slides"
                    item-key="id"
+                   handle=".drag-handle"
                    @end="updateOrder(slideshow)">
           <template #item="{ element }">
             <SlideThumb :slide="element" class="border rounded" @deleteSlide="deleteSlide(slideshow, element.id)"/>
