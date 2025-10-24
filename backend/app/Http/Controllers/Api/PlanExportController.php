@@ -2003,7 +2003,33 @@ if ($prepRooms->isNotEmpty()) {
             // Generate PDF in portrait orientation
             $pdf = Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'portrait');
 
-            return $pdf->download('event-overview.pdf');
+            // Get plan info for filename
+            $plan = DB::table('plan')
+                ->where('id', $planId)
+                ->select('last_change')
+                ->first();
+
+            // Format date for filename
+            $formattedDate = $plan && $plan->last_change
+                ? \Carbon\Carbon::parse($plan->last_change)
+                    ->timezone('Europe/Berlin')
+                    ->format('d.m.y')
+                : now()->format('d.m.y');
+
+            $filename = "FLOW_Übersichtsplan_({$formattedDate}).pdf";
+
+            // Umlaute transliterieren
+            $filename = str_replace(
+                ['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'],
+                ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'],
+                $filename
+            );
+
+            // Return PDF with proper headers for filename
+            return response($pdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('X-Filename', $filename)
+                ->header('Access-Control-Expose-Headers', 'X-Filename');
 
         } catch (\Exception $e) {
             Log::error('Event overview PDF generation failed', [
