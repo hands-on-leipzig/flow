@@ -1248,6 +1248,7 @@ if ($prepRooms->isNotEmpty()) {
                     'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                     'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
                     'room'     => $roomDisplay,
+                    'start_date' => \Carbon\Carbon::parse($a->start_time), // Added for day grouping
                 ];
             })->values()->all();
 
@@ -1290,30 +1291,58 @@ if ($prepRooms->isNotEmpty()) {
             }
 
             // ➕ Zusatzzeile "Teambereich"
+            // Use first activity's date if available, otherwise use a default
+            $firstDate = !empty($rows) && isset($rows[0]['start_date']) 
+                ? $rows[0]['start_date'] 
+                : \Carbon\Carbon::now();
+            
             array_unshift($rows, [
                 'start'    => '',
                 'end'      => '',
                 'activity' => 'Teambereich',
                 'room'     => $teamRoomName,
+                'start_date' => $firstDate,
             ]);
             
-            // In Seitenblöcke teilen
-            $chunks = array_chunk($rows, $maxRowsPerPage);
-            $chunkCount = count($chunks);
-
-            foreach ($chunks as $chunkIndex => $chunkRows) {
+            // Check if team has multiple days
+            $uniqueDays = collect($rows)->pluck('start_date')->map(function($date) {
+                return $date->format('Y-m-d');
+            })->unique()->count();
+            
+            $hasMultipleDays = $uniqueDays > 1;
+            
+            if ($hasMultipleDays) {
+                // Multi-day team: don't chunk, let template handle day-based page breaks
                 $html .= view('pdf.content.team_schedule', [
                     'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
-                    'rows'  => $chunkRows,
+                    'rows'  => $rows,
                     'event' => $event,
-                    'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
+                    'roomsWithNav' => $roomsWithNav,
                 ])->render();
+            } else {
+                // Single-day team: use existing chunking logic
+                $chunks = array_chunk($rows, $maxRowsPerPage);
+                $chunkCount = count($chunks);
 
-                // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
-                $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
-                if (!$isLastChunk) {
-                    $html .= '<div style="page-break-before: always;"></div>';
+                foreach ($chunks as $chunkIndex => $chunkRows) {
+                    $html .= view('pdf.content.team_schedule', [
+                        'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
+                        'rows'  => $chunkRows,
+                        'event' => $event,
+                        'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
+                    ])->render();
+
+                    // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
+                    $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
+                    if (!$isLastChunk) {
+                        $html .= '<div style="page-break-before: always;"></div>';
+                    }
                 }
+            }
+            
+            // Page break between teams (but not after the last team)
+            if ($idx !== $lastIndex) {
+                $html .= '<div style="page-break-before: always;"></div>';
             }
         }
 
