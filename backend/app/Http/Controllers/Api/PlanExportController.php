@@ -1933,12 +1933,21 @@ if ($prepRooms->isNotEmpty()) {
                 ])
                 ->values();
             
-            // Extract column names in sorted order, ensuring uniqueness
+            // Create unique column identifiers that include first_program for Allgemein
             $columnNames = $columnsWithProgram
                 ->map(function($item) {
-                    return $item['overview_plan_column'] ?? 'Allgemein';
+                    $columnName = $item['overview_plan_column'] ?? 'Allgemein';
+                    // For Allgemein columns, include first_program to make them unique
+                    if ($columnName === 'Allgemein') {
+                        $program = $item['first_program'];
+                        if ($program === null) {
+                            return 'Allgemein';
+                        } else {
+                            return 'Allgemein-' . $program;
+                        }
+                    }
+                    return $columnName;
                 })
-                ->unique()
                 ->values()
                 ->toArray();
             
