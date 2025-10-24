@@ -4,6 +4,7 @@ import SlideContentRenderer from "./slideTypes/SlideContentRenderer.vue";
 import {mdiTrashCanOutline, mdiPencil} from '@mdi/js';
 import SvgIcon from '@jamescoyle/vue-icon';
 import axios from "axios";
+import IconDraggable from "@/components/icons/IconDraggable.vue";
 
 const props = defineProps<{
   slide: Slide
@@ -25,10 +26,15 @@ async function toggleActive() {
   componentSlide.active = active;
   props.slide.active = active;
   const s = {...componentSlide, content: componentSlide.content.toJSON()};
-  axios.put(`slides/${props.slide.id}`, s).then(response => {
-    console.log('Slide saved:', response.data);
-  }).catch(error => {
+  axios.put(`slides/${props.slide.id}`, s).then().catch(error => {
     console.error('Error saving slide:', error);
+  });
+}
+
+async function updateSlideName(slide: Slide) {
+  const s = {name: slide.name };
+  axios.put(`slides/${slide.id}`, s).then().catch(error => {
+    console.error('Error updating slide name:', error);
   });
 }
 
@@ -37,9 +43,13 @@ const componentSlide = Slide.fromObject(props.slide);
 </script>
 
 <template>
-  <div class="flex flex-col relative bg-blue-400 w-56 h-52 m-2 cursor-grab rounded-xl shadow">
+  <div class="flex flex-col relative bg-blue-400 w-56 h-52 m-2 rounded-xl shadow">
     <div class="flex justify-between gap-1 pt-2 pr-2 items-center">
-      <label class="flex items-center cursor-pointer px-2">
+
+      <div class="flex items-center cursor-pointer gap-1">
+        <div class="drag-handle cursor-grab p-1 rounded" title="Ziehen" draggable="false">
+          <IconDraggable/>
+        </div>
         <input type="checkbox" class="sr-only"
                :checked="slide.active === 1" @change="toggleActive"
                aria-label="Aktivieren/Deaktivieren"
@@ -51,7 +61,7 @@ const componentSlide = Slide.fromObject(props.slide);
                 :class="slide.active === 1 ? 'translate-x-4' : ''"
           ></span>
         </span>
-      </label>
+      </div>
       <div class="flex gap-1 items-center">
         <router-link :to="'/editSlide/' + slide.id">
           <svg-icon type="mdi" :path="mdiPencil" @click="emit('editSlide')"/>
@@ -62,7 +72,12 @@ const componentSlide = Slide.fromObject(props.slide);
     <div class="w-56 h-32 mx-auto bg-blue-300 m-2 flex items-center justify-center overflow-hidden">
       <SlideContentRenderer :slide="componentSlide" :preview="true"></SlideContentRenderer>
     </div>
-    <span class="p-2 text-center font-medium truncate">{{ slide.name }}</span>
+    <input
+        v-model="slide.name"
+        @blur="updateSlideName(slide)"
+        class="editable-input flex-1 text-sm px-2 py-1 border border-transparent bg-transparent z-1 hover:bg-white cursor-text rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors"
+        draggable="false"
+    />
   </div>
 </template>
 

@@ -179,8 +179,13 @@ function copyUrl(url) {
           </button>
         </div>
         <draggable v-model="slideshow.slides" :key="slidesKey"
-                   class="flex flex-wrap gap-2 ü-5 bg-gray-800 rounded-xl" ghost-class="ghost" group="slides"
+                   class="flex flex-wrap gap-2 ü-5 bg-gray-800 rounded-xl" group="slides"
                    item-key="id"
+                   handle=".drag-handle"
+                   ghost-class="drag-ghost"
+                   chosen-class="drag-chosen"
+                   drag-class="drag-dragging"
+                   animation="150"
                    @end="updateOrder(slideshow)">
           <template #item="{ element }">
             <SlideThumb :slide="element" class="border rounded" @deleteSlide="deleteSlide(slideshow, element.id)"/>
@@ -192,5 +197,19 @@ function copyUrl(url) {
 </template>
 
 <style scoped>
+
+.drag-ghost {
+  opacity: 0.4;
+  transform: scale(0.98);
+}
+
+.drag-chosen {
+  background-color: #fde68a; /* yellow-200 */
+  box-shadow: 0 0 0 2px #facc15; /* yellow-400 */
+}
+
+.drag-dragging {
+  cursor: grabbing;
+}
 
 </style>
