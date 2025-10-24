@@ -131,10 +131,6 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     $matches = $eventColumn == $columnName && $item['start_slot'] == $slotTime;
                 }
                 
-                // Debug logging for first few events
-                if ($matches && $slotTime == '10:30') {
-                    error_log("DEBUG: Event '{$item['event']['group_name']}' assigned to column '{$columnName}' (event column: '{$eventColumn}', event program: {$eventProgram})");
-                }
                 
                 return $matches;
             });

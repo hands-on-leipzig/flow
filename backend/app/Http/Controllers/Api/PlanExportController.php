@@ -1905,16 +1905,6 @@ if ($prepRooms->isNotEmpty()) {
                 return $a['earliest_start']->timestamp - $b['earliest_start']->timestamp;
             });
 
-            // Debug: Log the events to see what's happening
-            Log::info('Event overview debug', [
-                'events' => collect($eventOverview)->map(function($event) {
-                    return [
-                        'group_name' => $event['group_name'],
-                        'group_overview_plan_column' => $event['group_overview_plan_column'],
-                        'group_first_program_id' => $event['group_first_program_id']
-                    ];
-                })->toArray()
-            ]);
             
             // Get unique columns with their first_program for sorting
             $columnsWithProgram = collect($eventOverview)
@@ -1951,10 +1941,6 @@ if ($prepRooms->isNotEmpty()) {
                 ->values()
                 ->toArray();
             
-            Log::info('Column names debug', [
-                'columnNames' => $columnNames,
-                'columnsWithProgram' => $columnsWithProgram->toArray()
-            ]);
 
             // Group by day for display
             $eventsByDay = [];
