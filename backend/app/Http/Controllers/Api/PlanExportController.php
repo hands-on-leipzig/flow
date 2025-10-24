@@ -1043,6 +1043,8 @@ class PlanExportController extends Controller
                 // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
                 'is_explore'    => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
                 'is_challenge'  => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::CHALLENGE->value]),
+                // Add date information for day grouping
+                'start_date' => \Carbon\Carbon::parse($a->start_time),
             ];
         })->values()->all();
 
@@ -1246,6 +1248,7 @@ if ($prepRooms->isNotEmpty()) {
                     'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                     'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
                     'room'     => $roomDisplay,
+                    'start_date' => \Carbon\Carbon::parse($a->start_time), // Added for day grouping
                 ];
             })->values()->all();
 
@@ -1288,30 +1291,58 @@ if ($prepRooms->isNotEmpty()) {
             }
 
             // ➕ Zusatzzeile "Teambereich"
+            // Use first activity's date if available, otherwise use a default
+            $firstDate = !empty($rows) && isset($rows[0]['start_date']) 
+                ? $rows[0]['start_date'] 
+                : \Carbon\Carbon::now();
+            
             array_unshift($rows, [
                 'start'    => '',
                 'end'      => '',
                 'activity' => 'Teambereich',
                 'room'     => $teamRoomName,
+                'start_date' => $firstDate,
             ]);
             
-            // In Seitenblöcke teilen
-            $chunks = array_chunk($rows, $maxRowsPerPage);
-            $chunkCount = count($chunks);
-
-            foreach ($chunks as $chunkIndex => $chunkRows) {
+            // Check if team has multiple days
+            $uniqueDays = collect($rows)->pluck('start_date')->map(function($date) {
+                return $date->format('Y-m-d');
+            })->unique()->count();
+            
+            $hasMultipleDays = $uniqueDays > 1;
+            
+            if ($hasMultipleDays) {
+                // Multi-day team: don't chunk, let template handle day-based page breaks
                 $html .= view('pdf.content.team_schedule', [
                     'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
-                    'rows'  => $chunkRows,
+                    'rows'  => $rows,
                     'event' => $event,
-                    'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
+                    'roomsWithNav' => $roomsWithNav,
                 ])->render();
+            } else {
+                // Single-day team: use existing chunking logic
+                $chunks = array_chunk($rows, $maxRowsPerPage);
+                $chunkCount = count($chunks);
 
-                // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
-                $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
-                if (!$isLastChunk) {
-                    $html .= '<div style="page-break-before: always;"></div>';
+                foreach ($chunks as $chunkIndex => $chunkRows) {
+                    $html .= view('pdf.content.team_schedule', [
+                        'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
+                        'rows'  => $chunkRows,
+                        'event' => $event,
+                        'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
+                    ])->render();
+
+                    // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
+                    $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
+                    if (!$isLastChunk) {
+                        $html .= '<div style="page-break-before: always;"></div>';
+                    }
                 }
+            }
+            
+            // Page break between teams (but not after the last team)
+            if ($idx !== $lastIndex) {
+                $html .= '<div style="page-break-before: always;"></div>';
             }
         }
 
@@ -1545,6 +1576,7 @@ if ($prepRooms->isNotEmpty()) {
         $challengeJuryActs = $allActivities->filter(fn($a) => $a->role_id == 4);
         $challengeRefActs = $allActivities->filter(fn($a) => $a->role_id == 5);
         $challengeCheckActs = $allActivities->filter(fn($a) => $a->role_id == 11);
+        $liveChallengeActs = $allActivities->filter(fn($a) => $a->role_id == 16);
 
         // === Event laden ===
         $event = DB::table('event')
@@ -1638,13 +1670,15 @@ if ($prepRooms->isNotEmpty()) {
         $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
         $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table', 'FLL Challenge Schiedsrichter:innen ');
         $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table', 'FLL Challenge Robot-Check für ');
+        $liveChallengeGrouped = $distributeGeneric($liveChallengeActs, 'lane', 'Live-Challenge Jury-Gruppe');
 
         // === Zusammenführen, sortiert nach Program-Logik ===
         $sections = collect()
             ->merge($exploreGrouped->sortKeys())
             ->merge($challengeJuryGrouped->sortKeys())
             ->merge($challengeRefGrouped->sortKeys())
-           ->merge($challengeCheckGrouped->sortKeys());
+           ->merge($challengeCheckGrouped->sortKeys())
+           ->merge($liveChallengeGrouped->sortKeys());
 
         // === Rendern aller Abschnitte ===
         $html = '';
@@ -1703,6 +1737,8 @@ if ($prepRooms->isNotEmpty()) {
                     return '–';
                 })(),
                 'room'     => $a->room_name ?? '–',
+                // Add date information for day grouping
+                'start_date' => \Carbon\Carbon::parse($a->start_time),
             ])->values()->all();
 
             // Teile das Array in Seitenblöcke
@@ -2120,6 +2156,84 @@ if ($prepRooms->isNotEmpty()) {
             return null;
         }
         return 'data:' . $mime . ';base64,' . base64_encode($data);
+    }
+
+    /**
+     * Get worker shifts for roles with differentiation_parameter
+     */
+    public function workerShifts(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        // Get roles with differentiation_parameter 'lane' or 'table'
+        $roles = DB::table('m_role')
+            ->whereIn('differentiation_parameter', ['lane', 'table'])
+            ->select('id', 'name', 'differentiation_parameter')
+            ->get();
+
+        $shifts = [];
+
+        foreach ($roles as $role) {
+            // Fetch activities for this role
+            $activities = collect($this->activityFetcher->fetchActivities(
+                $plan->id,
+                [$role->id],
+                true,  // includeRooms
+                false, // includeGroupMeta
+                true,  // includeActivityMeta
+                true,  // includeTeamNames
+                true   // freeBlocks
+            ));
+
+            if ($activities->isEmpty()) {
+                continue;
+            }
+
+            // Group activities by day
+            $activitiesByDay = [];
+            foreach ($activities as $activity) {
+                $dayKey = \Carbon\Carbon::parse($activity->start_time)->format('Y-m-d');
+                if (!isset($activitiesByDay[$dayKey])) {
+                    $activitiesByDay[$dayKey] = [];
+                }
+                $activitiesByDay[$dayKey][] = $activity;
+            }
+
+            // Calculate shifts for each day
+            $roleShifts = [];
+            foreach ($activitiesByDay as $dayKey => $dayActivities) {
+                $startTimes = collect($dayActivities)->pluck('start_time')->map(function($time) {
+                    return \Carbon\Carbon::parse($time);
+                });
+                $endTimes = collect($dayActivities)->pluck('end_time')->map(function($time) {
+                    return \Carbon\Carbon::parse($time);
+                });
+
+                $earliestStart = $startTimes->min();
+                $latestEnd = $endTimes->max();
+
+                $roleShifts[] = [
+                    'day' => $dayKey,
+                    'start' => $earliestStart->format('H:i'),
+                    'end' => $latestEnd->format('H:i')
+                ];
+            }
+
+            $shifts[] = [
+                'role_name' => $role->name,
+                'shifts' => $roleShifts
+            ];
+        }
+
+        return response()->json(['shifts' => $shifts]);
     }
 
 }

@@ -122,6 +122,11 @@ const hasRoomIssues = computed(() => !readiness.value?.room_mapping_ok)
 // --- PDF Download (Composable) ---
 const { isDownloading, anyDownloading, downloadPdf } = usePdfExport()
 
+// --- Worker Shifts Modal ---
+const showModal = ref(false)
+const workerShifts = ref<any>(null)
+const isLoadingShifts = ref(false)
+
 // Download roles PDF with selected roles
 async function downloadRolesPdf() {
   if (!eventId.value || !hasSelectedRoles.value) return
@@ -202,6 +207,39 @@ async function downloadEventOverviewPdf() {
     isDownloading.value['overview'] = false
   }
 }
+
+// Fetch worker shifts and show modal
+async function showWorkerShiftsModal() {
+  if (!eventId.value) return
+  
+  isLoadingShifts.value = true
+  showModal.value = true
+  
+  try {
+    const { data } = await axios.get(`/export/worker-shifts/${eventId.value}`)
+    workerShifts.value = data
+  } catch (error) {
+    console.error('Failed to fetch worker shifts:', error)
+    workerShifts.value = { error: 'Fehler beim Laden der Schichten' }
+  } finally {
+    isLoadingShifts.value = false
+  }
+}
+
+// Close modal
+function closeModal() {
+  showModal.value = false
+  workerShifts.value = null
+}
+
+// Format date as dd.mm.yyyy
+function formatDate(dateString: string): string {
+  const date = new Date(dateString)
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}.${month}.${year}`
+}
 </script>
 
 <template>
@@ -212,7 +250,7 @@ async function downloadEventOverviewPdf() {
     <div class="border-b border-gray-200 pb-3 mb-3">
       <div class="mb-2">
         <h4 class="text-base font-semibold text-gray-800">Übersichtsplan</h4>
-        <p class="text-sm text-gray-600">Alle Aktivitäten auf einen Blick - Chronologische Übersicht der Hauptaktivitäten.</p>
+        <p class="text-sm text-gray-600">Alle Aktivitäten des Tages auf einer Seite.</p>
       </div>
 
       <!-- PDF Button -->
@@ -372,8 +410,17 @@ async function downloadEventOverviewPdf() {
         </div>
       </div>
 
-      <!-- PDF Button -->
-      <div class="mt-4 flex justify-end">
+      <!-- Buttons -->
+      <div class="mt-4 flex justify-between">
+        <!-- HERO Schichten Button -->
+        <button
+          class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
+          @click="showWorkerShiftsModal"
+        >
+          <span>HERO Schichten</span>
+        </button>
+        
+        <!-- PDF Button -->
         <button
           class="px-4 py-2 rounded text-sm flex items-center gap-2"
           :class="hasSelectedRoles && !isDownloading.roles 
@@ -526,6 +573,78 @@ async function downloadEventOverviewPdf() {
           </svg>
           <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Worker Shifts Modal -->
+    <div
+      v-if="showModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click="closeModal"
+    >
+      <div 
+        class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden"
+        @click.stop
+      >
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-gray-900">HERO Schichten</h3>
+          <button
+            @click="closeModal"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Modal Content -->
+        <div class="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+          <div v-if="isLoadingShifts" class="flex items-center justify-center py-8">
+            <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span class="ml-3 text-gray-600">Lade Schichten...</span>
+          </div>
+          
+          <div v-else-if="workerShifts?.error" class="text-center py-8 text-red-600">
+            {{ workerShifts.error }}
+          </div>
+          
+          <div v-else-if="workerShifts?.shifts" class="space-y-4">
+            <p class="text-sm text-gray-600 italic">Zu jeder Zeile sollte in HERO eine Schicht angelegt werden.</p>
+            <div class="overflow-x-auto">
+              <table class="min-w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr class="bg-gray-50">
+                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Datum</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Treffpunkt</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Beginn</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Ende</th>
+                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Label</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-for="role in workerShifts.shifts" :key="role.role_name">
+                    <tr v-for="(shift, index) in role.shifts" :key="`${role.role_name}-${shift.day}`" class="hover:bg-gray-50">
+                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ formatDate(shift.day) }}</td>
+                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.start }}</td>
+                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.start }}</td>
+                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.end }}</td>
+                      <td class="border border-gray-300 px-4 py-2 font-medium text-gray-900">{{ role.role_name }}</td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div v-else class="text-center py-8 text-gray-500">
+            Keine Schichten verfügbar
+          </div>
+        </div>
       </div>
     </div>
 

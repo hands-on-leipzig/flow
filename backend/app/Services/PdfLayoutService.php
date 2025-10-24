@@ -38,6 +38,13 @@ class PdfLayoutService
             }
         }
 
+        // Check if this is a multi-day event using event.days
+        if (!empty($event->days) && $event->days > 1) {
+            $startDate = Carbon::parse($event->date);
+            $endDate = $startDate->copy()->addDays($event->days - 1);
+            $formattedDate = $startDate->format('d.m.') . '-' . $endDate->format('d.m.Y');
+        }
+
         $leftLogos = [];
         if (!empty($event->event_explore)) {
             $leftLogos[] = $this->toDataUri(public_path('flow/fll_explore_hs.png'));
@@ -76,6 +83,7 @@ class PdfLayoutService
 
         return $dataUris;
     }
+
 
     private function toDataUri(string $path): ?string
     {
