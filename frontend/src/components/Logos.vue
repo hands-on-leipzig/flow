@@ -69,7 +69,7 @@ const uploadLogo = async () => {
 const updateLogo = async (logo) => {
   try {
     await axios.patch(`/logos/${logo.id}`, {
-      title: logo.title,
+      name: logo.name,
       link: logo.link
     })
   } catch (error) {
@@ -227,7 +227,7 @@ const closeLogoPreview = () => {
 
 const deleteMessage = computed(() => {
   if (!logoToDelete.value) return ''
-  return `Möchten Sie das Logo "${logoToDelete.value.title || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+  return `Möchten Sie das Logo "${logoToDelete.value.name || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
 
 // Sort logos by their sort_order for the current event
@@ -379,10 +379,10 @@ onMounted(async () => {
         />
 
         <input
-            v-model="logo.title"
+            v-model="logo.name"
             @change="updateLogo(logo)"
             class="w-full px-3 py-1 border rounded"
-            placeholder="Titel"
+            placeholder="Name"
             type="text"
         />
 
@@ -420,7 +420,7 @@ onMounted(async () => {
     >
       <div class="bg-white rounded-lg p-6 max-w-4xl max-h-[90vh] overflow-auto" @click.stop>
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-semibold">{{ selectedLogoForPreview.title || 'Logo Preview' }}</h3>
+          <h3 class="text-lg font-semibold">{{ selectedLogoForPreview.name || 'Logo Preview' }}</h3>
           <button 
             @click="closeLogoPreview"
             class="text-gray-500 hover:text-gray-700 text-2xl"
@@ -432,7 +432,7 @@ onMounted(async () => {
         <div class="flex justify-center">
           <img 
             :src="selectedLogoForPreview.url" 
-            :alt="selectedLogoForPreview.title || 'Logo'"
+            :alt="selectedLogoForPreview.name || 'Logo'"
             class="max-w-full max-h-[70vh] object-contain"
           />
         </div>
