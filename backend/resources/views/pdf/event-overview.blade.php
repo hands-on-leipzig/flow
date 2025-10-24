@@ -55,10 +55,10 @@ foreach($eventsByDay as $dayKey => $dayData) {
         <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
             <thead>
                 <tr>
-                    <th style="width: 15%; background-color: #f8f9fa; padding: 8px; border: 1px solid #ddd; font-size: 12px; font-weight: bold;">Zeit</th>';
+                    <th style="width: 8%; background-color: #f8f9fa; padding: 4px; border: 1px solid #ddd; font-size: 10px; font-weight: bold;">Zeit</th>';
         
         // Dynamic column headers
-        $columnWidth = 85 / count($columnNames);
+        $columnWidth = 92 / count($columnNames);
         $columnColors = [
             'Explore' => '#27ae60',
             'Challenge' => '#e74c3c', 
@@ -70,7 +70,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
         foreach($columnNames as $columnName) {
             $color = $columnColors[$columnName] ?? '#95a5a6';
             $contentHtml .= '
-                    <th style="width: ' . $columnWidth . '%; background-color: ' . $color . '; color: white; padding: 8px; border: 1px solid #ddd; font-size: 12px; font-weight: bold;">' . htmlspecialchars($columnName) . '</th>';
+                    <th style="width: ' . $columnWidth . '%; background-color: ' . $color . '; color: white; padding: 4px; border: 1px solid #ddd; font-size: 10px; font-weight: bold;">' . htmlspecialchars($columnName) . '</th>';
         }
         
         $contentHtml .= '
@@ -102,7 +102,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
         // Time column with rowspan for full hours
         if ($isFullHour) {
             $contentHtml .= '
-                    <td rowspan="12" style="padding: 2px; border: 1px solid #ddd; font-size: 10px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
+                    <td rowspan="12" style="padding: 1px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
         }
         
         // Dynamic column generation
