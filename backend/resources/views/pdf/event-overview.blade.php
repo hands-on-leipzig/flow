@@ -65,10 +65,9 @@ foreach($eventsByDay as $dayKey => $dayData) {
         <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
             <thead>
                 <tr>
-                    <th style="width: 8%; background-color: #f8f9fa; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold;">Zeit</th>';
+                    <th style="width: 10%; background-color: #f8f9fa; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold;">Zeit</th>';
         
-        // Dynamic column headers
-        $columnWidth = 92 / count($columnNames);
+        // Dynamic column headers with merged cells
         $columnColors = [
             'Explore' => '#27ae60',
             'Challenge' => '#e74c3c', 
@@ -77,24 +76,70 @@ foreach($eventsByDay as $dayKey => $dayData) {
             'Allgemein' => '#95a5a6'
         ];
         
+        // Calculate column widths dynamically
+        // Zeit gets 10%, remaining 90% is divided among actual HTML columns
+        $actualHtmlColumns = 0;
+        foreach($columnNames as $columnName) {
+            if ($columnName === 'Allgemein') {
+                $actualHtmlColumns += 1; // Single column
+            } elseif ($columnName === 'Allgemein-2') {
+                $actualHtmlColumns += 2; // Merged cell (Allgemein-2 + Explore)
+            } elseif ($columnName === 'Allgemein-3') {
+                $actualHtmlColumns += 2; // Merged cell (Allgemein-3 + Challenge)
+            } elseif ($columnName === 'Robot-Game') {
+                $actualHtmlColumns += 1; // Single column
+            } elseif ($columnName === 'Live-Challenge') {
+                $actualHtmlColumns += 1; // Single column
+            }
+            // Skip Explore and Challenge as they are merged
+        }
+        
+        $remainingWidth = 90;
+        $columnWidth = $remainingWidth / $actualHtmlColumns;
+        
         // Debug: Log column names being used in template
         \Log::info('Blade template column names', [
             'columnNames' => $columnNames,
-            'count' => count($columnNames)
+            'actualHtmlColumns' => $actualHtmlColumns,
+            'columnWidth' => $columnWidth
         ]);
         
-            foreach($columnNames as $columnName) {
-                // Use column name as display name to show uniqueness
-                $displayName = $columnName;
-            
-            // Map unique column names to colors
+        // Generate headers with merged cells
+        foreach($columnNames as $columnName) {
+            $displayName = $columnName;
             $baseColor = $displayName;
             if (strpos($displayName, 'Allgemein-') === 0) {
                 $baseColor = 'Allgemein';
             }
             $color = $columnColors[$baseColor] ?? '#95a5a6';
+            
+            if ($columnName === 'Allgemein') {
+                // Logo only
+                $headerContent = '<img src="file://' . public_path('flow/hot.png') . '" style="height: 20px; width: auto;">';
                 $contentHtml .= '
-                    <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold;">' . htmlspecialchars($displayName) . '</th>';
+                    <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+            } elseif ($columnName === 'Allgemein-2') {
+                // Merged cell for Allgemein-2 + Explore
+                $headerContent = '<img src="file://' . public_path('flow/fll_explore_h.png') . '" style="height: 20px; width: auto;">';
+                $contentHtml .= '
+                    <th colspan="2" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+            } elseif ($columnName === 'Allgemein-3') {
+                // Merged cell for Allgemein-3 + Challenge
+                $headerContent = '<img src="file://' . public_path('flow/fll_challenge_h.png') . '" style="height: 20px; width: auto;">';
+                $contentHtml .= '
+                    <th colspan="2" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+            } elseif ($columnName === 'Robot-Game') {
+                // Keep as is for Robot-Game
+                $headerContent = htmlspecialchars($displayName);
+                $contentHtml .= '
+                    <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+            } elseif ($columnName === 'Live-Challenge') {
+                // Keep as is for Live-Challenge
+                $headerContent = htmlspecialchars($displayName);
+                $contentHtml .= '
+                    <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+            }
+            // Skip Explore and Challenge as they are merged with Allgemein-2 and Allgemein-3
         }
         
         $contentHtml .= '
