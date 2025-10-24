@@ -12,10 +12,17 @@ foreach($eventsByDay as $dayKey => $dayData) {
     $earliestStart = $allEvents->min('earliest_start');
     $latestEnd = $allEvents->max('latest_end');
     
-    // Create hour grid from earliest start to latest end
-    $startHour = $earliestStart->hour;
-    $endHour = $latestEnd->hour;
-    if ($latestEnd->minute > 0) $endHour++; // Round up if there are minutes
+    // Create 5-minute grid from earliest start to latest end
+    $startTime = $earliestStart->copy()->startOfHour();
+    $endTime = $latestEnd->copy()->addHour()->startOfHour();
+    
+    // Generate all 5-minute slots
+    $timeSlots = [];
+    $current = $startTime->copy();
+    while ($current->lt($endTime)) {
+        $timeSlots[] = $current->copy();
+        $current->addMinutes(5);
+    }
     
     $contentHtml .= '
     <div style="margin-bottom: 30px; page-break-inside: avoid;">
@@ -36,65 +43,88 @@ foreach($eventsByDay as $dayKey => $dayData) {
             </thead>
             <tbody>';
     
-    // Generate hour rows
-    for ($hour = $startHour; $hour <= $endHour; $hour++) {
-        $timeLabel = sprintf('%02d:00', $hour);
+    // Track which events have been placed to avoid duplicates
+    $placedEvents = ['explore' => [], 'challenge' => [], 'general' => []];
+    
+    // Generate 5-minute rows
+    foreach ($timeSlots as $index => $slot) {
+        $isFullHour = $slot->minute == 0;
+        $timeLabel = $isFullHour ? $slot->format('H:i') : '';
+        
         $contentHtml .= '
                 <tr>
-                    <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px; font-weight: bold; background-color: #f8f9fa;">' . $timeLabel . '</td>
-                    <td style="padding: 0; border: 1px solid #ddd; vertical-align: top;">';
+                    <td style="padding: 2px; border: 1px solid #ddd; font-size: 10px; font-weight: bold; background-color: #f8f9fa; text-align: center;">' . $timeLabel . '</td>
+                    <td style="padding: 0; border: 1px solid #ddd; vertical-align: top; height: 8px;">';
         
-        // Find Explore events for this hour
-        $exploreEvents = $allEvents->filter(function($event) use ($hour) {
+        // Find Explore events starting at this time slot
+        $exploreEvents = $allEvents->filter(function($event) use ($slot, $placedEvents) {
             return isset($event['group_first_program_id']) && 
                    $event['group_first_program_id'] == 2 &&
-                   $event['earliest_start']->hour <= $hour && 
-                   $event['latest_end']->hour >= $hour;
+                   $event['earliest_start']->format('H:i') == $slot->format('H:i') &&
+                   !in_array($event['group_id'], $placedEvents['explore']);
         });
         
         foreach($exploreEvents as $event) {
+            // Calculate rowspan (duration in 5-minute slots)
+            $duration = $event['earliest_start']->diffInMinutes($event['latest_end']);
+            $rowspan = max(1, ceil($duration / 5));
+            
             $contentHtml .= '
-                        <div style="background-color: #d5f4e6; border-left: 3px solid #27ae60; padding: 4px 6px; margin: 1px; font-size: 10px; font-weight: bold;">
+                        <div style="background-color: #d5f4e6; border-left: 3px solid #27ae60; padding: 2px 4px; font-size: 9px; font-weight: bold; height: ' . ($rowspan * 8 - 4) . 'px; display: flex; align-items: center;">
                             ' . htmlspecialchars($event['group_name']) . '
                         </div>';
+            
+            $placedEvents['explore'][] = $event['group_id'];
         }
         
         $contentHtml .= '
                     </td>
-                    <td style="padding: 0; border: 1px solid #ddd; vertical-align: top;">';
+                    <td style="padding: 0; border: 1px solid #ddd; vertical-align: top; height: 8px;">';
         
-        // Find Challenge events for this hour
-        $challengeEvents = $allEvents->filter(function($event) use ($hour) {
+        // Find Challenge events starting at this time slot
+        $challengeEvents = $allEvents->filter(function($event) use ($slot, $placedEvents) {
             return isset($event['group_first_program_id']) && 
                    $event['group_first_program_id'] == 3 &&
-                   $event['earliest_start']->hour <= $hour && 
-                   $event['latest_end']->hour >= $hour;
+                   $event['earliest_start']->format('H:i') == $slot->format('H:i') &&
+                   !in_array($event['group_id'], $placedEvents['challenge']);
         });
         
         foreach($challengeEvents as $event) {
+            // Calculate rowspan (duration in 5-minute slots)
+            $duration = $event['earliest_start']->diffInMinutes($event['latest_end']);
+            $rowspan = max(1, ceil($duration / 5));
+            
             $contentHtml .= '
-                        <div style="background-color: #fdeaea; border-left: 3px solid #e74c3c; padding: 4px 6px; margin: 1px; font-size: 10px; font-weight: bold;">
+                        <div style="background-color: #fdeaea; border-left: 3px solid #e74c3c; padding: 2px 4px; font-size: 9px; font-weight: bold; height: ' . ($rowspan * 8 - 4) . 'px; display: flex; align-items: center;">
                             ' . htmlspecialchars($event['group_name']) . '
                         </div>';
+            
+            $placedEvents['challenge'][] = $event['group_id'];
         }
         
         $contentHtml .= '
                     </td>
-                    <td style="padding: 0; border: 1px solid #ddd; vertical-align: top;">';
+                    <td style="padding: 0; border: 1px solid #ddd; vertical-align: top; height: 8px;">';
         
-        // Find General events for this hour
-        $generalEvents = $allEvents->filter(function($event) use ($hour) {
+        // Find General events starting at this time slot
+        $generalEvents = $allEvents->filter(function($event) use ($slot, $placedEvents) {
             return (!isset($event['group_first_program_id']) || 
                    ($event['group_first_program_id'] != 2 && $event['group_first_program_id'] != 3)) &&
-                   $event['earliest_start']->hour <= $hour && 
-                   $event['latest_end']->hour >= $hour;
+                   $event['earliest_start']->format('H:i') == $slot->format('H:i') &&
+                   !in_array($event['group_id'], $placedEvents['general']);
         });
         
         foreach($generalEvents as $event) {
+            // Calculate rowspan (duration in 5-minute slots)
+            $duration = $event['earliest_start']->diffInMinutes($event['latest_end']);
+            $rowspan = max(1, ceil($duration / 5));
+            
             $contentHtml .= '
-                        <div style="background-color: #f5f5f5; border-left: 3px solid #95a5a6; padding: 4px 6px; margin: 1px; font-size: 10px; font-weight: bold;">
+                        <div style="background-color: #f5f5f5; border-left: 3px solid #95a5a6; padding: 2px 4px; font-size: 9px; font-weight: bold; height: ' . ($rowspan * 8 - 4) . 'px; display: flex; align-items: center;">
                             ' . htmlspecialchars($event['group_name']) . '
                         </div>';
+            
+            $placedEvents['general'][] = $event['group_id'];
         }
         
         $contentHtml .= '
