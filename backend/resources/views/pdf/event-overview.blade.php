@@ -18,52 +18,122 @@ foreach($eventsByDay as $dayKey => $dayData) {
             ' . $dayData['date']->locale('de')->isoFormat('dddd, DD.MM.YYYY') . '
         </h2>
 
-        <!-- Events for this day -->
-        <div style="margin-left: 20px;">';
+        <!-- Three Column Layout -->
+        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+            <tr>
+                <!-- Left Column: Explore -->
+                <td style="width: 33.33%; vertical-align: top; background-color: #f0f8f0; padding: 10px; border-radius: 5px;">
+                    <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 14px; text-align: center; background-color: #27ae60; color: white; padding: 5px; border-radius: 3px;">
+                        FIRST LEGO League Explore
+                    </h3>
+                    <div>';
     
-    foreach($dayData['events'] as $event) {
-        // Determine program icon
-        $programIcon = '';
-        if (isset($event['group_first_program_id']) && $event['group_first_program_id'] !== null) {
-            if ($event['group_first_program_id'] == 2) {
-                $programIcon = '<img src="file://' . public_path('flow/fll_explore_v.png') . '" alt="Explore" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" />';
-            } elseif ($event['group_first_program_id'] == 3) {
-                $programIcon = '<img src="file://' . public_path('flow/fll_challenge_v.png') . '" alt="Challenge" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" />';
-            } else {
-                $programIcon = '<img src="file://' . public_path('flow/first_v.png') . '" alt="FIRST" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" />';
-            }
-        } else {
-            // Show both icons when no program ID is available (Explore first)
-            $programIcon = '<img src="file://' . public_path('flow/fll_explore_v.png') . '" alt="Explore" style="width: 20px; height: 20px; margin-right: 4px; vertical-align: middle;" />';
-            $programIcon .= '<img src="file://' . public_path('flow/fll_challenge_v.png') . '" alt="Challenge" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;" />';
-        }
-        
+    // Filter and sort Explore events (program ID = 2)
+    $exploreEvents = collect($dayData['events'])->filter(function($event) {
+        return isset($event['group_first_program_id']) && $event['group_first_program_id'] == 2;
+    })->sortBy('earliest_start');
+    
+    foreach($exploreEvents as $event) {
         $contentHtml .= '
-            <div style="border-left: 4px solid #3498db; padding: 15px 20px; margin-bottom: 15px; background-color: #f8f9fa; border-radius: 0 5px 5px 0;">
-                
-                <!-- Time and Title -->
-                <div style="margin-bottom: 8px;">
-                    <div style="font-family: monospace; font-size: 14px; color: #666; margin-bottom: 4px;">
-                        ' . $event['earliest_start']->format('H:i') . ' - ' . $event['latest_end']->format('H:i') . '
-                    </div>
-                    <h3 style="margin: 0; color: #2c3e50; font-size: 16px; font-weight: bold; display: flex; align-items: center;">
-                        ' . $programIcon . htmlspecialchars($event['group_name']) . '
-                    </h3>';
+                    <div style="border-left: 4px solid #27ae60; padding: 10px 15px; margin-bottom: 10px; background-color: #ffffff; border-radius: 0 5px 5px 0;">
+                        <div style="font-family: monospace; font-size: 12px; color: #666; margin-bottom: 3px;">
+                            ' . $event['earliest_start']->format('H:i') . ' - ' . $event['latest_end']->format('H:i') . '
+                        </div>
+                        <div style="font-size: 14px; font-weight: bold; color: #2c3e50;">
+                            ' . htmlspecialchars($event['group_name']) . '
+                        </div>';
         
         if($event['group_description']) {
             $contentHtml .= '
-                    <p style="margin: 4px 0 0 0; color: #555; font-size: 13px; font-style: italic;">
-                        ' . htmlspecialchars($event['group_description']) . '
-                    </p>';
+                        <div style="font-size: 11px; color: #555; font-style: italic; margin-top: 2px;">
+                            ' . htmlspecialchars($event['group_description']) . '
+                        </div>';
         }
         
         $contentHtml .= '
-                </div>
-            </div>';
+                    </div>';
     }
     
     $contentHtml .= '
-        </div>
+                    </div>
+                </td>
+                
+                <!-- Middle Column: Challenge -->
+                <td style="width: 33.33%; vertical-align: top; background-color: #f8f0f0; padding: 10px; border-radius: 5px;">
+                    <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 14px; text-align: center; background-color: #e74c3c; color: white; padding: 5px; border-radius: 3px;">
+                        FIRST LEGO League Challenge
+                    </h3>
+                    <div>';
+    
+    // Filter and sort Challenge events (program ID = 3)
+    $challengeEvents = collect($dayData['events'])->filter(function($event) {
+        return isset($event['group_first_program_id']) && $event['group_first_program_id'] == 3;
+    })->sortBy('earliest_start');
+    
+    foreach($challengeEvents as $event) {
+        $contentHtml .= '
+                    <div style="border-left: 4px solid #e74c3c; padding: 10px 15px; margin-bottom: 10px; background-color: #ffffff; border-radius: 0 5px 5px 0;">
+                        <div style="font-family: monospace; font-size: 12px; color: #666; margin-bottom: 3px;">
+                            ' . $event['earliest_start']->format('H:i') . ' - ' . $event['latest_end']->format('H:i') . '
+                        </div>
+                        <div style="font-size: 14px; font-weight: bold; color: #2c3e50;">
+                            ' . htmlspecialchars($event['group_name']) . '
+                        </div>';
+        
+        if($event['group_description']) {
+            $contentHtml .= '
+                        <div style="font-size: 11px; color: #555; font-style: italic; margin-top: 2px;">
+                            ' . htmlspecialchars($event['group_description']) . '
+                        </div>';
+        }
+        
+        $contentHtml .= '
+                    </div>';
+    }
+    
+    $contentHtml .= '
+                    </div>
+                </td>
+                
+                <!-- Right Column: Other/General -->
+                <td style="width: 33.33%; vertical-align: top; background-color: #f5f5f5; padding: 10px; border-radius: 5px;">
+                    <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 14px; text-align: center; background-color: #95a5a6; color: white; padding: 5px; border-radius: 3px;">
+                        Allgemein
+                    </h3>
+                    <div>';
+    
+    // Filter and sort Other events (no program ID or other IDs)
+    $otherEvents = collect($dayData['events'])->filter(function($event) {
+        return !isset($event['group_first_program_id']) || 
+               ($event['group_first_program_id'] != 2 && $event['group_first_program_id'] != 3);
+    })->sortBy('earliest_start');
+    
+    foreach($otherEvents as $event) {
+        $contentHtml .= '
+                    <div style="border-left: 4px solid #95a5a6; padding: 10px 15px; margin-bottom: 10px; background-color: #ffffff; border-radius: 0 5px 5px 0;">
+                        <div style="font-family: monospace; font-size: 12px; color: #666; margin-bottom: 3px;">
+                            ' . $event['earliest_start']->format('H:i') . ' - ' . $event['latest_end']->format('H:i') . '
+                        </div>
+                        <div style="font-size: 14px; font-weight: bold; color: #2c3e50;">
+                            ' . htmlspecialchars($event['group_name']) . '
+                        </div>';
+        
+        if($event['group_description']) {
+            $contentHtml .= '
+                        <div style="font-size: 11px; color: #555; font-style: italic; margin-top: 2px;">
+                            ' . htmlspecialchars($event['group_description']) . '
+                        </div>';
+        }
+        
+        $contentHtml .= '
+                    </div>';
+    }
+    
+    $contentHtml .= '
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>';
     
     $isFirstDay = false;
