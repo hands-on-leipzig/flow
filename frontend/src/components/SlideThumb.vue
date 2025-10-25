@@ -59,10 +59,10 @@ const componentSlide = Slide.fromObject(props.slide);
           <span class="w-10 h-6 flex items-center bg-gray-300 rounded-full p-1 transition-colors duration-300"
                 :class="slide.active === 1 ? 'bg-green-400' : 'bg-gray-300'"
           >
-          <span class="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300"
-                :class="slide.active === 1 ? 'translate-x-4' : ''"
-          ></span>
-        </span>
+            <span class="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300"
+                  :class="slide.active === 1 ? 'translate-x-4' : ''"
+            ></span>
+          </span>
         </label>
 
       </div>
