@@ -1043,6 +1043,8 @@ class PlanExportController extends Controller
                 // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
                 'is_explore'    => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
                 'is_challenge'  => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::CHALLENGE->value]),
+                // Add date information for day grouping
+                'start_date' => \Carbon\Carbon::parse($a->start_time),
             ];
         })->values()->all();
 
@@ -1246,6 +1248,7 @@ if ($prepRooms->isNotEmpty()) {
                     'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                     'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
                     'room'     => $roomDisplay,
+                    'start_date' => \Carbon\Carbon::parse($a->start_time), // Added for day grouping
                 ];
             })->values()->all();
 
@@ -1288,30 +1291,58 @@ if ($prepRooms->isNotEmpty()) {
             }
 
             // ➕ Zusatzzeile "Teambereich"
+            // Use first activity's date if available, otherwise use a default
+            $firstDate = !empty($rows) && isset($rows[0]['start_date']) 
+                ? $rows[0]['start_date'] 
+                : \Carbon\Carbon::now();
+            
             array_unshift($rows, [
                 'start'    => '',
                 'end'      => '',
                 'activity' => 'Teambereich',
                 'room'     => $teamRoomName,
+                'start_date' => $firstDate,
             ]);
             
-            // In Seitenblöcke teilen
-            $chunks = array_chunk($rows, $maxRowsPerPage);
-            $chunkCount = count($chunks);
-
-            foreach ($chunks as $chunkIndex => $chunkRows) {
+            // Check if team has multiple days
+            $uniqueDays = collect($rows)->pluck('start_date')->map(function($date) {
+                return $date->format('Y-m-d');
+            })->unique()->count();
+            
+            $hasMultipleDays = $uniqueDays > 1;
+            
+            if ($hasMultipleDays) {
+                // Multi-day team: don't chunk, let template handle day-based page breaks
                 $html .= view('pdf.content.team_schedule', [
                     'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
-                    'rows'  => $chunkRows,
+                    'rows'  => $rows,
                     'event' => $event,
-                    'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
+                    'roomsWithNav' => $roomsWithNav,
                 ])->render();
+            } else {
+                // Single-day team: use existing chunking logic
+                $chunks = array_chunk($rows, $maxRowsPerPage);
+                $chunkCount = count($chunks);
 
-                // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
-                $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
-                if (!$isLastChunk) {
-                    $html .= '<div style="page-break-before: always;"></div>';
+                foreach ($chunks as $chunkIndex => $chunkRows) {
+                    $html .= view('pdf.content.team_schedule', [
+                        'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
+                        'rows'  => $chunkRows,
+                        'event' => $event,
+                        'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
+                    ])->render();
+
+                    // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
+                    $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
+                    if (!$isLastChunk) {
+                        $html .= '<div style="page-break-before: always;"></div>';
+                    }
                 }
+            }
+            
+            // Page break between teams (but not after the last team)
+            if ($idx !== $lastIndex) {
+                $html .= '<div style="page-break-before: always;"></div>';
             }
         }
 
@@ -1545,6 +1576,7 @@ if ($prepRooms->isNotEmpty()) {
         $challengeJuryActs = $allActivities->filter(fn($a) => $a->role_id == 4);
         $challengeRefActs = $allActivities->filter(fn($a) => $a->role_id == 5);
         $challengeCheckActs = $allActivities->filter(fn($a) => $a->role_id == 11);
+        $liveChallengeActs = $allActivities->filter(fn($a) => $a->role_id == 16);
 
         // === Event laden ===
         $event = DB::table('event')
@@ -1638,13 +1670,15 @@ if ($prepRooms->isNotEmpty()) {
         $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
         $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table', 'FLL Challenge Schiedsrichter:innen ');
         $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table', 'FLL Challenge Robot-Check für ');
+        $liveChallengeGrouped = $distributeGeneric($liveChallengeActs, 'lane', 'Live-Challenge Jury-Gruppe');
 
         // === Zusammenführen, sortiert nach Program-Logik ===
         $sections = collect()
             ->merge($exploreGrouped->sortKeys())
             ->merge($challengeJuryGrouped->sortKeys())
             ->merge($challengeRefGrouped->sortKeys())
-           ->merge($challengeCheckGrouped->sortKeys());
+           ->merge($challengeCheckGrouped->sortKeys())
+           ->merge($liveChallengeGrouped->sortKeys());
 
         // === Rendern aller Abschnitte ===
         $html = '';
@@ -1703,6 +1737,8 @@ if ($prepRooms->isNotEmpty()) {
                     return '–';
                 })(),
                 'room'     => $a->room_name ?? '–',
+                // Add date information for day grouping
+                'start_date' => \Carbon\Carbon::parse($a->start_time),
             ])->values()->all();
 
             // Teile das Array in Seitenblöcke
@@ -1829,6 +1865,375 @@ if ($prepRooms->isNotEmpty()) {
         ];
 
         return response()->json($result);
+    }
+
+    /**
+     * Generate event overview PDF - chronological list of activity groups
+     */
+    public function eventOverviewPdf(int $planId)
+    {
+        try {
+            // Get public activities using the same filtering as rooms plan
+            $activities = $this->activityFetcher->fetchActivities(
+                plan: $planId,
+                roles: [6, 10, 14],   // Rollen: Publikum E, C und generisch
+                includeGroupMeta: true,
+                freeBlocks: true
+            );
+
+            if ($activities->isEmpty()) {
+                return response()->json(['error' => 'No activities found for this plan'], 404);
+            }
+
+            // Group activities by activity_group_id to ensure each group appears as separate block
+            $groupedActivities = $activities->groupBy('activity_group_id');
+            
+            
+            $eventOverview = [];
+
+            foreach ($groupedActivities as $groupId => $groupActivities) {
+                $startTimes = $groupActivities->pluck('start_time')->map(function($time) {
+                    return Carbon::parse($time);
+                });
+                $endTimes = $groupActivities->pluck('end_time')->map(function($time) {
+                    return Carbon::parse($time);
+                });
+
+                $earliestStart = $startTimes->min();
+                $latestEnd = $endTimes->max();
+
+                // Get group metadata from first activity
+                $firstActivity = $groupActivities->first();
+                
+                $eventOverview[] = [
+                    'group_id' => $groupId,
+                    'group_name' => $firstActivity->group_atd_name ?? 'Unknown Group',
+                    'group_description' => $firstActivity->group_description ?? '',
+                    'group_first_program_id' => $firstActivity->group_first_program_id ?? null,
+                    'group_overview_plan_column' => $firstActivity->group_overview_plan_column ?? null,
+                    'earliest_start' => $earliestStart,
+                    'latest_end' => $latestEnd,
+                    'duration_minutes' => $earliestStart->diffInMinutes($latestEnd),
+                    'activity_count' => $groupActivities->count()
+                ];
+            }
+
+            // Sort by earliest start time
+            usort($eventOverview, function($a, $b) {
+                return $a['earliest_start']->timestamp - $b['earliest_start']->timestamp;
+            });
+
+            // Manual assignment of free blocks to program-specific Allgemein columns
+            foreach ($eventOverview as &$event) {
+                if (($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null) && $event['group_first_program_id'] !== null) {
+                    // This is a free block - assign to program-specific Allgemein column
+                    if ($event['group_first_program_id'] == 2) {
+                        $event['group_overview_plan_column'] = 'Allgemein-2'; // Explore
+                    } elseif ($event['group_first_program_id'] == 3) {
+                        $event['group_overview_plan_column'] = 'Allgemein-3'; // Challenge
+                    }
+                }
+            }
+
+            
+            // Get unique columns with their first_program for sorting
+            $columnsWithProgram = collect($eventOverview)
+                ->map(function($event) {
+                    return [
+                        'overview_plan_column' => $event['group_overview_plan_column'],
+                        'first_program' => $event['group_first_program_id']
+                    ];
+                })
+                ->unique(function($item) {
+                    return $item['overview_plan_column'] . '|' . $item['first_program'];
+                })
+                ->sortBy(function($item) {
+                    // Custom sorting to ensure specific column order
+                    $column = $item['overview_plan_column'];
+                    $program = $item['first_program'];
+                    
+                    // Define custom order for the last four columns
+                    $customOrder = [
+                        'Allgemein-3' => 1,
+                        'Challenge' => 2,
+                        'Robot-Game' => 3,
+                        'Live-Challenge' => 4
+                    ];
+                    
+                    // For the last four columns, use custom order
+                    if (isset($customOrder[$column])) {
+                        return $program * 1000 + $customOrder[$column];
+                    }
+                    
+                    // For other columns, use original sorting
+                    return $program * 1000 + ($column === null ? 999 : 0);
+                })
+                ->values();
+
+            // Create unique column identifiers that include first_program for Allgemein
+            $columnNames = $columnsWithProgram
+                ->map(function($item) {
+                    $columnName = $item['overview_plan_column'] ?? 'Allgemein';
+                    // Handle empty strings as well as null
+                    if (empty($columnName)) {
+                        $columnName = 'Allgemein';
+                    }
+                    // For Allgemein columns, include first_program to make them unique
+                    if ($columnName === 'Allgemein') {
+                        $program = $item['first_program'];
+                        if ($program === null) {
+                            return 'Allgemein';
+                        } else {
+                            return 'Allgemein-' . $program;
+                        }
+                    }
+                    return $columnName;
+                })
+                ->values()
+                ->toArray();
+
+
+
+            // Group by day for display
+            $eventsByDay = [];
+            foreach ($eventOverview as $event) {
+                $dayKey = $event['earliest_start']->format('Y-m-d');
+                if (!isset($eventsByDay[$dayKey])) {
+                    $eventsByDay[$dayKey] = [
+                        'date' => $event['earliest_start'],
+                        'events' => []
+                    ];
+                }
+                $eventsByDay[$dayKey]['events'][] = $event;
+            }
+
+            // Get event data for header
+            $event = DB::table('event')
+                ->join('plan', 'plan.event', '=', 'event.id')
+                ->where('plan.id', $planId)
+                ->select('event.*')
+                ->first();
+
+            if (!$event) {
+                return response()->json(['error' => 'Event not found'], 404);
+            }
+
+            // Generate content HTML using the event-overview template
+            $contentHtml = view('pdf.event-overview', [
+                'eventsByDay' => $eventsByDay,
+                'columnNames' => $columnNames,
+                'planId' => $planId
+            ])->render();
+
+            // Use portrait layout specifically for overview PDF
+            $header = $this->buildHeaderData($event);
+            $footerLogos = $this->buildFooterLogos($event->id);
+            
+            $finalHtml = view('pdf.layout_portrait', [
+                'title' => 'FLOW Übersichtsplan',
+                'header' => $header,
+                'footerLogos' => $footerLogos,
+                'contentHtml' => $contentHtml,
+            ])->render();
+
+            // Generate PDF in portrait orientation
+            $pdf = Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'portrait');
+
+            // Get plan info for filename
+            $plan = DB::table('plan')
+                ->where('id', $planId)
+                ->select('last_change')
+                ->first();
+
+            // Format date for filename
+            $formattedDate = $plan && $plan->last_change
+                ? \Carbon\Carbon::parse($plan->last_change)
+                    ->timezone('Europe/Berlin')
+                    ->format('d.m.y')
+                : now()->format('d.m.y');
+
+            $filename = "FLOW_Übersichtsplan_({$formattedDate}).pdf";
+
+            // Umlaute transliterieren
+            $filename = str_replace(
+                ['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'],
+                ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'],
+                $filename
+            );
+
+            // Return PDF with proper headers for filename
+            return response($pdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('X-Filename', $filename)
+                ->header('Access-Control-Expose-Headers', 'X-Filename');
+
+        } catch (\Exception $e) {
+            Log::error('Event overview PDF generation failed', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'PDF generation failed'], 500);
+        }
+    }
+
+    /**
+     * Build header data for PDF (copied from PdfLayoutService)
+     */
+    private function buildHeaderData(object $event): array
+    {
+        $formattedDate = '';
+        if (!empty($event->date)) {
+            try {
+                $startDate = Carbon::parse($event->date);
+                
+                // Check if this is a multi-day event
+                if (!empty($event->days) && $event->days > 1) {
+                    // Multi-day event: show date range
+                    $endDate = $startDate->copy()->addDays($event->days - 1);
+                    $formattedDate = $startDate->format('d.m') . '-' . $endDate->format('d.m.Y');
+                } else {
+                    // Single-day event: show just the date
+                    $formattedDate = $startDate->format('d.m.Y');
+                }
+            } catch (\Throwable $e) {
+                $formattedDate = (string) $event->date;
+            }
+        }
+
+        $leftLogos = [];
+        if (!empty($event->event_explore)) {
+            $leftLogos[] = $this->toDataUri(public_path('flow/fll_explore_hs.png'));
+        }
+        if (!empty($event->event_challenge)) {
+            $leftLogos[] = $this->toDataUri(public_path('flow/fll_challenge_hs.png'));
+        }
+        $leftLogos = array_values(array_filter($leftLogos));
+
+        $rightLogo = $this->toDataUri(public_path('flow/hot.png'));
+
+        return [
+            'leftLogos'       => $leftLogos,
+            'centerTitleTop'  => 'FIRST LEGO League Wettbewerb',
+            'centerTitleMain' => trim(($event->name ?? '') . ' ' . $formattedDate),
+            'rightLogo'       => $rightLogo,
+        ];
+    }
+
+    /**
+     * Build footer logos for PDF (copied from PdfLayoutService)
+     */
+    private function buildFooterLogos(int $eventId): array
+    {
+        $logos = DB::table('logo')
+            ->join('event_logo', 'logo.id', '=', 'event_logo.logo')
+            ->where('event_logo.event', $eventId)
+            ->select('logo.path')
+            ->get();
+
+        $dataUris = [];
+        foreach ($logos as $logo) {
+            $path = storage_path('app/public/' . $logo->path);
+            $uri  = $this->toDataUri($path);
+            if ($uri) {
+                $dataUris[] = $uri;
+            }
+        }
+
+        return $dataUris;
+    }
+
+    /**
+     * Convert file to data URI (copied from PdfLayoutService)
+     */
+    private function toDataUri(string $path): ?string
+    {
+        if (!is_file($path)) {
+            return null;
+        }
+        $mime = mime_content_type($path) ?: 'image/png';
+        $data = @file_get_contents($path);
+        if ($data === false) {
+            return null;
+        }
+        return 'data:' . $mime . ';base64,' . base64_encode($data);
+    }
+
+    /**
+     * Get worker shifts for roles with differentiation_parameter
+     */
+    public function workerShifts(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        // Get roles with differentiation_parameter 'lane' or 'table'
+        $roles = DB::table('m_role')
+            ->whereIn('differentiation_parameter', ['lane', 'table'])
+            ->select('id', 'name', 'differentiation_parameter')
+            ->get();
+
+        $shifts = [];
+
+        foreach ($roles as $role) {
+            // Fetch activities for this role
+            $activities = collect($this->activityFetcher->fetchActivities(
+                $plan->id,
+                [$role->id],
+                true,  // includeRooms
+                false, // includeGroupMeta
+                true,  // includeActivityMeta
+                true,  // includeTeamNames
+                true   // freeBlocks
+            ));
+
+            if ($activities->isEmpty()) {
+                continue;
+            }
+
+            // Group activities by day
+            $activitiesByDay = [];
+            foreach ($activities as $activity) {
+                $dayKey = \Carbon\Carbon::parse($activity->start_time)->format('Y-m-d');
+                if (!isset($activitiesByDay[$dayKey])) {
+                    $activitiesByDay[$dayKey] = [];
+                }
+                $activitiesByDay[$dayKey][] = $activity;
+            }
+
+            // Calculate shifts for each day
+            $roleShifts = [];
+            foreach ($activitiesByDay as $dayKey => $dayActivities) {
+                $startTimes = collect($dayActivities)->pluck('start_time')->map(function($time) {
+                    return \Carbon\Carbon::parse($time);
+                });
+                $endTimes = collect($dayActivities)->pluck('end_time')->map(function($time) {
+                    return \Carbon\Carbon::parse($time);
+                });
+
+                $earliestStart = $startTimes->min();
+                $latestEnd = $endTimes->max();
+
+                $roleShifts[] = [
+                    'day' => $dayKey,
+                    'start' => $earliestStart->format('H:i'),
+                    'end' => $latestEnd->format('H:i')
+                ];
+            }
+
+            $shifts[] = [
+                'role_name' => $role->name,
+                'shifts' => $roleShifts
+            ];
+        }
+
+        return response()->json(['shifts' => $shifts]);
     }
 
 }

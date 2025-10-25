@@ -215,6 +215,7 @@ class PlanPreviewController extends Controller
         $groups = [];
         foreach ($activities as $activity) {
             $groupId = $activity->activity_group_id;
+            $activityId = $activity->activity_id;
             
             if (!isset($groups[$groupId])) {
                 $groups[$groupId] = [
@@ -224,22 +225,35 @@ class PlanPreviewController extends Controller
                 ];
             }
             
-            $groups[$groupId]['activities'][] = [
-                'activity_id' => $activity->activity_id,
-                'start_time' => $activity->start_time,
-                'end_time' => $activity->end_time,
-                'program' => $activity->program_name,
-                'activity_name' => $activity->activity_name,
-                'lane' => $activity->lane,
-                'team' => $activity->team,
-                'table_1_team' => $activity->table_1_team,
-                'table_2_team' => $activity->table_2_team,
-                'table_1' => $activity->table_1,
-                'table_2' => $activity->table_2,
-                'room_type_name' => $activity->room_type_name ?? '',
-            ];
+            // Check if activity already exists (handle duplicates from room joins)
+            if (!isset($groups[$groupId]['activities'][$activityId])) {
+                $groups[$groupId]['activities'][$activityId] = [
+                    'activity_id' => $activity->activity_id,
+                    'start_time' => $activity->start_time,
+                    'end_time' => $activity->end_time,
+                    'program' => $activity->program_name,
+                    'activity_name' => $activity->activity_name,
+                    'lane' => $activity->lane,
+                    'team' => $activity->team,
+                    'table_1_team' => $activity->table_1_team,
+                    'table_2_team' => $activity->table_2_team,
+                    'table_1' => $activity->table_1,
+                    'table_2' => $activity->table_2,
+                    'room_type_name' => $activity->room_type_name ?? '',
+                ];
+            } else {
+                // Update room info if current row has better room data
+                if (empty($groups[$groupId]['activities'][$activityId]['room_type_name']) && !empty($activity->room_type_name)) {
+                    $groups[$groupId]['activities'][$activityId]['room_type_name'] = $activity->room_type_name;
+                }
+            }
         }
 
+        // Convert associative activities arrays to indexed arrays
+        foreach ($groups as &$group) {
+            $group['activities'] = array_values($group['activities']);
+        }
+        
         return response()->json([
             'groups' => array_values($groups)
         ]);
