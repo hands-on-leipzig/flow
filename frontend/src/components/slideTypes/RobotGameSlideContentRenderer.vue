@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {RobotGameSlideContent} from '../../models/robotGameSlideContent.js';
-import {onMounted, onUnmounted, ref, computed} from "vue";
+import {onMounted, onUnmounted, ref, computed, toRef} from "vue";
 import axios from "axios";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
 
@@ -25,11 +25,16 @@ const roundNames: { [round in Round]: string } = {
   HF: 'Halbfinale',
 };
 
+const props = defineProps<{
+  content: RobotGameSlideContent,
+  preview: boolean
+}>();
+
 const scores = ref<ScoresResponse>(null);
 const error = ref<string | null>(null);
 const currentIndex = ref(0);
 const isPaused = ref(false);
-const teamsPerPage = ref(8);
+const teamsPerPage = toRef(props.content, 'teamsPerPage') || ref(8);
 const round = ref<string | undefined>(undefined);
 const teams = computed(() => {
   const category = getRoundToShow(scores.value?.rounds);
@@ -236,11 +241,7 @@ onUnmounted(() => {
   clearInterval(refreshInterval);
   clearInterval(autoAdvanceInterval);
   window.removeEventListener('keydown', handleKeyDown);
-})
-const props = defineProps<{
-  content: RobotGameSlideContent,
-  preview: boolean
-}>();
+});
 </script>
 
 <template>
