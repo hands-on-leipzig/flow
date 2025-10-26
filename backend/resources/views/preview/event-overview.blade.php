@@ -1,4 +1,12 @@
 <div class="event-overview">
+    @php
+        \Log::info('Template processing started', [
+            'eventsByDayCount' => count($eventsByDay),
+            'timeSlotsCount' => count($timeSlots),
+            'firstTimeSlot' => isset($timeSlots[0]) ? $timeSlots[0]->format('H:i') : 'none',
+            'lastTimeSlot' => isset($timeSlots[count($timeSlots)-1]) ? $timeSlots[count($timeSlots)-1]->format('H:i') : 'none'
+        ]);
+    @endphp
     @foreach($eventsByDay as $dayKey => $dayData)
         <div class="day-section">
             @if($isMultiDay)
@@ -70,6 +78,19 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @php
+                            \Log::info('First day events sample', [
+                                'dayKey' => $dayKey,
+                                'eventsCount' => count($dayData['events']),
+                                'firstEvent' => isset($dayData['events'][0]) ? [
+                                    'group_name' => $dayData['events'][0]['group_name'] ?? 'null',
+                                    'group_overview_plan_column' => $dayData['events'][0]['group_overview_plan_column'] ?? 'null',
+                                    'group_first_program_id' => $dayData['events'][0]['group_first_program_id'] ?? 'null',
+                                    'earliest_start' => $dayData['events'][0]['earliest_start']->format('H:i'),
+                                    'latest_end' => $dayData['events'][0]['latest_end']->format('H:i')
+                                ] : 'none'
+                            ]);
+                        @endphp
                         @foreach($timeSlots as $slotTime)
                             <tr class="time-row">
                                 <td class="time-cell">
