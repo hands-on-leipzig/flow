@@ -22,6 +22,7 @@ const challengeTeams = ref([])
 
 const dragOverRoomId = ref(null)
 const isDragging = ref(false)
+const isDraggingRoom = ref(false)
 const previewedTypeId = ref(null)
 
 // --- Farbzuweisung ---
@@ -291,6 +292,26 @@ const handleDrop = async (event, room) => {
   isDragging.value = false
 }
 
+// --- Room reordering ---
+const handleRoomReorder = async () => {
+  try {
+    const roomsWithSequence = rooms.value.map((room, index) => ({
+      room_id: room.id,
+      sequence: index + 1
+    }))
+
+    await axios.put('/rooms/update-sequence', {
+      rooms: roomsWithSequence,
+      event_id: eventId.value
+    })
+  } catch (error) {
+    console.error('Error updating room sequence:', error)
+    // Optionally reload rooms to restore original order
+    const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
+    rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
+  }
+}
+
 // --- Raum löschen ---
 const showDeleteModal = ref(false)
 const roomToDelete = ref(null)
@@ -381,22 +402,36 @@ const hasWarning = (tab) => {
     <!-- 🟢 Linke Spalte: Räume -->
     <div>
       <h2 class="text-xl font-bold mb-4">Räume</h2>
-      <ul class="grid grid-cols-2 gap-4">
-        <!-- Bestehende Räume -->
-        <li
-          v-for="room in rooms"
-          :key="room.id"
-          class="p-4 mb-2 border rounded bg-white shadow"
-        >
+      <draggable
+        v-model="rooms"
+        group="rooms"
+        item-key="id"
+        @start="isDraggingRoom = true"
+        @end="isDraggingRoom = false; handleRoomReorder()"
+        class="grid grid-cols-2 gap-4"
+      >
+        <template #item="{ element: room }">
+          <li
+            :key="room.id"
+            class="p-4 mb-2 border rounded bg-white shadow cursor-move hover:shadow-md transition-shadow"
+            :class="{
+              'opacity-50': isDraggingRoom,
+              'shadow-lg': isDraggingRoom
+            }"
+          >
           <div class="flex justify-between items-start">
             <div class="w-full">
-              <!-- Raumname -->
-              <div class="mb-2">
+              <!-- Drag handle -->
+              <div class="flex items-center gap-2 mb-2">
+                <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
+                <!-- Raumname -->
+                <div class="flex-1">
                 <input
                   v-model="room.name"
                   class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
                   @blur="updateRoom(room)"
                 />
+                </div>
               </div>
 
               <!-- Navigationshinweis -->
@@ -493,7 +528,8 @@ const hasWarning = (tab) => {
               🗑️
             </button>
           </div>
-        </li>
+          </li>
+        </template>
 
         <!-- 🟩 Neuer Raum -->
         <li
@@ -523,7 +559,7 @@ const hasWarning = (tab) => {
             </div>
           </transition>
         </li>
-      </ul>
+      </draggable>
     </div>
 
     <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->
