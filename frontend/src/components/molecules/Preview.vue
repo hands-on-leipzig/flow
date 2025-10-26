@@ -112,7 +112,7 @@ async function load() {
   try {
     if (view.value === 'overview') {
       // Event overview HTML
-      const { data } = await axios.get(`/event-overview-html/${effectivePlanId.value}`)
+      const { data } = await axios.get(`/api/export/event-overview-html/${effectivePlanId.value}`)
       overviewHtml.value = data.html
       headers.value = []
       rows.value = []
