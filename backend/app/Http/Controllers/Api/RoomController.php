@@ -25,11 +25,11 @@ class RoomController extends Controller
             ->get();
 
         // Plan-ID zum Event holen
-        $plan = \DB::table('plan')->where('event', $event->id)->value('id');
+        $plan = DB::table('plan')->where('event', $event->id)->value('id');
 
         if ($plan) {
             // Extra-Blocks gruppiert nach room_id laden
-            $extraBlocksByRoom = \DB::table('extra_block')
+            $extraBlocksByRoom = DB::table('extra_block')
                 ->where('plan', $plan)
                 ->select('id', 'name', 'room', 'first_program')
                 ->whereNotNull('room')
@@ -108,13 +108,13 @@ class RoomController extends Controller
             // 🔹 Normaler Raum-Typ → Beziehung in Pivot-Tabelle
             $type = \App\Models\MRoomType::findOrFail($validated['type_id']);
 
-            \DB::table('room_type_room')
+            DB::table('room_type_room')
                 ->where('room_type', $validated['type_id'])
                 ->where('event', $validated['event'])
                 ->delete();
 
             if ($validated['room_id']) {
-                \DB::table('room_type_room')->insert([
+                DB::table('room_type_room')->insert([
                     'room_type' => $type->id,
                     'room' => $validated['room_id'],
                     'event' => $validated['event'],
@@ -148,7 +148,7 @@ class RoomController extends Controller
         $plan = \App\Models\Plan::where('event', $validated['event'])->firstOrFail();
 
         // Update direkt in team_plan (Eintrag muss existieren)
-        \DB::table('team_plan')
+        DB::table('team_plan')
             ->where('team', $validated['team_id'])
             ->where('plan', $plan->id)
             ->update(['room' => $validated['room_id']]);
@@ -157,25 +157,25 @@ class RoomController extends Controller
     }
 
     /**
-     * Update the sequence of room types within a room
+     * Update the sequence of rooms within an event (for drag-and-drop reordering)
      */
-    public function updateRoomTypeSequence(Request $request, Room $room)
+    public function updateRoomSequence(Request $request)
     {
         $validated = $request->validate([
-            'room_types' => 'required|array',
-            'room_types.*.room_type_id' => 'required|integer',
-            'room_types.*.sequence' => 'required|integer',
+            'rooms' => 'required|array',
+            'rooms.*.room_id' => 'required|integer|exists:room,id',
+            'rooms.*.sequence' => 'required|integer|min:1',
+            'event_id' => 'required|integer|exists:event,id',
         ]);
 
-        $eventId = $room->event;
-
-        foreach ($validated['room_types'] as $item) {
-            \DB::table('room_type_room')
-                ->where('room', $room->id)
-                ->where('room_type', $item['room_type_id'])
-                ->where('event', $eventId)
-                ->update(['sequence' => $item['sequence']]);
-        }
+        DB::transaction(function () use ($validated) {
+            foreach ($validated['rooms'] as $item) {
+                DB::table('room')
+                    ->where('id', $item['room_id'])
+                    ->where('event', $validated['event_id'])
+                    ->update(['sequence' => $item['sequence']]);
+            }
+        });
 
         return response()->json(['success' => true]);
     }
@@ -185,7 +185,7 @@ class RoomController extends Controller
      */
     private function getNextRoomSequence($eventId)
     {
-        $maxSequence = \DB::table('room')
+        $maxSequence = DB::table('room')
             ->where('event', $eventId)
             ->max('sequence');
         
