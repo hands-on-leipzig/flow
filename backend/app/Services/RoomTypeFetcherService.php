@@ -27,7 +27,6 @@ class RoomTypeFetcherService
             'rt.first_program'
         )
         ->distinct()
-        ->orderBy('rg.sequence')
         ->orderBy('rt.sequence')
         ->get();
 
@@ -60,7 +59,7 @@ class RoomTypeFetcherService
         // --- Gruppieren für Frontend ---
         $grouped = $merged
             ->groupBy('group_id')
-            ->sortBy(fn($items) => $items->first()->group_seq ?? 0)
+            ->sortBy(fn($items) => $items->min('type_seq'))
             ->map(function ($items) {
                 $first = $items->first();
 

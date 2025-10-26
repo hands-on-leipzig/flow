@@ -5,12 +5,28 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\PreviewMatrixService;
 use App\Services\ActivityFetcherService;
+use App\Http\Controllers\Api\PlanExportController;
 use Illuminate\Support\Facades\DB;
 
 
 class PlanPreviewController extends Controller
 {
-    public function __construct(private ActivityFetcherService $activities) {}
+    public function __construct(
+        private ActivityFetcherService $activities,
+        private PlanExportController $planExport
+    ) {}
+
+    public function previewOverview(int $planId)
+    {
+        // Use the existing getEventOverviewData method from PlanExportController
+        $data = $this->planExport->getEventOverviewData($planId);
+        
+        // Return the data in the same format as other preview methods
+        return response()->json([
+            'html' => view('preview.event-overview', $data)->render(),
+            'success' => true
+        ]);
+    }
 
     public function previewTeams(int $plan, PreviewMatrixService $builder)
     {
