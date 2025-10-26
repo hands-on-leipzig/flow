@@ -98,6 +98,19 @@
                                                 $matchesColumn = true;
                                             }
                                             
+                                            // Debug: Log first few events to see what we're working with
+                                            if ($slotTime->format('H:i') === '08:00' && $columnName === 'Allgemein') {
+                                                \Log::info('Debug event data', [
+                                                    'eventColumn' => $eventColumn,
+                                                    'columnName' => $columnName,
+                                                    'matchesColumn' => $matchesColumn,
+                                                    'group_first_program_id' => $event['group_first_program_id'] ?? 'null',
+                                                    'group_name' => $event['group_name'] ?? 'null',
+                                                    'earliest_start' => $event['earliest_start']->format('H:i'),
+                                                    'latest_end' => $event['latest_end']->format('H:i')
+                                                ]);
+                                            }
+                                            
                                             if ($matchesColumn) {
                                                 
                                                 $startTime = $event['earliest_start'];
