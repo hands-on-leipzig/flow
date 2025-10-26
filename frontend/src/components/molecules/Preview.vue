@@ -101,6 +101,9 @@ const activities = ref<ActivityGroup[]>([])
 const robotGameData = ref<RobotGameData | null>(null)
 const hasChallenge = ref(false)
 
+// Event overview HTML
+const overviewHtml = ref<string>('')
+
 async function load() {
   if (!effectivePlanId.value) return
   loading.value = true
@@ -108,7 +111,9 @@ async function load() {
 
   try {
     if (view.value === 'overview') {
-      // TODO: Implement overview view
+      // Event overview HTML
+      const { data } = await axios.get(`/event-overview-html/${effectivePlanId.value}`)
+      overviewHtml.value = data.html
       headers.value = []
       rows.value = []
       activities.value = []
@@ -314,11 +319,17 @@ function formatTeam(teamNum: number | null): string {
       </table>
     </div>
 
-    <!-- ANSICHT: Überblick (TODO: Implement) -->
+    <!-- ANSICHT: Überblick -->
     <div v-if="view === 'overview'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white p-4">
-      <div class="px-3 py-8 text-center text-gray-500">
-        Überblick-Ansicht wird noch implementiert.
-      </div>
+      <div v-if="loading" class="px-3 py-8 text-left text-gray-500">Wird geladen …</div>
+      
+      <template v-else>
+        <div v-if="!overviewHtml" class="px-3 py-6 text-center text-gray-500">
+          Keine Übersichtsdaten gefunden.
+        </div>
+        
+        <div v-else v-html="overviewHtml" class="event-overview-container"></div>
+      </template>
     </div>
 
     <!-- ANSICHT: Robot-Game Matchplan -->
@@ -479,4 +490,31 @@ td {
 }
 
 /* Zeitspalte genau wie Zellen (kein Bold) */
+
+/* Event overview container */
+.event-overview-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.event-overview-container .event-overview {
+  min-width: 100%;
+}
+
+.event-overview-container .day-header {
+  margin-bottom: 15px;
+}
+
+.event-overview-container .overview-table {
+  font-size: 11px;
+}
+
+.event-overview-container .overview-table th,
+.event-overview-container .overview-table td {
+  padding: 6px 4px;
+}
+
+.event-overview-container .header-logo {
+  height: 18px;
+}
 </style>

@@ -1868,144 +1868,231 @@ if ($prepRooms->isNotEmpty()) {
     }
 
     /**
+     * Get event overview data for both PDF and HTML rendering
+     */
+    public function getEventOverviewData(int $planId): array
+    {
+        // Get public activities using the same filtering as rooms plan
+        $activities = $this->activityFetcher->fetchActivities(
+            plan: $planId,
+            roles: [6, 10, 14],   // Rollen: Publikum E, C und generisch
+            includeGroupMeta: true,
+            freeBlocks: true
+        );
+
+        if ($activities->isEmpty()) {
+            throw new \Exception('No activities found for this plan');
+        }
+
+        // Group activities by activity_group_id to ensure each group appears as separate block
+        $groupedActivities = $activities->groupBy('activity_group_id');
+        
+        $eventOverview = [];
+
+        foreach ($groupedActivities as $groupId => $groupActivities) {
+            $startTimes = $groupActivities->pluck('start_time')->map(function($time) {
+                return Carbon::parse($time);
+            });
+            $endTimes = $groupActivities->pluck('end_time')->map(function($time) {
+                return Carbon::parse($time);
+            });
+
+            $earliestStart = $startTimes->min();
+            $latestEnd = $endTimes->max();
+
+            // Get group metadata from first activity
+            $firstActivity = $groupActivities->first();
+            
+            $eventOverview[] = [
+                'group_id' => $groupId,
+                'group_name' => $firstActivity->group_atd_name ?? 'Unknown Group',
+                'group_description' => $firstActivity->group_description ?? '',
+                'group_first_program_id' => $firstActivity->group_first_program_id ?? null,
+                'group_overview_plan_column' => $firstActivity->group_overview_plan_column ?? null,
+                'earliest_start' => $earliestStart,
+                'latest_end' => $latestEnd,
+                'duration_minutes' => $earliestStart->diffInMinutes($latestEnd),
+                'activity_count' => $groupActivities->count()
+            ];
+        }
+
+        // Sort by earliest start time
+        usort($eventOverview, function($a, $b) {
+            return $a['earliest_start']->timestamp - $b['earliest_start']->timestamp;
+        });
+
+        // Manual assignment of free blocks to program-specific Allgemein columns
+        foreach ($eventOverview as &$event) {
+            if (($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null) && $event['group_first_program_id'] !== null) {
+                // This is a free block - assign to program-specific Allgemein column
+                if ($event['group_first_program_id'] == 2) {
+                    $event['group_overview_plan_column'] = 'Allgemein-2'; // Explore
+                } elseif ($event['group_first_program_id'] == 3) {
+                    $event['group_overview_plan_column'] = 'Allgemein-3'; // Challenge
+                }
+            }
+        }
+
+        // Get unique columns with their first_program for sorting
+        $columnsWithProgram = collect($eventOverview)
+            ->map(function($event) {
+                return [
+                    'overview_plan_column' => $event['group_overview_plan_column'],
+                    'first_program' => $event['group_first_program_id']
+                ];
+            })
+            ->unique(function($item) {
+                return $item['overview_plan_column'] . '|' . $item['first_program'];
+            })
+            ->sortBy(function($item) {
+                // Custom sorting to ensure specific column order
+                $column = $item['overview_plan_column'];
+                $program = $item['first_program'];
+                
+                // Define custom order for the last four columns
+                $customOrder = [
+                    'Allgemein-3' => 1,
+                    'Challenge' => 2,
+                    'Robot-Game' => 3,
+                    'Live-Challenge' => 4
+                ];
+                
+                // For the last four columns, use custom order
+                if (isset($customOrder[$column])) {
+                    return $program * 1000 + $customOrder[$column];
+                }
+                
+                // For other columns, use original sorting
+                return $program * 1000 + ($column === null ? 999 : 0);
+            })
+            ->values();
+
+        // Create unique column identifiers that include first_program for Allgemein
+        $columnNames = $columnsWithProgram
+            ->map(function($item) {
+                $columnName = $item['overview_plan_column'] ?? 'Allgemein';
+                // Handle empty strings as well as null
+                if (empty($columnName)) {
+                    $columnName = 'Allgemein';
+                }
+                // For Allgemein columns, include first_program to make them unique
+                if ($columnName === 'Allgemein') {
+                    $program = $item['first_program'];
+                    if ($program === null) {
+                        return 'Allgemein';
+                    } else {
+                        return 'Allgemein-' . $program;
+                    }
+                }
+                return $columnName;
+            })
+            ->values()
+            ->toArray();
+
+        // Group by day for display
+        $eventsByDay = [];
+        foreach ($eventOverview as $event) {
+            $dayKey = $event['earliest_start']->format('Y-m-d');
+            if (!isset($eventsByDay[$dayKey])) {
+                $eventsByDay[$dayKey] = [
+                    'date' => $event['earliest_start'],
+                    'events' => []
+                ];
+            }
+            $eventsByDay[$dayKey]['events'][] = $event;
+        }
+
+        // Calculate global time range for all days
+        $globalEarliestHour = null;
+        $globalLatestHour = null;
+
+        // First pass: calculate global time range
+        foreach($eventsByDay as $dayKey => $dayData) {
+            $allEvents = collect($dayData['events']);
+            $earliestStart = $allEvents->min('earliest_start');
+            $latestEnd = $allEvents->max('latest_end');
+            
+            // Find earliest and latest hours for this day
+            $dayEarliestHour = $earliestStart->hour;
+            $dayLatestHour = $latestEnd->hour;
+            if ($latestEnd->minute > 0) $dayLatestHour++; // Round up if there are minutes
+            
+            // Update global min/max hours
+            if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
+                $globalEarliestHour = $dayEarliestHour;
+            }
+            if ($globalLatestHour === null || $dayLatestHour > $globalLatestHour) {
+                $globalLatestHour = $dayLatestHour;
+            }
+        }
+
+        // Create 10-minute grid from global earliest hour to latest hour
+        $startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
+        $endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 59, 59); // End of the last hour
+
+        // Generate all 10-minute slots
+        $timeSlots = [];
+        $current = $startTime->copy();
+        while ($current->lt($endTime)) {
+            $timeSlots[] = $current->copy();
+            $current->addMinutes(10);
+        }
+
+        // Check if this is a multi-day event
+        $isMultiDay = count($eventsByDay) > 1;
+
+        return [
+            'eventsByDay' => $eventsByDay,
+            'columnNames' => $columnNames,
+            'isMultiDay' => $isMultiDay,
+            'timeSlots' => $timeSlots,
+            'globalEarliestHour' => $globalEarliestHour,
+            'globalLatestHour' => $globalLatestHour,
+            'startTime' => $startTime,
+            'endTime' => $endTime
+        ];
+    }
+
+    /**
+     * Get event overview HTML for preview
+     */
+    public function getEventOverviewHtml(int $planId)
+    {
+        try {
+            // Get event overview data using shared method
+            $data = $this->getEventOverviewData($planId);
+
+            // Render HTML using the preview template
+            $html = view('preview.event-overview', $data)->render();
+
+            return response()->json([
+                'html' => $html,
+                'success' => true
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Event overview HTML generation failed', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to generate event overview HTML',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Generate event overview PDF - chronological list of activity groups
      */
     public function eventOverviewPdf(int $planId)
     {
         try {
-            // Get public activities using the same filtering as rooms plan
-            $activities = $this->activityFetcher->fetchActivities(
-                plan: $planId,
-                roles: [6, 10, 14],   // Rollen: Publikum E, C und generisch
-                includeGroupMeta: true,
-                freeBlocks: true
-            );
-
-            if ($activities->isEmpty()) {
-                return response()->json(['error' => 'No activities found for this plan'], 404);
-            }
-
-            // Group activities by activity_group_id to ensure each group appears as separate block
-            $groupedActivities = $activities->groupBy('activity_group_id');
-            
-            
-            $eventOverview = [];
-
-            foreach ($groupedActivities as $groupId => $groupActivities) {
-                $startTimes = $groupActivities->pluck('start_time')->map(function($time) {
-                    return Carbon::parse($time);
-                });
-                $endTimes = $groupActivities->pluck('end_time')->map(function($time) {
-                    return Carbon::parse($time);
-                });
-
-                $earliestStart = $startTimes->min();
-                $latestEnd = $endTimes->max();
-
-                // Get group metadata from first activity
-                $firstActivity = $groupActivities->first();
-                
-                $eventOverview[] = [
-                    'group_id' => $groupId,
-                    'group_name' => $firstActivity->group_atd_name ?? 'Unknown Group',
-                    'group_description' => $firstActivity->group_description ?? '',
-                    'group_first_program_id' => $firstActivity->group_first_program_id ?? null,
-                    'group_overview_plan_column' => $firstActivity->group_overview_plan_column ?? null,
-                    'earliest_start' => $earliestStart,
-                    'latest_end' => $latestEnd,
-                    'duration_minutes' => $earliestStart->diffInMinutes($latestEnd),
-                    'activity_count' => $groupActivities->count()
-                ];
-            }
-
-            // Sort by earliest start time
-            usort($eventOverview, function($a, $b) {
-                return $a['earliest_start']->timestamp - $b['earliest_start']->timestamp;
-            });
-
-            // Manual assignment of free blocks to program-specific Allgemein columns
-            foreach ($eventOverview as &$event) {
-                if (($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null) && $event['group_first_program_id'] !== null) {
-                    // This is a free block - assign to program-specific Allgemein column
-                    if ($event['group_first_program_id'] == 2) {
-                        $event['group_overview_plan_column'] = 'Allgemein-2'; // Explore
-                    } elseif ($event['group_first_program_id'] == 3) {
-                        $event['group_overview_plan_column'] = 'Allgemein-3'; // Challenge
-                    }
-                }
-            }
-
-            
-            // Get unique columns with their first_program for sorting
-            $columnsWithProgram = collect($eventOverview)
-                ->map(function($event) {
-                    return [
-                        'overview_plan_column' => $event['group_overview_plan_column'],
-                        'first_program' => $event['group_first_program_id']
-                    ];
-                })
-                ->unique(function($item) {
-                    return $item['overview_plan_column'] . '|' . $item['first_program'];
-                })
-                ->sortBy(function($item) {
-                    // Custom sorting to ensure specific column order
-                    $column = $item['overview_plan_column'];
-                    $program = $item['first_program'];
-                    
-                    // Define custom order for the last four columns
-                    $customOrder = [
-                        'Allgemein-3' => 1,
-                        'Challenge' => 2,
-                        'Robot-Game' => 3,
-                        'Live-Challenge' => 4
-                    ];
-                    
-                    // For the last four columns, use custom order
-                    if (isset($customOrder[$column])) {
-                        return $program * 1000 + $customOrder[$column];
-                    }
-                    
-                    // For other columns, use original sorting
-                    return $program * 1000 + ($column === null ? 999 : 0);
-                })
-                ->values();
-
-            // Create unique column identifiers that include first_program for Allgemein
-            $columnNames = $columnsWithProgram
-                ->map(function($item) {
-                    $columnName = $item['overview_plan_column'] ?? 'Allgemein';
-                    // Handle empty strings as well as null
-                    if (empty($columnName)) {
-                        $columnName = 'Allgemein';
-                    }
-                    // For Allgemein columns, include first_program to make them unique
-                    if ($columnName === 'Allgemein') {
-                        $program = $item['first_program'];
-                        if ($program === null) {
-                            return 'Allgemein';
-                        } else {
-                            return 'Allgemein-' . $program;
-                        }
-                    }
-                    return $columnName;
-                })
-                ->values()
-                ->toArray();
-
-
-
-            // Group by day for display
-            $eventsByDay = [];
-            foreach ($eventOverview as $event) {
-                $dayKey = $event['earliest_start']->format('Y-m-d');
-                if (!isset($eventsByDay[$dayKey])) {
-                    $eventsByDay[$dayKey] = [
-                        'date' => $event['earliest_start'],
-                        'events' => []
-                    ];
-                }
-                $eventsByDay[$dayKey]['events'][] = $event;
-            }
+            // Get event overview data using shared method
+            $data = $this->getEventOverviewData($planId);
+            $eventsByDay = $data['eventsByDay'];
+            $columnNames = $data['columnNames'];
 
             // Get event data for header
             $event = DB::table('event')
