@@ -446,22 +446,22 @@ const hasWarning = (tab) => {
               </button>
             </div>
 
-            <!-- Line 2: Accessibility icon, Navigation instruction full width -->
+            <!-- Line 2: Navigation instruction full width with accessibility icon at end -->
             <div class="mb-2 flex items-center gap-2">
-              <div 
-                class="text-lg cursor-pointer"
-                :class="room.is_accessible ? 'text-green-600' : 'text-red-600'"
-                :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
-                @click="toggleAccessibility(room)"
-              >
-                {{ room.is_accessible ? '♿' : '🚫♿' }}
-              </div>
               <input
                 v-model="room.navigation_instruction"
                 class="text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
                 placeholder="z. B. 2. Etage rechts"
                 @blur="updateRoom(room)"
               />
+              <div 
+                class="text-lg cursor-pointer"
+                :class="room.is_accessible ? 'text-green-600' : 'text-red-600'"
+                :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                @click="toggleAccessibility(room)"
+              >
+                {{ room.is_accessible ? '♿🟢' : '♿🔴' }}
+              </div>
             </div>
 
             <!-- Line 3: Drop area full width with reduced padding -->
