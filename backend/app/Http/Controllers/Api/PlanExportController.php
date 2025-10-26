@@ -2053,36 +2053,6 @@ if ($prepRooms->isNotEmpty()) {
         ];
     }
 
-    /**
-     * Get event overview HTML for preview
-     */
-    public function getEventOverviewHtml(int $planId)
-    {
-        try {
-            // Get event overview data using shared method
-            $data = $this->getEventOverviewData($planId);
-
-            // Render HTML using the preview template
-            $html = view('preview.event-overview', $data)->render();
-
-            return response()->json([
-                'html' => $html,
-                'success' => true
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Event overview HTML generation failed', [
-                'plan_id' => $planId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'error' => 'Failed to generate event overview HTML',
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    }
 
     /**
      * Generate event overview PDF - chronological list of activity groups
