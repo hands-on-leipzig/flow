@@ -90,9 +90,9 @@
                                             $matchesColumn = false;
                                             if ($columnName === 'Allgemein' && ($eventColumn === 'Allgemein' || $eventColumn === null)) {
                                                 $matchesColumn = true;
-                                            } elseif ($columnName === 'Allgemein-2' && $eventColumn === 'Allgemein' && $event['first_program'] == 2) {
+                                            } elseif ($columnName === 'Allgemein-2' && $eventColumn === 'Allgemein' && $event['group_first_program_id'] == 2) {
                                                 $matchesColumn = true;
-                                            } elseif ($columnName === 'Allgemein-3' && $eventColumn === 'Allgemein' && $event['first_program'] == 3) {
+                                            } elseif ($columnName === 'Allgemein-3' && $eventColumn === 'Allgemein' && $event['group_first_program_id'] == 3) {
                                                 $matchesColumn = true;
                                             } elseif ($eventColumn === $columnName) {
                                                 $matchesColumn = true;
