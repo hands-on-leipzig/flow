@@ -58,7 +58,7 @@ const props = withDefaults(defineProps<{
   initialView?: 'overview' | 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities'
   reload?: number
 }>(), {
-  initialView: 'roles',
+  initialView: 'overview',
 })
 
 const effectivePlanId = computed(() => {
