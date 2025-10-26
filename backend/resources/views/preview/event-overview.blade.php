@@ -131,8 +131,25 @@
                                                 $startTime = $event['earliest_start'];
                                                 $endTime = $event['latest_end'];
                                                 
+                                                // Debug: Log time matching for the first matching event
+                                                if ($slotTime->format('H:i') === '10:00' && $columnName === 'Allgemein-3' && $event['group_name'] === 'Check-In FLL Challenge') {
+                                                    \Log::info('Time matching debug', [
+                                                        'slotTime' => $slotTime->format('H:i'),
+                                                        'startTime' => $startTime->format('H:i'),
+                                                        'endTime' => $endTime->format('H:i'),
+                                                        'slotGteStart' => $slotTime->gte($startTime),
+                                                        'slotLtEnd' => $slotTime->lt($endTime),
+                                                        'willShow' => $slotTime->gte($startTime) && $slotTime->lt($endTime)
+                                                    ]);
+                                                }
+                                                
                                                 // Check if this time slot falls within the activity
-                                                if ($slotTime->gte($startTime) && $slotTime->lt($endTime)) {
+                                                // Use format comparison to avoid precision issues
+                                                $slotTimeStr = $slotTime->format('H:i');
+                                                $startTimeStr = $startTime->format('H:i');
+                                                $endTimeStr = $endTime->format('H:i');
+                                                
+                                                if ($slotTimeStr >= $startTimeStr && $slotTimeStr < $endTimeStr) {
                                                     $hasActivity = true;
                                                     
                                                     // Calculate duration in 10-minute slots
