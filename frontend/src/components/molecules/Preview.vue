@@ -55,7 +55,7 @@ onMounted(() => {
 
 const props = withDefaults(defineProps<{
   planId?: number
-  initialView?: 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities'
+  initialView?: 'overview' | 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities'
   reload?: number
 }>(), {
   initialView: 'roles',
@@ -65,7 +65,7 @@ const effectivePlanId = computed(() => {
   return props.planId ?? Number(route.params.planId)
 })
 
-const view = ref<'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities'>(props.initialView)
+const view = ref<'overview' | 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities'>(props.initialView)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -107,7 +107,13 @@ async function load() {
   error.value = null
 
   try {
-    if (view.value === 'robot-game') {
+    if (view.value === 'overview') {
+      // TODO: Implement overview view
+      headers.value = []
+      rows.value = []
+      activities.value = []
+      robotGameData.value = null
+    } else if (view.value === 'robot-game') {
       // Robot-Game match plan
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/robot-game`)
       robotGameData.value = data
@@ -162,7 +168,7 @@ onMounted(async () => {
   load()
 })
 
-function setView(v: 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities') {
+function setView(v: 'overview' | 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities') {
   if (view.value !== v) view.value = v
 }
 
@@ -191,6 +197,14 @@ function formatTeam(teamNum: number | null): string {
       <div class="inline-flex rounded-md overflow-hidden border">
         <button
           class="px-3 py-1 text-sm"
+          :class="view === 'overview' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+          @click="setView('overview')"
+        >Überblick</button>
+      </div>
+
+      <div class="inline-flex rounded-md overflow-hidden border">
+        <button
+          class="px-3 py-1 text-sm"
           :class="view === 'roles' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
           @click="setView('roles')"
         >Rollen</button>
@@ -202,31 +216,36 @@ function formatTeam(teamNum: number | null): string {
         >Teams</button>
 
         <button
-          v-if="hasChallenge"
-          class="px-3 py-1 text-sm border-l"
-          :class="view === 'robot-game' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
-          @click="setView('robot-game')"
-        >Robot-Game</button>
-
-        <button
           class="px-3 py-1 text-sm border-l"
           :class="view === 'rooms' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
           @click="setView('rooms')"
         >Räume</button>
+      </div>
 
+      <div class="text-xs text-gray-500">
+        Frei Blöcke ...
+      </div>
+
+      <div class="inline-flex rounded-md overflow-hidden border">
+        <button
+          v-if="hasChallenge"
+          class="px-3 py-1 text-sm"
+          :class="view === 'robot-game' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+          @click="setView('robot-game')"
+        >Robot-Game</button>
+      </div>
+
+      <div class="inline-flex rounded-md overflow-hidden border">
         <!-- NEU: Aktivitäten - nur für Admins -->
         <button
           v-if="isAdmin"
-          class="px-3 py-1 text-sm border-l"
+          class="px-3 py-1 text-sm"
           :class="view === 'activities' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
           @click="setView('activities')"
         >Aktivitäten</button>
       </div>
 
-      <div class="ml-3 flex-1 flex items-center justify-between text-xs text-gray-500 min-w-0">
-        <span class="truncate">
-          Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
-        </span>
+      <div class="ml-3 flex-1 flex items-center justify-end text-xs text-gray-500 min-w-0">
         <span class="whitespace-nowrap">Plan ID: {{ effectivePlanId }}</span>
       </div>
     </div>
@@ -237,7 +256,7 @@ function formatTeam(teamNum: number | null): string {
     </div>
 
     <!-- ANSICHT 1–3: Bestehende Preview-Tabellen (roles, teams, rooms) -->
-    <div v-if="view !== 'robot-game' && view !== 'activities'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white">
+    <div v-if="view !== 'overview' && view !== 'robot-game' && view !== 'activities'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white">
       <table class="w-full table-fixed text-sm">
         <thead class="sticky top-0 bg-gray-50">
           <tr>
@@ -291,6 +310,13 @@ function formatTeam(teamNum: number | null): string {
           </template>
         </tbody>
       </table>
+    </div>
+
+    <!-- ANSICHT: Überblick (TODO: Implement) -->
+    <div v-if="view === 'overview'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white p-4">
+      <div class="px-3 py-8 text-center text-gray-500">
+        Überblick-Ansicht wird noch implementiert.
+      </div>
     </div>
 
     <!-- ANSICHT: Robot-Game Matchplan -->
