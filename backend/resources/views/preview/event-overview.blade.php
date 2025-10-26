@@ -84,8 +84,21 @@
                                         
                                         // Check if there's an activity in this column at this time
                                         foreach($dayData['events'] as $event) {
-                                            if ($event['group_overview_plan_column'] === $columnName || 
-                                                ($columnName === 'Allgemein' && ($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null))) {
+                                            $eventColumn = $event['group_overview_plan_column'] ?? 'Allgemein';
+                                            
+                                            // Map event column to display column
+                                            $matchesColumn = false;
+                                            if ($columnName === 'Allgemein' && ($eventColumn === 'Allgemein' || $eventColumn === null)) {
+                                                $matchesColumn = true;
+                                            } elseif ($columnName === 'Allgemein-2' && $eventColumn === 'Allgemein' && $event['first_program'] == 2) {
+                                                $matchesColumn = true;
+                                            } elseif ($columnName === 'Allgemein-3' && $eventColumn === 'Allgemein' && $event['first_program'] == 3) {
+                                                $matchesColumn = true;
+                                            } elseif ($eventColumn === $columnName) {
+                                                $matchesColumn = true;
+                                            }
+                                            
+                                            if ($matchesColumn) {
                                                 
                                                 $startTime = $event['earliest_start'];
                                                 $endTime = $event['latest_end'];
