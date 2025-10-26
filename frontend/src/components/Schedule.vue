@@ -822,7 +822,7 @@ const updateTableName = async () => {
       <Preview
           v-else-if="selectedPlanId"
           :plan-id="selectedPlanId as number"
-          initial-view="roles"
+          initial-view="overview"
       />
     </div>
  
