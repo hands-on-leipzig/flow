@@ -237,7 +237,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/available-team-programs/{eventId}', [PlanExportController::class, 'availableTeamPrograms']);
         Route::get('/event-overview/{planId}', [PlanExportController::class, 'eventOverviewPdf']);
         Route::get('/event-overview-html/{planId}', [PlanExportController::class, 'getEventOverviewHtml']);
-        Route::get('/test-overview/{planId}', function($planId) { return response()->json(['planId' => $planId, 'test' => 'success']); });
         Route::get('/worker-shifts/{eventId}', [PlanExportController::class, 'workerShifts']);
     });
 
