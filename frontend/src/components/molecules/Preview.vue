@@ -223,7 +223,7 @@ function formatTeam(teamNum: number | null): string {
       </div>
 
       <div class="text-xs text-gray-500">
-        Frei Blöcke ...
+        Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
       </div>
 
       <div class="inline-flex rounded-md overflow-hidden border">
