@@ -9,6 +9,7 @@ use App\Models\MRoomType;
 use App\Models\MRoomTypeGroup;
 use App\Models\Room;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 
@@ -19,7 +20,8 @@ class RoomController extends Controller
         // Räume inkl. normaler Typen laden
         $rooms = Room::where('event', $event->id)
             ->with('roomTypes')
-            ->orderBy('name')
+            ->orderBy('sequence')
+            ->orderBy('name') // Fallback ordering
             ->get();
 
         // Plan-ID zum Event holen
@@ -66,10 +68,14 @@ class RoomController extends Controller
             'navigation_instruction' => 'nullable|string|max:255',
         ]);
 
+        // Get next sequence number for this event
+        $nextSequence = $this->getNextRoomSequence($validated['event']);
+
         $room = Room::create([
             'name' => $validated['name'],
             'event' => $validated['event'],
             'navigation_instruction' => $validated['navigation_instruction'],
+            'sequence' => $nextSequence,
         ]);
 
         return response()->json($room, 201);
@@ -112,7 +118,6 @@ class RoomController extends Controller
                     'room_type' => $type->id,
                     'room' => $validated['room_id'],
                     'event' => $validated['event'],
-                    'sequence' => $this->getNextSequenceForRoom($validated['room_id'], $validated['event']),
                 ]);
             }
 
@@ -176,12 +181,11 @@ class RoomController extends Controller
     }
 
     /**
-     * Get the next sequence number for a room
+     * Get the next sequence number for a room in an event
      */
-    private function getNextSequenceForRoom($roomId, $eventId)
+    private function getNextRoomSequence($eventId)
     {
-        $maxSequence = \DB::table('room_type_room')
-            ->where('room', $roomId)
+        $maxSequence = \DB::table('room')
             ->where('event', $eventId)
             ->max('sequence');
         
