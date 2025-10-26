@@ -202,28 +202,30 @@ function formatTeam(teamNum: number | null): string {
         >Überblick</button>
       </div>
 
-      <div class="inline-flex rounded-md overflow-hidden border">
-        <button
-          class="px-3 py-1 text-sm"
-          :class="view === 'roles' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
-          @click="setView('roles')"
-        >Rollen</button>
+      <div class="inline-flex items-center rounded-md border bg-gray-50/50 px-2 py-1">
+        <div class="inline-flex rounded-md overflow-hidden border">
+          <button
+            class="px-3 py-1 text-sm"
+            :class="view === 'roles' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+            @click="setView('roles')"
+          >Rollen</button>
 
-        <button
-          class="px-3 py-1 text-sm border-l"
-          :class="view === 'teams' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
-          @click="setView('teams')"
-        >Teams</button>
+          <button
+            class="px-3 py-1 text-sm border-l"
+            :class="view === 'teams' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+            @click="setView('teams')"
+          >Teams</button>
 
-        <button
-          class="px-3 py-1 text-sm border-l"
-          :class="view === 'rooms' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
-          @click="setView('rooms')"
-        >Räume</button>
-      </div>
+          <button
+            class="px-3 py-1 text-sm border-l"
+            :class="view === 'rooms' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+            @click="setView('rooms')"
+          >Räume</button>
+        </div>
 
-      <div class="text-xs text-gray-500">
-        Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+        <div class="ml-3 text-xs text-gray-500">
+          Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+        </div>
       </div>
 
       <div class="inline-flex rounded-md overflow-hidden border">
