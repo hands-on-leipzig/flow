@@ -398,9 +398,9 @@ const hasWarning = (tab) => {
 </script>
 
 <template>
-  <div class="grid grid-cols-[2fr,1fr] gap-6 p-6">
-    <!-- 🟢 Linke Spalte: Räume -->
-    <div>
+  <div class="grid grid-cols-4 gap-6 p-6">
+    <!-- 🟢 Räume: Erste 3 Spalten -->
+    <div class="col-span-3">
       <h2 class="text-xl font-bold mb-4">Räume</h2>
       <draggable
         v-model="rooms"
@@ -408,7 +408,7 @@ const hasWarning = (tab) => {
         item-key="id"
         @start="isDraggingRoom = true"
         @end="isDraggingRoom = false; handleRoomReorder()"
-        class="grid grid-cols-2 gap-4"
+        class="grid grid-cols-3 gap-4"
       >
         <template #item="{ element: room }">
           <li
@@ -563,7 +563,7 @@ const hasWarning = (tab) => {
     </div>
 
     <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->
-    <div>
+    <div class="col-span-1">
       <div class="flex mb-4 border-b text-xl font-bold relative">
         <button
           class="px-4 py-2 relative"
