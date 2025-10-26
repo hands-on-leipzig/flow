@@ -460,7 +460,7 @@ const hasWarning = (tab) => {
                 :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
                 @click="toggleAccessibility(room)"
               >
-                {{ room.is_accessible ? '♿🟢' : '♿🔴' }}
+                {{ room.is_accessible ? '♿✓' : '♿⭕' }}
               </div>
             </div>
 
