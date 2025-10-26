@@ -191,43 +191,17 @@ class ActivityWriter
         }
 
         $map = [
-            'c_awards'         => 'c_awards',
-            'c_briefing'       => 'c_briefing',
-            'c_lunch'          => 'c_lunch',
-            'c_opening'        => 'c_opening',
-            'c_opening_day_1'  => 'c_opening_day_1',
-            'c_preparations'   => 'c_preparations',
-
-            'e_awards'         => 'e_awards',
-            'e_briefing_coach' => 'e_briefing_coach',
-            'e_briefing_judge' => 'e_briefing_judge',
-            'e_deliberations'  => 'e_deliberations',
-            'e_opening'        => 'e_opening',
-
-            'g_awards'         => 'g_awards',
-            'g_opening'        => 'g_opening',
-
-            'j_briefing'       => 'j_briefing',
-            'j_briefing_day_1' => 'j_briefing_day_1',
-            'j_deliberations'  => 'j_deliberations',
-
-            'lc_briefing'      => 'lc_briefing',
-            'lc_deliberations' => 'lc_deliberations',
-
+            // Exceptional cases where code != room type
             'r_briefing'       => 'r_match',
-            'r_check'          => 'r_check',
             'r_debriefing'     => 'r_match',
-            'r_match'          => 'r_match',
-
             'g_party_teams'    => 'g_party_teams',
             'g_party_volunteers' => 'g_party_volunteers',
         ];
 
-        if (isset($map[$code])) {
-            return $this->roomTypeMap[$map[$code]] ?? null;
-        }
-
-        return null;
+        // Default 1:1 mapping - use the code directly if not in exceptions
+        $roomTypeCode = $map[$code] ?? $code;
+        
+        return $this->roomTypeMap[$roomTypeCode] ?? null;
     }
 
 
