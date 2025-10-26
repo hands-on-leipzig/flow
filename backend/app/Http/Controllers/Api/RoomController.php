@@ -66,6 +66,7 @@ class RoomController extends Controller
             'name' => 'required|string|max:255',
             'event' => 'required|exists:event,id',
             'navigation_instruction' => 'nullable|string|max:255',
+            'is_accessible' => 'boolean',
         ]);
 
         // Get next sequence number for this event
@@ -76,6 +77,7 @@ class RoomController extends Controller
             'event' => $validated['event'],
             'navigation_instruction' => $validated['navigation_instruction'],
             'sequence' => $nextSequence,
+            'is_accessible' => $validated['is_accessible'] ?? true,
         ]);
 
         return response()->json($room, 201);
@@ -83,7 +85,7 @@ class RoomController extends Controller
 
     public function update(Request $request, Room $room)
     {
-        $room->update($request->only(['name', 'navigation_instruction']));
+        $room->update($request->only(['name', 'navigation_instruction', 'is_accessible']));
         return response()->json($room);
     }
 

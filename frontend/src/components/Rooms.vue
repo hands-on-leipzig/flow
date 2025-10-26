@@ -161,8 +161,15 @@ onMounted(async () => {
 const updateRoom = async (room) => {
   await axios.put(`/rooms/${room.id}`, {
     name: room.name,
-    navigation_instruction: room.navigation_instruction
+    navigation_instruction: room.navigation_instruction,
+    is_accessible: room.is_accessible
   })
+}
+
+// --- Accessibility toggle ---
+const toggleAccessibility = async (room) => {
+  room.is_accessible = !room.is_accessible
+  await updateRoom(room)
 }
 
 // --- Gemeinsame Zuordnung Raum <-> Item ---
@@ -250,6 +257,7 @@ const unassignItemFromRoom = async (itemKey) => {
 // --- Raum erstellen ---
 const newRoomName = ref('')
 const newRoomNote = ref('')
+const newRoomAccessible = ref(true)
 const newRoomInput = ref(null)
 const newRoomNoteInput = ref(null)
 const isSaving = ref(false)
@@ -266,11 +274,13 @@ const createRoom = async () => {
     const { data } = await axios.post('/rooms', {
       name: newRoomName.value.trim(),
       navigation_instruction: newRoomNote.value.trim(),
-      event: eventId.value
+      event: eventId.value,
+      is_accessible: newRoomAccessible.value
     })
     rooms.value.push(data)
     newRoomName.value = ''
     newRoomNote.value = ''
+    newRoomAccessible.value = true
     await nextTick()
     newRoomInput.value?.focus()
   } finally {
@@ -419,40 +429,50 @@ const hasWarning = (tab) => {
               'shadow-lg': isDraggingRoom
             }"
           >
-          <div class="flex justify-between items-start">
-            <div class="w-full">
-              <!-- Drag handle -->
-              <div class="flex items-center gap-2 mb-2">
-                <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
-                <!-- Raumname -->
-                <div class="flex-1">
-                <input
-                  v-model="room.name"
-                  class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
-                  @blur="updateRoom(room)"
-                />
-                </div>
-              </div>
-
-              <!-- Navigationshinweis -->
-              <div>
-                <input
-                  v-model="room.navigation_instruction"
-                  class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
-                  placeholder="z. B. 2. Etage rechts"
-                  @blur="updateRoom(room)"
-                />
-              </div>
-
-              <!-- Gemeinsame Drop-Zone für Aktivitäten & Teams -->
-              <div
-                class="flex flex-wrap mt-2 gap-2 min-h-[40px] border rounded p-2 transition-colors"
-                :class="{
-                  'bg-blue-100': dragOverRoomId === room.id,
-                  'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
-                  'bg-gray-50': !isDragging && dragOverRoomId !== room.id
-                }"
+            <!-- Line 1: Drag handle, Room name, Accessibility icon, Delete icon -->
+            <div class="flex items-center gap-2 mb-2">
+              <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
+              <input
+                v-model="room.name"
+                class="text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
+                @blur="updateRoom(room)"
+              />
+              <div 
+                class="text-lg cursor-pointer"
+                :class="room.is_accessible ? 'text-green-600' : 'text-red-600'"
+                :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                @click="toggleAccessibility(room)"
               >
+                {{ room.is_accessible ? '♿' : '🚫♿' }}
+              </div>
+              <button
+                @click="askDeleteRoom(room)"
+                class="text-red-600 text-lg"
+                title="Raum löschen"
+              >
+                🗑️
+              </button>
+            </div>
+
+            <!-- Line 2: Navigation instruction full width -->
+            <div class="mb-2">
+              <input
+                v-model="room.navigation_instruction"
+                class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                placeholder="z. B. 2. Etage rechts"
+                @blur="updateRoom(room)"
+              />
+            </div>
+
+            <!-- Line 3: Drop area full width with reduced padding -->
+            <div
+              class="flex flex-wrap gap-1 min-h-[40px] border rounded p-1 transition-colors"
+              :class="{
+                'bg-blue-100': dragOverRoomId === room.id,
+                'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
+                'bg-gray-50': !isDragging && dragOverRoomId !== room.id
+              }"
+            >
                 <draggable
                   :list="getItemsInRoom(room.id)"
                   group="assignables"
@@ -460,7 +480,7 @@ const hasWarning = (tab) => {
                   @add="event => handleDrop(event, room)"
                   @start="isDragging = true"
                   @end="isDragging = false"
-                  class="flex flex-wrap gap-2 w-full"
+                  class="flex flex-wrap gap-1 w-full"
                 >
 
                 
@@ -517,18 +537,7 @@ const hasWarning = (tab) => {
 
                 </draggable>
               </div>
-            </div>
-
-            <!-- Raum löschen -->
-            <button
-              class="text-red-600 text-lg"
-              @click="askDeleteRoom(room)"
-              title="Raum löschen"
-            >
-              🗑️
-            </button>
-          </div>
-          </li>
+            </li>
         </template>
 
         <!-- 🟩 Neuer Raum -->
@@ -556,6 +565,18 @@ const hasWarning = (tab) => {
                 @keyup.enter="createRoom"
                 :disabled="isSaving"
               />
+              <div class="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  v-model="newRoomAccessible"
+                  id="newRoomAccessible"
+                  class="rounded"
+                  :disabled="isSaving"
+                />
+                <label for="newRoomAccessible" class="text-sm text-gray-700">
+                  Barrierefrei
+                </label>
+              </div>
             </div>
           </transition>
         </li>
