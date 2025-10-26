@@ -429,7 +429,7 @@ const hasWarning = (tab) => {
               'shadow-lg': isDraggingRoom
             }"
           >
-            <!-- Line 1: Drag handle, Room name, Accessibility icon, Delete icon -->
+            <!-- Line 1: Drag handle, Room name, Delete icon -->
             <div class="flex items-center gap-2 mb-2">
               <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
               <input
@@ -437,14 +437,6 @@ const hasWarning = (tab) => {
                 class="text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
                 @blur="updateRoom(room)"
               />
-              <div 
-                class="text-lg cursor-pointer"
-                :class="room.is_accessible ? 'text-green-600' : 'text-red-600'"
-                :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
-                @click="toggleAccessibility(room)"
-              >
-                {{ room.is_accessible ? '♿' : '🚫♿' }}
-              </div>
               <button
                 @click="askDeleteRoom(room)"
                 class="text-red-600 text-lg"
@@ -454,11 +446,19 @@ const hasWarning = (tab) => {
               </button>
             </div>
 
-            <!-- Line 2: Navigation instruction full width -->
-            <div class="mb-2">
+            <!-- Line 2: Accessibility icon, Navigation instruction full width -->
+            <div class="mb-2 flex items-center gap-2">
+              <div 
+                class="text-lg cursor-pointer"
+                :class="room.is_accessible ? 'text-green-600' : 'text-red-600'"
+                :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                @click="toggleAccessibility(room)"
+              >
+                {{ room.is_accessible ? '♿' : '🚫♿' }}
+              </div>
               <input
                 v-model="room.navigation_instruction"
-                class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                class="text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
                 placeholder="z. B. 2. Etage rechts"
                 @blur="updateRoom(room)"
               />
