@@ -109,37 +109,18 @@
                                             
                                             // Map event column to display column
                                             $matchesColumn = false;
-                                            if ($columnName === 'Allgemein' && ($eventColumn === 'Allgemein' || $eventColumn === null)) {
-                                                $matchesColumn = true;
-                                            } elseif ($columnName === 'Allgemein-2' && $eventColumn === 'Allgemein' && $event['group_first_program_id'] == 2) {
-                                                $matchesColumn = true;
-                                            } elseif ($columnName === 'Allgemein-3' && $eventColumn === 'Allgemein' && $event['group_first_program_id'] == 3) {
-                                                $matchesColumn = true;
-                                            } elseif ($eventColumn === $columnName) {
+                                            if ($eventColumn === $columnName) {
                                                 $matchesColumn = true;
                                             }
                                             
                                             // Debug: Log first few events to see what we're working with
-                                            if ($slotTime->format('H:i') === '08:00' && $columnName === 'Allgemein') {
+                                            if ($slotTime->format('H:i') === '10:00' && $columnName === 'Allgemein-3') {
                                                 \Log::info('Debug event data', [
                                                     'eventColumn' => $eventColumn,
                                                     'columnName' => $columnName,
                                                     'matchesColumn' => $matchesColumn,
                                                     'group_first_program_id' => $event['group_first_program_id'] ?? 'null',
                                                     'group_name' => $event['group_name'] ?? 'null',
-                                                    'earliest_start' => $event['earliest_start']->format('H:i'),
-                                                    'latest_end' => $event['latest_end']->format('H:i')
-                                                ]);
-                                            }
-                                            
-                                            // Debug: Log all events for first time slot to see what we have
-                                            if ($slotTime->format('H:i') === '08:00') {
-                                                \Log::info('All events for 08:00', [
-                                                    'columnName' => $columnName,
-                                                    'eventColumn' => $eventColumn,
-                                                    'group_name' => $event['group_name'] ?? 'null',
-                                                    'group_overview_plan_column' => $event['group_overview_plan_column'] ?? 'null',
-                                                    'group_first_program_id' => $event['group_first_program_id'] ?? 'null',
                                                     'earliest_start' => $event['earliest_start']->format('H:i'),
                                                     'latest_end' => $event['latest_end']->format('H:i')
                                                 ]);
