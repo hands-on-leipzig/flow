@@ -2058,26 +2058,12 @@ if ($prepRooms->isNotEmpty()) {
      */
     public function getEventOverviewHtml(int $planId)
     {
-        Log::info('getEventOverviewHtml called', ['planId' => $planId]);
-        
         try {
             // Get event overview data using shared method
             $data = $this->getEventOverviewData($planId);
-            Log::info('Event overview data retrieved', ['planId' => $planId, 'eventsCount' => count($data['eventsByDay'])]);
-
-            // Debug: Log the data structure being passed to the template
-            Log::info('Data structure for template', [
-                'planId' => $planId,
-                'eventsByDay' => array_keys($data['eventsByDay']),
-                'columnNames' => $data['columnNames'],
-                'timeSlotsCount' => count($data['timeSlots']),
-                'firstDayEvents' => isset($data['eventsByDay'][array_key_first($data['eventsByDay'])]) ? 
-                    count($data['eventsByDay'][array_key_first($data['eventsByDay'])]['events']) : 0
-            ]);
 
             // Render HTML using the preview template
             $html = view('preview.event-overview', $data)->render();
-            Log::info('HTML rendered successfully', ['planId' => $planId, 'htmlLength' => strlen($html)]);
 
             return response()->json([
                 'html' => $html,
