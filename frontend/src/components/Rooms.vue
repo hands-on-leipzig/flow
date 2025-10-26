@@ -14,9 +14,6 @@ const assignments = ref({})
 // --- Gemeinsame Struktur für Activities + Teams ---
 const assignables = ref([]) // ← gemeinsame Ebene 1 (type = 'activity' | 'team')
 
-// Store temporary order for rooms during API calls
-// const temporaryRoomOrders = ref({})
-
 // --- Hilfslisten ---
 const roomTypes = ref([])
 const typeGroups = ref([])
@@ -152,6 +149,11 @@ onMounted(async () => {
   // 3) Zusammenführen
   assignments.value = result
 
+  // (Optional zum Prüfen)
+  // console.log('Assignments summary:', {
+  //   activities: Object.keys(result).filter(k => k.startsWith('activity-')).length,
+  //   teams: Object.keys(result).filter(k => k.startsWith('team-')).length
+  // })
 })
 
 // --- Raum bearbeiten ---
@@ -289,82 +291,6 @@ const handleDrop = async (event, room) => {
   isDragging.value = false
 }
 
-// --- Room Type Reordering ---
-// const handleRoomTypeReorder = async (event, room) => {
-//   // Set dragging to false immediately - we'll use temporary order instead
-//   isDragging.value = false
-//   
-//   // Get room types from the current room data
-//   const roomData = rooms.value.find(r => r.id === room.id)
-//   if (!roomData || !roomData.room_types) return
-//   
-//   if (roomData.room_types.length === 0) return
-//
-//   // Use the draggable event data to determine the new order
-//   const oldIndex = event.oldIndex
-//   const newIndex = event.newIndex
-//   
-//   if (oldIndex !== undefined && newIndex !== undefined) {
-//     // Create a copy of the room types array
-//     const roomTypesArray = [...roomData.room_types]
-//     
-//     // Move the item from oldIndex to newIndex
-//     const [movedItem] = roomTypesArray.splice(oldIndex, 1)
-//     roomTypesArray.splice(newIndex, 0, movedItem)
-//     
-//     // Set temporary order immediately to preserve visual order
-//     const tempOrder = {}
-//     roomTypesArray.forEach((rt, index) => {
-//       tempOrder[rt.id] = index + 1
-//     })
-//     temporaryRoomOrders.value[room.id] = tempOrder
-//     
-//     // Create sequence data based on the new order
-//     const roomTypes = roomTypesArray.map((rt, index) => ({
-//       room_type_id: rt.id,
-//       sequence: index + 1
-//     }))
-//
-//     try {
-//       await axios.put(`/rooms/${room.id}/update-sequence`, {
-//         room_types: roomTypes
-//       })
-//       
-//       // Refresh room data to get updated ordering
-//       await refreshRoomData()
-//       
-//       // Clear temporary order after successful API call
-//       delete temporaryRoomOrders.value[room.id]
-//     } catch (error) {
-//       console.error('Error updating room type sequence:', error)
-//       // Clear temporary order on error too
-//       delete temporaryRoomOrders.value[room.id]
-//     }
-//   }
-// }
-
-// --- Refresh room data ---
-const refreshRoomData = async () => {
-  try {
-    const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
-    rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
-    
-    // Update assignments based on new room data
-    const result = {}
-    roomsData.rooms.forEach(room => {
-      (room.room_types ?? []).forEach(rt => {
-        result[`activity-${rt.id}`] = room.id
-      })
-      ;(room.extra_blocks ?? []).forEach(eb => {
-        result[`activity-${eb.id}`] = room.id
-      })
-    })
-    assignments.value = result
-  } catch (error) {
-    console.error('Error refreshing room data:', error)
-  }
-}
-
 // --- Raum löschen ---
 const showDeleteModal = ref(false)
 const roomToDelete = ref(null)
@@ -408,78 +334,11 @@ const activeTab = ref('activities')
 // Hilfsfunktion für Template (typisierte IDs)
 const getItemsInRoom = (roomId) => {
   const all = []
-  
-  // Get the actual room data
-  const room = rooms.value.find(r => r.id === roomId)
-  if (!room) {
-    return all
-  }
-  
-  // Add room types from the actual room data (with correct IDs and sequence)
-  if (room.room_types) {
-    room.room_types.forEach(rt => {
-      all.push({
-        id: rt.id,
-        key: `activity-${rt.id}`,
-        name: rt.name,
-        first_program: rt.first_program,
-        type: 'activity',
-        group: { id: 'room-types', name: 'Room Types' },
-        // sequence: rt.pivot?.sequence || 0  // No longer using sequence ordering
-      })
-    })
-  }
-  
-  // Add extra blocks from the actual room data
-  if (room.extra_blocks) {
-    room.extra_blocks.forEach(eb => {
-      all.push({
-        id: eb.id,
-        key: `activity-${eb.id}`,
-        name: eb.name,
-        first_program: eb.first_program,
-        type: 'activity',
-        group: { id: 'extra-blocks', name: 'Extra Blocks' }
-      })
-    })
-  }
-  
-  // Add teams from assignments (teams don't have sequence ordering)
   for (const category of assignables.value) {
-    if (category.type === 'team') {
-      for (const group of category.groups) {
-        all.push(...group.items.filter(i => assignments.value[`${i.type}-${i.id}`] === roomId))
-      }
+    for (const group of category.groups) {
+      all.push(...group.items.filter(i => assignments.value[`${i.type}-${i.id}`] === roomId))
     }
   }
-  
-  // Use temporary order if available, otherwise sort by sequence
-  // if (temporaryRoomOrders.value[roomId]) {
-  //   // Sort by temporary order
-  //   all.sort((a, b) => {
-  //     const orderA = temporaryRoomOrders.value[roomId][a.id] || 999
-  //     const orderB = temporaryRoomOrders.value[roomId][b.id] || 999
-  //     return orderA - orderB
-  //   })
-  // } else {
-  //   // Sort by sequence for room types, keep teams at the end
-  //   all.sort((a, b) => {
-  //     if (a.type === 'activity' && b.type === 'activity') {
-  //       return (a.sequence || 0) - (b.sequence || 0)
-  //     }
-  //     if (a.type === 'team' && b.type === 'activity') return 1
-  //     if (a.type === 'activity' && b.type === 'team') return -1
-  //     return 0
-  //   })
-  // }
-  
-  // Simple sort: activities first, then teams
-  all.sort((a, b) => {
-    if (a.type === 'team' && b.type === 'activity') return 1
-    if (a.type === 'activity' && b.type === 'team') return -1
-    return 0
-  })
-  
   return all
 }
 
