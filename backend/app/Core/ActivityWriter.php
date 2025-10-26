@@ -218,6 +218,9 @@ class ActivityWriter
             'r_check'          => 'r_check',
             'r_debriefing'     => 'r_match',
             'r_match'          => 'r_match',
+
+            'g_party_teams'    => 'g_party_teams',
+            'g_party_volunteers' => 'g_party_volunteers',
         ];
 
         if (isset($map[$code])) {
