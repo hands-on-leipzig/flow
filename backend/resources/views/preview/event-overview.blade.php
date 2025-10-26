@@ -111,6 +111,19 @@
                                                 ]);
                                             }
                                             
+                                            // Debug: Log all events for first time slot to see what we have
+                                            if ($slotTime->format('H:i') === '08:00') {
+                                                \Log::info('All events for 08:00', [
+                                                    'columnName' => $columnName,
+                                                    'eventColumn' => $eventColumn,
+                                                    'group_name' => $event['group_name'] ?? 'null',
+                                                    'group_overview_plan_column' => $event['group_overview_plan_column'] ?? 'null',
+                                                    'group_first_program_id' => $event['group_first_program_id'] ?? 'null',
+                                                    'earliest_start' => $event['earliest_start']->format('H:i'),
+                                                    'latest_end' => $event['latest_end']->format('H:i')
+                                                ]);
+                                            }
+                                            
                                             if ($matchesColumn) {
                                                 
                                                 $startTime = $event['earliest_start'];
