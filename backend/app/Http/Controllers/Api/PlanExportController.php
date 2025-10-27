@@ -1932,6 +1932,7 @@ if ($prepRooms->isNotEmpty()) {
                 }
             }
         }
+        unset($event); // Clear the reference
 
         // Pre-assign activities to their correct columns
         foreach ($eventOverview as &$event) {
@@ -1952,6 +1953,7 @@ if ($prepRooms->isNotEmpty()) {
                 }
             }
         }
+        unset($event); // Clear the reference
 
         // Get unique assigned columns for sorting
         $columnNames = collect($eventOverview)
