@@ -1870,12 +1870,12 @@ if ($prepRooms->isNotEmpty()) {
     /**
      * Get event overview data for both PDF and HTML rendering
      */
-    public function getEventOverviewData(int $planId): array
+    public function getEventOverviewData(int $planId, array $roles = [6, 10, 14]): array
     {
-        // Get public activities using the same filtering as rooms plan
+        // Get activities using specified roles
         $activities = $this->activityFetcher->fetchActivities(
             plan: $planId,
-            roles: [6, 10, 14],   // Rollen: Publikum E, C und generisch
+            roles: $roles,
             includeGroupMeta: true,
             freeBlocks: true
         );
