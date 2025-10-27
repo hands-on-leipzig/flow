@@ -89,23 +89,43 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     <th class="column-header">{{ $columnName }}</th>
                                 @elseif($columnName === 'Allgemein-2' && $hasAllgemein2)
                                     @if($hasExplore)
-                                        <th colspan="{{ $exploreColumns }}" class="column-header merged-header">FLL Explore</th>
+                                        <th colspan="{{ $exploreColumns }}" class="column-header merged-header" style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; justify-content: center;">
+                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FLL Explore">
+                                                <span style="vertical-align: middle;">FLL Explore</span>
+                                            </div>
+                                        </th>
                                     @else
                                         <th class="column-header">{{ $columnName }}</th>
                                     @endif
                                 @elseif($columnName === 'Explore' && $hasExplore)
                                     @if(!$hasAllgemein2)
-                                        <th class="column-header">{{ $columnName }}</th>
+                                        <th class="column-header" style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; justify-content: center;">
+                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FLL Explore">
+                                                <span style="vertical-align: middle;">FLL Explore</span>
+                                            </div>
+                                        </th>
                                     @endif
                                 @elseif($columnName === 'Allgemein-3' && $hasAllgemein3)
                                     @if($challengeColumns > 1)
-                                        <th colspan="{{ $challengeColumns }}" class="column-header merged-header">FLL Challenge</th>
+                                        <th colspan="{{ $challengeColumns }}" class="column-header merged-header" style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; justify-content: center;">
+                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FLL Challenge">
+                                                <span style="vertical-align: middle;">FLL Challenge</span>
+                                            </div>
+                                        </th>
                                     @else
                                         <th class="column-header">{{ $columnName }}</th>
                                     @endif
                                 @elseif($columnName === 'Challenge' && $hasChallenge)
                                     @if(!$hasAllgemein3 && !$hasRobotGame && !$hasLiveChallenge)
-                                        <th class="column-header">{{ $columnName }}</th>
+                                        <th class="column-header" style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; justify-content: center;">
+                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FLL Challenge">
+                                                <span style="vertical-align: middle;">FLL Challenge</span>
+                                            </div>
+                                        </th>
                                     @endif
                                 @elseif($columnName === 'Robot-Game' && $hasRobotGame)
                                     @if(!$hasAllgemein3 && !$hasChallenge && !$hasLiveChallenge)
@@ -278,13 +298,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
 .column-header {
     background-color: white;
     font-weight: bold;
-}
-
-.column-header.merged-header {
-    background-color: #e8f4f8;
-    font-weight: bold;
     text-align: center;
-    border: 2px solid #007bff;
     padding: 8px 4px;
     font-size: 12px;
 }
