@@ -67,8 +67,8 @@ onMounted(async () => {
   // --- Teams laden über neue API ---
   try {
     const [exploreResponse, challengeResponse] = await Promise.all([
-      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'explore' } }),
-      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'challenge' } })
+      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'explore', sort: 'name' } }),
+      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'challenge', sort: 'name' } })
     ])
 
     exploreTeams.value = exploreResponse.data.map(t => ({

@@ -32,9 +32,14 @@ class TeamController extends Controller
     public function index(Request $request, Event $event)
     {
         $programName = $request->query('program');
+        $sortBy = $request->query('sort', 'name'); // 'name' or 'plan_order'
 
         if (!in_array($programName, ['explore', 'challenge'])) {
             return response()->json(['error' => 'Invalid program'], 400);
+        }
+
+        if (!in_array($sortBy, ['name', 'plan_order'])) {
+            return response()->json(['error' => 'Invalid sort parameter'], 400);
         }
 
         $program = FirstProgram::where('name', $programName)->first();
@@ -44,7 +49,7 @@ class TeamController extends Controller
         }
 
         // Get teams with their plan order
-        $teams = $event->teams()
+        $query = $event->teams()
             ->where('first_program', $program->id)
             ->leftJoin('team_plan', function($join) use ($event) {
                 $join->on('team.id', '=', 'team_plan.team')
@@ -55,10 +60,16 @@ class TeamController extends Controller
                                ->limit(1);
                      });
             })
-            ->select('team.*', 'team_plan.team_number_plan', 'team_plan.room', 'team_plan.noshow')
-            ->orderBy('team.name') // Primary sort by name
-            ->orderBy('team.team_number_hot') // Secondary sort by team number
-            ->get();
+            ->select('team.*', 'team_plan.team_number_plan', 'team_plan.room', 'team_plan.noshow');
+
+        // Apply sorting based on parameter
+        if ($sortBy === 'plan_order') {
+            $query->orderBy('team_plan.team_number_plan');
+        } else {
+            $query->orderBy('team.name')->orderBy('team.team_number_hot');
+        }
+
+        $teams = $query->get();
 
         // Log::info('Fetched teams', $teams->toArray());      
 
@@ -151,19 +162,25 @@ class TeamController extends Controller
         }
 
         DB::transaction(function () use ($validated, $plan, $program) {
-            // Delete existing team_plan entries for this plan and program
+            // Get existing room assignments before deletion
             $teamIds = collect($validated['order'])->pluck('team_id');
+            $existingAssignments = TeamPlan::where('plan', $plan->id)
+                ->whereIn('team', $teamIds)
+                ->pluck('room', 'team')
+                ->toArray();
+
+            // Delete existing team_plan entries for this plan and program
             TeamPlan::where('plan', $plan->id)
                 ->whereIn('team', $teamIds)
                 ->delete();
 
-            // Insert new team order
+            // Insert new team order with preserved room assignments
             foreach ($validated['order'] as $item) {
                 TeamPlan::create([
                     'team' => $item['team_id'],
                     'plan' => $plan->id,
                     'team_number_plan' => $item['order'],
-                    'room' => null, // Will be set later when rooms are assigned
+                    'room' => $existingAssignments[$item['team_id']] ?? null, // Preserve existing room assignment
                     'noshow' => false // Default to false
                 ]);
             }
