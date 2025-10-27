@@ -13,7 +13,8 @@ class TeamPlan extends Model
         'team',
         'plan',
         'team_number_plan',
-        'room'
+        'room',
+        'noshow'
     ];
 
     public function team()

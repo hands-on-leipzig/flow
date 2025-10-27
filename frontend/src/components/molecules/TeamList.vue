@@ -159,7 +159,7 @@ const showSyncPrompt = computed(() =>
 
 onMounted(async () => {
   try {
-    const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}`)
+    const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
     localTeams.value = dbRes.data
     teamList.value = [...localTeams.value]
 
