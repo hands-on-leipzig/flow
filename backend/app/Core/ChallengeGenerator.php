@@ -371,9 +371,15 @@ class ChallengeGenerator
 
                 }
                 
-                // Store this as time object
-                $jTimeEarliest = clone $this->rTime;
-                $jTimeEarliest->addMinutes($rA4J);
+                if ($this->pp('g_finale') && $cBlock == 4) {
+                    // Special case finale: Judging round 5 can start as soon as they are ready. No need to wait for robot game.    
+                    $jTimeEarliest = clone $this->jTime;
+                }
+                else
+                {
+                    $jTimeEarliest = clone $this->rTime;
+                    $jTimeEarliest->addMinutes($rA4J);
+                }
 
                 log::debug("After: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
 
