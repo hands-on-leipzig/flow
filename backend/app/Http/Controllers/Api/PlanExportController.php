@@ -2036,22 +2036,17 @@ if ($prepRooms->isNotEmpty()) {
                 }
             }
             
-            // Round up to next 10-minute slot for the end time
+            // Round up to x:50 to show complete last hour (6 rows)
+            // Always stay in the same hour, never move to next hour
             $endMinutes = $actualLatestEnd->minute;
             $endHour = $actualLatestEnd->hour;
-            if ($endMinutes > 0) {
-                $roundedMinutes = ceil($endMinutes / 10) * 10;
-                if ($roundedMinutes >= 60) {
-                    $endHour++;
-                    $roundedMinutes = 0;
-                }
-            }
-            $endTime = \Carbon\Carbon::createFromTime($endHour, $roundedMinutes ?? 0, 0);
+            $roundedMinutes = 50; // Always end at x:50 to show complete current hour
+            $endTime = \Carbon\Carbon::createFromTime($endHour, $roundedMinutes, 0);
 
             // Generate all 10-minute slots
             $timeSlots = [];
             $current = $startTime->copy();
-            while ($current->lt($endTime)) {
+            while ($current->lte($endTime)) {
                 $timeSlots[] = $current->copy();
                 $current->addMinutes(10);
             }
@@ -2095,21 +2090,16 @@ if ($prepRooms->isNotEmpty()) {
                 // Generate 10-minute slots for this day only
                 $dayStartTime = \Carbon\Carbon::createFromTime($dayEarliestHour, 0, 0);
                 
-                // Use actual latest end time and round to next 10-minute slot
+                // Round up to x:50 to show complete last hour (6 rows)
+                // Always stay in the same hour, never move to next hour
                 $latestMinutes = $latestEnd->minute;
                 $latestHour = $latestEnd->hour;
-                if ($latestMinutes > 0) {
-                    $roundedMinutes = ceil($latestMinutes / 10) * 10;
-                    if ($roundedMinutes >= 60) {
-                        $latestHour++;
-                        $roundedMinutes = 0;
-                    }
-                }
-                $dayEndTime = \Carbon\Carbon::createFromTime($latestHour, $roundedMinutes ?? 0, 0);
+                $roundedMinutes = 50; // Always end at x:50 to show complete current hour
+                $dayEndTime = \Carbon\Carbon::createFromTime($latestHour, $roundedMinutes, 0);
                 
                 $dayTimeSlots = [];
                 $current = $dayStartTime->copy();
-                while ($current->lt($dayEndTime)) {
+                while ($current->lte($dayEndTime)) {
                     $dayTimeSlots[] = $current->copy();
                     $current->addMinutes(10);
                 }
