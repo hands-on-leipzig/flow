@@ -2003,7 +2003,16 @@ if ($prepRooms->isNotEmpty()) {
                 // Find earliest and latest hours for this day
                 $dayEarliestHour = $earliestStart->hour;
                 $dayLatestHour = $latestEnd->hour;
-                if ($latestEnd->minute > 0) $dayLatestHour++; // Round up if there are minutes
+                // Round up to the next 10-minute slot instead of the next hour
+                $latestMinutes = $latestEnd->minute;
+                if ($latestMinutes > 0) {
+                    // Round up to next 10-minute boundary
+                    $roundedMinutes = ceil($latestMinutes / 10) * 10;
+                    if ($roundedMinutes >= 60) {
+                        $dayLatestHour++;
+                        $roundedMinutes = 0;
+                    }
+                }
                 
                 // Update global min/max hours
                 if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
@@ -2014,9 +2023,30 @@ if ($prepRooms->isNotEmpty()) {
                 }
             }
 
-            // Create 10-minute grid from global earliest hour to latest hour
+            // Create 10-minute grid from global earliest hour to actual latest end time
             $startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
-            $endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 59, 59); // End of the last hour
+            
+            // Find the actual latest end time across all days
+            $actualLatestEnd = null;
+            foreach($eventsByDay as $dayData) {
+                $allEvents = collect($dayData['events']);
+                $latestEnd = $allEvents->max('latest_end');
+                if ($actualLatestEnd === null || $latestEnd->gt($actualLatestEnd)) {
+                    $actualLatestEnd = $latestEnd;
+                }
+            }
+            
+            // Round up to next 10-minute slot for the end time
+            $endMinutes = $actualLatestEnd->minute;
+            $endHour = $actualLatestEnd->hour;
+            if ($endMinutes > 0) {
+                $roundedMinutes = ceil($endMinutes / 10) * 10;
+                if ($roundedMinutes >= 60) {
+                    $endHour++;
+                    $roundedMinutes = 0;
+                }
+            }
+            $endTime = \Carbon\Carbon::createFromTime($endHour, $roundedMinutes ?? 0, 0);
 
             // Generate all 10-minute slots
             $timeSlots = [];
@@ -2043,7 +2073,16 @@ if ($prepRooms->isNotEmpty()) {
                 // Find earliest and latest hours for this day
                 $dayEarliestHour = $earliestStart->hour;
                 $dayLatestHour = $latestEnd->hour;
-                if ($latestEnd->minute > 0) $dayLatestHour++; // Round up if there are minutes
+                // Round up to the next 10-minute slot instead of the next hour
+                $latestMinutes = $latestEnd->minute;
+                if ($latestMinutes > 0) {
+                    // Round up to next 10-minute boundary
+                    $roundedMinutes = ceil($latestMinutes / 10) * 10;
+                    if ($roundedMinutes >= 60) {
+                        $dayLatestHour++;
+                        $roundedMinutes = 0;
+                    }
+                }
                 
                 // Update global min/max for return values
                 if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
