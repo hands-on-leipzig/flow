@@ -116,9 +116,25 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $columnWidth = $remainingWidth / $actualHtmlColumns;
         
         
-        // Check if Allgemein-2 and Allgemein-3 exist to determine merge behavior
+        // Check if columns exist to determine merge behavior
         $hasAllgemein2 = in_array('Allgemein-2', $columnNames);
+        $hasExplore = in_array('Explore', $columnNames);
         $hasAllgemein3 = in_array('Allgemein-3', $columnNames);
+        $hasChallenge = in_array('Challenge', $columnNames);
+        $hasRobotGame = in_array('Robot-Game', $columnNames);
+        $hasLiveChallenge = in_array('Live-Challenge', $columnNames);
+        
+        // Count columns for each merged group
+        $exploreColumns = 0;
+        $challengeColumns = 0;
+        
+        if ($hasAllgemein2) $exploreColumns++;
+        if ($hasExplore) $exploreColumns++;
+        
+        if ($hasAllgemein3) $challengeColumns++;
+        if ($hasChallenge) $challengeColumns++;
+        if ($hasRobotGame) $challengeColumns++;
+        if ($hasLiveChallenge) $challengeColumns++;
         
         // Generate headers with conditional merging
         foreach($columnNames as $columnName) {
@@ -135,18 +151,28 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $contentHtml .= '
                     <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
             } elseif ($columnName === 'Allgemein-2') {
-                if ($hasAllgemein2) {
+                if ($hasAllgemein2 && $hasExplore) {
                     // Merged cell for Allgemein-2 + Explore
                     $headerContent = '<img src="file://' . public_path('flow/fll_explore_h.png') . '" style="height: 20px; width: auto;">';
                     $contentHtml .= '
-                        <th colspan="2" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                        <th colspan="' . $exploreColumns . '" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                } elseif ($hasAllgemein2) {
+                    // Individual Allgemein-2 header
+                    $headerContent = htmlspecialchars($displayName);
+                    $contentHtml .= '
+                        <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
                 }
             } elseif ($columnName === 'Allgemein-3') {
-                if ($hasAllgemein3) {
-                    // Merged cell for Allgemein-3 + Challenge
+                if ($hasAllgemein3 && $challengeColumns > 1) {
+                    // Merged cell for Allgemein-3 + Challenge + Robot-Game + Live-Challenge
                     $headerContent = '<img src="file://' . public_path('flow/fll_challenge_h.png') . '" style="height: 20px; width: auto;">';
                     $contentHtml .= '
-                        <th colspan="2" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                        <th colspan="' . $challengeColumns . '" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                } elseif ($hasAllgemein3) {
+                    // Individual Allgemein-3 header
+                    $headerContent = htmlspecialchars($displayName);
+                    $contentHtml .= '
+                        <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
                 }
             } elseif ($columnName === 'Explore') {
                 // Explore gets icon only if Allgemein-2 doesn't exist
@@ -156,22 +182,26 @@ foreach($eventsByDay as $dayKey => $dayData) {
                         <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
                 }
             } elseif ($columnName === 'Challenge') {
-                // Challenge gets icon only if Allgemein-3 doesn't exist
-                if (!$hasAllgemein3) {
+                // Challenge gets icon only if not merged with other columns
+                if (!$hasAllgemein3 && !$hasRobotGame && !$hasLiveChallenge) {
                     $headerContent = '<img src="file://' . public_path('flow/fll_challenge_h.png') . '" style="height: 20px; width: auto;">';
                     $contentHtml .= '
                         <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
                 }
             } elseif ($columnName === 'Robot-Game') {
-                // Keep as is for Robot-Game
-                $headerContent = htmlspecialchars($displayName);
-                $contentHtml .= '
-                    <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                // Robot-Game gets text only if not merged with other columns
+                if (!$hasAllgemein3 && !$hasChallenge && !$hasLiveChallenge) {
+                    $headerContent = htmlspecialchars($displayName);
+                    $contentHtml .= '
+                        <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                }
             } elseif ($columnName === 'Live-Challenge') {
-                // Keep as is for Live-Challenge
-                $headerContent = htmlspecialchars($displayName);
-                $contentHtml .= '
-                    <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                // Live-Challenge gets text only if not merged with other columns
+                if (!$hasAllgemein3 && !$hasChallenge && !$hasRobotGame) {
+                    $headerContent = htmlspecialchars($displayName);
+                    $contentHtml .= '
+                        <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                }
             }
         }
         
