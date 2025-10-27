@@ -15,15 +15,11 @@ foreach($eventsByDay as $dayKey => $dayData) {
     // Find earliest and latest hours for this day
     $dayEarliestHour = $earliestStart->hour;
     $dayLatestHour = $latestEnd->hour;
-    // Round up to x:50 to show complete last hour
+    // Round up to x:50 to show complete last hour (6 rows)
+    // Always stay in the same hour, never move to next hour
     $latestMinutes = $latestEnd->minute;
     $dayLatestHour = $latestEnd->hour;
-    if ($latestMinutes > 50) {
-        $dayLatestHour++;
-        $roundedMinutes = 50;
-    } else {
-        $roundedMinutes = 50;
-    }
+    $roundedMinutes = 50; // Always end at x:50 to show complete current hour
     
     // Update global min/max hours
     if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
@@ -47,22 +43,18 @@ foreach($eventsByDay as $dayData) {
     }
 }
 
-// Round up to x:50 to show complete last hour
+// Round up to x:50 to show complete last hour (6 rows)
+// Always stay in the same hour, never move to next hour
 $endMinutes = $actualLatestEnd->minute;
 $endHour = $actualLatestEnd->hour;
-if ($endMinutes > 50) {
-    $endHour++;
-    $roundedMinutes = 50;
-} else {
-    $roundedMinutes = 50;
-}
+$roundedMinutes = 50; // Always end at x:50 to show complete current hour
 $endTime = \Carbon\Carbon::createFromTime($endHour, $roundedMinutes, 0);
 
 
 // Generate all 10-minute slots
 $timeSlots = [];
 $current = $startTime->copy();
-while ($current->lt($endTime)) {
+while ($current->lte($endTime)) {
     $timeSlots[] = $current->copy();
     $current->addMinutes(10);
 }
