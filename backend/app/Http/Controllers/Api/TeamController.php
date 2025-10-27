@@ -57,9 +57,8 @@ class TeamController extends Controller
                      });
             })
             ->select('team.*', 'team_plan.team_number_plan', 'team_plan.room')
-            ->orderBy('team_plan.team_number_plan')
-            ->orderBy('team.name') // Sort by team name
-            ->orderBy('team.team_number_hot') // Fallback ordering
+            ->orderBy('team.name') // Primary sort by name
+            ->orderBy('team.team_number_hot') // Secondary sort by team number
             ->get();
 
         // Log::info('Fetched teams', $teams->toArray());      
