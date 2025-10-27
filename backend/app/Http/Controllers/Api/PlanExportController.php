@@ -2094,7 +2094,18 @@ if ($prepRooms->isNotEmpty()) {
 
                 // Generate 10-minute slots for this day only
                 $dayStartTime = \Carbon\Carbon::createFromTime($dayEarliestHour, 0, 0);
-                $dayEndTime = \Carbon\Carbon::createFromTime($dayLatestHour, 59, 59);
+                
+                // Use actual latest end time and round to next 10-minute slot
+                $latestMinutes = $latestEnd->minute;
+                $latestHour = $latestEnd->hour;
+                if ($latestMinutes > 0) {
+                    $roundedMinutes = ceil($latestMinutes / 10) * 10;
+                    if ($roundedMinutes >= 60) {
+                        $latestHour++;
+                        $roundedMinutes = 0;
+                    }
+                }
+                $dayEndTime = \Carbon\Carbon::createFromTime($latestHour, $roundedMinutes ?? 0, 0);
                 
                 $dayTimeSlots = [];
                 $current = $dayStartTime->copy();
