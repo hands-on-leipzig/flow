@@ -27,7 +27,6 @@ class TeamController extends Controller
         'team_number_hot',
         'location',
         'organization',
-        'noshow',
     ];
 
     public function index(Request $request, Event $event)
@@ -56,7 +55,7 @@ class TeamController extends Controller
                                ->limit(1);
                      });
             })
-            ->select('team.*', 'team_plan.team_number_plan', 'team_plan.room')
+            ->select('team.*', 'team_plan.team_number_plan', 'team_plan.room', 'team_plan.noshow')
             ->orderBy('team.name') // Primary sort by name
             ->orderBy('team.team_number_hot') // Secondary sort by team number
             ->get();
@@ -82,13 +81,21 @@ class TeamController extends Controller
 
         if (isset($data['name'])) {
             $team->name = $data['name'];
+            $team->save();
         }
 
         if (isset($data['noshow'])) {
-            $team->noshow = $data['noshow'];
+            // Update noshow in team_plan for the current event's plan
+            $event = Event::find($team->event);
+            if ($event) {
+                $plan = Plan::where('event', $event->id)->first();
+                if ($plan) {
+                    TeamPlan::where('team', $team->id)
+                        ->where('plan', $plan->id)
+                        ->update(['noshow' => $data['noshow']]);
+                }
+            }
         }
-
-        $team->save();
 
         return response()->json(['message' => 'Team updated successfully', 'team' => $team]);
     }
@@ -103,12 +110,22 @@ class TeamController extends Controller
         $team->team_number_hot = $request->get('team_number_hot');
         $team->location = $request->get('location');
         $team->organization = $request->get('organization');
-        $team->noshow = 0;
         $team->save();
         
         // Sync team_plan entries for existing plans
         $planController = new PlanController();
         $planController->syncTeamPlanForEvent($team->event);
+        
+        // Set noshow to false in team_plan for the current event's plan
+        $event = Event::find($team->event);
+        if ($event) {
+            $plan = Plan::where('event', $event->id)->first();
+            if ($plan) {
+                TeamPlan::where('team', $team->id)
+                    ->where('plan', $plan->id)
+                    ->update(['noshow' => false]);
+            }
+        }
         
         return response()->json(['message' => 'Team created successfully', 'team' => $team]);
     }
@@ -146,7 +163,8 @@ class TeamController extends Controller
                     'team' => $item['team_id'],
                     'plan' => $plan->id,
                     'team_number_plan' => $item['order'],
-                    'room' => null // Will be set later when rooms are assigned
+                    'room' => null, // Will be set later when rooms are assigned
+                    'noshow' => false // Default to false
                 ]);
             }
         });
