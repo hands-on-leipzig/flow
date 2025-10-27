@@ -1989,6 +1989,26 @@ if ($prepRooms->isNotEmpty()) {
             ->values()
             ->toArray();
 
+        // Pre-assign activities to their correct columns
+        foreach ($eventOverview as &$event) {
+            $event['assigned_column'] = $event['group_overview_plan_column'] ?? 'Allgemein';
+            
+            // Handle empty strings as well as null
+            if (empty($event['assigned_column'])) {
+                $event['assigned_column'] = 'Allgemein';
+            }
+            
+            // For Allgemein columns, include first_program to make them unique
+            if ($event['assigned_column'] === 'Allgemein') {
+                $program = $event['group_first_program_id'];
+                if ($program === null) {
+                    $event['assigned_column'] = 'Allgemein';
+                } else {
+                    $event['assigned_column'] = 'Allgemein-' . $program;
+                }
+            }
+        }
+
         // Group by day for display
         $eventsByDay = [];
         foreach ($eventOverview as $event) {

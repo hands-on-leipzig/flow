@@ -156,12 +156,12 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                             continue;
                                         }
                                         
-                                        // Find events for this column
+                                        // Find events for this column - use pre-assigned column from controller
                                         $columnEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime, $columnName) {
-                                            $eventColumn = $item['event']['group_overview_plan_column'] ?? 'Allgemein';
+                                            $eventAssignedColumn = $item['event']['assigned_column'] ?? 'Allgemein';
                                             
                                             // Only check events that match this column
-                                            if ($eventColumn !== $columnName) {
+                                            if ($eventAssignedColumn !== $columnName) {
                                                 return false;
                                             }
                                             
@@ -186,8 +186,13 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                             // Mark this column as occupied for the next N-1 rows
                                             $occupiedCells[$columnName] = $index + $rowspan;
                                             
-                                            // Get color based on the event's actual overview_plan_column
-                                            $eventColumn = $event['group_overview_plan_column'] ?? 'Allgemein';
+                                            // Get color based on the event's assigned column
+                                            $eventAssignedColumn = $event['assigned_column'] ?? 'Allgemein';
+                                            $baseColor = $eventAssignedColumn;
+                                            if (strpos($baseColor, 'Allgemein-') === 0) {
+                                                $baseColor = 'Allgemein';
+                                            }
+                                            
                                             $columnColors = [
                                                 'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
                                                 'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
@@ -196,7 +201,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                                 'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']
                                             ];
                                             
-                                            $colors = $columnColors[$eventColumn] ?? ['bg' => '#f5f5f5', 'border' => '#95a5a6'];
+                                            $colors = $columnColors[$baseColor] ?? ['bg' => '#f5f5f5', 'border' => '#95a5a6'];
                                             
                                             $startTime = $event['earliest_start']->format('H:i');
                                             $endTime = $event['latest_end']->format('H:i');
