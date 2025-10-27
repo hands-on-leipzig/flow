@@ -91,8 +91,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if($hasExplore)
                                         <th colspan="{{ $exploreColumns }}" class="column-header merged-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FLL Explore">
-                                                <span style="vertical-align: middle;">FLL Explore</span>
+                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
+                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Explore</span>
                                             </div>
                                         </th>
                                     @else
@@ -102,8 +102,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if(!$hasAllgemein2)
                                         <th class="column-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FLL Explore">
-                                                <span style="vertical-align: middle;">FLL Explore</span>
+                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
+                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Explore</span>
                                             </div>
                                         </th>
                                     @endif
@@ -111,8 +111,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if($challengeColumns > 1)
                                         <th colspan="{{ $challengeColumns }}" class="column-header merged-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FLL Challenge">
-                                                <span style="vertical-align: middle;">FLL Challenge</span>
+                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
+                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Challenge</span>
                                             </div>
                                         </th>
                                     @else
@@ -122,8 +122,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if(!$hasAllgemein3 && !$hasRobotGame && !$hasLiveChallenge)
                                         <th class="column-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FLL Challenge">
-                                                <span style="vertical-align: middle;">FLL Challenge</span>
+                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
+                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Challenge</span>
                                             </div>
                                         </th>
                                     @endif
