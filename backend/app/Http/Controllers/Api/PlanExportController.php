@@ -1933,62 +1933,6 @@ if ($prepRooms->isNotEmpty()) {
             }
         }
 
-        // Get unique columns with their first_program for sorting
-        $columnsWithProgram = collect($eventOverview)
-            ->map(function($event) {
-                return [
-                    'overview_plan_column' => $event['group_overview_plan_column'],
-                    'first_program' => $event['group_first_program_id']
-                ];
-            })
-            ->unique(function($item) {
-                return $item['overview_plan_column'] . '|' . $item['first_program'];
-            })
-            ->sortBy(function($item) {
-                // Custom sorting to ensure specific column order
-                $column = $item['overview_plan_column'];
-                $program = $item['first_program'];
-                
-                // Define custom order for the last four columns
-                $customOrder = [
-                    'Allgemein-3' => 1,
-                    'Challenge' => 2,
-                    'Robot-Game' => 3,
-                    'Live-Challenge' => 4
-                ];
-                
-                // For the last four columns, use custom order
-                if (isset($customOrder[$column])) {
-                    return $program * 1000 + $customOrder[$column];
-                }
-                
-                // For other columns, use original sorting
-                return $program * 1000 + ($column === null ? 999 : 0);
-            })
-            ->values();
-
-        // Create unique column identifiers that include first_program for Allgemein
-        $columnNames = $columnsWithProgram
-            ->map(function($item) {
-                $columnName = $item['overview_plan_column'] ?? 'Allgemein';
-                // Handle empty strings as well as null
-                if (empty($columnName)) {
-                    $columnName = 'Allgemein';
-                }
-                // For Allgemein columns, include first_program to make them unique
-                if ($columnName === 'Allgemein') {
-                    $program = $item['first_program'];
-                    if ($program === null) {
-                        return 'Allgemein';
-                    } else {
-                        return 'Allgemein-' . $program;
-                    }
-                }
-                return $columnName;
-            })
-            ->values()
-            ->toArray();
-
         // Pre-assign activities to their correct columns
         foreach ($eventOverview as &$event) {
             $event['assigned_column'] = $event['group_overview_plan_column'] ?? 'Allgemein';
@@ -2008,6 +1952,27 @@ if ($prepRooms->isNotEmpty()) {
                 }
             }
         }
+
+        // Get unique assigned columns for sorting
+        $columnNames = collect($eventOverview)
+            ->pluck('assigned_column')
+            ->unique()
+            ->sortBy(function($columnName) {
+                // Custom sorting to ensure specific column order
+                $customOrder = [
+                    'Allgemein' => 0,
+                    'Allgemein-2' => 1,
+                    'Explore' => 2,
+                    'Allgemein-3' => 3,
+                    'Challenge' => 4,
+                    'Robot-Game' => 5,
+                    'Live-Challenge' => 6
+                ];
+                
+                return $customOrder[$columnName] ?? 999;
+            })
+            ->values()
+            ->toArray();
 
         // Group by day for display
         $eventsByDay = [];
