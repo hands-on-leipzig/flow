@@ -198,10 +198,13 @@ class FinaleGenerator
                 }
             });
 
-            // Add break between rounds (except after last round)
-            if ($round < 5) {
-                $lcTime->addMinutes($this->pp('lc_duration_break'));
+            // Add break between rounds
+            if ($round == 1 || $round == 2 || $round == 4) {
+                $lcTime->addMinutes($this->pp('lc_duration_break_short'));
+            } elseif ($round == 3) {
+                $lcTime->addMinutes($this->pp('lc_duration_break_long'));
             }
+            // No break after round 5
         }
 
         // === LC DELIBERATIONS (after all 5 rounds) ===
