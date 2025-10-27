@@ -40,7 +40,8 @@ use Netcity::Datum;
 # Config-Datei einbinden
 #########################################################
 #read_config 'config.cgi' => my %config;
-read_config '../../.env' => my %config;
+read_config '../../.env' => my %config; # HoT
+#read_config './config.env' => my %config; # fll-braunschweig.de
 
 # query-Objekt initialisieren
 my $query_cgi = new CGI;
@@ -722,6 +723,7 @@ sub get_detailplan {
 
     my $activity_extra_block_name = "";
     my $activity_extra_block_description = "";
+    my $activity_extra_block_link = "";
     my $activity_extra_block_room_name = "";
     my $activity_extra_block_room_navigation_instruction = "";
 
@@ -891,6 +893,7 @@ sub get_detailplan {
             activity.table_2_team,
             extra_block.name,
             extra_block.description,
+            extra_block.link,
             extra_block_room.name,
             extra_block_room.navigation_instruction
             from activity
@@ -950,8 +953,9 @@ sub get_detailplan {
 
                     $activity_extra_block_name = $row_activities[22];
                     $activity_extra_block_description = $row_activities[23];
-                    $activity_extra_block_room_name = $row_activities[24];
-                    $activity_extra_block_room_navigation_instruction = $row_activities[25];
+                    $activity_extra_block_link = $row_activities[24];
+                    $activity_extra_block_room_name = $row_activities[25];
+                    $activity_extra_block_room_navigation_instruction = $row_activities[26];
 
                     if ($activity_room_type_name eq "") {
                         $activity_room_type_name = "nicht spezifiziert";
@@ -959,9 +963,7 @@ sub get_detailplan {
                     if ($activity_room_name eq "") {
                         $activity_room_name = "[$activity_room_type_name]";
                     }
-                    if ($activity_room_navigation_instruction ne "") {
-                        $activity_room_navigation_instruction = "($activity_room_navigation_instruction)";
-                    }
+
 
                     if ($activity_activity_type_detail_id == 47 || $activity_activity_type_detail_id == 48 || $activity_activity_type_detail_id == 49 || $activity_activity_type_detail_id == 50 || $activity_activity_type_detail_id == 51 || $activity_activity_type_detail_id == 52) {
                         # eingeschobener (47,48,49) oder freier Block (50,51,52)
@@ -976,7 +978,14 @@ sub get_detailplan {
                         $activity_room_navigation_instruction = $activity_extra_block_room_navigation_instruction;
                     }
 
-                    $activity_group_rooms{$activity_room_name} = "x"; # alle Raeume in Hash sammeln , 'x' ist dummy-Eintrag, wir brauchen nur die keys spaeter
+                    if ($activity_room_navigation_instruction ne "") {
+                        $activity_room_navigation_instruction = "($activity_room_navigation_instruction)";
+                    }
+
+                    # Raumliste generieren fuer Uebersichtsplan
+                    $activity_group_rooms{$activity_room_name} = "$activity_room_navigation_instruction";
+                    # alle Raeume in Hash sammeln , 'x' ist dummy-Eintrag, wir brauchen nur die keys spaeter
+                    # NEU: jetzt die navigation_instruction als Eintrag schreiben, die koennen wir noch gebrauchen!
 
                     if ($activity_activity_type_detail_description ne "") {
                         if ($activity_activity_type_detail_link ne "") {
@@ -1197,6 +1206,8 @@ sub get_detailplan {
 
                         # Description kommt in diesem Fall aus dem extra_block, daher die description aus activity_type_detail ueberschreiben
                         $activity_group_activity_type_detail_description = $activity_extra_block_description;
+                        # Ebenso ein etwaiger Link
+                        $activity_group_activity_type_detail_link = $activity_extra_block_link;
                     }
                     # Raum noch fuer extra_block anpassen!
                     $activity_item .= qq{<br><i class="bi-geo"></i> $activity_room_name $activity_room_navigation_instruction};
@@ -1294,7 +1305,7 @@ sub get_detailplan {
                         if ($activity_group_rooms_list ne "") {
                             $activity_group_rooms_list .= ", ";
                         }
-                        $activity_group_rooms_list .= $activity_group_room;
+                        $activity_group_rooms_list .= qq{$activity_group_room $activity_group_rooms{$activity_group_room}};
                     }
 
                     $activity_group_rooms_anzahl = keys %activity_group_rooms;

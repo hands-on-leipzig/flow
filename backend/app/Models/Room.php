@@ -12,8 +12,9 @@ class Room extends Model
         "id",
         "event",
         "name",
-        "navigation_instruction"
-
+        "navigation_instruction",
+        "sequence",
+        "is_accessible"
     ];
 
     public $timestamps = false;
@@ -25,8 +26,6 @@ class Room extends Model
 
     public function roomTypes()
     {
-        return $this->belongsToMany(MRoomType::class, 'room_type_room', 'room', 'room_type')
-            ->withPivot('sequence')
-            ->orderBy('room_type_room.sequence');
+        return $this->belongsToMany(MRoomType::class, 'room_type_room', 'room', 'room_type');
     }
 }

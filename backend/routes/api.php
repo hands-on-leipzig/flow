@@ -96,6 +96,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Preview controller
     Route::prefix('plans/preview')->group(function () {
+        Route::get('/{planId}/overview', [PlanPreviewController::class, 'previewOverview']);
         Route::get('/{planId}/roles', [PlanPreviewController::class, 'previewRoles']);
         Route::get('/{planId}/teams', [PlanPreviewController::class, 'previewTeams']);
         Route::get('/{planId}/rooms', [PlanPreviewController::class, 'previewRooms']);
@@ -171,7 +172,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::put('/rooms/assign-types', [RoomController::class, 'assignRoomType']);
     Route::put('/rooms/assign-teams', [RoomController::class, 'assignTeam']);
-    Route::put('/rooms/{room}/update-sequence', [RoomController::class, 'updateRoomTypeSequence']);
+    Route::put('/rooms/update-sequence', [RoomController::class, 'updateRoomSequence']);
     Route::put('/rooms/{room}', [RoomController::class, 'update']);
     Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
 

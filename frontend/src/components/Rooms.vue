@@ -14,9 +14,6 @@ const assignments = ref({})
 // --- Gemeinsame Struktur für Activities + Teams ---
 const assignables = ref([]) // ← gemeinsame Ebene 1 (type = 'activity' | 'team')
 
-// Store temporary order for rooms during API calls
-const temporaryRoomOrders = ref({})
-
 // --- Hilfslisten ---
 const roomTypes = ref([])
 const typeGroups = ref([])
@@ -25,6 +22,7 @@ const challengeTeams = ref([])
 
 const dragOverRoomId = ref(null)
 const isDragging = ref(false)
+const isDraggingRoom = ref(false)
 const previewedTypeId = ref(null)
 
 // --- Farbzuweisung ---
@@ -69,8 +67,8 @@ onMounted(async () => {
   // --- Teams laden über neue API ---
   try {
     const [exploreResponse, challengeResponse] = await Promise.all([
-      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'explore' } }),
-      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'challenge' } })
+      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'explore', sort: 'name' } }),
+      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'challenge', sort: 'name' } })
     ])
 
     exploreTeams.value = exploreResponse.data.map(t => ({
@@ -152,14 +150,26 @@ onMounted(async () => {
   // 3) Zusammenführen
   assignments.value = result
 
+  // (Optional zum Prüfen)
+  // console.log('Assignments summary:', {
+  //   activities: Object.keys(result).filter(k => k.startsWith('activity-')).length,
+  //   teams: Object.keys(result).filter(k => k.startsWith('team-')).length
+  // })
 })
 
 // --- Raum bearbeiten ---
 const updateRoom = async (room) => {
   await axios.put(`/rooms/${room.id}`, {
     name: room.name,
-    navigation_instruction: room.navigation_instruction
+    navigation_instruction: room.navigation_instruction,
+    is_accessible: room.is_accessible
   })
+}
+
+// --- Accessibility toggle ---
+const toggleAccessibility = async (room) => {
+  room.is_accessible = !room.is_accessible
+  await updateRoom(room)
 }
 
 // --- Gemeinsame Zuordnung Raum <-> Item ---
@@ -247,6 +257,7 @@ const unassignItemFromRoom = async (itemKey) => {
 // --- Raum erstellen ---
 const newRoomName = ref('')
 const newRoomNote = ref('')
+const newRoomAccessible = ref(true)
 const newRoomInput = ref(null)
 const newRoomNoteInput = ref(null)
 const isSaving = ref(false)
@@ -263,11 +274,13 @@ const createRoom = async () => {
     const { data } = await axios.post('/rooms', {
       name: newRoomName.value.trim(),
       navigation_instruction: newRoomNote.value.trim(),
-      event: eventId.value
+      event: eventId.value,
+      is_accessible: newRoomAccessible.value
     })
     rooms.value.push(data)
     newRoomName.value = ''
     newRoomNote.value = ''
+    newRoomAccessible.value = true
     await nextTick()
     newRoomInput.value?.focus()
   } finally {
@@ -289,79 +302,23 @@ const handleDrop = async (event, room) => {
   isDragging.value = false
 }
 
-// --- Room Type Reordering ---
-const handleRoomTypeReorder = async (event, room) => {
-  // Set dragging to false immediately - we'll use temporary order instead
-  isDragging.value = false
-  
-  // Get room types from the current room data
-  const roomData = rooms.value.find(r => r.id === room.id)
-  if (!roomData || !roomData.room_types) return
-  
-  if (roomData.room_types.length === 0) return
-
-  // Use the draggable event data to determine the new order
-  const oldIndex = event.oldIndex
-  const newIndex = event.newIndex
-  
-  if (oldIndex !== undefined && newIndex !== undefined) {
-    // Create a copy of the room types array
-    const roomTypesArray = [...roomData.room_types]
-    
-    // Move the item from oldIndex to newIndex
-    const [movedItem] = roomTypesArray.splice(oldIndex, 1)
-    roomTypesArray.splice(newIndex, 0, movedItem)
-    
-    // Set temporary order immediately to preserve visual order
-    const tempOrder = {}
-    roomTypesArray.forEach((rt, index) => {
-      tempOrder[rt.id] = index + 1
-    })
-    temporaryRoomOrders.value[room.id] = tempOrder
-    
-    // Create sequence data based on the new order
-    const roomTypes = roomTypesArray.map((rt, index) => ({
-      room_type_id: rt.id,
+// --- Room reordering ---
+const handleRoomReorder = async () => {
+  try {
+    const roomsWithSequence = rooms.value.map((room, index) => ({
+      room_id: room.id,
       sequence: index + 1
     }))
 
-    try {
-      await axios.put(`/rooms/${room.id}/update-sequence`, {
-        room_types: roomTypes
-      })
-      
-      // Refresh room data to get updated ordering
-      await refreshRoomData()
-      
-      // Clear temporary order after successful API call
-      delete temporaryRoomOrders.value[room.id]
-    } catch (error) {
-      console.error('Error updating room type sequence:', error)
-      // Clear temporary order on error too
-      delete temporaryRoomOrders.value[room.id]
-    }
-  }
-}
-
-// --- Refresh room data ---
-const refreshRoomData = async () => {
-  try {
+    await axios.put('/rooms/update-sequence', {
+      rooms: roomsWithSequence,
+      event_id: eventId.value
+    })
+  } catch (error) {
+    console.error('Error updating room sequence:', error)
+    // Optionally reload rooms to restore original order
     const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
     rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
-    
-    // Update assignments based on new room data
-    const result = {}
-    roomsData.rooms.forEach(room => {
-      (room.room_types ?? []).forEach(rt => {
-        result[`activity-${rt.id}`] = room.id
-      })
-      ;(room.extra_blocks ?? []).forEach(eb => {
-        result[`activity-${eb.id}`] = room.id
-      })
-    })
-    assignments.value = result
-  } catch (error) {
-    console.error('Error refreshing room data:', error)
   }
 }
 
@@ -408,71 +365,11 @@ const activeTab = ref('activities')
 // Hilfsfunktion für Template (typisierte IDs)
 const getItemsInRoom = (roomId) => {
   const all = []
-  
-  // Get the actual room data
-  const room = rooms.value.find(r => r.id === roomId)
-  if (!room) {
-    return all
-  }
-  
-  // Add room types from the actual room data (with correct IDs and sequence)
-  if (room.room_types) {
-    room.room_types.forEach(rt => {
-      all.push({
-        id: rt.id,
-        key: `activity-${rt.id}`,
-        name: rt.name,
-        first_program: rt.first_program,
-        type: 'activity',
-        group: { id: 'room-types', name: 'Room Types' },
-        sequence: rt.pivot?.sequence || 0  // Use pivot sequence for ordering
-      })
-    })
-  }
-  
-  // Add extra blocks from the actual room data
-  if (room.extra_blocks) {
-    room.extra_blocks.forEach(eb => {
-      all.push({
-        id: eb.id,
-        key: `activity-${eb.id}`,
-        name: eb.name,
-        first_program: eb.first_program,
-        type: 'activity',
-        group: { id: 'extra-blocks', name: 'Extra Blocks' }
-      })
-    })
-  }
-  
-  // Add teams from assignments (teams don't have sequence ordering)
   for (const category of assignables.value) {
-    if (category.type === 'team') {
-      for (const group of category.groups) {
-        all.push(...group.items.filter(i => assignments.value[`${i.type}-${i.id}`] === roomId))
-      }
+    for (const group of category.groups) {
+      all.push(...group.items.filter(i => assignments.value[`${i.type}-${i.id}`] === roomId))
     }
   }
-  
-  // Use temporary order if available, otherwise sort by sequence
-  if (temporaryRoomOrders.value[roomId]) {
-    // Sort by temporary order
-    all.sort((a, b) => {
-      const orderA = temporaryRoomOrders.value[roomId][a.id] || 999
-      const orderB = temporaryRoomOrders.value[roomId][b.id] || 999
-      return orderA - orderB
-    })
-  } else {
-    // Sort by sequence for room types, keep teams at the end
-    all.sort((a, b) => {
-      if (a.type === 'activity' && b.type === 'activity') {
-        return (a.sequence || 0) - (b.sequence || 0)
-      }
-      if (a.type === 'team' && b.type === 'activity') return 1
-      if (a.type === 'activity' && b.type === 'team') return -1
-      return 0
-    })
-  }
-  
   return all
 }
 
@@ -511,56 +408,79 @@ const hasWarning = (tab) => {
 </script>
 
 <template>
-  <div class="grid grid-cols-[2fr,1fr] gap-6 p-6">
-    <!-- 🟢 Linke Spalte: Räume -->
-    <div>
+  <div class="grid grid-cols-4 gap-6 p-6">
+    <!-- 🟢 Räume: Erste 3 Spalten -->
+    <div class="col-span-3">
       <h2 class="text-xl font-bold mb-4">Räume</h2>
-      <ul class="grid grid-cols-2 gap-4">
-        <!-- Bestehende Räume -->
-        <li
-          v-for="room in rooms"
-          :key="room.id"
-          class="p-4 mb-2 border rounded bg-white shadow"
-        >
-          <div class="flex justify-between items-start">
-            <div class="w-full">
-              <!-- Raumname -->
-              <div class="mb-2">
-                <input
-                  v-model="room.name"
-                  class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
-                  @blur="updateRoom(room)"
-                />
-              </div>
-
-              <!-- Navigationshinweis -->
-              <div>
-                <input
-                  v-model="room.navigation_instruction"
-                  class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
-                  placeholder="z. B. 2. Etage rechts"
-                  @blur="updateRoom(room)"
-                />
-              </div>
-
-              <!-- Gemeinsame Drop-Zone für Aktivitäten & Teams -->
-              <div
-                class="flex flex-wrap mt-2 gap-2 min-h-[40px] border rounded p-2 transition-colors"
-                :class="{
-                  'bg-blue-100': dragOverRoomId === room.id,
-                  'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
-                  'bg-gray-50': !isDragging && dragOverRoomId !== room.id
-                }"
+      <draggable
+        v-model="rooms"
+        group="rooms"
+        item-key="id"
+        @start="isDraggingRoom = true"
+        @end="isDraggingRoom = false; handleRoomReorder()"
+        class="grid grid-cols-3 gap-4"
+      >
+        <template #item="{ element: room }">
+          <li
+            :key="room.id"
+            class="p-4 mb-2 border rounded bg-white shadow cursor-move hover:shadow-md transition-shadow"
+            :class="{
+              'opacity-50': isDraggingRoom,
+              'shadow-lg': isDraggingRoom
+            }"
+          >
+            <!-- Line 1: Drag handle, Room name, Delete icon -->
+            <div class="flex items-center gap-2 mb-2">
+              <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
+              <input
+                v-model="room.name"
+                class="text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
+                @blur="updateRoom(room)"
+              />
+              <button
+                @click="askDeleteRoom(room)"
+                class="text-red-600 text-lg"
+                title="Raum löschen"
               >
+                🗑️
+              </button>
+            </div>
+
+            <!-- Line 2: Navigation instruction full width with accessibility icon at end -->
+            <div class="mb-2 flex items-center gap-2">
+              <input
+                v-model="room.navigation_instruction"
+                class="text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
+                placeholder="z. B. 2. Etage rechts"
+                @blur="updateRoom(room)"
+              />
+              <div 
+                class="text-lg cursor-pointer"
+                :class="room.is_accessible ? 'text-green-600' : 'text-red-600'"
+                :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                @click="toggleAccessibility(room)"
+              >
+                {{ room.is_accessible ? '♿✓' : '♿⭕' }}
+              </div>
+            </div>
+
+            <!-- Line 3: Drop area full width with reduced padding -->
+            <div
+              class="flex flex-wrap gap-1 min-h-[40px] border rounded p-1 transition-colors"
+              :class="{
+                'bg-blue-100': dragOverRoomId === room.id,
+                'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
+                'bg-gray-50': !isDragging && dragOverRoomId !== room.id
+              }"
+            >
                 <draggable
                   :list="getItemsInRoom(room.id)"
                   group="assignables"
                   item-key="id"
                   @add="event => handleDrop(event, room)"
-                  @update="event => handleRoomTypeReorder(event, room)"
                   @start="isDragging = true"
                   @end="isDragging = false"
-                  class="flex flex-wrap gap-2 w-full"
+                  class="flex flex-wrap gap-1 w-full"
                 >
 
                 
@@ -617,18 +537,8 @@ const hasWarning = (tab) => {
 
                 </draggable>
               </div>
-            </div>
-
-            <!-- Raum löschen -->
-            <button
-              class="text-red-600 text-lg"
-              @click="askDeleteRoom(room)"
-              title="Raum löschen"
-            >
-              🗑️
-            </button>
-          </div>
-        </li>
+            </li>
+        </template>
 
         <!-- 🟩 Neuer Raum -->
         <li
@@ -655,14 +565,26 @@ const hasWarning = (tab) => {
                 @keyup.enter="createRoom"
                 :disabled="isSaving"
               />
+              <div class="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  v-model="newRoomAccessible"
+                  id="newRoomAccessible"
+                  class="rounded"
+                  :disabled="isSaving"
+                />
+                <label for="newRoomAccessible" class="text-sm text-gray-700">
+                  Barrierefrei
+                </label>
+              </div>
             </div>
           </transition>
         </li>
-      </ul>
+      </draggable>
     </div>
 
     <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->
-    <div>
+    <div class="col-span-1">
       <div class="flex mb-4 border-b text-xl font-bold relative">
         <button
           class="px-4 py-2 relative"
