@@ -18,8 +18,9 @@ class PlanPreviewController extends Controller
 
     public function previewOverview(int $planId)
     {
-        // Use the existing getEventOverviewData method from PlanExportController
-        $data = $this->planExport->getEventOverviewData($planId);
+        // Use different roles for preview: Team, Jury, Schiedsrichter, Robot-Check, etc.
+        $previewRoles = [3, 8, 5, 11, 4, 9, 16];
+        $data = $this->planExport->getEventOverviewData($planId, $previewRoles);
         
         // Return the data in the same format as other preview methods
         return response()->json([
