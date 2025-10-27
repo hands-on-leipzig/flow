@@ -512,6 +512,13 @@ td {
 .event-overview-container .overview-table th,
 .event-overview-container .overview-table td {
   padding: 6px 4px;
+  height: 24px; /* Consistent row height for HTML preview */
+  vertical-align: top; /* Align content to top of cell */
+}
+
+.event-overview-container .overview-table td {
+  overflow: hidden; /* Hide overflow text to maintain consistent height */
+  text-overflow: ellipsis; /* Show ellipsis for truncated text */
 }
 
 .event-overview-container .header-logo {

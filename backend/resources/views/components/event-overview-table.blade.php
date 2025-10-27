@@ -146,7 +146,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                             
                             <tr class="time-row">
                                 @if($isFullHour)
-                                    <td rowspan="6" class="time-cell">{{ $timeLabel }}</td>
+                                    <td rowspan="6" class="time-cell" style="{{ !$isPdf ? 'height: 24px;' : '' }}">{{ $timeLabel }}</td>
                                 @endif
                                 
                                 @foreach($columnNames as $columnName)
@@ -204,12 +204,12 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @endphp
                                     
                                     @if($columnEvents->count() > 0)
-                                        <td rowspan="{{ $rowspan }}" class="activity-cell" style="background-color: {{ $colors['bg'] }}; border-left: 3px solid {{ $colors['border'] }};">
+                                        <td rowspan="{{ $rowspan }}" class="activity-cell" style="background-color: {{ $colors['bg'] }}; border-left: 3px solid {{ $colors['border'] }}; {{ !$isPdf ? 'height: 24px; overflow: hidden;' : '' }}">
                                             {{ $event['group_name'] }}<br>
                                             <span class="activity-time">{{ $startTime }} - {{ $endTime }}</span>
                                         </td>
                                     @else
-                                        <td class="empty-cell"></td>
+                                        <td class="empty-cell" style="{{ !$isPdf ? 'height: 24px;' : '' }}"></td>
                                     @endif
                                 @endforeach
                             </tr>
