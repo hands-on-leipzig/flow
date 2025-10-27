@@ -1870,7 +1870,7 @@ if ($prepRooms->isNotEmpty()) {
     /**
      * Get event overview data for both PDF and HTML rendering
      */
-    public function getEventOverviewData(int $planId, array $roles = [6, 10, 14]): array
+    public function getEventOverviewData(int $planId, array $roles = [6, 10, 14], bool $isPdf = true): array
     {
         // Get activities using specified roles
         $activities = $this->activityFetcher->fetchActivities(
@@ -1987,40 +1987,87 @@ if ($prepRooms->isNotEmpty()) {
             $eventsByDay[$dayKey]['events'][] = $event;
         }
 
-        // Calculate global time range for all days
-        $globalEarliestHour = null;
-        $globalLatestHour = null;
+        if ($isPdf) {
+            // PDF: Calculate global time range for all days (consistent rows)
+            $globalEarliestHour = null;
+            $globalLatestHour = null;
 
-        // First pass: calculate global time range
-        foreach($eventsByDay as $dayKey => $dayData) {
-            $allEvents = collect($dayData['events']);
-            $earliestStart = $allEvents->min('earliest_start');
-            $latestEnd = $allEvents->max('latest_end');
-            
-            // Find earliest and latest hours for this day
-            $dayEarliestHour = $earliestStart->hour;
-            $dayLatestHour = $latestEnd->hour;
-            if ($latestEnd->minute > 0) $dayLatestHour++; // Round up if there are minutes
-            
-            // Update global min/max hours
-            if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
-                $globalEarliestHour = $dayEarliestHour;
+            // First pass: calculate global time range
+            foreach($eventsByDay as $dayKey => $dayData) {
+                $allEvents = collect($dayData['events']);
+                $earliestStart = $allEvents->min('earliest_start');
+                $latestEnd = $allEvents->max('latest_end');
+                
+                // Find earliest and latest hours for this day
+                $dayEarliestHour = $earliestStart->hour;
+                $dayLatestHour = $latestEnd->hour;
+                if ($latestEnd->minute > 0) $dayLatestHour++; // Round up if there are minutes
+                
+                // Update global min/max hours
+                if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
+                    $globalEarliestHour = $dayEarliestHour;
+                }
+                if ($globalLatestHour === null || $dayLatestHour > $globalLatestHour) {
+                    $globalLatestHour = $dayLatestHour;
+                }
             }
-            if ($globalLatestHour === null || $dayLatestHour > $globalLatestHour) {
-                $globalLatestHour = $dayLatestHour;
+
+            // Create 10-minute grid from global earliest hour to latest hour
+            $startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
+            $endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 59, 59); // End of the last hour
+
+            // Generate all 10-minute slots
+            $timeSlots = [];
+            $current = $startTime->copy();
+            while ($current->lt($endTime)) {
+                $timeSlots[] = $current->copy();
+                $current->addMinutes(10);
             }
-        }
+            
+            // Add timeSlots to each day for PDF
+            foreach($eventsByDay as $dayKey => &$dayData) {
+                $dayData['timeSlots'] = $timeSlots;
+            }
+        } else {
+            // Preview: Calculate per-day time ranges (compact, space-saving)
+            $globalEarliestHour = null;
+            $globalLatestHour = null;
 
-        // Create 10-minute grid from global earliest hour to latest hour
-        $startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
-        $endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 59, 59); // End of the last hour
+            foreach($eventsByDay as $dayKey => &$dayData) {
+                $allEvents = collect($dayData['events']);
+                $earliestStart = $allEvents->min('earliest_start');
+                $latestEnd = $allEvents->max('latest_end');
+                
+                // Find earliest and latest hours for this day
+                $dayEarliestHour = $earliestStart->hour;
+                $dayLatestHour = $latestEnd->hour;
+                if ($latestEnd->minute > 0) $dayLatestHour++; // Round up if there are minutes
+                
+                // Update global min/max for return values
+                if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
+                    $globalEarliestHour = $dayEarliestHour;
+                }
+                if ($globalLatestHour === null || $dayLatestHour > $globalLatestHour) {
+                    $globalLatestHour = $dayLatestHour;
+                }
 
-        // Generate all 10-minute slots
-        $timeSlots = [];
-        $current = $startTime->copy();
-        while ($current->lt($endTime)) {
-            $timeSlots[] = $current->copy();
-            $current->addMinutes(10);
+                // Generate 10-minute slots for this day only
+                $dayStartTime = \Carbon\Carbon::createFromTime($dayEarliestHour, 0, 0);
+                $dayEndTime = \Carbon\Carbon::createFromTime($dayLatestHour, 59, 59);
+                
+                $dayTimeSlots = [];
+                $current = $dayStartTime->copy();
+                while ($current->lt($dayEndTime)) {
+                    $dayTimeSlots[] = $current->copy();
+                    $current->addMinutes(10);
+                }
+                
+                // Add per-day timeSlots
+                $dayData['timeSlots'] = $dayTimeSlots;
+            }
+            
+            // For preview, we don't need a global timeSlots array
+            $timeSlots = [];
         }
 
         // Check if this is a multi-day event
@@ -2033,8 +2080,8 @@ if ($prepRooms->isNotEmpty()) {
             'timeSlots' => $timeSlots,
             'globalEarliestHour' => $globalEarliestHour,
             'globalLatestHour' => $globalLatestHour,
-            'startTime' => $startTime,
-            'endTime' => $endTime
+            'startTime' => $isPdf ? $startTime : null,
+            'endTime' => $isPdf ? $endTime : null
         ];
     }
 
