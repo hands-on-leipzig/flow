@@ -62,8 +62,60 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                     <thead>
                         <tr>
                             <th class="time-column">Zeit</th>
+                            @php
+                                // Group columns for header merging
+                                $hasAllgemein2 = in_array('Allgemein-2', $columnNames);
+                                $hasExplore = in_array('Explore', $columnNames);
+                                $hasAllgemein3 = in_array('Allgemein-3', $columnNames);
+                                $hasChallenge = in_array('Challenge', $columnNames);
+                                $hasRobotGame = in_array('Robot-Game', $columnNames);
+                                $hasLiveChallenge = in_array('Live-Challenge', $columnNames);
+                                
+                                // Count columns for each merged group
+                                $exploreColumns = 0;
+                                $challengeColumns = 0;
+                                
+                                if ($hasAllgemein2) $exploreColumns++;
+                                if ($hasExplore) $exploreColumns++;
+                                
+                                if ($hasAllgemein3) $challengeColumns++;
+                                if ($hasChallenge) $challengeColumns++;
+                                if ($hasRobotGame) $challengeColumns++;
+                                if ($hasLiveChallenge) $challengeColumns++;
+                            @endphp
+                            
                             @foreach($columnNames as $columnName)
-                                <th class="column-header">{{ $columnName }}</th>
+                                @if($columnName === 'Allgemein')
+                                    <th class="column-header">{{ $columnName }}</th>
+                                @elseif($columnName === 'Allgemein-2' && $hasAllgemein2)
+                                    @if($hasExplore)
+                                        <th colspan="{{ $exploreColumns }}" class="column-header merged-header">FLL Explore</th>
+                                    @else
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @elseif($columnName === 'Explore' && $hasExplore)
+                                    @if(!$hasAllgemein2)
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @elseif($columnName === 'Allgemein-3' && $hasAllgemein3)
+                                    @if($challengeColumns > 1)
+                                        <th colspan="{{ $challengeColumns }}" class="column-header merged-header">FLL Challenge</th>
+                                    @else
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @elseif($columnName === 'Challenge' && $hasChallenge)
+                                    @if(!$hasAllgemein3 && !$hasRobotGame && !$hasLiveChallenge)
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @elseif($columnName === 'Robot-Game' && $hasRobotGame)
+                                    @if(!$hasAllgemein3 && !$hasChallenge && !$hasLiveChallenge)
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @elseif($columnName === 'Live-Challenge' && $hasLiveChallenge)
+                                    @if(!$hasAllgemein3 && !$hasChallenge && !$hasRobotGame)
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @endif
                             @endforeach
                         </tr>
                     </thead>
@@ -226,6 +278,15 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
 .column-header {
     background-color: white;
     font-weight: bold;
+}
+
+.column-header.merged-header {
+    background-color: #e8f4f8;
+    font-weight: bold;
+    text-align: center;
+    border: 2px solid #007bff;
+    padding: 8px 4px;
+    font-size: 12px;
 }
 
 .overview-table td {
