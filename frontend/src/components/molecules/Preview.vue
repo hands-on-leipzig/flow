@@ -512,6 +512,14 @@ td {
 .event-overview-container .overview-table th,
 .event-overview-container .overview-table td {
   padding: 6px 4px;
+  height: 24px; /* Consistent row height for HTML preview */
+  vertical-align: top; /* Align content to top of cell */
+}
+
+.event-overview-container .overview-table td {
+  overflow: hidden; /* Hide overflow text to maintain consistent height */
+  text-overflow: ellipsis; /* Show ellipsis for truncated text */
+  line-height: 1.1; /* Minimize vertical gap between activity name and time */
 }
 
 .event-overview-container .header-logo {

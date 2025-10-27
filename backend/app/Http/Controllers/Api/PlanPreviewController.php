@@ -18,8 +18,13 @@ class PlanPreviewController extends Controller
 
     public function previewOverview(int $planId)
     {
-        // Use the existing getEventOverviewData method from PlanExportController
-        $data = $this->planExport->getEventOverviewData($planId);
+        // Dynamically select all roles marked for preview matrix
+        $previewRoles = DB::table('m_role')
+            ->where('preview_matrix', 1)
+            ->pluck('id')
+            ->toArray();
+            
+        $data = $this->planExport->getEventOverviewData($planId, $previewRoles, false);
         
         // Return the data in the same format as other preview methods
         return response()->json([

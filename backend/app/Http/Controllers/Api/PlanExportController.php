@@ -1870,12 +1870,12 @@ if ($prepRooms->isNotEmpty()) {
     /**
      * Get event overview data for both PDF and HTML rendering
      */
-    public function getEventOverviewData(int $planId): array
+    public function getEventOverviewData(int $planId, array $roles = [6, 10, 14], bool $isPdf = true): array
     {
-        // Get public activities using the same filtering as rooms plan
+        // Get activities using specified roles
         $activities = $this->activityFetcher->fetchActivities(
             plan: $planId,
-            roles: [6, 10, 14],   // Rollen: Publikum E, C und generisch
+            roles: $roles,
             includeGroupMeta: true,
             freeBlocks: true
         );
@@ -1932,59 +1932,46 @@ if ($prepRooms->isNotEmpty()) {
                 }
             }
         }
+        unset($event); // Clear the reference
 
-        // Get unique columns with their first_program for sorting
-        $columnsWithProgram = collect($eventOverview)
-            ->map(function($event) {
-                return [
-                    'overview_plan_column' => $event['group_overview_plan_column'],
-                    'first_program' => $event['group_first_program_id']
-                ];
-            })
-            ->unique(function($item) {
-                return $item['overview_plan_column'] . '|' . $item['first_program'];
-            })
-            ->sortBy(function($item) {
+        // Pre-assign activities to their correct columns
+        foreach ($eventOverview as &$event) {
+            $event['assigned_column'] = $event['group_overview_plan_column'] ?? 'Allgemein';
+            
+            // Handle empty strings as well as null
+            if (empty($event['assigned_column'])) {
+                $event['assigned_column'] = 'Allgemein';
+            }
+            
+            // For Allgemein columns, include first_program to make them unique
+            if ($event['assigned_column'] === 'Allgemein') {
+                $program = $event['group_first_program_id'];
+                if ($program === null) {
+                    $event['assigned_column'] = 'Allgemein';
+                } else {
+                    $event['assigned_column'] = 'Allgemein-' . $program;
+                }
+            }
+        }
+        unset($event); // Clear the reference
+
+        // Get unique assigned columns for sorting
+        $columnNames = collect($eventOverview)
+            ->pluck('assigned_column')
+            ->unique()
+            ->sortBy(function($columnName) {
                 // Custom sorting to ensure specific column order
-                $column = $item['overview_plan_column'];
-                $program = $item['first_program'];
-                
-                // Define custom order for the last four columns
                 $customOrder = [
-                    'Allgemein-3' => 1,
-                    'Challenge' => 2,
-                    'Robot-Game' => 3,
-                    'Live-Challenge' => 4
+                    'Allgemein' => 0,
+                    'Allgemein-2' => 1,
+                    'Explore' => 2,
+                    'Allgemein-3' => 3,
+                    'Challenge' => 4,
+                    'Robot-Game' => 5,
+                    'Live-Challenge' => 6
                 ];
                 
-                // For the last four columns, use custom order
-                if (isset($customOrder[$column])) {
-                    return $program * 1000 + $customOrder[$column];
-                }
-                
-                // For other columns, use original sorting
-                return $program * 1000 + ($column === null ? 999 : 0);
-            })
-            ->values();
-
-        // Create unique column identifiers that include first_program for Allgemein
-        $columnNames = $columnsWithProgram
-            ->map(function($item) {
-                $columnName = $item['overview_plan_column'] ?? 'Allgemein';
-                // Handle empty strings as well as null
-                if (empty($columnName)) {
-                    $columnName = 'Allgemein';
-                }
-                // For Allgemein columns, include first_program to make them unique
-                if ($columnName === 'Allgemein') {
-                    $program = $item['first_program'];
-                    if ($program === null) {
-                        return 'Allgemein';
-                    } else {
-                        return 'Allgemein-' . $program;
-                    }
-                }
-                return $columnName;
+                return $customOrder[$columnName] ?? 999;
             })
             ->values()
             ->toArray();
@@ -2002,40 +1989,137 @@ if ($prepRooms->isNotEmpty()) {
             $eventsByDay[$dayKey]['events'][] = $event;
         }
 
-        // Calculate global time range for all days
-        $globalEarliestHour = null;
-        $globalLatestHour = null;
+        if ($isPdf) {
+            // PDF: Calculate global time range for all days (consistent rows)
+            $globalEarliestHour = null;
+            $globalLatestHour = null;
 
-        // First pass: calculate global time range
-        foreach($eventsByDay as $dayKey => $dayData) {
-            $allEvents = collect($dayData['events']);
-            $earliestStart = $allEvents->min('earliest_start');
-            $latestEnd = $allEvents->max('latest_end');
-            
-            // Find earliest and latest hours for this day
-            $dayEarliestHour = $earliestStart->hour;
-            $dayLatestHour = $latestEnd->hour;
-            if ($latestEnd->minute > 0) $dayLatestHour++; // Round up if there are minutes
-            
-            // Update global min/max hours
-            if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
-                $globalEarliestHour = $dayEarliestHour;
+            // First pass: calculate global time range
+            foreach($eventsByDay as $dayKey => $dayData) {
+                $allEvents = collect($dayData['events']);
+                $earliestStart = $allEvents->min('earliest_start');
+                $latestEnd = $allEvents->max('latest_end');
+                
+                // Find earliest and latest hours for this day
+                $dayEarliestHour = $earliestStart->hour;
+                $dayLatestHour = $latestEnd->hour;
+                // Round up to the next 10-minute slot instead of the next hour
+                $latestMinutes = $latestEnd->minute;
+                if ($latestMinutes > 0) {
+                    // Round up to next 10-minute boundary
+                    $roundedMinutes = ceil($latestMinutes / 10) * 10;
+                    if ($roundedMinutes >= 60) {
+                        $dayLatestHour++;
+                        $roundedMinutes = 0;
+                    }
+                }
+                
+                // Update global min/max hours
+                if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
+                    $globalEarliestHour = $dayEarliestHour;
+                }
+                if ($globalLatestHour === null || $dayLatestHour > $globalLatestHour) {
+                    $globalLatestHour = $dayLatestHour;
+                }
             }
-            if ($globalLatestHour === null || $dayLatestHour > $globalLatestHour) {
-                $globalLatestHour = $dayLatestHour;
+
+            // Create 10-minute grid from global earliest hour to actual latest end time
+            $startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
+            
+            // Find the actual latest end time across all days
+            $actualLatestEnd = null;
+            foreach($eventsByDay as $dayData) {
+                $allEvents = collect($dayData['events']);
+                $latestEnd = $allEvents->max('latest_end');
+                if ($actualLatestEnd === null || $latestEnd->gt($actualLatestEnd)) {
+                    $actualLatestEnd = $latestEnd;
+                }
             }
-        }
+            
+            // Round up to next 10-minute slot for the end time
+            $endMinutes = $actualLatestEnd->minute;
+            $endHour = $actualLatestEnd->hour;
+            if ($endMinutes > 0) {
+                $roundedMinutes = ceil($endMinutes / 10) * 10;
+                if ($roundedMinutes >= 60) {
+                    $endHour++;
+                    $roundedMinutes = 0;
+                }
+            }
+            $endTime = \Carbon\Carbon::createFromTime($endHour, $roundedMinutes ?? 0, 0);
 
-        // Create 10-minute grid from global earliest hour to latest hour
-        $startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
-        $endTime = \Carbon\Carbon::createFromTime($globalLatestHour, 59, 59); // End of the last hour
+            // Generate all 10-minute slots
+            $timeSlots = [];
+            $current = $startTime->copy();
+            while ($current->lt($endTime)) {
+                $timeSlots[] = $current->copy();
+                $current->addMinutes(10);
+            }
+            
+            // Add timeSlots to each day for PDF
+            foreach($eventsByDay as $dayKey => &$dayData) {
+                $dayData['timeSlots'] = $timeSlots;
+            }
+        } else {
+            // Preview: Calculate per-day time ranges (compact, space-saving)
+            $globalEarliestHour = null;
+            $globalLatestHour = null;
 
-        // Generate all 10-minute slots
-        $timeSlots = [];
-        $current = $startTime->copy();
-        while ($current->lt($endTime)) {
-            $timeSlots[] = $current->copy();
-            $current->addMinutes(10);
+            foreach($eventsByDay as $dayKey => &$dayData) {
+                $allEvents = collect($dayData['events']);
+                $earliestStart = $allEvents->min('earliest_start');
+                $latestEnd = $allEvents->max('latest_end');
+                
+                // Find earliest and latest hours for this day
+                $dayEarliestHour = $earliestStart->hour;
+                $dayLatestHour = $latestEnd->hour;
+                // Round up to the next 10-minute slot instead of the next hour
+                $latestMinutes = $latestEnd->minute;
+                if ($latestMinutes > 0) {
+                    // Round up to next 10-minute boundary
+                    $roundedMinutes = ceil($latestMinutes / 10) * 10;
+                    if ($roundedMinutes >= 60) {
+                        $dayLatestHour++;
+                        $roundedMinutes = 0;
+                    }
+                }
+                
+                // Update global min/max for return values
+                if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
+                    $globalEarliestHour = $dayEarliestHour;
+                }
+                if ($globalLatestHour === null || $dayLatestHour > $globalLatestHour) {
+                    $globalLatestHour = $dayLatestHour;
+                }
+
+                // Generate 10-minute slots for this day only
+                $dayStartTime = \Carbon\Carbon::createFromTime($dayEarliestHour, 0, 0);
+                
+                // Use actual latest end time and round to next 10-minute slot
+                $latestMinutes = $latestEnd->minute;
+                $latestHour = $latestEnd->hour;
+                if ($latestMinutes > 0) {
+                    $roundedMinutes = ceil($latestMinutes / 10) * 10;
+                    if ($roundedMinutes >= 60) {
+                        $latestHour++;
+                        $roundedMinutes = 0;
+                    }
+                }
+                $dayEndTime = \Carbon\Carbon::createFromTime($latestHour, $roundedMinutes ?? 0, 0);
+                
+                $dayTimeSlots = [];
+                $current = $dayStartTime->copy();
+                while ($current->lt($dayEndTime)) {
+                    $dayTimeSlots[] = $current->copy();
+                    $current->addMinutes(10);
+                }
+                
+                // Add per-day timeSlots
+                $dayData['timeSlots'] = $dayTimeSlots;
+            }
+            
+            // For preview, we don't need a global timeSlots array
+            $timeSlots = [];
         }
 
         // Check if this is a multi-day event
@@ -2048,8 +2132,8 @@ if ($prepRooms->isNotEmpty()) {
             'timeSlots' => $timeSlots,
             'globalEarliestHour' => $globalEarliestHour,
             'globalLatestHour' => $globalLatestHour,
-            'startTime' => $startTime,
-            'endTime' => $endTime
+            'startTime' => $isPdf ? $startTime : null,
+            'endTime' => $isPdf ? $endTime : null
         ];
     }
 
