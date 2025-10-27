@@ -18,8 +18,12 @@ class PlanPreviewController extends Controller
 
     public function previewOverview(int $planId)
     {
-        // Use different roles for preview: Team, Jury, Schiedsrichter, Robot-Check, etc.
-        $previewRoles = [3, 8, 5, 11, 4, 9, 16];
+        // Dynamically select all roles marked for preview matrix
+        $previewRoles = DB::table('m_role')
+            ->where('preview_matrix', 1)
+            ->pluck('id')
+            ->toArray();
+            
         $data = $this->planExport->getEventOverviewData($planId, $previewRoles);
         
         // Return the data in the same format as other preview methods
