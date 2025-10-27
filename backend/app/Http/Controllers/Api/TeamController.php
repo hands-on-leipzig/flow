@@ -58,6 +58,7 @@ class TeamController extends Controller
             })
             ->select('team.*', 'team_plan.team_number_plan', 'team_plan.room')
             ->orderBy('team_plan.team_number_plan')
+            ->orderBy('team.name') // Sort by team name
             ->orderBy('team.team_number_hot') // Fallback ordering
             ->get();
 
