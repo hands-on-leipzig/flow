@@ -2036,21 +2036,17 @@ if ($prepRooms->isNotEmpty()) {
                 }
             }
             
-            // Round up to x:50 to show complete last hour
+            // Round up to x:50 to show complete last hour (6 rows)
+            // Always stay in the same hour, never move to next hour
             $endMinutes = $actualLatestEnd->minute;
             $endHour = $actualLatestEnd->hour;
-            if ($endMinutes > 50) {
-                $endHour++;
-                $roundedMinutes = 50;
-            } else {
-                $roundedMinutes = 50;
-            }
+            $roundedMinutes = 50; // Always end at x:50 to show complete current hour
             $endTime = \Carbon\Carbon::createFromTime($endHour, $roundedMinutes, 0);
 
             // Generate all 10-minute slots
             $timeSlots = [];
             $current = $startTime->copy();
-            while ($current->lt($endTime)) {
+            while ($current->lte($endTime)) {
                 $timeSlots[] = $current->copy();
                 $current->addMinutes(10);
             }
@@ -2094,20 +2090,16 @@ if ($prepRooms->isNotEmpty()) {
                 // Generate 10-minute slots for this day only
                 $dayStartTime = \Carbon\Carbon::createFromTime($dayEarliestHour, 0, 0);
                 
-                // Round up to x:50 to show complete last hour
+                // Round up to x:50 to show complete last hour (6 rows)
+                // Always stay in the same hour, never move to next hour
                 $latestMinutes = $latestEnd->minute;
                 $latestHour = $latestEnd->hour;
-                if ($latestMinutes > 50) {
-                    $latestHour++;
-                    $roundedMinutes = 50;
-                } else {
-                    $roundedMinutes = 50;
-                }
+                $roundedMinutes = 50; // Always end at x:50 to show complete current hour
                 $dayEndTime = \Carbon\Carbon::createFromTime($latestHour, $roundedMinutes, 0);
                 
                 $dayTimeSlots = [];
                 $current = $dayStartTime->copy();
-                while ($current->lt($dayEndTime)) {
+                while ($current->lte($dayEndTime)) {
                     $dayTimeSlots[] = $current->copy();
                     $current->addMinutes(10);
                 }
