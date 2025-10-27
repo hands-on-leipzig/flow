@@ -196,6 +196,9 @@ class ExploreGenerator
         // Log::info('ExploreGenerator: Starting judging and deliberations', ['eMode' => $this->eMode, 'group' => $group]);
 
         try {
+            // Capture start time of judging (beginning of exhibition)
+            $exhibitionStart = clone $this->eTime;
+            
             $lanes = $this->pp("e{$group}_lanes");
         $rounds = $this->pp("e{$group}_rounds");
         $teams = $this->pp("e{$group}_teams");
@@ -238,6 +241,22 @@ class ExploreGenerator
         });
 
         $this->eTime->addMinutes($this->pp("e{$group}_duration_deliberations"));
+        
+        // Capture end time of deliberations (end of exhibition)
+        $exhibitionEnd = clone $this->eTime;
+        
+        // Create exhibition activity group spanning from start of judging to end of deliberations
+        $this->writer->withGroup('e_exhibition', function () use ($exhibitionStart, $exhibitionEnd) {
+            $duration = $exhibitionEnd->diffInMinutes($exhibitionStart);
+            $this->writer->insertActivity('e_exhibition', $exhibitionStart, $duration);
+        });
+        
+        Log::info('ExploreGenerator: Exhibition activity created', [
+            'group' => $group,
+            'start_time' => $exhibitionStart->format('H:i'),
+            'end_time' => $exhibitionEnd->format('H:i'),
+            'duration_minutes' => $exhibitionEnd->diffInMinutes($exhibitionStart)
+        ]);
 
         } catch (\Throwable $e) {
             Log::error('ExploreGenerator: Error in judging and deliberations', [
