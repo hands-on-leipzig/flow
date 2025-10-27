@@ -63,57 +63,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                         <tr>
                             <th class="time-column">Zeit</th>
                             @foreach($columnNames as $columnName)
-                                @php
-                                    $displayName = $columnName;
-                                    $baseColor = $displayName;
-                                    if (strpos($displayName, 'Allgemein-') === 0) {
-                                        $baseColor = 'Allgemein';
-                                    }
-                                    
-                                    // Column colors
-                                    $columnColors = [
-                                        'Explore' => '#27ae60',
-                                        'Challenge' => '#e74c3c', 
-                                        'Live-Challenge' => '#8e44ad',
-                                        'Robot-Game' => '#f39c12',
-                                        'Allgemein' => '#95a5a6'
-                                    ];
-                                    $color = $columnColors[$baseColor] ?? '#95a5a6';
-                                @endphp
-                                
-                                @if($columnName === 'Allgemein')
-                                    <th class="column-header" style="color: {{ $color }};">
-                                        <img src="{{ $isPdf ? 'file://' . public_path('flow/hot.png') : asset('flow/hot.png') }}" alt="HOT" class="header-logo">
-                                    </th>
-                                @elseif($columnName === 'Allgemein-2')
-                                    <th class="column-header merged" colspan="2" style="color: {{ $color }};">
-                                        <img src="{{ $isPdf ? 'file://' . public_path('flow/fll_explore_h.png') : asset('flow/fll_explore_h.png') }}" alt="Explore" class="header-logo">
-                                    </th>
-                                @elseif($columnName === 'Allgemein-3')
-                                    <th class="column-header merged" colspan="2" style="color: {{ $color }};">
-                                        <img src="{{ $isPdf ? 'file://' . public_path('flow/fll_challenge_h.png') : asset('flow/fll_challenge_h.png') }}" alt="Challenge" class="header-logo">
-                                    </th>
-                                @elseif($columnName === 'Explore')
-                                    @if(!in_array('Allgemein-2', $columnNames))
-                                        <th class="column-header" style="color: {{ $color }};">
-                                            <img src="{{ $isPdf ? 'file://' . public_path('flow/fll_explore_h.png') : asset('flow/fll_explore_h.png') }}" alt="Explore" class="header-logo">
-                                        </th>
-                                    @endif
-                                @elseif($columnName === 'Challenge')
-                                    @if(!in_array('Allgemein-3', $columnNames))
-                                        <th class="column-header" style="color: {{ $color }};">
-                                            <img src="{{ $isPdf ? 'file://' . public_path('flow/fll_challenge_h.png') : asset('flow/fll_challenge_h.png') }}" alt="Challenge" class="header-logo">
-                                        </th>
-                                    @endif
-                                @elseif($columnName === 'Robot-Game')
-                                    <th class="column-header" style="color: {{ $color }};">
-                                        {{ $displayName }}
-                                    </th>
-                                @elseif($columnName === 'Live-Challenge')
-                                    <th class="column-header" style="color: {{ $color }};">
-                                        {{ $displayName }}
-                                    </th>
-                                @endif
+                                <th class="column-header">{{ $columnName }}</th>
                             @endforeach
                         </tr>
                     </thead>
@@ -278,12 +228,6 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
     font-weight: bold;
 }
 
-.header-logo {
-    height: 20px;
-    width: auto;
-    max-width: 100%;
-}
-
 .overview-table td {
     padding: 4px;
     border: 1px solid #ddd;
@@ -328,10 +272,6 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
     .overview-table th,
     .overview-table td {
         padding: 2px;
-    }
-    
-    .header-logo {
-        height: 16px;
     }
 }
 </style>
