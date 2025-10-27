@@ -204,9 +204,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @endphp
                                     
                                     @if($columnEvents->count() > 0)
-                                        <td rowspan="{{ $rowspan }}" class="activity-cell" style="background-color: {{ $colors['bg'] }}; border-left: 3px solid {{ $colors['border'] }}; {{ !$isPdf ? 'height: 24px; overflow: hidden;' : '' }}">
-                                            {{ $event['group_name'] }}<br>
-                                            <span class="activity-time">{{ $startTime }} - {{ $endTime }}</span>
+                                        <td rowspan="{{ $rowspan }}" class="activity-cell" style="background-color: {{ $colors['bg'] }}; border-left: 3px solid {{ $colors['border'] }}; {{ !$isPdf ? 'height: 24px; overflow: hidden; line-height: 1.1;' : '' }}">
+                                            {{ $event['group_name'] }}{{ !$isPdf ? ' ' : '<br>' }}<span class="activity-time">{{ $startTime }} - {{ $endTime }}</span>
                                         </td>
                                     @else
                                         <td class="empty-cell" style="{{ !$isPdf ? 'height: 24px;' : '' }}"></td>
