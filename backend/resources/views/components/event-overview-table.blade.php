@@ -87,7 +87,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                             $occupiedCells = [];
                         @endphp
                         
-                        @foreach($timeSlots as $index => $slot)
+                        @foreach($dayData['timeSlots'] as $index => $slot)
                             @php
                                 $isFullHour = $slot->minute == 0;
                                 $timeLabel = $isFullHour ? $slot->format('H:i') : '';

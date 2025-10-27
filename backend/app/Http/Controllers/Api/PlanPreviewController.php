@@ -24,7 +24,7 @@ class PlanPreviewController extends Controller
             ->pluck('id')
             ->toArray();
             
-        $data = $this->planExport->getEventOverviewData($planId, $previewRoles);
+        $data = $this->planExport->getEventOverviewData($planId, $previewRoles, false);
         
         // Return the data in the same format as other preview methods
         return response()->json([
