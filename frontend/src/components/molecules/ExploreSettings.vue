@@ -700,63 +700,88 @@ const teamsPerJuryHint2 = computed(() => {
       <div class="text-sm">Aktiviere den Schalter oben rechts, um Explore-Einstellungen zu konfigurieren.</div>
     </div>
 
-    <!-- INTEGRATED (1/2): inline lane selector bound to e1_lanes (allowed by total e_teams) -->
-    <div v-if="hasExplore && isIntegrated" class="mt-4 flex">
+    <!-- Gutachter:innen-Gruppen selection - Based on timing mode only -->
+    
+    <!-- AM timing: Show AM lanes selection -->
+    <div v-if="hasExplore && timingMode === 'morning'" class="mt-4">
       <div class="flex items-start gap-2">
-        <!-- Buttons -->
-        <RadioGroup v-model="integratedLanesProxy" class="flex gap-1">
+        <RadioGroup v-model="eLanesAMProxy" class="flex gap-1">
           <RadioGroupOption
               v-for="n in allLaneOptions"
-              :key="'e_lane_int_' + n"
+              :key="'e_lane_am_' + n"
               v-slot="{ checked, disabled }"
-              :disabled="!isExploreLaneAllowedIntegrated(n)"
+              :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
               :value="n"
           >
             <button
                 :aria-disabled="disabled"
                 :class="[
-                checked ? getAlertLevelStyle(currentConfigAlertLevelIntegrated) : '',
-                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-              ]"
+                  checked ? getAlertLevelStyle(currentConfigAlertLevelAM) : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                ]"
                 class="px-2 py-1 rounded-md border text-sm transition
-                  focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                 type="button"
             >
               {{ n }}
             </button>
           </RadioGroupOption>
         </RadioGroup>
-
-        <!-- Rechte Spalte mit Label + Hint -->
         <div class="flex flex-col">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-medium">Gutachter:innen-Gruppen</span>
-            <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
-          </div>
-          <span class="text-xs text-gray-500 italic">
-            {{ teamsPerJuryHint1 }} {{ teamsPerJuryHint2 }}
-          </span>
+          <span class="text-sm font-medium">Gutachter:innen-Gruppen</span>
+          <span class="text-xs text-gray-500 italic">{{ teamsPerJuryHint1 }}</span>
         </div>
       </div>
-
-
     </div>
 
-    <!-- SPLIT slider only for mode 5 -->
-    <div v-if="hasExplore">
-      <SplitBar
-          v-if="isSeparateSplit && paramMapByName['e_teams']?.value"
-          :e1="Number(paramMapByName['e1_teams']?.value || 0)"
-          :e2="Number(paramMapByName['e2_teams']?.value || 0)"
-          :total="Number(paramMapByName['e_teams']?.value || 0)"
-          class="mt-3"
-          @update:e1="(v:number) => updateByName('e1_teams', v)"
-          @update:e2="(v:number) => updateByName('e2_teams', v)"
-      />
+    <!-- PM timing: Show PM lanes selection -->
+    <div v-if="hasExplore && timingMode === 'afternoon'" class="mt-4">
+      <div class="flex items-start gap-2">
+        <RadioGroup v-model="eLanesPMProxy" class="flex gap-1">
+          <RadioGroupOption
+              v-for="n in allLaneOptions"
+              :key="'e_lane_pm_' + n"
+              v-slot="{ checked, disabled }"
+              :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
+              :value="n"
+          >
+            <button
+                :aria-disabled="disabled"
+                :class="[
+                  checked ? getAlertLevelStyle(currentConfigAlertLevelPM) : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                ]"
+                class="px-2 py-1 rounded-md border text-sm transition
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                type="button"
+            >
+              {{ n }}
+            </button>
+          </RadioGroupOption>
+        </RadioGroup>
+        <div class="flex flex-col">
+          <span class="text-sm font-medium">Gutachter:innen-Gruppen</span>
+          <span class="text-xs text-gray-500 italic">{{ teamsPerJuryHint2 }}</span>
+        </div>
+      </div>
     </div>
 
-    <!-- Two columns when independent (3, 4, or 5) -->
-    <div v-if="hasExplore && isIndependent" class="mt-4 grid grid-cols-2 gap-8 text-gray-800">
+    <!-- Both timing: Show splitter and both AM/PM lanes -->
+    <template v-if="hasExplore && timingMode === 'both'">
+      <!-- Splitter -->
+      <div v-if="paramMapByName['e_teams']?.value" class="mt-4">
+        <SplitBar
+            :e1="Number(paramMapByName['e1_teams']?.value || 0)"
+            :e2="Number(paramMapByName['e2_teams']?.value || 0)"
+            :total="Number(paramMapByName['e_teams']?.value || 0)"
+            class="mb-4"
+            @update:e1="(v:number) => updateByName('e1_teams', v)"
+            @update:e2="(v:number) => updateByName('e2_teams', v)"
+        />
+      </div>
+      
+      <!-- Two columns for AM and PM -->
+      <div class="mt-4 grid grid-cols-2 gap-8 text-gray-800">
       <!-- AM -->
       <div :class="(eMode === 4 || eMode === 7 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
@@ -839,10 +864,9 @@ const teamsPerJuryHint2 = computed(() => {
             </div>
           </div>
         </div>
-
-
       </div>
     </div>
+    </template>
 
     <!-- Alert message banner -->
     <div v-if="currentExploreNote && (currentExploreAlertLevel === 2 || currentExploreAlertLevel === 3)"
