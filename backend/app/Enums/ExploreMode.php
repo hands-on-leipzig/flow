@@ -10,5 +10,8 @@ enum ExploreMode: int
     case DECOUPLED_MORNING = 3;
     case DECOUPLED_AFTERNOON = 4;
     case DECOUPLED_BOTH = 5;
+    case HYBRID_MORNING = 6;
+    case HYBRID_AFTERNOON = 7;
+    case HYBRID_BOTH = 8;
 }
 
