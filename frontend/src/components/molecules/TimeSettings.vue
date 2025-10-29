@@ -2,6 +2,7 @@
 import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import ParameterField from '@/components/molecules/ParameterField.vue'
+import {programLogoSrc, imageUrl} from '@/utils/images'
 
 const props = defineProps<{
   parameters: any[]
@@ -45,6 +46,14 @@ const columnLabels: Record<string, string> = {
   'e1': 'Explore Vormittag',
   'e2': 'Explore Nachmittag',
   'c': 'Challenge'
+}
+
+// Column icons mapping
+const columnIcons: Record<string, string> = {
+  'g': imageUrl('/flow/first_v.png'),
+  'e1': programLogoSrc('explore'),
+  'e2': programLogoSrc('explore'),
+  'c': programLogoSrc('challenge')
 }
 
 // Helper to check if a column should be visible
@@ -140,7 +149,10 @@ onMounted(async () => {
                 class="text-center text-sm font-medium text-gray-600 px-1 whitespace-normal break-words"
                 :style="`width: ${dataColumnWidth}`"
             >
-              {{ columnLabels[col] }}
+              <div class="flex items-center justify-center gap-1">
+                <img :src="columnIcons[col]" :alt="columnLabels[col]" class="w-3 h-3 flex-shrink-0 object-contain">
+                <span>{{ columnLabels[col] }}</span>
+              </div>
             </th>
           </tr>
         </thead>
