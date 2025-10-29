@@ -92,7 +92,7 @@ class ParameterController extends Controller
                 $entry = array_fill_keys($fields, ['editable' => false]);
 
                 // Ungültige Kombinationen → alles false, fertig
-                if (in_array($e, [ExploreMode::NONE->value, ExploreMode::INTEGRATED_MORNING->value, ExploreMode::INTEGRATED_AFTERNOON->value]) && $c === 0) {
+                if (in_array($e, [ExploreMode::NONE->value, ExploreMode::INTEGRATED_MORNING->value, ExploreMode::INTEGRATED_AFTERNOON->value, ExploreMode::HYBRID_MORNING->value, ExploreMode::HYBRID_AFTERNOON->value]) && $c === 0) {
                     $matrix[$key] = [
                         'e_mode' => $e,
                         'c_mode' => $c,
@@ -115,6 +115,7 @@ class ParameterController extends Controller
                             break;
 
                         case ExploreMode::INTEGRATED_MORNING->value:
+                        case ExploreMode::HYBRID_MORNING->value:
                             foreach (['g_start_opening','g_duration_opening','c_duration_awards', 'e1_duration_awards'] as $f) {
                                 $entry[$f]['editable'] = true;  
                             }
@@ -122,10 +123,19 @@ class ParameterController extends Controller
 
 
                         case ExploreMode::INTEGRATED_AFTERNOON->value:
+                        case ExploreMode::HYBRID_AFTERNOON->value:
                             foreach (['c_start_opening','c_duration_opening','g_duration_awards', 'e2_duration_opening'] as $f) {
                                 $entry[$f]['editable'] = true;  
                             }
                             break;
+
+                        case ExploreMode::HYBRID_BOTH->value:
+                            foreach (['g_start_opening','g_duration_opening','e1_duration_awards',
+                                        'e2_duration_opening','g_duration_awards'] as $f) {
+                                $entry[$f]['editable'] = true;  
+                            }
+                            break;
+
 
                     }
                 }    
