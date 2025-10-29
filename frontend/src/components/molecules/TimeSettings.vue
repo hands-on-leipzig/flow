@@ -60,6 +60,12 @@ const visibleColumns = computed(() => {
   return allColumns.filter(col => isColumnVisible(col))
 })
 
+// Computed: column widths - label column gets 25%, data columns share the rest
+const labelColumnWidth = computed(() => '25%')
+const dataColumnWidth = computed(() => {
+  return visibleColumns.value.length > 0 ? `${75 / visibleColumns.value.length}%` : '0%'
+})
+
 // Helper to get field prefix from column name
 function getFieldPrefix(column: string): 'g' | 'c' | 'e1' | 'e2' {
   return column as 'g' | 'c' | 'e1' | 'e2'
@@ -124,14 +130,15 @@ onMounted(async () => {
     <h2 class="text-lg font-semibold mb-3">Zeiten</h2>
 
     <div class="p-2">
-      <table class="w-full text-xs">
+      <table class="text-xs w-full" style="table-layout: fixed">
         <thead>
           <tr>
-            <th class="text-right text-sm font-medium text-gray-600 pr-4"></th>
+            <th class="text-right text-sm font-medium text-gray-600 pr-3" :style="`width: ${labelColumnWidth}`"></th>
             <th 
                 v-for="col in visibleColumns" 
                 :key="col"
-                class="text-center text-sm font-medium text-gray-600 px-2"
+                class="text-center text-sm font-medium text-gray-600 px-1 whitespace-normal break-words"
+                :style="`width: ${dataColumnWidth}`"
             >
               {{ columnLabels[col] }}
             </th>
@@ -140,13 +147,14 @@ onMounted(async () => {
         <tbody>
           <!-- Row 1: Start Times -->
           <tr v-if="hasAnyStartField()">
-            <td class="text-right text-xs font-medium text-gray-500 pr-4 align-top">
+            <td class="text-right text-xs font-medium text-gray-500 pr-3 align-top" :style="`width: ${labelColumnWidth}`">
               Beginn<br>Eröffnung
             </td>
             <td 
                 v-for="col in visibleColumns" 
                 :key="`start_${col}`"
-                class="text-center px-2 align-top"
+                class="text-center px-1 align-top"
+                :style="`width: ${dataColumnWidth}`"
             >
               <ParameterField
                   v-if="isFieldEditable(getFieldPrefix(col), 'start_opening') && cellParam(getFieldPrefix(col), 'start_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'start_opening').id]"
@@ -163,13 +171,14 @@ onMounted(async () => {
 
           <!-- Row 2: Duration Opening -->
           <tr v-if="hasAnyDurationField()">
-            <td class="text-right text-xs font-medium text-gray-500 pr-4 align-top">
+            <td class="text-right text-xs font-medium text-gray-500 pr-3 align-top" :style="`width: ${labelColumnWidth}`">
               Dauer<br>Eröffnung
             </td>
             <td 
                 v-for="col in visibleColumns" 
                 :key="`duration_${col}`"
-                class="text-center px-2 align-top"
+                class="text-center px-1 align-top"
+                :style="`width: ${dataColumnWidth}`"
             >
               <ParameterField
                   v-if="isFieldEditable(getFieldPrefix(col), 'duration_opening') && cellParam(getFieldPrefix(col), 'duration_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_opening').id]"
@@ -186,13 +195,14 @@ onMounted(async () => {
 
           <!-- Row 3: Duration Awards -->
           <tr v-if="hasAnyAwardsField()">
-            <td class="text-right text-xs font-medium text-gray-500 pr-4 align-top">
+            <td class="text-right text-xs font-medium text-gray-500 pr-3 align-top" :style="`width: ${labelColumnWidth}`">
               Dauer<br>Preisverleihung
             </td>
             <td 
                 v-for="col in visibleColumns" 
                 :key="`awards_${col}`"
-                class="text-center px-2 align-top"
+                class="text-center px-1 align-top"
+                :style="`width: ${dataColumnWidth}`"
             >
               <ParameterField
                   v-if="isFieldEditable(getFieldPrefix(col), 'duration_awards') && cellParam(getFieldPrefix(col), 'duration_awards') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_awards').id]"
