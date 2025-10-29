@@ -47,6 +47,19 @@ const columnLabels: Record<string, string> = {
   'c': 'Challenge'
 }
 
+// Helper to check if a column should be visible
+function isColumnVisible(column: string): boolean {
+  return currentColumns.value.includes(column)
+}
+
+// Fixed column order: g, e1, e2, c
+const allColumns = ['g', 'e1', 'e2', 'c']
+
+// Computed: visible columns in order
+const visibleColumns = computed(() => {
+  return allColumns.filter(col => isColumnVisible(col))
+})
+
 // Helper to get field prefix from column name
 function getFieldPrefix(column: string): 'g' | 'c' | 'e1' | 'e2' {
   return column as 'g' | 'c' | 'e1' | 'e2'
@@ -110,28 +123,30 @@ onMounted(async () => {
   <div class="p-3 border rounded shadow">
     <h2 class="text-lg font-semibold mb-3">Zeiten</h2>
 
-    <div class="space-y-3">
-      <!-- Unified header structure -->
-      <div class="p-2">
-        <!-- Dynamic rows with left column labels -->
-        <div class="space-y-3 text-xs">
-          <!-- Header row: Dynamic columns from backend -->
-          <div class="grid gap-4 items-center mb-2" :style="`grid-template-columns: auto repeat(${currentColumns.length}, 1fr)`">
-            <div class="text-right text-sm font-medium text-gray-600"></div>
-            <div 
-                v-for="col in currentColumns" 
+    <div class="p-2">
+      <table class="w-full text-xs">
+        <thead>
+          <tr>
+            <th class="text-right text-sm font-medium text-gray-600 pr-4"></th>
+            <th 
+                v-for="col in visibleColumns" 
                 :key="col"
-                class="text-center text-sm font-medium text-gray-600"
+                class="text-center text-sm font-medium text-gray-600 px-2"
             >
               {{ columnLabels[col] }}
-            </div>
-          </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
           <!-- Row 1: Start Times -->
-          <div v-if="hasAnyStartField()" class="grid gap-4 items-center" :style="`grid-template-columns: auto repeat(${currentColumns.length}, 1fr)`">
-            <div class="text-right text-xs font-medium text-gray-500">Beginn<br>Eröffnung</div>
-            <div 
-                v-for="col in currentColumns" 
+          <tr v-if="hasAnyStartField()">
+            <td class="text-right text-xs font-medium text-gray-500 pr-4 align-top">
+              Beginn<br>Eröffnung
+            </td>
+            <td 
+                v-for="col in visibleColumns" 
                 :key="`start_${col}`"
+                class="text-center px-2 align-top"
             >
               <ParameterField
                   v-if="isFieldEditable(getFieldPrefix(col), 'start_opening') && cellParam(getFieldPrefix(col), 'start_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'start_opening').id]"
@@ -142,16 +157,19 @@ onMounted(async () => {
                   :param="cellParam(getFieldPrefix(col), 'start_opening')"
                   @update="updateParam"
               />
-              <div v-else class="text-gray-400 text-center">-</div>
-            </div>
-          </div>
+              <div v-else class="text-gray-400">-</div>
+            </td>
+          </tr>
 
           <!-- Row 2: Duration Opening -->
-          <div v-if="hasAnyDurationField()" class="grid gap-4 items-center" :style="`grid-template-columns: auto repeat(${currentColumns.length}, 1fr)`">
-            <div class="text-right text-xs font-medium text-gray-500">Dauer<br>Eröffnung</div>
-            <div 
-                v-for="col in currentColumns" 
+          <tr v-if="hasAnyDurationField()">
+            <td class="text-right text-xs font-medium text-gray-500 pr-4 align-top">
+              Dauer<br>Eröffnung
+            </td>
+            <td 
+                v-for="col in visibleColumns" 
                 :key="`duration_${col}`"
+                class="text-center px-2 align-top"
             >
               <ParameterField
                   v-if="isFieldEditable(getFieldPrefix(col), 'duration_opening') && cellParam(getFieldPrefix(col), 'duration_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_opening').id]"
@@ -162,16 +180,19 @@ onMounted(async () => {
                   :param="cellParam(getFieldPrefix(col), 'duration_opening')"
                   @update="updateParam"
               />
-              <div v-else class="text-gray-400 text-center">-</div>
-            </div>
-          </div>
+              <div v-else class="text-gray-400">-</div>
+            </td>
+          </tr>
 
           <!-- Row 3: Duration Awards -->
-          <div v-if="hasAnyAwardsField()" class="grid gap-4 items-center" :style="`grid-template-columns: auto repeat(${currentColumns.length}, 1fr)`">
-            <div class="text-right text-xs font-medium text-gray-500">Dauer<br>Preisverleihung</div>
-            <div 
-                v-for="col in currentColumns" 
+          <tr v-if="hasAnyAwardsField()">
+            <td class="text-right text-xs font-medium text-gray-500 pr-4 align-top">
+              Dauer<br>Preisverleihung
+            </td>
+            <td 
+                v-for="col in visibleColumns" 
                 :key="`awards_${col}`"
+                class="text-center px-2 align-top"
             >
               <ParameterField
                   v-if="isFieldEditable(getFieldPrefix(col), 'duration_awards') && cellParam(getFieldPrefix(col), 'duration_awards') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_awards').id]"
@@ -182,11 +203,11 @@ onMounted(async () => {
                   :param="cellParam(getFieldPrefix(col), 'duration_awards')"
                   @update="updateParam"
               />
-              <div v-else class="text-gray-400 text-center">-</div>
-            </div>
-          </div>
-        </div>
-      </div>
+              <div v-else class="text-gray-400">-</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
