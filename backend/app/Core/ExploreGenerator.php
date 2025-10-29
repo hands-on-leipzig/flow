@@ -88,9 +88,9 @@ class ExploreGenerator
         ]);
 
         try {
-            if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value || $this->eMode == ExploreMode::HYBRID_BOTH->value) {
+            if ($group == 1 && 
+            ($this->eMode == ExploreMode::INTEGRATED_MORNING->value || $this->eMode == ExploreMode::HYBRID_BOTH->value)  ) {
 
-                $group = 1;
                 // ChallengeGenerator has created the opening activity. We only need to set the time cursor
                 $this->eTime->setTime($this->pp("g_start_opening"));
                 $startOpening = clone $this->eTime;
@@ -98,21 +98,11 @@ class ExploreGenerator
 
             } else {
                 
-                if($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                if($group == 2 && ($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value || $this->eMode == ExploreMode::HYBRID_BOTH->value)) {
 
-                    $group = 2;
-                    // Time cursor already set by integratedActivity() before calling this method
+                    // Time cursor already set before calling this method
 
                 } else {
-
-                    if ($this->eMode == ExploreMode::DECOUPLED_MORNING->value || 
-                        $this->eMode == ExploreMode::DECOUPLED_BOTH->value) {
-                        $group = 1;  // BOTH initially treated as MORNING
-                    } else if($this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value) {
-                        $group = 2;
-                    } else {
-                        throw new \RuntimeException("Invalid Explore mode: {$this->eMode}");
-                    }
                 
                     // Set the time cursor respectively
                     $this->eTime->setTime($this->pp("e{$group}_start_opening"));
@@ -127,20 +117,13 @@ class ExploreGenerator
 
                 $this->eTime->addMinutes($this->pp("e{$group}_duration_opening"));
 
-                // Details already logged in function start
-                // if($group == 1) {
-                //     Log::info('Explore stand-alone morning', [...]);
-                // } else {
-                //     Log::info('Explore stand-alone afternoon', [...]);
-                // }
-
             }
 
             $this->briefings($startOpening->current(), $group);
 
         } catch (\Throwable $e) {
             Log::error('ExploreGenerator: Error in openings and briefings', [
-                'group' => isset($group) ? $group : null,
+                'group' => $group,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -185,15 +168,6 @@ class ExploreGenerator
 
     public function judgingAndDeliberations(int $group): void
     {
-        // Derive group from eMode
-        // DECOUPLED_BOTH is initially treated as MORNING (group 1), then switched to AFTERNOON (group 2) by caller
-        $group = match($this->eMode) {
-            ExploreMode::INTEGRATED_MORNING->value, ExploreMode::DECOUPLED_MORNING->value, ExploreMode::DECOUPLED_BOTH->value => 1,
-            ExploreMode::INTEGRATED_AFTERNOON->value, ExploreMode::DECOUPLED_AFTERNOON->value => 2,
-            default => throw new \RuntimeException("Invalid Explore mode: {$this->eMode}"),
-        };
-        
-        // Log::info('ExploreGenerator: Starting judging and deliberations', ['eMode' => $this->eMode, 'group' => $group]);
 
         try {
             // Capture start time of judging (beginning of exhibition)
@@ -270,28 +244,13 @@ class ExploreGenerator
 
     public function awards(int $group, bool $challenge = false): void   
     {
-        // Derive group from eMode
-        // DECOUPLED_BOTH is initially treated as MORNING (group 1), then switched to AFTERNOON (group 2) by caller
-        $group = match($this->eMode) {
-            ExploreMode::INTEGRATED_MORNING->value, ExploreMode::DECOUPLED_MORNING->value, ExploreMode::DECOUPLED_BOTH->value => 1,
-            ExploreMode::INTEGRATED_AFTERNOON->value, ExploreMode::DECOUPLED_AFTERNOON->value => 2,
-            default => throw new \RuntimeException("Invalid Explore mode: {$this->eMode}"),
-        };
-        
-        // Log::info('ExploreGenerator: Starting awards', ['eMode' => $this->eMode, 'group' => $group, 'challenge' => $challenge]);
-        
         try {
-            if($this->eMode == ExploreMode::INTEGRATED_MORNING->value ||
-               $this->eMode == ExploreMode::DECOUPLED_MORNING->value ||
-               $this->eMode == ExploreMode::DECOUPLED_AFTERNOON->value ||
-               $this->eMode == ExploreMode::DECOUPLED_BOTH->value) {
 
-                $this->eTime->addMinutes($this->pp("e_ready_awards"));
-                $this->writer->withGroup('e_awards', function () use ($group) {
-                    $this->writer->insertActivity('e_awards', $this->eTime, $this->pp("e{$group}_duration_awards"));
-                });
-                $this->eTime->addMinutes($this->pp("e{$group}_duration_awards"));
-            }
+            $this->eTime->addMinutes($this->pp("e_ready_awards"));
+            $this->writer->withGroup('e_awards', function () use ($group) {
+                $this->writer->insertActivity('e_awards', $this->eTime, $this->pp("e{$group}_duration_awards"));
+            });
+            $this->eTime->addMinutes($this->pp("e{$group}_duration_awards"));        
 
         } catch (\Throwable $e) {
             Log::error('ExploreGenerator: Error in awards', [
@@ -322,19 +281,22 @@ class ExploreGenerator
             // Set cursor to start time provided by ChallengeGenerator
             $this->eTime->setTime($this->integratedExplore->startTime);
 
-            if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
-                // INTEGRATED_MORNING: Insert awards
+            if ($group == 1) {
+                // Insert awards
             
-                $this->awards();
+                $this->awards($group);
                 // Log::info("ExploreGenerator: Integrated awards inserted at {$this->integratedExplore->startTime}");
                 
-            } elseif ($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
-                // INTEGRATED_AFTERNOON: Insert opening
+            } elseif ($group == 2) {
+                // Insert opening
 
-                // time handed over is end of last robot game match. Need to add buffer to start of opening
-                $this->eTime->addMinutes($this->pp("e_ready_opening"));
+                if($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
                 
-                $this->openingsAndBriefings();                
+                    // time handed over is end of last robot game match. Need to add buffer to start of opening
+                    $this->eTime->addMinutes($this->pp("e_ready_opening"));
+                } 
+               
+                $this->openingsAndBriefings($group);                
                 // Log::info("ExploreGenerator: Integrated opening inserted at {$this->integratedExplore->startTime}");
             
             }
