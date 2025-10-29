@@ -109,10 +109,10 @@ class PlanGeneratorCore
                 );
                         
                 $this->challenge->openingsAndBriefings(true);
-                $this->explore->openingsAndBriefings();
-                $this->explore->judgingAndDeliberations();
+                $this->explore->openingsAndBriefings(1);
+                $this->explore->judgingAndDeliberations(1);
                 $this->challenge->main(true);
-                $this->explore->integratedActivity();
+                $this->explore->integratedActivity(1);
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards();
                 
@@ -126,10 +126,28 @@ class PlanGeneratorCore
                 
                 $this->challenge->openingsAndBriefings();
                 $this->challenge->main(true);
-                $this->explore->integratedActivity();
-                $this->explore->judgingAndDeliberations();                
+                $this->explore->integratedActivity(2);
+                $this->explore->judgingAndDeliberations(2);                
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards(true);
+
+            } elseif ($eMode == ExploreMode::HYBRID_BOTH->value) {
+                // Challenge + 2x Explore join opening and awards
+                $this->explore = new ExploreGenerator(
+                    $this->writer,
+                    $this->params,
+                    $this->integratedExplore
+                );
+                
+                $this->challenge->openingsAndBriefings(true);
+                $this->challenge->main();           
+                $this->challenge->robotGameFinals();
+                $this->challenge->awards(true);
+
+                $this->explore->openingsAndBriefings(1);
+                $this->explore->judgingAndDeliberations(1);
+                $this->explore->openingsAndBriefings(2);
+                $this->explore->judgingAndDeliberations(2);
                 
             } elseif (in_array($eMode, [
                 ExploreMode::DECOUPLED_MORNING->value, 
@@ -150,18 +168,16 @@ class PlanGeneratorCore
                 $this->challenge->awards();
 
                 // Explore runs in parallel/separate time slots
-                // DECOUPLED_BOTH initially runs as MORNING (group 1)
-                $this->explore->openingsAndBriefings();
-                $this->explore->judgingAndDeliberations();
-                $this->explore->awards();
+                $this->explore->openingsAndBriefings(1);
+                $this->explore->judgingAndDeliberations(1);
+                $this->explore->awards(1);
                 
                 // For DECOUPLED_BOTH, run the same sequence again for the second session (afternoon)
                 if ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
-                    $this->explore->setMode(ExploreMode::DECOUPLED_AFTERNOON->value);
                     
-                    $this->explore->openingsAndBriefings();
-                    $this->explore->judgingAndDeliberations();
-                    $this->explore->awards();
+                    $this->explore->openingsAndBriefings(2);
+                    $this->explore->judgingAndDeliberations(2);
+                    $this->explore->awards(2);
                 }
 
             }
@@ -182,17 +198,16 @@ class PlanGeneratorCore
             );
             
             // include morning part of DECOUPLED_BOTH
-            $this->explore->openingsAndBriefings();
-            $this->explore->judgingAndDeliberations();
-            $this->explore->awards();
+            $this->explore->openingsAndBriefings(1);
+            $this->explore->judgingAndDeliberations(1);
+            $this->explore->awards(1);
             
             // For DECOUPLED_BOTH, run the same sequence again for the second session (afternoon)
-            if ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
-                $this->explore->setMode(ExploreMode::DECOUPLED_AFTERNOON->value);
+            if ($eMode == ExploreMode::DECOUPLED_BOTH->value) 
               
-                $this->explore->openingsAndBriefings();
-                $this->explore->judgingAndDeliberations();
-                $this->explore->awards();
+                $this->explore->openingsAndBriefings(2);
+                $this->explore->judgingAndDeliberations(2);
+                $this->explore->awards(2);
             }
         }
     }
