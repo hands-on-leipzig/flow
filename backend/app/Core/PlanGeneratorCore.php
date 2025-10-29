@@ -141,13 +141,16 @@ class PlanGeneratorCore
                 
                 $this->challenge->openingsAndBriefings(true);
                 $this->challenge->main();           
+                
+                $this->explore->openingsAndBriefings(1);
+                $this->explore->judgingAndDeliberations(1);
+                $this->explore->integratedActivity(1); // awards
+
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards(true);
 
-                $this->explore->openingsAndBriefings(1);
-                $this->explore->judgingAndDeliberations(1);
-                $this->explore->openingsAndBriefings(2);
-                $this->explore->judgingAndDeliberations(2);
+                $this->explore->integratedActivity(2); // openings and briefings 
+                $this->explore->judgingAndDeliberations(2);                
                 
             } elseif (in_array($eMode, [
                 ExploreMode::DECOUPLED_MORNING->value, 
@@ -167,13 +170,14 @@ class PlanGeneratorCore
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards();
 
-                // Explore runs in parallel/separate time slots
-                $this->explore->openingsAndBriefings(1);
-                $this->explore->judgingAndDeliberations(1);
-                $this->explore->awards(1);
-                
-                // For DECOUPLED_BOTH, run the same sequence again for the second session (afternoon)
-                if ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
+                if ($eMode == ExploreMode::DECOUPLED_MORNING->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
+    
+                    $this->explore->openingsAndBriefings(1);
+                    $this->explore->judgingAndDeliberations(1);
+                    $this->explore->awards(2);
+                }
+
+                if ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
                     
                     $this->explore->openingsAndBriefings(2);
                     $this->explore->judgingAndDeliberations(2);
@@ -203,8 +207,7 @@ class PlanGeneratorCore
             $this->explore->awards(1);
             
             // For DECOUPLED_BOTH, run the same sequence again for the second session (afternoon)
-            if ($eMode == ExploreMode::DECOUPLED_BOTH->value) 
-              
+            if ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
                 $this->explore->openingsAndBriefings(2);
                 $this->explore->judgingAndDeliberations(2);
                 $this->explore->awards(2);
