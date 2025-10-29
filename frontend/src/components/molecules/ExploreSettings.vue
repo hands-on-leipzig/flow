@@ -85,6 +85,42 @@ const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2 || eM
 const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4 || eMode.value === 5 || eMode.value === 8)
 const hasExplore = computed(() => props.showExplore)
 
+// New UI: Timing options (radio buttons)
+const timingOptions = [
+  { value: 'morning', label: 'Vormittag' },
+  { value: 'afternoon', label: 'Nachmittag' },
+  { value: 'both', label: 'beides' }
+]
+
+// New UI: Timing mode (radio button selection)
+const timingMode = computed({
+  get: () => {
+    // Map current eMode to timing mode
+    // For "both" timing, always return "both" regardless of integration state
+    if (eMode.value === 5 || eMode.value === 8) return 'both'
+    if (eMode.value === 1 || eMode.value === 3 || eMode.value === 6) return 'morning'
+    if (eMode.value === 2 || eMode.value === 4 || eMode.value === 7) return 'afternoon'
+    return 'morning' // default
+  },
+  set: (value) => {
+    updateTimingMode(value)
+  }
+})
+
+// Helper functions for new UI
+function updateTimingMode(timing: string) {
+  // Determine base mode based on timing
+  let baseMode: number
+  switch (timing) {
+    case 'morning': baseMode = 3; break  // Separate AM
+    case 'afternoon': baseMode = 4; break  // Separate PM
+    case 'both': baseMode = 5; break  // Separate split
+    default: baseMode = 3; break
+  }
+  
+  setMode(baseMode)
+}
+
 // Check if challenge is enabled (for disabling integrated modes)
 const isChallengeEnabled = computed(() => props.showChallenge !== false)
 
@@ -554,72 +590,32 @@ const teamsPerJuryHint2 = computed(() => {
       <InfoPopover :text="paramMapByName['e_teams']?.ui_description"/>
     </div>
 
-    <!-- Fancy e_mode selector -->
+    <!-- New UI: Two-row approach -->
     <div v-if="hasExplore">
-      <div class="space-y-2 mb-4">
-        <!-- Integrated with Challenge -->
+      <div class="space-y-4 mb-4">
+        <!-- First row: Timing (Radio buttons) -->
         <div class="flex items-center gap-2">
-          <span class="text-sm font-medium">Integriert in Challenge</span>
-          <button
-              :class="[
-                eMode === 1 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400',
-                !isChallengeEnabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''
-              ]"
-              :disabled="!isChallengeEnabled"
-              class="px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              type="button"
-              @click="isChallengeEnabled && setMode(1)"
-          >
-            vormittags
-          </button>
-          <button
-              :class="[
-                eMode === 2 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400',
-                !isChallengeEnabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''
-              ]"
-              :disabled="!isChallengeEnabled"
-              class="px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              type="button"
-              @click="isChallengeEnabled && setMode(2)"
-          >
-            nachmittags
-          </button>
+          <span class="text-sm font-medium">Explore im</span>
+          <RadioGroup v-model="timingMode" class="flex gap-1">
+            <RadioGroupOption
+                v-for="option in timingOptions"
+                :key="option.value"
+                v-slot="{ checked }"
+                :value="option.value"
+            >
+              <button
+                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  type="button"
+              >
+                {{ option.label }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
           <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
         </div>
 
-        <!-- Independent from Challenge -->
-        <div class="flex items-center gap-2">
-          <span class="text-sm font-medium">Getrennt von Challenge</span>
-          <button
-              :class="eMode === 3 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-              class="px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              type="button"
-              @click="setMode(3)"
-          >
-            vormittags
-          </button>
-          <button
-              :class="eMode === 4 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-              class="px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              type="button"
-              @click="setMode(4)"
-          >
-            nachmittags
-          </button>
-          <button
-              :class="eMode === 5 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-              class="px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              type="button"
-              @click="setMode(5)"
-          >
-            geteilt
-          </button>
-        </div>
       </div>
     </div>
 
