@@ -149,7 +149,14 @@ function openPreview(id: string | number) {
     <!-- Controls -->
     <div class="flex flex-wrap items-end gap-3">
       <div>
-        <label class="block text-xs text-gray-500 mb-1">Event</label>
+        <label class="block text-xs text-gray-500 mb-1">Event ID</label>
+        <div class="text-sm font-medium text-gray-700">
+          {{ event?.id || '—' }}
+        </div>
+      </div>
+      
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Event Name</label>
         <div class="text-sm font-medium text-gray-700">
           {{ event?.name || 'Kein Event ausgewählt' }}
         </div>
@@ -158,13 +165,9 @@ function openPreview(id: string | number) {
       <div>
         <label class="block text-xs text-gray-500 mb-1">Plan ID</label>
         <div class="flex items-center gap-2">
-          <input 
-            v-model="planId" 
-            type="number"
-            class="border rounded px-2 py-1 w-24 bg-gray-50" 
-            :placeholder="planId ? String(planId) : 'wird geladen...'"
-            readonly
-          />
+          <div class="text-sm font-medium text-gray-700">
+            {{ planId || 'wird geladen...' }}
+          </div>
           <button
             v-if="planId"
             class="text-blue-600 hover:text-blue-800"
@@ -173,6 +176,13 @@ function openPreview(id: string | number) {
           >
             🧾
           </button>
+        </div>
+      </div>
+      
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Event Date</label>
+        <div class="text-sm font-medium text-gray-700">
+          {{ event?.date || '—' }}
         </div>
       </div>
 
