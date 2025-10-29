@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MParameter;
 use App\Models\MParameterCondition;
 use App\Models\SupportedPlan;
+use App\Enums\ExploreMode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -91,7 +92,7 @@ class ParameterController extends Controller
                 $entry = array_fill_keys($fields, ['editable' => false]);
 
                 // Ungültige Kombinationen → alles false, fertig
-                if (in_array($e, [0,1,2]) && $c === 0) {
+                if (in_array($e, [ExploreMode::NONE->value, ExploreMode::INTEGRATED_MORNING->value, ExploreMode::INTEGRATED_AFTERNOON->value]) && $c === 0) {
                     $matrix[$key] = [
                         'e_mode' => $e,
                         'c_mode' => $c,
@@ -103,24 +104,24 @@ class ParameterController extends Controller
                 if ( $c === 1) {
                
                     switch ($e) {
-                        case 0:
-                        case 3:
-                        case 4:
-                        case 5:
+                        case ExploreMode::NONE->value:
+                        case ExploreMode::DECOUPLED_MORNING->value:
+                        case ExploreMode::DECOUPLED_AFTERNOON->value:
+                        case ExploreMode::DECOUPLED_BOTH->value:
 
                             foreach (['c_start_opening','c_duration_opening','c_duration_awards'] as $f) {
                                 $entry[$f]['editable'] = true;  
                             }
                             break;
 
-                        case 1:
+                        case ExploreMode::INTEGRATED_MORNING->value:
                             foreach (['g_start_opening','g_duration_opening','c_duration_awards', 'e1_duration_awards'] as $f) {
                                 $entry[$f]['editable'] = true;  
                             }
                             break;
 
 
-                        case 2:
+                        case ExploreMode::INTEGRATED_AFTERNOON->value:
                             foreach (['c_start_opening','c_duration_opening','g_duration_awards', 'e2_duration_opening'] as $f) {
                                 $entry[$f]['editable'] = true;  
                             }
@@ -130,19 +131,19 @@ class ParameterController extends Controller
                 }    
 
                 switch ($e) {
-                    case 3:
+                    case ExploreMode::DECOUPLED_MORNING->value:
                         foreach (['e1_start_opening','e1_duration_opening','e1_duration_awards'] as $f) {
                             $entry[$f]['editable'] = true;  
                         }
                         break;
 
-                    case 4:
+                    case ExploreMode::DECOUPLED_AFTERNOON->value:
                         foreach (['e2_start_opening','e2_duration_opening','e2_duration_awards'] as $f) {
                             $entry[$f]['editable'] = true;  
                         }
                         break;
 
-                    case 5:
+                    case ExploreMode::DECOUPLED_BOTH->value:
                         foreach (['e1_start_opening','e1_duration_opening','e1_duration_awards',
                                   'e2_start_opening','e2_duration_opening','e2_duration_awards'] as $f) {
                             $entry[$f]['editable'] = true;  
