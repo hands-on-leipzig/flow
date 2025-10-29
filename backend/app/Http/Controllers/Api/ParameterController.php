@@ -84,7 +84,7 @@ class ParameterController extends Controller
 
         $matrix = [];
 
-        for ($e = 0; $e <= 5; $e++) {
+        for ($e = 0; $e <= 8; $e++) {
             for ($c = 0; $c <= 1; $c++) {
                 $key = "e{$e}_c{$c}";
 
@@ -162,12 +162,40 @@ class ParameterController extends Controller
 
                 }
 
-                // Möglicherweise noch Challenge dazu
+                // Determine which columns to show based on editable fields
+                // Columns left to right: Gemeinsam (g), Explore Vormittag (e1), Explore Nachmittag (e2), Challenge (c)
+                $columns = [];
+                
+                // Check each column if it has any editable fields
+                if ($entry['g_start_opening']['editable'] || 
+                    $entry['g_duration_opening']['editable'] || 
+                    $entry['g_duration_awards']['editable']) {
+                    $columns[] = 'g';
+                }
+                
+                if ($entry['e1_start_opening']['editable'] || 
+                    $entry['e1_duration_opening']['editable'] || 
+                    $entry['e1_duration_awards']['editable']) {
+                    $columns[] = 'e1';
+                }
+                
+                if ($entry['e2_start_opening']['editable'] || 
+                    $entry['e2_duration_opening']['editable'] || 
+                    $entry['e2_duration_awards']['editable']) {
+                    $columns[] = 'e2';
+                }
+                
+                if ($entry['c_start_opening']['editable'] || 
+                    $entry['c_duration_opening']['editable'] || 
+                    $entry['c_duration_awards']['editable']) {
+                    $columns[] = 'c';
+                }
                 
                 $matrix[$key] = [
                     'e_mode' => $e,
                     'c_mode' => $c,
                     'fields' => $entry,
+                    'columns' => $columns,
                 ];
             }
         }
