@@ -144,7 +144,7 @@ class PlanGeneratorCore
                 
                 $this->explore->openingsAndBriefings(1);
                 $this->explore->judgingAndDeliberations(1);
-                $this->explore->integratedActivity(1); // awards
+                $this->explore->awards(1); // awards
 
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards(true);
