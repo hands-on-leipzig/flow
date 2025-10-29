@@ -76,7 +76,7 @@ class ExploreGenerator
 
     }
 
-    public function openingsAndBriefings(): void
+    public function openingsAndBriefings(int $group): void
     {
         Log::info('ExploreGenerator::openingsAndBriefings', [
             'plan_id' => $this->pp('g_plan'),
@@ -88,7 +88,7 @@ class ExploreGenerator
         ]);
 
         try {
-            if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
+            if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value || $this->eMode == ExploreMode::HYBRID_BOTH->value) {
 
                 $group = 1;
                 // ChallengeGenerator has created the opening activity. We only need to set the time cursor
@@ -183,7 +183,7 @@ class ExploreGenerator
     }
 
 
-    public function judgingAndDeliberations(): void
+    public function judgingAndDeliberations(int $group): void
     {
         // Derive group from eMode
         // DECOUPLED_BOTH is initially treated as MORNING (group 1), then switched to AFTERNOON (group 2) by caller
@@ -200,63 +200,63 @@ class ExploreGenerator
             $exhibitionStart = clone $this->eTime;
             
             $lanes = $this->pp("e{$group}_lanes");
-        $rounds = $this->pp("e{$group}_rounds");
-        $teams = $this->pp("e{$group}_teams");
+            $rounds = $this->pp("e{$group}_rounds");
+            $teams = $this->pp("e{$group}_teams");
 
-        $teamOffset = ($group === 1) ? 0 : $this->pp("e1_teams");
-        $laneOffset = ($group === 1) ? 0 : $this->pp("e1_lanes");
+            $teamOffset = ($group === 1) ? 0 : $this->pp("e1_teams");
+            $laneOffset = ($group === 1) ? 0 : $this->pp("e1_lanes");
 
-        $this->writer->withGroup('e_judging_package', function () use ($rounds, $lanes, $teams, $teamOffset, $laneOffset) {
-            for ($round = 1; $round <= $rounds; $round++) {
-                // WITH team
-                for ($lane = 1; $lane <= $lanes; $lane++) {
-                    $team = ceil($teams / $lanes) * ($lane - 1) + $round;
-                    if ($team <= $teams) {
-                        $this->writer->insertActivity('e_with_team', $this->eTime, $this->pp("e_duration_with_team"), $lane + $laneOffset, $team + $teamOffset);
+            $this->writer->withGroup('e_judging_package', function () use ($rounds, $lanes, $teams, $teamOffset, $laneOffset) {
+                for ($round = 1; $round <= $rounds; $round++) {
+                    // WITH team
+                    for ($lane = 1; $lane <= $lanes; $lane++) {
+                        $team = ceil($teams / $lanes) * ($lane - 1) + $round;
+                        if ($team <= $teams) {
+                            $this->writer->insertActivity('e_with_team', $this->eTime, $this->pp("e_duration_with_team"), $lane + $laneOffset, $team + $teamOffset);
+                        }
+                    }
+                    $this->eTime->addMinutes($this->pp("e_duration_with_team"));
+
+                    // Scoring
+                    for ($lane = 1; $lane <= $lanes; $lane++) {
+                        $team = ($lane - 1) * $rounds + $round;
+                        if ($team <= $teams) {
+                            $this->writer->insertActivity('e_scoring', $this->eTime, $this->pp("e_duration_scoring"), $lane + $laneOffset, $team + $teamOffset);
+                        }
+                    }
+                    $this->eTime->addMinutes($this->pp("e_duration_scoring"));
+
+                    if ($round < $rounds) {
+                        $this->eTime->addMinutes($this->pp("e_duration_break"));
                     }
                 }
-                $this->eTime->addMinutes($this->pp("e_duration_with_team"));
+            });
 
-                // Scoring
-                for ($lane = 1; $lane <= $lanes; $lane++) {
-                    $team = ($lane - 1) * $rounds + $round;
-                    if ($team <= $teams) {
-                        $this->writer->insertActivity('e_scoring', $this->eTime, $this->pp("e_duration_scoring"), $lane + $laneOffset, $team + $teamOffset);
-                    }
-                }
-                $this->eTime->addMinutes($this->pp("e_duration_scoring"));
+            // Buffer before all judges meet for deliberations
+            $this->eTime->addMinutes($this->pp('e_ready_deliberations'));
 
-                if ($round < $rounds) {
-                    $this->eTime->addMinutes($this->pp("e_duration_break"));
-                }
-            }
-        });
+            // Deliberations
+            $this->writer->withGroup('e_deliberations', function () use ($group) {
+                $this->writer->insertActivity('e_deliberations', $this->eTime, $this->pp("e{$group}_duration_deliberations"));
+            });
 
-        // Buffer before all judges meet for deliberations
-        $this->eTime->addMinutes($this->pp('e_ready_deliberations'));
-
-        // Deliberations
-        $this->writer->withGroup('e_deliberations', function () use ($group) {
-            $this->writer->insertActivity('e_deliberations', $this->eTime, $this->pp("e{$group}_duration_deliberations"));
-        });
-
-        $this->eTime->addMinutes($this->pp("e{$group}_duration_deliberations"));
-        
-        // Capture end time of deliberations (end of exhibition)
-        $exhibitionEnd = clone $this->eTime;
-        
-        // Create exhibition activity group spanning from start of judging to end of deliberations
-        $this->writer->withGroup('e_exhibition', function () use ($exhibitionStart, $exhibitionEnd) {
-            $duration = $exhibitionEnd->diffInMinutes($exhibitionStart);
-            $this->writer->insertActivity('e_exhibition', $exhibitionStart, $duration);
-        });
-        
-        Log::info('ExploreGenerator: Exhibition activity created', [
-            'group' => $group,
-            'start_time' => $exhibitionStart->format('H:i'),
-            'end_time' => $exhibitionEnd->format('H:i'),
-            'duration_minutes' => $exhibitionEnd->diffInMinutes($exhibitionStart)
-        ]);
+            $this->eTime->addMinutes($this->pp("e{$group}_duration_deliberations"));
+            
+            // Capture end time of deliberations (end of exhibition)
+            $exhibitionEnd = clone $this->eTime;
+            
+            // Create exhibition activity group spanning from start of judging to end of deliberations
+            $this->writer->withGroup('e_exhibition', function () use ($exhibitionStart, $exhibitionEnd) {
+                $duration = $exhibitionEnd->diffInMinutes($exhibitionStart);
+                $this->writer->insertActivity('e_exhibition', $exhibitionStart, $duration);
+            });
+            
+            Log::info('ExploreGenerator: Exhibition activity created', [
+                'group' => $group,
+                'start_time' => $exhibitionStart->format('H:i'),
+                'end_time' => $exhibitionEnd->format('H:i'),
+                'duration_minutes' => $exhibitionEnd->diffInMinutes($exhibitionStart)
+            ]);
 
         } catch (\Throwable $e) {
             Log::error('ExploreGenerator: Error in judging and deliberations', [
@@ -268,7 +268,7 @@ class ExploreGenerator
         }
     }
 
-    public function awards(bool $challenge = false): void   
+    public function awards(int $group, bool $challenge = false): void   
     {
         // Derive group from eMode
         // DECOUPLED_BOTH is initially treated as MORNING (group 1), then switched to AFTERNOON (group 2) by caller
@@ -310,7 +310,7 @@ class ExploreGenerator
      * For INTEGRATED_MORNING: inserts awards
      * For INTEGRATED_AFTERNOON: inserts opening
      */
-    public function integratedActivity(): void
+    public function integratedActivity(int $group): void
     {
         // Check if start time was written by ChallengeGenerator
         if ($this->integratedExplore->startTime === null) {
