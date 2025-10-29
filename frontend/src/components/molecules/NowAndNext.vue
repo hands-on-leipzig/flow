@@ -16,6 +16,18 @@ const role = ref(14)            // Default 14 = Publikum
 const usePoint = ref(true)
 const timeStr = ref('11:00')    // HH:mm
 const intervalMin = ref(60)
+const selectedDay = ref(1)      // Default to day 1
+
+// Available days for multi-day events
+const availableDays = computed(() => {
+  const days = event.value?.days || 1
+  return Array.from({ length: days }, (_, i) => i + 1)
+})
+
+// Reset selected day when event changes
+watch(() => event.value?.id, () => {
+  selectedDay.value = 1
+})
 
 // Fetch plan ID for current event
 async function fetchPlanId() {
@@ -57,10 +69,14 @@ const result = ref(null)
 function buildPointInTimeParam() {
   const params: any = {}
   if (usePoint.value && timeStr.value) {
-    params.point_in_time = timeStr.value
+    params.point_in_time = timeStr.value // Just HH:MM format
   }
   if (role.value) {
     params.role = role.value
+  }
+  // Include day parameter if event has multiple days
+  if (event.value && event.value.days > 1) {
+    params.day = selectedDay.value
   }
   return params
 }
@@ -104,6 +120,16 @@ const padTeam = (n: any) =>
   typeof n === 'number' || /^\d+$/.test(String(n))
     ? String(Number(n)).padStart(2, '0')
     : String(n ?? '').trim()
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return '—'
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}.${month}.${year}`
+}
 
 // Vereinfachte Darstellung: Name > Teamnummer > leer
 const splitWith = (a: any) => {
@@ -182,8 +208,17 @@ function openPreview(id: string | number) {
       <div>
         <label class="block text-xs text-gray-500 mb-1">Event Date</label>
         <div class="text-sm font-medium text-gray-700">
-          {{ event?.date || '—' }}
+          {{ formatDate(event?.date) }}
         </div>
+      </div>
+
+      <div v-if="event && event.days > 1">
+        <label class="block text-xs text-gray-500 mb-1">Tag</label>
+        <select v-model.number="selectedDay" class="border rounded px-2 py-1">
+          <option v-for="day in availableDays" :key="day" :value="day">
+            Tag {{ day }}
+          </option>
+        </select>
       </div>
 
       <div>
