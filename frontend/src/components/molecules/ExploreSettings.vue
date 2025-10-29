@@ -77,12 +77,12 @@ const e2Teams = computed(() => Number(paramMapByName.value['e2_teams']?.value ||
 // 3: Separate AM
 // 4: Separate PM
 // 5: Separate split between AM/PM
-const isIntegratedAM = computed(() => eMode.value === 1)
-const isIntegratedPM = computed(() => eMode.value === 2)
-const isSeparateSplit = computed(() => eMode.value === 5)
+const isIntegratedAM = computed(() => eMode.value === 1 || eMode.value === 6)
+const isIntegratedPM = computed(() => eMode.value === 2 || eMode.value === 7)
+const isSeparateSplit = computed(() => eMode.value === 5 || eMode.value === 8)
 
-const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2)
-const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4 || eMode.value === 5)
+const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2 || eMode.value === 6 || eMode.value === 7)
+const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4 || eMode.value === 5 || eMode.value === 8)
 const hasExplore = computed(() => props.showExplore)
 
 // Check if challenge is enabled (for disabling integrated modes)
@@ -90,45 +90,48 @@ const isChallengeEnabled = computed(() => props.showChallenge !== false)
 
 // Watch for challenge being disabled and switch away from integrated modes
 watch(isChallengeEnabled, (enabled) => {
-  if (!enabled && (eMode.value === 1 || eMode.value === 2)) {
+  if (!enabled && (eMode.value === 1 || eMode.value === 2 || eMode.value === 6 || eMode.value === 7)) {
     // Challenge disabled while in integrated mode - switch to separate AM
     setMode(3)
   }
 })
 
 /** Fancy mode changes **/
-function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5) {
+function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) {
   eMode.value = mode
   const total = eTeams.value
 
+  // Map hybrid modes to their base modes
+  const baseMode = mode === 6 ? 1 : mode === 7 ? 2 : mode === 8 ? 5 : mode
+
   // Reset team counts and lane counts based on mode
-  if (mode === 0) {
+  if (baseMode === 0) {
     // No explore - clear all team and lane counts
     updateByName('e1_teams', 0)
     updateByName('e2_teams', 0)
     updateByName('e1_lanes', 0)
     updateByName('e2_lanes', 0)
-  } else if (mode === 1) {
+  } else if (baseMode === 1) {
     // Integrated AM - all teams in e1_teams, clear PM
     updateByName('e1_teams', total)
     updateByName('e2_teams', 0)
     updateByName('e2_lanes', 0)
-  } else if (mode === 2) {
+  } else if (baseMode === 2) {
     // Integrated PM - all teams in e2_teams, clear AM
     updateByName('e1_teams', 0)
     updateByName('e2_teams', total)
     updateByName('e1_lanes', 0)
-  } else if (mode === 3) {
+  } else if (baseMode === 3) {
     // Separate AM - all teams in e1_teams, clear PM
     updateByName('e1_teams', total)
     updateByName('e2_teams', 0)
     updateByName('e2_lanes', 0)
-  } else if (mode === 4) {
+  } else if (baseMode === 4) {
     // Separate PM - all teams in e2_teams, clear AM
     updateByName('e1_teams', 0)
     updateByName('e2_teams', total)
     updateByName('e1_lanes', 0)
-  } else if (mode === 5) {
+  } else if (baseMode === 5) {
     // Separate split - create half split immediately
     const half = Math.floor(total / 2)
     updateByName('e1_teams', half)
@@ -146,28 +149,31 @@ watch(() => paramMapByName.value['e_teams']?.value, (newTotalRaw) => {
     updateByName('e_teams', total)
   }
 
+  // Map hybrid modes to their base modes
+  const baseMode = eMode.value === 6 ? 1 : eMode.value === 7 ? 2 : eMode.value === 8 ? 5 : eMode.value
+
   // Update e1_teams and e2_teams based on current mode
-  if (eMode.value === 0) {
+  if (baseMode === 0) {
     // No explore - clear all
     updateByName('e1_teams', 0)
     updateByName('e2_teams', 0)
-  } else if (eMode.value === 1) {
+  } else if (baseMode === 1) {
     // Integrated AM - all in e1_teams
     updateByName('e1_teams', total)
     updateByName('e2_teams', 0)
-  } else if (eMode.value === 2) {
+  } else if (baseMode === 2) {
     // Integrated PM - all in e2_teams
     updateByName('e1_teams', 0)
     updateByName('e2_teams', total)
-  } else if (eMode.value === 3) {
+  } else if (baseMode === 3) {
     // Separate AM - all in e1_teams
     updateByName('e1_teams', total)
     updateByName('e2_teams', 0)
-  } else if (eMode.value === 4) {
+  } else if (baseMode === 4) {
     // Separate PM - all in e2_teams
     updateByName('e1_teams', 0)
     updateByName('e2_teams', total)
-  } else if (eMode.value === 5) {
+  } else if (baseMode === 5) {
     // Separate split - always create proper half split
     const half = Math.floor(total / 2)
     updateByName('e1_teams', half)
@@ -212,8 +218,8 @@ watch(allowedExploreLanesIntegrated, (opts) => {
 const allowedExploreLanesAM = computed<number[]>(() => {
   if (!props.lanesIndex) return []
 
-  // For mode 3 (separate AM), use total teams. For mode 5 (split), use actual e1Teams
-  const teamCount = (eMode.value === 3) ? eTeams.value : e1Teams.value
+  // For mode 3 (separate AM) or mode 6 (hybrid AM), use total teams. For mode 5 (split) or mode 8 (hybrid split), use actual e1Teams
+  const teamCount = (eMode.value === 3 || eMode.value === 6) ? eTeams.value : e1Teams.value
   if (!teamCount) return []
 
   const key = `${teamCount}`
@@ -222,8 +228,8 @@ const allowedExploreLanesAM = computed<number[]>(() => {
 const allowedExploreLanesPM = computed<number[]>(() => {
   if (!props.lanesIndex) return []
 
-  // For mode 4 (separate PM), use total teams. For mode 5 (split), use actual e2Teams
-  const teamCount = (eMode.value === 4) ? eTeams.value : e2Teams.value
+  // For mode 4 (separate PM) or mode 7 (hybrid PM), use total teams. For mode 5 (split) or mode 8 (hybrid split), use actual e2Teams
+  const teamCount = (eMode.value === 4 || eMode.value === 7) ? eTeams.value : e2Teams.value
   if (!teamCount) return []
 
   const key = `${teamCount}`
@@ -294,16 +300,16 @@ const isExploreLaneAllowedPM = (n: number) => {
 
 // Get the current note based on the active mode
 const currentExploreNote = computed<string>(() => {
-  if (eMode.value === 1) return currentIntegratedNote.value || ''
-  if (eMode.value === 2) return currentAMNote.value || ''
+  if (eMode.value === 1 || eMode.value === 6) return currentIntegratedNote.value || ''
+  if (eMode.value === 2 || eMode.value === 7) return currentAMNote.value || ''
   if (eMode.value === 3) return currentPMNote.value || ''
   return ''
 })
 
 // Get the current alert level based on the active mode
 const currentExploreAlertLevel = computed<number>(() => {
-  if (eMode.value === 1) return currentConfigAlertLevelIntegrated.value
-  if (eMode.value === 2) return currentConfigAlertLevelAM.value
+  if (eMode.value === 1 || eMode.value === 6) return currentConfigAlertLevelIntegrated.value
+  if (eMode.value === 2 || eMode.value === 7) return currentConfigAlertLevelAM.value
   if (eMode.value === 3) return currentConfigAlertLevelPM.value
   return 0
 })
@@ -509,6 +515,22 @@ const teamsPerJuryHint2 = computed(() => {
       </label>
     </div>
 
+    <!-- DEBUG: Show e_mode value -->
+    <div v-if="hasExplore" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm">
+      <strong>DEBUG:</strong> e_mode = {{ eMode }} ({{ 
+        eMode === 0 ? 'NONE' :
+        eMode === 1 ? 'INTEGRATED_MORNING' :
+        eMode === 2 ? 'INTEGRATED_AFTERNOON' :
+        eMode === 3 ? 'DECOUPLED_MORNING' :
+        eMode === 4 ? 'DECOUPLED_AFTERNOON' :
+        eMode === 5 ? 'DECOUPLED_BOTH' :
+        eMode === 6 ? 'HYBRID_MORNING' :
+        eMode === 7 ? 'HYBRID_AFTERNOON' :
+        eMode === 8 ? 'HYBRID_BOTH' :
+        'UNKNOWN'
+      }})
+    </div>
+
     <div v-if="hasExplore" class="mb-3 flex items-center gap-2">
       <span>Plan für</span>
       <div class="relative">
@@ -665,7 +687,7 @@ const teamsPerJuryHint2 = computed(() => {
     <!-- Two columns when independent (3, 4, or 5) -->
     <div v-if="hasExplore && isIndependent" class="mt-4 grid grid-cols-2 gap-8 text-gray-800">
       <!-- AM -->
-      <div :class="(eMode === 4 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
+      <div :class="(eMode === 4 || eMode === 7 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
           Vormittag
         </div>
@@ -708,7 +730,7 @@ const teamsPerJuryHint2 = computed(() => {
       </div>
 
       <!-- PM -->
-      <div :class="(eMode === 3 || e2Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
+      <div :class="(eMode === 3 || eMode === 6 || e2Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
           Nachmittag
         </div>
