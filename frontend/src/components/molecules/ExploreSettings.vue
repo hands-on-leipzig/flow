@@ -107,15 +107,57 @@ const timingMode = computed({
   }
 })
 
-// Helper functions for new UI
+// Simple integration enabled/disabled
+const integrationEnabled = computed({
+  get: () => {
+    const timing = timingMode.value
+    
+    if (timing === 'morning') {
+      // Morning: Ja = mode 1 (integrated), Nein = mode 3 (decoupled)
+      return eMode.value === 1 ? 'yes' : 'no'
+    } else if (timing === 'afternoon') {
+      // Afternoon: Ja = mode 2 (integrated), Nein = mode 4 (decoupled)
+      return eMode.value === 2 ? 'yes' : 'no'
+    } else if (timing === 'both') {
+      // Both: Ja = mode 8 (hybrid both), Nein = mode 5 (decoupled both)
+      return eMode.value === 8 ? 'yes' : 'no'
+    }
+    
+    return 'no'
+  },
+  set: (value) => {
+    const timing = timingMode.value
+    
+    if (timing === 'morning') {
+      // Morning: Ja = integrated (1), Nein = decoupled (3)
+      setMode(value === 'yes' ? 1 : 3)
+    } else if (timing === 'afternoon') {
+      // Afternoon: Ja = integrated (2), Nein = decoupled (4)
+      setMode(value === 'yes' ? 2 : 4)
+    } else if (timing === 'both') {
+      // Both: Ja = hybrid both (8), Nein = decoupled both (5)
+      setMode(value === 'yes' ? 8 : 5)
+    }
+  }
+})
+
 function updateTimingMode(timing: string) {
-  // Determine base mode based on timing
+  // When switching timing, reset to decoupled mode for that timing
+  // User will need to set integration again for the new timing
   let baseMode: number
   switch (timing) {
-    case 'morning': baseMode = 3; break  // Separate AM
-    case 'afternoon': baseMode = 4; break  // Separate PM
-    case 'both': baseMode = 5; break  // Separate split
-    default: baseMode = 3; break
+    case 'morning': 
+      baseMode = 3; // Decoupled morning
+      break
+    case 'afternoon': 
+      baseMode = 4; // Decoupled afternoon
+      break
+    case 'both': 
+      baseMode = 5; // Decoupled both
+      break
+    default: 
+      baseMode = 3; 
+      break
   }
   
   setMode(baseMode)
@@ -614,6 +656,39 @@ const teamsPerJuryHint2 = computed(() => {
             </RadioGroupOption>
           </RadioGroup>
           <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
+        </div>
+
+        <!-- Second row: Integration (Simple Ja/Nein) -->
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-medium">Integration mit Challenge</span>
+          <RadioGroup v-model="integrationEnabled" class="flex gap-1">
+            <RadioGroupOption
+                value="yes"
+                v-slot="{ checked }"
+            >
+              <button
+                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  type="button"
+              >
+                ja
+              </button>
+            </RadioGroupOption>
+            <RadioGroupOption
+                value="no"
+                v-slot="{ checked }"
+            >
+              <button
+                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  type="button"
+              >
+                nein
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
         </div>
 
       </div>
