@@ -82,6 +82,29 @@ class GenerateMainDataSeeder extends Command
     
     private function generateSeederContent(array $tables, array $data): string
     {
+        // Define dependency order for master tables to ensure foreign keys are satisfied
+        $dependencyOrder = [
+            'm_season' => 1,
+            'm_level' => 2,
+            'm_first_program' => 3,
+            'm_room_type_group' => 4,
+            'm_room_type' => 5,
+            'm_parameter' => 6,
+            'm_activity_type' => 7,
+            'm_activity_type_detail' => 8,
+            'm_insert_point' => 9,
+            'm_role' => 10,
+            'm_visibility' => 11,
+            'm_supported_plan' => 12,
+        ];
+        
+        // Sort tables according to dependency order
+        usort($tables, function($a, $b) use ($dependencyOrder) {
+            $orderA = $dependencyOrder[$a] ?? 999;
+            $orderB = $dependencyOrder[$b] ?? 999;
+            return $orderA <=> $orderB;
+        });
+        
         $seederContent = "<?php\n\nnamespace Database\\Seeders;\n\nuse Illuminate\\Database\\Seeder;\nuse Illuminate\\Support\\Facades\\DB;\n\nclass MainDataSeeder extends Seeder\n{\n    /**\n     * Run the database seeds.\n     */\n    public function run(): void\n    {\n        \$this->command->info('🌱 Seeding main data...');\n        \n";
         
         foreach ($tables as $table) {
