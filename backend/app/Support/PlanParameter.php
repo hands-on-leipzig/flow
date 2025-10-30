@@ -122,7 +122,7 @@ class PlanParameter
         }
 
         // Skip validation for all team parameters - they are used for support plan checking elsewhere
-        if (str_ends_with($param->name, '_teams')) {
+        if (str_ends_with($param->name, '_teams') || str_ends_with($param->name, '_tables')) {
             return;
         }
 
