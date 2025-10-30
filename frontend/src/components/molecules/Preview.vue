@@ -3,6 +3,7 @@
 import { formatTimeOnly, formatDateTime } from '@/utils/dateTimeFormat'
 
 import {ref, watch, onMounted, computed} from 'vue'
+import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import axios from 'axios'
 import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
@@ -65,7 +66,7 @@ const effectivePlanId = computed(() => {
   return props.planId ?? Number(route.params.planId)
 })
 
-const view = ref<'overview' | 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities'>(props.initialView)
+const view = ref<'overview' | 'roles' | 'teams' | 'quality' | 'rooms' | 'activities'>(props.initialView as any)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -118,11 +119,8 @@ async function load() {
       rows.value = []
       activities.value = []
       robotGameData.value = null
-    } else if (view.value === 'robot-game') {
-      // Robot-Game match plan
-      const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/robot-game`)
-      robotGameData.value = data
-      hasChallenge.value = data?.has_challenge ?? false
+  } else if (view.value === 'quality') {
+      // Qualität-Ansicht lädt separat in QPlanDetails
       headers.value = []
       rows.value = []
       activities.value = []
@@ -159,21 +157,10 @@ watch(view, () => load())
 watch(() => props.reload, () => load())
 
 onMounted(async () => {
-  // Load robot-game data first to check if Challenge exists
-  if (effectivePlanId.value) {
-    try {
-      const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/robot-game`)
-      hasChallenge.value = data?.has_challenge ?? false
-    } catch (e) {
-      console.error('[Preview] Failed to check Challenge existence:', e)
-      hasChallenge.value = false
-    }
-  }
-  // Then load the selected view
   load()
 })
 
-function setView(v: 'overview' | 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities') {
+function setView(v: 'overview' | 'roles' | 'teams' | 'quality' | 'rooms' | 'activities') {
   if (view.value !== v) view.value = v
 }
 
@@ -235,11 +222,10 @@ function formatTeam(teamNum: number | null): string {
 
       <div class="inline-flex rounded-md overflow-hidden border">
         <button
-          v-if="hasChallenge"
           class="px-3 py-1 text-sm"
-          :class="view === 'robot-game' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
-          @click="setView('robot-game')"
-        >Robot-Game</button>
+          :class="view === 'quality' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+          @click="setView('quality')"
+        >Plan Qualität</button>
       </div>
 
       <div class="inline-flex rounded-md overflow-hidden border">
@@ -263,7 +249,7 @@ function formatTeam(teamNum: number | null): string {
     </div>
 
     <!-- ANSICHT 1–3: Bestehende Preview-Tabellen (roles, teams, rooms) -->
-    <div v-if="view !== 'overview' && view !== 'robot-game' && view !== 'activities'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white">
+    <div v-if="view === 'roles' || view === 'teams' || view === 'rooms'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white">
       <table class="w-full table-fixed text-sm">
         <thead class="sticky top-0 bg-gray-50">
           <tr>
@@ -332,89 +318,9 @@ function formatTeam(teamNum: number | null): string {
       </template>
     </div>
 
-    <!-- ANSICHT: Robot-Game Matchplan -->
-    <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-gray-500">Wird geladen …</div>
-
-      <template v-else>
-        <div v-if="!robotGameData || robotGameData.rounds.length === 0" class="px-3 py-6 text-center text-gray-500">
-          Keine Robot-Game Daten gefunden.
-        </div>
-
-        <div v-else class="flex flex-col gap-6">
-          <!-- Match plan by rounds -->
-          <div class="flex flex-row gap-4 overflow-x-auto">
-            <div
-              v-for="round in robotGameData.rounds"
-              :key="round.round"
-              class="min-w-max"
-            >
-              <div class="text-sm font-semibold text-gray-600 mb-2">
-                {{ round.name }}
-              </div>
-              <table class="table-auto text-sm border-collapse border border-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 1</th>
-                    <th class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 2</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 3</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 4</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="match in round.matches"
-                    :key="match.match_id"
-                    class="border-t"
-                  >
-                    <td class="text-center px-2 py-1">
-                      <span v-if="match.table_1 === 1">{{ formatTeam(match.table_1_team) }}</span>
-                      <span v-else-if="match.table_2 === 1">{{ formatTeam(match.table_2_team) }}</span>
-                    </td>
-                    <td class="text-center px-2 py-1">
-                      <span v-if="match.table_1 === 2">{{ formatTeam(match.table_1_team) }}</span>
-                      <span v-else-if="match.table_2 === 2">{{ formatTeam(match.table_2_team) }}</span>
-                    </td>
-                    <td v-if="hasTable34(round)" class="text-center px-2 py-1">
-                      <span v-if="match.table_1 === 3">{{ formatTeam(match.table_1_team) }}</span>
-                      <span v-else-if="match.table_2 === 3">{{ formatTeam(match.table_2_team) }}</span>
-                    </td>
-                    <td v-if="hasTable34(round)" class="text-center px-2 py-1">
-                      <span v-if="match.table_1 === 4">{{ formatTeam(match.table_1_team) }}</span>
-                      <span v-else-if="match.table_2 === 4">{{ formatTeam(match.table_2_team) }}</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Team summary table -->
-          <div v-if="robotGameData.team_summary && robotGameData.team_summary.length > 0" class="mt-4">
-            <div class="text-sm font-semibold text-gray-600 mb-2">Übersicht über die Verteilung</div>
-            <table class="table-auto text-sm border-collapse border border-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-3 py-2 border border-gray-200 text-left font-normal">Team</th>
-                  <th class="px-3 py-2 border border-gray-200 text-center font-normal">Verschiedene Tische</th>
-                  <th class="px-3 py-2 border border-gray-200 text-center font-normal">Verschiedene Teams</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="summary in robotGameData.team_summary"
-                  :key="summary.team"
-                  class="border-t"
-                >
-                  <td class="px-3 py-2 border border-gray-200">{{ summary.team }}</td>
-                  <td class="px-3 py-2 border border-gray-200 text-center">{{ summary.different_tables }}</td>
-                  <td class="px-3 py-2 border border-gray-200 text-center">{{ summary.different_opponents }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </template>
+    <!-- ANSICHT: Plan-Qualität (QPlanDetails) -->
+    <div v-else-if="view === 'quality'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white p-4">
+      <QPlanDetails v-if="effectivePlanId" :plan-id="Number(effectivePlanId)" />
     </div>
 
     <!-- ANSICHT: Power-User „Aktivitäten" -->
