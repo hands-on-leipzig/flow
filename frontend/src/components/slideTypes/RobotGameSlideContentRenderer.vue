@@ -1,27 +1,9 @@
 <script setup lang="ts">
 import {RobotGameSlideContent} from '../../models/robotGameSlideContent.js';
 import {onMounted, onUnmounted, ref, computed, toRef} from "vue";
-import axios from "axios";
+import { useScores, expectedScores, roundNames, createTeams } from '@/services/useScores';
+import type {Team, TeamResponse, RoundResponse} from "@/models/robotGameScores";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
-
-type ScoresResponse = { name?: string, rounds?: RoundResponse }
-type RoundResponse = { [key: string]: TeamResponse }
-type TeamResponse = { [key: string]: Team }
-type Team = { name: string, scores: Score[], rank: number, id: number }
-type Score = { points: number; highlight: boolean }
-type Round = 'VR' | 'VF' | 'HF';
-
-const expectedScores: { [round in Round]: number } = {
-  VR: 3,
-  VF: 1,
-  HF: 1,
-};
-
-const roundNames: { [round in Round]: string } = {
-  VR: 'Vorrunden',
-  VF: 'Viertelfinale',
-  HF: 'Halbfinale',
-};
 
 const props = defineProps<{
   content: RobotGameSlideContent,
@@ -29,108 +11,41 @@ const props = defineProps<{
   eventId: number
 }>();
 
-const scores = ref<ScoresResponse>(null);
-const error = ref<string | null>(null);
+const { scores, error, loadScores, startAutoRefresh, stopAutoRefresh, setDemoData } = useScores(props.eventId);
+
 const currentIndex = ref(0);
 const isPaused = ref(false);
 const teamsPerPage = toRef(props.content, 'teamsPerPage') || ref(8);
 const round = ref<string | undefined>(undefined);
 const teams = computed(() => {
   const category = getRoundToShow(scores.value?.rounds);
-  return createTeams(category) || [];
+  return createTeams(category, round.value) || [];
 });
 const paginatedTeams = computed(() => {
   return teams.value.slice(currentIndex.value, currentIndex.value + teamsPerPage.value);
 });
 
-function sortScores(team: any): number[] {
-  return team.scores.map((score: any) => +score.points).sort((a: number, b: number) => b - a);
-}
+onMounted(loadScores);
+onMounted(startAutoRefresh);
+onUnmounted(stopAutoRefresh);
 
-function assignRanks(teams: Team[]): Team[] {
-  if (!teams || teams.length === 0) {
-    return teams;
-  }
-  let rank = 1;
-  let prevScore = 0;
-  const result: Team[] = [];
-  for (let i = 0; i < teams.length; i++) {
-    const maxScore = sortScores(teams[i])[0];
-    if (maxScore !== prevScore) {
-      rank = i + 1;
+let autoAdvanceInterval;
+
+onMounted(() => {
+  const secondsPerPage = props.content.secondsPerPage || 15;
+  autoAdvanceInterval = setInterval(() => {
+    if (!isPaused.value) {
+      advancePage();
     }
-    teams[i].rank = rank;
-    if (maxScore > 0 || prevScore === 0) {
-      result.push(teams[i]);
-      prevScore = maxScore;
-    }
-  }
-  return result;
-}
+  }, secondsPerPage * 1000);
 
-function createTeams(category: TeamResponse): Team[] {
-  if (!category || !round.value) {
-    return undefined;
-  }
-  const teams: Team[] = [];
-  for (const id in category) {
-    const team = {...category[id], id: +id};
-    const scores = sortScores(team);
-    const maxScore = scores[0];
-    team.scores = team.scores.map((score: any) => {
-      score.highlight = +score.points === maxScore && maxScore > 0 && scores.length > 1;
-      return score;
-    });
-    // Add extra scores if necessary
-    while (team.scores.length < expectedScores[round.value]) {
-      team.scores.push({points: 0, highlight: false});
-    }
-    teams.push(team);
-  }
+  // Add keydown event listener
+  window.addEventListener('keydown', handleKeyDown);
+});
 
-  teams.sort((a: any, b: any) => {
-    const aScores = sortScores(a);
-    const bScores = sortScores(b);
-    for (let i = 0; i < aScores.length && i < bScores.length; i++) {
-      if (aScores[i] !== bScores[i]) {
-        return bScores[i] - aScores[i];
-      }
-    }
-    return 0;
-  });
-  return assignRanks(teams);
-}
-
-function getRoundToShow(rounds: RoundResponse): TeamResponse {
-  if (!rounds) {
-    return undefined;
-  }
-  if (rounds.HF) {
-    round.value = 'HF';
-    return rounds.HF;
-  }
-  if (rounds.VF) {
-    round.value = 'VF';
-    return rounds.VF;
-  }
-  if (rounds.VR) {
-    round.value = 'VR';
-    return rounds.VR;
-  }
-  return undefined;
-}
-
-// Load data function
-function loadScoreData() {
-  axios.get('/contao/score', { params: { eventId: props.eventId } })
-      .then((response) => {
-        scores.value = response.data;
-      })
-      .catch((err) => {
-        console.error(err.message);
-      });
-
-  scores.value = {
+// Test demo data
+onMounted(() => {
+  setDemoData({
     "name": "RPT Demo",
     "rounds": {
       "VR": {
@@ -176,9 +91,31 @@ function loadScoreData() {
         },
       }
     }
-  };
+  });
+});
 
+onUnmounted(() => {
+  clearInterval(autoAdvanceInterval);
+  window.removeEventListener('keydown', handleKeyDown);
+});
 
+function getRoundToShow(rounds: RoundResponse): TeamResponse {
+  if (!rounds) {
+    return undefined;
+  }
+  if (rounds.HF) {
+    round.value = 'HF';
+    return rounds.HF;
+  }
+  if (rounds.VF) {
+    round.value = 'VF';
+    return rounds.VF;
+  }
+  if (rounds.VR) {
+    round.value = 'VR';
+    return rounds.VR;
+  }
+  return undefined;
 }
 
 function advancePage() {
@@ -213,30 +150,6 @@ function handleKeyDown(event: KeyboardEvent) {
     previousPage();
   }
 }
-
-let refreshInterval;
-let autoAdvanceInterval;
-
-onMounted(loadScoreData);
-onMounted(() => {
-  refreshInterval = setInterval(loadScoreData, 5 * 60 * 1000);
-
-  const secondsPerPage = props.content.secondsPerPage || 15;
-  autoAdvanceInterval = setInterval(() => {
-    if (!isPaused.value) {
-      advancePage();
-    }
-  }, secondsPerPage * 1000);
-
-  // Add keydown event listener
-  window.addEventListener('keydown', handleKeyDown);
-});
-
-onUnmounted(() => {
-  clearInterval(refreshInterval);
-  clearInterval(autoAdvanceInterval);
-  window.removeEventListener('keydown', handleKeyDown);
-});
 </script>
 
 <template>

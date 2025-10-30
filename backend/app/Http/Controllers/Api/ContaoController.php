@@ -118,7 +118,7 @@ class ContaoController extends Controller
     /**
      * Get rounds to show setting for an event
      */
-    private function getRoundsToShow($eventId)
+    private function getRoundsToShow($eventId): object
     {
 
         // 1) Get manually published rounds from the database
@@ -144,7 +144,7 @@ class ContaoController extends Controller
         ];
     }
 
-    public function getRoundsToShowEndpoint(Request $request, $eventId)
+    public function getRoundsToShowEndpoint(Request $request, $eventId): JsonResponse
     {
         $roundsToShow = $this->getRoundsToShow($eventId);
         return response()->json($roundsToShow);
