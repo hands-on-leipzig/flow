@@ -74,6 +74,14 @@ jobs:
             --exclude='storage/' \
             ~/deploy-flow-dev-temp/ ~/public_html/flow-dev/
             cd ~/public_html/flow-dev
+            # Ensure storage directories exist (mkdir -p is idempotent - safe if already exists)
+            mkdir -p storage/framework/cache/data
+            mkdir -p storage/framework/sessions
+            mkdir -p storage/framework/views
+            mkdir -p storage/app/public
+            # Set permissions only if needed (preserves existing files)
+            find storage/framework -type d -exec chmod 775 {} \; 2>/dev/null || true
+            find storage/app -type d -exec chmod 775 {} \; 2>/dev/null || true
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear
@@ -146,6 +154,14 @@ jobs:
             --exclude='storage/' \
             ~/deploy-flow-test-temp/ ~/public_html/flow-test/
             cd ~/public_html/flow-test
+            # Ensure storage directories exist (mkdir -p is idempotent - safe if already exists)
+            mkdir -p storage/framework/cache/data
+            mkdir -p storage/framework/sessions
+            mkdir -p storage/framework/views
+            mkdir -p storage/app/public
+            # Set permissions only if needed (preserves existing files)
+            find storage/framework -type d -exec chmod 775 {} \; 2>/dev/null || true
+            find storage/app -type d -exec chmod 775 {} \; 2>/dev/null || true
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear
@@ -224,6 +240,14 @@ jobs:
             --exclude='storage/' \
             ~/deploy-flow-prod-temp/ ~/public_html/flow-prod/
             cd ~/public_html/flow-prod
+            # Ensure storage directories exist (mkdir -p is idempotent - safe if already exists)
+            mkdir -p storage/framework/cache/data
+            mkdir -p storage/framework/sessions
+            mkdir -p storage/framework/views
+            mkdir -p storage/app/public
+            # Set permissions only if needed (preserves existing files)
+            find storage/framework -type d -exec chmod 775 {} \; 2>/dev/null || true
+            find storage/app -type d -exec chmod 775 {} \; 2>/dev/null || true
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear
