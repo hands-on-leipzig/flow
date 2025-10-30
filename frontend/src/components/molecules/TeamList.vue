@@ -4,7 +4,7 @@ import {computed, toRef, ref, watch, onMounted} from "vue";
 import axios from "axios";
 import {useEventStore} from "@/stores/event";
 import IconDraggable from "@/components/icons/IconDraggable.vue";
-import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import {programLogoSrc, programLogoAlt} from '@/utils/images'
 
 const props = defineProps({
   program: {type: String, required: true}, // 'explore' or 'challenge'
@@ -85,14 +85,14 @@ const mergedTeams = computed(() => {
   // Step 1: Match teams by team_number_hot (when both have valid numbers)
   const localMapByNumber = new Map()
   const drahtMapByNumber = new Map()
-  
+
   localTeams.value.forEach(t => {
     const num = normalizeTeamNumber(t.team_number_hot)
     if (num != null) {
       localMapByNumber.set(num, t)
     }
   })
-  
+
   props.remoteTeams.forEach(t => {
     const num = normalizeTeamNumber(t.number)
     if (num != null) {
@@ -138,7 +138,7 @@ const mergedTeams = computed(() => {
     const num = normalizeTeamNumber(t.team_number_hot)
     return num == null && !processedLocalIds.has(t.id)
   })
-  
+
   const drahtWithoutNumber = props.remoteTeams.filter(t => {
     const num = normalizeTeamNumber(t.number)
     return num == null && !processedDrahtIds.has(t.id)
@@ -146,10 +146,10 @@ const mergedTeams = computed(() => {
 
   // Match by name for teams without numbers
   drahtWithoutNumber.forEach(draht => {
-    const matchingLocal = localWithoutNumber.find(local => 
-      local.name === draht.name && !processedLocalIds.has(local.id)
+    const matchingLocal = localWithoutNumber.find(local =>
+        local.name === draht.name && !processedLocalIds.has(local.id)
     )
-    
+
     if (matchingLocal) {
       processedLocalIds.add(matchingLocal.id)
       processedDrahtIds.add(draht.id)
@@ -198,14 +198,14 @@ const applyDrahtTeam = async (team) => {
     console.error('Cannot apply team: draht data is missing', team)
     return
   }
-  
+
   // Validate that team_number_hot exists (required field)
-  const teamNumberHot = team.draht.number ?? team.number
+  const teamNumberHot = team.draht.ref ?? team.ref
   if (!teamNumberHot || teamNumberHot === 0) {
     alert('Fehler: Team-Nummer ist erforderlich. Das Team in DRAHT hat keine gültige team_number_hot.')
     return
   }
-  
+
   try {
     const response = await axios.put(`/events/${event.value?.id}/teams`, {
       id: team.local?.id, // null for new teams (triggers create)
@@ -266,16 +266,16 @@ onMounted(async () => {
     teamList.value = [...localTeams.value]
 
     // Debug: Log team numbers for comparison
-    console.log(`[${props.program}] Local teams:`, localTeams.value.map(t => ({ 
-      id: t.id, 
-      name: t.name, 
+    console.log(`[${props.program}] Local teams:`, localTeams.value.map(t => ({
+      id: t.id,
+      name: t.name,
       team_number_hot: t.team_number_hot,
       noshow: t.noshow
     })))
-    console.log(`[${props.program}] DRAHT teams:`, props.remoteTeams.map(t => ({ 
-      id: t.id, 
-      name: t.name, 
-      number: t.number 
+    console.log(`[${props.program}] DRAHT teams:`, props.remoteTeams.map(t => ({
+      id: t.id,
+      name: t.name,
+      number: t.number
     })))
 
     teamList.value = [...localTeams.value]
@@ -291,9 +291,9 @@ onMounted(async () => {
     <div class="p-4 border rounded shadow">
       <div class="flex items-center gap-2 mb-2">
         <img
-          :src="programLogoSrc(program)"
-          :alt="programLogoAlt(program)"
-          class="w-10 h-10 flex-shrink-0"
+            :src="programLogoSrc(program)"
+            :alt="programLogoAlt(program)"
+            class="w-10 h-10 flex-shrink-0"
         />
         <div>
           <h3 class="text-lg font-semibold capitalize">
@@ -301,7 +301,9 @@ onMounted(async () => {
           </h3>
           <div class="flex space-x-6 text-sm text-gray-500">
             <span>
-              Kapazität: {{ program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0 }}
+              Kapazität: {{
+                program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0
+              }}
             </span>
             <span>
               Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}
@@ -344,19 +346,19 @@ onMounted(async () => {
 
             <!-- Eingabefeld -->
             <input
-              v-model="team.name"
-              @blur="updateTeamName(team)"
-              class="editable-input flex-1 text-sm px-2 py-1 border border-transparent rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors cursor-pointer"
-              placeholder="Click to edit team name"
+                v-model="team.name"
+                @blur="updateTeamName(team)"
+                class="editable-input flex-1 text-sm px-2 py-1 border border-transparent rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors cursor-pointer"
+                placeholder="Click to edit team name"
             />
-            
+
             <!-- No-Show Checkbox -->
             <label class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
               <input
-                type="checkbox"
-                v-model="team.noshow"
-                @change="updateTeamNoshow(team)"
-                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  type="checkbox"
+                  v-model="team.noshow"
+                  @change="updateTeamNoshow(team)"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <span class="text-xs">No-Show</span>
             </label>
@@ -429,7 +431,9 @@ onMounted(async () => {
                   :disabled="!team.draht?.number && !team.number"
                   @click="applyDrahtTeam(team)"
               >
-                {{ (!team.draht?.number && !team.number) ? 'Keine Team-Nummer' : (team.status === 'new' ? 'Hinzufügen' : 'Übernehmen') }}
+                {{
+                  (!team.draht?.number && !team.number) ? 'Keine Team-Nummer' : (team.status === 'new' ? 'Hinzufügen' : 'Übernehmen')
+                }}
               </button>
               <button
                   class="px-3 py-1 text-sm rounded bg-gray-300 hover:bg-gray-400"
