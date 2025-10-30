@@ -227,11 +227,12 @@ onMounted(loadDACHData);
 onMounted(() => {
   refreshInterval = setInterval(loadDACHData, 5 * 60 * 1000);
 
+  const secondsPerPage = props.content.secondsPerPage || 15;
   autoAdvanceInterval = setInterval(() => {
     if (!isPaused.value) {
       advancePage();
     }
-  }, 15000);
+  }, secondsPerPage * 1000);
 
   // Add keydown event listener
   window.addEventListener('keydown', handleKeyDown);

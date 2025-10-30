@@ -120,6 +120,17 @@ class ContaoController extends Controller
      */
     private function getRoundsToShow($eventId)
     {
+
+        // 1) Get manually published rounds from the database
+        $settings = DB::table('contao_public_rounds')->where('event_id', $eventId)->first();
+        if ($settings) {
+            return $settings;
+        }
+
+        // 2) Check if additional rounds should be public
+        // General idea: A round should be public once it is fully complete and the next round has started
+        // TODO implement
+
         // This method should return the round visibility settings
         // For now, returning default settings - you may need to adapt this
         // based on how this data is stored in your system
@@ -133,6 +144,52 @@ class ContaoController extends Controller
         ];
     }
 
+    public function getRoundsToShowEndpoint(Request $request, $eventId)
+    {
+        $roundsToShow = $this->getRoundsToShow($eventId);
+        return response()->json($roundsToShow);
+    }
+
+    public function saveRoundsToShow(Request $request, $eventId): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'vr1' => 'nullable|boolean',
+                'vr2' => 'nullable|boolean',
+                'vr3' => 'nullable|boolean',
+                'af'  => 'nullable|boolean',
+                'vf'  => 'nullable|boolean',
+                'hf'  => 'nullable|boolean',
+            ]);
+
+            // Sicherstellen, dass das Event existiert
+            $exists = DB::table('event')->where('id', $eventId)->exists();
+            if (!$exists) {
+                return response()->json(['error' => 'Event not found'], 404);
+            }
+
+            // In 0/1 umwandeln für die Datenbank
+            $payload = [
+                'vr1' => isset($validated['vr1']) ? (int)$validated['vr1'] : 0,
+                'vr2' => isset($validated['vr2']) ? (int)$validated['vr2'] : 0,
+                'vr3' => isset($validated['vr3']) ? (int)$validated['vr3'] : 0,
+                'af'  => isset($validated['af'])  ? (int)$validated['af']  : 0,
+                'vf'  => isset($validated['vf'])  ? (int)$validated['vf']  : 0,
+                'hf'  => isset($validated['hf'])  ? (int)$validated['hf']  : 0,
+            ];
+
+            DB::table('contao_public_rounds')->updateOrInsert(
+                ['event_id' => $eventId],
+                $payload
+            );
+
+            return response()->json(['status' => 'ok']);
+        } catch (Exception $e) {
+            Log::error('Contao saveRoundsToShow error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to save rounds_to_show'], 500);
+        }
+    }
+
     /**
      * Get tournament ID for an event
      */
@@ -140,20 +197,20 @@ class ContaoController extends Controller
     {
         // Get the event and check for Contao IDs
         $event = DB::table('event')->where('id', $eventId)->first();
-        
+
         if (!$event) {
             return null;
         }
-        
+
         // Use contao_id_challenge if available, otherwise fall back to contao_id_explore
         if ($event->contao_id_challenge) {
             return $event->contao_id_challenge;
         }
-        
+
         if ($event->contao_id_explore) {
             return $event->contao_id_explore;
         }
-        
+
         // Fallback: return the event_id as tournament_id (for backward compatibility)
         return $eventId;
     }
