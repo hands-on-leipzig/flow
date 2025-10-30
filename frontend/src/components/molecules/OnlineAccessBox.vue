@@ -49,7 +49,17 @@ async function fetchPublicationLevel() {
 
 async function updatePublicationLevel(level: number) {
   try {
+    // Save current scroll position to prevent page movement
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft
+    
     savingPublicationLevel.value = true
+    
+    // Restore scroll position immediately to prevent any movement
+    requestAnimationFrame(() => {
+      window.scrollTo(scrollLeft, scrollTop)
+    })
+    
     const backendLevel = frontendToBackendLevel(level)
     console.log('Updating publication level to:', backendLevel, '(frontend level:', level, ') for event:', event.value?.id)
     await axios.post(`/publish/level/${event.value?.id}`, { level: backendLevel })
@@ -57,6 +67,11 @@ async function updatePublicationLevel(level: number) {
     
     // Small delay to show the banner
     await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // Ensure scroll position is maintained
+    requestAnimationFrame(() => {
+      window.scrollTo(scrollLeft, scrollTop)
+    })
   } catch (e) {
     console.error('Fehler beim Setzen des Publication Levels:', e)
   } finally {
@@ -89,7 +104,16 @@ watch(
 watch(detailLevel, (newLevel, oldLevel) => {
   // Only update if the level actually changed and we have an event
   if (event.value?.id && oldLevel !== undefined && newLevel !== oldLevel) {
-    updatePublicationLevel(newLevel)
+    // Save scroll position before update to prevent page movement
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft
+    
+    updatePublicationLevel(newLevel).then(() => {
+      // Restore scroll position after update
+      requestAnimationFrame(() => {
+        window.scrollTo(scrollLeft, scrollTop)
+      })
+    })
   }
 })
 
@@ -131,16 +155,19 @@ async function regenerateLinkAndQR() {
 </script>
 
 <template>
-  <div class="rounded-xl shadow bg-white p-6 space-y-4">
-    <!-- Toast notification for pending publication level updates -->
+  <!-- Toast notification for pending publication level updates -->
+  <Teleport to="body">
     <div v-if="savingPublicationLevel"
-         class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
+         style="position: fixed; top: 16px; right: 16px; z-index: 9999;"
+         class="bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md pointer-events-none">
       <div class="flex items-center gap-3">
         <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
         <span class="text-green-800 font-medium">Publikations-Level wird gespeichert...</span>
       </div>
     </div>
+  </Teleport>
 
+  <div class="rounded-xl shadow bg-white p-6 space-y-4" style="overflow-anchor: none;">
     <h2 class="text-lg font-semibold">Online – von der Planung bis zur Veranstaltung</h2>
 
     <!-- Link + Erklärung -->
@@ -190,6 +217,7 @@ async function regenerateLinkAndQR() {
             :value="idx"
             v-model="detailLevel"
             class="mt-1 accent-blue-600"
+            @focus="(e: Event) => { (e.target as HTMLInputElement)?.blur() }"
           />
           <span class="text-sm leading-tight">
             {{ label.split(' ')[0] }} <br />
