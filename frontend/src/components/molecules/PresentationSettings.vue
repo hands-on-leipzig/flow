@@ -15,7 +15,6 @@ type RobotGamePublicRounds = {
   vr1: boolean;
   vr2: boolean;
   vr3: boolean;
-  af: boolean;
   vf: boolean;
   hf: boolean;
 };

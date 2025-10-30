@@ -51,7 +51,6 @@ class ContaoController extends Controller
             if ($roundShowSetting->vr1 || $roundShowSetting->vr2 || $roundShowSetting->vr3) {
                 $roundsToShow[] = "VR";
             }
-            if ($roundShowSetting->af) $roundsToShow[] = "AF";
             if ($roundShowSetting->vf) $roundsToShow[] = "VF";
             if ($roundShowSetting->hf) $roundsToShow[] = "HF";
 
@@ -138,7 +137,6 @@ class ContaoController extends Controller
             'vr1' => true,
             'vr2' => true,
             'vr3' => true,
-            'af' => true,
             'vf' => true,
             'hf' => true,
         ];
@@ -157,7 +155,6 @@ class ContaoController extends Controller
                 'vr1' => 'nullable|boolean',
                 'vr2' => 'nullable|boolean',
                 'vr3' => 'nullable|boolean',
-                'af'  => 'nullable|boolean',
                 'vf'  => 'nullable|boolean',
                 'hf'  => 'nullable|boolean',
             ]);
@@ -173,7 +170,6 @@ class ContaoController extends Controller
                 'vr1' => isset($validated['vr1']) ? (int)$validated['vr1'] : 0,
                 'vr2' => isset($validated['vr2']) ? (int)$validated['vr2'] : 0,
                 'vr3' => isset($validated['vr3']) ? (int)$validated['vr3'] : 0,
-                'af'  => isset($validated['af'])  ? (int)$validated['af']  : 0,
                 'vf'  => isset($validated['vf'])  ? (int)$validated['vf']  : 0,
                 'hf'  => isset($validated['hf'])  ? (int)$validated['hf']  : 0,
             ];

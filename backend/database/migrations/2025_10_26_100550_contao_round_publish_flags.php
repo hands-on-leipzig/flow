@@ -16,7 +16,6 @@ return new class extends Migration
             $table->boolean('vr1')->default(true);
             $table->boolean('vr2')->default(false);
             $table->boolean('vr3')->default(false);
-            $table->boolean('af')->default(false);
             $table->boolean('vf')->default(false);
             $table->boolean('hf')->default(false);
 
