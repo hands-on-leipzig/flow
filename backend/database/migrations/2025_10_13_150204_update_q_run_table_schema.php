@@ -11,11 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Disable foreign key checks to allow dropping tables with foreign key constraints
+        Schema::disableForeignKeyConstraints();
+        
         // Drop tables in correct order to handle foreign key constraints
         Schema::dropIfExists('q_plan_match');
         Schema::dropIfExists('q_plan_team');
         Schema::dropIfExists('q_plan');
         Schema::dropIfExists('q_run');
+        
+        // Re-enable foreign key checks
+        Schema::enableForeignKeyConstraints();
         
         // Recreate q_run table with the correct schema
         Schema::create('q_run', function (Blueprint $table) {
@@ -59,7 +65,9 @@ return new class extends Migration
         });
 
         // Drop and recreate q_plan_team table with the correct schema
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('q_plan_team');
+        Schema::enableForeignKeyConstraints();
         
         Schema::create('q_plan_team', function (Blueprint $table) {
             $table->id();
@@ -84,7 +92,9 @@ return new class extends Migration
         });
 
         // Drop and recreate q_plan_match table with the correct schema
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('q_plan_match');
+        Schema::enableForeignKeyConstraints();
         
         Schema::create('q_plan_match', function (Blueprint $table) {
             $table->id();
@@ -105,11 +115,17 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Disable foreign key checks to allow dropping tables with foreign key constraints
+        Schema::disableForeignKeyConstraints();
+        
         // Drop tables in reverse order
         Schema::dropIfExists('q_plan_match');
         Schema::dropIfExists('q_plan_team');
         Schema::dropIfExists('q_plan');
         Schema::dropIfExists('q_run');
+        
+        // Re-enable foreign key checks
+        Schema::enableForeignKeyConstraints();
         
         // Recreate the old schema
         Schema::create('q_run', function (Blueprint $table) {
