@@ -14,7 +14,8 @@ import PublicPlanSlideContentRenderer from "@/components/slideTypes/PublicPlanSl
 
 const props = withDefaults(defineProps<{
   slide: Slide,
-  preview: Boolean
+  preview: boolean,
+  eventId: number
 }>(), {
   preview: false
 });
@@ -38,5 +39,5 @@ const componentName = computed(() => {
 </script>
 
 <template>
-  <component :is="componentName" :content="props.slide.content" :preview="props.preview"></component>
+  <component :is="componentName" :content="props.slide.content" :preview="props.preview" :eventId="eventId"></component>
 </template>
