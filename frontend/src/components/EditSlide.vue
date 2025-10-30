@@ -1,29 +1,15 @@
 <script setup lang="ts">
 
 import {computed, onMounted, ref} from "vue";
-import {useEventStore} from "@/stores/event";
 import axios from "axios";
 import {Slide} from "@/models/slide";
 import FabricEditor from "@/components/FabricEditor.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 
-type RobotGamePublicRounds = {
-  vr1: boolean;
-  vr2: boolean;
-  vr3: boolean;
-  af: boolean;
-  vf: boolean;
-  hf: boolean;
-};
-
-const eventStore = useEventStore();
-const event = computed(() => eventStore.selectedEvent);
-
 const props = defineProps<{
   slideId: Number,
 }>();
 
-const robotGameRounds = ref<RobotGamePublicRounds | null>(null);
 const slide = ref<Slide | null>(null);
 
 const settingsSlideTypes = ['RobotGameSlideContent', 'PublicPlanSlideContent', 'UrlSlideContent'];
@@ -43,10 +29,6 @@ async function loadSlide() {
   if (response && response.data) {
     slide.value = Slide.fromObject(response.data);
   }
-
-  if (slide.value.type === 'RobotGameSlideContent') {
-    await getPublicRobotGameRounds();
-  }
   return null;
 }
 
@@ -54,31 +36,6 @@ function updateByName(name: string, value: any) {
   if (!slide.value) return;
   slide.value.content[name] = value;
   saveSlide();
-}
-
-async function getPublicRobotGameRounds() {
-  if (!slide.value || slide.value.type !== 'RobotGameSlideContent') {
-    return;
-  }
-  try {
-    const response = await axios.get('/contao/rounds/' + event.value?.id);
-    robotGameRounds.value = response.data;
-  } catch (error) {
-    console.error('Error fetching rounds:', error);
-  }
-}
-
-async function updateRobotGameRounds(round, value) {
-  robotGameRounds.value[round] = value;
-  await pushPublicRobotGameRoundsUpdate();
-}
-
-async function pushPublicRobotGameRoundsUpdate() {
-  try {
-    await axios.put('/contao/rounds/' + event.value?.id, robotGameRounds.value);
-  } catch (e) {
-    console.error('Error updating rounds:', e);
-  }
 }
 
 function saveSlide() {
@@ -192,64 +149,6 @@ function saveSlide() {
                 :value="slide.content.highlightColor"
                 @input="updateByName('highlightColor', ($event.target as HTMLInputElement).value || '#FFD700')"
             />
-          </div>
-        </div>
-        <br>
-
-        <!-- Öffentliche Ergebnisse -->
-        <div class="mt-4 rounded-lg border px-2 py-2 transition hover:border-gray-400" v-if="robotGameRounds">
-          <label class="text-sm font-medium pl-2">Öffentliche Ergebnisse</label>
-          <InfoPopover
-              text="Wählen Sie aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
-          <div class="grid grid-cols-6 gap-2 mt-2">
-            <label class="flex items-center gap-2 px-2">
-              <input
-                  type="checkbox"
-                  :checked="robotGameRounds.vr1"
-                  @change="updateRobotGameRounds('vr1', ($event.target as HTMLInputElement).checked)"
-              />
-              <span>VR1</span>
-            </label>
-            <label class="flex items-center gap-2 px-2">
-              <input
-                  type="checkbox"
-                  :checked="robotGameRounds.vr2"
-                  @change="updateRobotGameRounds('vr2', ($event.target as HTMLInputElement).checked)"
-              />
-              <span>VR2</span>
-            </label>
-            <label class="flex items-center gap-2 px-2">
-              <input
-                  type="checkbox"
-                  :checked="robotGameRounds.vr3"
-                  @change="updateRobotGameRounds('vr3', ($event.target as HTMLInputElement).checked)"
-              />
-              <span>VR3</span>
-            </label>
-            <label class="flex items-center gap-2 px-2">
-              <input
-                  type="checkbox"
-                  :checked="robotGameRounds.af"
-                  @change="updateRobotGameRounds('af', ($event.target as HTMLInputElement).checked)"
-              />
-              <span>AF</span>
-            </label>
-            <label class="flex items-center gap-2 px-2">
-              <input
-                  type="checkbox"
-                  :checked="robotGameRounds.vf"
-                  @change="updateRobotGameRounds('vf', ($event.target as HTMLInputElement).checked)"
-              />
-              <span>VF</span>
-            </label>
-            <label class="flex items-center gap-2 px-2">
-              <input
-                  type="checkbox"
-                  :checked="robotGameRounds.hf"
-                  @change="updateRobotGameRounds('hf', ($event.target as HTMLInputElement).checked)"
-              />
-              <span>HF</span>
-            </label>
           </div>
         </div>
       </div>

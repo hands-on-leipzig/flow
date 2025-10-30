@@ -5,6 +5,11 @@ import {mdiTrashCanOutline, mdiPencil} from '@mdi/js';
 import SvgIcon from '@jamescoyle/vue-icon';
 import axios from "axios";
 import IconDraggable from "@/components/icons/IconDraggable.vue";
+import {useEventStore} from "@/stores/event";
+import {computed} from "vue";
+
+const eventStore = useEventStore();
+const event = computed(() => eventStore.selectedEvent);
 
 const props = defineProps<{
   slide: Slide
@@ -74,7 +79,7 @@ const componentSlide = Slide.fromObject(props.slide);
       </div>
     </div>
     <div class="w-56 h-32 mx-auto bg-blue-300 m-2 flex items-center justify-center overflow-hidden">
-      <SlideContentRenderer :slide="componentSlide" :preview="true"></SlideContentRenderer>
+      <SlideContentRenderer :slide="componentSlide" :preview="true" :eventId="event.id"></SlideContentRenderer>
     </div>
     <input
         v-model="slide.name"

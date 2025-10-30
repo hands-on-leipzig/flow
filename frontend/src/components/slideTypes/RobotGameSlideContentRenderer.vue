@@ -9,25 +9,24 @@ type RoundResponse = { [key: string]: TeamResponse }
 type TeamResponse = { [key: string]: Team }
 type Team = { name: string, scores: Score[], rank: number, id: number }
 type Score = { points: number; highlight: boolean }
-type Round = 'VR' | 'AF' | 'VF' | 'HF';
+type Round = 'VR' | 'VF' | 'HF';
 
 const expectedScores: { [round in Round]: number } = {
   VR: 3,
-  AF: 1,
   VF: 1,
   HF: 1,
 };
 
 const roundNames: { [round in Round]: string } = {
   VR: 'Vorrunden',
-  AF: 'Achtelfinale',
   VF: 'Viertelfinale',
   HF: 'Halbfinale',
 };
 
 const props = defineProps<{
   content: RobotGameSlideContent,
-  preview: boolean
+  preview: boolean,
+  eventId: number
 }>();
 
 const scores = ref<ScoresResponse>(null);
@@ -43,8 +42,6 @@ const teams = computed(() => {
 const paginatedTeams = computed(() => {
   return teams.value.slice(currentIndex.value, currentIndex.value + teamsPerPage.value);
 });
-
-// const settings = ref<any>(null);
 
 function sortScores(team: any): number[] {
   return team.scores.map((score: any) => +score.points).sort((a: number, b: number) => b - a);
@@ -90,6 +87,7 @@ function createTeams(category: TeamResponse): Team[] {
     }
     teams.push(team);
   }
+
   teams.sort((a: any, b: any) => {
     const aScores = sortScores(a);
     const bScores = sortScores(b);
@@ -107,7 +105,7 @@ function getRoundToShow(rounds: RoundResponse): TeamResponse {
   if (!rounds) {
     return undefined;
   }
-  /*if (rounds.HF) {
+  if (rounds.HF) {
     round.value = 'HF';
     return rounds.HF;
   }
@@ -115,10 +113,6 @@ function getRoundToShow(rounds: RoundResponse): TeamResponse {
     round.value = 'VF';
     return rounds.VF;
   }
-  if (rounds.AF) {
-    round.value = 'AF';
-    return rounds.AF;
-  } */
   if (rounds.VR) {
     round.value = 'VR';
     return rounds.VR;
@@ -127,14 +121,14 @@ function getRoundToShow(rounds: RoundResponse): TeamResponse {
 }
 
 // Load data function
-function loadDACHData() {
-  /*axios.get('/api/events/1/data/rg-scores')
+function loadScoreData() {
+  axios.get('/contao/score', { params: { eventId: props.eventId } })
       .then((response) => {
         scores.value = response.data;
       })
       .catch((err) => {
         console.error(err.message);
-      }); */
+      });
 
   scores.value = {
     "name": "RPT Demo",
@@ -223,9 +217,9 @@ function handleKeyDown(event: KeyboardEvent) {
 let refreshInterval;
 let autoAdvanceInterval;
 
-onMounted(loadDACHData);
+onMounted(loadScoreData);
 onMounted(() => {
-  refreshInterval = setInterval(loadDACHData, 5 * 60 * 1000);
+  refreshInterval = setInterval(loadScoreData, 5 * 60 * 1000);
 
   const secondsPerPage = props.content.secondsPerPage || 15;
   autoAdvanceInterval = setInterval(() => {
