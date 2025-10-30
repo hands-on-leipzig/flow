@@ -17,7 +17,7 @@ const loadDetails = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await axios.get(`/quality/details/${props.planId}`)
+    const response = await axios.get(`/quality/details-by-plan/${props.planId}`)
     details.value = response.data
   } catch (err) {
     console.error('Fehler beim Laden der Plan-Details', err)

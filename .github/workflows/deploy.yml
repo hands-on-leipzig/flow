@@ -152,6 +152,12 @@ jobs:
             # Drop and recreate database for fresh test environment
             php artisan migrate:fresh --force
             php artisan storage:link
+            # Ensure export is available and regenerate a valid MainDataSeeder
+            mkdir -p storage/app/exports
+            cp -f database/exports/main-tables-latest.json storage/app/exports/main-tables-latest.json
+            php artisan main-data:generate-seeder --file=main-tables-latest.json || true
+            # Populate master data (m_ tables) from regenerated seeder
+            php artisan db:seed --class=MainDataSeeder --force
             # Fresh database setup for test environment
             php artisan test:setup
 
@@ -227,5 +233,11 @@ jobs:
             php artisan view:clear
             php artisan migrate --force
             php artisan storage:link
+            # Ensure export is available and regenerate a valid MainDataSeeder
+            mkdir -p storage/app/exports
+            cp -f database/exports/main-tables-latest.json storage/app/exports/main-tables-latest.json
+            php artisan main-data:generate-seeder --file=main-tables-latest.json || true
+            # Populate master data (m_ tables) from regenerated seeder
+            php artisan db:seed --class=MainDataSeeder --force
             # Refresh main tables after migration
             php artisan tinker --execute="include 'database/scripts/refresh_main_tables.php'; refreshMainTables();"
