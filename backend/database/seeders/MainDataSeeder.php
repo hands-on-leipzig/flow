@@ -16,12 +16,12 @@ class MainDataSeeder extends Seeder
         
         $this->Seedseason();
         $this->Seedlevel();
-        $this->Seedrootype();
+        $this->SeedfirstProgram();
         $this->SeedrootypeGroup();
+        $this->Seedrootype();
         $this->Seedparameter();
         $this->SeedactivityType();
         $this->SeedactivityTypeDetail();
-        $this->SeedfirstProgram();
         $this->SeedinsertPoint();
         $this->Seedrole();
         $this->Seedvisibility();
