@@ -11,6 +11,7 @@ use App\Models\PlanParamValue;
 use App\Models\Plan;
 use App\Models\Event;
 use App\Models\MSupportedPlan;
+use App\Enums\FirstProgram;
 use Carbon\Carbon;
 
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,14 @@ class QualityEvaluatorService
             throw new \Exception("Invalid JSON in q_run.selection (ID $runId): " . $e->getMessage());
         }
 
+        Log::info('QualityEvaluatorService::generateQPlansFromSelection', [
+            'q_run' => $runId,
+            'min_teams' => $selection['min_teams'] ?? 0,
+            'max_teams' => $selection['max_teams'] ?? 0,
+            'jury_lanes' => $selection['jury_lanes'] ?? [],
+            'tables' => $selection['tables'] ?? [],
+        ]);
+
         // Get all allowed parameters once to be used in the loop below
         $parameters = MParameter::all()->keyBy('name');
 
@@ -43,7 +52,7 @@ class QualityEvaluatorService
         $eventId = $this->getOrCreateQualityEventId();
 
         // Read m_supported_plan and filter by selection
-        $supportedPlans = MSupportedPlan::where('first_program', 3)
+        $supportedPlans = MSupportedPlan::where('first_program', FirstProgram::CHALLENGE->value)
             ->orderBy('teams')
             ->orderBy('lanes')
             ->orderBy('tables')
@@ -73,7 +82,7 @@ class QualityEvaluatorService
 
                 $planId = $newPlan->id;
 
-                Log::info("qRun $runId: Plan $planId {$newPlan->name} created");
+                // Log::info("qRun $runId: Plan $planId {$newPlan->name} created");
 
                 // Add the parameter values for this plan
                 PlanParamValue::create([
@@ -165,7 +174,7 @@ class QualityEvaluatorService
             $planCopy->event = $this->getOrCreateQualityEventId();
             $planCopy->save();
 
-            Log::info("qRun $newRunId: Plan {$planCopy->id} copied from {$originalPlan->id}");
+            // Log::info("qRun $newRunId: Plan {$planCopy->id} copied from {$originalPlan->id}");
 
             // QPlan-Datensatz kopieren und mit neuem Plan verknüpfen
             $copy = $original->replicate();
@@ -180,6 +189,7 @@ class QualityEvaluatorService
             $copy->q4_ok_count = null;
             $copy->q5_idle_avg = null;
             $copy->q5_idle_stddev = null;
+            $copy->q6_duration = null;
             $copy->calculated = 0;
 
             $copy->save();
@@ -213,7 +223,7 @@ class QualityEvaluatorService
                 'name' => $RP_NAME,
                 'region' => 0,
             ]);
-            Log::info("Q-RP created with ID $regionalPartnerId");
+            // Log::info("Q-RP created with ID $regionalPartnerId");
         } else {
             $regionalPartnerId = $regionalPartner->id;
         }
@@ -234,7 +244,7 @@ class QualityEvaluatorService
                 'date' => Carbon::today(),
                 'days' => 1,
             ]);
-            Log::info("Q-Event created with ID $eventId");
+            // Log::info("Q-Event created with ID $eventId");
         } else {
             $eventId = $event->id;
         }
@@ -269,7 +279,7 @@ class QualityEvaluatorService
 
 
     /**
-     * Main entry point to evaluate all quality metrics (Q1–Q4) for a given plan.
+     * Main entry point to evaluate all quality metrics (Q1–Q6) for a given plan.
      */
     public function evaluate(int $qPlanId): void
     {
@@ -280,9 +290,9 @@ class QualityEvaluatorService
         $this->calculateQ3($qPlanId);
         $this->calculateQ4($qPlanId);
         $this->calculateQ5($qPlanId);
+        $this->calculateQ6($qPlanId, $activities);
 
-        Log::info("qPlan {$qPlanId}: evaluation done");
-
+        // Log::info("qPlan {$qPlanId}: evaluation done");
     }
 
 
@@ -365,48 +375,7 @@ class QualityEvaluatorService
             ]);
         }
 
-        // Delete all previous entries for this q_plan in q_plan_match
-        DB::table('q_plan_match')->where('q_plan', $qPlanId)->delete();
-
-        // Filter only match activities (activity_atd = 15)
-        $matchActivities = $activities->filter(function ($a) {
-            return $a->activity_atd === 15;
-        });
-
-        // Map activity_group_atd to round
-        $roundMap = [8 => 0, 9 => 1, 10 => 2, 11 => 3];
-        $currentRound = null;
-        $matchCounter = 0;
-
-        foreach ($matchActivities as $activity) {
-            $round = $roundMap[$activity->activity_group_atd] ?? null;
-            if ($round === null) {
-                continue; // skip unknown round
-            }
-
-            // Reset counter when round changes
-            if ($round !== $currentRound) {
-                $currentRound = $round;
-                $matchCounter = 1;
-            } else {
-                $matchCounter++;
-            }
-
-            // Map null to 0 for teams
-            $team1 = is_null($activity->table_1_team) ? 0 : $activity->table_1_team;
-            $team2 = is_null($activity->table_2_team) ? 0 : $activity->table_2_team;
-
-            // Insert row into q_plan_match
-            DB::table('q_plan_match')->insert([
-                'q_plan' => $qPlanId,
-                'round' => $round,
-                'match_no' => $matchCounter,
-                'table_1' => $activity->table_1,
-                'table_2' => $activity->table_2,
-                'table_1_team' => $team1,
-                'table_2_team' => $team2,
-            ]);
-        }
+        // No need to build q_plan_match table as we're using match table directly
 
         return $activities;
     }
@@ -443,24 +412,54 @@ class QualityEvaluatorService
         $minGap = $this->getParameterValueForPlan($qPlanId, 'c_duration_transfer');
         $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
 
+        // Get activity type detail IDs from database
+        $jWithTeamId = \App\Models\MActivityTypeDetail::where('code', 'j_with_team')->value('id');
+        $rMatchId = \App\Models\MActivityTypeDetail::where('code', 'r_match')->value('id');
+        $rCheckId = \App\Models\MActivityTypeDetail::where('code', 'r_check')->value('id');
+
         for ($team = 1; $team <= $teamCount; $team++) {
             // Filter activities relevant for this team
-            $teamActivities = $activities->filter(function ($a) use ($team) {
-                if ($a->activity_atd === 17) {
+            $teamActivities = $activities->filter(function ($a) use ($team, $jWithTeamId, $rMatchId, $rCheckId) {
+                if ($a->activity_atd === $jWithTeamId) {
                     return $a->jury_team === $team;
-                } elseif ($a->activity_atd === 15) {
+                } elseif ($a->activity_atd === $rMatchId || $a->activity_atd === $rCheckId) {
                     return $a->table_1_team === $team || $a->table_2_team === $team;
                 }
                 return false;
-            })->values();
+            })->sortBy('start')->values();
+
+            // Merge consecutive Robot Check + Robot Match pairs into single activities
+            $mergedActivities = [];
+            $i = 0;
+            while ($i < $teamActivities->count()) {
+                $current = $teamActivities[$i];
+                
+                // Check if current is r_check and next is r_match
+                if ($current->activity_atd === $rCheckId && 
+                    $i + 1 < $teamActivities->count() && 
+                    $teamActivities[$i + 1]->activity_atd === $rMatchId) {
+                    
+                    // Merge: use Check's start and Match's end
+                    $merged = (object) [
+                        'start' => $current->start,
+                        'end' => $teamActivities[$i + 1]->end,
+                    ];
+                    $mergedActivities[] = $merged;
+                    $i += 2; // Skip both check and match
+                } else {
+                    // Keep as is
+                    $mergedActivities[] = $current;
+                    $i++;
+                }
+            }
 
             // Calculate all 4 gaps and check if all are >= minGap
             $allTransitions = [];
             $allGapsOk = true;
 
-            for ($i = 1; $i < $teamActivities->count(); $i++) {
-                $prev = new \DateTime($teamActivities[$i - 1]->end);
-                $curr = new \DateTime($teamActivities[$i]->start);
+            for ($i = 1; $i < count($mergedActivities); $i++) {
+                $prev = new \DateTime($mergedActivities[$i - 1]->end);
+                $curr = new \DateTime($mergedActivities[$i]->start);
                 $gap = ($curr->getTimestamp() - $prev->getTimestamp()) / 60; // gap in minutes
 
                 $allTransitions[$i] = $gap;
@@ -501,9 +500,13 @@ class QualityEvaluatorService
     private function calculateQ2(int $qPlanId): void
     {
         $tablesAvailable = $this->getParameterValueForPlan($qPlanId, 'r_tables');
+        $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
 
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [1, 2, 3])
             ->get();
 
@@ -519,6 +522,12 @@ class QualityEvaluatorService
                 $teamTables[$team][] = $match->$tableKey;
             }
         }
+
+        // Distribution counters
+        $distribution = [1 => 0, 2 => 0, 3 => 0];
+        $totalScore = 0;
+        $teamsProcessed = 0;
+        $targetTables = ($tablesAvailable === 2) ? 2 : 3; // Target: 2 for r_tables=2, 3 for r_tables=4
 
         foreach ($teamTables as $team => $tables) {
             $distinctTables = count(array_unique($tables));
@@ -536,18 +545,41 @@ class QualityEvaluatorService
                     'q2_ok' => $q2_ok,
                     'q2_tables' => $distinctTables,
                 ]);
+
+            // Update distribution
+            if ($distinctTables >= 1 && $distinctTables <= 3) {
+                $distribution[$distinctTables]++;
+            }
+
+            // Calculate score for this team (distinctTables / targetTables) * 100
+            $totalScore += ($distinctTables / $targetTables) * 100;
+            $teamsProcessed++;
         }
+
+        // Log::debug("Q2 calculation for qPlan {$qPlanId}", [
+        //     'c_teams' => $teamCount,
+        //     'teams_processed' => $teamsProcessed,
+        //     'distribution' => $distribution,
+        //     'total_score' => $totalScore,
+        // ]);
 
         // Count number of teams that passed Q2
         $ok_count = QPlanTeam::where('q_plan', $qPlanId)
             ->where('q2_ok', true)
             ->count();
 
+        // Calculate average score based on actual teams processed
+        $avgScore = $teamsProcessed > 0 ? $totalScore / $teamsProcessed : 0;
+
         DB::table('q_plan')
             ->where('id', $qPlanId)
-            ->update(['q2_ok_count' => $ok_count]);
-
-
+            ->update([
+                'q2_ok_count' => $ok_count,
+                'q2_1_count' => $distribution[1],
+                'q2_2_count' => $distribution[2],
+                'q2_3_count' => $distribution[3],
+                'q2_score_avg' => round($avgScore, 2),
+            ]);
     }
 
     /**
@@ -555,8 +587,13 @@ class QualityEvaluatorService
      */
     private function calculateQ3(int $qPlanId): void
     {
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
+
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [1, 2, 3])
             ->get();
 
@@ -566,11 +603,24 @@ class QualityEvaluatorService
             $t1 = $match->table_1_team;
             $t2 = $match->table_2_team;
 
-            $opponents[$t1][] = $t2;
-            $opponents[$t2][] = $t1;
+            // Include all teams, even team 0 (volunteer counts as a valid opponent)
+            if ($t1 !== null && $t2 !== null) {
+                $opponents[$t1][] = $t2;
+                $opponents[$t2][] = $t1;
+            }
         }
 
+        // Distribution counters
+        $distribution = [1 => 0, 2 => 0, 3 => 0];
+        $totalScore = 0;
+        $teamsProcessed = 0;
+
         foreach ($opponents as $team => $faced) {
+            // Skip team 0 (volunteer) in the distribution - it's not a real team being evaluated
+            if ($team === 0) {
+                continue;
+            }
+            
             $uniqueOpponents = count(array_unique($faced));
 
             QPlanTeam::where('q_plan', $qPlanId)
@@ -579,17 +629,41 @@ class QualityEvaluatorService
                     'q3_ok' => $uniqueOpponents === 3,
                     'q3_teams' => $uniqueOpponents,
                 ]);
+
+            // Update distribution
+            if ($uniqueOpponents >= 1 && $uniqueOpponents <= 3) {
+                $distribution[$uniqueOpponents]++;
+            }
+
+            // Calculate score for this team (uniqueOpponents / 3) * 100
+            $totalScore += ($uniqueOpponents / 3) * 100;
+            $teamsProcessed++;
         }
+
+        // Log::debug("Q3 calculation for qPlan {$qPlanId}", [
+        //     'c_teams' => $teamCount,
+        //     'teams_processed' => $teamsProcessed,
+        //     'distribution' => $distribution,
+        //     'total_score' => $totalScore,
+        // ]);
 
         // Count number of teams that passed Q3
         $ok_count = QPlanTeam::where('q_plan', $qPlanId)
             ->where('q3_ok', true)
             ->count();
 
+        // Calculate average score based on actual teams processed
+        $avgScore = $teamsProcessed > 0 ? $totalScore / $teamsProcessed : 0;
+
         DB::table('q_plan')
             ->where('id', $qPlanId)
-            ->update(['q3_ok_count' => $ok_count]);
-
+            ->update([
+                'q3_ok_count' => $ok_count,
+                'q3_1_count' => $distribution[1],
+                'q3_2_count' => $distribution[2],
+                'q3_3_count' => $distribution[3],
+                'q3_score_avg' => round($avgScore, 2),
+            ]);
     }
 
     /**
@@ -597,8 +671,11 @@ class QualityEvaluatorService
      */
     private function calculateQ4(int $qPlanId): void
     {
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [0, 1])
             ->orderBy('round')
             ->get();
@@ -644,9 +721,12 @@ class QualityEvaluatorService
      */
     private function calculateQ5(int $qPlanId): void
     {
+        // Get plan ID from q_plan
+        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
+
         // Load all matches from rounds 0 to 3, sorted by round and match number
-        $matches = DB::table('q_plan_match')
-            ->where('q_plan', $qPlanId)
+        $matches = DB::table('match')
+            ->where('plan', $planId)
             ->whereIn('round', [0, 1, 2, 3])
             ->orderBy('round')
             ->orderBy('match_no')
@@ -711,6 +791,37 @@ class QualityEvaluatorService
             ->update([
                 'q5_idle_avg' => $mean,
                 'q5_idle_stddev' => $stdDev,
+            ]);
+    }
+
+    /**
+     * Calculate Q6: Overall event duration from first to last activity across all teams.
+     */
+    private function calculateQ6(int $qPlanId, Collection $activities): void
+    {
+        if ($activities->isEmpty()) {
+            return;
+        }
+
+        // Find the earliest start time across all activities
+        $firstStart = $activities->min('start');
+        
+        // Find the latest end time across all activities
+        $lastEnd = $activities->max('end');
+
+        if (!$firstStart || !$lastEnd) {
+            return;
+        }
+
+        // Calculate duration in minutes
+        $startTime = new \DateTime($firstStart);
+        $endTime = new \DateTime($lastEnd);
+        $durationMinutes = ($endTime->getTimestamp() - $startTime->getTimestamp()) / 60;
+
+        // Update q_plan with Q6 duration
+        QPlan::where('id', $qPlanId)
+            ->update([
+                'q6_duration' => round($durationMinutes),
             ]);
     }
 

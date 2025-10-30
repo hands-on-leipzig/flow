@@ -8,74 +8,84 @@ use Carbon\Carbon;
 use App\Support\PlanParameter;
 use App\Support\Helpers;
 use App\Jobs\GeneratePlanJob;
+use App\Enums\FirstProgram;
+use App\Enums\GeneratorStatus;
 
 class PlanGeneratorService
 {
     public function isSupported(int $planId): bool
     {
-        // Plan muss existieren
-        $plan = DB::table('plan')->where('id', $planId)->first();
-        if (!$plan) {
-            return false;
-        }
-
         // Parameter laden
-        PlanParameter::load($planId);
+        $params = PlanParameter::load($planId);
 
-        // IDs der Programme dynamisch aus DB
-        $idChallenge = DB::table('m_first_program')->where('name', 'CHALLENGE')->value('id');
-        $idExplore   = DB::table('m_first_program')->where('name', 'EXPLORE')->value('id');
-
-        // --- Challenge prüfen ---
-        if (pp("c_teams") > 0) {
-            $ok = $this->checkSupportedPlan(
-                $idChallenge,
-                pp("c_teams"),
-                pp("j_lanes"),
-                pp("r_tables")
-            );
-
-            if (!$ok) {
-                throw new \RuntimeException(
-                    'Unsupported Challenge plan ' .
-                    pp("c_teams") . '-' .
-                    pp("j_lanes") . '-' .
-                    pp("r_tables")
+        // --- Finale validation ---
+        // Finale events (level 3) require exactly 25 Challenge teams
+        if ($params->get('g_finale')) {
+            if ($params->get('c_teams') != 25) {
+                Log::warning('Finale event requires exactly 25 Challenge teams', [
+                    'plan_id' => $planId,
+                    'c_teams' => $params->get('c_teams'),
+                    'g_finale' => true,
+                ]);
+                return false;
+            }
+            // For finale with 25 teams, no need to check m_supported_plan
+            // There is only one supported configuration
+        } else {
+            // --- Challenge prüfen (non-finale events) ---
+            if ($params->get("c_teams") > 0) {
+                $ok = $this->checkSupportedPlan(
+                    FirstProgram::CHALLENGE->value,
+                    $params->get("c_teams"),
+                    $params->get("j_lanes"),
+                    $params->get("r_tables")
                 );
+
+                if (!$ok) {
+                    Log::warning('Unsupported Challenge plan', [
+                        'plan_id' => $planId,
+                        'teams' => $params->get('c_teams'),
+                        'lanes' => $params->get('j_lanes'),
+                        'tables' => $params->get('r_tables'),
+                    ]);
+                    return false;
+                }
             }
         }
 
         // --- Explore prüfen ---
 
-        if (pp("e1_teams") > 0) {
+        if ($params->get("e1_teams") > 0) {
             $ok = $this->checkSupportedPlan(
-                $idExplore,
-                pp("e1_teams"),
-                pp("e1_lanes")
+                FirstProgram::EXPLORE->value,
+                $params->get("e1_teams"),
+                $params->get("e1_lanes")
             );
 
             if (!$ok) {
-                throw new \RuntimeException(
-                    'Unsupported Explore plan ' .
-                    pp("e1_teams") . '-' .
-                    pp("e1_lanes")
-                );
+                Log::warning('Unsupported Explore plan', [
+                    'plan_id' => $planId,
+                    'teams' => $params->get('e1_teams'),
+                    'lanes' => $params->get('e1_lanes'),
+                ]);
+                return false;
             }
         }
 
-        if (pp("e2_teams") > 0) {
+        if ($params->get("e2_teams") > 0) {
             $ok = $this->checkSupportedPlan(
-                $idExplore,
-                pp("e2_teams"),
-                pp("e2_lanes")
+                FirstProgram::EXPLORE->value,
+                $params->get("e2_teams"),
+                $params->get("e2_lanes")
             );
 
             if (!$ok) {
-                throw new \RuntimeException(
-                    'Unsupported Explore plan ' .
-                    pp("e2_teams") . '-' .
-                    pp("e2_lanes")
-                );
+                Log::warning('Unsupported Explore plan', [
+                    'plan_id' => $planId,
+                    'teams' => $params->get('e2_teams'),
+                    'lanes' => $params->get('e2_lanes'),
+                ]);
+                return false;
             }
         }
 
@@ -113,7 +123,7 @@ class PlanGeneratorService
 
         // Plan-Status aktualisieren
         DB::table('plan')->where('id', $planId)->update([
-            'generator_status' => 'running',
+            'generator_status' => GeneratorStatus::RUNNING->value,
         ]);
     }
 
@@ -125,40 +135,24 @@ class PlanGeneratorService
     public function run(int $planId, bool $withQualityEvaluation = false): void
     {
         try {
-            require_once base_path("legacy/generator/generator_main.php");
-            g_generator($planId);
+            \App\Core\PlanGeneratorCore::generate($planId);
 
             if ($withQualityEvaluation) {
                 $evaluator = new QualityEvaluatorService();
                 $evaluator->evaluatePlanId($planId);
             }
 
-            $this->finalize($planId, 'done');
-        } catch (\RuntimeException $e) {
-            Log::error("Fehler beim Generieren des Plans {$planId}: " . $e->getMessage());
-            $this->finalize($planId, 'failed');
+            $this->finalize($planId, GeneratorStatus::DONE);
+        } catch (\Throwable $e) {
+            Log::error('Fehler beim Generieren des Plans', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+            ]);
+            $this->finalize($planId, GeneratorStatus::FAILED);
         }
     }
 
-    public function runFUTURE(int $planId, bool $withQualityEvaluation = false): void
-    {
-        try {
-            $core = new \App\Core\PlanGeneratorCore($planId);
-            $core->generate();
-
-            if ($withQualityEvaluation) {
-                $evaluator = new QualityEvaluatorService();
-                $evaluator->evaluatePlanId($planId);
-            }
-
-            $this->finalize($planId, 'done');
-        } catch (\RuntimeException $e) {
-            Log::error("Fehler beim Generieren des Plans {$planId}: " . $e->getMessage());
-            $this->finalize($planId, 'failed');
-        }
-    }
-
-    public function finalize(int $planId, string $status): void
+    public function finalize(int $planId, GeneratorStatus $status): void
     {
         DB::table('s_generator')
             ->where('plan', $planId)
@@ -169,16 +163,18 @@ class PlanGeneratorService
         DB::table('plan')
             ->where('id', $planId)
             ->update([
-                'generator_status' => $status,
+                'generator_status' => $status->value,
                 'last_change'      => Carbon::now(),
             ]);
     }
 
-    public function status(int $planId): string
+    public function status(int $planId): GeneratorStatus
     {
-        return DB::table('plan')
+        $value = DB::table('plan')
             ->where('id', $planId)
-            ->value('generator_status') ?? 'unknown';
+            ->value('generator_status');
+        
+        return GeneratorStatus::tryFrom($value) ?? GeneratorStatus::UNKNOWN;
     }
 
     public function generateLite(int $planId): void
@@ -199,6 +195,7 @@ class PlanGeneratorService
 
         // Schritt 3: Neue FreeActivities einsetzen
         $writer = new \App\Core\ActivityWriter($planId);
-        $writer->insertFreeActivities();
+        $params = \App\Support\PlanParameter::load($planId);
+        (new \App\Core\FreeBlockGenerator($writer, $params))->insertFreeActivities();
 }
 }

@@ -25,6 +25,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update'])
 const showInfo = ref(false)
+const validationError = ref('')
 
 const normalizeBoolean = (val) => val === 1 || val === true || val === '1'
 
@@ -72,8 +73,78 @@ const isChangedFromDefault = (param) => {
   }
 }
 
+function validateValue(value, param) {
+  // Clear previous error
+  validationError.value = ''
+  
+  // Special validation for time inputs (hh:mm format)
+  if (param.type === 'time') {
+    return validateTimeValue(value)
+  }
+  
+  // Skip validation for non-numeric types
+  if (param.type !== 'integer' && param.type !== 'decimal') {
+    return true
+  }
+  
+  const numericValue = Number(value)
+  
+  // Check if value is a valid number
+  if (isNaN(numericValue)) {
+    validationError.value = 'Ungültige Zahl'
+    return false
+  }
+  
+  // Validate minimum
+  if (param.min !== null && param.min !== undefined && numericValue < param.min) {
+    validationError.value = `Wert muss mindestens ${param.min} sein`
+    return false
+  }
+  
+  // Validate maximum
+  if (param.max !== null && param.max !== undefined && numericValue > param.max) {
+    validationError.value = `Wert darf höchstens ${param.max} sein`
+    return false
+  }
+  
+  // Validate step formula: value must be min + n * step
+  if (param.step !== null && param.step !== undefined && param.step > 0) {
+    const min = param.min ?? 0
+    const step = param.step
+    // For integers: check if (value - min) is divisible by step
+    if ((numericValue - min) % step !== 0) {
+      validationError.value = `Nur ${step}er-Schritte erlaubt`
+      return false
+    }
+  }
+  
+  return true
+}
+
+function validateTimeValue(timeValue) {
+  // Check if time format is valid (hh:mm)
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/
+  if (!timeRegex.test(timeValue)) {
+    validationError.value = 'Ungültiges Zeitformat (hh:mm)'
+    return false
+  }
+  
+  // Extract minutes and check if they are multiples of 5
+  const [, , minutes] = timeValue.match(timeRegex)
+  const minutesNum = parseInt(minutes, 10)
+  
+  if (minutesNum % 5 !== 0) {
+    validationError.value = 'Nur 5-Min-Schritte erlaubt.'
+    return false
+  }
+  
+  return true
+}
+
 function emitChange() {
-  emit('update', {...props.param, value: localValue.value})
+  if (validateValue(localValue.value, props.param)) {
+    emit('update', {...props.param, value: localValue.value})
+  }
 }
 
 function toggleValue() {
@@ -119,17 +190,25 @@ const isDefaultValue = computed(() => {
             :step="param.step"
             v-model="localValue"
             @change="emitChange"
+            @input="validateValue(localValue, param)"
             :disabled="disabled"
-            class="w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
+            class="w-24 border rounded px-2 py-1 pr-8 text-sm shadow-sm"
             :class="{ 
               'opacity-50 cursor-not-allowed': disabled,
-              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
+              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled,
+              'border-red-300 bg-red-50': validationError,
+              'border-gray-300': !validationError
             }"
         />
-        <span v-if="showDefaultValue(param)"
+        <span v-if="showDefaultValue(param) && !validationError"
               class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
           {{ showDefaultValue(param) }}
         </span>
+        <!-- Validation error tooltip -->
+        <div v-if="validationError" 
+             class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-red-500 pointer-events-none">
+          ⚠️
+        </div>
       </div>
 
       <!-- Boolean inputs - Fancy toggle -->
@@ -208,13 +287,21 @@ const isDefaultValue = computed(() => {
             type="time"
             v-model="localValue"
             @change="emitChange"
+            @input="validateValue(localValue, param)"
             :disabled="disabled"
-            class="w-24 border border-gray-300 rounded px-2 py-1 text-sm shadow-sm"
+            class="w-24 border rounded px-2 py-1 text-sm shadow-sm"
             :class="{ 
               'opacity-50 cursor-not-allowed': disabled,
-              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
+              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled,
+              'border-red-300 bg-red-50': validationError,
+              'border-gray-300': !validationError
             }"
         />
+        <!-- Validation error tooltip -->
+        <div v-if="validationError" 
+             class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-red-500 pointer-events-none">
+          ⚠️
+        </div>
       </div>
 
       <!-- Text inputs with default value overlay -->
@@ -238,6 +325,11 @@ const isDefaultValue = computed(() => {
 
       <!-- Info button for compact mode -->
       <InfoPopover v-if="compact" :text="param.ui_description"/>
+    </div>
+    
+    <!-- Validation error message -->
+    <div v-if="validationError" class="text-xs text-red-600 mt-1 ml-4">
+      {{ validationError }}
     </div>
   </div>
 </template>

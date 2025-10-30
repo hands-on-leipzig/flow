@@ -15,7 +15,6 @@ class CheckModelFields extends Command
         \App\Models\QRun::class,
         \App\Models\QPlan::class,
         \App\Models\QPlanTeam::class,
-        \App\Models\QPlanMatch::class,
     ];
 
     public function handle()

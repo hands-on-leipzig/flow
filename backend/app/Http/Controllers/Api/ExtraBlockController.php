@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ExtraBlock;
 use App\Models\MInsertPoint;
+use App\Enums\FirstProgram;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,9 +14,18 @@ use App\Http\Controllers\Api\PlanGeneratorController;
 
 class ExtraBlockController extends Controller
 {
-    public function getInsertPoints()
+    public function getInsertPoints(Request $request)
     {
-        $insert_points = MInsertPoint::all();
+        $eventLevel = $request->query('level');
+        
+        // If event level is provided, filter insert points by level
+        if ($eventLevel !== null) {
+            $insert_points = MInsertPoint::where('level', '<=', $eventLevel)->get();
+        } else {
+            // No level provided, return all insert points
+            $insert_points = MInsertPoint::all();
+        }
+        
         return response()->json($insert_points);
     }
 
@@ -44,9 +54,16 @@ class ExtraBlockController extends Controller
 
     public function storeOrUpdate(Request $request, int $planId)
     {
+        $allowedPrograms = implode(',', [
+            FirstProgram::JOINT->value,
+            FirstProgram::DISCOVER->value,
+            FirstProgram::EXPLORE->value,
+            FirstProgram::CHALLENGE->value
+        ]);
+        
         $validated = $request->validate([
             'id' => 'nullable|integer|exists:extra_block,id',
-            'first_program' => 'nullable|integer|in:0,2,3',
+            'first_program' => "nullable|integer|in:{$allowedPrograms}",
             'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'link' => 'nullable|string|max:255',

@@ -82,6 +82,26 @@ return [
             ]) : [],
         ],
 
+        'contao' => [
+            'driver' => 'mariadb',
+            'url' => env('CONTAO_DB_URL'),
+            'host' => env('CONTAO_DB_HOST', '127.0.0.1'),
+            'port' => env('CONTAO_DB_PORT', '3306'),
+            'database' => env('CONTAO_DB_DATABASE', 'contao'),
+            'username' => env('CONTAO_DB_USERNAME', 'root'),
+            'password' => env('CONTAO_DB_PASSWORD', ''),
+            'unix_socket' => env('CONTAO_DB_SOCKET', ''),
+            'charset' => env('CONTAO_DB_CHARSET', 'utf8mb4'),
+            'collation' => env('CONTAO_DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => env('CONTAO_DB_PREFIX', ''),
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('CONTAO_MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),

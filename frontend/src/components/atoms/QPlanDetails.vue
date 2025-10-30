@@ -29,8 +29,8 @@ const loadDetails = async () => {
 
 watch(() => props.planId, loadDetails, { immediate: true })
 
-const okIcon = (val) => val === 1 ? '✓' : '⚠️'
-const okClass = (val) => val === 1 ? 'text-gray-300' : 'text-yellow-500 font-semibold'
+const okIcon = (val) => (val == 1 || val === '1') ? '✓' : '⚠️'
+const okClass = (val) => (val == 1 || val === '1') ? 'text-gray-300' : 'text-yellow-500 font-semibold'
 const warnClass = (condition) => condition ? 'text-yellow-500 font-semibold' : 'text-gray-300'
 const mismatchClass = (a, b) => a !== b ? 'text-red-500 font-semibold' : ''
 
@@ -40,7 +40,16 @@ const warnClassTables = (val) => val < minRequiredTables() ? 'text-yellow-500 fo
 const iconTables = (val) => val < minRequiredTables() ? '⚠️' : '✓'
 
 const matchesByRound = (round) => {
-  return details.value?.matches?.filter(m => m.round === round) ?? []
+  const filtered = details.value?.matches?.filter(m => m.round === round) ?? []
+  // Sort by match_no to ensure chronological order
+  return filtered.sort((a, b) => a.match_no - b.match_no)
+}
+
+const formatTeam = (teamNum) => {
+  // Format team display: Team 0 = '–' (volunteer/BYE), null/undefined = empty, others = number
+  if (teamNum === null || teamNum === undefined) return ''
+  if (teamNum === 0) return '–'
+  return String(teamNum)
 }
 </script>
 
@@ -51,7 +60,7 @@ const matchesByRound = (round) => {
     <div v-else>
       <div class="flex flex-row justify-between items-start gap-4">
         <!-- Linker Block: Timing -->
-        <div class="basis-[20%] flex-shrink-0 overflow-x-auto">
+        <div class="basis-[25%] flex-shrink-0 overflow-x-auto">
           <div class="text-sm font-semibold text-gray-600 mb-1">Transfer</div>
           <table class="table-auto text-sm border-collapse">
             <thead class="bg-gray-100">
@@ -61,6 +70,7 @@ const matchesByRound = (round) => {
                 <th class="px-2 py-1">1→2</th>
                 <th class="px-2 py-1">2→3</th>
                 <th class="px-2 py-1">3→4</th>
+                <th class="px-2 py-1">4→5</th>
                 <th class="px-2 py-1">Δ</th>
               </tr>
             </thead>
@@ -78,6 +88,9 @@ const matchesByRound = (round) => {
                 </td>
                 <td class="text-center" :class="team.q1_transition_3_4 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
                   {{ team.q1_transition_3_4 }}
+                </td>
+                <td class="text-center" :class="team.q1_transition_4_5 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
+                  {{ team.q1_transition_4_5 }}
                 </td>
                 <td class="text-center">{{ team.q5_idle_avg?.toFixed(2) ?? '–' }}</td>
               </tr>
@@ -162,20 +175,20 @@ const matchesByRound = (round) => {
                     class="border-t"
                   >
                     <td class="text-center">
-                      <span v-if="match.table_1 === 1">{{ match.table_1_team }}</span>
-                      <span v-else-if="match.table_2 === 1">{{ match.table_2_team }}</span>
+                      <span v-if="match.table_1 === 1">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 1">{{ formatTeam(match.table_2_team) }}</span>
                     </td>
                     <td class="text-center">
-                      <span v-if="match.table_1 === 2">{{ match.table_1_team }}</span>
-                      <span v-else-if="match.table_2 === 2">{{ match.table_2_team }}</span>
+                      <span v-if="match.table_1 === 2">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 2">{{ formatTeam(match.table_2_team) }}</span>
                     </td>
                     <td class="text-center">
-                      <span v-if="match.table_1 === 3">{{ match.table_1_team }}</span>
-                      <span v-else-if="match.table_2 === 3">{{ match.table_2_team }}</span>
+                      <span v-if="match.table_1 === 3">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 3">{{ formatTeam(match.table_2_team) }}</span>
                     </td>
                     <td class="text-center">
-                      <span v-if="match.table_1 === 4">{{ match.table_1_team }}</span>
-                      <span v-else-if="match.table_2 === 4">{{ match.table_2_team }}</span>
+                      <span v-if="match.table_1 === 4">{{ formatTeam(match.table_1_team) }}</span>
+                      <span v-else-if="match.table_2 === 4">{{ formatTeam(match.table_2_team) }}</span>
                     </td>
                   </tr>
                 </tbody>

@@ -32,8 +32,6 @@
       "Database\\Seeders\\": "database/seeders/"
     },
     "files": [
-      "legacy/generator/generator_db.php",
-      "app/Support/Helpers.php"
     ]
   },
   "scripts": {

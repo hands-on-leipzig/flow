@@ -13,6 +13,7 @@ class Plan extends Model
         'event',
         'created',
         'last_change',
+        'generator_status',
     ];
 
     public function parameters()

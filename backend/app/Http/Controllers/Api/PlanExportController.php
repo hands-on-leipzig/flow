@@ -9,7 +9,9 @@ use App\Models\MRole;
 use App\Models\Plan;
 use App\Models\Event;
 use App\Services\ActivityFetcherService;
+use App\Enums\FirstProgram;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +25,145 @@ class PlanExportController extends Controller
         $this->activityFetcher = $activityFetcher;
     }
 
-    public function download(string $type, int $eventId)
+    /**
+     * Get available roles for PDF export (lane/table roles with activities in plan)
+     */
+    public function availableRoles(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        $rolesWithActivities = $this->getRolesInPlan($plan->id);
+
+        return response()->json(['roles' => $rolesWithActivities]);
+    }
+
+    /**
+     * Get available programs for team PDF export (programs with teams in plan)
+     */
+    public function availableTeamPrograms(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        $programs = $this->getProgramsInPlan($plan->id);
+
+        return response()->json(['programs' => $programs]);
+    }
+
+    /**
+     * Helper: Get programs that have activities in a plan
+     * @return array Array of program info with id and name
+     */
+    private function getProgramsInPlan(int $planId): array
+    {
+        $programs = [];
+
+        // Check if Explore activities exist (first_program = 2)
+        $hasExplore = DB::table('activity')
+            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+            ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+            ->where('activity_group.plan', $planId)
+            ->where('m_activity_type_detail.first_program', 2)
+            ->exists();
+
+        if ($hasExplore) {
+            $programs[] = [
+                'id' => 2,
+                'name' => 'Explore',
+            ];
+        }
+
+        // Check if Challenge activities exist (first_program = 3)
+        $hasChallenge = DB::table('activity')
+            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+            ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+            ->where('activity_group.plan', $planId)
+            ->where('m_activity_type_detail.first_program', 3)
+            ->exists();
+
+        if ($hasChallenge) {
+            $programs[] = [
+                'id' => 3,
+                'name' => 'Challenge',
+            ];
+        }
+
+        return $programs;
+    }
+
+    /**
+     * Helper: Get roles that have actual assignments in a plan
+     * @return array Array of role info with id, name, first_program, differentiation_parameter
+     */
+    private function getRolesInPlan(int $planId): array
+    {
+        // Get all roles with pdf_export enabled and differentiation_parameter = lane or table
+        $roles = MRole::where('pdf_export', true)
+            ->whereIn('differentiation_parameter', ['lane', 'table'])
+            ->orderBy('first_program')
+            ->orderBy('sequence')
+            ->get(['id', 'name', 'first_program', 'differentiation_parameter', 'sequence']);
+
+        // Filter to only roles that have ASSIGNED activities in this plan
+        $rolesWithActivities = [];
+        foreach ($roles as $role) {
+            // Check if there are activities with this role's lane/table actually set
+            $hasAssignments = false;
+            
+            if ($role->differentiation_parameter === 'lane') {
+                // Check if any activities have jury_lane set for this role
+                $hasAssignments = DB::table('activity')
+                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                    ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                    ->join('m_visibility', 'm_activity_type_detail.id', '=', 'm_visibility.activity_type_detail')
+                    ->where('activity_group.plan', $planId)
+                    ->where('m_visibility.role', $role->id)
+                    ->whereNotNull('activity.jury_lane')
+                    ->exists();
+            } elseif ($role->differentiation_parameter === 'table') {
+                // Check if any activities have table_1 or table_2 set for this role
+                $hasAssignments = DB::table('activity')
+                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                    ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                    ->join('m_visibility', 'm_activity_type_detail.id', '=', 'm_visibility.activity_type_detail')
+                    ->where('activity_group.plan', $planId)
+                    ->where('m_visibility.role', $role->id)
+                    ->where(function($q) {
+                        $q->whereNotNull('activity.table_1')
+                          ->orWhereNotNull('activity.table_2');
+                    })
+                    ->exists();
+            }
+
+            if ($hasAssignments) {
+                $rolesWithActivities[] = [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'first_program' => $role->first_program,
+                    'differentiation_parameter' => $role->differentiation_parameter,
+                ];
+            }
+        }
+
+        return $rolesWithActivities;
+    }
+
+    public function download(string $type, int $eventId, Request $request)
     {
         // Plan zum Event finden
         $plan = DB::table('plan')
@@ -47,8 +187,8 @@ class PlanExportController extends Controller
         // PDF erzeugen
         $pdf = match ($type) {
             'rooms' => $this->roomSchedulePdf($plan->id, $maxRowsPerPage),
-            'teams' => $this->teamSchedulePdf($plan->id, $maxRowsPerPage),
-            'roles' => $this->roleSchedulePdf($plan->id, $maxRowsPerPage),
+            'teams' => $this->teamSchedulePdf($plan->id, $request->input('program_ids', []), $maxRowsPerPage),
+            'roles' => $this->roleSchedulePdf($plan->id, $request->input('role_ids', []), $maxRowsPerPage),
             'full'  => $this->fullSchedulePdf($plan->id),
             default => null,
         };
@@ -66,6 +206,60 @@ class PlanExportController extends Controller
         ];
 
         $name = $names[$type] ?? ucfirst($type);
+        
+        // Special handling for roles: add role names if subset selected
+        if ($type === 'roles') {
+            $selectedRoleIds = $request->input('role_ids', []);
+            
+            if (!empty($selectedRoleIds)) {
+                // Get all available roles for THIS plan using helper method
+                $rolesInPlan = $this->getRolesInPlan($plan->id);
+                $roleIdsInPlan = array_column($rolesInPlan, 'id');
+                
+                // If not all roles (that are in plan) selected, append role names
+                if (count($selectedRoleIds) < count($roleIdsInPlan)) {
+                    $roleNames = MRole::whereIn('id', $selectedRoleIds)
+                        ->orderBy('first_program')
+                        ->orderBy('sequence')
+                        ->pluck('name')
+                        ->toArray();
+                    
+                    // Sanitize role names for filename (remove special chars)
+                    $sanitizedNames = array_map(function($roleName) {
+                        return preg_replace('/[^a-zA-Z0-9]/', '', $roleName);
+                    }, $roleNames);
+                    
+                    $name = 'Rollen_' . implode('_', $sanitizedNames);
+                }
+            }
+        }
+        
+        // Special handling for teams: add program name if only one selected
+        if ($type === 'teams') {
+            $selectedProgramIds = $request->input('program_ids', []);
+            
+            if (!empty($selectedProgramIds)) {
+                // Get all available programs for THIS plan using helper method
+                $programsInPlan = $this->getProgramsInPlan($plan->id);
+                $programIdsInPlan = array_column($programsInPlan, 'id');
+                
+                // If not all programs (that are in plan) selected, append program name
+                if (count($selectedProgramIds) < count($programIdsInPlan)) {
+                    $programNames = [];
+                    if (in_array(2, $selectedProgramIds)) {
+                        $programNames[] = 'Explore';
+                    }
+                    if (in_array(3, $selectedProgramIds)) {
+                        $programNames[] = 'Challenge';
+                    }
+                    
+                    if (!empty($programNames)) {
+                        $name = 'Teams_' . implode('_', $programNames);
+                    }
+                }
+            }
+        }
+        
         $filename = "FLOW_{$name}_({$formattedDate}).pdf";
 
         // Umlaute transliterieren
@@ -94,9 +288,10 @@ class PlanExportController extends Controller
             ->get();
 
         $programGroups = [];
+        $allFreeBlocks = collect();
 
+        // First pass: collect all free blocks from all roles
         foreach ($roles as $role) {
-
             $activities = $this->activityFetcher->fetchActivities(
                 plan: $planId,
                 roles: [$role->id],
@@ -111,28 +306,82 @@ class PlanExportController extends Controller
                 continue;
             }
 
-            switch ($role->differentiation_parameter) {
-                case 'team':
-                    $this->buildTeamBlock($programGroups, $activities, $role);
-                    break;
+            $activitiesCollection = collect($activities);
+            $freeBlocks = $activitiesCollection->filter(function($a) {
+                return !is_null($a->extra_block_id) && is_null($a->extra_block_insert_point);
+            });
 
-                case 'lane':
-                    $this->buildLaneBlock($programGroups, $activities, $role);
-                    break;
+            $allFreeBlocks = $allFreeBlocks->concat($freeBlocks);
+        }
 
-                case 'table':
-                    $this->buildTableBlock($programGroups, $activities, $role);
-                    break;
+        // Deduplicate free blocks by activity_id (same block appears in multiple roles)
+        $allFreeBlocks = $allFreeBlocks->unique('activity_id');
 
-                default:
-                    $this->buildSimpleBlock($programGroups, $activities, $role);
-                    break;
+        // Build one flat table for all free blocks
+        if ($allFreeBlocks->isNotEmpty()) {
+            $this->buildFreeBlocksTable($programGroups, $allFreeBlocks);
+        }
+
+        // Second pass: process regular activities by role
+        foreach ($roles as $role) {
+            $activities = $this->activityFetcher->fetchActivities(
+                plan: $planId,
+                roles: [$role->id],
+                includeRooms: true,
+                includeGroupMeta: false,
+                includeActivityMeta: true,
+                includeTeamNames: true,
+                freeBlocks: true
+            );
+
+            if ($activities->isEmpty()) {
+                continue;
+            }
+
+            // Filter to only regular activities (not free blocks)
+            $activitiesCollection = collect($activities);
+            $regularActivities = $activitiesCollection->filter(function($a) {
+                return is_null($a->extra_block_id) || !is_null($a->extra_block_insert_point);
+            });
+
+            // Process regular activities under their program name
+            if ($regularActivities->isNotEmpty()) {
+                switch ($role->differentiation_parameter) {
+                    case 'team':
+                        $this->buildTeamBlock($programGroups, $regularActivities, $role, null, $planId);
+                        break;
+
+                    case 'lane':
+                        $this->buildLaneBlock($programGroups, $regularActivities, $role, null, $planId);
+                        break;
+
+                    case 'table':
+                        $this->buildTableBlock($programGroups, $regularActivities, $role);
+                        break;
+
+                    default:
+                        $this->buildSimpleBlock($programGroups, $regularActivities, $role);
+                        break;
+                }
             }
         }
 
         if (empty($programGroups)) {
             return response()->json(['error' => 'Keine Aktivitäten gefunden'], 404);
         }
+
+        // Sort program groups in desired order: Freie Blöcke, Explore, Challenge
+        $sortOrder = [
+            'Freie Blöcke' => 1,
+            'FIRST LEGO League Explore' => 2,
+            'FIRST LEGO League Challenge' => 3,
+        ];
+        
+        uksort($programGroups, function($a, $b) use ($sortOrder) {
+            $orderA = $sortOrder[$a] ?? 999;
+            $orderB = $sortOrder[$b] ?? 999;
+            return $orderA <=> $orderB;
+        });
 
         // Plan + Event laden
         $plan = Plan::findOrFail($planId);
@@ -160,32 +409,65 @@ class PlanExportController extends Controller
     /**
      * Block für Team-Differenzierung
      */
-    private function buildTeamBlock(array &$programGroups, $activities, $role): void
+    private function buildTeamBlock(array &$programGroups, $activities, $role, $programNameOverride = null, $planId = null): void
     {
         // === Schritt 1: Activities entfalten (Lane/Table1/Table2 einzeln) ===
         $expanded   = collect();
         $neutral    = collect(); // neutrale Zeilen merken
+        $teamInfo   = collect(); // team metadata: [team_num => [name, hot, id]]
+        
         foreach ($activities as $a) {
             if (!empty($a->lane) && !empty($a->team)) {
                 $clone = clone $a;
                 $clone->team      = $a->team;
                 $clone->team_name = $a->jury_team_name;
+                $clone->team_number_hot = $a->jury_team_number_hot ?? null;
+                $clone->team_id   = $a->jury_team_id ?? null;
                 $clone->assign    = 'Jury ' . $a->lane;
                 $expanded->push($clone);
+                
+                // Store team metadata
+                if (!$teamInfo->has($a->team)) {
+                    $teamInfo->put($a->team, [
+                        'name' => $a->jury_team_name,
+                        'hot'  => $a->jury_team_number_hot ?? null,
+                        'id'   => $a->jury_team_id ?? null,
+                    ]);
+                }
             }
             if (!empty($a->table_1) && !empty($a->table_1_team)) {
                 $clone = clone $a;
                 $clone->team      = $a->table_1_team;
                 $clone->team_name = $a->table_1_team_name;
-                $clone->assign    = 'Tisch ' . $a->table_1;
+                $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
+                $clone->team_id   = $a->table_1_team_id ?? null;
+                $clone->assign    = $a->table_1_name ?? ('Tisch ' . $a->table_1);
                 $expanded->push($clone);
+                
+                if (!$teamInfo->has($a->table_1_team)) {
+                    $teamInfo->put($a->table_1_team, [
+                        'name' => $a->table_1_team_name,
+                        'hot'  => $a->table_1_team_number_hot ?? null,
+                        'id'   => $a->table_1_team_id ?? null,
+                    ]);
+                }
             }
             if (!empty($a->table_2) && !empty($a->table_2_team)) {
                 $clone = clone $a;
                 $clone->team      = $a->table_2_team;
                 $clone->team_name = $a->table_2_team_name;
-                $clone->assign    = 'Tisch ' . $a->table_2;
+                $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
+                $clone->team_id   = $a->table_2_team_id ?? null;
+                $clone->assign    = $a->table_2_name ?? ('Tisch ' . $a->table_2);
                 $expanded->push($clone);
+                
+                if (!$teamInfo->has($a->table_2_team)) {
+                    $teamInfo->put($a->table_2_team, [
+                        'name' => $a->table_2_team_name,
+                        'hot'  => $a->table_2_team_number_hot ?? null,
+                        'id'   => $a->table_2_team_id ?? null,
+                    ]);
+                }
             }
 
             // falls gar kein Team dran hängt → in neutral sammeln
@@ -214,13 +496,71 @@ class PlanExportController extends Controller
             ];
         };
 
-        // --- Sortierung nach Team-ID ---
-        foreach ($groups->sortKeys() as $teamId => $acts) {
-            // neutrales reingeben
+        // === Schritt 4: Room assignments (if planId available) ===
+        $teamRooms = collect();
+        if ($planId) {
+            $roomData = DB::table('team_plan')
+                ->join('room', 'team_plan.room', '=', 'room.id')
+                ->where('team_plan.plan', $planId)
+                ->select('team_plan.team', 'room.name as room_name')
+                ->get()
+                ->keyBy('team');
+            
+            $teamRooms = $roomData->pluck('room_name', 'team');
+        }
+
+        // === Schritt 5: Build team data with labels ===
+        $teamData = [];
+        foreach ($groups as $teamNum => $acts) {
+            $info = $teamInfo->get($teamNum, ['name' => null, 'hot' => null, 'id' => null]);
+            $teamName = $info['name'];
+            $teamHot = $info['hot'];
+            $teamId = $info['id'];
+            
+            // Build label: "TeamName (HotNumber) – Teambereich RoomName"
+            $label = '';
+            
+            // Team name part
+            if ($teamName && $teamHot) {
+                $label = "{$teamName} ({$teamHot})";
+            } elseif ($teamName) {
+                $label = $teamName;
+            } else {
+                $label = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $teamNum);
+            }
+            
+            // Room part
+            $roomName = null;
+            if ($teamId && $teamRooms->has($teamId)) {
+                $roomName = $teamRooms->get($teamId);
+            }
+            
+            if ($roomName) {
+                $label .= " – Teambereich {$roomName}";
+            } else {
+                $label .= " – Teambereich !Platzhalter, weil das Team noch keinem Raum zugeordnet wurde!";
+            }
+            
             $allActs = $acts->concat($neutral)->sortBy('start_time');
             $firstAct = $allActs->first();
-            $programName = $firstAct->activity_first_program_name ?? 'Alles';
-
+            $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
+            
+            $teamData[] = [
+                'sortName' => $teamName ?? 'zzz', // For sorting
+                'label' => $label,
+                'programName' => $programName,
+                'acts' => $allActs,
+            ];
+        }
+        
+        // === Schritt 6: Sort by team name and add to programGroups ===
+        usort($teamData, function($a, $b) {
+            return strcasecmp($a['sortName'], $b['sortName']);
+        });
+        
+        foreach ($teamData as $td) {
+            $programName = $td['programName'];
+            
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
             }
@@ -230,13 +570,10 @@ class PlanExportController extends Controller
                     'teams' => []
                 ];
             }
-
-            $teamName  = $acts->first()->team_name ?? null;
-            $teamLabel = 'Team ' . $teamId . ($teamName ? ' – ' . $teamName : '');
-
+            
             $programGroups[$programName][$role->id]['teams'][] = [
-                'teamLabel' => $teamLabel,
-                'rows'      => $allActs->map($mapRow)->values()->all(),
+                'teamLabel' => $td['label'],
+                'rows'      => $td['acts']->map($mapRow)->values()->all(),
             ];
         }
     }
@@ -245,7 +582,7 @@ class PlanExportController extends Controller
      * Block für Lane-Differenzierung (Dummy)
      */
 
-    private function buildLaneBlock(array &$programGroups, $activities, $role): void
+    private function buildLaneBlock(array &$programGroups, $activities, $role, $programNameOverride = null, $planId = null): void
     {
         // === Schritt 1: Activities entfalten (nur Lanes) ===
         $expanded = collect();
@@ -257,6 +594,7 @@ class PlanExportController extends Controller
                 $clone->lane      = $a->lane;
                 $clone->team_id   = $a->team;
                 $clone->team_name = $a->jury_team_name;
+                $clone->team_number_hot = $a->jury_team_number_hot ?? null;
                 $clone->assign    = 'Jury ' . $a->lane;
                 $expanded->push($clone);
             }
@@ -267,6 +605,7 @@ class PlanExportController extends Controller
                 $clone->lane      = null;
                 $clone->team_id   = null;
                 $clone->team_name = null;
+                $clone->team_number_hot = null;
                 $clone->assign    = '–';
                 $neutral->push($clone);
             }
@@ -277,9 +616,17 @@ class PlanExportController extends Controller
 
         // === Schritt 3: Map-Funktion ===
         $mapRow = function ($a) {
-            $teamLabel = $a->team_id
-                ? ('Team ' . $a->team_id . ($a->team_name ? ' – ' . $a->team_name : ''))
-                : '–';
+            // Build team label: "TeamName (HotNumber)" or placeholder
+            $teamLabel = '–';
+            if ($a->team_id) {
+                if ($a->team_name && $a->team_number_hot) {
+                    $teamLabel = $a->team_name . ' (' . $a->team_number_hot . ')';
+                } elseif ($a->team_name) {
+                    $teamLabel = $a->team_name;
+                } else {
+                    $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team_id);
+                }
+            }
 
             return [
                 'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
@@ -291,11 +638,57 @@ class PlanExportController extends Controller
             ];
         };
 
-        // === Schritt 4: Iteration über Lanes ===
+        // === Schritt 4: Room assignments (if planId available) ===
+        $laneRooms = collect();
+        if ($planId) {
+            $eventId = DB::table('plan')->where('id', $planId)->value('event');
+            if ($eventId) {
+                // Get the program for this role from the role's activities
+                $programId = null;
+                foreach ($activities as $act) {
+                    if (!empty($act->activity_first_program_id)) {
+                        $programId = $act->activity_first_program_id;
+                        break;
+                    }
+                }
+                
+                if ($programId) {
+                    // Map program to room type IDs
+                    $roomTypeIds = [];
+                    if ($programId == 2) { // Explore (ID 2)
+                        $roomTypeIds = [8, 9, 10, 11, 12]; // Begutachtung 1-5
+                    } elseif ($programId == 3) { // Challenge (ID 3)
+                        $roomTypeIds = [2, 3, 4, 5, 6]; // Jurybewertung 1-5
+                    }
+                    
+                    if (!empty($roomTypeIds)) {
+                        $roomData = DB::table('room_type_room as rtr')
+                            ->join('room as r', 'rtr.room', '=', 'r.id')
+                            ->join('m_room_type as mrt', 'rtr.room_type', '=', 'mrt.id')
+                            ->where('rtr.event', $eventId)
+                            ->whereIn('mrt.id', $roomTypeIds)
+                            ->select('mrt.id as room_type_id', 'r.name as room_name')
+                            ->get();
+                        
+                        // Map room_type_id to lane number
+                        foreach ($roomData as $rd) {
+                            if ($programId == 2) { // Explore: Begutachtung 1 (ID 8) = lane 1
+                                $laneNumber = $rd->room_type_id - 7; // Begutachtung 1 (ID 8) = lane 1
+                            } else { // Challenge: Jurybewertung 1 (ID 2) = lane 1
+                                $laneNumber = $rd->room_type_id - 1; // Jurybewertung 1 (ID 2) = lane 1
+                            }
+                            $laneRooms->put($laneNumber, $rd->room_name);
+                        }
+                    }
+                }
+            }
+        }
+
+        // === Schritt 5: Iteration über Lanes ===
         foreach ($groups->sortKeys() as $laneId => $acts) {
             $allActs     = $acts->concat($neutral)->sortBy('start_time');
             $firstAct    = $allActs->first();
-            $programName = $firstAct->activity_first_program_name ?? 'Alles';
+            $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
 
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
@@ -307,7 +700,15 @@ class PlanExportController extends Controller
                 ];
             }
 
+            // Build label: "Gruppe X - Raum RoomName"
             $juryLabel = 'Gruppe ' . $laneId;
+            
+            $roomName = $laneRooms->get($laneId);
+            if ($roomName) {
+                $juryLabel .= ' – Raum ' . $roomName;
+            } else {
+                $juryLabel .= ' – Raum !Platzhalter, weil die Gruppe noch keinem Raum zugeordnet wurde!';
+            }
 
             $programGroups[$programName][$role->id]['lanes'][] = [
                 'juryLabel' => $juryLabel,
@@ -319,7 +720,7 @@ class PlanExportController extends Controller
     /**
      * Block für Table-Differenzierung
      */
-    private function buildTableBlock(array &$programGroups, $activities, $role): void
+    private function buildTableBlock(array &$programGroups, $activities, $role, $programNameOverride = null): void
     {
         $expanded = collect();
 
@@ -330,7 +731,8 @@ class PlanExportController extends Controller
                 $clone->table_id   = $a->table_1;
                 $clone->team_id    = $a->table_1_team;
                 $clone->team_name  = $a->table_1_team_name;
-                $clone->assign     = 'Tisch ' . $a->table_1;
+                $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
+                $clone->assign     = $a->table_1_name ?? ('Tisch ' . $a->table_1);
                 $expanded->push($clone);
             }
             if (!empty($a->table_2) && !empty($a->table_2_team)) {
@@ -338,7 +740,8 @@ class PlanExportController extends Controller
                 $clone->table_id   = $a->table_2;
                 $clone->team_id    = $a->table_2_team;
                 $clone->team_name  = $a->table_2_team_name;
-                $clone->assign     = 'Tisch ' . $a->table_2;
+                $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
+                $clone->assign     = $a->table_2_name ?? ('Tisch ' . $a->table_2);
                 $expanded->push($clone);
             }
         }
@@ -352,11 +755,23 @@ class PlanExportController extends Controller
 
         // Schritt 3: Map-Funktion für Rows
         $mapRow = function ($a) {
+            // Build team label: "TeamName (HotNumber)" or placeholder
+            $teamLabel = '–';
+            if ($a->team_id) {
+                if ($a->team_name && $a->team_number_hot) {
+                    $teamLabel = $a->team_name . ' (' . $a->team_number_hot . ')';
+                } elseif ($a->team_name) {
+                    $teamLabel = $a->team_name;
+                } else {
+                    $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team_id);
+                }
+            }
+
             return [
                 'start_hm'  => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'    => Carbon::parse($a->end_time)->format('H:i'),
                 'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
-                'teamLabel' => 'Team ' . $a->team_id . ($a->team_name ? ' – ' . $a->team_name : ''),
+                'teamLabel' => $teamLabel,
                 'assign'    => $a->assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
             ];
@@ -366,7 +781,10 @@ class PlanExportController extends Controller
         foreach ($groups->sortKeys() as $tableId => $acts) {
             $acts = $acts->sortBy('start_time');
             $firstAct = $acts->first();
-            $programName = $firstAct->activity_first_program_name ?? 'Alles';
+            $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
+
+            // Get custom table name from first activity (already stored in assign field)
+            $tableLabel = $firstAct->assign ?? ('Tisch ' . $tableId);
 
             if (!isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
@@ -379,7 +797,7 @@ class PlanExportController extends Controller
             }
 
             $programGroups[$programName][$role->id]['tables'][] = [
-                'tableLabel' => 'Tisch ' . $tableId,
+                'tableLabel' => $tableLabel,
                 'rows'       => $acts->map($mapRow)->values()->all(),
             ];
         }
@@ -388,7 +806,7 @@ class PlanExportController extends Controller
     /**
      * Block für Rollen ohne Differenzierung
      */
-    private function buildSimpleBlock(array &$programGroups, $activities, $role): void
+    private function buildSimpleBlock(array &$programGroups, $activities, $role, $programNameOverride = null): void
     {
         if ($activities->isEmpty()) {
             return;
@@ -397,18 +815,29 @@ class PlanExportController extends Controller
         // Map-Funktion für Rows
         $mapRow = function ($a) {
             // Teamlabel bestimmen (falls es über Jury/Tables erkennbar ist)
-            $teamLabel = null;
-            if (!empty($a->team)) {
-                $teamLabel = 'Team ' . $a->team;
-            }
+            $teamLabel = '–';
+            
+            // Check jury team first
             if (!empty($a->jury_team_name)) {
-                $teamLabel = 'Team ' . $a->team . ' – ' . $a->jury_team_name;
-            }
-            if (!empty($a->table_1_team_name)) {
-                $teamLabel = 'Team ' . $a->table_1_team . ' – ' . $a->table_1_team_name;
-            }
-            if (!empty($a->table_2_team_name)) {
-                $teamLabel = 'Team ' . $a->table_2_team . ' – ' . $a->table_2_team_name;
+                if ($a->jury_team_number_hot) {
+                    $teamLabel = $a->jury_team_name . ' (' . $a->jury_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->jury_team_name;
+                }
+            } elseif (!empty($a->table_1_team_name)) {
+                if ($a->table_1_team_number_hot) {
+                    $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_1_team_name;
+                }
+            } elseif (!empty($a->table_2_team_name)) {
+                if ($a->table_2_team_number_hot) {
+                    $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_2_team_name;
+                }
+            } elseif (!empty($a->team)) {
+                $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
             }
 
             // Assignment (Jury/Tisch/-)
@@ -416,9 +845,9 @@ class PlanExportController extends Controller
             if (!empty($a->lane)) {
                 $assign = 'Jury ' . $a->lane;
             } elseif (!empty($a->table_1)) {
-                $assign = 'Tisch ' . $a->table_1;
+                $assign = $a->table_1_name ?? ('Tisch ' . $a->table_1);
             } elseif (!empty($a->table_2)) {
-                $assign = 'Tisch ' . $a->table_2;
+                $assign = $a->table_2_name ?? ('Tisch ' . $a->table_2);
             }
 
             return [
@@ -433,7 +862,7 @@ class PlanExportController extends Controller
 
         $acts = $activities->sortBy('start_time');
         $firstAct = $acts->first();
-        $programName = $firstAct->activity_first_program_name ?? 'Alles';
+        $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
 
         if (!isset($programGroups[$programName])) {
             $programGroups[$programName] = [];
@@ -447,6 +876,78 @@ class PlanExportController extends Controller
 
         $programGroups[$programName][$role->id]['general'][] = [
             'rows' => $acts->map($mapRow)->values()->all(),
+        ];
+    }
+
+    /**
+     * Build a single flat table for all free blocks (no role sub-sections)
+     */
+    private function buildFreeBlocksTable(array &$programGroups, $activities): void
+    {
+        if ($activities->isEmpty()) {
+            return;
+        }
+
+        // Map function for rows
+        $mapRow = function ($a) {
+            // Teamlabel bestimmen
+            $teamLabel = '–';
+            
+            // Check jury team first
+            if (!empty($a->jury_team_name)) {
+                if ($a->jury_team_number_hot) {
+                    $teamLabel = $a->jury_team_name . ' (' . $a->jury_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->jury_team_name;
+                }
+            } elseif (!empty($a->table_1_team_name)) {
+                if ($a->table_1_team_number_hot) {
+                    $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_1_team_name;
+                }
+            } elseif (!empty($a->table_2_team_name)) {
+                if ($a->table_2_team_number_hot) {
+                    $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
+                } else {
+                    $teamLabel = $a->table_2_team_name;
+                }
+            } elseif (!empty($a->team)) {
+                $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
+            }
+
+            // Assignment (Jury/Tisch/-)
+            $assign = '–';
+            if (!empty($a->lane)) {
+                $assign = 'Jury ' . $a->lane;
+            } elseif (!empty($a->table_1)) {
+                $assign = $a->table_1_name ?? ('Tisch ' . $a->table_1);
+            } elseif (!empty($a->table_2)) {
+                $assign = $a->table_2_name ?? ('Tisch ' . $a->table_2);
+            }
+
+            return [
+                'start_hm'  => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
+                'end_hm'    => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'teamLabel' => $teamLabel ?? '–',
+                'assign'    => $assign,
+                'room'      => $a->room_name ?? $a->room_type_name ?? '–',
+            ];
+        };
+
+        $acts = $activities->sortBy('start_time');
+        
+        $programName = 'Freie Blöcke';
+
+        // Create single entry with dummy role ID 0
+        $programGroups[$programName] = [
+            0 => [
+                'role'    => null,  // No role header
+                'general' => [
+                    ['rows' => $acts->map($mapRow)->values()->all()]
+                ]
+            ]
         ];
     }
 
@@ -499,7 +1000,7 @@ class PlanExportController extends Controller
                 } elseif (!empty($name)) {
                     return $name;
                 } elseif (!empty($numInternal)) {
-                    return sprintf("T%02d", $numInternal);
+                    return sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $numInternal);
                 } else {
                     return '–';
                 }
@@ -540,8 +1041,10 @@ class PlanExportController extends Controller
                 'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
                 'team'     => $teamDisplay,
                 // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
-                'is_explore'    => in_array($a->activity_first_program_id, [0, 2]),
-                'is_challenge'  => in_array($a->activity_first_program_id, [0, 3]),
+                'is_explore'    => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
+                'is_challenge'  => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::CHALLENGE->value]),
+                // Add date information for day grouping
+                'start_date' => \Carbon\Carbon::parse($a->start_time),
             ];
         })->values()->all();
 
@@ -564,6 +1067,72 @@ class PlanExportController extends Controller
             }
         }
 
+// --- 🔹 Vorbereitung: Räume aus team_plan laden ---
+$prepRooms = DB::table('team_plan')
+    ->where('plan', $planId)
+    ->whereNotNull('room')
+    ->distinct()
+    ->pluck('room');
+
+if ($prepRooms->isNotEmpty()) {
+    // Add page break before starting the preparation section
+    $html .= '<div style="page-break-before: always;"></div>';
+    
+    // Raumdetails aus room-Tabelle
+    $rooms = DB::table('room')
+        ->whereIn('id', $prepRooms)
+        ->select('id', 'name')
+        ->orderBy('name')
+        ->get();
+
+    $roomCount = $rooms->count();
+    $roomIndex = 0;
+
+    foreach ($rooms as $room) {
+        // Teams, die diesem Raum zugeordnet sind
+        $teams = DB::table('team_plan')
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team_plan.plan', $planId)
+            ->where('team_plan.room', $room->id)
+            ->select(
+                'team.name as team_name',
+                'team.team_number_hot as team_number_hot',
+                'team.first_program as program'
+            )
+            ->orderBy('team.team_number_hot')
+            ->get();
+
+        if ($teams->isEmpty()) {
+            continue;
+        }
+
+        $roomIndex++;
+
+        // Zeilen für Tabelle aufbauen
+        $rows = $teams->map(function ($t) {
+            return [
+                'is_explore'   => in_array($t->program, [0, 2]),
+                'is_challenge' => in_array($t->program, [0, 3]),
+                'team_display' => trim($t->team_name . ' (' . $t->team_number_hot . ')'),
+            ];
+        });
+
+        // Seite rendern
+        $html .= view('pdf.content.room_schedule_preparation', [
+            'room'  => $room->name,
+            'rows'  => $rows,
+            'event' => $event,
+        ])->render();
+
+        // Seitenumbruch nach jeder Raumseite (außer der letzten)
+        if ($roomIndex < $roomCount) {
+            $html .= '<div style="page-break-before: always;"></div>';
+        }
+    }
+}
+
+
+
         // Jetzt EIN Layout drumherum bauen
         $layout = app(\App\Services\PdfLayoutService::class);
         $finalHtml = $layout->renderLayout($event, $html, 'FLOW Raumbeschilderung');
@@ -574,26 +1143,40 @@ class PlanExportController extends Controller
         return $pdf;
     }
 
-    public function teamSchedulePdf(int $planId, $maxRowsPerPage = 10)
+    public function teamSchedulePdf(int $planId, array $programIds = [], $maxRowsPerPage = 10)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
 
-        // 1) Explore (Role 3)
-        $exploreActs = collect($fetcher->fetchActivities(
-            $planId,
-            [8],   // Explore-Teams
-            true,  // includeRooms
-            false, // includeGroupMeta
-            true,  // includeActivityMeta (liefert activity_atd_name, activity_first_program_name, ...)
-            true,  // includeTeamNames (jury_team_name, table_*_team_name)
-            true   // freeBlocks
-        ));
+        // If no program IDs provided, use both (backward compatibility)
+        if (empty($programIds)) {
+            $programIds = [2, 3]; // Explore, Challenge
+        }
 
-        // 2) Challenge (Role 8)
-        $challengeActs = collect($fetcher->fetchActivities(
-            $planId,
-            [3], true, false, true, true, true
-        ));
+        $explorePages = [];
+        $challengePages = [];
+
+        // 1) Explore (Role 8) - only if program 2 selected
+        if (in_array(2, $programIds)) {
+            $exploreActs = collect($fetcher->fetchActivities(
+                $planId,
+                [8],   // Explore-Teams
+                true,  // includeRooms
+                false, // includeGroupMeta
+                true,  // includeActivityMeta (liefert activity_atd_name, activity_first_program_name, ...)
+                true,  // includeTeamNames (jury_team_name, table_*_team_name)
+                true   // freeBlocks
+            ));
+            $explorePages = $this->buildExploreTeamPages($exploreActs);
+        }
+
+        // 2) Challenge (Role 3) - only if program 3 selected
+        if (in_array(3, $programIds)) {
+            $challengeActs = collect($fetcher->fetchActivities(
+                $planId,
+                [3], true, false, true, true, true
+            ));
+            $challengePages = $this->buildChallengeTeamPages($challengeActs);
+        }
 
         // Event laden (für Layout + QR/Link)
         $event = DB::table('event')
@@ -602,12 +1185,20 @@ class PlanExportController extends Controller
             ->select('event.*')
             ->first();
 
-        // Seiten je Programm
-        $explorePages   = $this->buildExploreTeamPages($exploreActs);
-        $challengePages = $this->buildChallengeTeamPages($challengeActs);
-
         // Explore zuerst, dann Challenge
         $pages = array_merge($explorePages, $challengePages);
+
+        // 🔸 IDs für Match- und Check-Aktivitäten aus der DB holen (für Tischzuordnung)
+        $matchCheckIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', ['r_match', 'r_check'])
+            ->pluck('id')
+            ->toArray();
+        
+        // 🔸 IDs für Check-Aktivitäten (für "Check für " Präfix)
+        $checkIds = DB::table('m_activity_type_detail')
+            ->where('code', 'r_check')
+            ->pluck('id')
+            ->toArray();
 
         // HTML bauen
         $html = '';
@@ -620,31 +1211,138 @@ class PlanExportController extends Controller
                 ['end_time', 'asc'],
             ]);
 
-            $rows = $acts->map(function ($a) {
+            // Get team number for table assignment lookup
+            $teamNumber = $page['team_number'] ?? null;
+
+            // reguläre Aktivitäten sammeln
+            $rows = $acts->map(function ($a) use ($matchCheckIds, $checkIds, $teamNumber) {
+                $roomDisplay = $a->room_name ?? '–';
+                
+                // 🔸 For Challenge match/check activities, append table assignment
+                if ($teamNumber && in_array($a->activity_type_detail_id, $matchCheckIds)) {
+                    $tableName = null;
+                    
+                    // Check which table this team is assigned to
+                    if (!is_null($a->table_1_team) && (int)$a->table_1_team === $teamNumber) {
+                        $tableName = $a->table_1_name;
+                    } elseif (!is_null($a->table_2_team) && (int)$a->table_2_team === $teamNumber) {
+                        $tableName = $a->table_2_name;
+                    }
+                    
+                    // Append table to room if found
+                    if ($tableName) {
+                        // For checks, add "Check für " prefix
+                        $isCheck = in_array($a->activity_type_detail_id, $checkIds);
+                        $tableDisplay = $isCheck ? 'Check für ' . $tableName : $tableName;
+                        
+                        if ($roomDisplay !== '–') {
+                            $roomDisplay .= ' – ' . $tableDisplay;
+                        } else {
+                            $roomDisplay = $tableDisplay;
+                        }
+                    }
+                }
+                
                 return [
                     'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                     'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                     'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
-                    'room'     => $a->room_name ?? '–',
+                    'room'     => $roomDisplay,
+                    'start_date' => \Carbon\Carbon::parse($a->start_time), // Added for day grouping
                 ];
             })->values()->all();
 
-            // In Seitenblöcke teilen
-            $chunks = array_chunk($rows, $maxRowsPerPage);
-            $chunkCount = count($chunks);
+            // 🔹 Raumname aus team_plan → room
+            $teamRoomName = '!Platzhalter, weil das Team noch keinem Raum zugeordnet wurde!';
+            $roomData = null;
 
-            foreach ($chunks as $chunkIndex => $chunkRows) {
+            $teamId = $page['team_id'] ?? null; // muss von deinen build*Pages mitgegeben werden
+            if ($teamId) {
+                $roomId = DB::table('team_plan')
+                    ->where('plan', $planId)
+                    ->where('team', $teamId)
+                    ->value('room');
+
+                if ($roomId) {
+                    $roomData = DB::table('room')
+                        ->where('id', $roomId)
+                        ->select('name', 'navigation_instruction')
+                        ->first();
+
+                    if ($roomData && $roomData->name) {
+                        $teamRoomName = $roomData->name;
+                    }
+                }
+            }
+            
+            // Collect unique rooms with navigation for legend
+            $roomsWithNav = [];
+            
+            // Add team's assigned room if it has navigation
+            if ($roomData && !empty($roomData->name) && !empty($roomData->navigation_instruction)) {
+                $roomsWithNav[$roomData->name] = $roomData->navigation_instruction;
+            }
+            
+            // Add rooms from activities
+            foreach ($acts as $a) {
+                if (!empty($a->room_name) && !empty($a->room_navigation)) {
+                    $roomsWithNav[$a->room_name] = $a->room_navigation;
+                }
+            }
+
+            // ➕ Zusatzzeile "Teambereich"
+            // Use first activity's date if available, otherwise use a default
+            $firstDate = !empty($rows) && isset($rows[0]['start_date']) 
+                ? $rows[0]['start_date'] 
+                : \Carbon\Carbon::now();
+            
+            array_unshift($rows, [
+                'start'    => '',
+                'end'      => '',
+                'activity' => 'Teambereich',
+                'room'     => $teamRoomName,
+                'start_date' => $firstDate,
+            ]);
+            
+            // Check if team has multiple days
+            $uniqueDays = collect($rows)->pluck('start_date')->map(function($date) {
+                return $date->format('Y-m-d');
+            })->unique()->count();
+            
+            $hasMultipleDays = $uniqueDays > 1;
+            
+            if ($hasMultipleDays) {
+                // Multi-day team: don't chunk, let template handle day-based page breaks
                 $html .= view('pdf.content.team_schedule', [
                     'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
-                    'rows'  => $chunkRows,
+                    'rows'  => $rows,
                     'event' => $event,
+                    'roomsWithNav' => $roomsWithNav,
                 ])->render();
+            } else {
+                // Single-day team: use existing chunking logic
+                $chunks = array_chunk($rows, $maxRowsPerPage);
+                $chunkCount = count($chunks);
 
-                // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
-                $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
-                if (!$isLastChunk) {
-                    $html .= '<div style="page-break-before: always;"></div>';
+                foreach ($chunks as $chunkIndex => $chunkRows) {
+                    $html .= view('pdf.content.team_schedule', [
+                        'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
+                        'rows'  => $chunkRows,
+                        'event' => $event,
+                        'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
+                    ])->render();
+
+                    // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
+                    $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
+                    if (!$isLastChunk) {
+                        $html .= '<div style="page-break-before: always;"></div>';
+                    }
                 }
+            }
+            
+            // Page break between teams (but not after the last team)
+            if ($idx !== $lastIndex) {
+                $html .= '<div style="page-break-before: always;"></div>';
             }
         }
 
@@ -664,9 +1362,10 @@ class PlanExportController extends Controller
      */
     private function buildExploreTeamPages(\Illuminate\Support\Collection $acts): array
     {
-        // Teamnummern + Namen sammeln
+        // Teamnummern + Namen + IDs sammeln
         $teamNames = []; // [num => name]
         $teamHot   = []; // [num => team_number_hot]
+        $teamIds   = []; // [num => actual team.id]
         $teamSet   = []; // num als key
 
         foreach ($acts as $a) {
@@ -680,6 +1379,11 @@ class PlanExportController extends Controller
 
                 if (isset($a->jury_team_number_hot)) {
                     $teamHot[$num] = $a->jury_team_number_hot;
+                }
+                
+                // Store actual team ID
+                if (isset($a->jury_team_id)) {
+                    $teamIds[$num] = $a->jury_team_id;
                 }
             }
         }
@@ -708,13 +1412,15 @@ class PlanExportController extends Controller
             } elseif ($teamName) {
                 $label = "FLL Explore {$teamName}";
             } elseif ($num > 0) {
-                $label = sprintf("FLL Explore T%02d", $num);
+                $label = sprintf("FLL Explore T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $num);
             } else {
                 $label = "FLL Explore –";
             }
 
             $pages[] = [
                 'label' => $label,
+                'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
+                'team_number' => $num, // Plan team number for table assignment lookup
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -731,6 +1437,7 @@ class PlanExportController extends Controller
     {
         $teamNames = []; // [num => name]
         $teamHot   = []; // [num => team_number_hot]
+        $teamIds   = []; // [num => actual team.id]
         $teamSet   = [];
 
         foreach ($acts as $a) {
@@ -744,6 +1451,9 @@ class PlanExportController extends Controller
                 if (isset($a->jury_team_number_hot)) {
                     $teamHot[$n] = $a->jury_team_number_hot;
                 }
+                if (isset($a->jury_team_id) && !isset($teamIds[$n])) {
+                    $teamIds[$n] = $a->jury_team_id;
+                }
             }
 
             // Table 1
@@ -756,6 +1466,9 @@ class PlanExportController extends Controller
                 if (isset($a->table_1_team_number_hot)) {
                     $teamHot[$n] = $a->table_1_team_number_hot;
                 }
+                if (isset($a->table_1_team_id) && !isset($teamIds[$n])) {
+                    $teamIds[$n] = $a->table_1_team_id;
+                }
             }
 
             // Table 2
@@ -767,6 +1480,9 @@ class PlanExportController extends Controller
                 }
                 if (isset($a->table_2_team_number_hot)) {
                     $teamHot[$n] = $a->table_2_team_number_hot;
+                }
+                if (isset($a->table_2_team_id) && !isset($teamIds[$n])) {
+                    $teamIds[$n] = $a->table_2_team_id;
                 }
             }
         }
@@ -812,13 +1528,15 @@ class PlanExportController extends Controller
             } elseif ($teamName) {
                 $label = "FLL Challenge {$teamName}";
             } elseif ($num > 0) {
-                $label = sprintf("FLL Challenge T%02d", $num);
+                $label = sprintf("FLL Challenge T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $num);
             } else {
                 $label = "FLL Challenge –";
             }
 
             $pages[] = [
                 'label' => $label,
+                'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
+                'team_number' => $num, // Plan team number for table assignment lookup
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -829,21 +1547,36 @@ class PlanExportController extends Controller
 
 
 
-    public function roleSchedulePdf(int $planId, $maxRowsPerPage = 10)
+    public function roleSchedulePdf(int $planId, array $roleIds = [], $maxRowsPerPage = 10)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
 
-        // === 1️⃣ EXPLORE Jury (Role 9) ===
-        $exploreActs = $fetcher->fetchActivities($planId, [9], true, false, true, true, true);
+        // If no role IDs provided, use default set (backward compatibility)
+        if (empty($roleIds)) {
+            $roleIds = [9, 4, 5, 11]; // EXPLORE Jury, CHALLENGE Jury, Referees, Robot Check
+        }
 
-        // === 2️⃣ CHALLENGE Jury (Role 4) ===
-        $challengeJuryActs = $fetcher->fetchActivities($planId, [4], true, false, true, true, true);
+        // Fetch activities for all selected roles and tag them with their role_id
+        $allActivities = collect();
+        foreach ($roleIds as $roleId) {
+            $acts = $fetcher->fetchActivities($planId, [$roleId], true, false, true, true, true);
+            if ($acts->isNotEmpty()) {
+                // Add role_id to each activity for filtering
+                $acts = $acts->map(function($activity) use ($roleId) {
+                    $activity->role_id = $roleId;
+                    return $activity;
+                });
+                $allActivities = $allActivities->merge($acts);
+            }
+        }
 
-        // === 3️⃣ CHALLENGE Robot Game – Referees (Role 5) ===
-        $challengeRefActs = $fetcher->fetchActivities($planId, [5], true, false, true, true, true);
-
-        // === 4️⃣ CHALLENGE Robot Check (Role 11) ===
-        $challengeCheckActs = $fetcher->fetchActivities($planId, [11], true, false, true, true, true);
+        // Group activities by role for backward compatibility with existing logic
+        // The rest of the method expects specific variables like $exploreActs, etc.
+        $exploreActs = $allActivities->filter(fn($a) => $a->role_id == 9);
+        $challengeJuryActs = $allActivities->filter(fn($a) => $a->role_id == 4);
+        $challengeRefActs = $allActivities->filter(fn($a) => $a->role_id == 5);
+        $challengeCheckActs = $allActivities->filter(fn($a) => $a->role_id == 11);
+        $liveChallengeActs = $allActivities->filter(fn($a) => $a->role_id == 16);
 
         // === Event laden ===
         $event = DB::table('event')
@@ -937,13 +1670,15 @@ class PlanExportController extends Controller
         $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
         $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table', 'FLL Challenge Schiedsrichter:innen ');
         $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table', 'FLL Challenge Robot-Check für ');
+        $liveChallengeGrouped = $distributeGeneric($liveChallengeActs, 'lane', 'Live-Challenge Jury-Gruppe');
 
         // === Zusammenführen, sortiert nach Program-Logik ===
         $sections = collect()
             ->merge($exploreGrouped->sortKeys())
             ->merge($challengeJuryGrouped->sortKeys())
             ->merge($challengeRefGrouped->sortKeys())
-           ->merge($challengeCheckGrouped->sortKeys());
+           ->merge($challengeCheckGrouped->sortKeys())
+           ->merge($liveChallengeGrouped->sortKeys());
 
         // === Rendern aller Abschnitte ===
         $html = '';
@@ -956,6 +1691,14 @@ class PlanExportController extends Controller
                 ['end_time', 'asc'],
             ]);
 
+            // Collect unique rooms with navigation for legend
+            $roomsWithNav = [];
+            foreach ($acts as $a) {
+                if (!empty($a->room_name) && !empty($a->room_navigation)) {
+                    $roomsWithNav[$a->room_name] = $a->room_navigation;
+                }
+            }
+            
             $rows = $acts->map(fn($a) => [
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
@@ -970,7 +1713,7 @@ class PlanExportController extends Controller
                     };
                     $fmtInternal = function ($num) {
                         if ($num !== null && $num !== '' && (int)$num > 0) {
-                            return sprintf('T%02d', (int)$num);
+                            return sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', (int)$num);
                         }
                         return null;
                     };
@@ -994,6 +1737,8 @@ class PlanExportController extends Controller
                     return '–';
                 })(),
                 'room'     => $a->room_name ?? '–',
+                // Add date information for day grouping
+                'start_date' => \Carbon\Carbon::parse($a->start_time),
             ])->values()->all();
 
             // Teile das Array in Seitenblöcke
@@ -1005,6 +1750,7 @@ class PlanExportController extends Controller
                     'title' => $key,
                     'rows'  => $chunkRows,
                     'event' => $event,
+                    'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
                 ])->render();
 
                 // Seitenumbruch nach jedem Chunk außer dem letzten
@@ -1121,5 +1867,505 @@ class PlanExportController extends Controller
         return response()->json($result);
     }
 
+    /**
+     * Get event overview data for both PDF and HTML rendering
+     */
+    public function getEventOverviewData(int $planId, array $roles = [6, 10, 14], bool $isPdf = true): array
+    {
+        // Get activities using specified roles
+        $activities = $this->activityFetcher->fetchActivities(
+            plan: $planId,
+            roles: $roles,
+            includeGroupMeta: true,
+            freeBlocks: true
+        );
+
+        if ($activities->isEmpty()) {
+            throw new \Exception('No activities found for this plan');
+        }
+
+        // Group activities by activity_group_id to ensure each group appears as separate block
+        $groupedActivities = $activities->groupBy('activity_group_id');
+        
+        $eventOverview = [];
+
+        foreach ($groupedActivities as $groupId => $groupActivities) {
+            $startTimes = $groupActivities->pluck('start_time')->map(function($time) {
+                return Carbon::parse($time);
+            });
+            $endTimes = $groupActivities->pluck('end_time')->map(function($time) {
+                return Carbon::parse($time);
+            });
+
+            $earliestStart = $startTimes->min();
+            $latestEnd = $endTimes->max();
+
+            // Get group metadata from first activity
+            $firstActivity = $groupActivities->first();
+            
+            $eventOverview[] = [
+                'group_id' => $groupId,
+                'group_name' => $firstActivity->group_atd_name ?? 'Unknown Group',
+                'group_description' => $firstActivity->group_description ?? '',
+                'group_first_program_id' => $firstActivity->group_first_program_id ?? null,
+                'group_overview_plan_column' => $firstActivity->group_overview_plan_column ?? null,
+                'earliest_start' => $earliestStart,
+                'latest_end' => $latestEnd,
+                'duration_minutes' => $earliestStart->diffInMinutes($latestEnd),
+                'activity_count' => $groupActivities->count()
+            ];
+        }
+
+        // Sort by earliest start time
+        usort($eventOverview, function($a, $b) {
+            return $a['earliest_start']->timestamp - $b['earliest_start']->timestamp;
+        });
+
+        // Manual assignment of free blocks to program-specific Allgemein columns
+        foreach ($eventOverview as &$event) {
+            if (($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null) && $event['group_first_program_id'] !== null) {
+                // This is a free block - assign to program-specific Allgemein column
+                if ($event['group_first_program_id'] == 2) {
+                    $event['group_overview_plan_column'] = 'Allgemein-2'; // Explore
+                } elseif ($event['group_first_program_id'] == 3) {
+                    $event['group_overview_plan_column'] = 'Allgemein-3'; // Challenge
+                }
+            }
+        }
+        unset($event); // Clear the reference
+
+        // Pre-assign activities to their correct columns
+        foreach ($eventOverview as &$event) {
+            $event['assigned_column'] = $event['group_overview_plan_column'] ?? 'Allgemein';
+            
+            // Handle empty strings as well as null
+            if (empty($event['assigned_column'])) {
+                $event['assigned_column'] = 'Allgemein';
+            }
+            
+            // For Allgemein columns, include first_program to make them unique
+            if ($event['assigned_column'] === 'Allgemein') {
+                $program = $event['group_first_program_id'];
+                if ($program === null) {
+                    $event['assigned_column'] = 'Allgemein';
+                } else {
+                    $event['assigned_column'] = 'Allgemein-' . $program;
+                }
+            }
+        }
+        unset($event); // Clear the reference
+
+        // Get unique assigned columns for sorting
+        $columnNames = collect($eventOverview)
+            ->pluck('assigned_column')
+            ->unique()
+            ->sortBy(function($columnName) {
+                // Custom sorting to ensure specific column order
+                $customOrder = [
+                    'Allgemein' => 0,
+                    'Allgemein-2' => 1,
+                    'Explore' => 2,
+                    'Allgemein-3' => 3,
+                    'Challenge' => 4,
+                    'Robot-Game' => 5,
+                    'Live-Challenge' => 6
+                ];
+                
+                return $customOrder[$columnName] ?? 999;
+            })
+            ->values()
+            ->toArray();
+
+        // Group by day for display
+        $eventsByDay = [];
+        foreach ($eventOverview as $event) {
+            $dayKey = $event['earliest_start']->format('Y-m-d');
+            if (!isset($eventsByDay[$dayKey])) {
+                $eventsByDay[$dayKey] = [
+                    'date' => $event['earliest_start'],
+                    'events' => []
+                ];
+            }
+            $eventsByDay[$dayKey]['events'][] = $event;
+        }
+
+        if ($isPdf) {
+            // PDF: Calculate global time range for all days (consistent rows)
+            $globalEarliestHour = null;
+            $globalLatestHour = null;
+
+            // First pass: calculate global time range
+            foreach($eventsByDay as $dayKey => $dayData) {
+                $allEvents = collect($dayData['events']);
+                $earliestStart = $allEvents->min('earliest_start');
+                $latestEnd = $allEvents->max('latest_end');
+                
+                // Find earliest and latest hours for this day
+                $dayEarliestHour = $earliestStart->hour;
+                $dayLatestHour = $latestEnd->hour;
+                // Round up to the next 10-minute slot instead of the next hour
+                $latestMinutes = $latestEnd->minute;
+                if ($latestMinutes > 0) {
+                    // Round up to next 10-minute boundary
+                    $roundedMinutes = ceil($latestMinutes / 10) * 10;
+                    if ($roundedMinutes >= 60) {
+                        $dayLatestHour++;
+                        $roundedMinutes = 0;
+                    }
+                }
+                
+                // Update global min/max hours
+                if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
+                    $globalEarliestHour = $dayEarliestHour;
+                }
+                if ($globalLatestHour === null || $dayLatestHour > $globalLatestHour) {
+                    $globalLatestHour = $dayLatestHour;
+                }
+            }
+
+            // Create 10-minute grid from global earliest hour to actual latest end time
+            $startTime = \Carbon\Carbon::createFromTime($globalEarliestHour, 0, 0);
+            
+            // Find the actual latest end time across all days
+            $actualLatestEnd = null;
+            foreach($eventsByDay as $dayData) {
+                $allEvents = collect($dayData['events']);
+                $latestEnd = $allEvents->max('latest_end');
+                if ($actualLatestEnd === null || $latestEnd->gt($actualLatestEnd)) {
+                    $actualLatestEnd = $latestEnd;
+                }
+            }
+            
+            // Round up to x:50 to show complete last hour (6 rows)
+            // Always stay in the same hour, never move to next hour
+            $endMinutes = $actualLatestEnd->minute;
+            $endHour = $actualLatestEnd->hour;
+            $roundedMinutes = 50; // Always end at x:50 to show complete current hour
+            $endTime = \Carbon\Carbon::createFromTime($endHour, $roundedMinutes, 0);
+
+            // Generate all 10-minute slots
+            $timeSlots = [];
+            $current = $startTime->copy();
+            while ($current->lte($endTime)) {
+                $timeSlots[] = $current->copy();
+                $current->addMinutes(10);
+            }
+            
+            // Add timeSlots to each day for PDF
+            foreach($eventsByDay as $dayKey => &$dayData) {
+                $dayData['timeSlots'] = $timeSlots;
+            }
+        } else {
+            // Preview: Calculate per-day time ranges (compact, space-saving)
+            $globalEarliestHour = null;
+            $globalLatestHour = null;
+
+            foreach($eventsByDay as $dayKey => &$dayData) {
+                $allEvents = collect($dayData['events']);
+                $earliestStart = $allEvents->min('earliest_start');
+                $latestEnd = $allEvents->max('latest_end');
+                
+                // Find earliest and latest hours for this day
+                $dayEarliestHour = $earliestStart->hour;
+                $dayLatestHour = $latestEnd->hour;
+                // Round up to the next 10-minute slot instead of the next hour
+                $latestMinutes = $latestEnd->minute;
+                if ($latestMinutes > 0) {
+                    // Round up to next 10-minute boundary
+                    $roundedMinutes = ceil($latestMinutes / 10) * 10;
+                    if ($roundedMinutes >= 60) {
+                        $dayLatestHour++;
+                        $roundedMinutes = 0;
+                    }
+                }
+                
+                // Update global min/max for return values
+                if ($globalEarliestHour === null || $dayEarliestHour < $globalEarliestHour) {
+                    $globalEarliestHour = $dayEarliestHour;
+                }
+                if ($globalLatestHour === null || $dayLatestHour > $globalLatestHour) {
+                    $globalLatestHour = $dayLatestHour;
+                }
+
+                // Generate 10-minute slots for this day only
+                $dayStartTime = \Carbon\Carbon::createFromTime($dayEarliestHour, 0, 0);
+                
+                // Round up to x:50 to show complete last hour (6 rows)
+                // Always stay in the same hour, never move to next hour
+                $latestMinutes = $latestEnd->minute;
+                $latestHour = $latestEnd->hour;
+                $roundedMinutes = 50; // Always end at x:50 to show complete current hour
+                $dayEndTime = \Carbon\Carbon::createFromTime($latestHour, $roundedMinutes, 0);
+                
+                $dayTimeSlots = [];
+                $current = $dayStartTime->copy();
+                while ($current->lte($dayEndTime)) {
+                    $dayTimeSlots[] = $current->copy();
+                    $current->addMinutes(10);
+                }
+                
+                // Add per-day timeSlots
+                $dayData['timeSlots'] = $dayTimeSlots;
+            }
+            
+            // For preview, we don't need a global timeSlots array
+            $timeSlots = [];
+        }
+
+        // Check if this is a multi-day event
+        $isMultiDay = count($eventsByDay) > 1;
+
+        return [
+            'eventsByDay' => $eventsByDay,
+            'columnNames' => $columnNames,
+            'isMultiDay' => $isMultiDay,
+            'timeSlots' => $timeSlots,
+            'globalEarliestHour' => $globalEarliestHour,
+            'globalLatestHour' => $globalLatestHour,
+            'startTime' => $isPdf ? $startTime : null,
+            'endTime' => $isPdf ? $endTime : null
+        ];
+    }
+
+
+    /**
+     * Generate event overview PDF - chronological list of activity groups
+     */
+    public function eventOverviewPdf(int $planId)
+    {
+        try {
+            // Get event overview data using shared method
+            $data = $this->getEventOverviewData($planId);
+            $eventsByDay = $data['eventsByDay'];
+            $columnNames = $data['columnNames'];
+
+            // Get event data for header
+            $event = DB::table('event')
+                ->join('plan', 'plan.event', '=', 'event.id')
+                ->where('plan.id', $planId)
+                ->select('event.*')
+                ->first();
+
+            if (!$event) {
+                return response()->json(['error' => 'Event not found'], 404);
+            }
+
+            // Generate content HTML using the event-overview template
+            $contentHtml = view('pdf.event-overview', [
+                'eventsByDay' => $eventsByDay,
+                'columnNames' => $columnNames,
+                'planId' => $planId
+            ])->render();
+
+            // Use portrait layout specifically for overview PDF
+            $header = $this->buildHeaderData($event);
+            $footerLogos = $this->buildFooterLogos($event->id);
+            
+            $finalHtml = view('pdf.layout_portrait', [
+                'title' => 'FLOW Übersichtsplan',
+                'header' => $header,
+                'footerLogos' => $footerLogos,
+                'contentHtml' => $contentHtml,
+            ])->render();
+
+            // Generate PDF in portrait orientation
+            $pdf = Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'portrait');
+
+            // Get plan info for filename
+            $plan = DB::table('plan')
+                ->where('id', $planId)
+                ->select('last_change')
+                ->first();
+
+            // Format date for filename
+            $formattedDate = $plan && $plan->last_change
+                ? \Carbon\Carbon::parse($plan->last_change)
+                    ->timezone('Europe/Berlin')
+                    ->format('d.m.y')
+                : now()->format('d.m.y');
+
+            $filename = "FLOW_Übersichtsplan_({$formattedDate}).pdf";
+
+            // Umlaute transliterieren
+            $filename = str_replace(
+                ['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'],
+                ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'],
+                $filename
+            );
+
+            // Return PDF with proper headers for filename
+            return response($pdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('X-Filename', $filename)
+                ->header('Access-Control-Expose-Headers', 'X-Filename');
+
+        } catch (\Exception $e) {
+            Log::error('Event overview PDF generation failed', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'PDF generation failed'], 500);
+        }
+    }
+
+    /**
+     * Build header data for PDF (copied from PdfLayoutService)
+     */
+    private function buildHeaderData(object $event): array
+    {
+        $formattedDate = '';
+        if (!empty($event->date)) {
+            try {
+                $startDate = Carbon::parse($event->date);
+                
+                // Check if this is a multi-day event
+                if (!empty($event->days) && $event->days > 1) {
+                    // Multi-day event: show date range
+                    $endDate = $startDate->copy()->addDays($event->days - 1);
+                    $formattedDate = $startDate->format('d.m') . '-' . $endDate->format('d.m.Y');
+                } else {
+                    // Single-day event: show just the date
+                    $formattedDate = $startDate->format('d.m.Y');
+                }
+            } catch (\Throwable $e) {
+                $formattedDate = (string) $event->date;
+            }
+        }
+
+        $leftLogos = [];
+        if (!empty($event->event_explore)) {
+            $leftLogos[] = $this->toDataUri(public_path('flow/fll_explore_hs.png'));
+        }
+        if (!empty($event->event_challenge)) {
+            $leftLogos[] = $this->toDataUri(public_path('flow/fll_challenge_hs.png'));
+        }
+        $leftLogos = array_values(array_filter($leftLogos));
+
+        $rightLogo = $this->toDataUri(public_path('flow/hot.png'));
+
+        return [
+            'leftLogos'       => $leftLogos,
+            'centerTitleTop'  => 'FIRST LEGO League Wettbewerb',
+            'centerTitleMain' => trim(($event->name ?? '') . ' ' . $formattedDate),
+            'rightLogo'       => $rightLogo,
+        ];
+    }
+
+    /**
+     * Build footer logos for PDF (copied from PdfLayoutService)
+     */
+    private function buildFooterLogos(int $eventId): array
+    {
+        $logos = DB::table('logo')
+            ->join('event_logo', 'logo.id', '=', 'event_logo.logo')
+            ->where('event_logo.event', $eventId)
+            ->select('logo.path')
+            ->get();
+
+        $dataUris = [];
+        foreach ($logos as $logo) {
+            $path = storage_path('app/public/' . $logo->path);
+            $uri  = $this->toDataUri($path);
+            if ($uri) {
+                $dataUris[] = $uri;
+            }
+        }
+
+        return $dataUris;
+    }
+
+    /**
+     * Convert file to data URI (copied from PdfLayoutService)
+     */
+    private function toDataUri(string $path): ?string
+    {
+        if (!is_file($path)) {
+            return null;
+        }
+        $mime = mime_content_type($path) ?: 'image/png';
+        $data = @file_get_contents($path);
+        if ($data === false) {
+            return null;
+        }
+        return 'data:' . $mime . ';base64,' . base64_encode($data);
+    }
+
+    /**
+     * Get worker shifts for roles with differentiation_parameter
+     */
+    public function workerShifts(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        // Get roles with differentiation_parameter 'lane' or 'table'
+        $roles = DB::table('m_role')
+            ->whereIn('differentiation_parameter', ['lane', 'table'])
+            ->select('id', 'name', 'differentiation_parameter')
+            ->get();
+
+        $shifts = [];
+
+        foreach ($roles as $role) {
+            // Fetch activities for this role
+            $activities = collect($this->activityFetcher->fetchActivities(
+                $plan->id,
+                [$role->id],
+                true,  // includeRooms
+                false, // includeGroupMeta
+                true,  // includeActivityMeta
+                true,  // includeTeamNames
+                true   // freeBlocks
+            ));
+
+            if ($activities->isEmpty()) {
+                continue;
+            }
+
+            // Group activities by day
+            $activitiesByDay = [];
+            foreach ($activities as $activity) {
+                $dayKey = \Carbon\Carbon::parse($activity->start_time)->format('Y-m-d');
+                if (!isset($activitiesByDay[$dayKey])) {
+                    $activitiesByDay[$dayKey] = [];
+                }
+                $activitiesByDay[$dayKey][] = $activity;
+            }
+
+            // Calculate shifts for each day
+            $roleShifts = [];
+            foreach ($activitiesByDay as $dayKey => $dayActivities) {
+                $startTimes = collect($dayActivities)->pluck('start_time')->map(function($time) {
+                    return \Carbon\Carbon::parse($time);
+                });
+                $endTimes = collect($dayActivities)->pluck('end_time')->map(function($time) {
+                    return \Carbon\Carbon::parse($time);
+                });
+
+                $earliestStart = $startTimes->min();
+                $latestEnd = $endTimes->max();
+
+                $roleShifts[] = [
+                    'day' => $dayKey,
+                    'start' => $earliestStart->format('H:i'),
+                    'end' => $latestEnd->format('H:i')
+                ];
+            }
+
+            $shifts[] = [
+                'role_name' => $role->name,
+                'shifts' => $roleShifts
+            ];
+        }
+
+        return response()->json(['shifts' => $shifts]);
+    }
 
 }

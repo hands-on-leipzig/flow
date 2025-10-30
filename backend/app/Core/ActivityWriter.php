@@ -1,16 +1,23 @@
 <?php
 
 namespace App\Core;
-use App\Core\TimeCursor;
 
-use Illuminate\Support\Facades\DB;
+use App\Models\Activity;
+use App\Models\ActivityGroup;
+use App\Models\MActivityTypeDetail;
+use App\Models\MRoomType;
+use App\Models\ExtraBlock;
+use App\Models\MInsertPoint;
+use App\Enums\FirstProgram;
+
+use App\Core\TimeCursor;
 use Illuminate\Support\Facades\Log;
-use DateTime;
+use Illuminate\Support\Facades\DB;
 
 class ActivityWriter
 {
     private int $planId;
-    private ?int $currentGroupId = null;
+    private ?ActivityGroup $currentGroup = null;
 
     /** @var array<string,int> */
     private array $activityTypeDetailMap = [];
@@ -22,37 +29,34 @@ class ActivityWriter
     {
         $this->planId = $planId;
 
-        // ActivityTypeDetail: code → id
-        $this->activityTypeDetailMap = DB::table('m_activity_type_detail')
+        $this->activityTypeDetailMap = MActivityTypeDetail::all()
             ->pluck('id', 'code')
-            ->mapWithKeys(fn($id, $code) => [strtolower($code) => (int)$id])
+            ->mapWithKeys(fn($id, $code) => [strtolower($code) => (int) $id])
             ->toArray();
 
-        // RoomType: code → id
-        $this->roomTypeMap = DB::table('m_room_type')
+        $this->roomTypeMap = MRoomType::all()
             ->pluck('id', 'code')
-            ->mapWithKeys(fn($id, $code) => [strtolower($code) => (int)$id])
+            ->mapWithKeys(fn($id, $code) => [strtolower($code) => (int) $id])
             ->toArray();
     }
 
+
     public function insertActivityGroup(string $activityTypeDetailCode): int
-    {      
+    {
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeDetailCode);
 
         if (!$activityTypeDetailId) {
             throw new \RuntimeException("Unknown activity_type_detail code: {$activityTypeDetailCode}");
         }
 
-        $id = DB::table('activity_group')->insertGetId([
+        $group = ActivityGroup::create([
             'plan' => $this->planId,
             'activity_type_detail' => $activityTypeDetailId,
         ]);
 
-        $this->currentGroupId = $id;
-        return $id;
+        $this->currentGroup = $group;
+        return $group->id;
     }
-
-    
 
     public function insertActivity(
         string $activityTypeCode,
@@ -60,28 +64,24 @@ class ActivityWriter
         int $duration,
         ?int $juryLane = null, ?int $juryTeam = null,
         ?int $table1 = null, ?int $table1Team = null,
-        ?int $table2 = null, ?int $table2Team = null
+        ?int $table2 = null, ?int $table2Team = null,
+        ?int $extraBlockId = null
     ): int {
+        if (!$this->currentGroup) {
+            throw new \RuntimeException("No activity group set before inserting activity: {$activityTypeCode}");
+        }
 
-        if ($this->currentGroupId === null) {
-          throw new \RuntimeException("No activity group set before inserting activity: {$activityTypeCode}");
-        }         
-
-        // Start/End aus TimeCursor ableiten
         $start = $time->current()->format('Y-m-d H:i:s');
 
         $endCursor = $time->copy();
         $endCursor->addMinutes($duration);
         $end = $endCursor->current()->format('Y-m-d H:i:s');
 
-        // activity_type_detail-ID anhand des Codes holen (aus Cache, nicht jedes Mal aus DB)
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeCode);
+        $roomType = $this->resolveRoomType($activityTypeDetailId, $juryLane);
 
-        // RoomType ermitteln (auch via Codes)
-        $roomType = $this->resolveRoomType($activityTypeCode, $juryLane);
-
-        return DB::table('activity')->insertGetId([
-            'activity_group'       => $this->currentGroupId,
+        $activity = Activity::create([
+            'activity_group'       => $this->currentGroup->id,
             'activity_type_detail' => $activityTypeDetailId,
             'start'                => $start,
             'end'                  => $end,
@@ -92,38 +92,95 @@ class ActivityWriter
             'table_1_team'         => $table1Team,
             'table_2'              => $table2,
             'table_2_team'         => $table2Team,
+            'extra_block'          => $extraBlockId,
         ]);
+
+        return $activity->id;
+    }
+
+    /**
+     * Bulk insert multiple activities at once.
+     * More efficient than calling insertActivity() in a loop.
+     *
+     * @param array<array{
+     *   activityTypeCode: string,
+     *   start: string,
+     *   end: string,
+     *   juryLane?: ?int,
+     *   juryTeam?: ?int,
+     *   table1?: ?int,
+     *   table1Team?: ?int,
+     *   table2?: ?int,
+     *   table2Team?: ?int,
+     *   extraBlockId?: ?int
+     * }> $activities Array of activity data
+     * @return void
+     */
+    public function insertActivitiesBulk(array $activities): void
+    {
+        if (!$this->currentGroup) {
+            throw new \RuntimeException("No activity group set before bulk inserting activities");
+        }
+
+        if (empty($activities)) {
+            return;
+        }
+
+        $data = [];
+        foreach ($activities as $act) {
+            $activityTypeDetailId = $this->activityTypeDetailIdFromCode($act['activityTypeCode']);
+            $roomType = $this->resolveRoomType($activityTypeDetailId, $act['juryLane'] ?? null);
+
+            $data[] = [
+                'activity_group'       => $this->currentGroup->id,
+                'activity_type_detail' => $activityTypeDetailId,
+                'start'                => $act['start'],
+                'end'                  => $act['end'],
+                'room_type'            => $roomType,
+                'jury_lane'            => $act['juryLane'] ?? null,
+                'jury_team'            => $act['juryTeam'] ?? null,
+                'table_1'              => $act['table1'] ?? null,
+                'table_1_team'         => $act['table1Team'] ?? null,
+                'table_2'              => $act['table2'] ?? null,
+                'table_2_team'         => $act['table2Team'] ?? null,
+                'extra_block'          => $act['extraBlockId'] ?? null,
+            ];
+        }
+
+        Activity::insert($data);
+    }
+
+    public function withGroup(string $activityTypeDetailCode, \Closure $callback): void
+    {
+        $this->insertActivityGroup($activityTypeDetailCode);
+        $callback();
+        $this->currentGroup = null;
     }
 
     private function activityTypeDetailIdFromCode(string $code): ?int
     {
         static $cache = [];
 
-        if (!isset($cache[$code])) {
-            $cache[$code] = DB::table('m_activity_type_detail')
-                ->where('code', $code)
-                ->value('id');
+        $key = strtolower($code);
+        if (!isset($cache[$key])) {
+            $cache[$key] = $this->activityTypeDetailMap[$key] ?? null;
         }
 
-        // log::debug("Resolved activity_type_detail code '{$code}' to ID: " . ($cache[$code] ?? 'null'));
-
-        return $cache[$code];
+        return $cache[$key];
     }
 
     private function resolveRoomType(int $activityTypeDetailId, ?int $juryLane): ?int
     {
-        // Code des ActivityTypeDetails holen
         $code = array_search($activityTypeDetailId, $this->activityTypeDetailMap, true);
         if (!$code) {
             return null;
         }
 
-        // normalize
         $code = strtolower($code);
 
-        if ($juryLane > 0) {
-            if (in_array($code, ['c_with_team', 'c_scoring'])) {
-                return $this->roomTypeMap['c_lane_' . $juryLane] ?? null;
+        if ($juryLane !== null && $juryLane > 0) {
+            if (in_array($code, ['j_with_team', 'j_scoring'])) {
+                return $this->roomTypeMap['j_lane_' . $juryLane] ?? null;
             }
             if (in_array($code, ['e_with_team', 'e_scoring'])) {
                 return $this->roomTypeMap['e_lane_' . $juryLane] ?? null;
@@ -133,133 +190,75 @@ class ActivityWriter
             }
         }
 
-        // Standard-Mapping
         $map = [
-            'c_awards'         => 'c_awards',
-            'c_briefing'       => 'c_briefing',
-            'c_lunch'          => 'c_lunch',
-            'c_opening'        => 'c_opening',
-            'c_opening_day_1'  => 'c_opening_day_1',
-            'c_preparations'   => 'c_preparations',
-
-            'e_awards'         => 'e_awards',
-            'e_briefing_coach' => 'e_briefing_coach',
-            'e_briefing_judge' => 'e_briefing_judge',
-            'e_deliberations'  => 'e_deliberations',
-            'e_opening'        => 'e_opening',
-
-            'g_awards'         => 'g_awards',
-            'g_opening'        => 'g_opening',
-
-            'j_briefing'       => 'j_briefing',
-            'j_briefing_day_1' => 'j_briefing_day_1',
-            'j_deliberations'  => 'j_deliberations',
-
-            'lc_briefing'      => 'lc_briefing',
-            'lc_deliberations' => 'lc_deliberations',
-
+            // Exceptional cases where code != room type
             'r_briefing'       => 'r_match',
-            'r_check'          => 'r_check',
             'r_debriefing'     => 'r_match',
-            'r_match'          => 'r_match',
+            'g_party_teams'    => 'g_party_teams',
+            'g_party_volunteers' => 'g_party_volunteers',
         ];
 
-        if (isset($map[$code])) {
-            return $this->roomTypeMap[$map[$code]] ?? null;
-        }
-
-        return null;
+        // Default 1:1 mapping - use the code directly if not in exceptions
+        $roomTypeCode = $map[$code] ?? $code;
+        
+        return $this->roomTypeMap[$roomTypeCode] ?? null;
     }
+
 
 
     public function insertPoint(string $insertPointCode, int $duration, TimeCursor $time): void
     {
-        // Extra-Block für den Insert Point suchen
-        $row = DB::table('extra_block')
-            ->select('id', 'buffer_before', 'duration', 'buffer_after')
-            ->where('plan', $this->planId)
-            ->where('insert_point', DB::table('m_insert_point')->where('code', $insertPointCode)->value('id'))
-            ->where('active', 1) 
+        // Query insert point by code from database
+        $insertPoint = MInsertPoint::where('code', $insertPointCode)->first();
+        
+        if (!$insertPoint) {
+            throw new \RuntimeException("Insert point code '{$insertPointCode}' not found in database.");
+        }
+
+        // Get event level to check if insert point is applicable
+        $eventLevel = (int) DB::table('plan')
+            ->join('event', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $this->planId)
+            ->value('event.level');
+
+        // Only process insert point if event level >= insert point level
+        if ($eventLevel < $insertPoint->level) {
+            // Insert point not applicable for this event level, just advance time
+            $time->addMinutes($duration);
+            return;
+        }
+
+        // passenden ExtraBlock suchen
+        $extraBlock = ExtraBlock::where('plan', $this->planId)
+            ->where('insert_point', $insertPoint->id)
+            ->where('active', true)
             ->first();
 
-        if ($row) {
-            // Neue ActivityGroup für den Block anlegen
-            $groupId = $this->insertActivityGroup('c_inserted'); // nur Challenge verfügbar
+        if ($extraBlock) {
+            // Determine activity type code based on first_program
+            $activityCode = match ($insertPoint->first_program) {
+                FirstProgram::EXPLORE->value => 'e_inserted_block',
+                FirstProgram::CHALLENGE->value => 'c_inserted_block',
+                FirstProgram::JOINT->value => 'g_inserted_block',
+                default => 'g_inserted_block',  // Fallback for unknown
+            };
 
-            // Raumtyp direkt aus m_insert_point ermitteln
-            $roomType = DB::table('m_insert_point')
-                ->where('id', $row->id)
-                ->value('room_type');
+            $this->withGroup($activityCode, function () use ($extraBlock, $activityCode, $time) {
+                $time->addMinutes((int) $extraBlock->buffer_before);
+                $this->insertActivity(
+                    $activityCode, 
+                    $time, 
+                    (int) $extraBlock->duration,
+                    null, null, null, null, null, null,
+                    $extraBlock->id  // Pass extra_block ID
+                );
+                $time->addMinutes((int) $extraBlock->duration + (int) $extraBlock->buffer_after);
+            });
 
-            // Buffer vor Block berücksichtigen
-            $time->addMinutes((int) $row->buffer_before);
-
-            $timeStart = $time->current();
-            $timeEnd   = (clone $timeStart)->modify('+' . (int) $row->duration . ' minutes');
-
-            DB::table('activity')->insertGetId([
-                'activity_group'        => $groupId,
-                'activity_type_detail'  => $this->activityTypeDetailIdFromCode('c_inserted'),
-                'start'                 => $timeStart->format('Y-m-d H:i:s'),
-                'end'                   => $timeEnd->format('Y-m-d H:i:s'),
-                'extra_block'           => (int) $row->id,
-                'room_type'             => $roomType,
-            ]);
-
-            // Zeitcursor weiterbewegen (Blockdauer + Buffer danach)
-            $time->addMinutes((int) $row->duration + (int) $row->buffer_after);
+            // Log::debug("Block inserted at '{$insertPointCode}' using activity type '{$activityCode}'.");
         } else {
-            // Kein Extra-Block definiert → normale Verschiebung
             $time->addMinutes($duration);
-        }
+        }    
     }
-
-    public function insertFreeActivities(): void
-    {
-        // Alle Extra-Blöcke mit festen Zeiten für diesen Plan laden
-        $rows = DB::table('extra_block')
-            ->select('id', 'first_program', 'start', 'end')
-            ->where('plan', $this->planId)
-            ->where('active', 1) 
-            ->whereNotNull('start')
-            ->get();
-
-        foreach ($rows as $row) {
-            // activity_type_detail anhand von first_program bestimmen
-            switch ((int) $row->first_program) {
-                case 3: // CHALLENGE
-                    $code = 'c_free_block';
-                    break;
-                case 2: // EXPLORE
-                    $code = 'e_free_block';
-                    break;
-                default: // gemeinsam
-                    $code = 'g_free_block';
-                    break;
-            }
-
-            // Neue Activity Group anlegen
-            $gid = $this->insertActivityGroup($code);
-
-            // Activity mit festen Start-/Endzeiten eintragen
-            DB::table('activity')->insert([
-                'activity_group'        => $gid,
-                'activity_type_detail'  => $this->activityTypeDetailIdFromCode($code),
-                'start'                 => $row->start,
-                'end'                   => $row->end,
-                'extra_block'           => (int) $row->id,
-            ]);
-        }
-    }
-
-
-
-
-
-
-
-
-
-
 
 }

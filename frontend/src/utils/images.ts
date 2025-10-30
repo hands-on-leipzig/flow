@@ -5,7 +5,7 @@ export function imageUrl(path: string) {
   const cleanPath = path.startsWith('/') ? path.slice(1) : path
   const parts = cleanPath.split('/')
   const encodedParts = parts.map(p => encodeURIComponent(p))
-  return `${import.meta.env.VITE_FILES_BASE_URL}/${encodedParts.join('/')}`
+  return '/' + encodedParts.join('/');
 }
 
 // FIRST program Logo als img-Tag zurückgeben

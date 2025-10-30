@@ -19,7 +19,7 @@ class PdfLayoutService
         // Footerlogos
         $footerLogos = $this->buildFooterLogos($event->id);
 
-        return View::make('pdf.layout', [
+        return View::make('pdf.layout_landscape', [
             'title'       => $title,
             'header'      => $header,
             'footerLogos' => $footerLogos,
@@ -36,6 +36,13 @@ class PdfLayoutService
             } catch (\Throwable $e) {
                 $formattedDate = (string) $event->date;
             }
+        }
+
+        // Check if this is a multi-day event using event.days
+        if (!empty($event->days) && $event->days > 1) {
+            $startDate = Carbon::parse($event->date);
+            $endDate = $startDate->copy()->addDays($event->days - 1);
+            $formattedDate = $startDate->format('d.m.') . '-' . $endDate->format('d.m.Y');
         }
 
         $leftLogos = [];
@@ -76,6 +83,7 @@ class PdfLayoutService
 
         return $dataUris;
     }
+
 
     private function toDataUri(string $path): ?string
     {

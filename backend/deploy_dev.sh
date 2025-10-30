@@ -111,9 +111,22 @@ else
     exit 1
 fi
 
-# Step 3: Final verification
+# Step 3: Restart queue workers
 echo ""
-echo "Step 3: Final verification..."
+echo "Step 3: Restarting queue workers..."
+
+# Signal queue workers to restart gracefully
+php artisan queue:restart
+
+if [ $? -eq 0 ]; then
+    print_status "Queue workers signaled to restart"
+else
+    print_warning "Queue restart signal failed - workers may need manual restart"
+fi
+
+# Step 4: Final verification
+echo ""
+echo "Step 4: Final verification..."
 
 # Run verification script
 php artisan tinker << 'EOF'
@@ -127,7 +140,7 @@ else
     print_warning "Verification had issues - please check manually"
 fi
 
-# Step 4: Summary
+# Step 5: Summary
 echo ""
 echo "✅ Development Environment Deployment Complete!"
 echo "==============================================="
@@ -136,10 +149,12 @@ echo "Summary:"
 echo "- Database purged and migrated"
 echo "- Master tables populated"
 echo "- Test events created"
+echo "- Queue workers restarted"
 echo ""
 echo "Next steps:"
-echo "1. Test the application functionality"
-echo "2. Verify all endpoints work correctly"
-echo "3. Check user authentication"
+echo "1. Verify queue workers are running: php artisan queue:work"
+echo "2. Test the application functionality"
+echo "3. Verify all endpoints work correctly"
+echo "4. Check user authentication"
 echo ""
 echo "Development environment is ready for testing."

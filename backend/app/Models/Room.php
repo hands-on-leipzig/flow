@@ -12,8 +12,9 @@ class Room extends Model
         "id",
         "event",
         "name",
-        "navigation_instruction"
-
+        "navigation_instruction",
+        "sequence",
+        "is_accessible"
     ];
 
     public $timestamps = false;

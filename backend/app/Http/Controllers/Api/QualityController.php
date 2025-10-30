@@ -39,7 +39,10 @@ class QualityController extends Controller
 
         \App\Jobs\GenerateQPlansFromSelectionJob::dispatch($qRunId);
 
-        Log::info("qRun $qRunId: generation of qPlans from selection dispatched");
+        Log::info("QualityController::startQRun", [
+            'q_run' => $qRunId,
+            'name' => $payload['name'],
+        ]);
 
         return response()->json([
             'status' => 'queued',
@@ -81,7 +84,11 @@ class QualityController extends Controller
 
         \App\Jobs\GenerateQPlansFromQPlansJob::dispatch($newRunId, $planIds);
 
-        Log::info("qRun $newRunId: copying of qPlans dispatched");
+        Log::info("QualityController::rerunQPlans", [
+            'new_q_run' => $newRunId,
+            'original_q_run' => $originalRunId,
+            'plan_count' => count($planIds),
+        ]);
 
         return response()->json([
             'status' => 'queued',
@@ -119,9 +126,15 @@ class QualityController extends Controller
     public function getQPlanDetails(int $qplanId)
     {
         $teams = \App\Models\QPlanTeam::where('q_plan', $qplanId)->get();
-        $matches = \App\Models\QPlanMatch::where('q_plan', $qplanId)->get();
-
+        
+        // Get plan ID from q_plan and fetch matches from match table
         $qplan = \App\Models\QPlan::findOrFail($qplanId);
+        $planId = $qplan->plan;
+        $matches = \App\Models\MatchEntry::where('plan', $planId)
+            ->orderBy('round')
+            ->orderBy('match_no')
+            ->get();
+
         $c_teams = $qplan->c_teams;
 
         // Indexiere Matches nach Runde für schnelleren Zugriff
@@ -177,29 +190,37 @@ class QualityController extends Controller
 
     public function deleteQRun(int $qRunId)
     {
-        // 1. Alle Plan-IDs finden, die zu den qPlans unter diesem qRun gehören
-        $planIds = DB::table('q_plan')
-            ->where('q_run', $qRunId)
-            ->whereNotNull('plan')
-            ->pluck('plan')
-            ->unique()
-            ->all();
+        try {
+            // Find plan IDs that will be deleted (for logging)
+            $planIds = DB::table('q_plan')
+                ->where('q_run', $qRunId)
+                ->whereNotNull('plan')
+                ->pluck('plan')
+                ->unique()
+                ->all();
 
-        // 2. Zuerst die Pläne löschen (die löschen durch FK ihre abhängigen Daten mit)
-        if (!empty($planIds)) {
-            DB::table('plan')->whereIn('id', $planIds)->delete();
-            Log::info("qRun $qRunId: Plans deleted " . implode(',', $planIds));
-        }
+            // Delete the q_run - CASCADE DELETE will handle all related records:
+            // q_run -> q_plan -> q_plan_team, q_plan_match
+            $deleted = DB::table('q_run')->where('id', $qRunId)->delete();
 
-        // 3. Danach den qRun löschen (dies löscht auch alle qPlans + Matches + Teams über FK)
-        $deleted = DB::table('q_run')->where('id', $qRunId)->delete();
-
-        if ($deleted) {
-            Log::info("qRun $qRunId: deleted");
-            return response()->json(['status' => 'deleted']);
-        } else {
-            Log::warning("qRun $qRunId: not found");
-            return response()->json(['status' => 'not_found'], 404);
+            if ($deleted) {
+                // Also delete the plan records (they're not CASCADE deleted)
+                if (!empty($planIds)) {
+                    DB::table('plan')->whereIn('id', $planIds)->delete();
+                }
+                
+                Log::info("QualityController::deleteQRun", [
+                    'q_run' => $qRunId,
+                    'plans_deleted' => count($planIds),
+                ]);
+                return response()->json(['status' => 'deleted']);
+            } else {
+                Log::warning("qRun $qRunId: not found");
+                return response()->json(['status' => 'not_found'], 404);
+            }
+        } catch (\Exception $e) {
+            Log::error("deleteQRun($qRunId) failed: " . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -217,7 +238,6 @@ class QualityController extends Controller
             // 2. Pläne löschen
             if ($planIds->isNotEmpty()) {
                 DB::table('plan')->whereIn('id', $planIds)->delete();
-                Log::info("qRun $qRunId: plans deleted " . implode(',', $planIds->toArray()));
             }
 
             // 3. q_plan.plan auf NULL setzen
@@ -230,7 +250,10 @@ class QualityController extends Controller
                 ->where('id', $qRunId)
                 ->update(['status' => 'compressed']);
 
-            Log::info("qRun $qRunId: compressed.");
+            Log::info("QualityController::compressQRun", [
+                'q_run' => $qRunId,
+                'plans_deleted' => $planIds->count(),
+            ]);
 
             return response()->json(['status' => 'compressed']);
         } catch (\Exception $e) {

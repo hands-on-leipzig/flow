@@ -1,10 +1,10 @@
-<script setup lang="ts">
+<script lang="ts" setup>
 import {computed, UnwrapRef, watch, watchEffect} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import {useEventStore} from '@/stores/event'
-import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -49,7 +49,7 @@ function handleToggleChange(target: HTMLInputElement) {
     if (cTeams.value === 0) {
       updateByName('c_teams', defaultTeams)
     }
-    
+
     // Auto-select robot game table
     const currentTables = rTables.value
     if (currentTables === 0) {
@@ -79,7 +79,10 @@ const rTables = computed(() => Number(paramMapByName.value['r_tables']?.value ||
 const tableVariantsForTeams = computed<number[]>(() => {
   const idx = props.lanesIndex?.challenge ?? {}
   const t = cTeams.value
-  if (!t) return []
+
+  // If no teams selected yet, allow both table options
+  if (!t) return [2, 4]
+
   const variants: number[] = []
   if (idx[`${t}|2`]?.length) variants.push(2)
   if (idx[`${t}|4`]?.length) variants.push(4)
@@ -90,7 +93,10 @@ const tableVariantsForTeams = computed<number[]>(() => {
 const allowedJuryLanes = computed<number[]>(() => {
   const idx = props.lanesIndex?.challenge ?? {}
   const t = cTeams.value
-  if (!t) return []
+
+  // If no teams selected yet, allow common jury group options (1-6)
+  if (!t) return [1, 2, 3, 4, 5, 6]
+
   const variants = rTables.value ? [rTables.value] : [2, 4]
   const merged = variants.flatMap(tb => idx[`${t}|${tb}`] || [])
   return Array.from(new Set(merged)).sort((a, b) => a - b)
@@ -175,31 +181,30 @@ const isLaneRecommended = (lane: number) => {
 // Note for the current EXACT combo from database data
 const currentLaneNote = computed<string | undefined>(() => {
   if (!props.supportedPlanData || !cTeams.value || !rTables.value || !jLanesProxy.value) return
-  
-  const matchingPlan = props.supportedPlanData.find(plan => 
-    plan.first_program === 3 && 
-    plan.teams === cTeams.value && 
-    plan.tables === rTables.value && 
-    plan.lanes === jLanesProxy.value
+
+  const matchingPlan = props.supportedPlanData.find(plan =>
+      plan.first_program === 3 &&
+      plan.teams === cTeams.value &&
+      plan.tables === rTables.value &&
+      plan.lanes === jLanesProxy.value
   )
-  
+
   return matchingPlan?.note
 })
 
 // Get current configuration alert level from database data
 const currentConfigAlertLevel = computed<number>(() => {
   if (!props.supportedPlanData || !cTeams.value || !rTables.value || !jLanesProxy.value) return 0
-  
-  const matchingPlan = props.supportedPlanData.find(plan => 
-    plan.first_program === 3 && 
-    plan.teams === cTeams.value && 
-    plan.tables === rTables.value && 
-    plan.lanes === jLanesProxy.value
+
+  const matchingPlan = props.supportedPlanData.find(plan =>
+      plan.first_program === 3 &&
+      plan.teams === cTeams.value &&
+      plan.tables === rTables.value &&
+      plan.lanes === jLanesProxy.value
   )
-  
+
   return matchingPlan?.alert_level || 0
 })
-
 
 
 // Calculate min/max team counts from supported plan data
@@ -219,21 +224,28 @@ const challengeTeamLimits = computed(() => {
 // Alert level styling and messages
 const getAlertLevelStyle = (level: number) => {
   switch (level) {
-    case 1: return 'border-2 border-green-500 ring-2 ring-green-500' // Recommended
-    case 2: return 'border-2 border-orange-500 ring-2 ring-orange-500' // Risk
-    case 3: return 'border-2 border-red-500 ring-2 ring-red-500' // High risk
-    default: return 'ring-1 ring-gray-500 border-gray-500' // OK
+    case 1:
+      return 'border-2 border-green-500 ring-2 ring-green-500' // Recommended
+    case 2:
+      return 'border-2 border-orange-500 ring-2 ring-orange-500' // Risk
+    case 3:
+      return 'border-2 border-red-500 ring-2 ring-red-500' // High risk
+    default:
+      return 'ring-1 ring-gray-500 border-gray-500' // OK
   }
 }
 
 
-
 const getTeamInputStyle = (level: number) => {
   switch (level) {
-    case 1: return 'border-green-500 focus:border-green-500 focus:ring-green-500'
-    case 2: return 'border-orange-500 focus:border-orange-500 focus:ring-orange-500'
-    case 3: return 'border-red-500 focus:border-red-500 focus:ring-red-500'
-    default: return 'border-gray-300 focus:border-gray-500 focus:ring-gray-500'
+    case 1:
+      return 'border-green-500 focus:border-green-500 focus:ring-green-500'
+    case 2:
+      return 'border-orange-500 focus:border-orange-500 focus:ring-orange-500'
+    case 3:
+      return 'border-red-500 focus:border-red-500 focus:ring-red-500'
+    default:
+      return 'border-gray-300 focus:border-gray-500 focus:ring-gray-500'
   }
 }
 
@@ -241,13 +253,13 @@ const planTeams = computed(() => Number(paramMapByName.value['c_teams']?.value |
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsChallenge || 0))
 const capacity = computed(() => Number(event.value?.drahtCapacityChallenge || 0))
 
-const planStatusClass = computed(() => {
+const plannedAmountNotMatching = computed(() => {
   if (planTeams.value === registeredTeams.value) {
-    return 'bg-green-100 border border-green-300 text-green-700'
+    return false
   } else if (planTeams.value > capacity.value || planTeams.value < registeredTeams.value) {
-    return 'bg-red-100 border border-red-300 text-red-700'
+    return true
   } else {
-    return 'bg-yellow-100 border border-yellow-300 text-yellow-700'
+    return true
   }
 })
 
@@ -259,49 +271,30 @@ const teamsPerJuryHint = computed(() => {
   const hi = Math.ceil(teams / lanes)
 
   return lo === hi
-    ? `${lo} Teams pro Gruppe`
-    : `${lo} bis ${hi} Teams pro Gruppe`
+      ? `${lo} Teams pro Gruppe`
+      : `${lo} bis ${hi} Teams pro Gruppe`
 })
 
 </script>
 
 <template>
   <div class="p-4 border rounded shadow relative">
-    <div class="flex items-center gap-2 mb-2">
+    <div class="flex items-center gap-2 mb-4 justify-between">
       <img
-          :src="programLogoSrc('C')"
           :alt="programLogoAlt('C')"
+          :src="programLogoSrc('C')"
           class="w-10 h-10 flex-shrink-0"
-        />
+      />
+      <h3 class="text-lg font-semibold capitalize">
+        <span class="italic">FIRST</span> LEGO League Challenge
+      </h3>
 
-      <div>
-        <h3 class="text-lg font-semibold capitalize">
-          <span class="italic">FIRST</span> LEGO League Challenge
-        </h3>
-        
-      <div :class="['flex space-x-4 text-xs px-2 py-1 rounded', planStatusClass]">
-        <span>
-          Kapazität: {{ capacity }}
-        </span>
-        <span>
-          Angemeldet: {{ registeredTeams }}
-        </span>
-        <span>
-          In diesem Plan: {{ planTeams }}
-        </span>
-      </div>
-
-      </div>
-
-      
-      
-      
       <label class="relative inline-flex items-center cursor-pointer">
         <input
-            type="checkbox"
             :checked="showChallenge"
-            @change="handleToggleChange($event.target as HTMLInputElement)"
             class="sr-only peer"
+            type="checkbox"
+            @change="handleToggleChange($event.target as HTMLInputElement)"
         >
         <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
         <div
@@ -312,16 +305,30 @@ const teamsPerJuryHint = computed(() => {
 
     <template v-if="showChallenge">
       <div class="mb-3 flex items-center gap-2">
-        <input
-          class="mt-1 w-16 border-2 rounded px-2 py-1 text-center focus:outline-none focus:ring-2"
-          :class="getTeamInputStyle(currentConfigAlertLevel)"
-          type="number"
-          :min="challengeTeamLimits.min"
-          :max="challengeTeamLimits.max"
-          :value="paramMapByName['c_teams']?.value"
-          @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
-        />
-        <label class="text-sm font-medium">Teams</label>
+        <span>Plan für</span>
+        <div class="relative">
+          <input
+              :class="getTeamInputStyle(currentConfigAlertLevel)"
+              :max="challengeTeamLimits.max"
+              :min="challengeTeamLimits.min"
+              :value="paramMapByName['c_teams']?.value"
+              class="mt-1 w-16 border-2 rounded px-2 py-1 text-center focus:outline-none focus:ring-2"
+              type="number"
+              @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
+          />
+          <div
+              v-if="plannedAmountNotMatching"
+              class="absolute top-2 right-5 w-2 h-2 bg-red-500 rounded-full"
+              title="Geplante Anzahl und angemeldete Anzahl Teams stimmen nicht überein."
+          ></div>
+        </div>
+        <label>Teams</label>
+        <span>bei {{ registeredTeams }}/{{ capacity }} angemeldeten</span>
+        <div
+            v-if="plannedAmountNotMatching"
+            class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+            title="Geplante Anzahl und angemeldete Anzahl Teams stimmen nicht überein."
+        ></div>
         <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
       </div>
 
@@ -332,14 +339,12 @@ const teamsPerJuryHint = computed(() => {
             <RadioGroupOption
                 v-for="n in lanePalette"
                 :key="'j_lane_' + n"
-                :value="n"
-                :disabled="!isLaneAllowed(n)"
                 v-slot="{ checked, disabled }"
+                :disabled="!isLaneAllowed(n)"
+                :value="n"
             >
               <button
-                  type="button"
-                  class="relative px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :aria-disabled="disabled"
                   :class="[
                     checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
                     disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400',
@@ -348,7 +353,9 @@ const teamsPerJuryHint = computed(() => {
                      'after:-right-2 after:text-[10px] after:px-1.5 after:py-0.5 after:bg-emerald-100 ' +
                       'after:text-emerald-700 after/rounded after:content-[\'Empfohlen\']' : ''
                   ]"
-                  :aria-disabled="disabled"
+                  class="relative px-2 py-1 rounded-md border text-sm transition
+                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  type="button"
               >
                 {{ n }}
               </button>
@@ -376,19 +383,19 @@ const teamsPerJuryHint = computed(() => {
             <RadioGroupOption
                 v-for="tb in [2,4]"
                 :key="'tables_' + tb"
-                :value="tb"
-                :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
                 v-slot="{ checked, disabled }"
+                :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
+                :value="tb"
             >
               <button
-                  type="button"
-                  class="px-2 py-1 rounded-md border text-sm transition
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :aria-disabled="disabled"
                   :class="[
                     checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
                     disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                   ]"
-                  :aria-disabled="disabled"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  type="button"
                   @click="!disabled && updateByName('r_tables', tb)"
               >
                 {{ tb }}
@@ -398,7 +405,7 @@ const teamsPerJuryHint = computed(() => {
           <span class="text-sm font-medium">Robot-Game Tische</span>
           <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
         </div>
-      </div>      
+      </div>
 
 
     </template>
@@ -410,12 +417,12 @@ const teamsPerJuryHint = computed(() => {
     </div>
 
     <!-- Alert message banner -->
-    <div v-if="currentLaneNote && (currentConfigAlertLevel === 2 || currentConfigAlertLevel === 3)" 
-         class="mt-3 inline-flex items-center gap-1 px-2 py-1 rounded text-xs"
+    <div v-if="currentLaneNote && (currentConfigAlertLevel === 2 || currentConfigAlertLevel === 3)"
          :class="{
            'bg-orange-100/60 border border-orange-300/40 text-orange-700': currentConfigAlertLevel === 2,
            'bg-red-100/60 border border-red-300/40 text-red-700': currentConfigAlertLevel === 3
-         }">
+         }"
+         class="mt-3 inline-flex items-center gap-1 px-2 py-1 rounded text-xs">
       <span class="text-xs">⚠</span>
       {{ currentLaneNote }}
     </div>

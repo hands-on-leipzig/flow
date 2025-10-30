@@ -15,9 +15,7 @@ class Team extends Model
         "event",
         "team_number_hot",
         "location",
-        "organization",
-        "noshow"
-
+        "organization"
     ];
 
     public $timestamps = false;
@@ -25,5 +23,10 @@ class Team extends Model
     public function event()
     {
         return $this->belongsTo(Event::class, 'event');
+    }
+
+    public function teamPlans()
+    {
+        return $this->hasMany(TeamPlan::class, 'team');
     }
 }

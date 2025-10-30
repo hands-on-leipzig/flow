@@ -9,6 +9,7 @@ use App\Models\MRoomType;
 use App\Models\MRoomTypeGroup;
 use App\Models\Room;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 
@@ -19,15 +20,16 @@ class RoomController extends Controller
         // Räume inkl. normaler Typen laden
         $rooms = Room::where('event', $event->id)
             ->with('roomTypes')
-            ->orderBy('name')
+            ->orderBy('sequence')
+            ->orderBy('name') // Fallback ordering
             ->get();
 
         // Plan-ID zum Event holen
-        $plan = \DB::table('plan')->where('event', $event->id)->value('id');
+        $plan = DB::table('plan')->where('event', $event->id)->value('id');
 
         if ($plan) {
             // Extra-Blocks gruppiert nach room_id laden
-            $extraBlocksByRoom = \DB::table('extra_block')
+            $extraBlocksByRoom = DB::table('extra_block')
                 ->where('plan', $plan)
                 ->select('id', 'name', 'room', 'first_program')
                 ->whereNotNull('room')
@@ -48,6 +50,9 @@ class RoomController extends Controller
             return $room;
         });
 
+        // Ensure roomTypes relationship is loaded and accessible
+        $rooms->load('roomTypes');
+
         // log::alert('Rooms with extra blocks', $rooms->toArray());
 
         return response()->json([
@@ -61,12 +66,18 @@ class RoomController extends Controller
             'name' => 'required|string|max:255',
             'event' => 'required|exists:event,id',
             'navigation_instruction' => 'nullable|string|max:255',
+            'is_accessible' => 'boolean',
         ]);
+
+        // Get next sequence number for this event
+        $nextSequence = $this->getNextRoomSequence($validated['event']);
 
         $room = Room::create([
             'name' => $validated['name'],
             'event' => $validated['event'],
             'navigation_instruction' => $validated['navigation_instruction'],
+            'sequence' => $nextSequence,
+            'is_accessible' => $validated['is_accessible'] ?? true,
         ]);
 
         return response()->json($room, 201);
@@ -74,7 +85,7 @@ class RoomController extends Controller
 
     public function update(Request $request, Room $room)
     {
-        $room->update($request->only(['name', 'navigation_instruction']));
+        $room->update($request->only(['name', 'navigation_instruction', 'is_accessible']));
         return response()->json($room);
     }
 
@@ -99,13 +110,13 @@ class RoomController extends Controller
             // 🔹 Normaler Raum-Typ → Beziehung in Pivot-Tabelle
             $type = \App\Models\MRoomType::findOrFail($validated['type_id']);
 
-            \DB::table('room_type_room')
+            DB::table('room_type_room')
                 ->where('room_type', $validated['type_id'])
                 ->where('event', $validated['event'])
                 ->delete();
 
             if ($validated['room_id']) {
-                \DB::table('room_type_room')->insert([
+                DB::table('room_type_room')->insert([
                     'room_type' => $type->id,
                     'room' => $validated['room_id'],
                     'event' => $validated['event'],
@@ -139,12 +150,48 @@ class RoomController extends Controller
         $plan = \App\Models\Plan::where('event', $validated['event'])->firstOrFail();
 
         // Update direkt in team_plan (Eintrag muss existieren)
-        \DB::table('team_plan')
+        DB::table('team_plan')
             ->where('team', $validated['team_id'])
             ->where('plan', $plan->id)
             ->update(['room' => $validated['room_id']]);
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Update the sequence of rooms within an event (for drag-and-drop reordering)
+     */
+    public function updateRoomSequence(Request $request)
+    {
+        $validated = $request->validate([
+            'rooms' => 'required|array',
+            'rooms.*.room_id' => 'required|integer|exists:room,id',
+            'rooms.*.sequence' => 'required|integer|min:1',
+            'event_id' => 'required|integer|exists:event,id',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            foreach ($validated['rooms'] as $item) {
+                DB::table('room')
+                    ->where('id', $item['room_id'])
+                    ->where('event', $validated['event_id'])
+                    ->update(['sequence' => $item['sequence']]);
+            }
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Get the next sequence number for a room in an event
+     */
+    private function getNextRoomSequence($eventId)
+    {
+        $maxSequence = DB::table('room')
+            ->where('event', $eventId)
+            ->max('sequence');
+        
+        return ($maxSequence ?? 0) + 1;
     }
 
 }

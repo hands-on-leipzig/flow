@@ -42,7 +42,7 @@ class LogoController extends Controller
 
     public function update(Request $request, Logo $logo)
     {
-        $logo->update($request->only(['title', 'link']));
+        $logo->update($request->only(['name', 'link']));
         return response()->json($logo);
     }
 

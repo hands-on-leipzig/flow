@@ -8,6 +8,7 @@ use App\Models\MSupportedPlan;
 use App\Models\PlanParamValue;
 use App\Models\Team;
 use App\Models\TeamPlan;
+use App\Enums\FirstProgram;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -42,8 +43,6 @@ class PlanController extends Controller
         $newId = DB::table('plan')->insertGetId([
             'name' => 'Zeitplan',
             'event' => $eventId,
-            'level' => 1, // Default to Regionalwettbewerb
-            'first_program' => 3, // Default to CHALLENGE
             'created' => Carbon::now(),
             'last_change' => Carbon::now(),
         ]);
@@ -86,7 +85,7 @@ class PlanController extends Controller
             }
 
             $e1_teams = $e_teams;
-            $e1_lanes = MSupportedPlan::where('first_program', 2)->where('teams', $e_teams)->value('lanes');
+            $e1_lanes = MSupportedPlan::where('first_program', FirstProgram::EXPLORE->value)->where('teams', $e_teams)->value('lanes');
 
         } else {
 
@@ -104,8 +103,8 @@ class PlanController extends Controller
             // c_mode on
             $c_mode = 1;
 
-            $j_lanes = MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('lanes');
-            $r_tables = MSupportedPlan::where('first_program', 3)->where('teams', $c_teams)->value('tables');
+            $j_lanes = MSupportedPlan::where('first_program', FirstProgram::CHALLENGE->value)->where('teams', $c_teams)->value('lanes');
+            $r_tables = MSupportedPlan::where('first_program', FirstProgram::CHALLENGE->value)->where('teams', $c_teams)->value('tables');
 
         } else {
 
@@ -189,8 +188,8 @@ class PlanController extends Controller
         }
 
         // Group teams by program and assign order
-        $exploreTeams = $teams->where('first_program', 2)->values(); // Explore = 2
-        $challengeTeams = $teams->where('first_program', 3)->values(); // Challenge = 3
+        $exploreTeams = $teams->where('first_program', FirstProgram::EXPLORE->value)->values();
+        $challengeTeams = $teams->where('first_program', FirstProgram::CHALLENGE->value)->values();
 
         Log::info("Explore teams: " . $exploreTeams->count() . ", Challenge teams: " . $challengeTeams->count());
 
@@ -346,7 +345,7 @@ class PlanController extends Controller
 
         DB::table('extra_block')->insert([
             'plan' => $planId,
-            'first_program' => 0,
+            'first_program' => FirstProgram::JOINT->value,
             'name' => 'Mittagessen',
             'description' => 'Es gibt verschiedene Gerichte für Teams, Helfer und Besucher.',
             'link' => 'https://lecker-essen.mhhm',
@@ -361,7 +360,7 @@ class PlanController extends Controller
 
         DB::table('extra_block')->insert([
             'plan' => $planId,
-            'first_program' => 0,
+            'first_program' => FirstProgram::JOINT->value,
             'name' => 'Awareness',
             'description' => 'Awareness bedeutet, achtsam miteinander umzugehen, Grenzen zu respektieren und eine Umgebung frei von Diskriminierung, Mobbing oder unangemessenem Verhalten zu schaffen. Das Konzept bietet Anregungen zu Schutzmaßnahmen, inklusivem Miteinander und einer Kultur der Achtsamkeit, damit alle Kinder und Jugendlichen unsere Veranstaltungen als positive und sichere Erfahrung erleben.',
             'link' => 'https://youtube.com/shorts/vYOn38IBYX8?si=OMRuh3gsRYwle1kw',
@@ -376,7 +375,7 @@ class PlanController extends Controller
 
         DB::table('extra_block')->insert([
             'plan' => $planId,
-            'first_program' => 2,
+            'first_program' => FirstProgram::EXPLORE->value,
             'name' => 'Check-In FLL Explore',
             'description' => 'Teams und Gutacher:innen bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
             'link' => null,
@@ -388,7 +387,7 @@ class PlanController extends Controller
 
         DB::table('extra_block')->insert([
             'plan' => $planId,
-            'first_program' => 3,
+            'first_program' => FirstProgram::CHALLENGE->value,
             'name' => 'Check-In FLL Challenge',
             'description' => 'Teams, Juror:innen und Schiedsrichter:inne bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
             'link' => null,

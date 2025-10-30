@@ -27,11 +27,48 @@ class QPlan extends Model
         'c_duration_transfer',
         'q1_ok_count',
         'q2_ok_count',
+        'q2_1_count',
+        'q2_2_count',
+        'q2_3_count',
+        'q2_score_avg',
         'q3_ok_count',
+        'q3_1_count',
+        'q3_2_count',
+        'q3_3_count',
+        'q3_score_avg',
         'q4_ok_count',
         'q5_idle_avg',
         'q5_idle_stddev',
         'calculated',
+    ];
+
+    // Type casting for proper data types
+    protected $casts = [
+        'plan' => 'integer',
+        'q_run' => 'integer',
+        'c_teams' => 'integer',
+        'r_tables' => 'integer',
+        'j_lanes' => 'integer',
+        'j_rounds' => 'integer',
+        'r_asym' => 'boolean',
+        'r_robot_check' => 'boolean',
+        'r_duration_robot_check' => 'integer',
+        'c_duration_transfer' => 'integer',
+        'q1_ok_count' => 'integer',
+        'q2_ok_count' => 'integer',
+        'q2_1_count' => 'integer',
+        'q2_2_count' => 'integer',
+        'q2_3_count' => 'integer',
+        'q2_score_avg' => 'float',
+        'q3_ok_count' => 'integer',
+        'q3_1_count' => 'integer',
+        'q3_2_count' => 'integer',
+        'q3_3_count' => 'integer',
+        'q3_score_avg' => 'float',
+        'q4_ok_count' => 'integer',
+        'q5_idle_avg' => 'float',
+        'q5_idle_stddev' => 'float',
+        'calculated' => 'boolean',
     ];
 
     /**
@@ -63,6 +100,6 @@ class QPlan extends Model
      */
     public function matches()
     {
-        return $this->hasMany(QPlanMatch::class, 'q_plan');
+        return $this->hasMany(\App\Models\MatchEntry::class, 'plan', 'plan');
     }
 }

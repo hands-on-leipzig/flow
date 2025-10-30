@@ -1,7 +1,18 @@
 <template>
   <div class="main-tables-admin">
     <div class="mb-6">
-      <h2 class="text-2xl font-bold text-gray-900 mb-4">Main Tables Management</h2>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-2xl font-bold text-gray-900">Main Tables Management</h2>
+        
+        <!-- Export Button -->
+        <button
+          @click="createGitHubPR"
+          :disabled="loading || creatingPR"
+          class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+        >
+          {{ creatingPR ? 'Creating PR...' : 'Export m_ table data' }}
+        </button>
+      </div>
       
       <!-- Table Tabs -->
       <div class="mb-6">
@@ -56,17 +67,6 @@
             </button>
           </nav>
         </div>
-      </div>
-
-      <!-- Export Button -->
-      <div class="mb-4">
-        <button
-          @click="createGitHubPR"
-          :disabled="loading || creatingPR"
-          class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
-        >
-          {{ creatingPR ? 'Creating PR...' : 'Export m_ table data' }}
-        </button>
       </div>
     </div>
 
@@ -233,18 +233,19 @@ const scrollInterval = ref(null)
 
 // Available tables configuration
 const availableTables = ref([
-  { name: 'm_season', displayName: 'Seasons', recordCount: 0 },
-  { name: 'm_level', displayName: 'Levels', recordCount: 0 },
-  { name: 'm_room_type', displayName: 'Room Types', recordCount: 0 },
-  { name: 'm_room_type_group', displayName: 'Room Type Groups', recordCount: 0 },
-  { name: 'm_parameter', displayName: 'Parameters', recordCount: 0 },
   { name: 'm_activity_type', displayName: 'Activity Types', recordCount: 0 },
   { name: 'm_activity_type_detail', displayName: 'Activity Type Details', recordCount: 0 },
   { name: 'm_first_program', displayName: 'First Programs', recordCount: 0 },
   { name: 'm_insert_point', displayName: 'Insert Points', recordCount: 0 },
+  { name: 'm_level', displayName: 'Levels', recordCount: 0 },
+  { name: 'm_news', displayName: 'News', recordCount: 0 },
+  { name: 'm_parameter', displayName: 'Parameters', recordCount: 0 },
   { name: 'm_role', displayName: 'Roles', recordCount: 0 },
-  { name: 'm_visibility', displayName: 'Visibility Rules', recordCount: 0 },
-  { name: 'm_supported_plan', displayName: 'Supported Plans', recordCount: 0 }
+  { name: 'm_room_type', displayName: 'Room Types', recordCount: 0 },
+  { name: 'm_room_type_group', displayName: 'Room Type Groups', recordCount: 0 },
+  { name: 'm_season', displayName: 'Seasons', recordCount: 0 },
+  { name: 'm_supported_plan', displayName: 'Supported Plans', recordCount: 0 },
+  { name: 'm_visibility', displayName: 'Visibility Rules', recordCount: 0 }
 ])
 
 // Methods
