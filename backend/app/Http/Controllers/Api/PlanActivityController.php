@@ -63,6 +63,14 @@ public function actionNow(int $planId, Request $req): JsonResponse
             abort(404, 'Event not found');
         }
 
+        // Optional day parameter: shift event date by (day - 1) days
+        $day = (int) $req->query('day', 1);
+        if ($day > 1) {
+            $eventDateCarbon = Carbon::parse($eventDate);
+            $eventDateCarbon->addDays($day - 1);
+            $eventDate = $eventDateCarbon->format('Y-m-d');
+        }
+
         // Uhrzeit aus Request holen
         $timeInput = $req->query('point_in_time'); // erwartet "HH:MM"
         if ($timeInput) {

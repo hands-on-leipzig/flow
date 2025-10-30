@@ -292,6 +292,11 @@ class QualityEvaluatorService
         $this->calculateQ5($qPlanId);
         $this->calculateQ6($qPlanId, $activities);
 
+        // Set last_change on q_plan after calculation completes
+        \App\Models\QPlan::where('id', $qPlanId)->update([
+            'last_change' => now(),
+        ]);
+
         // Log::info("qPlan {$qPlanId}: evaluation done");
     }
 

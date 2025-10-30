@@ -17,6 +17,7 @@ class QPlan extends Model
         'plan',
         'q_run',
         'name',
+        'last_change',
         'c_teams',
         'r_tables',
         'j_lanes',
@@ -46,6 +47,7 @@ class QPlan extends Model
     protected $casts = [
         'plan' => 'integer',
         'q_run' => 'integer',
+        'last_change' => 'datetime',
         'c_teams' => 'integer',
         'r_tables' => 'integer',
         'j_lanes' => 'integer',

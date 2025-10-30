@@ -62,16 +62,7 @@ async function handleDelete(qrunId) {
   }
 }
 
-async function handleCompress(qrunId) {
-  if (!confirm(`QRun ${qrunId} komprimieren?\nAlle zugehörigen Pläne werden gelöscht, die QPlans bleiben erhalten.`)) return
-  try {
-    await axios.delete(`/quality/compress/${qrunId}`)
-    await loadQRuns()
-  } catch (err) {
-    console.error('Fehler beim Komprimieren des QRuns:', err)
-    alert('Komprimieren fehlgeschlagen.')
-  }
-}
+// compress functionality removed
 
 
 </script>
@@ -120,7 +111,6 @@ async function handleCompress(qrunId) {
                   'bg-gray-400 text-white': qrun.status === 'pending',
                   'bg-yellow-500 text-white': qrun.status === 'running',
                   'bg-green-600 text-white': qrun.status === 'done',
-                  'bg-white text-gray-700 border border-gray-300': qrun.status === 'compressed',
                 }"
               >
                 {{ qrun.status }}
@@ -146,14 +136,7 @@ async function handleCompress(qrunId) {
             >
               🗑️
             </button>
-            <button
-              v-if="qrun.status !== 'compressed'"
-              @click.stop="handleCompress(qrun.id)"
-              class="px-2 py-1 rounded hover:bg-blue-50"
-              title="QRun komprimieren (Pläne löschen, QPlans behalten)"
-            >
-              🗜️
-            </button>
+            
           </div>
         </div>
 
