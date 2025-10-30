@@ -225,42 +225,7 @@ class QualityController extends Controller
     }
 
 
-    public function compressQRun(int $qRunId)
-    {
-        try {
-            // 1. Alle Plan-IDs holen
-            $planIds = DB::table('q_plan')
-                ->where('q_run', $qRunId)
-                ->whereNotNull('plan')
-                ->pluck('plan')
-                ->unique();
-
-            // 2. Pläne löschen
-            if ($planIds->isNotEmpty()) {
-                DB::table('plan')->whereIn('id', $planIds)->delete();
-            }
-
-            // 3. q_plan.plan auf NULL setzen
-            DB::table('q_plan')
-                ->where('q_run', $qRunId)
-                ->update(['plan' => null]);
-
-            // 4. Status vom q_run auf archived setzen
-            DB::table('q_run')
-                ->where('id', $qRunId)
-                ->update(['status' => 'compressed']);
-
-            Log::info("QualityController::compressQRun", [
-                'q_run' => $qRunId,
-                'plans_deleted' => $planIds->count(),
-            ]);
-
-            return response()->json(['status' => 'compressed']);
-        } catch (\Exception $e) {
-            Log::error("compressQRun($qRunId) failed: " . $e->getMessage());
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        }
-    }
+    // compressQRun removed – functionality no longer needed
 
 
 }
