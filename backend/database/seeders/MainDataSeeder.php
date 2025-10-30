@@ -16,12 +16,12 @@ class MainDataSeeder extends Seeder
         
         $this->Seedseason();
         $this->Seedlevel();
-        $this->SeedfirstProgram();
-        $this->SeedrootypeGroup();
         $this->Seedrootype();
+        $this->SeedrootypeGroup();
         $this->Seedparameter();
         $this->SeedactivityType();
         $this->SeedactivityTypeDetail();
+        $this->SeedfirstProgram();
         $this->SeedinsertPoint();
         $this->Seedrole();
         $this->Seedvisibility();
@@ -49,7 +49,7 @@ class MainDataSeeder extends Seeder
         
         foreach ($data as $item) {
             DB::table('m_season')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -78,7 +78,7 @@ class MainDataSeeder extends Seeder
         
         foreach ($data as $item) {
             DB::table('m_level')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -428,7 +428,7 @@ class MainDataSeeder extends Seeder
         
         foreach ($data as $item) {
             DB::table('m_room_type')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -480,7 +480,7 @@ class MainDataSeeder extends Seeder
         
         foreach ($data as $item) {
             DB::table('m_room_type_group')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -1853,7 +1853,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         foreach ($data as $item) {
             DB::table('m_parameter')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -1950,7 +1950,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         foreach ($data as $item) {
             DB::table('m_activity_type')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -2507,7 +2507,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         foreach ($data as $item) {
             DB::table('m_activity_type_detail')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -2545,7 +2545,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         foreach ($data as $item) {
             DB::table('m_first_program')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }
@@ -2889,7 +2889,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         foreach ($data as $item) {
             DB::table('m_role')->updateOrInsert(
-                ['name' => $item['name']],
+                ['id' => $item['id']],
                 $item
             );
         }

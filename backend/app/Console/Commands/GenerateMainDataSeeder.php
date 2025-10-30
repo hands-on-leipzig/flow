@@ -110,12 +110,13 @@ class GenerateMainDataSeeder extends Command
             $seederContent .= "        ];\n        \n        foreach (\$data as \$item) {\n";
             
             // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             if (!empty($tableData)) {
                 $firstRecord = $tableData[0];
-                if (isset($firstRecord['name'])) {
-                    $seederContent .= "            DB::table('{$table}')->updateOrInsert(\n                ['name' => \$item['name']],\n                \$item\n            );\n";
-                } elseif (isset($firstRecord['id'])) {
+                if (isset($firstRecord['id'])) {
                     $seederContent .= "            DB::table('{$table}')->updateOrInsert(\n                ['id' => \$item['id']],\n                \$item\n            );\n";
+                } elseif (isset($firstRecord['name'])) {
+                    $seederContent .= "            DB::table('{$table}')->updateOrInsert(\n                ['name' => \$item['name']],\n                \$item\n            );\n";
                 } else {
                     $seederContent .= "            DB::table('{$table}')->insert(\$item);\n";
                 }
