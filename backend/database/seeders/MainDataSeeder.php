@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class MainDataSeeder extends Seeder
 {
@@ -55,10 +56,18 @@ class MainDataSeeder extends Seeder
 ),
         ];
         
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_season');
+        
         foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             DB::table('m_season')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
+                ['id' => $filteredItem['id']],
+                $filteredItem
             );
         }
         
@@ -84,14 +93,128 @@ class MainDataSeeder extends Seeder
 ),
         ];
         
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_level');
+        
         foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             DB::table('m_level')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
+                ['id' => $filteredItem['id']],
+                $filteredItem
             );
         }
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' level');
+    }
+    
+    private function SeedfirstProgram()
+    {
+        $this->command->info('  Seeding first_program...');
+        
+        $data = [
+            array (
+  'id' => 1,
+  'name' => 'DISCOVER',
+  'sequence' => 3,
+  'color_hex' => '662D91',
+  'logo_white' => 'FLL_Explore_column_heading.png',
+),
+            array (
+  'id' => 2,
+  'name' => 'EXPLORE',
+  'sequence' => 2,
+  'color_hex' => '00A651',
+  'logo_white' => 'FLL_Explore_column_heading.png',
+),
+            array (
+  'id' => 3,
+  'name' => 'CHALLENGE',
+  'sequence' => 1,
+  'color_hex' => 'ED1C24',
+  'logo_white' => 'FLL_Challenge_column_heading.png',
+),
+        ];
+        
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_first_program');
+        
+        foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
+            DB::table('m_first_program')->updateOrInsert(
+                ['id' => $filteredItem['id']],
+                $filteredItem
+            );
+        }
+        
+        $this->command->line('    ✓ Seeded ' . count($data) . ' first_program');
+    }
+    
+    private function SeedrootypeGroup()
+    {
+        $this->command->info('  Seeding rootype_group...');
+        
+        $data = [
+            array (
+  'id' => 1,
+  'name' => 'Organisation',
+  'sequence' => 1,
+),
+            array (
+  'id' => 2,
+  'name' => 'FLL Explore',
+  'sequence' => 2,
+),
+            array (
+  'id' => 3,
+  'name' => 'FLL Challenge',
+  'sequence' => 3,
+),
+            array (
+  'id' => 4,
+  'name' => 'X',
+  'sequence' => NULL,
+),
+            array (
+  'id' => 5,
+  'name' => 'Mit Publikum',
+  'sequence' => 10,
+),
+            array (
+  'id' => 6,
+  'name' => 'Live Challenge',
+  'sequence' => 5,
+),
+            array (
+  'id' => 10,
+  'name' => 'Zusätzliche Blöcke',
+  'sequence' => 99,
+),
+        ];
+        
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_room_type_group');
+        
+        foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
+            DB::table('m_room_type_group')->updateOrInsert(
+                ['id' => $filteredItem['id']],
+                $filteredItem
+            );
+        }
+        
+        $this->command->line('    ✓ Seeded ' . count($data) . ' rootype_group');
     }
     
     private function Seedrootype()
@@ -434,66 +557,22 @@ class MainDataSeeder extends Seeder
 ),
         ];
         
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_room_type');
+        
         foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             DB::table('m_room_type')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
+                ['id' => $filteredItem['id']],
+                $filteredItem
             );
         }
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' rootype');
-    }
-    
-    private function SeedrootypeGroup()
-    {
-        $this->command->info('  Seeding rootype_group...');
-        
-        $data = [
-            array (
-  'id' => 1,
-  'name' => 'Organisation',
-  'sequence' => 1,
-),
-            array (
-  'id' => 2,
-  'name' => 'FLL Explore',
-  'sequence' => 2,
-),
-            array (
-  'id' => 3,
-  'name' => 'FLL Challenge',
-  'sequence' => 3,
-),
-            array (
-  'id' => 4,
-  'name' => 'X',
-  'sequence' => NULL,
-),
-            array (
-  'id' => 5,
-  'name' => 'Mit Publikum',
-  'sequence' => 10,
-),
-            array (
-  'id' => 6,
-  'name' => 'Live Challenge',
-  'sequence' => 5,
-),
-            array (
-  'id' => 10,
-  'name' => 'Zusätzliche Blöcke',
-  'sequence' => 99,
-),
-        ];
-        
-        foreach ($data as $item) {
-            DB::table('m_room_type_group')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
-            );
-        }
-        
-        $this->command->line('    ✓ Seeded ' . count($data) . ' rootype_group');
     }
     
     private function Seedparameter()
@@ -1859,10 +1938,18 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
         ];
         
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_parameter');
+        
         foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             DB::table('m_parameter')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
+                ['id' => $filteredItem['id']],
+                $filteredItem
             );
         }
         
@@ -1956,10 +2043,18 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
         ];
         
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_activity_type');
+        
         foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             DB::table('m_activity_type')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
+                ['id' => $filteredItem['id']],
+                $filteredItem
             );
         }
         
@@ -2513,52 +2608,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
         ];
         
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_activity_type_detail');
+        
         foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             DB::table('m_activity_type_detail')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
+                ['id' => $filteredItem['id']],
+                $filteredItem
             );
         }
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' activity_type_detail');
-    }
-    
-    private function SeedfirstProgram()
-    {
-        $this->command->info('  Seeding first_program...');
-        
-        $data = [
-            array (
-  'id' => 1,
-  'name' => 'DISCOVER',
-  'sequence' => 3,
-  'color_hex' => '662D91',
-  'logo_white' => 'FLL_Explore_column_heading.png',
-),
-            array (
-  'id' => 2,
-  'name' => 'EXPLORE',
-  'sequence' => 2,
-  'color_hex' => '00A651',
-  'logo_white' => 'FLL_Explore_column_heading.png',
-),
-            array (
-  'id' => 3,
-  'name' => 'CHALLENGE',
-  'sequence' => 1,
-  'color_hex' => 'ED1C24',
-  'logo_white' => 'FLL_Challenge_column_heading.png',
-),
-        ];
-        
-        foreach ($data as $item) {
-            DB::table('m_first_program')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
-            );
-        }
-        
-        $this->command->line('    ✓ Seeded ' . count($data) . ' first_program');
     }
     
     private function SeedinsertPoint()
@@ -2631,10 +2696,18 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
         ];
         
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_insert_point');
+        
         foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             DB::table('m_insert_point')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
+                ['id' => $filteredItem['id']],
+                $filteredItem
             );
         }
         
@@ -2895,10 +2968,18 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
         ];
         
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_role');
+        
         foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             DB::table('m_role')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
+                ['id' => $filteredItem['id']],
+                $filteredItem
             );
         }
         
@@ -5237,10 +5318,18 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
         ];
         
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_visibility');
+        
         foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             DB::table('m_visibility')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
+                ['id' => $filteredItem['id']],
+                $filteredItem
             );
         }
         
@@ -6200,10 +6289,18 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
         ];
         
+        // Get actual table columns to filter out non-existent columns
+        $tableColumns = Schema::getColumnListing('m_supported_plan');
+        
         foreach ($data as $item) {
+            // Filter item to only include columns that exist in the table
+            $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Determine unique key for updateOrInsert
+            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             DB::table('m_supported_plan')->updateOrInsert(
-                ['id' => $item['id']],
-                $item
+                ['id' => $filteredItem['id']],
+                $filteredItem
             );
         }
         
