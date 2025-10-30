@@ -72,31 +72,115 @@ const updateTeamNoshow = async (team) => {
 
 const mergedTeams = computed(() => {
   const result = []
+  const processedLocalIds = new Set()
+  const processedDrahtIds = new Set()
 
-  const localMap = new Map(localTeams.value.map(t => [t.team_number_hot, t]))
-  const drahtMap = new Map(props.remoteTeams.map(t => [Number(t.number), t]))
-
-  const allNumbers = new Set([
-    ...localTeams.value.map(t => t.team_number_hot),
-    ...props.remoteTeams.map(t => Number(t.number))
-  ])
-
-  allNumbers.forEach(number => {
-    const local = localMap.get(number)
-    const draht = drahtMap.get(number)
-
-  let status = 'match'
-  if (ignoredTeamNumbers.value.has(number)) {
-    status = 'ignored'
-  } else if (local && draht) {
-    status = local.name !== draht.name ? 'conflict' : 'match'
-  } else if (draht && !local) {
-    status = 'new'
-  } else if (local && !draht) {
-    status = 'missing'
+  // Normalize team numbers for comparison (handle null, undefined, strings, 0)
+  const normalizeTeamNumber = (num) => {
+    if (num == null || num === '' || num === 0) return null
+    const normalized = Number(num)
+    return isNaN(normalized) || normalized === 0 ? null : normalized
   }
 
+  // Step 1: Match teams by team_number_hot (when both have valid numbers)
+  const localMapByNumber = new Map()
+  const drahtMapByNumber = new Map()
+  
+  localTeams.value.forEach(t => {
+    const num = normalizeTeamNumber(t.team_number_hot)
+    if (num != null) {
+      localMapByNumber.set(num, t)
+    }
+  })
+  
+  props.remoteTeams.forEach(t => {
+    const num = normalizeTeamNumber(t.number)
+    if (num != null) {
+      drahtMapByNumber.set(num, t)
+    }
+  })
+
+  // Collect all valid team numbers
+  const allNumbers = new Set()
+  localTeams.value.forEach(t => {
+    const num = normalizeTeamNumber(t.team_number_hot)
+    if (num != null) allNumbers.add(num)
+  })
+  props.remoteTeams.forEach(t => {
+    const num = normalizeTeamNumber(t.number)
+    if (num != null) allNumbers.add(num)
+  })
+
+  // Match by number
+  allNumbers.forEach(number => {
+    const local = localMapByNumber.get(number)
+    const draht = drahtMapByNumber.get(number)
+
+    let status = 'match'
+    if (ignoredTeamNumbers.value.has(number)) {
+      status = 'ignored'
+    } else if (local && draht) {
+      status = local.name !== draht.name ? 'conflict' : 'match'
+    } else if (draht && !local) {
+      status = 'new'
+    } else if (local && !draht) {
+      status = 'missing'
+    }
+
+    if (local) processedLocalIds.add(local.id)
+    if (draht) processedDrahtIds.add(draht.id)
+
     result.push({number, local, draht, status})
+  })
+
+  // Step 2: Match teams without team_number_hot by name
+  const localWithoutNumber = localTeams.value.filter(t => {
+    const num = normalizeTeamNumber(t.team_number_hot)
+    return num == null && !processedLocalIds.has(t.id)
+  })
+  
+  const drahtWithoutNumber = props.remoteTeams.filter(t => {
+    const num = normalizeTeamNumber(t.number)
+    return num == null && !processedDrahtIds.has(t.id)
+  })
+
+  // Match by name for teams without numbers
+  drahtWithoutNumber.forEach(draht => {
+    const matchingLocal = localWithoutNumber.find(local => 
+      local.name === draht.name && !processedLocalIds.has(local.id)
+    )
+    
+    if (matchingLocal) {
+      processedLocalIds.add(matchingLocal.id)
+      processedDrahtIds.add(draht.id)
+      result.push({
+        number: null,
+        local: matchingLocal,
+        draht: draht,
+        status: matchingLocal.name !== draht.name ? 'conflict' : 'match'
+      })
+    } else {
+      processedDrahtIds.add(draht.id)
+      result.push({
+        number: null,
+        local: null,
+        draht: draht,
+        status: 'new'
+      })
+    }
+  })
+
+  // Add any remaining local teams without numbers or matches
+  localWithoutNumber.forEach(local => {
+    if (!processedLocalIds.has(local.id)) {
+      processedLocalIds.add(local.id)
+      result.push({
+        number: null,
+        local: local,
+        draht: null,
+        status: 'missing'
+      })
+    }
   })
 
   return result
@@ -110,36 +194,50 @@ const statusLabels = {
 }
 
 const applyDrahtTeam = async (team) => {
+  if (!team.draht) {
+    console.error('Cannot apply team: draht data is missing', team)
+    return
+  }
+  
+  // Validate that team_number_hot exists (required field)
+  const teamNumberHot = team.draht.number ?? team.number
+  if (!teamNumberHot || teamNumberHot === 0) {
+    alert('Fehler: Team-Nummer ist erforderlich. Das Team in DRAHT hat keine gültige team_number_hot.')
+    return
+  }
+  
   try {
-    await axios.put(`/events/${event.value?.id}/teams`, {
-      id: team.local?.id, // could be null for new
-      team_number_hot: team.draht.number,
+    const response = await axios.put(`/events/${event.value?.id}/teams`, {
+      id: team.local?.id, // null for new teams (triggers create)
+      team_number_hot: teamNumberHot,
       name: team.draht.name,
       event: event.value.id,
       first_program: props.program,
+      location: team.draht.location || null,
+      organization: team.draht.organization || null,
     })
 
-    // Update localTeams to reflect the change
-    const index = localTeams.value.findIndex(t => t.team_number_hot === team.number)
-    if (index !== -1) {
-      localTeams.value[index].name = team.draht.name
-    } else {
-      localTeams.value.push({
-        id: team.draht.id,
-        name: team.draht.name,
-        team_number_hot: Number(team.draht.number),
-      })
-    }
+    // Refresh teams from server to get the updated/created team with correct ID
+    const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
+    // Normalize noshow values to boolean (handle null, 0, 1, true, false)
+    localTeams.value = dbRes.data.map(team => ({
+      ...team,
+      noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1'
+    }))
+    teamList.value = [...localTeams.value]
+
+    // Refresh discrepancy status
+    await eventStore.updateTeamDiscrepancyStatus()
 
     team.status = 'match'
-    teamList.value = [...localTeams.value]
 
     const hasRemainingDiffs = mergedTeams.value.some(t => t.status !== 'match' && t.status !== 'ignored')
     if (!hasRemainingDiffs) {
       showDiffModal.value = false
     }
   } catch (e) {
-    console.error(`Fehler beim Übernehmen von Team ${team.number}`, e)
+    console.error(`Fehler beim Übernehmen von Team ${team.number || team.draht.name}`, e)
+    alert('Fehler beim Übernehmen des Teams: ' + (e.response?.data?.message || e.message))
   }
 }
 
@@ -160,8 +258,25 @@ const showSyncPrompt = computed(() =>
 onMounted(async () => {
   try {
     const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
-    localTeams.value = dbRes.data
+    // Normalize noshow values to boolean (handle null, 0, 1, true, false)
+    localTeams.value = dbRes.data.map(team => ({
+      ...team,
+      noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1'
+    }))
     teamList.value = [...localTeams.value]
+
+    // Debug: Log team numbers for comparison
+    console.log(`[${props.program}] Local teams:`, localTeams.value.map(t => ({ 
+      id: t.id, 
+      name: t.name, 
+      team_number_hot: t.team_number_hot,
+      noshow: t.noshow
+    })))
+    console.log(`[${props.program}] DRAHT teams:`, props.remoteTeams.map(t => ({ 
+      id: t.id, 
+      name: t.name, 
+      number: t.number 
+    })))
 
     teamList.value = [...localTeams.value]
     teamsDiffer.value = JSON.stringify(localTeams.value) !== JSON.stringify(props.remoteTeams)
@@ -218,6 +333,9 @@ onMounted(async () => {
                 team.noshow ? 'opacity-50' : 'opacity-100'
               ]"
           >
+            <!-- Drag-Handle -->
+            <span class="drag-handle cursor-move text-gray-500"><IconDraggable/></span>
+
             <!-- Neue Positionsspalte -->
             <span class="w-8 text-right text-sm text-black">T{{ String(index + 1).padStart(2, '0') }}</span>
 
@@ -242,9 +360,6 @@ onMounted(async () => {
               />
               <span class="text-xs">No-Show</span>
             </label>
-
-            <!-- Drag-Handle -->
-            <span class="drag-handle cursor-move text-gray-500"><IconDraggable/></span>
           </li>
         </template>
       </draggable>
@@ -274,7 +389,9 @@ onMounted(async () => {
     }"
           >
             <div class="flex justify-between items-center mb-2">
-              <span class="text-sm font-semibold text-gray-700">Team-Nr: {{ team.number }}</span>
+              <span class="text-sm font-semibold text-gray-700">
+                Team-Nr: {{ team.number ?? (team.draht?.number ?? 'Keine Nummer') }}
+              </span>
               <span
                   class="text-xs font-medium uppercase"
                   :class="{
@@ -298,12 +415,21 @@ onMounted(async () => {
               </div>
             </div>
 
+            <div v-if="!team.draht?.number && team.draht" class="mt-2 text-xs text-yellow-700 bg-yellow-50 p-2 rounded">
+              ⚠️ Dieses Team hat keine Team-Nummer in DRAHT und kann nicht importiert werden.
+            </div>
+
             <div class="flex justify-end gap-2 mt-4">
               <button
-                  class="px-3 py-1 text-sm rounded bg-blue-600 text-white hover:bg-blue-700"
+                  class="px-3 py-1 text-sm rounded"
+                  :class="{
+                    'bg-blue-600 text-white hover:bg-blue-700': team.draht?.number || team.number,
+                    'bg-gray-300 text-gray-500 cursor-not-allowed': !team.draht?.number && !team.number
+                  }"
+                  :disabled="!team.draht?.number && !team.number"
                   @click="applyDrahtTeam(team)"
               >
-                Übernehmen
+                {{ (!team.draht?.number && !team.number) ? 'Keine Team-Nummer' : (team.status === 'new' ? 'Hinzufügen' : 'Übernehmen') }}
               </button>
               <button
                   class="px-3 py-1 text-sm rounded bg-gray-300 hover:bg-gray-400"
