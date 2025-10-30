@@ -8,6 +8,7 @@ use App\Support\UsesPlanParameter;
 use App\Support\IntegratedExploreState;
 use App\Core\RobotGameGenerator;
 use App\Core\TimeCursor;
+use App\Enums\ExploreMode;
 
 
 class ChallengeGenerator
@@ -371,9 +372,15 @@ class ChallengeGenerator
 
                 }
                 
-                // Store this as time object
-                $jTimeEarliest = clone $this->rTime;
-                $jTimeEarliest->addMinutes($rA4J);
+                if ($this->pp('g_finale') && $cBlock == 4) {
+                    // Special case finale: Judging round 5 can start as soon as they are ready. No need to wait for robot game.    
+                    $jTimeEarliest = clone $this->jTime;
+                }
+                else
+                {
+                    $jTimeEarliest = clone $this->rTime;
+                    $jTimeEarliest->addMinutes($rA4J);
+                }
 
                 log::debug("After: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
 
@@ -621,6 +628,37 @@ class ChallengeGenerator
             if ($explore) {
 
             // Log::debug('Awards joint');
+
+            if ($this->pp('e_mode') == ExploreMode::HYBRID_BOTH->value) {
+                // Calculate backwards from c_time to determine when Explore group 2 should start
+                // Formula: c_time - e_ready_awards - e_ready_deliberations - e2_duration_deliberations
+                //          - (e2_rounds * (e_duration_with_team + e_duration_scoring)) - ((e2_rounds - 1) * e_duration_break)
+                //          - e_ready_action - e2_duration_opening
+                
+                $exploreStartTime = clone $this->cTime;
+                
+                $exploreStartTime->subMinutes($this->pp('e_ready_awards'));
+                $exploreStartTime->subMinutes($this->pp('e2_duration_deliberations'));
+                $exploreStartTime->subMinutes($this->pp('e_ready_deliberations'));
+                
+                $e2Rounds = $this->pp('e2_rounds');
+                // Each judging round consists of with_team + scoring
+                $durationPerRound = $this->pp('e_duration_with_team') + $this->pp('e_duration_scoring');
+                $exploreStartTime->subMinutes($e2Rounds * $durationPerRound);
+                // Breaks between rounds (only if more than 1 round)
+                if ($e2Rounds > 1) {
+                    $exploreStartTime->subMinutes(($e2Rounds - 1) * $this->pp('e_duration_break'));
+                }
+                
+                $exploreStartTime->subMinutes($this->pp('e_ready_action'));
+                $exploreStartTime->subMinutes($this->pp('e2_duration_opening'));
+                
+                // Write start time for ExploreGenerator to pick up
+                $this->integratedExplore->startTime = $exploreStartTime->format('H:i');
+
+                // log::info('ChallengeGenerator: Explore group 2 start time: ' . $this->integratedExplore->startTime);
+
+            }
 
             $this->writer->withGroup('g_awards', function () {
                 $this->writer->insertActivity('g_awards', $this->cTime, $this->pp('g_duration_awards'));

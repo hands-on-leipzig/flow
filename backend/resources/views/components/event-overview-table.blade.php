@@ -62,57 +62,79 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                     <thead>
                         <tr>
                             <th class="time-column">Zeit</th>
-                            @foreach($columnNames as $columnName)
-                                @php
-                                    $displayName = $columnName;
-                                    $baseColor = $displayName;
-                                    if (strpos($displayName, 'Allgemein-') === 0) {
-                                        $baseColor = 'Allgemein';
-                                    }
-                                    
-                                    // Column colors
-                                    $columnColors = [
-                                        'Explore' => '#27ae60',
-                                        'Challenge' => '#e74c3c', 
-                                        'Live-Challenge' => '#8e44ad',
-                                        'Robot-Game' => '#f39c12',
-                                        'Allgemein' => '#95a5a6'
-                                    ];
-                                    $color = $columnColors[$baseColor] ?? '#95a5a6';
-                                @endphp
+                            @php
+                                // Group columns for header merging
+                                $hasAllgemein2 = in_array('Allgemein-2', $columnNames);
+                                $hasExplore = in_array('Explore', $columnNames);
+                                $hasAllgemein3 = in_array('Allgemein-3', $columnNames);
+                                $hasChallenge = in_array('Challenge', $columnNames);
+                                $hasRobotGame = in_array('Robot-Game', $columnNames);
+                                $hasLiveChallenge = in_array('Live-Challenge', $columnNames);
                                 
+                                // Count columns for each merged group
+                                $exploreColumns = 0;
+                                $challengeColumns = 0;
+                                
+                                if ($hasAllgemein2) $exploreColumns++;
+                                if ($hasExplore) $exploreColumns++;
+                                
+                                if ($hasAllgemein3) $challengeColumns++;
+                                if ($hasChallenge) $challengeColumns++;
+                                if ($hasRobotGame) $challengeColumns++;
+                                if ($hasLiveChallenge) $challengeColumns++;
+                            @endphp
+                            
+                            @foreach($columnNames as $columnName)
                                 @if($columnName === 'Allgemein')
-                                    <th class="column-header" style="color: {{ $color }};">
-                                        <img src="{{ $isPdf ? 'file://' . public_path('flow/hot.png') : asset('flow/hot.png') }}" alt="HOT" class="header-logo">
-                                    </th>
-                                @elseif($columnName === 'Allgemein-2')
-                                    <th class="column-header merged" colspan="2" style="color: {{ $color }};">
-                                        <img src="{{ $isPdf ? 'file://' . public_path('flow/fll_explore_h.png') : asset('flow/fll_explore_h.png') }}" alt="Explore" class="header-logo">
-                                    </th>
-                                @elseif($columnName === 'Allgemein-3')
-                                    <th class="column-header merged" colspan="2" style="color: {{ $color }};">
-                                        <img src="{{ $isPdf ? 'file://' . public_path('flow/fll_challenge_h.png') : asset('flow/fll_challenge_h.png') }}" alt="Challenge" class="header-logo">
-                                    </th>
-                                @elseif($columnName === 'Explore')
-                                    @if(!in_array('Allgemein-2', $columnNames))
-                                        <th class="column-header" style="color: {{ $color }};">
-                                            <img src="{{ $isPdf ? 'file://' . public_path('flow/fll_explore_h.png') : asset('flow/fll_explore_h.png') }}" alt="Explore" class="header-logo">
+                                    <th class="column-header">{{ $columnName }}</th>
+                                @elseif($columnName === 'Allgemein-2' && $hasAllgemein2)
+                                    @if($hasExplore)
+                                        <th colspan="{{ $exploreColumns }}" class="column-header merged-header" style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; justify-content: center;">
+                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
+                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Explore</span>
+                                            </div>
+                                        </th>
+                                    @else
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @elseif($columnName === 'Explore' && $hasExplore)
+                                    @if(!$hasAllgemein2)
+                                        <th class="column-header" style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; justify-content: center;">
+                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
+                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Explore</span>
+                                            </div>
                                         </th>
                                     @endif
-                                @elseif($columnName === 'Challenge')
-                                    @if(!in_array('Allgemein-3', $columnNames))
-                                        <th class="column-header" style="color: {{ $color }};">
-                                            <img src="{{ $isPdf ? 'file://' . public_path('flow/fll_challenge_h.png') : asset('flow/fll_challenge_h.png') }}" alt="Challenge" class="header-logo">
+                                @elseif($columnName === 'Allgemein-3' && $hasAllgemein3)
+                                    @if($challengeColumns > 1)
+                                        <th colspan="{{ $challengeColumns }}" class="column-header merged-header" style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; justify-content: center;">
+                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
+                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Challenge</span>
+                                            </div>
+                                        </th>
+                                    @else
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @elseif($columnName === 'Challenge' && $hasChallenge)
+                                    @if(!$hasAllgemein3 && !$hasRobotGame && !$hasLiveChallenge)
+                                        <th class="column-header" style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; justify-content: center;">
+                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
+                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Challenge</span>
+                                            </div>
                                         </th>
                                     @endif
-                                @elseif($columnName === 'Robot-Game')
-                                    <th class="column-header" style="color: {{ $color }};">
-                                        {{ $displayName }}
-                                    </th>
-                                @elseif($columnName === 'Live-Challenge')
-                                    <th class="column-header" style="color: {{ $color }};">
-                                        {{ $displayName }}
-                                    </th>
+                                @elseif($columnName === 'Robot-Game' && $hasRobotGame)
+                                    @if(!$hasAllgemein3 && !$hasChallenge && !$hasLiveChallenge)
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @elseif($columnName === 'Live-Challenge' && $hasLiveChallenge)
+                                    @if(!$hasAllgemein3 && !$hasChallenge && !$hasRobotGame)
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
                                 @endif
                             @endforeach
                         </tr>
@@ -137,7 +159,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                             $occupiedCells = [];
                         @endphp
                         
-                        @foreach($timeSlots as $index => $slot)
+                        @foreach($dayData['timeSlots'] as $index => $slot)
                             @php
                                 $isFullHour = $slot->minute == 0;
                                 $timeLabel = $isFullHour ? $slot->format('H:i') : '';
@@ -146,7 +168,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                             
                             <tr class="time-row">
                                 @if($isFullHour)
-                                    <td rowspan="6" class="time-cell">{{ $timeLabel }}</td>
+                                    <td rowspan="6" class="time-cell" style="{{ !$isPdf ? 'height: 24px;' : '' }}">{{ $timeLabel }}</td>
                                 @endif
                                 
                                 @foreach($columnNames as $columnName)
@@ -156,12 +178,12 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                             continue;
                                         }
                                         
-                                        // Find events for this column
+                                        // Find events for this column - use pre-assigned column from controller
                                         $columnEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime, $columnName) {
-                                            $eventColumn = $item['event']['group_overview_plan_column'] ?? 'Allgemein';
+                                            $eventAssignedColumn = $item['event']['assigned_column'] ?? 'Allgemein';
                                             
                                             // Only check events that match this column
-                                            if ($eventColumn !== $columnName) {
+                                            if ($eventAssignedColumn !== $columnName) {
                                                 return false;
                                             }
                                             
@@ -186,8 +208,13 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                             // Mark this column as occupied for the next N-1 rows
                                             $occupiedCells[$columnName] = $index + $rowspan;
                                             
-                                            // Get color based on the event's actual overview_plan_column
-                                            $eventColumn = $event['group_overview_plan_column'] ?? 'Allgemein';
+                                            // Get color based on the event's assigned column
+                                            $eventAssignedColumn = $event['assigned_column'] ?? 'Allgemein';
+                                            $baseColor = $eventAssignedColumn;
+                                            if (strpos($baseColor, 'Allgemein-') === 0) {
+                                                $baseColor = 'Allgemein';
+                                            }
+                                            
                                             $columnColors = [
                                                 'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
                                                 'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
@@ -196,7 +223,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                                 'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']
                                             ];
                                             
-                                            $colors = $columnColors[$eventColumn] ?? ['bg' => '#f5f5f5', 'border' => '#95a5a6'];
+                                            $colors = $columnColors[$baseColor] ?? ['bg' => '#f5f5f5', 'border' => '#95a5a6'];
                                             
                                             $startTime = $event['earliest_start']->format('H:i');
                                             $endTime = $event['latest_end']->format('H:i');
@@ -204,12 +231,11 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @endphp
                                     
                                     @if($columnEvents->count() > 0)
-                                        <td rowspan="{{ $rowspan }}" class="activity-cell" style="background-color: {{ $colors['bg'] }}; border-left: 3px solid {{ $colors['border'] }};">
-                                            {{ $event['group_name'] }}<br>
-                                            <span class="activity-time">{{ $startTime }} - {{ $endTime }}</span>
+                                        <td rowspan="{{ $rowspan }}" class="activity-cell" style="background-color: {{ $colors['bg'] }}; border-left: 3px solid {{ $colors['border'] }}; {{ !$isPdf ? 'height: 24px; overflow: hidden; line-height: 1.1;' : '' }}">
+                                            {{ $event['group_name'] }}{{ !$isPdf ? ' ' : '<br>' }}<span class="activity-time">{{ $startTime }} - {{ $endTime }}</span>
                                         </td>
                                     @else
-                                        <td class="empty-cell"></td>
+                                        <td class="empty-cell" style="{{ !$isPdf ? 'height: 24px;' : '' }}"></td>
                                     @endif
                                 @endforeach
                             </tr>
@@ -272,12 +298,9 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
 .column-header {
     background-color: white;
     font-weight: bold;
-}
-
-.header-logo {
-    height: 20px;
-    width: auto;
-    max-width: 100%;
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 12px;
 }
 
 .overview-table td {
@@ -324,10 +347,6 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
     .overview-table th,
     .overview-table td {
         padding: 2px;
-    }
-    
-    .header-logo {
-        height: 16px;
     }
 }
 </style>

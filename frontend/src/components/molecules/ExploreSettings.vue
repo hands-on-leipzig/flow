@@ -77,58 +77,139 @@ const e2Teams = computed(() => Number(paramMapByName.value['e2_teams']?.value ||
 // 3: Separate AM
 // 4: Separate PM
 // 5: Separate split between AM/PM
-const isIntegratedAM = computed(() => eMode.value === 1)
-const isIntegratedPM = computed(() => eMode.value === 2)
-const isSeparateSplit = computed(() => eMode.value === 5)
+const isIntegratedAM = computed(() => eMode.value === 1 || eMode.value === 6)
+const isIntegratedPM = computed(() => eMode.value === 2 || eMode.value === 7)
+const isSeparateSplit = computed(() => eMode.value === 5 || eMode.value === 8)
 
-const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2)
-const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4 || eMode.value === 5)
+const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2 || eMode.value === 6 || eMode.value === 7)
+const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4 || eMode.value === 5 || eMode.value === 8)
 const hasExplore = computed(() => props.showExplore)
+
+// New UI: Timing options (radio buttons)
+const timingOptions = [
+  { value: 'morning', label: 'Vormittag' },
+  { value: 'afternoon', label: 'Nachmittag' },
+  { value: 'both', label: 'beides' }
+]
+
+// New UI: Timing mode (radio button selection)
+const timingMode = computed({
+  get: () => {
+    // Map current eMode to timing mode
+    // For "both" timing, always return "both" regardless of integration state
+    if (eMode.value === 5 || eMode.value === 8) return 'both'
+    if (eMode.value === 1 || eMode.value === 3 || eMode.value === 6) return 'morning'
+    if (eMode.value === 2 || eMode.value === 4 || eMode.value === 7) return 'afternoon'
+    return 'morning' // default
+  },
+  set: (value) => {
+    updateTimingMode(value)
+  }
+})
+
+// Simple integration enabled/disabled
+const integrationEnabled = computed({
+  get: () => {
+    const timing = timingMode.value
+    
+    if (timing === 'morning') {
+      // Morning: Ja = mode 1 (integrated), Nein = mode 3 (decoupled)
+      return eMode.value === 1 ? 'yes' : 'no'
+    } else if (timing === 'afternoon') {
+      // Afternoon: Ja = mode 2 (integrated), Nein = mode 4 (decoupled)
+      return eMode.value === 2 ? 'yes' : 'no'
+    } else if (timing === 'both') {
+      // Both: Ja = mode 8 (hybrid both), Nein = mode 5 (decoupled both)
+      return eMode.value === 8 ? 'yes' : 'no'
+    }
+    
+    return 'no'
+  },
+  set: (value) => {
+    const timing = timingMode.value
+    
+    if (timing === 'morning') {
+      // Morning: Ja = integrated (1), Nein = decoupled (3)
+      setMode(value === 'yes' ? 1 : 3)
+    } else if (timing === 'afternoon') {
+      // Afternoon: Ja = integrated (2), Nein = decoupled (4)
+      setMode(value === 'yes' ? 2 : 4)
+    } else if (timing === 'both') {
+      // Both: Ja = hybrid both (8), Nein = decoupled both (5)
+      setMode(value === 'yes' ? 8 : 5)
+    }
+  }
+})
+
+function updateTimingMode(timing: string) {
+  // When switching timing, reset to decoupled mode for that timing
+  // User will need to set integration again for the new timing
+  let baseMode: number
+  switch (timing) {
+    case 'morning': 
+      baseMode = 3; // Decoupled morning
+      break
+    case 'afternoon': 
+      baseMode = 4; // Decoupled afternoon
+      break
+    case 'both': 
+      baseMode = 5; // Decoupled both
+      break
+    default: 
+      baseMode = 3; 
+      break
+  }
+  
+  setMode(baseMode)
+}
 
 // Check if challenge is enabled (for disabling integrated modes)
 const isChallengeEnabled = computed(() => props.showChallenge !== false)
 
 // Watch for challenge being disabled and switch away from integrated modes
 watch(isChallengeEnabled, (enabled) => {
-  if (!enabled && (eMode.value === 1 || eMode.value === 2)) {
+  if (!enabled && (eMode.value === 1 || eMode.value === 2 || eMode.value === 6 || eMode.value === 7)) {
     // Challenge disabled while in integrated mode - switch to separate AM
     setMode(3)
   }
 })
 
 /** Fancy mode changes **/
-function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5) {
+function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) {
   eMode.value = mode
   const total = eTeams.value
 
+  // Map hybrid modes to their base modes
+  const baseMode = mode === 6 ? 1 : mode === 7 ? 2 : mode === 8 ? 5 : mode
+
   // Reset team counts and lane counts based on mode
-  if (mode === 0) {
+  if (baseMode === 0) {
     // No explore - clear all team and lane counts
     updateByName('e1_teams', 0)
     updateByName('e2_teams', 0)
     updateByName('e1_lanes', 0)
     updateByName('e2_lanes', 0)
-  } else if (mode === 1) {
+  } else if (baseMode === 1) {
     // Integrated AM - all teams in e1_teams, clear PM
     updateByName('e1_teams', total)
     updateByName('e2_teams', 0)
     updateByName('e2_lanes', 0)
-  } else if (mode === 2) {
+  } else if (baseMode === 2) {
     // Integrated PM - all teams in e2_teams, clear AM
     updateByName('e1_teams', 0)
     updateByName('e2_teams', total)
     updateByName('e1_lanes', 0)
-  } else if (mode === 3) {
+  } else if (baseMode === 3) {
     // Separate AM - all teams in e1_teams, clear PM
     updateByName('e1_teams', total)
     updateByName('e2_teams', 0)
     updateByName('e2_lanes', 0)
-  } else if (mode === 4) {
+  } else if (baseMode === 4) {
     // Separate PM - all teams in e2_teams, clear AM
     updateByName('e1_teams', 0)
     updateByName('e2_teams', total)
     updateByName('e1_lanes', 0)
-  } else if (mode === 5) {
+  } else if (baseMode === 5) {
     // Separate split - create half split immediately
     const half = Math.floor(total / 2)
     updateByName('e1_teams', half)
@@ -146,28 +227,31 @@ watch(() => paramMapByName.value['e_teams']?.value, (newTotalRaw) => {
     updateByName('e_teams', total)
   }
 
+  // Map hybrid modes to their base modes
+  const baseMode = eMode.value === 6 ? 1 : eMode.value === 7 ? 2 : eMode.value === 8 ? 5 : eMode.value
+
   // Update e1_teams and e2_teams based on current mode
-  if (eMode.value === 0) {
+  if (baseMode === 0) {
     // No explore - clear all
     updateByName('e1_teams', 0)
     updateByName('e2_teams', 0)
-  } else if (eMode.value === 1) {
+  } else if (baseMode === 1) {
     // Integrated AM - all in e1_teams
     updateByName('e1_teams', total)
     updateByName('e2_teams', 0)
-  } else if (eMode.value === 2) {
+  } else if (baseMode === 2) {
     // Integrated PM - all in e2_teams
     updateByName('e1_teams', 0)
     updateByName('e2_teams', total)
-  } else if (eMode.value === 3) {
+  } else if (baseMode === 3) {
     // Separate AM - all in e1_teams
     updateByName('e1_teams', total)
     updateByName('e2_teams', 0)
-  } else if (eMode.value === 4) {
+  } else if (baseMode === 4) {
     // Separate PM - all in e2_teams
     updateByName('e1_teams', 0)
     updateByName('e2_teams', total)
-  } else if (eMode.value === 5) {
+  } else if (baseMode === 5) {
     // Separate split - always create proper half split
     const half = Math.floor(total / 2)
     updateByName('e1_teams', half)
@@ -212,8 +296,8 @@ watch(allowedExploreLanesIntegrated, (opts) => {
 const allowedExploreLanesAM = computed<number[]>(() => {
   if (!props.lanesIndex) return []
 
-  // For mode 3 (separate AM), use total teams. For mode 5 (split), use actual e1Teams
-  const teamCount = (eMode.value === 3) ? eTeams.value : e1Teams.value
+  // For mode 3 (separate AM) or mode 6 (hybrid AM), use total teams. For mode 5 (split) or mode 8 (hybrid split), use actual e1Teams
+  const teamCount = (eMode.value === 3 || eMode.value === 6) ? eTeams.value : e1Teams.value
   if (!teamCount) return []
 
   const key = `${teamCount}`
@@ -222,8 +306,8 @@ const allowedExploreLanesAM = computed<number[]>(() => {
 const allowedExploreLanesPM = computed<number[]>(() => {
   if (!props.lanesIndex) return []
 
-  // For mode 4 (separate PM), use total teams. For mode 5 (split), use actual e2Teams
-  const teamCount = (eMode.value === 4) ? eTeams.value : e2Teams.value
+  // For mode 4 (separate PM) or mode 7 (hybrid PM), use total teams. For mode 5 (split) or mode 8 (hybrid split), use actual e2Teams
+  const teamCount = (eMode.value === 4 || eMode.value === 7) ? eTeams.value : e2Teams.value
   if (!teamCount) return []
 
   const key = `${teamCount}`
@@ -294,16 +378,16 @@ const isExploreLaneAllowedPM = (n: number) => {
 
 // Get the current note based on the active mode
 const currentExploreNote = computed<string>(() => {
-  if (eMode.value === 1) return currentIntegratedNote.value || ''
-  if (eMode.value === 2) return currentAMNote.value || ''
+  if (eMode.value === 1 || eMode.value === 6) return currentIntegratedNote.value || ''
+  if (eMode.value === 2 || eMode.value === 7) return currentAMNote.value || ''
   if (eMode.value === 3) return currentPMNote.value || ''
   return ''
 })
 
 // Get the current alert level based on the active mode
 const currentExploreAlertLevel = computed<number>(() => {
-  if (eMode.value === 1) return currentConfigAlertLevelIntegrated.value
-  if (eMode.value === 2) return currentConfigAlertLevelAM.value
+  if (eMode.value === 1 || eMode.value === 6) return currentConfigAlertLevelIntegrated.value
+  if (eMode.value === 2 || eMode.value === 7) return currentConfigAlertLevelAM.value
   if (eMode.value === 3) return currentConfigAlertLevelPM.value
   return 0
 })
@@ -509,6 +593,22 @@ const teamsPerJuryHint2 = computed(() => {
       </label>
     </div>
 
+    <!-- DEBUG: Show e_mode value -->
+    <div v-if="hasExplore" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm">
+      <strong>DEBUG:</strong> e_mode = {{ eMode }} ({{ 
+        eMode === 0 ? 'NONE' :
+        eMode === 1 ? 'INTEGRATED_MORNING' :
+        eMode === 2 ? 'INTEGRATED_AFTERNOON' :
+        eMode === 3 ? 'DECOUPLED_MORNING' :
+        eMode === 4 ? 'DECOUPLED_AFTERNOON' :
+        eMode === 5 ? 'DECOUPLED_BOTH' :
+        eMode === 6 ? 'HYBRID_MORNING' :
+        eMode === 7 ? 'HYBRID_AFTERNOON' :
+        eMode === 8 ? 'HYBRID_BOTH' :
+        'UNKNOWN'
+      }})
+    </div>
+
     <div v-if="hasExplore" class="mb-3 flex items-center gap-2">
       <span>Plan für</span>
       <div class="relative">
@@ -532,72 +632,65 @@ const teamsPerJuryHint2 = computed(() => {
       <InfoPopover :text="paramMapByName['e_teams']?.ui_description"/>
     </div>
 
-    <!-- Fancy e_mode selector -->
+    <!-- New UI: Two-row approach -->
     <div v-if="hasExplore">
-      <div class="space-y-2 mb-4">
-        <!-- Integrated with Challenge -->
+      <div class="space-y-4 mb-4">
+        <!-- First row: Timing (Radio buttons) -->
         <div class="flex items-center gap-2">
-          <span class="text-sm font-medium">Integriert in Challenge</span>
-          <button
-              :class="[
-                eMode === 1 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400',
-                !isChallengeEnabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''
-              ]"
-              :disabled="!isChallengeEnabled"
-              class="px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              type="button"
-              @click="isChallengeEnabled && setMode(1)"
-          >
-            vormittags
-          </button>
-          <button
-              :class="[
-                eMode === 2 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400',
-                !isChallengeEnabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''
-              ]"
-              :disabled="!isChallengeEnabled"
-              class="px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              type="button"
-              @click="isChallengeEnabled && setMode(2)"
-          >
-            nachmittags
-          </button>
+          <span class="text-sm font-medium">Explore im</span>
+          <RadioGroup v-model="timingMode" class="flex gap-1">
+            <RadioGroupOption
+                v-for="option in timingOptions"
+                :key="option.value"
+                v-slot="{ checked }"
+                :value="option.value"
+            >
+              <button
+                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  type="button"
+              >
+                {{ option.label }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
           <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
         </div>
 
-        <!-- Independent from Challenge -->
+        <!-- Second row: Integration (Simple Ja/Nein) -->
         <div class="flex items-center gap-2">
-          <span class="text-sm font-medium">Getrennt von Challenge</span>
-          <button
-              :class="eMode === 3 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-              class="px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              type="button"
-              @click="setMode(3)"
-          >
-            vormittags
-          </button>
-          <button
-              :class="eMode === 4 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-              class="px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              type="button"
-              @click="setMode(4)"
-          >
-            nachmittags
-          </button>
-          <button
-              :class="eMode === 5 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-              class="px-2 py-1 rounded-md border text-sm transition
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-              type="button"
-              @click="setMode(5)"
-          >
-            geteilt
-          </button>
+          <span class="text-sm font-medium">Integration mit Challenge</span>
+          <RadioGroup v-model="integrationEnabled" class="flex gap-1">
+            <RadioGroupOption
+                value="yes"
+                v-slot="{ checked }"
+            >
+              <button
+                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  type="button"
+              >
+                ja
+              </button>
+            </RadioGroupOption>
+            <RadioGroupOption
+                value="no"
+                v-slot="{ checked }"
+            >
+              <button
+                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                  class="px-2 py-1 rounded-md border text-sm transition
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  type="button"
+              >
+                nein
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
         </div>
+
       </div>
     </div>
 
@@ -607,65 +700,90 @@ const teamsPerJuryHint2 = computed(() => {
       <div class="text-sm">Aktiviere den Schalter oben rechts, um Explore-Einstellungen zu konfigurieren.</div>
     </div>
 
-    <!-- INTEGRATED (1/2): inline lane selector bound to e1_lanes (allowed by total e_teams) -->
-    <div v-if="hasExplore && isIntegrated" class="mt-4 flex">
+    <!-- Gutachter:innen-Gruppen selection - Based on timing mode only -->
+    
+    <!-- AM timing: Show AM lanes selection -->
+    <div v-if="hasExplore && timingMode === 'morning'" class="mt-4">
       <div class="flex items-start gap-2">
-        <!-- Buttons -->
-        <RadioGroup v-model="integratedLanesProxy" class="flex gap-1">
+        <RadioGroup v-model="eLanesAMProxy" class="flex gap-1">
           <RadioGroupOption
               v-for="n in allLaneOptions"
-              :key="'e_lane_int_' + n"
+              :key="'e_lane_am_' + n"
               v-slot="{ checked, disabled }"
-              :disabled="!isExploreLaneAllowedIntegrated(n)"
+              :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
               :value="n"
           >
             <button
                 :aria-disabled="disabled"
                 :class="[
-                checked ? getAlertLevelStyle(currentConfigAlertLevelIntegrated) : '',
-                disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-              ]"
+                  checked ? getAlertLevelStyle(currentConfigAlertLevelAM) : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                ]"
                 class="px-2 py-1 rounded-md border text-sm transition
-                  focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                 type="button"
             >
               {{ n }}
             </button>
           </RadioGroupOption>
         </RadioGroup>
-
-        <!-- Rechte Spalte mit Label + Hint -->
         <div class="flex flex-col">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-medium">Gutachter:innen-Gruppen</span>
-            <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
-          </div>
-          <span class="text-xs text-gray-500 italic">
-            {{ teamsPerJuryHint1 }} {{ teamsPerJuryHint2 }}
-          </span>
+          <span class="text-sm font-medium">Gutachter:innen-Gruppen</span>
+          <span class="text-xs text-gray-500 italic">{{ teamsPerJuryHint1 }}</span>
         </div>
       </div>
-
-
     </div>
 
-    <!-- SPLIT slider only for mode 5 -->
-    <div v-if="hasExplore">
-      <SplitBar
-          v-if="isSeparateSplit && paramMapByName['e_teams']?.value"
-          :e1="Number(paramMapByName['e1_teams']?.value || 0)"
-          :e2="Number(paramMapByName['e2_teams']?.value || 0)"
-          :total="Number(paramMapByName['e_teams']?.value || 0)"
-          class="mt-3"
-          @update:e1="(v:number) => updateByName('e1_teams', v)"
-          @update:e2="(v:number) => updateByName('e2_teams', v)"
-      />
+    <!-- PM timing: Show PM lanes selection -->
+    <div v-if="hasExplore && timingMode === 'afternoon'" class="mt-4">
+      <div class="flex items-start gap-2">
+        <RadioGroup v-model="eLanesPMProxy" class="flex gap-1">
+          <RadioGroupOption
+              v-for="n in allLaneOptions"
+              :key="'e_lane_pm_' + n"
+              v-slot="{ checked, disabled }"
+              :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
+              :value="n"
+          >
+            <button
+                :aria-disabled="disabled"
+                :class="[
+                  checked ? getAlertLevelStyle(currentConfigAlertLevelPM) : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                ]"
+                class="px-2 py-1 rounded-md border text-sm transition
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                type="button"
+            >
+              {{ n }}
+            </button>
+          </RadioGroupOption>
+        </RadioGroup>
+        <div class="flex flex-col">
+          <span class="text-sm font-medium">Gutachter:innen-Gruppen</span>
+          <span class="text-xs text-gray-500 italic">{{ teamsPerJuryHint2 }}</span>
+        </div>
+      </div>
     </div>
 
-    <!-- Two columns when independent (3, 4, or 5) -->
-    <div v-if="hasExplore && isIndependent" class="mt-4 grid grid-cols-2 gap-8 text-gray-800">
+    <!-- Both timing: Show splitter and both AM/PM lanes -->
+    <template v-if="hasExplore && timingMode === 'both'">
+      <!-- Splitter -->
+      <div v-if="paramMapByName['e_teams']?.value" class="mt-4">
+        <SplitBar
+            :e1="Number(paramMapByName['e1_teams']?.value || 0)"
+            :e2="Number(paramMapByName['e2_teams']?.value || 0)"
+            :total="Number(paramMapByName['e_teams']?.value || 0)"
+            class="mb-4"
+            @update:e1="(v:number) => updateByName('e1_teams', v)"
+            @update:e2="(v:number) => updateByName('e2_teams', v)"
+        />
+      </div>
+      
+      <!-- Two columns for AM and PM -->
+      <div class="mt-4 grid grid-cols-2 gap-8 text-gray-800">
       <!-- AM -->
-      <div :class="(eMode === 4 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
+      <div :class="(eMode === 4 || eMode === 7 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
           Vormittag
         </div>
@@ -708,7 +826,7 @@ const teamsPerJuryHint2 = computed(() => {
       </div>
 
       <!-- PM -->
-      <div :class="(eMode === 3 || e2Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
+      <div :class="(eMode === 3 || eMode === 6 || e2Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
         <div class="text-sm font-medium mb-1">
           Nachmittag
         </div>
@@ -746,10 +864,9 @@ const teamsPerJuryHint2 = computed(() => {
             </div>
           </div>
         </div>
-
-
       </div>
     </div>
+    </template>
 
     <!-- Alert message banner -->
     <div v-if="currentExploreNote && (currentExploreAlertLevel === 2 || currentExploreAlertLevel === 3)"
