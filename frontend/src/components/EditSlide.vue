@@ -199,7 +199,8 @@ function saveSlide() {
         <!-- Öffentliche Ergebnisse -->
         <div class="mt-4 rounded-lg border px-2 py-2 transition hover:border-gray-400" v-if="robotGameRounds">
           <label class="text-sm font-medium pl-2">Öffentliche Ergebnisse</label>
-          <InfoPopover text="Wählen Sie aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
+          <InfoPopover
+              text="Wählen Sie aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
           <div class="grid grid-cols-6 gap-2 mt-2">
             <label class="flex items-center gap-2 px-2">
               <input
@@ -224,7 +225,8 @@ function saveSlide() {
                   @change="updateRobotGameRounds('vr3', ($event.target as HTMLInputElement).checked)"
               />
               <span>VR3</span>
-            </label><label class="flex items-center gap-2 px-2">
+            </label>
+            <label class="flex items-center gap-2 px-2">
               <input
                   type="checkbox"
                   :checked="robotGameRounds.af"
@@ -239,7 +241,8 @@ function saveSlide() {
                   @change="updateRobotGameRounds('vf', ($event.target as HTMLInputElement).checked)"
               />
               <span>VF</span>
-            </label><label class="flex items-center gap-2 px-2">
+            </label>
+            <label class="flex items-center gap-2 px-2">
               <input
                   type="checkbox"
                   :checked="robotGameRounds.hf"
