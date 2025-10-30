@@ -188,6 +188,98 @@ class QualityController extends Controller
         ]);
     }
 
+    /**
+     * Ensure a QPlan exists and is up-to-date for a given plan ID, then return details.
+     */
+    public function getQPlanDetailsByPlan(int $planId)
+    {
+        // Load plan.last_change
+        $plan = DB::table('plan')->where('id', $planId)->first();
+        if (!$plan) {
+            return response()->json(['message' => 'Plan not found'], 404);
+        }
+
+        $qplan = DB::table('q_plan')->where('plan', $planId)->first();
+
+        $needsCreateOrRefresh = false;
+        if (!$qplan) {
+            $needsCreateOrRefresh = true;
+        } else {
+            // If q_plan.last_change is null or older than plan.last_change, refresh
+            if (!empty($plan->last_change)) {
+                $planChanged = \Carbon\Carbon::parse($plan->last_change);
+                $qLast = $qplan->last_change ? \Carbon\Carbon::parse($qplan->last_change) : null;
+                if ($qLast === null || $qLast->lt($planChanged)) {
+                    $needsCreateOrRefresh = true;
+                }
+            }
+        }
+
+        if ($needsCreateOrRefresh) {
+            // Create a minimal q_run and q_plan, then evaluate
+            $host = gethostname();
+            $runId = DB::table('q_run')->insertGetId([
+                'name' => "Auto für Plan {$planId}",
+                'comment' => 'Automatisch erstellt durch Preview',
+                'selection' => null,
+                'started_at' => \Carbon\Carbon::now(),
+                'status' => 'running',
+                'host' => $host,
+            ]);
+
+            // Load parameters
+            $pp = new \App\Support\PlanParameter($planId);
+            $cTeams = (int) $pp->get('c_teams');
+            $rTables = (int) $pp->get('r_tables');
+            $jLanes = (int) $pp->get('j_lanes');
+            $juryRounds = (int) ceil(max(1, $cTeams) / max(1, $jLanes));
+            $robotCheck = (bool) $pp->get('r_robot_check');
+            $rDurationRobotCheck = (int) $pp->get('r_duration_robot_check');
+            $cDurationTransfer = (int) $pp->get('c_duration_transfer');
+            $rAsym = ($rTables === 4 && ($cTeams % 4 === 1 || $cTeams % 4 === 2)) ? 1 : 0;
+
+            $qPlanId = DB::table('q_plan')->insertGetId([
+                'plan' => $planId,
+                'q_run' => $runId,
+                'name' => $plan->name,
+                'c_teams' => $cTeams,
+                'r_tables' => $rTables,
+                'j_lanes' => $jLanes,
+                'j_rounds' => $juryRounds,
+                'r_asym' => $rAsym,
+                'r_robot_check' => $robotCheck,
+                'r_duration_robot_check' => $rDurationRobotCheck,
+                'c_duration_transfer' => $cDurationTransfer,
+                'calculated' => false,
+                'last_change' => null,
+            ]);
+
+            // Evaluate to populate q_plan_team and summary fields
+            app(\App\Services\QualityEvaluatorService::class)->evaluate($qPlanId);
+
+            // Mark run as done and update counters
+            $totals = DB::table('q_plan')->where('q_run', $runId)->count();
+            $calculated = DB::table('q_plan')->where('q_run', $runId)->where('calculated', 1)->count();
+            DB::table('q_run')->where('id', $runId)->update([
+                'qplans_total' => $totals,
+                'qplans_calculated' => $calculated,
+                'finished_at' => \Carbon\Carbon::now(),
+                'status' => 'done',
+            ]);
+
+            $qplan = DB::table('q_plan')->where('id', $qPlanId)->first();
+
+            // Cleanup: remove any older q_plan versions for this plan (keep only the fresh one)
+            DB::table('q_plan')
+                ->where('plan', $planId)
+                ->where('id', '!=', $qPlanId)
+                ->delete();
+        }
+
+        // Reuse details builder
+        return $this->getQPlanDetails($qplan->id);
+    }
+
     public function deleteQRun(int $qRunId)
     {
         try {
