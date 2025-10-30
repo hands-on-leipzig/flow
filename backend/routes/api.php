@@ -246,7 +246,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/qrun', [QualityController::class, 'startQRun']);                   // Start eines neuen Runs
         Route::get('/qruns', [QualityController::class, 'listQRuns']);                    // Alle Runs auflisten
         Route::get('/qplans/{qRunId}', [QualityController::class, 'listQPlans']);          // Alle Pläne zu einem Run
-        Route::get('/details/{qPlanId}', [QualityController::class, 'getQPlanDetails']);  // Einzelplan-Details
+        Route::get('/details/{qPlanId}', [QualityController::class, 'getQPlanDetails']);  // Einzelplan-Details (by QPlan ID)
+        Route::get('/details-by-plan/{planId}', [QualityController::class, 'getQPlanDetailsByPlan']); // Details mit Auto-Generierung (by Plan ID)
         Route::post('/rerun', [QualityController::class, 'rerunQPlans']);
         Route::delete('/delete/{qRunId}', [QualityController::class, 'deleteQRun']);        // Löschen eines Runs und aller zugehörigen Pläne
         // compress endpoint removed (no longer needed)

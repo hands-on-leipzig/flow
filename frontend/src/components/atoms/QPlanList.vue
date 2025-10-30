@@ -517,7 +517,7 @@ async function startRerun() {
 
         <!-- Akkordeon für Details -->
         <div v-if="expandedPlanId === qplan.id" class="bg-gray-50 px-2 py-1 border-t border-gray-200">
-          <QPlanDetails :planId="qplan.id" />
+          <QPlanDetails :planId="qplan.plan || 0" />
         </div>
       </div>
     </div>
