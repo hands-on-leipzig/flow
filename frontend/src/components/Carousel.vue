@@ -16,7 +16,7 @@ socket.addListener((msg) => {
 }); */
 
 const props = defineProps<{
-  eventId: Number
+  eventId: number
 }>();
 
 let loaded = ref(false)
@@ -66,7 +66,7 @@ onMounted(fetchSlides)
 
 <template>
   <div v-if="showSlide" v-for="(slide, index) in slideshow?.slides" class="h-screen w-full" v-show="index === slideKey">
-    <SlideContentRenderer :slide="slide" :preview="false"/>
+    <SlideContentRenderer :slide="slide" :preview="false" :eventId="+eventId"/>
   </div>
   <!-- <footer>
     <div>

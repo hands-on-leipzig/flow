@@ -105,7 +105,7 @@ class GenerateMainDataSeeder extends Command
             return $orderA <=> $orderB;
         });
         
-        $seederContent = "<?php\n\nnamespace Database\\Seeders;\n\nuse Illuminate\\Database\\Seeder;\nuse Illuminate\\Support\\Facades\\DB;\n\nclass MainDataSeeder extends Seeder\n{\n    /**\n     * Run the database seeds.\n     */\n    public function run(): void\n    {\n        \$this->command->info('🌱 Seeding main data...');\n        \n";
+        $seederContent = "<?php\n\nnamespace Database\\Seeders;\n\nuse Illuminate\\Database\\Seeder;\nuse Illuminate\\Support\\Facades\\DB;\nuse Illuminate\\Support\\Facades\\Schema;\n\nclass MainDataSeeder extends Seeder\n{\n    /**\n     * Run the database seeds.\n     */\n    public function run(): void\n    {\n        \$this->command->info('🌱 Seeding main data...');\n        \n";
         
         foreach ($tables as $table) {
             $methodName = 'seed' . str_replace('m_', '', $table);
@@ -130,18 +130,16 @@ class GenerateMainDataSeeder extends Command
                 $seederContent .= "            " . var_export($record, true) . ",\n";
             }
             
-            $seederContent .= "        ];\n        \n        foreach (\$data as \$item) {\n";
+            $seederContent .= "        ];\n        \n        // Get actual table columns to filter out non-existent columns\n        \$tableColumns = Schema::getColumnListing('{$table}');\n        \n        foreach (\$data as \$item) {\n            // Filter item to only include columns that exist in the table\n            \$filteredItem = array_intersect_key(\$item, array_flip(\$tableColumns));\n            \n            // Determine unique key for updateOrInsert\n            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships\n";
             
-            // Determine unique key for updateOrInsert
-            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
             if (!empty($tableData)) {
                 $firstRecord = $tableData[0];
                 if (isset($firstRecord['id'])) {
-                    $seederContent .= "            DB::table('{$table}')->updateOrInsert(\n                ['id' => \$item['id']],\n                \$item\n            );\n";
+                    $seederContent .= "            DB::table('{$table}')->updateOrInsert(\n                ['id' => \$filteredItem['id']],\n                \$filteredItem\n            );\n";
                 } elseif (isset($firstRecord['name'])) {
-                    $seederContent .= "            DB::table('{$table}')->updateOrInsert(\n                ['name' => \$item['name']],\n                \$item\n            );\n";
+                    $seederContent .= "            DB::table('{$table}')->updateOrInsert(\n                ['name' => \$filteredItem['name']],\n                \$filteredItem\n            );\n";
                 } else {
-                    $seederContent .= "            DB::table('{$table}')->insert(\$item);\n";
+                    $seederContent .= "            DB::table('{$table}')->insert(\$filteredItem);\n";
                 }
             }
             

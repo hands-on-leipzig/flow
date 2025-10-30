@@ -1,8 +1,6 @@
 <script setup lang="ts">
 
 import {computed, onMounted, ref} from "vue";
-import {useEventStore} from "@/stores/event";
-import FllEvent from "@/models/FllEvent";
 import axios from "axios";
 import {Slide} from "@/models/slide";
 import FabricEditor from "@/components/FabricEditor.vue";
@@ -109,6 +107,51 @@ function saveSlide() {
         </div>
 
       </div>
+      <div v-if="slide.type === 'RobotGameSlideContent'">
+        <div class="grid grid-cols-2 gap-2 items-center">
+          <!-- Teams -->
+          <div class="flex items-center space-x-2">
+            <label class="text-sm font-medium">Teams pro Seite</label>
+            <InfoPopover text="Anzahl an Teams, die pro Seite angezeigt werden sollen."/>
+          </div>
+          <div>
+            <input
+                class="mt-1 w-full border rounded px-2 py-1"
+                type="number"
+                :value="slide.content.teamsPerPage"
+                @input="updateByName('teamsPerPage', ($event.target as HTMLInputElement).value || 0)"
+            />
+          </div>
+
+          <!-- Zeit pro Seite -->
+          <div class="flex items-center space-x-2">
+            <label class="text-sm font-medium">Sekunden pro Seite</label>
+            <InfoPopover text="Zeit in Sekunden, bis zur nächsten Seite geblättert wird."/>
+          </div>
+          <div>
+            <input
+                class="mt-1 w-full border rounded px-2 py-1"
+                type="number"
+                :value="slide.content.secondsPerPage"
+                @input="updateByName('secondsPerPage', ($event.target as HTMLInputElement).value || 0)"
+            />
+          </div>
+
+          <!-- Highlight-Farbe -->
+          <div>
+            <label class="text-sm font-medium">Highlight-Farbe</label>
+            <InfoPopover text="Die Farbe, die für Hervorhebungen in der Tabelle verwendet wird."/>
+          </div>
+          <div>
+            <input
+                class="mt-1 w-full border rounded px-2 py-1"
+                type="color"
+                :value="slide.content.highlightColor"
+                @input="updateByName('highlightColor', ($event.target as HTMLInputElement).value || '#FFD700')"
+            />
+          </div>
+        </div>
+      </div>
       <div v-if="slide.type === 'UrlSlideContent'">
         <!-- URL -->
         <label class="text-sm font-medium pl-2">URL</label>
@@ -119,29 +162,6 @@ function saveSlide() {
             type="text"
             :value="slide.content.url"
             @input="updateByName('url', ($event.target as HTMLInputElement).value || '')"
-        />
-      </div>
-      <div v-if="slide.type === 'RobotGameSlideContent'">
-        <!-- Teams -->
-        <label class="text-sm font-medium pl-2 mt-4">Teams pro Seite</label>
-        <InfoPopover text="Anzahl an Teams, die pro Seite angezeigt werden sollen."/>
-        &nbsp;
-        <input
-            class="mt-1 w-32 border rounded px-2 py-1"
-            type="number"
-            :value="slide.content.teamsPerPage"
-            @input="updateByName('teamsPerPage', ($event.target as HTMLInputElement).value || 0)"
-        />
-        <br>
-        <!-- Highlight-Farbe -->
-        <label class="text-sm font-medium pl-2 mt-4">Highlight-Farbe</label>
-        <InfoPopover text="Die Farbe, die für Hervorhebungen in der Tabelle verwendet wird."/>
-        &nbsp;
-        <input
-            class="mt-1 w-32 border rounded px-2 py-1"
-            type="color"
-            :value="slide.content.highlightColor"
-            @input="updateByName('highlightColor', ($event.target as HTMLInputElement).value || '#FFD700')"
         />
       </div>
     </div>
