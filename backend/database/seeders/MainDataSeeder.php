@@ -14,18 +14,26 @@ class MainDataSeeder extends Seeder
     {
         $this->command->info('🌱 Seeding main data...');
         
-        $this->Seedseason();
-        $this->Seedlevel();
-        $this->SeedfirstProgram();
-        $this->SeedrootypeGroup();
-        $this->Seedrootype();
-        $this->Seedparameter();
-        $this->SeedactivityType();
-        $this->SeedactivityTypeDetail();
-        $this->SeedinsertPoint();
-        $this->Seedrole();
-        $this->Seedvisibility();
-        $this->SeedsupportedPlan();
+        // Disable foreign key checks during seeding to handle data inconsistencies
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        
+        try {
+            $this->Seedseason();
+            $this->Seedlevel();
+            $this->SeedfirstProgram();
+            $this->SeedrootypeGroup();
+            $this->Seedrootype();
+            $this->Seedparameter();
+            $this->SeedactivityType();
+            $this->SeedactivityTypeDetail();
+            $this->SeedinsertPoint();
+            $this->Seedrole();
+            $this->Seedvisibility();
+            $this->SeedsupportedPlan();
+        } finally {
+            // Re-enable foreign key checks
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
         
         $this->command->info('✅ Main data seeded successfully!');
     }
