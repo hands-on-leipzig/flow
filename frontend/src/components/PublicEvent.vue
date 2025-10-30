@@ -27,20 +27,21 @@
         <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ event.name }}</h1>
         <div class="flex justify-center mb-6">
           <div v-if="event.event_explore && !event.event_challenge" class="flex items-center">
-            <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-16 h-16" />
+            <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-16 h-16"/>
           </div>
           <div v-else-if="event.event_challenge && !event.event_explore" class="flex items-center">
-            <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-16 h-16" />
+            <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-16 h-16"/>
           </div>
           <div v-else-if="event.event_explore && event.event_challenge" class="flex items-center space-x-4">
-            <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-12 h-12" />
-            <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-12 h-12" />
+            <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-12 h-12"/>
+            <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-12 h-12"/>
           </div>
         </div>
       </div>
 
       <!-- Level 1: Basic Event Information -->
-      <div v-if="isContentVisible(1) && scheduleInfo" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div v-if="isContentVisible(1) && scheduleInfo"
+           class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">
           Veranstaltungsinformationen
         </h2>
@@ -66,7 +67,8 @@
       </div>
 
       <!-- Level 1: Teams -->
-      <div v-if="isContentVisible(1) && scheduleInfo" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div v-if="isContentVisible(1) && scheduleInfo"
+           class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-6">
           Angemeldete Teams
         </h2>
@@ -75,7 +77,7 @@
         <div v-if="scheduleInfo.teams.explore.list?.length" class="mb-8">
           <div class="flex items-center justify-between mb-4">
             <h3 class="font-semibold text-gray-900 flex items-center">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-6 h-6 mr-2" />
+              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-6 h-6 mr-2"/>
               FIRST LEGO League Explore
             </h3>
             <div v-if="scheduleInfo.teams.explore.capacity > 0" class="text-sm text-gray-600">
@@ -84,36 +86,39 @@
             </div>
           </div>
           <div v-if="scheduleInfo.teams.explore.capacity > 0" class="w-full bg-gray-200 rounded-full h-2 mb-4">
-            <div 
-              class="bg-green-600 h-2 rounded-full" 
-              :style="{ width: `${Math.min(100, (scheduleInfo.teams.explore.registered / scheduleInfo.teams.explore.capacity) * 100)}%` }"
+            <div
+                class="bg-green-600 h-2 rounded-full"
+                :style="{ width: `${Math.min(100, (scheduleInfo.teams.explore.registered / scheduleInfo.teams.explore.capacity) * 100)}%` }"
             ></div>
           </div>
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Nr.</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Name</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Institution</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ort</th>
-                </tr>
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Nr.</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Name
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Institution
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ort</th>
+              </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="team in scheduleInfo.teams.explore.list" :key="team.team_number_hot || team.name" class="hover:bg-gray-50">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {{ team.team_number_hot || '-' }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ team.name }}
-                  </td>
-                  <td class="px-6 py-4 text-sm text-gray-900">
-                    {{ team.organization || '-' }}
-                  </td>
-                  <td class="px-6 py-4 text-sm text-gray-900">
-                    {{ team.location || '-' }}
-                  </td>
-                </tr>
+              <tr v-for="team in scheduleInfo.teams.explore.list" :key="team.team_number_hot || team.name"
+                  class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {{ team.team_number_hot || '-' }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {{ team.name }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900">
+                  {{ team.organization || '-' }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900">
+                  {{ team.location || '-' }}
+                </td>
+              </tr>
               </tbody>
             </table>
           </div>
@@ -123,7 +128,7 @@
         <div v-if="scheduleInfo.teams.challenge.list?.length">
           <div class="flex items-center justify-between mb-4">
             <h3 class="font-semibold text-gray-900 flex items-center">
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-6 h-6 mr-2" />
+              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-6 h-6 mr-2"/>
               FIRST LEGO League Challenge
             </h3>
             <div v-if="scheduleInfo.teams.challenge.capacity > 0" class="text-sm text-gray-600">
@@ -132,36 +137,39 @@
             </div>
           </div>
           <div v-if="scheduleInfo.teams.challenge.capacity > 0" class="w-full bg-gray-200 rounded-full h-2 mb-4">
-            <div 
-              class="bg-red-600 h-2 rounded-full" 
-              :style="{ width: `${Math.min(100, (scheduleInfo.teams.challenge.registered / scheduleInfo.teams.challenge.capacity) * 100)}%` }"
+            <div
+                class="bg-red-600 h-2 rounded-full"
+                :style="{ width: `${Math.min(100, (scheduleInfo.teams.challenge.registered / scheduleInfo.teams.challenge.capacity) * 100)}%` }"
             ></div>
           </div>
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Nr.</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Name</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Institution</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ort</th>
-                </tr>
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Nr.</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team-Name
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Institution
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ort</th>
+              </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="team in scheduleInfo.teams.challenge.list" :key="team.team_number_hot || team.name" class="hover:bg-gray-50">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {{ team.team_number_hot || '-' }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ team.name }}
-                  </td>
-                  <td class="px-6 py-4 text-sm text-gray-900">
-                    {{ team.organization || '-' }}
-                  </td>
-                  <td class="px-6 py-4 text-sm text-gray-900">
-                    {{ team.location || '-' }}
-                  </td>
-                </tr>
+              <tr v-for="team in scheduleInfo.teams.challenge.list" :key="team.team_number_hot || team.name"
+                  class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {{ team.team_number_hot || '-' }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {{ team.name }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900">
+                  {{ team.organization || '-' }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900">
+                  {{ team.location || '-' }}
+                </td>
+              </tr>
               </tbody>
             </table>
           </div>
@@ -169,11 +177,12 @@
       </div>
 
       <!-- Level 2: Begin and End Times -->
-      <div v-if="isContentVisible(2) && scheduleInfo?.plan" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div v-if="isContentVisible(2) && scheduleInfo?.plan"
+           class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">
           Veranstaltungszeiten
         </h2>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Explore Times -->
           <div v-if="scheduleInfo.plan.explore">
@@ -208,11 +217,12 @@
       </div>
 
       <!-- Level 3: Briefing Times -->
-      <div v-if="isContentVisible(3) && scheduleInfo?.plan" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div v-if="isContentVisible(3) && scheduleInfo?.plan"
+           class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">
           Briefing-Zeiten
         </h2>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Explore Briefings -->
           <div v-if="scheduleInfo.plan.explore">
@@ -251,7 +261,8 @@
       </div>
 
       <!-- Level 4: Public Plan (redirects to zeitplan.cgi) -->
-      <div v-if="isContentVisible(4) && scheduleInfo?.plan" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div v-if="isContentVisible(4) && scheduleInfo?.plan"
+           class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div class="text-center">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">
             Vollständiger Veranstaltungsplan
@@ -269,7 +280,7 @@
           QR-Code für diese Veranstaltung
         </h2>
         <div class="flex flex-col items-center">
-          <img :src="`data:image/png;base64,${event.qrcode}`" alt="QR Code" class="w-32 h-32" />
+          <img :src="`data:image/png;base64,${event.qrcode}`" alt="QR Code" class="w-32 h-32"/>
           <p class="text-sm text-gray-600 mt-2">Scannen Sie den QR-Code, um diese Seite zu öffnen</p>
         </div>
       </div>
@@ -287,10 +298,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import {ref, onMounted} from 'vue'
+import {useRoute} from 'vue-router'
 import axios from 'axios'
-import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import {programLogoSrc, programLogoAlt} from '@/utils/images'
 
 const route = useRoute()
 const event = ref(null)
@@ -315,8 +326,8 @@ const loadEvent = async () => {
     if (scheduleInfo.value?.level === 4) {
       try {
         const planResponse = await axios.get(`/plans/public/${event.value.id}`)
-        const planId = planResponse.data.plan_id
-        
+        const planId = planResponse.data.id
+
         // Redirect to zeitplan.cgi with plan ID
         window.location.href = `/zeitplan.cgi?plan=${planId}`
         return
