@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
 import OnlineAccessBox from '@/components/molecules/OnlineAccessBox.vue'
 import DuringEventBox from '@/components/molecules/DuringEventBox.vue'
 
@@ -9,9 +7,7 @@ import DuringEventBox from '@/components/molecules/DuringEventBox.vue'
 
 <template>
   <div class="p-6 space-y-8">
-    <h1 class="text-2xl font-bold">Zugriff auf den Ablaufplan</h1>
-
-    <OnlineAccessBox />
-    <DuringEventBox />
+    <OnlineAccessBox/>
+    <DuringEventBox/>
   </div>
 </template>
