@@ -21,49 +21,54 @@ class DrahtController extends Controller
         if (app()->environment('local', 'staging')) {
             return $this->makeSimulatedCall($route);
         }
-        
+
         $headers = ['DOLAPIKEY' => config('services.draht_api.key')];
         return Http::withHeaders($headers)->get(config('services.draht_api.base_url') . $route);
     }
-    
+
     /**
      * Make simulated Draht API calls for test environments
      */
     private function makeSimulatedCall($route)
     {
         $simulator = new DrahtSimulatorController();
-        
+
         // Create a mock request with the route
         $mockRequest = new \Illuminate\Http\Request();
         $mockRequest->setMethod('GET');
-        
+
         // Extract the path from the route (remove leading slash)
         $path = ltrim($route, '/');
-        
+
         // Call the simulator
         $response = $simulator->handle($mockRequest, $path);
-        
+
         // Create a mock HTTP response that behaves like the real one
         return new class($response) {
             private $response;
-            
-            public function __construct($response) {
+
+            public function __construct($response)
+            {
                 $this->response = $response;
             }
-            
-            public function ok() {
+
+            public function ok()
+            {
                 return $this->response->getStatusCode() >= 200 && $this->response->getStatusCode() < 300;
             }
-            
-            public function status() {
+
+            public function status()
+            {
                 return $this->response->getStatusCode();
             }
-            
-            public function json() {
+
+            public function json()
+            {
                 return json_decode($this->response->getContent(), true);
             }
-            
-            public function body() {
+
+            public function body()
+            {
                 return $this->response->getContent();
             }
         };
@@ -120,9 +125,9 @@ class DrahtController extends Controller
     {
         try {
             Log::info('Starting sync-draht-regions');
-            
+
             $res = $this->makeDrahtCall("/handson/rp");
-            
+
             if (!$res->ok()) {
                 Log::error('Draht API call failed', [
                     'status' => $res->status(),
@@ -134,22 +139,22 @@ class DrahtController extends Controller
                     'message' => $res->body()
                 ], 500);
             }
-            
+
             $regions = $res->json();
             Log::info('Received regions from Draht API', ['count' => count($regions)]);
-            
+
             // Get existing regional partners by dolibarr_id
             $existingRegions = RegionalPartner::whereIn('dolibarr_id', array_column($regions, 'id'))
                 ->get()
                 ->keyBy('dolibarr_id');
-            
+
             $created = 0;
             $updated = 0;
-            
+
             foreach ($regions as $r) {
                 try {
                     $dolibarrId = $r['id'];
-                    
+
                     if ($existingRegions->has($dolibarrId)) {
                         // Update existing regional partner
                         $region = $existingRegions[$dolibarrId];
@@ -175,9 +180,9 @@ class DrahtController extends Controller
                     ]);
                 }
             }
-            
+
             Log::info('Sync completed successfully', ['created' => $created, 'updated' => $updated]);
-            
+
             return response()->json([
                 'status' => 200,
                 'message' => 'Regions synced successfully',
@@ -185,13 +190,13 @@ class DrahtController extends Controller
                 'updated' => $updated,
                 'total' => count($regions)
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Error in sync-draht-regions', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'error' => 'Internal server error',
                 'message' => $e->getMessage()
@@ -221,18 +226,16 @@ class DrahtController extends Controller
             }
 
             foreach ($eventsData as $eventData) {
+                $date = (isset($eventData["date"]) && $eventData["date"] != "") ? $eventData["date"] : "1970-01-01";
+                $enddate = (isset($eventData["enddate"]) && $eventData["enddate"] != "") ? $eventData["enddate"] : "1970-01-01";
+
                 $regionalPartner = RegionalPartner::where('dolibarr_id', $eventData['region'])->first();
                 $firstProgram = (int)$eventData['first_program'];
 
                 $days = 1;
-                if ($eventData['date'] && $eventData['enddate']) {
-                    $startDate = (new \DateTime)->setTimestamp((int)$eventData['date']);
-                    $endDate = (new \DateTime)->setTimestamp((int)$eventData['enddate']);
-                    $days = $startDate->diff($endDate)->days + 1;
-                }
 
                 $existingEvent = Event::where('regional_partner', $regionalPartner?->id)
-                    ->where('date', date('Y-m-d', (int)$eventData['date']))
+                    ->where('date', $date)
                     ->where('season', $seasonId)
                     ->where(function ($query) use ($firstProgram) {
                         if ($firstProgram === FirstProgram::EXPLORE->value) {
@@ -255,8 +258,7 @@ class DrahtController extends Controller
                     if (empty($existingEvent->name) && !empty($eventData['name'])) {
                         $updateData['name'] = $eventData['name'];
                     }
-                    if (empty($existingEvent->enddate) && $eventData['enddate']) {
-                        $updateData['enddate'] = date('Y-m-d', (int)$eventData['enddate']);
+                    if (empty($existingEvent->enddate) && $enddate) {
                         $updateData['days'] = $days;
                     }
                     if (empty($existingEvent->level) && $eventData['level']) {
@@ -268,8 +270,8 @@ class DrahtController extends Controller
                 } else {
                     $eventAttributes = [
                         'name' => $eventData['name'],
-                        'date' => date('Y-m-d', (int)$eventData['date']),
-                        'enddate' => date('Y-m-d', (int)$eventData['enddate']),
+                        'date' => $date,
+                        'enddate' => $enddate,
                         'season' => $seasonId,
                         'days' => $days,
                         'regional_partner' => $regionalPartner?->id,
@@ -282,7 +284,7 @@ class DrahtController extends Controller
                     };
 
                     $event = Event::create($eventAttributes);
-                    
+
                     // Automatically generate link and QR code for new events using existing PublishController
                     try {
                         $publishController = app(\App\Http\Controllers\Api\PublishController::class);
