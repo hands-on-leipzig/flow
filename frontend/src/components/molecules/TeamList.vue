@@ -200,7 +200,8 @@ const applyDrahtTeam = async (team) => {
   }
 
   // Validate that team_number_hot exists (required field)
-  const teamNumberHot = team.draht.ref ?? team.ref
+  // In Teams.vue, we map DRAHT's 'ref' field to 'number' field
+  const teamNumberHot = team.draht.number ?? team.number
   if (!teamNumberHot || teamNumberHot === 0) {
     alert('Fehler: Team-Nummer ist erforderlich. Das Team in DRAHT hat keine gültige team_number_hot.')
     return
