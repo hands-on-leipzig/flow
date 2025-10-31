@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Slide;
 use App\Models\SlideShow;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Mockery\Exception;
 
 
 class CarouselController extends Controller
@@ -29,9 +31,41 @@ class CarouselController extends Controller
         return response()->json($slideshows);
     }
 
+    private function hasEventAccess($eventId): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
+
+        $roles = $user->getRoles() ?? [];
+        // This should be an util method
+        $isAdmin = in_array('flow-admin', $roles) || in_array('flow_admin', $roles);
+        if ($isAdmin) {
+            return true;
+        }
+
+        // If the user is a regional partner for the passed event, he may proceed
+        $hasEvent = $user->regionalPartners()
+            ->whereHas('events', function ($query) use ($eventId) {
+                $query->where('id', $eventId);
+            })
+            ->exists();
+        return $hasEvent;
+    }
+
+    private function hasEventAccessOrThrow($eventId): void
+    {
+        if (!$this->hasEventAccess($eventId)) {
+            abort(response()->json(['error' => 'unauthorized'], 401));
+        }
+    }
+
     // Authenticated Endpoint, includes hidden slides:
     public function getAllSlideshows($event)
     {
+        $this->hasEventAccessOrThrow($event->id);
+
         $slideshows = SlideShow::where('event', $event->id)
             ->with('slides')
             ->get();
@@ -44,7 +78,11 @@ class CarouselController extends Controller
         $res = Slide::with('slideshow')
             ->findOrFail($slide);
 
-        // TODO Event check
+        $slideshow = $res->slideshow;
+        if (!is_object($slideshow)) {
+            $slideshow = SlideShow::with('event')->find($slideshow);
+        }
+        $this->hasEventAccessOrThrow($slideshow->event);
 
         return response()->json($res);
     }
@@ -55,10 +93,13 @@ class CarouselController extends Controller
 
         $slideModel = Slide::findOrFail($slide);
 
-        // TODO: Event and rights check
+        $slideshow = $slideModel->slideshow;
+        if (!is_object($slideshow)) {
+            $slideshow = SlideShow::with('event')->find($slideshow);
+        }
+        $this->hasEventAccessOrThrow($slideshow->event);
 
         $slideModel->update($data);
-
         return response()->json(['success' => true]);
     }
 
@@ -74,7 +115,7 @@ class CarouselController extends Controller
             return response()->json(['error' => 'Slideshow not found for event'], 404);
         }
 
-        // TODO access right checks
+        $this->hasEventAccessOrThrow($slideshow->event);
 
         foreach ($slideIds as $order => $slideId) {
             Slide::where('id', $slideId)
@@ -96,10 +137,9 @@ class CarouselController extends Controller
 
         $slideshow = SlideShow::findOrFail($slideshowId);
 
-        // TODO: Event and rights check
+        $this->hasEventAccessOrThrow($slideshow->event);
 
         $slideshow->update($data);
-
         return response()->json(['success' => true]);
     }
 
@@ -110,7 +150,11 @@ class CarouselController extends Controller
             return response()->json(['error' => 'Slide nicht gefunden'], 404);
         }
 
-        // TODO: Rechteprüfung
+        $slideshow = $slide->slideshow;
+        if (!is_object($slideshow)) {
+            $slideshow = SlideShow::with('event')->find($slideshow);
+        }
+        $this->hasEventAccessOrThrow($slideshow->event);
 
         $slide->delete();
 
@@ -119,6 +163,9 @@ class CarouselController extends Controller
 
     public function addSlide(Request $request, $slideshowId)
     {
+        $slideshow = SlideShow::findOrFail($slideshowId);
+        $this->hasEventAccessOrThrow($slideshow->event);
+
         $data = $this->onlySlide($request, true);
         // Hintergrund hinzufügen, aber content nicht überschreiben
         $providedContent = $data['content'] ?? null;
@@ -131,7 +178,7 @@ class CarouselController extends Controller
         }
         $data['slideshow'] = $slideshowId;
 
-        // TODO Validierung (Type korrekt) und Rechte-Check
+        // TODO Input-Validierung (Type korrekt, etc.)
 
         $slide = Slide::create($data);
 
@@ -158,28 +205,34 @@ class CarouselController extends Controller
 
     public function generateSlideshow(Request $request, $event)
     {
-        // TODO Eventid prüfen
-
         $eventId = $event->id;
+
+        $this->hasEventAccessOrThrow($eventId);
 
         $planId = $request->input('planId');
         if (!$planId || !is_numeric($planId)) {
             return response()->json(['error' => 'plan id required'], 400);
         }
 
-        $slideshow = SlideShow::create([
-            'event' => $eventId,
-            'name' => 'Standard-Slideshow',
-            'transition_time' => 5,
-        ]);
+        try {
+            $slideshow = SlideShow::create([
+                'event' => $eventId,
+                'name' => 'Standard-Slideshow',
+                'transition_time' => 5,
+            ]);
 
-        $slide1 = $this->generatePublicPlanSlide($planId, $slideshow->id);
-        $slide2 = $this->generateQRCodeSlide($planId, $slideshow->id);
+            $slide1 = $this->generatePublicPlanSlide($planId, $slideshow->id);
+            $slide2 = $this->generateQRCodeSlide($eventId, $slideshow->id);
 
-        $slideshow->slides = [$slide1, $slide2];
+            $slideshow->slides = [$slide1, $slide2];
 
-        return response()->json(['success' => true, 'slideshow' => $slideshow]);
+            return response()->json(['success' => true, 'slideshow' => $slideshow]);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
+
+    // TODO: Diesen Code in einen eigenen Service verschieben? Dann kann der noch mehr slide-Vorlagen anbieten, nicht nur die Standard-Slides generieren
 
     private function generatePublicPlanSlide($planId, $slideshowId)
     {
@@ -204,9 +257,9 @@ class CarouselController extends Controller
         return json_encode("{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage . "}");
     }
 
-    private function generateQRCodeSlide($planId, $slideshowId)
+    private function generateQRCodeSlide($eventId, $slideshowId)
     {
-        $content = '{"background": ' . $this->generateQRCodeSlideBackground($planId) . '}';
+        $content = '{"background": ' . $this->generateQRCodeSlideBackground($eventId) . '}';
 
         $slide = Slide::create([
             'name' => 'Zeitplan-QR-Code',
@@ -219,9 +272,9 @@ class CarouselController extends Controller
         return $slide;
     }
 
-    private function generateQRCodeSlideBackground($planId)
+    private function generateQRCodeSlideBackground($eventId)
     {
-        $qrCode = $this->publishController->linkAndQRcode($planId)->getData()->qrcode;
+        $qrCode = $this->publishController->linkAndQRcode($eventId)->getData()->qrcode;
 
         $qrCodeSlideBackground = "{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage
             . ",\"objects\":[{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":290,\"top\":135,\"width\":320,\"height\":320,\"scaleX\":0.7031,\"scaleY\":0.7031,\"src\":\"" . $qrCode . "\"}]"
