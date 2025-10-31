@@ -26,7 +26,11 @@ const paginatedTeams = computed(() => {
 });
 
 onMounted(loadScores);
-onMounted(startAutoRefresh);
+onMounted(() => {
+  if (!props.preview) {
+    startAutoRefresh();
+  }
+});
 onUnmounted(stopAutoRefresh);
 
 let autoAdvanceInterval;
