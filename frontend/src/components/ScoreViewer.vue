@@ -20,20 +20,12 @@ const {
   scores,
   error,
   loadScores,
-  startAutoRefresh,
-  stopAutoRefresh,
   setDemoData
 } = useScores(Number(props.eventId));
 
 onMounted(() => {
   loadScores();
-  startAutoRefresh();
-
   setDemoData();
-});
-
-onUnmounted(() => {
-  stopAutoRefresh();
 });
 </script>
 
