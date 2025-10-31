@@ -170,8 +170,6 @@ jobs:
             php artisan storage:link
             # Populate master data (m_ tables) from seeder file
             php artisan db:seed --class=MainDataSeeder --force
-            # Fresh database setup for test environment
-            php artisan test:setup
 
   deploy-production:
     if: github.ref == 'refs/heads/production'
