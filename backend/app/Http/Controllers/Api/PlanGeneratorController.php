@@ -33,7 +33,7 @@ class PlanGeneratorController extends Controller
             if (! $supportCheck['supported']) {
                 Log::warning("Plan {$planId}: Unsupported plan parameters", $supportCheck);
                 return response()->json([
-                    'error' => $supportCheck['error'] ?? "Plan {$planId} not supported",
+                    'error' => $supportCheck['error'] ?? "Plan {$planId} wird nicht unterstützt",
                     'details' => $supportCheck['details'] ?? null,
                 ], 422);
             }
@@ -119,7 +119,7 @@ class PlanGeneratorController extends Controller
         if (! $exists) {
             Log::warning('Plan not found', ['plan_id' => $planId]);
             return response()->json([
-                'error' => "Plan {$planId} not found",
+                'error' => "Plan {$planId} nicht gefunden",
             ], 404);
         }
 

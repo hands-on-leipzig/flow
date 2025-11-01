@@ -31,7 +31,7 @@ class PlanGeneratorService
                 return [
                     'supported' => false,
                     'error' => 'Finale-Events benötigen genau 25 Challenge-Teams',
-                    'details' => "Aktuell konfiguriert: {$cTeams} Challenge-Teams. Bitte ändern Sie die Anzahl der Challenge-Teams auf 25."
+                    'details' => "Aktuell konfiguriert: {$cTeams} Challenge-Teams. Bitte ändere die Anzahl der Challenge-Teams auf 25."
                 ];
             }
             // For finale with 25 teams, no need to check m_supported_plan
@@ -60,7 +60,7 @@ class PlanGeneratorService
                     return [
                         'supported' => false,
                         'error' => 'Challenge-Konfiguration wird nicht unterstützt',
-                        'details' => "Die Kombination aus Challenge-Teams ({$cTeams}), Spuren ({$jLanes}) und Tischen ({$rTables}) wird nicht unterstützt. Bitte überprüfen Sie diese Parameter."
+                        'details' => "Die Kombination aus Challenge-Teams ({$cTeams}), Spuren ({$jLanes}) und Tischen ({$rTables}) wird nicht unterstützt. Bitte überprüfe diese Parameter."
                     ];
                 }
             }
@@ -87,7 +87,7 @@ class PlanGeneratorService
                 return [
                     'supported' => false,
                     'error' => 'Explore Vormittag-Konfiguration wird nicht unterstützt',
-                    'details' => "Die Kombination aus Explore Vormittag-Teams ({$e1Teams}) und Spuren ({$e1Lanes}) wird nicht unterstützt. Bitte überprüfen Sie diese Parameter."
+                    'details' => "Die Kombination aus Explore Vormittag-Teams ({$e1Teams}) und Spuren ({$e1Lanes}) wird nicht unterstützt. Bitte überprüfe diese Parameter."
                 ];
             }
         }
@@ -111,7 +111,7 @@ class PlanGeneratorService
                 return [
                     'supported' => false,
                     'error' => 'Explore Nachmittag-Konfiguration wird nicht unterstützt',
-                    'details' => "Die Kombination aus Explore Nachmittag-Teams ({$e2Teams}) und Spuren ({$e2Lanes}) wird nicht unterstützt. Bitte überprüfen Sie diese Parameter."
+                    'details' => "Die Kombination aus Explore Nachmittag-Teams ({$e2Teams}) und Spuren ({$e2Lanes}) wird nicht unterstützt. Bitte überprüfe diese Parameter."
                 ];
             }
         }

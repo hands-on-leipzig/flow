@@ -465,17 +465,17 @@ async function runGeneratorOnce() {
         details = errorData?.details || errorData?.message || 'Interner Serverfehler'
       } else if (error.message === 'Timeout: Plan generation took too long') {
         errorMessage = 'Zeitüberschreitung'
-        details = 'Die Generierung dauert zu lange. Bitte versuchen Sie es erneut.'
+        details = 'Die Generierung dauert zu lange. Bitte versuche es erneut.'
       } else if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
         errorMessage = 'Verbindungsfehler'
-        details = 'Bitte überprüfen Sie Ihre Internetverbindung.'
+        details = 'Bitte überprüfe deine Internetverbindung.'
       } else {
         errorMessage = errorData?.error || errorData?.message || error.message || errorMessage
       }
     } else if (error instanceof Error) {
       if (error.message.includes('Timeout')) {
         errorMessage = 'Zeitüberschreitung'
-        details = 'Die Generierung dauert zu lange. Bitte versuchen Sie es erneut.'
+        details = 'Die Generierung dauert zu lange. Bitte versuche es erneut.'
       } else {
         errorMessage = error.message
       }
@@ -501,7 +501,7 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
     // Check for failed status
     if (status === 'failed') {
       generatorError.value = 'Die Generierung ist fehlgeschlagen'
-      errorDetails.value = 'Der Plan konnte nicht generiert werden. Bitte überprüfen Sie die Parameter.'
+      errorDetails.value = 'Der Plan konnte nicht generiert werden. Bitte überprüfe die Parameter.'
       throw new Error('Generation failed')
     }
     
