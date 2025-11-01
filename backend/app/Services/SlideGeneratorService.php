@@ -1,6 +1,6 @@
 <?php
 
-namespace app\Services;
+namespace App\Services;
 
 use App\Http\Controllers\Api\PublishController;
 use App\Models\Slide;

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Slide;
 use App\Models\SlideShow;
-use app\Services\SlideGeneratorService;
+use App\Services\SlideGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Mockery\Exception;
