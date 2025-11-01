@@ -199,10 +199,12 @@ const applyDrahtTeam = async (team) => {
     return
   }
 
-  // Validate that team_number_hot exists (required field)
-  const teamNumberHot = team.draht.ref ?? team.ref
-  if (!teamNumberHot || teamNumberHot === 0) {
-    alert('Fehler: Team-Nummer ist erforderlich. Das Team in DRAHT hat keine gültige team_number_hot.')
+  // Validate that team number exists (required field)
+  // In Teams.vue, we map DRAHT's 'ref' field to 'number' field
+  // Note: ref can be 0, which is a valid team number, so we check for null/undefined only
+  const teamNumberHot = team.draht.number ?? team.number ?? null
+  if (teamNumberHot == null) {
+    alert('Fehler: Team-Nummer ist erforderlich. Das Team in DRAHT hat keine gültige "ref" (Team-Nummer).')
     return
   }
 

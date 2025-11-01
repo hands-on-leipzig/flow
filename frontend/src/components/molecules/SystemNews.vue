@@ -30,7 +30,7 @@ const loadNews = async () => {
 
 const createNews = async () => {
   if (!newNews.value.title.trim() || !newNews.value.text.trim()) {
-    alert('Bitte Titel und Text ausfüllen')
+    alert('Bitte fülle Titel und Text aus')
     return
   }
 

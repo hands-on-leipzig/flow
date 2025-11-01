@@ -195,6 +195,16 @@ class MainTablesController extends Controller
             $filename = 'main-tables-export-' . now()->format('Y-m-d-H-i-s') . '.json';
             Storage::put("exports/{$filename}", json_encode($exportData, JSON_PRETTY_PRINT));
 
+            // Also save to database/exports/ for repo (used by MainDataSeeder during deployment)
+            $repoPath = database_path('exports');
+            if (!file_exists($repoPath)) {
+                mkdir($repoPath, 0755, true);
+            }
+            file_put_contents(
+                database_path('exports/main-tables-latest.json'),
+                json_encode($exportData, JSON_PRETTY_PRINT)
+            );
+
             // Generate MainDataSeeder.php for local use
             \Artisan::call('main-data:generate-seeder');
 

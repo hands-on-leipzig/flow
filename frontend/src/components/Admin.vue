@@ -17,7 +17,7 @@ const parameters = ref([])
 const conditions = ref([])
 
 const syncDrahtRegions = async () => {
-  if (!confirm('Möchten Sie wirklich alle Regional Partner aus DRAHT synchronisieren?\n\nDies wird alle Regional Partner aus DRAHT in die Datenbank importieren.')) {
+  if (!confirm('Möchtest du wirklich alle Regional Partner aus DRAHT synchronisieren?\n\nDies wird alle Regional Partner aus DRAHT in die Datenbank importieren.')) {
     return
   }
   
@@ -30,7 +30,7 @@ const syncDrahtRegions = async () => {
 }
 
 const syncDrahtEvents = async () => {
-  if (!confirm('Möchten Sie wirklich alle Events aus DRAHT synchronisieren?\n\nDies wird alle Events aus DRAHT in die Datenbank importieren.')) {
+  if (!confirm('Möchtest du wirklich alle Events aus DRAHT synchronisieren?\n\nDies wird alle Events aus DRAHT in die Datenbank importieren.')) {
     return
   }
   
