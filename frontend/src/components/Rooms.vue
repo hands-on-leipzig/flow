@@ -412,136 +412,138 @@ const hasWarning = (tab) => {
     <!-- 🟢 Räume: Erste 3 Spalten -->
     <div class="col-span-3">
       <h2 class="text-xl font-bold mb-4">Räume</h2>
-      <draggable
-        v-model="rooms"
-        group="rooms"
-        item-key="id"
-        @start="isDraggingRoom = true"
-        @end="isDraggingRoom = false; handleRoomReorder()"
-        class="grid grid-cols-3 gap-4"
-      >
-        <template #item="{ element: room }">
-          <li
-            :key="room.id"
-            class="p-4 mb-2 border rounded bg-white shadow cursor-move hover:shadow-md transition-shadow"
-            :class="{
-              'opacity-50': isDraggingRoom,
-              'shadow-lg': isDraggingRoom
-            }"
-          >
-            <!-- Line 1: Drag handle, Room name, Delete icon -->
-            <div class="flex items-center gap-2 mb-2">
-              <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
-              <input
-                v-model="room.name"
-                class="text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
-                @blur="updateRoom(room)"
-              />
-              <button
-                @click="askDeleteRoom(room)"
-                class="text-red-600 text-lg"
-                title="Raum löschen"
-              >
-                🗑️
-              </button>
-            </div>
-
-            <!-- Line 2: Navigation instruction full width with accessibility icon at end -->
-            <div class="mb-2 flex items-center gap-2">
-              <input
-                v-model="room.navigation_instruction"
-                class="text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
-                placeholder="z. B. 2. Etage rechts"
-                @blur="updateRoom(room)"
-              />
-              <div 
-                class="text-lg cursor-pointer"
-                :class="room.is_accessible ? 'text-green-600' : 'text-red-600'"
-                :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
-                @click="toggleAccessibility(room)"
-              >
-                {{ room.is_accessible ? '♿✓' : '♿⭕' }}
-              </div>
-            </div>
-
-            <!-- Line 3: Drop area full width with reduced padding -->
+      <div class="grid grid-cols-3 gap-4">
+        <draggable
+          v-model="rooms"
+          group="rooms"
+          item-key="id"
+          @start="isDraggingRoom = true"
+          @end="isDraggingRoom = false; handleRoomReorder()"
+          class="contents"
+        >
+          <template #item="{ element: room }">
             <div
-              class="flex flex-wrap gap-1 min-h-[40px] border rounded p-1 transition-colors"
+              :key="room.id"
+              class="p-4 mb-2 border rounded bg-white shadow cursor-move hover:shadow-md transition-shadow"
               :class="{
-                'bg-blue-100': dragOverRoomId === room.id,
-                'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
-                'bg-gray-50': !isDragging && dragOverRoomId !== room.id
+                'opacity-50': isDraggingRoom,
+                'shadow-lg': isDraggingRoom
               }"
             >
-                <draggable
-                  :list="getItemsInRoom(room.id)"
-                  group="assignables"
-                  item-key="id"
-                  @add="event => handleDrop(event, room)"
-                  @start="isDragging = true"
-                  @end="isDragging = false"
-                  class="flex flex-wrap gap-1 w-full"
+              <!-- Line 1: Drag handle, Room name, Delete icon -->
+              <div class="flex items-center gap-2 mb-2">
+                <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
+                <input
+                  v-model="room.name"
+                  class="text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
+                  @blur="updateRoom(room)"
+                />
+                <button
+                  @click="askDeleteRoom(room)"
+                  class="text-red-600 text-lg"
+                  title="Raum löschen"
                 >
+                  🗑️
+                </button>
+              </div>
 
-                
-                  <template #item="{ element }">
-                    <div class="flex items-center">
-                      <!-- Activity -->
-                      <span
-                        v-if="element.type === 'activity'"
-                        :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
-                        class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
-                      >
-                        <img
-                          v-if="programLogoSrc(element.first_program)"
-                          :src="programLogoSrc(element.first_program)"
-                          :alt="programLogoAlt(element.first_program)"
-                          class="w-3 h-3 flex-shrink-0"
-                        />
-                        {{ element.name }}
-                        <button
-                          class="ml-1 text-sm text-gray-500 hover:text-black"
-                          @click.stop="unassignItemFromRoom(element.key)"
-                        >
-                          ✖
-                        </button>
-                      </span>
+              <!-- Line 2: Navigation instruction full width with accessibility icon at end -->
+              <div class="mb-2 flex items-center gap-2">
+                <input
+                  v-model="room.navigation_instruction"
+                  class="text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
+                  placeholder="z. B. 2. Etage rechts"
+                  @blur="updateRoom(room)"
+                />
+                <div 
+                  class="text-lg cursor-pointer"
+                  :class="room.is_accessible ? 'text-green-600' : 'text-red-600'"
+                  :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                  @click="toggleAccessibility(room)"
+                >
+                  {{ room.is_accessible ? '♿✓' : '♿⭕' }}
+                </div>
+              </div>
 
-                      <!-- Team -->
-                      <span
-                        v-else
-                        class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
-                      >
+              <!-- Line 3: Drop area full width with reduced padding -->
+              <div
+                class="flex flex-wrap gap-1 min-h-[40px] border rounded p-1 transition-colors"
+                :class="{
+                  'bg-blue-100': dragOverRoomId === room.id,
+                  'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
+                  'bg-gray-50': !isDragging && dragOverRoomId !== room.id
+                }"
+              >
+                  <draggable
+                    :list="getItemsInRoom(room.id)"
+                    group="assignables"
+                    item-key="id"
+                    @add="event => handleDrop(event, room)"
+                    @start="isDragging = true"
+                    @end="isDragging = false"
+                    class="flex flex-wrap gap-1 w-full"
+                  >
+
+                  
+                    <template #item="{ element }">
+                      <div class="flex items-center">
+                        <!-- Activity -->
                         <span
-                            class="w-1.5 self-stretch rounded-l-md"
-                            :style="{ backgroundColor: getProgramColor(element) }"
-                          ></span>
-                        <span class="px-2 py-1 flex items-center gap-1">
+                          v-if="element.type === 'activity'"
+                          :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
+                          class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
+                        >
                           <img
                             v-if="programLogoSrc(element.first_program)"
                             :src="programLogoSrc(element.first_program)"
                             :alt="programLogoAlt(element.first_program)"
                             class="w-3 h-3 flex-shrink-0"
                           />
-                          {{ element.name }} ({{ element.number }})
+                          {{ element.name }}
+                          <button
+                            class="ml-1 text-sm text-gray-500 hover:text-black"
+                            @click.stop="unassignItemFromRoom(element.key)"
+                          >
+                            ✖
+                          </button>
                         </span>
-                        <button
-                          class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
-                          @click.stop="unassignItemFromRoom(element.key)"
+
+                        <!-- Team -->
+                        <span
+                          v-else
+                          class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
                         >
-                          ✖
-                        </button>
-                      </span>
-                    </div>
-                  </template>
+                          <span
+                              class="w-1.5 self-stretch rounded-l-md"
+                              :style="{ backgroundColor: getProgramColor(element) }"
+                            ></span>
+                          <span class="px-2 py-1 flex items-center gap-1">
+                            <img
+                              v-if="programLogoSrc(element.first_program)"
+                              :src="programLogoSrc(element.first_program)"
+                              :alt="programLogoAlt(element.first_program)"
+                              class="w-3 h-3 flex-shrink-0"
+                            />
+                            {{ element.name }} ({{ element.number }})
+                          </span>
+                          <button
+                            class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
+                            @click.stop="unassignItemFromRoom(element.key)"
+                          >
+                            ✖
+                          </button>
+                        </span>
+                      </div>
+                    </template>
 
-                </draggable>
-              </div>
-            </li>
-        </template>
+                  </draggable>
+                </div>
+            </div>
+          </template>
+        </draggable>
 
-        <!-- 🟩 Neuer Raum -->
-        <li
+        <!-- 🟩 Neuer Raum (always visible, outside draggable) -->
+        <div
           ref="newRoomCardRef"
           class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
         >
@@ -556,7 +558,7 @@ const hasWarning = (tab) => {
             />
           </div>
           <transition name="fade">
-            <div v-if="newRoomName.trim().length > 0">
+            <div v-if="newRoomName.trim().length > 0 || newRoomNote.trim().length > 0">
               <input
                 ref="newRoomNoteInput"
                 v-model="newRoomNote"
@@ -577,10 +579,17 @@ const hasWarning = (tab) => {
                   Barrierefrei
                 </label>
               </div>
+              <button
+                @click="createRoom"
+                :disabled="isSaving || (!newRoomName.trim() && !newRoomNote.trim())"
+                class="mt-3 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {{ isSaving ? 'Erstelle...' : 'Raum erstellen' }}
+              </button>
             </div>
           </transition>
-        </li>
-      </draggable>
+        </div>
+      </div>
     </div>
 
     <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->

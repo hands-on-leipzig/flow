@@ -26,7 +26,11 @@ const paginatedTeams = computed(() => {
 });
 
 onMounted(loadScores);
-onMounted(startAutoRefresh);
+onMounted(() => {
+  if (!props.preview) {
+    startAutoRefresh();
+  }
+});
 onUnmounted(stopAutoRefresh);
 
 let autoAdvanceInterval;
@@ -45,53 +49,7 @@ onMounted(() => {
 
 // Test demo data
 onMounted(() => {
-  setDemoData({
-    "name": "RPT Demo",
-    "rounds": {
-      "VR": {
-        "1": {
-          "name": "TechKids",
-          "scores": [
-            {"points": 100, "highlight": true},
-            {"points": 80, "highlight": false},
-            {"points": 60, "highlight": false}
-          ],
-          "rank": 1,
-          "id": 1
-        },
-        "2": {
-          "name": "RoboExplorers",
-          "scores": [
-            {"points": 70, "highlight": true},
-            {"points": 50, "highlight": false},
-            {"points": 30, "highlight": false}
-          ],
-          "rank": 2,
-          "id": 2
-        },
-        "3": {
-          "name": "FutureScientists",
-          "scores": [
-            {"points": 10, "highlight": false},
-            {"points": 20, "highlight": false},
-            {"points": 60, "highlight": true}
-          ],
-          "rank": 3,
-          "id": 3
-        },
-        "4": {
-          "name": "DiscoversSquad",
-          "scores": [
-            {"points": 40, "highlight": true},
-            {"points": 40, "highlight": true},
-            {"points": 40, "highlight": true}
-          ],
-          "rank": 4,
-          "id": 4
-        },
-      }
-    }
-  });
+  setDemoData();
 });
 
 onUnmounted(() => {
