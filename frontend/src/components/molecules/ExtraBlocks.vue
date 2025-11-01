@@ -200,7 +200,7 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
 
 const deleteMessage = computed(() => {
   if (!blockToDelete.value) return ''
-  return `Möchten Sie den Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen?`
+  return `Möchtest du den Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen?`
 })
 </script>
 

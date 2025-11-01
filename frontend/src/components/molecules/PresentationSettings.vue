@@ -190,7 +190,7 @@ function copyUrl(url) {
       <div class="" v-if="robotGameRounds">
         <span class="font-bold">Robot Game: Öffentliche Ergebnisse</span>
         <InfoPopover
-            text="Wählen Sie aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
+            text="Wähle aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
         <div class="grid grid-cols-5 gap-2 mt-2">
           <label class="flex items-center gap-2 px-2">
             <input

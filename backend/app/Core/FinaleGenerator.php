@@ -104,6 +104,15 @@ class FinaleGenerator
         // LC has 5 rounds, TR1 runs parallel to LC Round 1, TR2 runs parallel to LC Round 4
         $this->generateLiveChallengeWithTestRounds($day1Time);
 
+        // Jury briefing day 1
+
+        $day1Time->addMinutes($this->pp('f_ready_briefing_day_1'));
+
+        $this->writer->withGroup('j_briefing_day_1', function () use ($day1Time) {
+            $this->writer->insertActivity('j_briefing_day_1', $day1Time, $this->pp('f_duration_briefing_day_1'));
+        });
+        $day1Time->addMinutes($this->pp('f_duration_briefing_day_1'));
+
         // === PARTIES ===
         $this->generateDay1Parties();
     }
