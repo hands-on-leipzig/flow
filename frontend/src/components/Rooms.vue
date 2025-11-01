@@ -456,12 +456,15 @@ const hasWarning = (tab) => {
                   @blur="updateRoom(room)"
                 />
                 <div 
-                  class="text-lg cursor-pointer"
-                  :class="room.is_accessible ? 'text-green-600' : 'text-red-600'"
+                  class="cursor-pointer"
                   :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
                   @click="toggleAccessibility(room)"
                 >
-                  {{ room.is_accessible ? '♿✓' : '♿⭕' }}
+                  <img 
+                    :src="room.is_accessible ? '/flow/accessible_yes.png' : '/flow/accessible_no.png'"
+                    :alt="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                    class="w-6 h-6"
+                  />
                 </div>
               </div>
 
