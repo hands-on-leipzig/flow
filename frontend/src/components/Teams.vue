@@ -19,7 +19,8 @@ onMounted(async () => {
     // If it's already an array, use it
     if (Array.isArray(teams)) {
       return teams.map(t => ({
-        number: t.ref || t.number || null, // ref is the team number from DRAHT
+        // ref is the team number from DRAHT - use nullish coalescing to handle ref=0 (valid)
+        number: t.ref ?? t.number ?? null,
         name: t.name || '',
         organization: t.organization || null,
         location: t.location || null,
@@ -28,7 +29,8 @@ onMounted(async () => {
     }
     // If it's an object, convert to array
     return Object.values(teams).map(t => ({
-      number: t.ref || t.number || null, // ref is the team number from DRAHT
+      // ref is the team number from DRAHT - use nullish coalescing to handle ref=0 (valid)
+      number: t.ref ?? t.number ?? null,
       name: t.name || '',
       organization: t.organization || null,
       location: t.location || null,
