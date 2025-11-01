@@ -13,7 +13,7 @@ use App\Enums\GeneratorStatus;
 
 class PlanGeneratorService
 {
-    public function isSupported(int $planId): bool
+    public function isSupported(int $planId): array
     {
         // Parameter laden
         $params = PlanParameter::load($planId);
@@ -21,34 +21,47 @@ class PlanGeneratorService
         // --- Finale validation ---
         // Finale events (level 3) require exactly 25 Challenge teams
         if ($params->get('g_finale')) {
-            if ($params->get('c_teams') != 25) {
+            $cTeams = $params->get('c_teams');
+            if ($cTeams != 25) {
                 Log::warning('Finale event requires exactly 25 Challenge teams', [
                     'plan_id' => $planId,
-                    'c_teams' => $params->get('c_teams'),
+                    'c_teams' => $cTeams,
                     'g_finale' => true,
                 ]);
-                return false;
+                return [
+                    'supported' => false,
+                    'error' => 'Finale-Events benötigen genau 25 Challenge-Teams',
+                    'details' => "Aktuell konfiguriert: {$cTeams} Challenge-Teams. Bitte ändern Sie die Anzahl der Challenge-Teams auf 25."
+                ];
             }
             // For finale with 25 teams, no need to check m_supported_plan
             // There is only one supported configuration
         } else {
             // --- Challenge prüfen (non-finale events) ---
             if ($params->get("c_teams") > 0) {
+                $cTeams = $params->get("c_teams");
+                $jLanes = $params->get("j_lanes");
+                $rTables = $params->get("r_tables");
+                
                 $ok = $this->checkSupportedPlan(
                     FirstProgram::CHALLENGE->value,
-                    $params->get("c_teams"),
-                    $params->get("j_lanes"),
-                    $params->get("r_tables")
+                    $cTeams,
+                    $jLanes,
+                    $rTables
                 );
 
                 if (!$ok) {
                     Log::warning('Unsupported Challenge plan', [
                         'plan_id' => $planId,
-                        'teams' => $params->get('c_teams'),
-                        'lanes' => $params->get('j_lanes'),
-                        'tables' => $params->get('r_tables'),
+                        'teams' => $cTeams,
+                        'lanes' => $jLanes,
+                        'tables' => $rTables,
                     ]);
-                    return false;
+                    return [
+                        'supported' => false,
+                        'error' => 'Challenge-Konfiguration wird nicht unterstützt',
+                        'details' => "Die Kombination aus Challenge-Teams ({$cTeams}), Spuren ({$jLanes}) und Tischen ({$rTables}) wird nicht unterstützt. Bitte überprüfen Sie diese Parameter."
+                    ];
                 }
             }
         }
@@ -56,41 +69,55 @@ class PlanGeneratorService
         // --- Explore prüfen ---
 
         if ($params->get("e1_teams") > 0) {
+            $e1Teams = $params->get("e1_teams");
+            $e1Lanes = $params->get("e1_lanes");
+            
             $ok = $this->checkSupportedPlan(
                 FirstProgram::EXPLORE->value,
-                $params->get("e1_teams"),
-                $params->get("e1_lanes")
+                $e1Teams,
+                $e1Lanes
             );
 
             if (!$ok) {
                 Log::warning('Unsupported Explore plan', [
                     'plan_id' => $planId,
-                    'teams' => $params->get('e1_teams'),
-                    'lanes' => $params->get('e1_lanes'),
+                    'teams' => $e1Teams,
+                    'lanes' => $e1Lanes,
                 ]);
-                return false;
+                return [
+                    'supported' => false,
+                    'error' => 'Explore Vormittag-Konfiguration wird nicht unterstützt',
+                    'details' => "Die Kombination aus Explore Vormittag-Teams ({$e1Teams}) und Spuren ({$e1Lanes}) wird nicht unterstützt. Bitte überprüfen Sie diese Parameter."
+                ];
             }
         }
 
         if ($params->get("e2_teams") > 0) {
+            $e2Teams = $params->get("e2_teams");
+            $e2Lanes = $params->get("e2_lanes");
+            
             $ok = $this->checkSupportedPlan(
                 FirstProgram::EXPLORE->value,
-                $params->get("e2_teams"),
-                $params->get("e2_lanes")
+                $e2Teams,
+                $e2Lanes
             );
 
             if (!$ok) {
                 Log::warning('Unsupported Explore plan', [
                     'plan_id' => $planId,
-                    'teams' => $params->get('e2_teams'),
-                    'lanes' => $params->get('e2_lanes'),
+                    'teams' => $e2Teams,
+                    'lanes' => $e2Lanes,
                 ]);
-                return false;
+                return [
+                    'supported' => false,
+                    'error' => 'Explore Nachmittag-Konfiguration wird nicht unterstützt',
+                    'details' => "Die Kombination aus Explore Nachmittag-Teams ({$e2Teams}) und Spuren ({$e2Lanes}) wird nicht unterstützt. Bitte überprüfen Sie diese Parameter."
+                ];
             }
         }
 
 
-        return true;
+        return ['supported' => true];
     }
 
     private function checkSupportedPlan(int $firstProgram, int $teams, int $lanes, ?int $tables = null): bool
@@ -147,8 +174,11 @@ class PlanGeneratorService
             Log::error('Fehler beim Generieren des Plans', [
                 'plan_id' => $planId,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
             $this->finalize($planId, GeneratorStatus::FAILED);
+            // Re-throw to allow controller to handle error message formatting
+            throw $e;
         }
     }
 
