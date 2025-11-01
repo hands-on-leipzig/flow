@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Slide;
 use App\Models\SlideShow;
+use app\Services\SlideGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Mockery\Exception;
@@ -13,7 +14,7 @@ use Mockery\Exception;
 class CarouselController extends Controller
 {
 
-    public function __construct(private readonly PublishController $publishController)
+    public function __construct(private readonly SlideGeneratorService $slideGeneratorService)
     {
     }
 
@@ -201,8 +202,6 @@ class CarouselController extends Controller
         return $request->only($fields);
     }
 
-    private string $defaultBackgroundImage = "\"backgroundImage\":{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":0,\"top\":-3.3333,\"width\":1920,\"height\":1096,\"scaleX\":0.4167,\"scaleY\":0.4167,\"src\":\"/background.png\"}";
-
     public function generateSlideshow(Request $request, $event)
     {
         $eventId = $event->id;
@@ -221,8 +220,8 @@ class CarouselController extends Controller
                 'transition_time' => 5,
             ]);
 
-            $slide1 = $this->generatePublicPlanSlide($planId, $slideshow->id);
-            $slide2 = $this->generateQRCodeSlide($eventId, $slideshow->id);
+            $slide1 = $this->slideGeneratorService->generatePublicPlanSlide($planId, $slideshow->id);
+            $slide2 = $this->slideGeneratorService->generateQRCodeSlide($eventId, $slideshow->id);
 
             $slideshow->slides = [$slide1, $slide2];
 
@@ -231,56 +230,4 @@ class CarouselController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-
-    // TODO: Diesen Code in einen eigenen Service verschieben? Dann kann der noch mehr slide-Vorlagen anbieten, nicht nur die Standard-Slides generieren
-
-    private function generatePublicPlanSlide($planId, $slideshowId)
-    {
-        $content = '{ "hours": 2'
-            . ', "background": ' . $this->generatePublicPlanBackground()
-            . ', "planId": ' . $planId
-            . '}';
-
-        $slide = Slide::create([
-            'name' => 'Öffentlicher Zeitplan',
-            'slideshow' => $slideshowId,
-            'type' => 'PublicPlanSlideContent',
-            'content' => $content,
-            'order' => 0,
-        ]);
-
-        return $slide;
-    }
-
-    private function generatePublicPlanBackground()
-    {
-        return json_encode("{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage . "}");
-    }
-
-    private function generateQRCodeSlide($eventId, $slideshowId)
-    {
-        $content = '{"background": ' . $this->generateQRCodeSlideBackground($eventId) . '}';
-
-        $slide = Slide::create([
-            'name' => 'Zeitplan-QR-Code',
-            'slideshow' => $slideshowId,
-            'type' => 'FabricSlideContent',
-            'content' => $content,
-            'order' => 1,
-        ]);
-
-        return $slide;
-    }
-
-    private function generateQRCodeSlideBackground($eventId)
-    {
-        $qrCode = $this->publishController->linkAndQRcode($eventId)->getData()->qrcode;
-
-        $qrCodeSlideBackground = "{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage
-            . ",\"objects\":[{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":290,\"top\":135,\"width\":320,\"height\":320,\"scaleX\":0.7031,\"scaleY\":0.7031,\"src\":\"" . $qrCode . "\"}]"
-            . "}";
-
-        return json_encode($qrCodeSlideBackground);
-    }
-
 }
