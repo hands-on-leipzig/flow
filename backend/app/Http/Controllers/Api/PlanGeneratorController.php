@@ -29,10 +29,12 @@ class PlanGeneratorController extends Controller
 
         try {
             // Prüfen, ob Plan unterstützt wird
-            if (! $this->generator->isSupported($planId)) {
-                Log::warning("Plan {$planId}: Unsupported plan parameters");
+            $supportCheck = $this->generator->isSupported($planId);
+            if (! $supportCheck['supported']) {
+                Log::warning("Plan {$planId}: Unsupported plan parameters", $supportCheck);
                 return response()->json([
-                    'error' => "Plan {$planId} not supported",
+                    'error' => $supportCheck['error'] ?? "Plan {$planId} wird nicht unterstützt",
+                    'details' => $supportCheck['details'] ?? null,
                 ], 422);
             }
 
@@ -47,16 +49,35 @@ class PlanGeneratorController extends Controller
 
             // Direkte Ausführung
             Log::info('Generation started', ['plan_id' => $planId]);
-            $this->generator->run($planId);
-
-            return response()->json(['message' => 'Generation done']);
+            try {
+                $this->generator->run($planId);
+                return response()->json(['message' => 'Generation done']);
+            } catch (\Throwable $e) {
+                // Re-throw to be caught by outer catch block for proper error formatting
+                throw $e;
+            }
         } catch (\Throwable $e) {
             Log::error('Generation failed', [
                 'plan_id' => $planId,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
+            
+            // Extract parameter details from RuntimeException messages if available
+            $errorMessage = 'Fehler bei der Plan-Generierung';
+            $details = $e->getMessage();
+            
+            // Check if it's a parameter validation error
+            if (str_contains($e->getMessage(), "Parameter '")) {
+                $errorMessage = 'Ungültiger Parameterwert';
+                // The RuntimeException already contains detailed info about parameter name and value
+            } elseif (str_contains($e->getMessage(), "not found")) {
+                $errorMessage = 'Fehlende Daten';
+            }
+            
             return response()->json([
-                'error' => 'Generation failed',
+                'error' => $errorMessage,
+                'details' => $details,
             ], 500);
         }
     }
@@ -98,7 +119,7 @@ class PlanGeneratorController extends Controller
         if (! $exists) {
             Log::warning('Plan not found', ['plan_id' => $planId]);
             return response()->json([
-                'error' => "Plan {$planId} not found",
+                'error' => "Plan {$planId} nicht gefunden",
             ], 404);
         }
 

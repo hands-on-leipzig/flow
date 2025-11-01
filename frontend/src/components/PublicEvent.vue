@@ -281,7 +281,7 @@
         </h2>
         <div class="flex flex-col items-center">
           <img :src="`data:image/png;base64,${event.qrcode}`" alt="QR Code" class="w-32 h-32"/>
-          <p class="text-sm text-gray-600 mt-2">Scannen Sie den QR-Code, um diese Seite zu öffnen</p>
+          <p class="text-sm text-gray-600 mt-2">Scanne den QR-Code, um diese Seite zu öffnen</p>
         </div>
       </div>
     </div>
