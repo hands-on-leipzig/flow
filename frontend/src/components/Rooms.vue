@@ -257,7 +257,6 @@ const unassignItemFromRoom = async (itemKey) => {
 // --- Raum erstellen ---
 const newRoomName = ref('')
 const newRoomNote = ref('')
-const newRoomAccessible = ref(true)
 const newRoomInput = ref(null)
 const newRoomNoteInput = ref(null)
 const isSaving = ref(false)
@@ -274,13 +273,11 @@ const createRoom = async () => {
     const { data } = await axios.post('/rooms', {
       name: newRoomName.value.trim(),
       navigation_instruction: newRoomNote.value.trim(),
-      event: eventId.value,
-      is_accessible: newRoomAccessible.value
+      event: eventId.value
     })
     rooms.value.push(data)
     newRoomName.value = ''
     newRoomNote.value = ''
-    newRoomAccessible.value = true
     await nextTick()
     newRoomInput.value?.focus()
   } finally {
@@ -561,7 +558,7 @@ const hasWarning = (tab) => {
             />
           </div>
           <transition name="fade">
-            <div v-if="newRoomName.trim().length > 0 || newRoomNote.trim().length > 0">
+            <div v-if="newRoomName.trim().length > 0">
               <input
                 ref="newRoomNoteInput"
                 v-model="newRoomNote"
@@ -570,25 +567,6 @@ const hasWarning = (tab) => {
                 @keyup.enter="createRoom"
                 :disabled="isSaving"
               />
-              <div class="flex items-center gap-2 mt-2">
-                <input
-                  type="checkbox"
-                  v-model="newRoomAccessible"
-                  id="newRoomAccessible"
-                  class="rounded"
-                  :disabled="isSaving"
-                />
-                <label for="newRoomAccessible" class="text-sm text-gray-700">
-                  Barrierefrei
-                </label>
-              </div>
-              <button
-                @click="createRoom"
-                :disabled="isSaving || (!newRoomName.trim() && !newRoomNote.trim())"
-                class="mt-3 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {{ isSaving ? 'Erstelle...' : 'Raum erstellen' }}
-              </button>
             </div>
           </transition>
         </div>
