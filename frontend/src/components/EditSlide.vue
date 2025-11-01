@@ -5,12 +5,14 @@ import axios from "axios";
 import {Slide} from "@/models/slide";
 import FabricEditor from "@/components/FabricEditor.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
+import SavingToast from "@/components/atoms/SavingToast.vue";
 
 const props = defineProps<{
   slideId: Number,
 }>();
 
 const slide = ref<Slide | null>(null);
+const savingToast = ref(null);
 
 const settingsSlideTypes = ['RobotGameSlideContent', 'PublicPlanSlideContent', 'UrlSlideContent'];
 
@@ -36,6 +38,7 @@ function updateByName(name: string, value: any) {
   if (!slide.value) return;
   slide.value.content[name] = value;
   saveSlide();
+  savingToast?.value?.show();
 }
 
 function saveSlide() {
@@ -50,6 +53,8 @@ function saveSlide() {
 </script>
 
 <template>
+  <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
+
   <div class="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-1">
     <div class="rounded-xl shadow bg-white p-4 col-span-1" v-if="hasSettings">
       <span class="font-semibold px-2">

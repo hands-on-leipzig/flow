@@ -14,7 +14,8 @@ import InsertBlocks from "@/components/molecules/InsertBlocks.vue";
 import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex'
 import FllEvent from "@/models/FllEvent";
 import {Parameter, ParameterCondition} from "@/models/Parameter"
-import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import SavingToast from "@/components/atoms/SavingToast.vue";
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
@@ -25,6 +26,7 @@ const inputName = ref('')
 const plans = ref<Array<{ id: number, name: string, is_chosen?: boolean }>>([])
 const selectedPlanId = ref<number | null>(null)
 const loading = ref(true)
+const savingToast = ref()
 
 const SPECIAL_KEYS = new Set([
   'e1_teams', 'e2_teams',
@@ -183,13 +185,6 @@ const pendingParamUpdates = ref<Record<string, any>>({})
 const paramUpdateTimeoutId = ref<NodeJS.Timeout | null>(null)
 const PARAM_DEBOUNCE_DELAY = 2000
 
-// Toast notification system
-const showToast = ref(false)
-const progress = ref(100)
-const progressIntervalId = ref<NodeJS.Timeout | null>(null)
-
-
-
 // Handle parameter updates from child components
 function handleParamUpdate(param: { name: string, value: any }) {
   const p = paramMapByName.value[param.name]
@@ -215,9 +210,7 @@ function handleParamUpdate(param: { name: string, value: any }) {
   // Add to pending updates
   pendingParamUpdates.value[param.name] = param.value
 
-  // Show toast and start progress animation
-  showToast.value = true
-  startProgressAnimation()
+  savingToast?.value?.show()
 
   // Clear existing timeout
   if (paramUpdateTimeoutId.value) {
@@ -241,9 +234,7 @@ function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
     pendingParamUpdates.value[prefixedName] = update.value
   })
 
-  // Show toast and start progress animation
-  showToast.value = true
-  startProgressAnimation()
+  savingToast?.value?.show()
 
   // Clear existing timeout
   if (paramUpdateTimeoutId.value) {
@@ -256,29 +247,6 @@ function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
   }, PARAM_DEBOUNCE_DELAY)
 }
 
-// Start progress animation
-function startProgressAnimation() {
-  // Reset progress
-  progress.value = 100
-
-  // Clear existing interval
-  if (progressIntervalId.value) {
-    clearInterval(progressIntervalId.value)
-  }
-
-  // Calculate step size (100 steps over the debounce delay)
-  const stepSize = 100 / (PARAM_DEBOUNCE_DELAY / 50) // Update every 50ms
-
-  progressIntervalId.value = setInterval(() => {
-    progress.value -= stepSize
-    if (progress.value <= 0) {
-      progress.value = 0
-      clearInterval(progressIntervalId.value!)
-      progressIntervalId.value = null
-    }
-  }, 50)
-}
-
 // Force immediate update of all pending parameter changes
 function flushParamUpdates() {
   if (paramUpdateTimeoutId.value) {
@@ -286,15 +254,7 @@ function flushParamUpdates() {
     paramUpdateTimeoutId.value = null
   }
 
-  // Clear progress animation
-  if (progressIntervalId.value) {
-    clearInterval(progressIntervalId.value)
-    progressIntervalId.value = null
-  }
-
-  // Hide toast
-  showToast.value = false
-  progress.value = 100
+  savingToast?.value?.hide()
 
   if (Object.keys(pendingParamUpdates.value).length > 0) {
     const updates = {...pendingParamUpdates.value}
@@ -306,9 +266,6 @@ function flushParamUpdates() {
 
 // Cleanup on unmount
 onUnmounted(() => {
-  if (progressIntervalId.value) {
-    clearInterval(progressIntervalId.value)
-  }
   flushParamUpdates()
 })
 
@@ -625,18 +582,7 @@ const updateTableName = async () => {
 </script>
 
 <template>
-  <!-- Toast notification for pending parameter updates -->
-  <div v-if="showToast"
-       class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
-    <div class="flex items-center gap-3">
-      <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-      <span class="text-green-800 font-medium">Parameter-Änderungen werden gespeichert...</span>
-    </div>
-    <!--<div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
-      <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
-           :style="{ width: progress + '%' }"></div>
-    </div>-->
-  </div>
+  <SavingToast ref="savingToast" message="Parameter-Änderungen werden gespeichert..."/>
 
   <div class="h-screen p-6 flex flex-col space-y-5">
 
