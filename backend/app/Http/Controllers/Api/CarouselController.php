@@ -222,8 +222,9 @@ class CarouselController extends Controller
 
             $slide1 = $this->slideGeneratorService->generatePublicPlanSlide($planId, $slideshow->id);
             $slide2 = $this->slideGeneratorService->generateQRCodeSlide($eventId, $slideshow->id);
+            $slide3 = $this->slideGeneratorService->generateRobotGameResultsSlide($slideshow->id);
 
-            $slideshow->slides = [$slide1, $slide2];
+            $slideshow->slides = [$slide1, $slide2, $slide3];
 
             return response()->json(['success' => true, 'slideshow' => $slideshow]);
         } catch (Exception $e) {

@@ -16,7 +16,7 @@ class SlideGeneratorService
     public function generatePublicPlanSlide($planId, $slideshowId)
     {
         $content = '{ "hours": 2'
-            . ', "background": ' . $this->generatePublicPlanBackground()
+            . ', "background": ' . $this->generateStandardBackground()
             . ', "planId": ' . $planId
             . '}';
 
@@ -31,7 +31,7 @@ class SlideGeneratorService
         return $slide;
     }
 
-    private function generatePublicPlanBackground()
+    private function generateStandardBackground()
     {
         return json_encode("{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage . "}");
     }
@@ -60,6 +60,21 @@ class SlideGeneratorService
             . "}";
 
         return json_encode($qrCodeSlideBackground);
+    }
+
+    public function generateRobotGameResultsSlide($slideshowId, $order = 2)
+    {
+        $content = '{"background": ' . $this->generateStandardBackground() . '}';
+
+        $slide = Slide::create([
+            'name' => 'Robot-Game Ergebnisse',
+            'slideshow' => $slideshowId,
+            'type' => 'RobotGameSlideContent',
+            'content' => $content,
+            'order' => $order,
+        ]);
+
+        return $slide;
     }
 
 }
