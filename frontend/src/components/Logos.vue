@@ -28,7 +28,7 @@ const uploadLogo = async () => {
   
   const currentEvent = selectedEvent.value || eventStore.selectedEvent
   if (!currentEvent?.regional_partner) {
-    alert('Bitte wählen Sie zuerst ein Event aus, bevor Sie ein Logo hochladen.')
+    alert('Bitte wähle zuerst ein Event aus, bevor du ein Logo hochlädst.')
     return
   }
   
@@ -168,7 +168,7 @@ const handleDrop = async (event, targetLogo) => {
   
   const currentEvent = selectedEvent.value || eventStore.selectedEvent
   if (!currentEvent) {
-    alert('Bitte wählen Sie zuerst ein Event aus.')
+    alert('Bitte wähle zuerst ein Event aus.')
     return
   }
   
@@ -227,7 +227,7 @@ const closeLogoPreview = () => {
 
 const deleteMessage = computed(() => {
   if (!logoToDelete.value) return ''
-  return `Möchten Sie das Logo "${logoToDelete.value.name || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+  return `Möchtest du das Logo "${logoToDelete.value.name || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
 
 // Sort logos by their sort_order for the current event
@@ -316,7 +316,7 @@ onMounted(async () => {
         </svg>
         <span class="text-sm font-medium text-yellow-800">Kein Event ausgewählt</span>
       </div>
-      <p class="text-xs text-yellow-700 mt-1">Bitte wählen Sie zuerst ein Event aus, um Logos hochzuladen.</p>
+      <p class="text-xs text-yellow-700 mt-1">Bitte wähle zuerst ein Event aus, um Logos hochzuladen.</p>
     </div>
 
     <!-- Upload -->

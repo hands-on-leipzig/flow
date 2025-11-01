@@ -22,9 +22,11 @@ import PlanLayout from "@/components/PlanLayout.vue";
 import PresentationSettings from "@/components/molecules/PresentationSettings.vue";
 import PublicEvent from "@/components/PublicEvent.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
+import ScoreViewer from "@/components/ScoreViewer.vue";
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
+    {path: '/scores/:eventId', component: ScoreViewer, props: true, meta: {public: true}},
     {
         path: '/plan',
         component: PlanLayout,

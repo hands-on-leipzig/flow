@@ -9,6 +9,15 @@ import {mdiContentCopy} from '@mdi/js';
 import {Slideshow} from "@/models/slideshow";
 import axios from "axios";
 import {Slide} from "@/models/slide";
+import InfoPopover from "@/components/atoms/InfoPopover.vue";
+
+type RobotGamePublicRounds = {
+  vr1: boolean;
+  vr2: boolean;
+  vr3: boolean;
+  vf: boolean;
+  hf: boolean;
+};
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
@@ -16,6 +25,8 @@ const event = computed(() => eventStore.selectedEvent);
 const loading = ref(true);
 const planId = ref<number | null>(null);
 const slideshows = ref<Slideshow[]>([]);
+
+const robotGameRounds = ref<RobotGamePublicRounds | null>(null);
 
 const carouselLink = computed(() => {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
@@ -31,6 +42,7 @@ const slideTypes = [
 ];
 
 onMounted(loadSlideshows);
+onMounted(getPublicRobotGameRounds);
 onMounted(fetchPlanId);
 
 async function loadSlideshows() {
@@ -120,6 +132,28 @@ async function addSlide(slideshow: Slideshow) {
   }
 }
 
+async function getPublicRobotGameRounds() {
+  try {
+    const response = await axios.get('/contao/rounds/' + event.value?.id);
+    robotGameRounds.value = response.data;
+  } catch (error) {
+    console.error('Error fetching rounds:', error);
+  }
+}
+
+async function updateRobotGameRounds(round, value) {
+  robotGameRounds.value[round] = value;
+  await pushPublicRobotGameRoundsUpdate();
+}
+
+async function pushPublicRobotGameRoundsUpdate() {
+  try {
+    await axios.put('/contao/rounds/' + event.value?.id, robotGameRounds.value);
+  } catch (e) {
+    console.error('Error updating rounds:', e);
+  }
+}
+
 function copyUrl(url) {
   navigator.clipboard.writeText(url);
 }
@@ -136,10 +170,12 @@ function copyUrl(url) {
         + Slideshow erstellen
       </button>
     </div>
-    <div class="mb-4">
+
+    <div class="grid-cols-2 grid">
       <div class="d-flex align-items-center gap-2">
         <span class="text-break">Link zur öffentlichen Ansicht:
-          <a :href="carouselLink" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline font-medium text-base">{{ carouselLink }}</a>
+          <a :href="carouselLink" target="_blank" rel="noopener noreferrer"
+             class="text-blue-600 underline font-medium text-base">{{ carouselLink }}</a>
         </span>
         <button
             type="button"
@@ -150,23 +186,74 @@ function copyUrl(url) {
           <svg-icon type="mdi" :path="mdiContentCopy" size="16" class="ml-1 mt-1"></svg-icon>
         </button>
       </div>
+
+      <div class="" v-if="robotGameRounds">
+        <span class="font-bold">Robot Game: Öffentliche Ergebnisse</span>
+        <InfoPopover
+            text="Wähle aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
+        <div class="grid grid-cols-5 gap-2 mt-2">
+          <label class="flex items-center gap-2 px-2">
+            <input
+                type="checkbox"
+                :checked="robotGameRounds.vr1"
+                @change="updateRobotGameRounds('vr1', ($event.target as HTMLInputElement).checked)"
+            />
+            <span>VR1</span>
+          </label>
+          <label class="flex items-center gap-2 px-2">
+            <input
+                type="checkbox"
+                :checked="robotGameRounds.vr2"
+                @change="updateRobotGameRounds('vr2', ($event.target as HTMLInputElement).checked)"
+            />
+            <span>VR2</span>
+          </label>
+          <label class="flex items-center gap-2 px-2">
+            <input
+                type="checkbox"
+                :checked="robotGameRounds.vr3"
+                @change="updateRobotGameRounds('vr3', ($event.target as HTMLInputElement).checked)"
+            />
+            <span>VR3</span>
+          </label>
+          <label class="flex items-center gap-2 px-2">
+            <input
+                type="checkbox"
+                :checked="robotGameRounds.vf"
+                @change="updateRobotGameRounds('vf', ($event.target as HTMLInputElement).checked)"
+            />
+            <span>VF</span>
+          </label>
+          <label class="flex items-center gap-2 px-2">
+            <input
+                type="checkbox"
+                :checked="robotGameRounds.hf"
+                @change="updateRobotGameRounds('hf', ($event.target as HTMLInputElement).checked)"
+            />
+            <span>HF</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-4">
       <details v-for="(slideshow, index) in slideshows" :open="index === 0">
         <summary class="font-bold">{{ slideshow.name }}</summary>
 
         <div class="flex items-center gap-2 mt-2 mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Anzeigezeit pro Folie</label>
-            <div class="flex items-center gap-3 w-60">
-              <input
-                  type="range"
-                  :min="1"
-                  :max="60"
-                  :step="1"
-                  v-model.number="slideshow.transition_time"
-                  @change="updateTransitionTime(slideshow)"
-                  class="flex-1"
-                  aria-label="Transition time slider"
-              />
-              <span class="text-sm text-gray-600">{{ slideshow.transition_time }}s</span>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Anzeigezeit pro Folie</label>
+          <div class="flex items-center gap-3 w-60">
+            <input
+                type="range"
+                :min="1"
+                :max="60"
+                :step="1"
+                v-model.number="slideshow.transition_time"
+                @change="updateTransitionTime(slideshow)"
+                class="flex-1"
+                aria-label="Transition time slider"
+            />
+            <span class="text-sm text-gray-600">{{ slideshow.transition_time }}s</span>
           </div>
 
           <select v-model="slideType" class="ml-10 mr-1">
@@ -178,6 +265,7 @@ function copyUrl(url) {
             + Folie hinzufügen
           </button>
         </div>
+
         <draggable v-model="slideshow.slides" :key="slidesKey"
                    class="flex flex-wrap gap-2 ü-5 bg-gray-800 rounded-xl" group="slides"
                    item-key="id"

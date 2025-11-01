@@ -82,49 +82,30 @@ class GenerateMainDataSeeder extends Command
     
     private function generateSeederContent(array $tables, array $data): string
     {
-        $seederContent = "<?php\n\nnamespace Database\\Seeders;\n\nuse Illuminate\\Database\\Seeder;\nuse Illuminate\\Support\\Facades\\DB;\n\nclass MainDataSeeder extends Seeder\n{\n    /**\n     * Run the database seeds.\n     */\n    public function run(): void\n    {\n        \$this->command->info('🌱 Seeding main data...');\n        \n";
+        // Define dependency order for master tables to ensure foreign keys are satisfied
+        $dependencyOrder = [
+            'm_season' => 1,
+            'm_level' => 2,
+            'm_first_program' => 3,
+            'm_room_type_group' => 4,
+            'm_room_type' => 5,
+            'm_parameter' => 6,
+            'm_activity_type' => 7,
+            'm_activity_type_detail' => 8,
+            'm_insert_point' => 9,
+            'm_role' => 10,
+            'm_visibility' => 11,
+            'm_supported_plan' => 12,
+        ];
         
-        foreach ($tables as $table) {
-            $methodName = 'seed' . str_replace('m_', '', $table);
-            $methodName = str_replace('_', '', ucwords($methodName, '_'));
-            
-            $seederContent .= "        \$this->{$methodName}();\n";
-        }
+        // Sort tables according to dependency order
+        usort($tables, function($a, $b) use ($dependencyOrder) {
+            $orderA = $dependencyOrder[$a] ?? 999;
+            $orderB = $dependencyOrder[$b] ?? 999;
+            return $orderA <=> $orderB;
+        });
         
-        $seederContent .= "        \n        \$this->command->info('✅ Main data seeded successfully!');\n    }\n";
-        
-        // Generate methods for each table
-        foreach ($tables as $table) {
-            $methodName = 'seed' . str_replace('m_', '', $table);
-            $methodName = str_replace('_', '', ucwords($methodName, '_'));
-            
-            $tableData = $data[$table] ?? [];
-            $displayName = str_replace('m_', '', $table);
-            
-            $seederContent .= "    \n    private function {$methodName}()\n    {\n        \$this->command->info('  Seeding {$displayName}...');\n        \n        \$data = [\n";
-            
-            foreach ($tableData as $record) {
-                $seederContent .= "            " . var_export($record, true) . ",\n";
-            }
-            
-            $seederContent .= "        ];\n        \n        foreach (\$data as \$item) {\n";
-            
-            // Determine unique key for updateOrInsert
-            if (!empty($tableData)) {
-                $firstRecord = $tableData[0];
-                if (isset($firstRecord['name'])) {
-                    $seederContent .= "            DB::table('{$table}')->updateOrInsert(\n                ['name' => \$item['name']],\n                \$item\n            );\n";
-                } elseif (isset($firstRecord['id'])) {
-                    $seederContent .= "            DB::table('{$table}')->updateOrInsert(\n                ['id' => \$item['id']],\n                \$item\n            );\n";
-                } else {
-                    $seederContent .= "            DB::table('{$table}')->insert(\$item);\n";
-                }
-            }
-            
-            $seederContent .= "        }\n        \n        \$this->command->line('    ✓ Seeded ' . count(\$data) . ' {$displayName}');\n    }\n";
-        }
-        
-        $seederContent .= "}";
+        $seederContent = "<?php\n\nnamespace Database\\Seeders;\n\nuse Illuminate\\Database\\Seeder;\nuse Illuminate\\Support\\Facades\\DB;\nuse Illuminate\\Support\\Facades\\Schema;\n\nclass MainDataSeeder extends Seeder\n{\n    /**\n     * Run the database seeds.\n     */\n    public function run(): void\n    {\n        \$this->command->info('🌱 Seeding main data...');\n        \n        // Load data from JSON export file (in repo at database/exports/)\n        \$exportFilePath = database_path('exports/main-tables-latest.json');\n        if (!file_exists(\$exportFilePath)) {\n            throw new \\Exception(\"Export file not found: {\$exportFilePath}. Please ensure main-tables-latest.json exists in database/exports/.\");\n        }\n        \n        \$content = file_get_contents(\$exportFilePath);\n        \$exportData = json_decode(\$content, true);\n        \n        if (!\$exportData || !isset(\$exportData['_metadata'])) {\n            throw new \\Exception('Invalid export file format');\n        }\n        \n        // Get table list from metadata (dynamic - tables can be added/removed in dev)\n        \$tables = \$exportData['_metadata']['tables'] ?? [];\n        if (empty(\$tables)) {\n            throw new \\Exception('No tables found in export metadata');\n        }\n        \n        // Disable foreign key checks during seeding to handle data inconsistencies\n        DB::statement('SET FOREIGN_KEY_CHECKS=0;');\n        \n        \$errors = [];\n        try {\n            // Seed all tables dynamically from JSON metadata\n            foreach (\$tables as \$table) {\n                try {\n                    \$tableData = \$exportData[\$table] ?? [];\n                    \$this->seedTable(\$table, \$tableData);\n                } catch (\\Exception \$e) {\n                    \$errors[] = \"Error seeding {\$table}: \" . \$e->getMessage();\n                    \$this->command->error(\"  ❌ Failed to seed {\$table}: \" . \$e->getMessage());\n                }\n            }\n        } finally {\n            // Re-enable foreign key checks\n            DB::statement('SET FOREIGN_KEY_CHECKS=1;');\n        }\n        \n        // Verify that tables were populated (dynamic verification)\n        \$this->command->info('Verifying seeded data...');\n        \$verificationErrors = [];\n        \n        foreach (\$tables as \$table) {\n            if (!Schema::hasTable(\$table)) {\n                \$verificationErrors[] = \"Table {\$table} does not exist\";\n                continue;\n            }\n            \n            \$count = DB::table(\$table)->count();\n            \$expectedCount = count(\$exportData[\$table] ?? []);\n            \n            if (\$expectedCount > 0 && \$count < \$expectedCount) {\n                \$verificationErrors[] = \"Table {\$table} has only {\$count} rows, expected at least {\$expectedCount}\";\n            } else {\n                \$this->command->line(\"  ✓ {\$table}: {\$count} rows\");\n            }\n        }\n        \n        if (!empty(\$verificationErrors)) {\n            \$this->command->error('Verification failed:');\n            foreach (\$verificationErrors as \$error) {\n                \$this->command->error(\"  - {\$error}\");\n            }\n            \$errors = array_merge(\$errors, \$verificationErrors);\n        }\n        \n        if (empty(\$errors)) {\n            \$this->command->info('✅ Main data seeded successfully!');\n        } else {\n            \$this->command->warn('⚠️  Seeding completed with errors:');\n            foreach (\$errors as \$error) {\n                \$this->command->error(\"  - {\$error}\");\n            }\n            throw new \\Exception('Seeding failed with ' . count(\$errors) . ' error(s)');\n        }\n    }\n    \n    /**\n     * Generic method to seed any table dynamically\n     */\n    private function seedTable(string \$table, array \$data): void\n    {\n        \$displayName = str_replace('m_', '', \$table);\n        \$this->command->info(\"  Seeding {\$displayName}...\");\n        \n        if (empty(\$data)) {\n            \$this->command->warn(\"    ⚠️  No data found for {\$table}\");\n            return;\n        }\n        \n        // Get actual table columns to filter out non-existent columns\n        \$tableColumns = Schema::getColumnListing(\$table);\n        \n        // Determine unique key for updateOrInsert\n        // Check first record to determine available keys\n        \$firstRecord = reset(\$data);\n        \$hasId = isset(\$firstRecord['id']);\n        \$hasName = isset(\$firstRecord['name']);\n        \n        foreach (\$data as \$item) {\n            // Filter item to only include columns that exist in the table\n            \$filteredItem = array_intersect_key(\$item, array_flip(\$tableColumns));\n            \n            // Use appropriate unique key for updateOrInsert\n            // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships\n            if (\$hasId && isset(\$filteredItem['id'])) {\n                DB::table(\$table)->updateOrInsert(\n                    ['id' => \$filteredItem['id']],\n                    \$filteredItem\n                );\n            } elseif (\$hasName && isset(\$filteredItem['name'])) {\n                DB::table(\$table)->updateOrInsert(\n                    ['name' => \$filteredItem['name']],\n                    \$filteredItem\n                );\n            } else {\n                DB::table(\$table)->insert(\$filteredItem);\n            }\n        }\n        \n        \$this->command->line(\"    ✓ Seeded \" . count(\$data) . \" {\$displayName}\");\n    }\n}\n";
         
         return $seederContent;
     }

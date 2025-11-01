@@ -1,108 +1,67 @@
 <script setup lang="ts">
 import {RobotGameSlideContent} from '../../models/robotGameSlideContent.js';
-import {onMounted, onUnmounted, ref, computed} from "vue";
-import axios from "axios";
+import {onMounted, onUnmounted, ref, computed, toRef} from "vue";
+import { useScores, expectedScores, roundNames, createTeams } from '@/services/useScores';
+import type {Team, TeamResponse, RoundResponse} from "@/models/robotGameScores";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
 
-type ScoresResponse = { name?: string, rounds?: RoundResponse }
-type RoundResponse = { [key: string]: TeamResponse }
-type TeamResponse = { [key: string]: Team }
-type Team = { name: string, scores: Score[], rank: number, id: number }
-type Score = { points: number; highlight: boolean }
-type Round = 'VR' | 'AF' | 'VF' | 'HF';
+const props = defineProps<{
+  content: RobotGameSlideContent,
+  preview: boolean,
+  eventId: number
+}>();
 
-const expectedScores: { [round in Round]: number } = {
-  VR: 3,
-  AF: 1,
-  VF: 1,
-  HF: 1,
-};
+const { scores, error, loadScores, startAutoRefresh, stopAutoRefresh, setDemoData } = useScores(props.eventId);
 
-const roundNames: { [round in Round]: string } = {
-  VR: 'Vorrunden',
-  AF: 'Achtelfinale',
-  VF: 'Viertelfinale',
-  HF: 'Halbfinale',
-};
-
-const scores = ref<ScoresResponse>(null);
-const error = ref<string | null>(null);
 const currentIndex = ref(0);
 const isPaused = ref(false);
-const teamsPerPage = ref(8);
+const teamsPerPage = toRef(props.content, 'teamsPerPage') || ref(8);
 const round = ref<string | undefined>(undefined);
 const teams = computed(() => {
   const category = getRoundToShow(scores.value?.rounds);
-  return createTeams(category) || [];
+  return createTeams(category, round.value) || [];
 });
 const paginatedTeams = computed(() => {
   return teams.value.slice(currentIndex.value, currentIndex.value + teamsPerPage.value);
 });
 
-// const settings = ref<any>(null);
+onMounted(loadScores);
+onMounted(() => {
+  if (!props.preview) {
+    startAutoRefresh();
+  }
+});
+onUnmounted(stopAutoRefresh);
 
-function sortScores(team: any): number[] {
-  return team.scores.map((score: any) => +score.points).sort((a: number, b: number) => b - a);
-}
+let autoAdvanceInterval;
 
-function assignRanks(teams: Team[]): Team[] {
-  if (!teams || teams.length === 0) {
-    return teams;
-  }
-  let rank = 1;
-  let prevScore = 0;
-  const result: Team[] = [];
-  for (let i = 0; i < teams.length; i++) {
-    const maxScore = sortScores(teams[i])[0];
-    if (maxScore !== prevScore) {
-      rank = i + 1;
+onMounted(() => {
+  const secondsPerPage = props.content.secondsPerPage || 15;
+  autoAdvanceInterval = setInterval(() => {
+    if (!isPaused.value) {
+      advancePage();
     }
-    teams[i].rank = rank;
-    if (maxScore > 0 || prevScore === 0) {
-      result.push(teams[i]);
-      prevScore = maxScore;
-    }
-  }
-  return result;
-}
+  }, secondsPerPage * 1000);
 
-function createTeams(category: TeamResponse): Team[] {
-  if (!category || !round.value) {
-    return undefined;
-  }
-  const teams: Team[] = [];
-  for (const id in category) {
-    const team = {...category[id], id: +id};
-    const scores = sortScores(team);
-    const maxScore = scores[0];
-    team.scores = team.scores.map((score: any) => {
-      score.highlight = +score.points === maxScore && maxScore > 0 && scores.length > 1;
-      return score;
-    });
-    // Add extra scores if necessary
-    while (team.scores.length < expectedScores[round.value]) {
-      team.scores.push({points: 0, highlight: false});
-    }
-    teams.push(team);
-  }
-  teams.sort((a: any, b: any) => {
-    const aScores = sortScores(a);
-    const bScores = sortScores(b);
-    for (let i = 0; i < aScores.length && i < bScores.length; i++) {
-      if (aScores[i] !== bScores[i]) {
-        return bScores[i] - aScores[i];
-      }
-    }
-    return 0;
-  });
-  return assignRanks(teams);
-}
+  // Add keydown event listener
+  window.addEventListener('keydown', handleKeyDown);
+});
+
+// Test demo data
+onMounted(() => {
+  setDemoData();
+});
+
+onUnmounted(() => {
+  clearInterval(autoAdvanceInterval);
+  window.removeEventListener('keydown', handleKeyDown);
+});
 
 function getRoundToShow(rounds: RoundResponse): TeamResponse {
   if (!rounds) {
     return undefined;
   }
-  /*if (rounds.HF) {
+  if (rounds.HF) {
     round.value = 'HF';
     return rounds.HF;
   }
@@ -110,76 +69,11 @@ function getRoundToShow(rounds: RoundResponse): TeamResponse {
     round.value = 'VF';
     return rounds.VF;
   }
-  if (rounds.AF) {
-    round.value = 'AF';
-    return rounds.AF;
-  } */
   if (rounds.VR) {
     round.value = 'VR';
     return rounds.VR;
   }
   return undefined;
-}
-
-// Load data function
-function loadDACHData() {
-  /*axios.get('/api/events/1/data/rg-scores')
-      .then((response) => {
-        scores.value = response.data;
-      })
-      .catch((err) => {
-        console.error(err.message);
-      }); */
-
-  scores.value = {
-    "name": "RPT Demo",
-    "rounds": {
-      "VR": {
-        "1": {
-          "name": "TechKids",
-          "scores": [
-            {"points": 100, "highlight": true},
-            {"points": 80, "highlight": false},
-            {"points": 60, "highlight": false}
-          ],
-          "rank": 1,
-          "id": 1
-        },
-        "2": {
-          "name": "RoboExplorers",
-          "scores": [
-            {"points": 70, "highlight": true},
-            {"points": 50, "highlight": false},
-            {"points": 30, "highlight": false}
-          ],
-          "rank": 2,
-          "id": 2
-        },
-        "3": {
-          "name": "FutureScientists",
-          "scores": [
-            {"points": 10, "highlight": false},
-            {"points": 20, "highlight": false},
-            {"points": 60, "highlight": true}
-          ],
-          "rank": 3,
-          "id": 3
-        },
-        "4": {
-          "name": "DiscoversSquad",
-          "scores": [
-            {"points": 40, "highlight": true},
-            {"points": 40, "highlight": true},
-            {"points": 40, "highlight": true}
-          ],
-          "rank": 4,
-          "id": 4
-        },
-      }
-    }
-  };
-
-
 }
 
 function advancePage() {
@@ -214,33 +108,6 @@ function handleKeyDown(event: KeyboardEvent) {
     previousPage();
   }
 }
-
-let refreshInterval;
-let autoAdvanceInterval;
-
-onMounted(loadDACHData);
-onMounted(() => {
-  refreshInterval = setInterval(loadDACHData, 5 * 60 * 1000);
-
-  autoAdvanceInterval = setInterval(() => {
-    if (!isPaused.value) {
-      advancePage();
-    }
-  }, 15000);
-
-  // Add keydown event listener
-  window.addEventListener('keydown', handleKeyDown);
-});
-
-onUnmounted(() => {
-  clearInterval(refreshInterval);
-  clearInterval(autoAdvanceInterval);
-  window.removeEventListener('keydown', handleKeyDown);
-})
-const props = defineProps<{
-  content: RobotGameSlideContent,
-  preview: boolean
-}>();
 </script>
 
 <template>

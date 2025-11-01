@@ -74,6 +74,14 @@ jobs:
             --exclude='storage/' \
             ~/deploy-flow-dev-temp/ ~/public_html/flow-dev/
             cd ~/public_html/flow-dev
+            # Ensure storage directories exist (mkdir -p is idempotent - safe if already exists)
+            mkdir -p storage/framework/cache/data
+            mkdir -p storage/framework/sessions
+            mkdir -p storage/framework/views
+            mkdir -p storage/app/public
+            # Set permissions only if needed (preserves existing files)
+            find storage/framework -type d -exec chmod 775 {} \; 2>/dev/null || true
+            find storage/app -type d -exec chmod 775 {} \; 2>/dev/null || true
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear
@@ -146,16 +154,22 @@ jobs:
             --exclude='storage/' \
             ~/deploy-flow-test-temp/ ~/public_html/flow-test/
             cd ~/public_html/flow-test
+            # Ensure storage directories exist (mkdir -p is idempotent - safe if already exists)
+            mkdir -p storage/framework/cache/data
+            mkdir -p storage/framework/sessions
+            mkdir -p storage/framework/views
+            mkdir -p storage/app/public
+            # Set permissions only if needed (preserves existing files)
+            find storage/framework -type d -exec chmod 775 {} \; 2>/dev/null || true
+            find storage/app -type d -exec chmod 775 {} \; 2>/dev/null || true
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear
             # Drop and recreate database for fresh test environment
             php artisan migrate:fresh --force
             php artisan storage:link
-            # Ensure master data is populated from seeder (m_ tables)
+            # Populate master data (m_ tables) from seeder file
             php artisan db:seed --class=MainDataSeeder --force
-            # Fresh database setup for test environment
-            php artisan test:setup
 
   deploy-production:
     if: github.ref == 'refs/heads/production'
@@ -224,6 +238,14 @@ jobs:
             --exclude='storage/' \
             ~/deploy-flow-prod-temp/ ~/public_html/flow-prod/
             cd ~/public_html/flow-prod
+            # Ensure storage directories exist (mkdir -p is idempotent - safe if already exists)
+            mkdir -p storage/framework/cache/data
+            mkdir -p storage/framework/sessions
+            mkdir -p storage/framework/views
+            mkdir -p storage/app/public
+            # Set permissions only if needed (preserves existing files)
+            find storage/framework -type d -exec chmod 775 {} \; 2>/dev/null || true
+            find storage/app -type d -exec chmod 775 {} \; 2>/dev/null || true
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear

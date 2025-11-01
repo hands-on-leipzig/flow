@@ -15,20 +15,6 @@ class MainDataSeeder extends Seeder
         $this->command->info('🌱 Seeding main data...');
         
         $this->Seedseason();
-        $this->Seedlevel();
-        $this->Seedrootype();
-        $this->SeedrootypeGroup();
-        $this->Seedparameter();
-        $this->SeedactivityType();
-        $this->SeedactivityTypeDetail();
-        $this->SeedfirstProgram();
-        $this->SeedinsertPoint();
-        $this->Seedrole();
-        $this->Seedvisibility();
-        $this->SeedsupportedPlan();
-        
-        $this->command->info('✅ Main data seeded successfully!');
-    }
     
     private function Seedseason()
     {
@@ -56,6 +42,7 @@ class MainDataSeeder extends Seeder
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' season');
     }
+        $this->Seedlevel();
     
     private function Seedlevel()
     {
@@ -85,6 +72,7 @@ class MainDataSeeder extends Seeder
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' level');
     }
+        $this->Seedrootype();
     
     private function Seedrootype()
     {
@@ -94,8 +82,8 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 1,
   'code' => 'r_match',
-  'name' => 'Robot-Game Bereich',
-  'sequence' => 101,
+  'name' => 'Robot-Game-Bereich',
+  'sequence' => 460,
   'room_type_group' => 3,
   'level' => 1,
   'first_program' => 3,
@@ -103,8 +91,8 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 2,
   'code' => 'j_lane_1',
-  'name' => 'Jurybewertung 1',
-  'sequence' => 311,
+  'name' => 'Jury 1',
+  'sequence' => 411,
   'room_type_group' => 3,
   'level' => 1,
   'first_program' => 3,
@@ -112,8 +100,8 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 3,
   'code' => 'j_lane_2',
-  'name' => 'Jurybewertung 2',
-  'sequence' => 312,
+  'name' => 'Jury 2',
+  'sequence' => 412,
   'room_type_group' => 3,
   'level' => 1,
   'first_program' => 3,
@@ -121,8 +109,8 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 4,
   'code' => 'j_lane_3',
-  'name' => 'Jurybewertung 3',
-  'sequence' => 313,
+  'name' => 'Jury 3',
+  'sequence' => 413,
   'room_type_group' => 3,
   'level' => 1,
   'first_program' => 3,
@@ -130,8 +118,8 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 5,
   'code' => 'j_lane_4',
-  'name' => 'Jurybewertung 4',
-  'sequence' => 314,
+  'name' => 'Jury 4',
+  'sequence' => 414,
   'room_type_group' => 3,
   'level' => 1,
   'first_program' => 3,
@@ -139,8 +127,8 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 6,
   'code' => 'j_lane_5',
-  'name' => 'Jurybewertung 5',
-  'sequence' => 315,
+  'name' => 'Jury 5',
+  'sequence' => 415,
   'room_type_group' => 3,
   'level' => 1,
   'first_program' => 3,
@@ -149,7 +137,7 @@ class MainDataSeeder extends Seeder
   'id' => 8,
   'code' => 'e_lane_1',
   'name' => 'Begutachtung 1',
-  'sequence' => 211,
+  'sequence' => 311,
   'room_type_group' => 2,
   'level' => 1,
   'first_program' => 2,
@@ -158,7 +146,7 @@ class MainDataSeeder extends Seeder
   'id' => 9,
   'code' => 'e_lane_2',
   'name' => 'Begutachtung 2',
-  'sequence' => 212,
+  'sequence' => 312,
   'room_type_group' => 2,
   'level' => 1,
   'first_program' => 2,
@@ -167,7 +155,7 @@ class MainDataSeeder extends Seeder
   'id' => 10,
   'code' => 'e_lane_3',
   'name' => 'Begutachtung 3',
-  'sequence' => 213,
+  'sequence' => 313,
   'room_type_group' => 2,
   'level' => 1,
   'first_program' => 2,
@@ -176,7 +164,7 @@ class MainDataSeeder extends Seeder
   'id' => 11,
   'code' => 'e_lane_4',
   'name' => 'Begutachtung 4',
-  'sequence' => 214,
+  'sequence' => 314,
   'room_type_group' => 2,
   'level' => 1,
   'first_program' => 2,
@@ -185,7 +173,7 @@ class MainDataSeeder extends Seeder
   'id' => 12,
   'code' => 'e_lane_5',
   'name' => 'Begutachtung 5',
-  'sequence' => 215,
+  'sequence' => 315,
   'room_type_group' => 2,
   'level' => 1,
   'first_program' => 2,
@@ -194,7 +182,7 @@ class MainDataSeeder extends Seeder
   'id' => 14,
   'code' => 'g_opening',
   'name' => 'Gemeinsame Eröffnung',
-  'sequence' => 100,
+  'sequence' => 110,
   'room_type_group' => 5,
   'level' => 1,
   'first_program' => 0,
@@ -203,7 +191,7 @@ class MainDataSeeder extends Seeder
   'id' => 15,
   'code' => 'j_briefing',
   'name' => 'Jury Briefing',
-  'sequence' => 308,
+  'sequence' => 410,
   'room_type_group' => 1,
   'level' => 1,
   'first_program' => 3,
@@ -212,7 +200,7 @@ class MainDataSeeder extends Seeder
   'id' => 16,
   'code' => 'e_briefing_judge',
   'name' => 'Gutachter:innen Briefing',
-  'sequence' => 208,
+  'sequence' => 310,
   'room_type_group' => 1,
   'level' => 1,
   'first_program' => 2,
@@ -221,7 +209,7 @@ class MainDataSeeder extends Seeder
   'id' => 17,
   'code' => 'c_briefing',
   'name' => 'Challenge Coach Briefing',
-  'sequence' => 305,
+  'sequence' => 409,
   'room_type_group' => 1,
   'level' => 1,
   'first_program' => 3,
@@ -230,7 +218,7 @@ class MainDataSeeder extends Seeder
   'id' => 18,
   'code' => 'e_briefing_coach',
   'name' => 'Explore Coach Briefing',
-  'sequence' => 205,
+  'sequence' => 309,
   'room_type_group' => 1,
   'level' => 1,
   'first_program' => 2,
@@ -239,7 +227,7 @@ class MainDataSeeder extends Seeder
   'id' => 19,
   'code' => 'c_lunch',
   'name' => 'Mittagspause',
-  'sequence' => 401,
+  'sequence' => 150,
   'room_type_group' => 3,
   'level' => 1,
   'first_program' => 3,
@@ -257,7 +245,7 @@ class MainDataSeeder extends Seeder
   'id' => 23,
   'code' => 'g_awards',
   'name' => 'Gemeinsame Preisverleihung',
-  'sequence' => 530,
+  'sequence' => 510,
   'room_type_group' => 5,
   'level' => 1,
   'first_program' => 0,
@@ -266,7 +254,7 @@ class MainDataSeeder extends Seeder
   'id' => 24,
   'code' => 'c_presentations',
   'name' => 'Forschung auf der Bühne',
-  'sequence' => 520,
+  'sequence' => 490,
   'room_type_group' => 5,
   'level' => 1,
   'first_program' => 3,
@@ -274,62 +262,62 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 25,
   'code' => 'lc_lane_1',
-  'name' => 'Live Challenge 1',
-  'sequence' => 611,
-  'room_type_group' => 4,
+  'name' => 'LC 1',
+  'sequence' => 211,
+  'room_type_group' => 6,
   'level' => 3,
   'first_program' => 3,
 ),
             array (
   'id' => 26,
   'code' => 'lc_lane_2',
-  'name' => 'Live Challenge 2',
-  'sequence' => 612,
-  'room_type_group' => 4,
+  'name' => 'LC 2',
+  'sequence' => 212,
+  'room_type_group' => 6,
   'level' => 3,
   'first_program' => 3,
 ),
             array (
   'id' => 27,
   'code' => 'lc_lane_3',
-  'name' => 'Live Challenge 3',
-  'sequence' => 613,
-  'room_type_group' => 4,
+  'name' => 'LC 3',
+  'sequence' => 213,
+  'room_type_group' => 6,
   'level' => 3,
   'first_program' => 3,
 ),
             array (
   'id' => 28,
   'code' => 'lc_lane_4',
-  'name' => 'Live Challenge 4',
-  'sequence' => 614,
-  'room_type_group' => 4,
+  'name' => 'LC 4',
+  'sequence' => 214,
+  'room_type_group' => 6,
   'level' => 3,
   'first_program' => 3,
 ),
             array (
   'id' => 29,
   'code' => 'lc_lane_5',
-  'name' => 'Live Challenge 5',
-  'sequence' => 615,
-  'room_type_group' => 4,
+  'name' => 'LC 5',
+  'sequence' => 215,
+  'room_type_group' => 6,
   'level' => 3,
   'first_program' => 3,
 ),
             array (
   'id' => 31,
   'code' => 'lc_briefing',
-  'name' => 'Live Challenge Briefing',
-  'sequence' => 610,
-  'room_type_group' => 4,
+  'name' => 'LC Briefing',
+  'sequence' => 210,
+  'room_type_group' => 1,
   'level' => 3,
   'first_program' => 3,
 ),
             array (
   'id' => 32,
   'code' => 'c_opening_day_1',
-  'name' => 'Finale: Eröffnung Tag 1',
-  'sequence' => 511,
+  'name' => 'Eröffnung Tag 1',
+  'sequence' => 100,
   'room_type_group' => 5,
   'level' => 3,
   'first_program' => 3,
@@ -337,9 +325,9 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 34,
   'code' => 'j_briefing_day_1',
-  'name' => 'Finale: Jury Briefing Tag 1',
-  'sequence' => 207,
-  'room_type_group' => 3,
+  'name' => 'Jury Briefing Tag 1',
+  'sequence' => 409,
+  'room_type_group' => 1,
   'level' => 3,
   'first_program' => 3,
 ),
@@ -347,8 +335,8 @@ class MainDataSeeder extends Seeder
   'id' => 35,
   'code' => 'j_deliberations',
   'name' => 'Jury Beratung',
-  'sequence' => 320,
-  'room_type_group' => 3,
+  'sequence' => 420,
+  'room_type_group' => 1,
   'level' => 1,
   'first_program' => 3,
 ),
@@ -356,8 +344,8 @@ class MainDataSeeder extends Seeder
   'id' => 36,
   'code' => 'e_deliberations',
   'name' => 'Gutachter:innen Beratung',
-  'sequence' => 220,
-  'room_type_group' => 2,
+  'sequence' => 320,
+  'room_type_group' => 1,
   'level' => 1,
   'first_program' => 2,
 ),
@@ -365,7 +353,7 @@ class MainDataSeeder extends Seeder
   'id' => 37,
   'code' => 'r_briefing',
   'name' => 'Schiedsrichter:Innen Briefing',
-  'sequence' => 501,
+  'sequence' => 440,
   'room_type_group' => 1,
   'level' => 1,
   'first_program' => 0,
@@ -373,8 +361,8 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 44,
   'code' => 'r_check',
-  'name' => 'Robot-Check Bereich',
-  'sequence' => 102,
+  'name' => 'Robot-Check-Bereich',
+  'sequence' => 450,
   'room_type_group' => 3,
   'level' => 1,
   'first_program' => 3,
@@ -383,7 +371,7 @@ class MainDataSeeder extends Seeder
   'id' => 45,
   'code' => 'c_opening',
   'name' => 'Eröffnung Challenge',
-  'sequence' => 100,
+  'sequence' => 140,
   'room_type_group' => 5,
   'level' => 1,
   'first_program' => 3,
@@ -392,7 +380,7 @@ class MainDataSeeder extends Seeder
   'id' => 46,
   'code' => 'e_opening',
   'name' => 'Eröffnung Explore',
-  'sequence' => 100,
+  'sequence' => 130,
   'room_type_group' => 5,
   'level' => 1,
   'first_program' => 2,
@@ -410,7 +398,7 @@ class MainDataSeeder extends Seeder
   'id' => 48,
   'code' => 'c_awards',
   'name' => 'Preisverleihung Challenge',
-  'sequence' => 530,
+  'sequence' => 540,
   'room_type_group' => 5,
   'level' => 1,
   'first_program' => 3,
@@ -418,11 +406,56 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 49,
   'code' => 'lc_deliberations',
-  'name' => 'Live Challenge Beratung',
-  'sequence' => 610,
-  'room_type_group' => 4,
+  'name' => 'LC Beratung',
+  'sequence' => 220,
+  'room_type_group' => 1,
   'level' => 3,
   'first_program' => 3,
+),
+            array (
+  'id' => 50,
+  'code' => 'g_party_teams',
+  'name' => 'Team-Party',
+  'sequence' => 92,
+  'room_type_group' => 1,
+  'level' => 3,
+  'first_program' => 3,
+),
+            array (
+  'id' => 51,
+  'code' => 'g_party_volunteers',
+  'name' => 'Volunteer-Party',
+  'sequence' => 94,
+  'room_type_group' => 1,
+  'level' => 3,
+  'first_program' => 0,
+),
+            array (
+  'id' => 52,
+  'code' => 'e_lane_6',
+  'name' => 'Begutachtung 6',
+  'sequence' => 316,
+  'room_type_group' => 2,
+  'level' => 1,
+  'first_program' => 2,
+),
+            array (
+  'id' => 53,
+  'code' => 'e_lane_7',
+  'name' => 'Begutachtung 7',
+  'sequence' => 317,
+  'room_type_group' => 2,
+  'level' => 1,
+  'first_program' => 2,
+),
+            array (
+  'id' => 54,
+  'code' => 'e_lane_8',
+  'name' => 'Begutachtung 8',
+  'sequence' => 318,
+  'room_type_group' => 2,
+  'level' => 1,
+  'first_program' => 2,
 ),
         ];
         
@@ -435,6 +468,7 @@ class MainDataSeeder extends Seeder
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' rootype');
     }
+        $this->SeedrootypeGroup();
     
     private function SeedrootypeGroup()
     {
@@ -469,7 +503,7 @@ class MainDataSeeder extends Seeder
             array (
   'id' => 6,
   'name' => 'Live Challenge',
-  'sequence' => 5,
+  'sequence' => 4,
 ),
             array (
   'id' => 10,
@@ -487,6 +521,7 @@ class MainDataSeeder extends Seeder
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' rootype_group');
     }
+        $this->Seedparameter();
     
     private function Seedparameter()
     {
@@ -544,9 +579,9 @@ class MainDataSeeder extends Seeder
   'context' => 'input',
   'level' => 1,
   'type' => 'time',
-  'value' => '15:00',
-  'min' => '08:00',
-  'max' => '18:00',
+  'value' => '13:00',
+  'min' => '11:00',
+  'max' => '15:00',
   'step' => '5',
   'first_program' => 2,
   'sequence' => 34,
@@ -576,7 +611,7 @@ class MainDataSeeder extends Seeder
   'type' => 'integer',
   'value' => '1',
   'min' => '0',
-  'max' => '4',
+  'max' => '8',
   'step' => '1',
   'first_program' => 2,
   'sequence' => 16,
@@ -679,13 +714,13 @@ class MainDataSeeder extends Seeder
   'context' => 'expert',
   'level' => 3,
   'type' => 'boolean',
-  'value' => '0',
+  'value' => '1',
   'min' => NULL,
   'max' => NULL,
   'step' => NULL,
   'first_program' => 3,
-  'sequence' => 79,
-  'ui_label' => 'Robot-Check Achtelfinale',
+  'sequence' => 83,
+  'ui_label' => 'Check Achtelfinale',
   'ui_description' => 'Gibt es einen Check vor jedem Match? Der Robot-Check erleichtert den Schiedsrichter:innen die Arbeit, kostet aber Zeit extra. ',
 ),
             array (
@@ -864,7 +899,7 @@ class MainDataSeeder extends Seeder
   'max' => '60',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 61,
+  'sequence' => 62,
   'ui_label' => 'Dauer Juror:innen-Briefing',
   'ui_description' => 'Das Briefing findet vor der ersten Jury-Runde statt. Darin sollen die Bewertungskriterien, die Jury-Gruppen-Einteilung und der Zeitplan besprochen werden.',
 ),
@@ -879,7 +914,7 @@ class MainDataSeeder extends Seeder
   'max' => '60',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 62,
+  'sequence' => 64,
   'ui_label' => 'Dauer SR-Briefing',
   'ui_description' => 'Das Briefing findet vor dem ersten Robot-Game statt. Darin sollen aktuelle Regel-Änderungen, die Einteilung zu den Robot-Game-Tischen und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker zu diesem Briefing dazu.',
 ),
@@ -894,7 +929,7 @@ class MainDataSeeder extends Seeder
   'max' => '20',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 63,
+  'sequence' => 66,
   'ui_label' => 'Wechsel zur Eröffnung',
   'ui_description' => 'Nach den Briefings kommen alle zur Eröffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit für den Raumwechsel.',
 ),
@@ -924,7 +959,7 @@ class MainDataSeeder extends Seeder
   'max' => '20',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 66,
+  'sequence' => 70,
   'ui_label' => 'Wechsel zu Jury',
   'ui_description' => 'Nach der Eröffnung gehen die Juror:innen in ihre Räume. Die ersten Teams machen sich bereit.',
 ),
@@ -939,7 +974,7 @@ class MainDataSeeder extends Seeder
   'max' => '15',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 67,
+  'sequence' => 71,
   'ui_label' => 'Dauer Pause Juror:innen',
   'ui_description' => 'Dauer der Pause zwischen zwei Bewertungen. In der Zeit für eine Bewertung ist schon die Zeit für eine Besprechung der Juror:innen ohne die Kinder enthalten.',
 ),
@@ -954,7 +989,7 @@ class MainDataSeeder extends Seeder
   'max' => '60',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 68,
+  'sequence' => 72,
   'ui_label' => 'Dauer Mittagspause Juror:innen',
   'ui_description' => 'Dauer der Mittagspause für FLL Challenge Juror:innen',
 ),
@@ -969,7 +1004,7 @@ class MainDataSeeder extends Seeder
   'max' => '15',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 74,
+  'sequence' => 78,
   'ui_label' => 'Dauer Pause Schiedsrichter:innen',
   'ui_description' => 'Dauer der Pause zwischen zwei Robot-Game-Runden. Zwischen den Matches haben die Schiedsrichter:innen keine Zeit für eine Pause. Daher ist diese Pause wichtig!',
 ),
@@ -984,7 +1019,7 @@ class MainDataSeeder extends Seeder
   'max' => '60',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 75,
+  'sequence' => 79,
   'ui_label' => 'Dauer Mittagspause Schiedsrichter:innen',
   'ui_description' => 'Dauer der Mittagspause für Schiedsrichter:innen',
 ),
@@ -999,7 +1034,7 @@ class MainDataSeeder extends Seeder
   'max' => '20',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 69,
+  'sequence' => 73,
   'ui_label' => 'Wechsel zur Beratung',
   'ui_description' => 'Nach der letzter Begutachtung kommen alle Juror:innen zur Beratung zusammen. Diese Zeit ist für den nötigen Raumwechsel.',
 ),
@@ -1014,7 +1049,7 @@ class MainDataSeeder extends Seeder
   'max' => '60',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 70,
+  'sequence' => 74,
   'ui_label' => 'Dauer Juror:innen Beratung',
   'ui_description' => 'Dauer der FLL Challenge Juror:innen-Beratung',
 ),
@@ -1029,11 +1064,11 @@ class MainDataSeeder extends Seeder
   'max' => '5',
   'step' => '1',
   'first_program' => 3,
-  'sequence' => 87,
+  'sequence' => 90,
   'ui_label' => 'Präsentationen',
   'ui_description' => 'Anzahl der Forschungspräsentationen auf der Bühne.
-Es müssen nicht unbedingt die Teams präsentieren, die später als nominierte vorgestellt werden. Das steht zu diesem Zeitpunkt meist noch gar nicht fest. Statt dessen sollte jede Jury-Gruppe unabhängig von den anderen, Teams aussuchen, die "sehenswerte" Präsentationen haben. 
-Die Präsentationen auf der Bühne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte möglich nicht darauf verzichtet werden. 
+Es müssen nicht unbedingt die Teams präsentieren, die später als nominierte vorgestellt werden. Das steht zu diesem Zeitpunkt meist noch gar nicht fest. Statt dessen sollte jede Jury-Gruppe unabhängig von den anderen, Teams aussuchen, die "sehenswerte" Präsentationen haben.
+Die Präsentationen auf der Bühne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte möglich nicht darauf verzichtet werden.
 Bei Eingabe von 0, wird der Block komplett übersprungen.',
 ),
             array (
@@ -1047,7 +1082,7 @@ Bei Eingabe von 0, wird der Block komplett übersprungen.',
   'max' => '15',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 88,
+  'sequence' => 91,
   'ui_label' => 'Wechsel zu/von den Präsentationen',
   'ui_description' => 'Zeit für den Umbau von Robot-Game. Die gleiche Zeit wird auch für den Umbau zurück zu den Robot-Game-Finalrunden verwendet.',
 ),
@@ -1062,7 +1097,7 @@ Bei Eingabe von 0, wird der Block komplett übersprungen.',
   'max' => NULL,
   'step' => NULL,
   'first_program' => 3,
-  'sequence' => 77,
+  'sequence' => 81,
   'ui_label' => 'Viertelfinale',
   'ui_description' => 'Gibt es ein Robot-Game-Viertelfinale? Unabhängig von der Eingabe hier, geht das erst ab 8 Teams.
 Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams nicht mitmachen dürfen. Auf das Viertelfinale zu verzichten kann da besser für die Stimmung sein.',
@@ -1078,7 +1113,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => '20',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 90,
+  'sequence' => 93,
   'ui_label' => 'Wechsel zur Preisverleihung',
   'ui_description' => 'Zeit für den Umbau von Finalrunden zur Preisverleihung.
 Üblicherweise werden die Robot-Game-Tische zur Seite gestellt. Die Teams der Finalrunden bringen ihr Material in den Vorbereitungsbereich und dann versammeln sich alle wieder vor der "Bühne".',
@@ -1229,7 +1264,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => NULL,
   'step' => NULL,
   'first_program' => 3,
-  'sequence' => 78,
+  'sequence' => 84,
   'ui_label' => 'Robot-Check Vorrunden',
   'ui_description' => 'Gibt es einen Check vor den Matches? Der Robot-Check erleichtert den Schiedsrichter:innen die Arbeit, kostet aber Zeit extra.',
 ),
@@ -1244,7 +1279,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => '10',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 83,
+  'sequence' => 88,
   'ui_label' => 'Dauer Robot-Check',
   'ui_description' => 'Dauer eines Robot-Checks',
 ),
@@ -1259,8 +1294,8 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => '30',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 84,
-  'ui_label' => 'Finale: Dauer SR-Debriefing',
+  'sequence' => 44,
+  'ui_label' => 'Dauer Schiedsrichter:innen-Debrief Tag 1',
   'ui_description' => 'Dauer des Debrief der Schiedsrichter nach dem letzten Robotgames des Tages',
 ),
             array (
@@ -1274,8 +1309,8 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => '60',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 41,
-  'ui_label' => 'Finale: LC Dauer Juror:innen-Briefing ',
+  'sequence' => 39,
+  'ui_label' => 'LC Dauer Juror:innen-Briefing ',
   'ui_description' => 'Dauer des LC-Briefings',
 ),
             array (
@@ -1290,7 +1325,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'step' => '5',
   'first_program' => 3,
   'sequence' => 37,
-  'ui_label' => 'Finale: Start Eröffnung Tag 1',
+  'ui_label' => 'Start Eröffnung Tag 1',
   'ui_description' => 'Startzeit der Eröffnung für Live Challenge und Robot-Game-Testrunden',
 ),
             array (
@@ -1325,7 +1360,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
 ),
             array (
   'id' => 89,
-  'name' => 'lc_duration_break',
+  'name' => 'lc_duration_break_short',
   'context' => 'protected',
   'level' => 3,
   'type' => 'integer',
@@ -1335,7 +1370,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'step' => '5',
   'first_program' => 3,
   'sequence' => 14,
-  'ui_label' => 'LC Dauer Pause Juror:innen',
+  'ui_label' => 'LC Dauer kleine Pause Juror:innen',
   'ui_description' => 'Dauer Pause zwischen zwei Teams',
 ),
             array (
@@ -1349,8 +1384,8 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => '20',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 43,
-  'ui_label' => 'Finale: LC Wechsel zur Auswertung',
+  'sequence' => 42,
+  'ui_label' => 'LC Wechsel zur Auswertung',
   'ui_description' => 'Dauer des Wechsel von letztem Team zur Auswertung',
 ),
             array (
@@ -1364,8 +1399,8 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => '45',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 44,
-  'ui_label' => 'Finale: LC Dauer Auswertung',
+  'sequence' => 43,
+  'ui_label' => 'LC Dauer Auswertung',
   'ui_description' => 'Dauer der LC-Auswertung',
 ),
             array (
@@ -1379,24 +1414,9 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => '30',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 85,
-  'ui_label' => 'Finale: Dauer Schiedsrichter:innen-Briefing Tag 2',
+  'sequence' => 89,
+  'ui_label' => 'Dauer Schiedsrichter:innen-Briefing Tag 2',
   'ui_description' => 'Dauer des Briefings an zweiten (und dritten) Tag.',
-),
-            array (
-  'id' => 93,
-  'name' => 'f_start_opening_day_3',
-  'context' => 'input',
-  'level' => 3,
-  'type' => 'time',
-  'value' => '8:30',
-  'min' => '8:00',
-  'max' => '10:00',
-  'step' => '5',
-  'first_program' => 3,
-  'sequence' => 39,
-  'ui_label' => 'Finale: Start Eröffnung Tag 3',
-  'ui_description' => 'Startzeit der Eröffnung vor den Robot-Game-Finalrunden',
 ),
             array (
   'id' => 94,
@@ -1406,7 +1426,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'type' => 'time',
   'value' => '10:00',
   'min' => '08:00',
-  'max' => '15:00',
+  'max' => '11:00',
   'step' => '5',
   'first_program' => 2,
   'sequence' => 31,
@@ -1424,7 +1444,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => NULL,
   'step' => NULL,
   'first_program' => 3,
-  'sequence' => 89,
+  'sequence' => 92,
   'ui_label' => 'Präsentationen nach Robot-Game-Finale',
   'ui_description' => 'Es ist üblich, die sehenswerten Forschungspräsentationen zwischen der letzten Robot-Game-Vorrunde und den Finalrunden zu zeigen. Der Vorteil davon ist, dass zu dem Zeitpunkt noch alle Teams da sind, weil noch nicht klar ist, wer in den Finalrunden dabei ist.
 Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfinden.',
@@ -1460,21 +1480,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'ui_description' => 'Dauer der gemeinsamen Preisverleihung für FLL Explore und FLL Challenge zusammen.',
 ),
             array (
-  'id' => 98,
-  'name' => 'f_duration_opening_day_3',
-  'context' => 'input',
-  'level' => 3,
-  'type' => 'integer',
-  'value' => '15',
-  'min' => '10',
-  'max' => '30',
-  'step' => '5',
-  'first_program' => 3,
-  'sequence' => 40,
-  'ui_label' => 'Finale: Dauer Eröffnung Tag 3',
-  'ui_description' => 'Nur ein kurzes Willkommen zu Tag 3',
-),
-            array (
   'id' => 99,
   'name' => 'f_duration_opening_day_1',
   'context' => 'input',
@@ -1486,7 +1491,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'step' => '5',
   'first_program' => 3,
   'sequence' => 38,
-  'ui_label' => 'Finale: Dauer Eröffnung Tag 1',
+  'ui_label' => 'Dauer Eröffnung Tag 1',
   'ui_description' => 'Nur ein kurzes Willkommen zu Tag 1',
 ),
             array (
@@ -1495,13 +1500,13 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'context' => 'expert',
   'level' => 3,
   'type' => 'integer',
-  'value' => '45',
+  'value' => '60',
   'min' => '0',
-  'max' => '60',
+  'max' => '90',
   'step' => '5',
   'first_program' => 3,
   'sequence' => 46,
-  'ui_label' => 'Finale: Dauer Jury-Briefing Tag 1',
+  'ui_label' => 'Dauer Jury-Briefing Tag 1',
   'ui_description' => 'Optionales Meeting an Tag 1. Wenn es nicht gebraucht wird, kann Dauer auf 0 gesetzt werden.',
 ),
             array (
@@ -1515,24 +1520,9 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'max' => '20',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 42,
-  'ui_label' => 'Finale: Wechsel zu LC / RG Testrunden',
+  'sequence' => 40,
+  'ui_label' => 'Wechsel zu LC / RG Testrunden',
   'ui_description' => 'Nach der Eröffnung machen sich Juroren, Teams, und Schiedsrichter:innen bereit für LC und RG-Testrunden',
-),
-            array (
-  'id' => 102,
-  'name' => 'f_ready_action_day_3',
-  'context' => 'expert',
-  'level' => 3,
-  'type' => 'integer',
-  'value' => '15',
-  'min' => '5',
-  'max' => '20',
-  'step' => '5',
-  'first_program' => 3,
-  'sequence' => 86,
-  'ui_label' => 'Finale: Wechsel zu Finalrunden',
-  'ui_description' => 'Nach der Eröffnug machen sich Teams und Schiedsrichter:innen bereit für die RG-Finalrunden',
 ),
             array (
   'id' => 103,
@@ -1546,7 +1536,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'step' => '5',
   'first_program' => 3,
   'sequence' => 45,
-  'ui_label' => 'Finale: Wechsel zu Jury-Briefing',
+  'ui_label' => 'Wechsel zu Jury-Briefing',
   'ui_description' => 'Zeit um von LC-Beratung zu Challenge-Jury-Briefing zu wechseln.',
 ),
             array (
@@ -1560,7 +1550,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'max' => '20',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 65,
+  'sequence' => 69,
   'ui_label' => 'Wechsel zum Juror:innen-Briefing',
   'ui_description' => 'Zeit um nach der Eröffnung zum Jury-Briefung zu kommen.',
 ),
@@ -1590,7 +1580,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'max' => NULL,
   'step' => NULL,
   'first_program' => 3,
-  'sequence' => 64,
+  'sequence' => 68,
   'ui_label' => 'Juror:innen-Briefing nach Eröffnung',
   'ui_description' => 'Soll das Jury-Briefing erst nach der Eröffnung stattfinden?',
 ),
@@ -1620,7 +1610,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'max' => '20',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 72,
+  'sequence' => 76,
   'ui_label' => 'Wechsel zum Schiedsrichter:innen-Briefing',
   'ui_description' => 'Zeit um nach der Eröffnung zum Schiedsrichter:innen-Briefung zu kommen. Wenn das Briefing vor der Eröffnung stattfindet, hat dieser Parameter keine Auswirkungen.',
 ),
@@ -1635,7 +1625,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'max' => NULL,
   'step' => NULL,
   'first_program' => 3,
-  'sequence' => 71,
+  'sequence' => 75,
   'ui_label' => 'Schiedsrichter:innen-Briefing nach Eröffnung',
   'ui_description' => 'Soll das Schiedsrichter:innen-Briefing erst nach der Eröffnung stattfinden?',
 ),
@@ -1740,7 +1730,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'max' => '20',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 73,
+  'sequence' => 77,
   'ui_label' => 'Wechsel zum Robot-Game',
   'ui_description' => 'Nach der Eröffnung gehen gehen die Schiedsrichter:innen zu den Tischen. Die ersten Teams machen sich bereit.',
 ),
@@ -1770,7 +1760,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'max' => NULL,
   'step' => NULL,
   'first_program' => 3,
-  'sequence' => 80,
+  'sequence' => 85,
   'ui_label' => 'Robot-Check Viertelfinale',
   'ui_description' => 'Robot-Check vor dem Viertelfinale?',
 ),
@@ -1785,7 +1775,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'max' => NULL,
   'step' => NULL,
   'first_program' => 3,
-  'sequence' => 81,
+  'sequence' => 86,
   'ui_label' => 'Robot-Check Halbfinale',
   'ui_description' => 'Robot-Check vor dem Halbfinale? Wenn die Teams in den Finalrunden den Robot-Game-Bereich nicht mehr verlassen und sicher gestellt ist, dass sie ihre Roboter nicht mehr umbauen, kann darauf verzichtet werden.',
 ),
@@ -1800,7 +1790,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'max' => NULL,
   'step' => NULL,
   'first_program' => 3,
-  'sequence' => 82,
+  'sequence' => 87,
   'ui_label' => 'Robot-Check Finale',
   'ui_description' => 'Gibt es einen Check vor dem ersten der beiden Final-Matches?  Wenn die Teams in den Finalrunden den Robot-Game-Bereich nicht mehr verlassen und sicher gestellt ist, dass sie ihre Roboter nicht mehr umbauen, kann darauf verzichtet werden.',
 ),
@@ -1845,9 +1835,99 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'max' => '90',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 76,
+  'sequence' => 80,
   'ui_label' => 'Echte Mittagspause',
   'ui_description' => 'Wenn hier ein Wert > 0 eingeben wird, dann wird eine Mittagspause eingefügt. Sie beginnt nach Robot-Game-Runde 2 bzw nach der zgh Jury-Runde. Die Eingaben für "Dauer Mittagspause Juror:innen" und "Dauer Mittagspause Schiedsrichter:innen" werden dabei ignoriert.',
+),
+            array (
+  'id' => 124,
+  'name' => 'g_start_party_teams',
+  'context' => 'input',
+  'level' => 3,
+  'type' => 'time',
+  'value' => '18:00',
+  'min' => '17:00',
+  'max' => '20:00',
+  'step' => '5',
+  'first_program' => NULL,
+  'sequence' => 61,
+  'ui_label' => 'Start Team-Party',
+  'ui_description' => 'Startzeit der Team-Party',
+),
+            array (
+  'id' => 125,
+  'name' => 'g_start_party_volunteers',
+  'context' => 'input',
+  'level' => 3,
+  'type' => 'time',
+  'value' => '19:00',
+  'min' => '17:00',
+  'max' => '20:00',
+  'step' => '5',
+  'first_program' => NULL,
+  'sequence' => 65,
+  'ui_label' => 'Start Volunteer-Party',
+  'ui_description' => 'Startzeit der Volunteer-Party',
+),
+            array (
+  'id' => 126,
+  'name' => 'g_duration_party_teams',
+  'context' => 'input',
+  'level' => 3,
+  'type' => 'integer',
+  'value' => '120',
+  'min' => '60',
+  'max' => '240',
+  'step' => '15',
+  'first_program' => NULL,
+  'sequence' => 63,
+  'ui_label' => 'Dauer Team-Party',
+  'ui_description' => 'Dauer der Team-Party',
+),
+            array (
+  'id' => 127,
+  'name' => 'g_duration_party_volunteers',
+  'context' => 'input',
+  'level' => 3,
+  'type' => 'integer',
+  'value' => '180',
+  'min' => '60',
+  'max' => '480',
+  'step' => '15',
+  'first_program' => NULL,
+  'sequence' => 67,
+  'ui_label' => 'Dauer Volunteer-Party',
+  'ui_description' => 'Dauer der Volunteer-Party',
+),
+            array (
+  'id' => 128,
+  'name' => 'r_final_16',
+  'context' => 'expert',
+  'level' => 3,
+  'type' => 'boolean',
+  'value' => '0',
+  'min' => NULL,
+  'max' => NULL,
+  'step' => NULL,
+  'first_program' => 3,
+  'sequence' => 82,
+  'ui_label' => 'Achtelfinale',
+  'ui_description' => 'Gibt es ein Robot-Game-Achtefinale? Wird nur für das Finale erlaubt.',
+),
+            array (
+  'id' => 129,
+  'name' => 'lc_duration_break_long',
+  'context' => 'expert',
+  'level' => 3,
+  'type' => 'integer',
+  'value' => '20',
+  'min' => '10',
+  'max' => '30',
+  'step' => '5',
+  'first_program' => 3,
+  'sequence' => 41,
+  'ui_label' => 'LC Dauer große Pause Juror:innen',
+  'ui_description' => 'Dauer Pause nach drei Teams',
 ),
         ];
         
@@ -1860,6 +1940,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' parameter');
     }
+        $this->SeedactivityType();
     
     private function SeedactivityType()
     {
@@ -1891,8 +1972,16 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'overview_plan_column' => 'Explore',
 ),
             array (
+  'id' => 4,
+  'name' => 'Mittagspause',
+  'sequence' => 130,
+  'description' => '',
+  'first_program' => 3,
+  'overview_plan_column' => 'Challenge',
+),
+            array (
   'id' => 5,
-  'name' => 'Eröffnung',
+  'name' => 'Eröffnung Challenge',
   'sequence' => 200,
   'description' => '',
   'first_program' => 3,
@@ -1900,7 +1989,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 6,
-  'name' => 'Preisverleihung',
+  'name' => 'Preisverleihung Challenge',
   'sequence' => 250,
   'description' => '',
   'first_program' => 3,
@@ -1928,11 +2017,11 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'sequence' => 255,
   'description' => '',
   'first_program' => NULL,
-  'overview_plan_column' => '',
+  'overview_plan_column' => NULL,
 ),
             array (
   'id' => 10,
-  'name' => 'Eröffnung',
+  'name' => 'Eröffnung Explore',
   'sequence' => 110,
   'description' => '',
   'first_program' => 2,
@@ -1940,11 +2029,43 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 11,
-  'name' => 'Preisverleihung',
+  'name' => 'Preisverleihung Explore',
   'sequence' => 150,
   'description' => '',
   'first_program' => 2,
   'overview_plan_column' => 'Explore',
+),
+            array (
+  'id' => 12,
+  'name' => 'Eröffnung',
+  'sequence' => 0,
+  'description' => NULL,
+  'first_program' => NULL,
+  'overview_plan_column' => 'Allgemein',
+),
+            array (
+  'id' => 13,
+  'name' => 'Preisverleihung',
+  'sequence' => 0,
+  'description' => NULL,
+  'first_program' => NULL,
+  'overview_plan_column' => 'Allgemein',
+),
+            array (
+  'id' => 14,
+  'name' => 'Party',
+  'sequence' => 300,
+  'description' => NULL,
+  'first_program' => NULL,
+  'overview_plan_column' => NULL,
+),
+            array (
+  'id' => 15,
+  'name' => 'Zusatzblock Challenge',
+  'sequence' => 0,
+  'description' => NULL,
+  'first_program' => 3,
+  'overview_plan_column' => 'Challenge',
 ),
         ];
         
@@ -1957,6 +2078,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' activity_type');
     }
+        $this->SeedactivityTypeDetail();
     
     private function SeedactivityTypeDetail()
     {
@@ -1965,10 +2087,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         $data = [
             array (
   'id' => 1,
-  'code' => 'e_with_team',
   'name' => 'Begutachtung',
+  'code' => 'e_with_team',
   'name_preview' => 'Mit Team',
-  'sequence' => 0,
+  'sequence' => 30,
   'first_program' => 2,
   'description' => 'Die Gutachter:innen sprechen mit den Kindern',
   'link' => NULL,
@@ -1977,10 +2099,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 2,
+  'name' => 'Beratung (zum Team)',
   'code' => 'e_scoring',
-  'name' => 'Beratung',
   'name_preview' => 'Ohne Team',
-  'sequence' => 0,
+  'sequence' => 35,
   'first_program' => 2,
   'description' => 'Die Gutachter:innen beraten nach der Begutachtung eines Teams',
   'link' => '',
@@ -1989,10 +2111,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 3,
+  'name' => 'Beratung (alle)',
   'code' => 'e_deliberations',
-  'name' => 'Beratung',
   'name_preview' => 'Beratung',
-  'sequence' => 0,
+  'sequence' => 60,
   'first_program' => 2,
   'description' => 'Alle Gutachter:innen beraten gemeinsam über Auszeichnungen für alle Teams',
   'link' => '',
@@ -2001,22 +2123,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 4,
+  'name' => 'Begutachtung',
   'code' => 'e_judging_package',
-  'name' => 'Ausstellung',
-  'name_preview' => 'Ausstellung',
-  'sequence' => 0,
+  'name_preview' => 'Begutachtung',
+  'sequence' => 20,
   'first_program' => 2,
-  'description' => 'Die Kindern stellen ihre Modelle und Poster aus und freuen sich über Fragen dazu',
+  'description' => 'Die Kinder erklären den Gutachter:innen ihre Modelle',
   'link' => '',
   'link_text' => NULL,
   'activity_type' => 3,
 ),
             array (
   'id' => 5,
-  'code' => 'e_opening',
   'name' => 'Eröffnung Explore',
+  'code' => 'e_opening',
   'name_preview' => 'Eröffnung E',
-  'sequence' => 0,
+  'sequence' => 10,
   'first_program' => 2,
   'description' => 'Der FIRST LEGO League Explore-Wettbewerb wird eröffnet',
   'link' => '',
@@ -2025,10 +2147,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 6,
-  'code' => 'c_opening',
   'name' => 'Eröffnung Challenge',
+  'code' => 'c_opening',
   'name_preview' => 'Eröffnung C',
-  'sequence' => 0,
+  'sequence' => 10,
   'first_program' => 3,
   'description' => 'Der FIRST LEGO League Challenge Wettbewerb wird eröffnet',
   'link' => '',
@@ -2037,22 +2159,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 7,
-  'code' => 'g_opening',
   'name' => 'Gemeinsame Eröffnung',
+  'code' => 'g_opening',
   'name_preview' => 'Eröffnung',
-  'sequence' => 0,
+  'sequence' => 10,
   'first_program' => NULL,
   'description' => 'Die FIRST LEGO League Explore und Challenge Wettbewerbe werden eröffnet',
   'link' => '',
   'link_text' => NULL,
-  'activity_type' => 5,
+  'activity_type' => 12,
 ),
             array (
   'id' => 8,
-  'code' => 'r_test_round',
   'name' => 'Robot-Game Testrunde',
+  'code' => 'r_test_round',
   'name_preview' => 'Test',
-  'sequence' => 0,
+  'sequence' => 41,
   'first_program' => 3,
   'description' => 'Die Teams haben die Möglichkeit die Robot-Game-Tische zu testen und Fragen mit den Schiedsrichter:innen zur klären',
   'link' => '',
@@ -2061,10 +2183,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 9,
-  'code' => 'r_round_1',
   'name' => 'Robot-Game Vorrunde 1',
+  'code' => 'r_round_1',
   'name_preview' => 'Runde 1',
-  'sequence' => 0,
+  'sequence' => 42,
   'first_program' => 3,
   'description' => 'Die erste von drei Robot-Game-Runden',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game',
@@ -2073,10 +2195,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 10,
-  'code' => 'r_round_2',
   'name' => 'Robot-Game Vorrunde 2',
+  'code' => 'r_round_2',
   'name_preview' => 'Runde 2',
-  'sequence' => 0,
+  'sequence' => 43,
   'first_program' => 3,
   'description' => 'Die zweite von drei Robot-Game-Runden',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game',
@@ -2085,10 +2207,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 11,
-  'code' => 'r_round_3',
   'name' => 'Robot-Game Vorrunde 3',
+  'code' => 'r_round_3',
   'name_preview' => 'Runde 3',
-  'sequence' => 0,
+  'sequence' => 44,
   'first_program' => 3,
   'description' => 'Die dritte von drei Robot-Game-Runden',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game',
@@ -2097,10 +2219,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 12,
-  'code' => 'r_final_8',
   'name' => 'Robot-Game Viertelfinale',
+  'code' => 'r_final_8',
   'name_preview' => 'VF',
-  'sequence' => 0,
+  'sequence' => 46,
   'first_program' => 3,
   'description' => 'Die besten 8 Teams treten noch einmal an',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game',
@@ -2109,10 +2231,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 13,
-  'code' => 'r_final_4',
   'name' => 'Robot-Game Halbfinale',
+  'code' => 'r_final_4',
   'name_preview' => 'HF',
-  'sequence' => 0,
+  'sequence' => 47,
   'first_program' => 3,
   'description' => 'Die besten 4 Teams treten noch einmal an',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game',
@@ -2121,10 +2243,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 14,
-  'code' => 'r_final_2',
   'name' => 'Robot-Game Finale',
+  'code' => 'r_final_2',
   'name_preview' => 'F',
-  'sequence' => 0,
+  'sequence' => 48,
   'first_program' => 3,
   'description' => 'Die besten 2 Teams sind im Finale. Es finden zwei Matches statt. Die Summe der erzielten Punkte enscheidet',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game',
@@ -2133,10 +2255,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 15,
-  'code' => 'r_match',
   'name' => 'Robot-Game Match',
+  'code' => 'r_match',
   'name_preview' => 'Match',
-  'sequence' => 0,
+  'sequence' => 40,
   'first_program' => 3,
   'description' => 'In einem Match stehen sich zwei Teams gegenüber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:inner Punkte pro gelöster Aufgabe',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game',
@@ -2145,10 +2267,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 16,
-  'code' => 'r_check',
   'name' => 'Robot Check',
+  'code' => 'r_check',
   'name_preview' => 'Check',
-  'sequence' => 0,
+  'sequence' => 39,
   'first_program' => 3,
   'description' => 'Vor einem Match zeigen die Teams, dass ihre Roboter den Regeln des Robot-Games entsprechen',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game',
@@ -2157,10 +2279,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 17,
-  'code' => 'j_with_team',
   'name' => 'Jurygespräch',
+  'code' => 'j_with_team',
   'name_preview' => 'Mit Team',
-  'sequence' => 0,
+  'sequence' => 32,
   'first_program' => 3,
   'description' => 'Die Teams präsentieren ihr Forschungprojekt und ihr Vorgehen beim Roboter-Design. Zu beiden gibt es Fragen von den Juror:innen',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung',
@@ -2169,10 +2291,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 18,
+  'name' => 'Juryberatung (zum Team)',
   'code' => 'j_scoring',
-  'name' => 'Juryberatung',
   'name_preview' => 'Ohne Team',
-  'sequence' => 0,
+  'sequence' => 33,
   'first_program' => 3,
   'description' => 'Nachdem die Teams den Raum verlassen haben, vergeben die Juror:innen Punkte',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung',
@@ -2181,10 +2303,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 19,
+  'name' => 'Juryberatung (alle)',
   'code' => 'j_deliberations',
-  'name' => 'Jury Beratung',
   'name_preview' => 'Beratung',
-  'sequence' => 0,
+  'sequence' => 34,
   'first_program' => 3,
   'description' => 'Alle Juror:innen beraten gemeinsam, welche Teams für Pokale nominiert werden und wer die Pokale bekommt',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung',
@@ -2193,10 +2315,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 20,
-  'code' => 'j_package',
   'name' => 'Jurybewertung',
+  'code' => 'j_package',
   'name_preview' => 'Runde',
-  'sequence' => 0,
+  'sequence' => 31,
   'first_program' => 3,
   'description' => 'Die Teams präsentieren ihre Forschung und ihr Roboter-Design. Anschließend vergeben die Juror:innen Punkte',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung',
@@ -2205,22 +2327,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 21,
-  'code' => 'c_lunch_break',
   'name' => 'Mittagspause Challenge',
+  'code' => 'c_lunch_break',
   'name_preview' => 'Mittagspause',
-  'sequence' => 0,
+  'sequence' => 60,
   'first_program' => 3,
   'description' => 'Mittagspause ',
   'link' => '',
   'link_text' => NULL,
-  'activity_type' => 4,
+  'activity_type' => 5,
 ),
             array (
   'id' => 32,
-  'code' => 'c_awards',
   'name' => 'Preisverleihung Challenge',
+  'code' => 'c_awards',
   'name_preview' => 'Preise C',
-  'sequence' => 0,
+  'sequence' => 75,
   'first_program' => 3,
   'description' => 'Pokale für die FIRST LEGO League Challenge Teams',
   'link' => '',
@@ -2229,10 +2351,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 33,
-  'code' => 'c_presentations',
   'name' => 'Forschung auf der Bühne',
+  'code' => 'c_presentations',
   'name_preview' => 'Forschung',
-  'sequence' => 0,
+  'sequence' => 70,
   'first_program' => 3,
   'description' => 'Von den Juror:innen ausgewählte Forschungspräsentationen werden noch einmal öffentlich gezeigt. Eine Fragerunde gibt es dazu allerdings nicht',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/forschung',
@@ -2241,22 +2363,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 34,
-  'code' => 'g_awards',
   'name' => 'Gemeinsame Preisverleihung',
+  'code' => 'g_awards',
   'name_preview' => 'Preise',
-  'sequence' => 0,
+  'sequence' => 20,
   'first_program' => NULL,
   'description' => 'Auszeichnungen für die FIRST LEGO League Explore Teams und Pokale für die FIRST LEGO League Challenge Teams',
   'link' => '',
   'link_text' => NULL,
-  'activity_type' => 6,
+  'activity_type' => 13,
 ),
             array (
   'id' => 35,
-  'code' => 'c_briefing',
   'name' => 'Coach Briefing',
+  'code' => 'c_briefing',
   'name_preview' => 'Briefing',
-  'sequence' => 0,
+  'sequence' => 11,
   'first_program' => 3,
   'description' => 'Im Coach Briefing wird der Ablauf des Tages besprochen und offene Fragen beantwortet',
   'link' => '',
@@ -2265,10 +2387,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 36,
-  'code' => 'j_briefing',
   'name' => 'Jury Briefing',
+  'code' => 'j_briefing',
   'name_preview' => 'Briefing',
-  'sequence' => 0,
+  'sequence' => 30,
   'first_program' => 3,
   'description' => 'Das Briefing für Juror:innen sorgt dafür, dass alle nach den selben Kriterien bewerten',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung',
@@ -2277,10 +2399,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 37,
-  'code' => 'r_briefing',
   'name' => 'Schiedsrichter:innen Briefing',
+  'code' => 'r_briefing',
   'name_preview' => 'Briefing',
-  'sequence' => 0,
+  'sequence' => 38,
   'first_program' => 3,
   'description' => 'Im Schiedsrichter:innen Briefing werden aktuelle Regeländerungen besprochen und offene Fragen beantwortet',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game',
@@ -2289,10 +2411,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 38,
-  'code' => 'e_briefing_coach',
   'name' => 'Coach Briefing',
+  'code' => 'e_briefing_coach',
   'name_preview' => 'Briefing',
-  'sequence' => 0,
+  'sequence' => 15,
   'first_program' => 2,
   'description' => 'Im Coach Briefing wir der Ablauf des Tages besprochen und offene Fragen beantwortet',
   'link' => '',
@@ -2301,10 +2423,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 39,
-  'code' => 'e_briefing_judge',
   'name' => 'Gutachter:innen Briefing',
+  'code' => 'e_briefing_judge',
   'name_preview' => 'Briefing',
-  'sequence' => 0,
+  'sequence' => 21,
   'first_program' => 2,
   'description' => 'Das Briefing für Gutachter:innen sorgt dafür, dass alle nach den selben Kriterien bewerten',
   'link' => '',
@@ -2313,10 +2435,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 40,
-  'code' => 'lc_briefing',
   'name' => 'Live Challenge Jury Briefing',
+  'code' => 'lc_briefing',
   'name_preview' => 'Briefing',
-  'sequence' => 0,
+  'sequence' => 90,
   'first_program' => 3,
   'description' => 'Im Briefing lernen die Live Challenge Juror:innen die Aufgabe und den zeitlichen Ablauf kennen',
   'link' => '',
@@ -2325,10 +2447,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 41,
+  'name' => 'Live Challenge',
   'code' => 'lc_package',
-  'name' => 'Live Challenge Runde',
   'name_preview' => 'Runde',
-  'sequence' => 0,
+  'sequence' => 91,
   'first_program' => 3,
   'description' => 'Die Live Challenge gibt es nur beim Finale. Die Teams müssen sich unbekannten Aufgaben stellen. Die Bewertung geht NICHT in die Champion-Wertung ein, aber es gibt einen eigenen Pokal',
   'link' => '',
@@ -2337,10 +2459,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 42,
-  'code' => 'lc_with_team',
   'name' => 'Live Challenge: Aktion',
+  'code' => 'lc_with_team',
   'name_preview' => 'Mit Team',
-  'sequence' => 0,
+  'sequence' => 92,
   'first_program' => 3,
   'description' => 'Die Juror:innen erklären die Aufgaben, Regeln und wie viel Zeit zur Verfügung steht. Dann lösen die Teams möglichst viele Aufgaben der Live-Challenge',
   'link' => '',
@@ -2349,10 +2471,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 43,
-  'code' => 'lc_scoring',
   'name' => 'Live Challenge: Nachbereitung',
+  'code' => 'lc_scoring',
   'name_preview' => 'Ohne Team',
-  'sequence' => 0,
+  'sequence' => 93,
   'first_program' => 3,
   'description' => 'Nachdem die Teams den Raum verlassen haben, notieren die Juror:innen das Ergebnis',
   'link' => '',
@@ -2361,10 +2483,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 44,
-  'code' => 'lc_deliberations',
   'name' => 'Live Challenge: Auswertung',
+  'code' => 'lc_deliberations',
   'name_preview' => 'Auswertung',
-  'sequence' => 0,
+  'sequence' => 95,
   'first_program' => 3,
   'description' => 'Alle Juror:innen bringen die Ergebnisse zur Gesamtwertung zusammen',
   'link' => '',
@@ -2373,10 +2495,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 45,
-  'code' => 'r_final_16',
   'name' => 'Robot-Game Achtelfinale',
+  'code' => 'r_final_16',
   'name_preview' => 'AF',
-  'sequence' => 0,
+  'sequence' => 45,
   'first_program' => 3,
   'description' => 'Die besten 16 Teams treten noch einmal an',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung',
@@ -2385,10 +2507,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 46,
-  'code' => 'r_debriefing',
   'name' => 'Schiedsrichter:innen Debriefing',
+  'code' => 'r_debriefing',
   'name_preview' => 'Debrief',
-  'sequence' => 0,
+  'sequence' => 49,
   'first_program' => 3,
   'description' => 'Im Schiedsrichter:innen Debriefing besprechen die Schiedsrichter:innen die besonderen Erlebnisse des Tages und besprechen möglicherweise Anpassungen für den nächsten Tag',
   'link' => NULL,
@@ -2397,10 +2519,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 47,
-  'code' => 'g_inserted_block',
   'name' => 'Eingeschobener Block',
+  'code' => 'g_inserted_block',
   'name_preview' => NULL,
-  'sequence' => 0,
+  'sequence' => 30,
   'first_program' => NULL,
   'description' => '',
   'link' => NULL,
@@ -2409,34 +2531,34 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 48,
-  'code' => 'e_inserted_block',
   'name' => 'Eingeschobener Block Explore',
+  'code' => 'e_inserted_block',
   'name_preview' => NULL,
-  'sequence' => 0,
+  'sequence' => 95,
   'first_program' => 2,
   'description' => '',
-  'link' => '',
-  'link_text' => NULL,
-  'activity_type' => 9,
-),
-            array (
-  'id' => 49,
-  'code' => 'c_inserted_block',
-  'name' => 'Eingeschobener Block Challenge',
-  'name_preview' => NULL,
-  'sequence' => 0,
-  'first_program' => 3,
-  'description' => NULL,
   'link' => NULL,
   'link_text' => NULL,
   'activity_type' => 9,
 ),
             array (
-  'id' => 50,
-  'code' => 'g_free_block',
-  'name' => 'Freier Block',
+  'id' => 49,
+  'name' => 'Eingeschobener Block Challenge',
+  'code' => 'c_inserted_block',
   'name_preview' => NULL,
-  'sequence' => 0,
+  'sequence' => 80,
+  'first_program' => 3,
+  'description' => NULL,
+  'link' => NULL,
+  'link_text' => NULL,
+  'activity_type' => 15,
+),
+            array (
+  'id' => 50,
+  'name' => 'Freier Block',
+  'code' => 'g_free_block',
+  'name_preview' => NULL,
+  'sequence' => 30,
   'first_program' => NULL,
   'description' => NULL,
   'link' => NULL,
@@ -2445,10 +2567,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 51,
-  'code' => 'e_free_block',
   'name' => 'Freier Block Explore',
+  'code' => 'e_free_block',
   'name_preview' => NULL,
-  'sequence' => 0,
+  'sequence' => 90,
   'first_program' => 2,
   'description' => '',
   'link' => NULL,
@@ -2457,10 +2579,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 52,
-  'code' => 'c_free_block',
   'name' => 'Freier Block Challenge',
+  'code' => 'c_free_block',
   'name_preview' => NULL,
-  'sequence' => 0,
+  'sequence' => 81,
   'first_program' => 3,
   'description' => '',
   'link' => NULL,
@@ -2469,10 +2591,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 54,
-  'code' => 'c_opening_day_1',
   'name' => 'Eröffnung Tag 1',
+  'code' => 'c_opening_day_1',
   'name_preview' => 'Eröffnung Tag 1',
-  'sequence' => 0,
+  'sequence' => 97,
   'first_program' => 3,
   'description' => 'Kleine Eröffnung vor Live-Challenge und Robot-Game-Testrunden',
   'link' => NULL,
@@ -2481,10 +2603,10 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 55,
-  'code' => 'j_briefing_day_1',
   'name' => 'Jury Briefing (Tag 1)',
+  'code' => 'j_briefing_day_1',
   'name_preview' => 'Briefing',
-  'sequence' => 0,
+  'sequence' => 98,
   'first_program' => 3,
   'description' => 'Das Briefing (an Tag 1) für Juror:innen sorgt dafür, dass alle nach den selben Kriterien bewerten',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung',
@@ -2493,15 +2615,51 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 56,
-  'code' => 'e_awards',
   'name' => 'Preisverleihung Explore',
+  'code' => 'e_awards',
   'name_preview' => 'Preise E',
-  'sequence' => 0,
+  'sequence' => 70,
   'first_program' => 2,
-  'description' => '?',
+  'description' => 'Auszeichnungen für die FIRST LEGO League Explore Teams',
   'link' => NULL,
   'link_text' => NULL,
-  'activity_type' => 0,
+  'activity_type' => 11,
+),
+            array (
+  'id' => 59,
+  'name' => 'Team-Party',
+  'code' => 'g_party_teams',
+  'name_preview' => 'Party T',
+  'sequence' => 100,
+  'first_program' => 3,
+  'description' => 'Musik und Tanz und Essen',
+  'link' => NULL,
+  'link_text' => NULL,
+  'activity_type' => 14,
+),
+            array (
+  'id' => 60,
+  'name' => 'Volunteer-Party',
+  'code' => 'g_party_volunteers',
+  'name_preview' => 'Party V',
+  'sequence' => 101,
+  'first_program' => NULL,
+  'description' => 'Essen und Gespräche',
+  'link' => NULL,
+  'link_text' => NULL,
+  'activity_type' => 14,
+),
+            array (
+  'id' => 62,
+  'name' => 'Ausstellung',
+  'code' => 'e_exhibition',
+  'name_preview' => NULL,
+  'sequence' => 19,
+  'first_program' => 2,
+  'description' => 'Die Kindern stellen ihre Modelle und Poster aus und freuen sich über Fragen dazu',
+  'link' => NULL,
+  'link_text' => NULL,
+  'activity_type' => 3,
 ),
         ];
         
@@ -2514,6 +2672,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' activity_type_detail');
     }
+        $this->SeedfirstProgram();
     
     private function SeedfirstProgram()
     {
@@ -2552,6 +2711,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' first_program');
     }
+        $this->SeedinsertPoint();
     
     private function SeedinsertPoint()
     {
@@ -2560,66 +2720,84 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         $data = [
             array (
   'id' => 1,
+  'code' => 'c_after_rg_3',
   'first_program' => 3,
   'level' => 1,
   'sequence' => 310,
   'ui_label' => 'Nach Robot-Game Runde 3',
-  'ui_description' => 'Der zusätzliche Block wird vor den Präsentationen eingefügt.',
-  'room_type' => NULL,
+  'ui_description' => 'Der zusätzluche Blick wird direkt nach Robot-Game Runde 3 eingefügt.',
 ),
             array (
   'id' => 2,
+  'code' => 'c_after_presentations',
   'first_program' => 3,
   'level' => 1,
   'sequence' => 320,
   'ui_label' => 'Nach Forschungspräsentationen',
-  'ui_description' => 'Der zusätzliche Block wird vor den Finalrunden eingefügt.',
-  'room_type' => NULL,
+  'ui_description' => 'Der zusätzliche Block wird direkt nach den Präsentationen eingefügt.',
 ),
             array (
   'id' => 3,
+  'code' => 'c_after_final_2',
   'first_program' => 3,
   'level' => 1,
   'sequence' => 340,
   'ui_label' => 'Nach Robot-Game Final-Matches',
-  'ui_description' => 'Der zusätzliche Block wird vor der Preisverleihung eingefügt.',
-  'room_type' => NULL,
+  'ui_description' => 'Der zusätzliche Block wird direkt nach den beiden Final-Matches eingefügt.',
 ),
             array (
   'id' => 4,
+  'code' => 'c_after_final_4',
   'first_program' => 3,
   'level' => 1,
   'sequence' => 330,
   'ui_label' => 'Nach Robot-Game Halbfinale',
-  'ui_description' => 'Der zusätzliche Block wird vor den beiden Final-Matches eingefügt.',
-  'room_type' => NULL,
+  'ui_description' => 'Der zusätzliche Block wird direkt nach dem Halbfinale eingefügt.',
 ),
             array (
   'id' => 6,
+  'code' => 'c_after_tr',
   'first_program' => 3,
   'level' => 1,
   'sequence' => 210,
   'ui_label' => 'Nach Robot-Game Testrunde',
-  'ui_description' => 'Der zusätzliche Block wird vor Robot-Game-Runde 1 eingefügt. Das ist ungefähr in der Mitte des Vormittags.',
-  'room_type' => NULL,
+  'ui_description' => 'Der zusätzliche Block wird direkt nach der Robot-Game Testrunde eingefügt.',
 ),
             array (
   'id' => 7,
+  'code' => 'c_after_rg_1',
   'first_program' => 3,
   'level' => 1,
   'sequence' => 220,
   'ui_label' => 'Nach Robot-Game Runde 1',
-  'ui_description' => 'Der zusätzliche Block wird vor Robot-Game-Runde 2 eingefügt. Das ist ungefähr die Mitte des Tages.',
-  'room_type' => NULL,
+  'ui_description' => 'Der zusätzliche Block wird direkt nach Robot-Game Runde 1 eingefügt.',
 ),
             array (
   'id' => 8,
+  'code' => 'c_after_rg_2',
   'first_program' => 3,
   'level' => 1,
   'sequence' => 230,
   'ui_label' => 'Nach Robot-Game Runde 2',
-  'ui_description' => 'Der zusätzluche Block wird vor Robot-Game-Runde 3 eingefügt. Das ist ungefähr die Mitte des Nachmittags.',
-  'room_type' => NULL,
+  'ui_description' => 'Der zusätzliche Block wird direkt nach Robot-Game Runde 2 eingefügt.',
+),
+            array (
+  'id' => 9,
+  'code' => 'c_after_final_8',
+  'first_program' => 3,
+  'level' => 1,
+  'sequence' => 325,
+  'ui_label' => 'Nach Robot-Game Viertelfinale',
+  'ui_description' => 'Der zusätzliche Block wird direkt nach dem Viertelfinale eingefügt.',
+),
+            array (
+  'id' => 10,
+  'code' => 'c_after_final_16',
+  'first_program' => 3,
+  'level' => 3,
+  'sequence' => 324,
+  'ui_label' => 'Nach Robot-Game-Achtelfinale',
+  'ui_description' => 'Der zusätzliche Block wird direkt nach dem Achtellfinale eingefügt.',
 ),
         ];
         
@@ -2632,6 +2810,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' insert_point');
     }
+        $this->Seedrole();
     
     private function Seedrole()
     {
@@ -2836,14 +3015,14 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
             array (
   'id' => 16,
   'name' => 'Live-Challenge-Jury',
-  'name_short' => NULL,
+  'name_short' => 'LC J',
   'sequence' => 6,
   'first_program' => 3,
   'description' => 'Leiten die Live-Challenge',
   'differentiation_type' => 'number',
   'differentiation_source' => 'select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name="j_lanes" and plan_param_value.plan=[plan]',
   'differentiation_parameter' => 'lane',
-  'preview_matrix' => 0,
+  'preview_matrix' => 1,
   'pdf_export' => 1,
 ),
             array (
@@ -2896,6 +3075,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' role');
     }
+        $this->Seedvisibility();
     
     private function Seedvisibility()
     {
@@ -2936,11 +3116,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'id' => 38,
   'activity_type_detail' => 4,
   'role' => 8,
-),
-            array (
-  'id' => 39,
-  'activity_type_detail' => 4,
-  'role' => 9,
 ),
             array (
   'id' => 40,
@@ -3243,19 +3418,9 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'role' => 1,
 ),
             array (
-  'id' => 212,
-  'activity_type_detail' => 20,
-  'role' => 3,
-),
-            array (
   'id' => 213,
   'activity_type_detail' => 20,
   'role' => 4,
-),
-            array (
-  'id' => 215,
-  'activity_type_detail' => 20,
-  'role' => 6,
 ),
             array (
   'id' => 223,
@@ -3284,73 +3449,28 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 234,
-  'activity_type_detail' => 22,
+  'activity_type_detail' => 32,
   'role' => 3,
 ),
             array (
   'id' => 246,
-  'activity_type_detail' => 23,
+  'activity_type_detail' => 32,
   'role' => 4,
 ),
             array (
   'id' => 258,
-  'activity_type_detail' => 24,
+  'activity_type_detail' => 32,
   'role' => 5,
 ),
             array (
   'id' => 270,
-  'activity_type_detail' => 25,
+  'activity_type_detail' => 32,
   'role' => 6,
-),
-            array (
-  'id' => 283,
-  'activity_type_detail' => 26,
-  'role' => 8,
-),
-            array (
-  'id' => 284,
-  'activity_type_detail' => 26,
-  'role' => 9,
-),
-            array (
-  'id' => 285,
-  'activity_type_detail' => 26,
-  'role' => 10,
-),
-            array (
-  'id' => 294,
-  'activity_type_detail' => 27,
-  'role' => 8,
-),
-            array (
-  'id' => 306,
-  'activity_type_detail' => 28,
-  'role' => 9,
-),
-            array (
-  'id' => 318,
-  'activity_type_detail' => 29,
-  'role' => 10,
 ),
             array (
   'id' => 334,
   'activity_type_detail' => 14,
   'role' => 6,
-),
-            array (
-  'id' => 335,
-  'activity_type_detail' => 31,
-  'role' => 10,
-),
-            array (
-  'id' => 336,
-  'activity_type_detail' => 31,
-  'role' => 8,
-),
-            array (
-  'id' => 337,
-  'activity_type_detail' => 31,
-  'role' => 9,
 ),
             array (
   'id' => 338,
@@ -3439,7 +3559,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 358,
-  'activity_type_detail' => 24,
+  'activity_type_detail' => 32,
   'role' => 15,
 ),
             array (
@@ -3576,26 +3696,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'id' => 393,
   'activity_type_detail' => 39,
   'role' => 7,
-),
-            array (
-  'id' => 394,
-  'activity_type_detail' => 26,
-  'role' => 12,
-),
-            array (
-  'id' => 395,
-  'activity_type_detail' => 26,
-  'role' => 7,
-),
-            array (
-  'id' => 396,
-  'activity_type_detail' => 31,
-  'role' => 7,
-),
-            array (
-  'id' => 397,
-  'activity_type_detail' => 31,
-  'role' => 12,
 ),
             array (
   'id' => 398,
@@ -3778,11 +3878,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'role' => 15,
 ),
             array (
-  'id' => 435,
-  'activity_type_detail' => 16,
-  'role' => 15,
-),
-            array (
   'id' => 436,
   'activity_type_detail' => 37,
   'role' => 15,
@@ -3884,22 +3979,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 456,
-  'activity_type_detail' => 26,
+  'activity_type_detail' => 32,
   'role' => 15,
 ),
             array (
   'id' => 457,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 14,
 ),
             array (
   'id' => 458,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 2,
 ),
             array (
   'id' => 459,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 15,
 ),
             array (
@@ -3914,7 +4009,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 467,
-  'activity_type_detail' => 30,
+  'activity_type_detail' => 32,
   'role' => 11,
 ),
             array (
@@ -4000,11 +4095,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
             array (
   'id' => 491,
   'activity_type_detail' => 7,
-  'role' => 16,
-),
-            array (
-  'id' => 493,
-  'activity_type_detail' => 32,
   'role' => 16,
 ),
             array (
@@ -4124,22 +4214,22 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 523,
-  'activity_type_detail' => 23,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
   'id' => 524,
-  'activity_type_detail' => 25,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
   'id' => 525,
-  'activity_type_detail' => 30,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
   'id' => 526,
-  'activity_type_detail' => 24,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
@@ -4149,7 +4239,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 528,
-  'activity_type_detail' => 22,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
@@ -4233,26 +4323,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'role' => 17,
 ),
             array (
-  'id' => 588,
-  'activity_type_detail' => 31,
-  'role' => 17,
-),
-            array (
-  'id' => 589,
-  'activity_type_detail' => 27,
-  'role' => 17,
-),
-            array (
-  'id' => 590,
-  'activity_type_detail' => 29,
-  'role' => 17,
-),
-            array (
-  'id' => 591,
-  'activity_type_detail' => 26,
-  'role' => 17,
-),
-            array (
   'id' => 592,
   'activity_type_detail' => 5,
   'role' => 17,
@@ -4260,11 +4330,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
             array (
   'id' => 593,
   'activity_type_detail' => 1,
-  'role' => 17,
-),
-            array (
-  'id' => 594,
-  'activity_type_detail' => 4,
   'role' => 17,
 ),
             array (
@@ -4285,11 +4350,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
             array (
   'id' => 598,
   'activity_type_detail' => 39,
-  'role' => 17,
-),
-            array (
-  'id' => 599,
-  'activity_type_detail' => 28,
   'role' => 17,
 ),
             array (
@@ -4364,27 +4424,27 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 614,
-  'activity_type_detail' => 25,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 615,
-  'activity_type_detail' => 23,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 616,
-  'activity_type_detail' => 30,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 617,
-  'activity_type_detail' => 24,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 618,
-  'activity_type_detail' => 22,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
@@ -4484,27 +4544,27 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 638,
-  'activity_type_detail' => 26,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 639,
-  'activity_type_detail' => 28,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 640,
-  'activity_type_detail' => 29,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 641,
-  'activity_type_detail' => 27,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
   'id' => 642,
-  'activity_type_detail' => 31,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
@@ -4551,11 +4611,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'id' => 660,
   'activity_type_detail' => 49,
   'role' => 4,
-),
-            array (
-  'id' => 661,
-  'activity_type_detail' => 49,
-  'role' => 16,
 ),
             array (
   'id' => 662,
@@ -4741,11 +4796,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'id' => 699,
   'activity_type_detail' => 6,
   'role' => 13,
-),
-            array (
-  'id' => 700,
-  'activity_type_detail' => 6,
-  'role' => 16,
 ),
             array (
   'id' => 701,
@@ -5013,11 +5063,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'role' => 11,
 ),
             array (
-  'id' => 763,
-  'activity_type_detail' => 54,
-  'role' => 4,
-),
-            array (
   'id' => 764,
   'activity_type_detail' => 54,
   'role' => 16,
@@ -5059,67 +5104,62 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
 ),
             array (
   'id' => 772,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 6,
 ),
             array (
   'id' => 773,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 3,
 ),
             array (
   'id' => 774,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 5,
 ),
             array (
   'id' => 775,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 11,
 ),
             array (
   'id' => 776,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 4,
 ),
             array (
-  'id' => 777,
-  'activity_type_detail' => 53,
-  'role' => 16,
-),
-            array (
   'id' => 778,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 13,
 ),
             array (
   'id' => 779,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 1,
 ),
             array (
   'id' => 780,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 18,
 ),
             array (
   'id' => 781,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 14,
 ),
             array (
   'id' => 782,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 2,
 ),
             array (
   'id' => 783,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 15,
 ),
             array (
   'id' => 784,
-  'activity_type_detail' => 53,
+  'activity_type_detail' => 32,
   'role' => 19,
 ),
             array (
@@ -5198,23 +5238,13 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'role' => 15,
 ),
             array (
-  'id' => 809,
-  'activity_type_detail' => 43,
-  'role' => 1,
-),
-            array (
   'id' => 810,
   'activity_type_detail' => 43,
   'role' => 15,
 ),
             array (
-  'id' => 811,
-  'activity_type_detail' => 16,
-  'role' => 1,
-),
-            array (
   'id' => 812,
-  'activity_type_detail' => 24,
+  'activity_type_detail' => 32,
   'role' => 1,
 ),
             array (
@@ -5227,6 +5257,221 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'activity_type_detail' => 46,
   'role' => 15,
 ),
+            array (
+  'id' => 815,
+  'activity_type_detail' => 56,
+  'role' => 10,
+),
+            array (
+  'id' => 816,
+  'activity_type_detail' => 56,
+  'role' => 8,
+),
+            array (
+  'id' => 817,
+  'activity_type_detail' => 56,
+  'role' => 9,
+),
+            array (
+  'id' => 818,
+  'activity_type_detail' => 56,
+  'role' => 12,
+),
+            array (
+  'id' => 819,
+  'activity_type_detail' => 56,
+  'role' => 7,
+),
+            array (
+  'id' => 820,
+  'activity_type_detail' => 56,
+  'role' => 17,
+),
+            array (
+  'id' => 821,
+  'activity_type_detail' => 56,
+  'role' => 14,
+),
+            array (
+  'id' => 822,
+  'activity_type_detail' => 56,
+  'role' => 2,
+),
+            array (
+  'id' => 823,
+  'activity_type_detail' => 56,
+  'role' => 15,
+),
+            array (
+  'id' => 824,
+  'activity_type_detail' => 56,
+  'role' => 19,
+),
+            array (
+  'id' => 825,
+  'activity_type_detail' => 4,
+  'role' => 9,
+),
+            array (
+  'id' => 829,
+  'activity_type_detail' => 4,
+  'role' => 17,
+),
+            array (
+  'id' => 831,
+  'activity_type_detail' => 18,
+  'role' => 1,
+),
+            array (
+  'id' => 832,
+  'activity_type_detail' => 12,
+  'role' => 11,
+),
+            array (
+  'id' => 833,
+  'activity_type_detail' => 21,
+  'role' => 13,
+),
+            array (
+  'id' => 834,
+  'activity_type_detail' => 44,
+  'role' => 1,
+),
+            array (
+  'id' => 835,
+  'activity_type_detail' => 44,
+  'role' => 15,
+),
+            array (
+  'id' => 836,
+  'activity_type_detail' => 59,
+  'role' => 3,
+),
+            array (
+  'id' => 837,
+  'activity_type_detail' => 59,
+  'role' => 4,
+),
+            array (
+  'id' => 838,
+  'activity_type_detail' => 59,
+  'role' => 11,
+),
+            array (
+  'id' => 839,
+  'activity_type_detail' => 59,
+  'role' => 5,
+),
+            array (
+  'id' => 840,
+  'activity_type_detail' => 59,
+  'role' => 16,
+),
+            array (
+  'id' => 841,
+  'activity_type_detail' => 59,
+  'role' => 13,
+),
+            array (
+  'id' => 842,
+  'activity_type_detail' => 59,
+  'role' => 1,
+),
+            array (
+  'id' => 843,
+  'activity_type_detail' => 59,
+  'role' => 18,
+),
+            array (
+  'id' => 844,
+  'activity_type_detail' => 60,
+  'role' => 4,
+),
+            array (
+  'id' => 845,
+  'activity_type_detail' => 60,
+  'role' => 11,
+),
+            array (
+  'id' => 846,
+  'activity_type_detail' => 60,
+  'role' => 5,
+),
+            array (
+  'id' => 847,
+  'activity_type_detail' => 60,
+  'role' => 16,
+),
+            array (
+  'id' => 848,
+  'activity_type_detail' => 60,
+  'role' => 13,
+),
+            array (
+  'id' => 849,
+  'activity_type_detail' => 60,
+  'role' => 1,
+),
+            array (
+  'id' => 850,
+  'activity_type_detail' => 60,
+  'role' => 18,
+),
+            array (
+  'id' => 851,
+  'activity_type_detail' => 59,
+  'role' => 2,
+),
+            array (
+  'id' => 852,
+  'activity_type_detail' => 60,
+  'role' => 2,
+),
+            array (
+  'id' => 853,
+  'activity_type_detail' => 59,
+  'role' => 15,
+),
+            array (
+  'id' => 854,
+  'activity_type_detail' => 60,
+  'role' => 15,
+),
+            array (
+  'id' => 855,
+  'activity_type_detail' => 59,
+  'role' => 19,
+),
+            array (
+  'id' => 856,
+  'activity_type_detail' => 60,
+  'role' => 19,
+),
+            array (
+  'id' => 857,
+  'activity_type_detail' => 6,
+  'role' => 16,
+),
+            array (
+  'id' => 858,
+  'activity_type_detail' => 14,
+  'role' => 16,
+),
+            array (
+  'id' => 859,
+  'activity_type_detail' => 32,
+  'role' => 16,
+),
+            array (
+  'id' => 860,
+  'activity_type_detail' => 33,
+  'role' => 16,
+),
+            array (
+  'id' => 861,
+  'activity_type_detail' => 49,
+  'role' => 16,
+),
         ];
         
         foreach ($data as $item) {
@@ -5238,6 +5483,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' visibility');
     }
+        $this->SeedsupportedPlan();
     
     private function SeedsupportedPlan()
     {
@@ -5253,7 +5499,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.',
   'alert_level' => 2,
-  'suggested' => 1,
 ),
             array (
   'id' => 2,
@@ -5264,7 +5509,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.',
   'alert_level' => 2,
-  'suggested' => 0,
 ),
             array (
   'id' => 3,
@@ -5275,7 +5519,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 9 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 4,
@@ -5286,7 +5529,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 5,
@@ -5297,7 +5539,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 10 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 6,
@@ -5308,7 +5549,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 7,
@@ -5319,7 +5559,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 11 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 8,
@@ -5330,7 +5569,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 9,
@@ -5341,7 +5579,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 12 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 10,
@@ -5352,7 +5589,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 11,
@@ -5363,7 +5599,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 12,
@@ -5374,7 +5609,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 13,
@@ -5385,7 +5619,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 13 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 14,
@@ -5396,7 +5629,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 14 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 15,
@@ -5407,7 +5639,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 15 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 16,
@@ -5418,7 +5649,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 16 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 17,
@@ -5429,7 +5659,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 18,
@@ -5440,7 +5669,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 17 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 19,
@@ -5451,7 +5679,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 20,
@@ -5462,7 +5689,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 18 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 21,
@@ -5473,7 +5699,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 22,
@@ -5484,7 +5709,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 19 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 23,
@@ -5495,7 +5719,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 20 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 24,
@@ -5506,7 +5729,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 21 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 25,
@@ -5517,7 +5739,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 22 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 26,
@@ -5528,7 +5749,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 23 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 27,
@@ -5539,7 +5759,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 24 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 34,
@@ -5550,7 +5769,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 35,
@@ -5561,7 +5779,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 36,
@@ -5572,7 +5789,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 37,
@@ -5583,7 +5799,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 38,
@@ -5594,7 +5809,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 39,
@@ -5605,7 +5819,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 40,
@@ -5616,7 +5829,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 41,
@@ -5627,7 +5839,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 42,
@@ -5638,7 +5849,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 43,
@@ -5649,7 +5859,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 44,
@@ -5660,7 +5869,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 45,
@@ -5671,7 +5879,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 46,
@@ -5682,7 +5889,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 47,
@@ -5693,7 +5899,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 48,
@@ -5704,7 +5909,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 49,
@@ -5715,7 +5919,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 50,
@@ -5726,7 +5929,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 51,
@@ -5737,7 +5939,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 52,
@@ -5748,7 +5949,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 53,
@@ -5759,7 +5959,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 54,
@@ -5770,7 +5969,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 55,
@@ -5781,7 +5979,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 56,
@@ -5792,7 +5989,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 57,
@@ -5803,7 +5999,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 58,
@@ -5814,7 +6009,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 64,
@@ -5825,7 +6019,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 4 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 65,
@@ -5836,7 +6029,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 5 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 66,
@@ -5847,7 +6039,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 6 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
             array (
   'id' => 67,
@@ -5858,7 +6049,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppen umgestellt werden.',
   'alert_level' => 3,
-  'suggested' => 0,
 ),
             array (
   'id' => 68,
@@ -5869,7 +6059,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppen umgestellt werden.',
   'alert_level' => 3,
-  'suggested' => 0,
 ),
             array (
   'id' => 69,
@@ -5880,7 +6069,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.',
   'alert_level' => 2,
-  'suggested' => 0,
 ),
             array (
   'id' => 70,
@@ -5891,7 +6079,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.',
   'alert_level' => 2,
-  'suggested' => 0,
 ),
             array (
   'id' => 71,
@@ -5902,7 +6089,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 72,
@@ -5913,7 +6099,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 73,
@@ -5924,7 +6109,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 74,
@@ -5935,7 +6119,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 75,
@@ -5946,7 +6129,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 76,
@@ -5957,7 +6139,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 77,
@@ -5968,7 +6149,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 78,
@@ -5979,7 +6159,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 79,
@@ -5990,7 +6169,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 80,
@@ -6001,7 +6179,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 81,
@@ -6012,7 +6189,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 82,
@@ -6023,7 +6199,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => NULL,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 91,
@@ -6034,7 +6209,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 93,
@@ -6045,7 +6219,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.',
   'alert_level' => 3,
-  'suggested' => 0,
 ),
             array (
   'id' => 94,
@@ -6056,7 +6229,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.',
   'alert_level' => 3,
-  'suggested' => 0,
 ),
             array (
   'id' => 95,
@@ -6067,7 +6239,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.',
   'alert_level' => 3,
-  'suggested' => 0,
 ),
             array (
   'id' => 96,
@@ -6078,7 +6249,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.',
   'alert_level' => 2,
-  'suggested' => 0,
 ),
             array (
   'id' => 97,
@@ -6089,7 +6259,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 4 Jurygruppen umgestellt werden.',
   'alert_level' => 3,
-  'suggested' => 0,
 ),
             array (
   'id' => 98,
@@ -6100,7 +6269,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Riskio: Wenn 2 Teams nicht kommen, muss auf 4 Jurygruppe umgestellt werden.',
   'alert_level' => 2,
-  'suggested' => 0,
 ),
             array (
   'id' => 99,
@@ -6111,7 +6279,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 100,
@@ -6122,7 +6289,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 101,
@@ -6133,7 +6299,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 102,
@@ -6144,7 +6309,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 103,
@@ -6155,7 +6319,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 104,
@@ -6166,7 +6329,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 105,
@@ -6177,7 +6339,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => NULL,
   'alert_level' => 0,
-  'suggested' => 0,
 ),
             array (
   'id' => 106,
@@ -6188,7 +6349,6 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'calibration' => 0,
   'note' => 'Empfohlene Konfiguration für 25 Teams',
   'alert_level' => 1,
-  'suggested' => 0,
 ),
         ];
         
@@ -6200,5 +6360,8 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
         }
         
         $this->command->line('    ✓ Seeded ' . count($data) . ' supported_plan');
+    }
+        
+        $this->command->info('✅ Main data seeded successfully!');
     }
 }

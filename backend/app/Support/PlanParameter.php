@@ -35,7 +35,7 @@ class PlanParameter
     public function get(string $key): mixed
     {
         if (!array_key_exists($key, $this->params)) {
-            throw new RuntimeException("Parameter '{$key}' not found.");
+            throw new RuntimeException("Parameter '{$key}' nicht gefunden.");
         }
 
         return $this->params[$key]['value'];
@@ -136,11 +136,11 @@ class PlanParameter
         
         // Validate range
         if ($param->min !== null && $numericValue < $param->min) {
-            throw new RuntimeException("Parameter '{$param->name}' value {$numericValue} is below minimum {$param->min}.");
+            throw new RuntimeException("Parameter '{$param->name}': Wert {$numericValue} ist unter dem Minimum {$param->min}. Bitte korrigiere den Wert.");
         }
         
         if ($param->max !== null && $numericValue > $param->max) {
-            throw new RuntimeException("Parameter '{$param->name}' value {$numericValue} is above maximum {$param->max}.");
+            throw new RuntimeException("Parameter '{$param->name}': Wert {$numericValue} ist über dem Maximum {$param->max}. Bitte korrigiere den Wert.");
         }
         
         // Validate step formula: value must be min + n * step
@@ -150,7 +150,7 @@ class PlanParameter
             $expectedValue = $min + (int)(($numericValue - $min) / $step) * $step;
             
             if (abs($numericValue - $expectedValue) > 0.0001) { // Allow small floating point errors
-                throw new RuntimeException("Parameter '{$param->name}' value {$numericValue} does not follow step formula (min: {$min}, step: {$step}).");
+                throw new RuntimeException("Parameter '{$param->name}': Wert {$numericValue} entspricht nicht der Schrittformel (Min: {$min}, Schritt: {$step}). Bitte korrigiere den Wert.");
             }
         }
     }
@@ -167,17 +167,17 @@ class PlanParameter
         
         // Validate range
         if ($param->min !== null && $valueMinutes < $minMinutes) {
-            throw new RuntimeException("Parameter '{$param->name}' value {$value} is before minimum {$param->min}.");
+            throw new RuntimeException("Parameter '{$param->name}': Zeit {$value} ist vor dem Minimum {$param->min}. Bitte korrigiere die Zeit.");
         }
         
         if ($param->max !== null && $valueMinutes > $maxMinutes) {
-            throw new RuntimeException("Parameter '{$param->name}' value {$value} is after maximum {$param->max}.");
+            throw new RuntimeException("Parameter '{$param->name}': Zeit {$value} ist nach dem Maximum {$param->max}. Bitte korrigiere die Zeit.");
         }
         
         // Validate step formula for time: minutes must be multiples of step
         if ($param->step !== null && $param->step > 0) {
             if ($valueMinutes % $param->step !== 0) {
-                throw new RuntimeException("Parameter '{$param->name}' value {$value} does not follow step formula (step: {$param->step} minutes).");
+                throw new RuntimeException("Parameter '{$param->name}': Zeit {$value} entspricht nicht der Schrittformel (Schritt: {$param->step} Minuten). Bitte korrigiere die Zeit.");
             }
         }
     }

@@ -152,6 +152,10 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/slideshow/{slideshow}/add', [CarouselController::class, 'addSlide']);
     Route::post('/slideshow/{event}', [CarouselController::class, 'generateSlideshow']);
 
+    // Update public rounds (only authenticated access)
+    Route::get('/contao/rounds/{eventId}', [ContaoController::class, 'getRoundsToShowEndpoint']);
+    Route::put('/contao/rounds/{eventId}', [ContaoController::class, 'saveRoundsToShow']);
+
     // Team controller
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);

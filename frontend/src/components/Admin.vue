@@ -17,11 +17,29 @@ const parameters = ref([])
 const conditions = ref([])
 
 const syncDrahtRegions = async () => {
-  await axios.get('/admin/draht/sync-draht-regions')
+  if (!confirm('Möchtest du wirklich alle Regional Partner aus DRAHT synchronisieren?\n\nDies wird alle Regional Partner aus DRAHT in die Datenbank importieren.')) {
+    return
+  }
+  
+  try {
+    await axios.get('/admin/draht/sync-draht-regions')
+    alert('Regional Partner erfolgreich synchronisiert!')
+  } catch (error) {
+    alert('Fehler beim Synchronisieren: ' + (error.response?.data?.message || error.message))
+  }
 }
 
 const syncDrahtEvents = async () => {
-  await axios.get('/admin/draht/sync-draht-events/2')
+  if (!confirm('Möchtest du wirklich alle Events aus DRAHT synchronisieren?\n\nDies wird alle Events aus DRAHT in die Datenbank importieren.')) {
+    return
+  }
+  
+  try {
+    await axios.get('/admin/draht/sync-draht-events/2')
+    alert('Events erfolgreich synchronisiert!')
+  } catch (error) {
+    alert('Fehler beim Synchronisieren: ' + (error.response?.data?.message || error.message))
+  }
 }
 
 const fetchParameters = async () => {
@@ -216,13 +234,39 @@ fetchConditions()
       </div>
 
       <div v-if="activeTab === 'sync'">
-        <h2 class="text-xl font-bold mb-4">Sync aus DRAHT</h2>
-        <button class="px-4 py-2 rounded bg-blue-500 text-white mr-2" @click="syncDrahtRegions">
-          Sync draht-regions
-        </button>
-        <button class="px-4 py-2 rounded bg-blue-500 text-white" @click="syncDrahtEvents">
-          Sync Draht
-        </button>
+        <h2 class="text-xl font-bold mb-6">Sync aus DRAHT</h2>
+        
+        <div class="space-y-6">
+          <!-- Regional Partner Sync -->
+          <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <h3 class="text-lg font-semibold mb-2">Regional Partner synchronisieren</h3>
+            <p class="text-gray-600 mb-4">
+              Synchronisiert alle Regional Partner aus DRAHT in die Datenbank. 
+              Bestehende Regional Partner werden aktualisiert, neue werden hinzugefügt.
+            </p>
+            <button 
+              class="px-6 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors" 
+              @click="syncDrahtRegions"
+            >
+              🔁 Regional Partner synchronisieren
+            </button>
+          </div>
+          
+          <!-- Events Sync -->
+          <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <h3 class="text-lg font-semibold mb-2">Events synchronisieren</h3>
+            <p class="text-gray-600 mb-4">
+              Synchronisiert alle Events aus DRAHT in die Datenbank. 
+              Bestehende Events werden aktualisiert, neue werden hinzugefügt.
+            </p>
+            <button 
+              class="px-6 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors" 
+              @click="syncDrahtEvents"
+            >
+              🔁 Events synchronisieren
+            </button>
+          </div>
+        </div>
       </div>
 
       <div v-if="activeTab === 'quality'">
