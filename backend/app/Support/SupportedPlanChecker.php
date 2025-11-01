@@ -39,7 +39,9 @@ class SupportedPlanChecker
                 $parts[] = $tables;
             }
             $desc = implode('-', $parts);
-            throw new RuntimeException("Unsupported plan configuration: {$desc}");
+            $programName = $firstProgram === 3 ? 'Challenge' : ($firstProgram === 2 ? 'Explore' : "Programm {$firstProgram}");
+            $tablesInfo = $tables !== null ? ", Tische: {$tables}" : "";
+            throw new RuntimeException("Nicht unterstützte Plan-Konfiguration für {$programName}: Teams: {$teams}, Spuren: {$lanes}{$tablesInfo}. Diese Kombination existiert nicht in m_supported_plan.");
         }
 
         return true;

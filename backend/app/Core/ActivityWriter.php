@@ -46,7 +46,7 @@ class ActivityWriter
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeDetailCode);
 
         if (!$activityTypeDetailId) {
-            throw new \RuntimeException("Unknown activity_type_detail code: {$activityTypeDetailCode}");
+            throw new \RuntimeException("Unbekannter activity_type_detail-Code: '{$activityTypeDetailCode}'. Dieser Code existiert nicht in der Datenbank.");
         }
 
         $group = ActivityGroup::create([
@@ -68,7 +68,7 @@ class ActivityWriter
         ?int $extraBlockId = null
     ): int {
         if (!$this->currentGroup) {
-            throw new \RuntimeException("No activity group set before inserting activity: {$activityTypeCode}");
+            throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Einfügen der Aktivität '{$activityTypeCode}'. Bitte setze zunächst eine Aktivitätsgruppe mit setGroup().");
         }
 
         $start = $time->current()->format('Y-m-d H:i:s');
@@ -119,7 +119,7 @@ class ActivityWriter
     public function insertActivitiesBulk(array $activities): void
     {
         if (!$this->currentGroup) {
-            throw new \RuntimeException("No activity group set before bulk inserting activities");
+            throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Bulk-Einfügen von Aktivitäten. Bitte setze zunächst eine Aktivitätsgruppe mit setGroup().");
         }
 
         if (empty($activities)) {
@@ -212,7 +212,7 @@ class ActivityWriter
         $insertPoint = MInsertPoint::where('code', $insertPointCode)->first();
         
         if (!$insertPoint) {
-            throw new \RuntimeException("Insert point code '{$insertPointCode}' not found in database.");
+            throw new \RuntimeException("Einfügepunkt-Code '{$insertPointCode}' nicht in der Datenbank gefunden. Bitte überprüfe den Code in der Tabelle m_insert_point.");
         }
 
         // Get event level to check if insert point is applicable
