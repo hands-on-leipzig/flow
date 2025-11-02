@@ -58,7 +58,14 @@ const columnIcons: Record<string, string> = {
 
 // Helper to check if a column should be visible
 function isColumnVisible(column: string): boolean {
-  return currentColumns.value.includes(column)
+  // First check if column is in backend matrix
+  if (!currentColumns.value.includes(column)) return false
+  
+  // Then check program toggles
+  if (column === 'c' && props.showChallenge === false) return false // Challenge disabled
+  if ((column === 'e1' || column === 'e2') && props.showExplore === false) return false // Explore disabled
+  
+  return true
 }
 
 // Fixed column order: g, e1, e2, c
