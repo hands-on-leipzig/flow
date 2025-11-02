@@ -171,7 +171,7 @@ function validateTimeValue(timeValue, param) {
   if (param.min !== null && param.min !== undefined && param.min !== '') {
     const minMinutes = timeToMinutes(param.min)
     if (valueMinutes < minMinutes) {
-      validationError.value = `Zeit muss nach ${param.min} sein`
+      validationError.value = `Zeit darf minimal ${param.min} sein`
       return false
     }
   }
@@ -180,7 +180,7 @@ function validateTimeValue(timeValue, param) {
   if (param.max !== null && param.max !== undefined && param.max !== '') {
     const maxMinutes = timeToMinutes(param.max)
     if (valueMinutes > maxMinutes) {
-      validationError.value = `Zeit muss vor ${param.max} sein`
+      validationError.value = `Zeit darf maximal ${param.max} sein`
       return false
     }
   }

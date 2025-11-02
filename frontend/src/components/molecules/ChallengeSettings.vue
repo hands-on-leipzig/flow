@@ -407,6 +407,17 @@ const teamsPerJuryHint = computed(() => {
         </div>
       </div>
 
+      <!-- Alert message banner -->
+      <div v-if="currentLaneNote && currentConfigAlertLevel >= 1"
+           :class="{
+             'bg-green-100 border border-green-300 text-green-700': currentConfigAlertLevel === 1,
+             'bg-orange-100 border border-orange-300 text-orange-700': currentConfigAlertLevel === 2,
+             'bg-red-100 border border-red-300 text-red-700': currentConfigAlertLevel === 3
+           }"
+           class="mt-3 flex items-center gap-2 px-3 py-2 rounded text-sm font-medium">
+        <span>⚠</span>
+        <span>{{ currentLaneNote }}</span>
+      </div>
 
     </template>
 
@@ -414,17 +425,6 @@ const teamsPerJuryHint = computed(() => {
     <div v-else class="text-center py-8 text-gray-500">
       <div class="text-lg font-medium mb-2">Challenge ist deaktiviert</div>
       <div class="text-sm">Aktiviere den Schalter oben rechts, um Challenge-Einstellungen zu konfigurieren.</div>
-    </div>
-
-    <!-- Alert message banner -->
-    <div v-if="currentLaneNote && (currentConfigAlertLevel === 2 || currentConfigAlertLevel === 3)"
-         :class="{
-           'bg-orange-100/60 border border-orange-300/40 text-orange-700': currentConfigAlertLevel === 2,
-           'bg-red-100/60 border border-red-300/40 text-red-700': currentConfigAlertLevel === 3
-         }"
-         class="mt-3 inline-flex items-center gap-1 px-2 py-1 rounded text-xs">
-      <span class="text-xs">⚠</span>
-      {{ currentLaneNote }}
     </div>
   </div>
 </template>
