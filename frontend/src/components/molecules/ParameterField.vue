@@ -48,6 +48,9 @@ const showDefaultValue = (param) => {
   switch (param.type) {
     case 'boolean':
       return normalizeBoolean(param.default_value) ? 'an' : 'aus'
+    case 'time':
+      // Normalize time format to show leading zero (9:00 -> 09:00)
+      return normalizeTimeFormat(param.default_value)
     default:
       return param.default_value
   }
@@ -55,9 +58,6 @@ const showDefaultValue = (param) => {
 
 const isChangedFromDefault = (param) => {
   if (param.default_value === null || param.default_value === undefined) return false
-
-  // Don't highlight time fields as they're configuration, not parameter changes
-  if (param.type === 'time') return false
 
   // Don't highlight team-related parameters as they're configuration, not parameter changes
   if (param.name && param.name.toLowerCase().includes('team')) return false
@@ -68,6 +68,12 @@ const isChangedFromDefault = (param) => {
     case 'integer':
     case 'decimal':
       return Number(localValue.value) !== Number(param.default_value)
+    case 'time':
+      // Normalize both values to HH:MM format before comparing
+      // Handles cases where one is "9:00" and the other is "09:00"
+      const normalizedCurrent = normalizeTimeFormat(localValue.value)
+      const normalizedDefault = normalizeTimeFormat(param.default_value)
+      return normalizedCurrent !== normalizedDefault
     default:
       return localValue.value !== param.default_value
   }
@@ -79,7 +85,7 @@ function validateValue(value, param) {
   
   // Special validation for time inputs (hh:mm format)
   if (param.type === 'time') {
-    return validateTimeValue(value)
+    return validateTimeValue(value, param)
   }
   
   // Skip validation for non-numeric types
@@ -121,7 +127,36 @@ function validateValue(value, param) {
   return true
 }
 
-function validateTimeValue(timeValue) {
+/**
+ * Converts time string (HH:MM) to minutes since midnight.
+ */
+function timeToMinutes(timeString) {
+  if (!timeString || typeof timeString !== 'string') return 0
+  const [hours, minutes] = timeString.split(':').map(Number)
+  return (hours || 0) * 60 + (minutes || 0)
+}
+
+/**
+ * Normalizes time string to HH:MM format (ensures leading zero for hours < 10).
+ * Handles both "9:00" and "09:00" formats.
+ */
+function normalizeTimeFormat(timeString) {
+  if (!timeString || typeof timeString !== 'string') return timeString
+  const [hours, minutes] = timeString.split(':')
+  if (!hours || !minutes) return timeString
+  // Ensure hours have leading zero if needed, minutes should already have it
+  const normalizedHours = hours.padStart(2, '0')
+  const normalizedMinutes = minutes.padStart(2, '0')
+  return `${normalizedHours}:${normalizedMinutes}`
+}
+
+function validateTimeValue(timeValue, param) {
+  // Allow empty values during typing
+  if (!timeValue || timeValue === '' || timeValue.trim() === '') {
+    validationError.value = ''
+    return true // Don't show error for empty input during typing
+  }
+  
   // Check if time format is valid (hh:mm)
   const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/
   if (!timeRegex.test(timeValue)) {
@@ -129,13 +164,33 @@ function validateTimeValue(timeValue) {
     return false
   }
   
-  // Extract minutes and check if they are multiples of 5
-  const [, , minutes] = timeValue.match(timeRegex)
-  const minutesNum = parseInt(minutes, 10)
+  // Convert to minutes for comparison (matching backend logic)
+  const valueMinutes = timeToMinutes(timeValue)
   
-  if (minutesNum % 5 !== 0) {
-    validationError.value = 'Nur 5-Min-Schritte erlaubt.'
-    return false
+  // Validate minimum (if set)
+  if (param.min !== null && param.min !== undefined && param.min !== '') {
+    const minMinutes = timeToMinutes(param.min)
+    if (valueMinutes < minMinutes) {
+      validationError.value = `Zeit muss nach ${param.min} sein`
+      return false
+    }
+  }
+  
+  // Validate maximum (if set)
+  if (param.max !== null && param.max !== undefined && param.max !== '') {
+    const maxMinutes = timeToMinutes(param.max)
+    if (valueMinutes > maxMinutes) {
+      validationError.value = `Zeit muss vor ${param.max} sein`
+      return false
+    }
+  }
+  
+  // Validate step formula for time: minutes must be multiples of step
+  if (param.step !== null && param.step !== undefined && param.step > 0) {
+    if (valueMinutes % param.step !== 0) {
+      validationError.value = `Nur ${param.step}-Minuten-Schritte erlaubt`
+      return false
+    }
   }
   
   return true
@@ -281,15 +336,19 @@ const isDefaultValue = computed(() => {
         </span>
       </div>
 
-      <!-- Time inputs without default value overlay -->
+      <!-- Time inputs with default value overlay -->
       <div v-else-if="param.type === 'time'" class="relative">
         <input
             type="time"
             v-model="localValue"
             @change="emitChange"
             @input="validateValue(localValue, param)"
+            @blur="validateValue(localValue, param)"
             :disabled="disabled"
-            class="w-24 border rounded px-2 py-1 text-sm shadow-sm"
+            :min="param.min || undefined"
+            :max="param.max || undefined"
+            :step="param.step ? param.step * 60 : undefined"
+            class="w-24 border rounded px-2 py-1 pr-8 text-sm shadow-sm"
             :class="{ 
               'opacity-50 cursor-not-allowed': disabled,
               'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled,
@@ -297,6 +356,10 @@ const isDefaultValue = computed(() => {
               'border-gray-300': !validationError
             }"
         />
+        <span v-if="showDefaultValue(param) && !validationError"
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+          {{ showDefaultValue(param) }}
+        </span>
         <!-- Validation error tooltip -->
         <div v-if="validationError" 
              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-red-500 pointer-events-none">
