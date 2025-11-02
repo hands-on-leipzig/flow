@@ -153,12 +153,12 @@ onMounted(async () => {
             <th 
                 v-for="col in visibleColumns" 
                 :key="col"
-                class="text-left text-sm font-medium text-gray-600 px-1 whitespace-normal break-words"
+                class="text-center text-sm font-medium text-gray-600 px-1 whitespace-normal break-words"
                 :style="`width: ${dataColumnWidth}`"
             >
-              <div class="flex items-center gap-1">
+              <div class="inline-flex items-center gap-1">
                 <img :src="columnIcons[col]" :alt="columnLabels[col]" class="w-10 h-10 flex-shrink-0 object-contain">
-                <span>{{ columnLabels[col] }}</span>
+                <span class="text-left">{{ columnLabels[col] }}</span>
               </div>
             </th>
           </tr>
