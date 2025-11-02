@@ -4,7 +4,7 @@ import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import { useAuth } from '@/composables/useAuth'
 import { imageUrl } from '@/utils/images'
-import { formatTimeOnly } from '@/utils/dateTimeFormat'
+import { formatTimeOnly, formatDateOnly } from '@/utils/dateTimeFormat'
 
 // Store + Selected Event (autark)
 const eventStore = useEventStore()
@@ -250,12 +250,36 @@ async function regenerateLinkAndQR() {
               </div>
 
               <!-- Card Inhalte -->
-              <!-- Card 1: Level 0 (Planung) - Just headings -->
-              <template v-if="idx === 0">
-                <div class="font-semibold mb-2">Datum</div>
-                <div class="font-semibold mb-2">Adresse</div>
-                <div class="font-semibold mb-2">Kontakt</div>
-                <div class="font-semibold mt-3">Angemeldete Teams</div>
+              <!-- Card 1: Level 0 (Planung) - Basic event information -->
+              <template v-if="idx === 0 && scheduleInfo">
+                <div class="font-semibold mb-1">Datum</div>
+                <div v-if="scheduleInfo.date" class="text-gray-700 mb-3">{{ formatDateOnly(scheduleInfo.date) }}</div>
+                <div v-else class="text-gray-400 mb-3 italic">–</div>
+                
+                <div class="font-semibold mb-1">Adresse</div>
+                <div v-if="scheduleInfo.address" class="text-gray-700 mb-3 whitespace-pre-line text-xs">{{ scheduleInfo.address }}</div>
+                <div v-else class="text-gray-400 mb-3 italic text-xs">–</div>
+                
+                <div class="font-semibold mb-1">Kontakt</div>
+                <div v-if="scheduleInfo.contact && scheduleInfo.contact.length > 0" class="text-gray-700 mb-3 text-xs">
+                  <div v-for="(contact, contactIdx) in scheduleInfo.contact" :key="contactIdx" class="mb-1">
+                    <div class="font-medium">{{ contact.contact }}</div>
+                    <div v-if="contact.contact_email" class="text-gray-600">{{ contact.contact_email }}</div>
+                    <div v-if="contact.contact_infos" class="text-gray-500">{{ contact.contact_infos }}</div>
+                  </div>
+                </div>
+                <div v-else class="text-gray-400 mb-3 italic text-xs">–</div>
+                
+                <div class="font-semibold mt-3 mb-1">Angemeldete Teams</div>
+                <div v-if="scheduleInfo.teams" class="text-xs">
+                  <div v-if="scheduleInfo.teams.explore" class="text-gray-700 mb-1">
+                    Explore: {{ scheduleInfo.teams.explore.registered }}/{{ scheduleInfo.teams.explore.capacity }}
+                  </div>
+                  <div v-if="scheduleInfo.teams.challenge" class="text-gray-700">
+                    Challenge: {{ scheduleInfo.teams.challenge.registered }}/{{ scheduleInfo.teams.challenge.capacity }}
+                  </div>
+                </div>
+                <div v-else class="text-gray-400 italic text-xs">–</div>
               </template>
 
               <!-- Card 2: Level 2 (Überblick zum Ablauf) - What's actually shown on the page -->
