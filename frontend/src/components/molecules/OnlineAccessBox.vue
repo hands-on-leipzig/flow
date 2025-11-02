@@ -268,19 +268,19 @@ async function regenerateLinkAndQR() {
                   <div class="space-y-1 text-xs">
                     <div v-if="scheduleInfo.plan.explore.briefing?.teams" class="flex justify-between">
                       <span class="text-gray-600">Coach-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.teams) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.teams, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.explore.briefing?.judges" class="flex justify-between">
                       <span class="text-gray-600">Gutachter:innen-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.judges) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.judges, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.explore.opening" class="flex justify-between">
                       <span class="text-gray-600">Eröffnung:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.opening) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.opening, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.explore.end" class="flex justify-between">
                       <span class="text-gray-600">Ende:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.end) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.end, true) }}</span>
                     </div>
                   </div>
                 </div>
@@ -291,23 +291,23 @@ async function regenerateLinkAndQR() {
                   <div class="space-y-1 text-xs">
                     <div v-if="scheduleInfo.plan.challenge.briefing?.teams" class="flex justify-between">
                       <span class="text-gray-600">Coach-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.teams) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.teams, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.challenge.briefing?.judges" class="flex justify-between">
                       <span class="text-gray-600">Gutachter:innen-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.judges) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.judges, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.challenge.briefing?.referees" class="flex justify-between">
                       <span class="text-gray-600">Schiedsrichter:innen-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.referees) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.referees, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.challenge.opening" class="flex justify-between">
                       <span class="text-gray-600">Eröffnung:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.opening) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.opening, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.challenge.end" class="flex justify-between">
                       <span class="text-gray-600">Ende:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.end) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.end, true) }}</span>
                     </div>
                   </div>
                 </div>
