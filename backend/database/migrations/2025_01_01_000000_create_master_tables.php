@@ -414,7 +414,8 @@ return new class extends Migration {
         // Create logo table
         Schema::create('logo', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100)->nullable();
+            $table->string('title', 100)->nullable();
+            $table->string('link', 500)->nullable();
             $table->string('path', 255);
             $table->unsignedBigInteger('event')->nullable();
             $table->unsignedBigInteger('regional_partner')->nullable();
