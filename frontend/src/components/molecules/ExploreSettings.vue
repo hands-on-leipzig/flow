@@ -163,16 +163,29 @@ function updateTimingMode(timing: string) {
   setMode(baseMode)
 }
 
-// Check if challenge is enabled (for disabling integrated modes)
-const isChallengeEnabled = computed(() => props.showChallenge !== false)
+// Check if challenge is enabled (check c_mode parameter directly)
+const cMode = computed(() => Number(paramMapByName.value['c_mode']?.value || 0))
+const isChallengeEnabled = computed(() => cMode.value > 0)
 
-// Watch for challenge being disabled and switch away from integrated modes
-watch(isChallengeEnabled, (enabled) => {
-  if (!enabled && (eMode.value === 1 || eMode.value === 2 || eMode.value === 6 || eMode.value === 7)) {
-    // Challenge disabled while in integrated mode - switch to separate AM
-    setMode(3)
+// Watch for challenge being disabled and ensure integration is set to 'no'
+watch(cMode, (newMode) => {
+  if (newMode === 0) {
+    // Challenge disabled - ensure integration is set to 'no'
+    // Map current mode to decoupled equivalent
+    if (eMode.value === 1 || eMode.value === 6) {
+      // Was integrated morning -> switch to decoupled morning
+      setMode(3)
+    } else if (eMode.value === 2 || eMode.value === 7) {
+      // Was integrated afternoon -> switch to decoupled afternoon
+      setMode(4)
+    } else if (eMode.value === 8) {
+      // Was hybrid both -> switch to decoupled both
+      setMode(5)
+    }
+    // When mode is already decoupled (3, 4, or 5), integrationEnabled will show 'no'
+    // The setMode() calls above ensure the mode is decoupled, which means integrationEnabled is 'no'
   }
-})
+}, { immediate: true })
 
 /** Fancy mode changes **/
 function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) {
@@ -658,8 +671,8 @@ const teamsPerJuryHint2 = computed(() => {
           <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
         </div>
 
-        <!-- Second row: Integration (Simple Ja/Nein) -->
-        <div class="flex items-center gap-2">
+        <!-- Second row: Integration (Simple Ja/Nein) - Only show if Challenge is enabled -->
+        <div v-if="isChallengeEnabled" class="flex items-center gap-2">
           <span class="text-sm font-medium">Integration mit Challenge</span>
           <RadioGroup v-model="integrationEnabled" class="flex gap-1">
             <RadioGroupOption
