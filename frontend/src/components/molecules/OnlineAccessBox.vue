@@ -230,13 +230,15 @@ async function regenerateLinkAndQR() {
       <div class="flex-1">
         <h3 class="text-sm font-semibold mb-2">Veröffentlichte Informationen</h3>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <template v-for="(_, idx) in Array(3)" :key="idx">
             <div
               class="relative rounded-lg border p-3 text-sm"
               :class="{
                 'opacity-100': isCardActive(idx + 1, detailLevel),
                 'opacity-50': !isCardActive(idx + 1, detailLevel),
+                'sm:col-span-2': idx === 0,
+                'sm:col-span-1': idx === 1 || idx === 2,
               }"
             >
               <div class="absolute top-2 right-2">
@@ -252,34 +254,62 @@ async function regenerateLinkAndQR() {
               <!-- Card Inhalte -->
               <!-- Card 1: Level 0 (Planung) - Basic event information -->
               <template v-if="idx === 0 && scheduleInfo">
-                <div class="font-semibold mb-1">Datum</div>
-                <div v-if="scheduleInfo.date" class="text-gray-700 mb-3">{{ formatDateOnly(scheduleInfo.date) }}</div>
-                <div v-else class="text-gray-400 mb-3 italic">–</div>
-                
-                <div class="font-semibold mb-1">Adresse</div>
-                <div v-if="scheduleInfo.address" class="text-gray-700 mb-3 whitespace-pre-line text-xs">{{ scheduleInfo.address }}</div>
-                <div v-else class="text-gray-400 mb-3 italic text-xs">–</div>
-                
-                <div class="font-semibold mb-1">Kontakt</div>
-                <div v-if="scheduleInfo.contact && scheduleInfo.contact.length > 0" class="text-gray-700 mb-3 text-xs">
-                  <div v-for="(contact, contactIdx) in scheduleInfo.contact" :key="contactIdx" class="mb-1">
-                    <div class="font-medium">{{ contact.contact }}</div>
-                    <div v-if="contact.contact_email" class="text-gray-600">{{ contact.contact_email }}</div>
-                    <div v-if="contact.contact_infos" class="text-gray-500">{{ contact.contact_infos }}</div>
+                <div class="grid grid-cols-2 gap-4">
+                  <!-- Left column: Datum, Adresse, Kontakt -->
+                  <div>
+                    <div class="font-semibold mb-1">Datum</div>
+                    <div v-if="scheduleInfo.date" class="text-gray-700 mb-3">{{ formatDateOnly(scheduleInfo.date) }}</div>
+                    <div v-else class="text-gray-400 mb-3 italic">–</div>
+                    
+                    <div class="font-semibold mb-1">Adresse</div>
+                    <div v-if="scheduleInfo.address" class="text-gray-700 mb-3 whitespace-pre-line text-xs">{{ scheduleInfo.address }}</div>
+                    <div v-else class="text-gray-400 mb-3 italic text-xs">–</div>
+                    
+                    <div class="font-semibold mb-1">Kontakt</div>
+                    <div v-if="scheduleInfo.contact && scheduleInfo.contact.length > 0" class="text-gray-700 mb-3 text-xs">
+                      <div v-for="(contact, contactIdx) in scheduleInfo.contact" :key="contactIdx" class="mb-1">
+                        <div class="font-medium">{{ contact.contact }}</div>
+                        <div v-if="contact.contact_email" class="text-gray-600">{{ contact.contact_email }}</div>
+                        <div v-if="contact.contact_infos" class="text-gray-500">{{ contact.contact_infos }}</div>
+                      </div>
+                    </div>
+                    <div v-else class="text-gray-400 mb-3 italic text-xs">–</div>
+                  </div>
+                  
+                  <!-- Right column: Angemeldete Teams -->
+                  <div>
+                    <div class="font-semibold mb-1">Angemeldete Teams</div>
+                    <div v-if="scheduleInfo.teams" class="text-xs">
+                      <div v-if="scheduleInfo.teams.explore" class="mb-4">
+                        <div class="font-medium mb-2 text-sm">
+                          FIRST LEGO League Explore
+                          <span class="text-gray-600 text-xs font-normal ml-2">
+                            {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet
+                          </span>
+                        </div>
+                        <div v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0" class="text-gray-600 pl-2 text-xs">
+                          <div v-for="(team, teamIdx) in scheduleInfo.teams.explore.list" :key="teamIdx" class="mb-0.5">
+                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-if="scheduleInfo.teams.challenge">
+                        <div class="font-medium mb-2 text-sm">
+                          FIRST LEGO League Challenge
+                          <span class="text-gray-600 text-xs font-normal ml-2">
+                            {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet
+                          </span>
+                        </div>
+                        <div v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0" class="text-gray-600 pl-2 text-xs">
+                          <div v-for="(team, teamIdx) in scheduleInfo.teams.challenge.list" :key="teamIdx" class="mb-0.5">
+                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="text-gray-400 italic text-xs">–</div>
                   </div>
                 </div>
-                <div v-else class="text-gray-400 mb-3 italic text-xs">–</div>
-                
-                <div class="font-semibold mt-3 mb-1">Angemeldete Teams</div>
-                <div v-if="scheduleInfo.teams" class="text-xs">
-                  <div v-if="scheduleInfo.teams.explore" class="text-gray-700 mb-1">
-                    Explore: {{ scheduleInfo.teams.explore.registered }}/{{ scheduleInfo.teams.explore.capacity }}
-                  </div>
-                  <div v-if="scheduleInfo.teams.challenge" class="text-gray-700">
-                    Challenge: {{ scheduleInfo.teams.challenge.registered }}/{{ scheduleInfo.teams.challenge.capacity }}
-                  </div>
-                </div>
-                <div v-else class="text-gray-400 italic text-xs">–</div>
               </template>
 
               <!-- Card 2: Level 2 (Überblick zum Ablauf) - What's actually shown on the page -->
