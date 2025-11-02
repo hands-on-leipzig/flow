@@ -536,7 +536,7 @@ class MainDataSeeder extends Seeder
   'type' => 'time',
   'value' => '09:00',
   'min' => '08:00',
-  'max' => '10:00',
+  'max' => '11:00',
   'step' => '5',
   'first_program' => NULL,
   'sequence' => 28,
@@ -566,7 +566,7 @@ class MainDataSeeder extends Seeder
   'type' => 'integer',
   'value' => '15',
   'min' => '15',
-  'max' => '50',
+  'max' => '45',
   'step' => '5',
   'first_program' => 2,
   'sequence' => 35,
@@ -1457,7 +1457,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'type' => 'time',
   'value' => '9:00',
   'min' => '08:00',
-  'max' => '10:00',
+  'max' => '11:00',
   'step' => '5',
   'first_program' => 3,
   'sequence' => 25,
@@ -2067,6 +2067,14 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'first_program' => 3,
   'overview_plan_column' => 'Challenge',
 ),
+            array (
+  'id' => 16,
+  'name' => 'Forschung auf der Bühne',
+  'sequence' => 0,
+  'description' => NULL,
+  'first_program' => 3,
+  'overview_plan_column' => NULL,
+),
         ];
         
         foreach ($data as $item) {
@@ -2359,7 +2367,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'description' => 'Von den Juror:innen ausgewählte Forschungspräsentationen werden noch einmal öffentlich gezeigt. Eine Fragerunde gibt es dazu allerdings nicht',
   'link' => 'https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/forschung',
   'link_text' => NULL,
-  'activity_type' => 2,
+  'activity_type' => 16,
 ),
             array (
   'id' => 34,
