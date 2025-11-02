@@ -289,7 +289,11 @@ const createRoom = async () => {
 // --- Drag & Drop ---
 const handleDrop = async (event, room) => {
   const item = event.item.__draggable_context?.element
-  if (item && item.id) {
+  if (item && item.key) {
+    // Use the key directly since all items have a unique key property
+    await assignItemToRoom(item.key, room.id)
+  } else if (item && item.id && item.type) {
+    // Fallback: construct key if not present
     const key = `${item.type}-${item.id}`
     await assignItemToRoom(key, room.id)
   } else {
@@ -477,7 +481,7 @@ const hasWarning = (tab) => {
                   <draggable
                     :list="getItemsInRoom(room.id)"
                     group="assignables"
-                    item-key="id"
+                    item-key="key"
                     @add="event => handleDrop(event, room)"
                     @start="isDragging = true"
                     @end="isDragging = false"
