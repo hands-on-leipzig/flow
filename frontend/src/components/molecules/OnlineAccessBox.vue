@@ -16,7 +16,7 @@ const regenerating = ref(false)
 const savingPublicationLevel = ref(false)
 
 // Detail-Level (3 levels, skipping backend level 2 "Nach Anmeldeschluss")
-const levels = ['Planung', 'Überblick zum Ablauf', 'volle Details']
+const levels = ['Planung und Anmeldung', 'Überblick zum Ablauf', 'volle Details']
 const detailLevel = ref(0)
 
 // Map frontend level (0,1,2) to backend level (1,3,4) - skipping level 2
@@ -262,8 +262,13 @@ async function regenerateLinkAndQR() {
               <template v-else-if="idx === 1 && scheduleInfo && scheduleInfo.plan">
                 <div class="font-semibold mb-3">Wichtige Zeiten</div>
                 
-                <!-- Explore Section -->
-                <div v-if="scheduleInfo.plan?.explore" class="mb-4">
+                <!-- Explore Section - Only show if there are Explore times -->
+                <div v-if="scheduleInfo.plan?.explore && (
+                    scheduleInfo.plan.explore.briefing?.teams ||
+                    scheduleInfo.plan.explore.briefing?.judges ||
+                    scheduleInfo.plan.explore.opening ||
+                    scheduleInfo.plan.explore.end
+                  )" class="mb-4">
                   <div class="font-medium mb-2">FIRST LEGO League Explore</div>
                   <div class="space-y-1 text-xs">
                     <div v-if="scheduleInfo.plan.explore.briefing?.teams" class="flex justify-between">
@@ -285,8 +290,14 @@ async function regenerateLinkAndQR() {
                   </div>
                 </div>
 
-                <!-- Challenge Section -->
-                <div v-if="scheduleInfo.plan?.challenge">
+                <!-- Challenge Section - Only show if there are Challenge times -->
+                <div v-if="scheduleInfo.plan?.challenge && (
+                    scheduleInfo.plan.challenge.briefing?.teams ||
+                    scheduleInfo.plan.challenge.briefing?.judges ||
+                    scheduleInfo.plan.challenge.briefing?.referees ||
+                    scheduleInfo.plan.challenge.opening ||
+                    scheduleInfo.plan.challenge.end
+                  )">
                   <div class="font-medium mb-2">FIRST LEGO League Challenge</div>
                   <div class="space-y-1 text-xs">
                     <div v-if="scheduleInfo.plan.challenge.briefing?.teams" class="flex justify-between">
