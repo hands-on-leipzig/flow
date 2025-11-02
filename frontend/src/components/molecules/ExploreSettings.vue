@@ -607,8 +607,9 @@ const teamsPerJuryHint2 = computed(() => {
     </div>
 
     <!-- DEBUG: Show e_mode value -->
+    <!--
     <div v-if="hasExplore" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm">
-      <strong>DEBUG:</strong> e_mode = {{ eMode }} ({{ 
+      <strong>DEBUG:</strong> e_mode = {{ eMode }} ({{
         eMode === 0 ? 'NONE' :
         eMode === 1 ? 'INTEGRATED_MORNING' :
         eMode === 2 ? 'INTEGRATED_AFTERNOON' :
@@ -621,6 +622,7 @@ const teamsPerJuryHint2 = computed(() => {
         'UNKNOWN'
       }})
     </div>
+    -->
 
     <div v-if="hasExplore" class="mb-3 flex items-center gap-2">
       <span>Plan für</span>
