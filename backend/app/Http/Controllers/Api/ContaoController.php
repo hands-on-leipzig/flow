@@ -130,15 +130,13 @@ class ContaoController extends Controller
         // General idea: A round should be public once it is fully complete and the next round has started
         // TODO implement
 
-        // This method should return the round visibility settings
-        // For now, returning default settings - you may need to adapt this
-        // based on how this data is stored in your system
+        // 3) Default: Nothing visible
         return (object)[
-            'vr1' => true,
-            'vr2' => true,
-            'vr3' => true,
-            'vf' => true,
-            'hf' => true,
+            'vr1' => false,
+            'vr2' => false,
+            'vr3' => false,
+            'vf' => false,
+            'hf' => false,
         ];
     }
 
