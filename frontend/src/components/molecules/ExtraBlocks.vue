@@ -83,7 +83,32 @@ async function loadBlocks() {
   const pid = props.planId
   if (!pid) return
   const { data } = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`)
-  blocks.value = Array.isArray(data) ? data : []
+  const loadedBlocks = Array.isArray(data) ? data : []
+  
+  // Sort by date first, then start time (ascending - earliest first)
+  blocks.value = loadedBlocks.sort((a, b) => {
+    // Extract dates for comparison
+    const dateA = extractDate(a.start || a.end || '')
+    const dateB = extractDate(b.start || b.end || '')
+    
+    // Compare dates first
+    if (dateA && dateB) {
+      const dateCompare = dateA.localeCompare(dateB)
+      if (dateCompare !== 0) return dateCompare
+    } else if (dateA) return -1 // A has date, B doesn't - A comes first
+    else if (dateB) return 1 // B has date, A doesn't - B comes first
+    
+    // If dates are equal or both missing, compare start times
+    const timeA = extractTime(a.start || '')
+    const timeB = extractTime(b.start || '')
+    
+    if (timeA && timeB) {
+      return timeA.localeCompare(timeB)
+    } else if (timeA) return -1
+    else if (timeB) return 1
+    
+    return 0 // Both missing, keep order
+  })
 }
 
 // --- Central Flush Logic ---
@@ -210,7 +235,7 @@ function combineDateTime(date: string, time: string): string | null {
 }
 
 // --- Actions ---
-async function addCustom() {
+function addCustom() {
   if (!props.planId) return
   const baseDate = props.eventDate ? new Date(props.eventDate) : new Date()
   // Format as YYYY-MM-DD
@@ -226,6 +251,12 @@ async function addCustom() {
     start: combineDateTime(dateStr, '06:00') || `${dateStr} 06:00:00`,
     end: combineDateTime(dateStr, '07:00') || `${dateStr} 07:00:00`
   }
+  
+  // Optimistically add to UI at the top so it shows immediately
+  blocks.value.unshift(draft)
+  
+  // Schedule update - this will start the countdown timer
+  // User can now edit the block before it's saved and regenerated
   scheduleUpdate('extra_block_add', draft)
 }
 
@@ -235,10 +266,12 @@ function confirmDeleteBlock(block: ExtraBlock) {
 function cancelDeleteBlock() {
   blockToDelete.value = null
 }
-function deleteBlock() {
+async function deleteBlock() {
   if (!blockToDelete.value?.id) return
   scheduleUpdate('extra_block_delete', blockToDelete.value)
   blockToDelete.value = null
+  // Immediately flush to delete the block and refresh the list
+  await immediateFlush()
 }
 
 function saveBlock(block: ExtraBlock) {
