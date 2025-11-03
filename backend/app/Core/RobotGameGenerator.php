@@ -665,11 +665,11 @@ class RobotGameGenerator
         }
     }
     
-    public function insertFinalRound(int $teamCount): void
+    public function insertFinalRound(int $teamCount, bool $skipInsertPoint = false): void
     {
         switch ($teamCount) {
             case 16:
-                $this->writer->withGroup('r_final_16', function () {
+                $this->writer->withGroup('r_final_16', function () use ($skipInsertPoint) {
                     // 4 tables alternating
                     for ($i = 0; $i < 4; $i++) {
                         $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_16"));
@@ -683,12 +683,14 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    $this->writer->insertPoint('c_after_final_16', $this->pp("r_duration_results"), $this->rTime);
+                    if (!$skipInsertPoint) {
+                        $this->writer->insertPoint('c_after_final_16', $this->pp("r_duration_results"), $this->rTime);
+                    }
                 });
                 break;
 
             case 8:
-                $this->writer->withGroup('r_final_8', function () {
+                $this->writer->withGroup('r_final_8', function () use ($skipInsertPoint) {
                     if ($this->pp("r_tables") == 2) {
                         for ($i = 0; $i < 4; $i++) {
                             $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_8"));
@@ -708,13 +710,15 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    $this->writer->insertPoint('c_after_final_8', $this->pp("r_duration_results"), $this->rTime);
+                    if (!$skipInsertPoint) {
+                        $this->writer->insertPoint('c_after_final_8', $this->pp("r_duration_results"), $this->rTime);
+                    }
                     
                 });
                 break;
 
             case 4:
-                $this->writer->withGroup('r_final_4', function () {
+                $this->writer->withGroup('r_final_4', function () use ($skipInsertPoint) {
                     if ($this->pp("r_final_8")) {
                         // TODO texts: QF1..QF4
                         if ($this->pp("r_tables") == 2) {
@@ -749,12 +753,14 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    $this->writer->insertPoint('c_after_final_4', $this->pp("r_duration_results"), $this->rTime);
+                    if (!$skipInsertPoint) {
+                        $this->writer->insertPoint('c_after_final_4', $this->pp("r_duration_results"), $this->rTime);
+                    }
                 });
                 break;
 
             case 2:
-                $this->writer->withGroup('r_final_2', function () {
+                $this->writer->withGroup('r_final_2', function () use ($skipInsertPoint) {
                     $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_2"));
                     $this->rTime->addMinutes($this->pp("r_duration_match"));
 
@@ -765,7 +771,9 @@ class RobotGameGenerator
                     $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, false);
                     $this->rTime->addMinutes($this->pp("r_duration_match"));
 
-                    $this->writer->insertPoint('c_after_final_2', $this->pp("c_ready_awards"), $this->rTime);
+                    if (!$skipInsertPoint) {
+                        $this->writer->insertPoint('c_after_final_2', $this->pp("c_ready_awards"), $this->rTime);
+                    }
                 });
                 break;
         }
