@@ -36,11 +36,19 @@ const blockToDelete = ref<ExtraBlock | null>(null)
 
 // --- Debounced Saving ---
 const savingToast = ref(null)
+const countdownSeconds = ref<number | null>(null)
 
-const { scheduleUpdate, flush } = useDebouncedSave({
+const { scheduleUpdate, flush, immediateFlush } = useDebouncedSave({
   delay: DEBOUNCE_DELAY,
-  onShowToast: () => savingToast.value?.show(),
-  onHideToast: () => savingToast.value?.hide(),
+  onShowToast: (countdown) => {
+    countdownSeconds.value = countdown
+  },
+  onHideToast: () => {
+    countdownSeconds.value = null
+  },
+  onCountdownUpdate: (seconds) => {
+    countdownSeconds.value = seconds
+  },
   onSave: async (updates) => {
     await flushUpdates(updates)
   }
@@ -276,6 +284,11 @@ const deleteMessage = computed(() => {
       @cancel="cancelDeleteBlock"
     />
 
-    <SavingToast ref="savingToast" message="Block-Änderungen werden gespeichert..." />
+    <SavingToast 
+      ref="savingToast" 
+      :countdown="countdownSeconds"
+      :on-immediate-save="immediateFlush"
+      message="Block-Änderungen werden gespeichert..."
+    />
   </div>
 </template>
