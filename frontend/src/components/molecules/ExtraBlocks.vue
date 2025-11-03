@@ -277,6 +277,21 @@ function handleDateChange(block: ExtraBlock, date: string) {
   saveBlock(block)
 }
 
+// Helper function to round minutes to nearest multiple of 5
+function roundTo5Minutes(time: string): string {
+  if (!time || !time.includes(':')) return '00:00'
+  const [hours, minutes] = time.split(':').map(Number)
+  const roundedMinutes = Math.round(minutes / 5) * 5
+  // Handle wrap-around if minutes round to 60
+  let finalHours = hours
+  let finalMinutes = roundedMinutes
+  if (finalMinutes >= 60) {
+    finalHours = (finalHours + 1) % 24
+    finalMinutes = 0
+  }
+  return `${String(finalHours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`
+}
+
 // Helper function to add 5 minutes to a time string (HH:mm)
 function add5Minutes(time: string): string {
   if (!time || !time.includes(':')) return '00:00'
@@ -306,15 +321,21 @@ function handleStartTimeChange(block: ExtraBlock, time: string) {
   
   if (!date) return // Need date first
   
+  // Round time to nearest 5 minutes
+  const roundedTime = roundTo5Minutes(time)
+  
   // If start time is greater than or equal to end time, set end to start + 5 minutes
-  if (endTime && compareTimes(time, endTime) >= 0) {
-    endTime = add5Minutes(time)
+  if (endTime && compareTimes(roundedTime, endTime) >= 0) {
+    endTime = add5Minutes(roundedTime)
   } else if (!endTime) {
     // If no end time exists, set it to start + 5 minutes
-    endTime = add5Minutes(time)
+    endTime = add5Minutes(roundedTime)
+  } else {
+    // Round existing end time as well
+    endTime = roundTo5Minutes(endTime)
   }
   
-  block.start = combineDateTime(date, time)
+  block.start = combineDateTime(date, roundedTime)
   // Ensure end uses the same date
   block.end = combineDateTime(date, endTime)
   saveBlock(block)
@@ -324,13 +345,23 @@ function handleStartTimeChange(block: ExtraBlock, time: string) {
 function handleEndTimeChange(block: ExtraBlock, time: string) {
   // Always use the same date for both start and end
   const date = extractDate(block.start || block.end || '')
-  const startTime = extractTime(block.start || '')
+  let startTime = extractTime(block.start || '')
   
   if (!date) return // Need date first
   
+  // Round time to nearest 5 minutes
+  const roundedTime = roundTo5Minutes(time)
+  
+  // Round existing start time as well
+  if (startTime) {
+    startTime = roundTo5Minutes(startTime)
+  } else {
+    startTime = '00:00'
+  }
+  
   // Ensure start uses the same date
-  block.start = combineDateTime(date, startTime || '00:00')
-  block.end = combineDateTime(date, time)
+  block.start = combineDateTime(date, startTime)
+  block.end = combineDateTime(date, roundedTime)
   saveBlock(block)
 }
 
