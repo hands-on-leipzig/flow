@@ -5,6 +5,7 @@ import axios from "axios";
 import {useEventStore} from "@/stores/event";
 import IconDraggable from "@/components/icons/IconDraggable.vue";
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import SavingToast from "@/components/atoms/SavingToast.vue"
 
 const props = defineProps({
   program: {type: String, required: true}, // 'explore' or 'challenge'
@@ -19,6 +20,8 @@ const teamsDiffer = ref(false)
 const showDiffModal = ref(false)
 // No background color needed - using subtle grey instead
 
+const savingToast = ref(null)
+
 const ignoredTeamNumbers = ref(new Set())
 
 watch(() => props.teams, (newVal) => {
@@ -30,6 +33,8 @@ const onSort = async () => {
     team_id: team.id,
     order: index + 1
   }))
+
+  savingToast?.value?.show()
 
   try {
     await axios.post(`/events/${event.value?.id}/teams/update-order`, {
@@ -44,6 +49,7 @@ const onSort = async () => {
 }
 
 const updateTeamName = async (team) => {
+  savingToast?.value?.show()
   try {
     await axios.put(`/events/${event.value?.id}/teams`, {
       id: team.id,
@@ -58,6 +64,7 @@ const updateTeamName = async (team) => {
 }
 
 const updateTeamNoshow = async (team) => {
+  savingToast?.value?.show()
   try {
     await axios.put(`/events/${event.value?.id}/teams`, {
       id: team.id,
@@ -289,6 +296,8 @@ onMounted(async () => {
 </script>
 
 <template>
+  <SavingToast ref="savingToast"/>
+
   <div class="overflow-y-auto max-h-[80vh] lg:max-h-none mx-4">
     <div class="p-4 border rounded shadow">
       <div class="flex items-center gap-2 mb-2">

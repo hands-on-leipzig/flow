@@ -88,7 +88,7 @@ class FreeBlockGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Failed to insert free activities: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Einfügen der freien Aktivitäten (Plan-ID: {$this->planId}): {$e->getMessage()}", 0, $e);
         }
     }
 }

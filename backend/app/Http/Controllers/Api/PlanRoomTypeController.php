@@ -48,6 +48,8 @@ class PlanRoomTypeController extends Controller
             ->pluck('room_type')
             ->toArray();
 
+        // Extra blocks are considered mapped if they have a room assigned
+        // OR if their start date is before the event date (past blocks don't need room assignment)
         $mappedExtras = DB::table('extra_block')
             ->where('plan', $planId)
             ->where(function ($q) use ($event) {
@@ -59,12 +61,13 @@ class PlanRoomTypeController extends Controller
 
         // Log::info('Mapped Normal Room Types for plan '.$planId.': '.json_encode($mappedNormal));
 
-        $unmapped = $roomTypes->map(function ($group) use ($mappedNormal, $mappedExtras) {
+        $unmapped = $roomTypes->map(function ($group) use ($mappedNormal, $mappedExtras, $event) {
             $isExtraGroup = ($group['id'] ?? 0) === 999;
 
-            $filtered = collect($group['room_types'])->filter(function ($rt) use ($isExtraGroup, $mappedNormal, $mappedExtras) {
+            $filtered = collect($group['room_types'])->filter(function ($rt) use ($isExtraGroup, $mappedNormal, $mappedExtras, $event) {
                 if ($isExtraGroup) {
                     // Extra Blocks → ID steht in type_id
+                    // Only consider blocks that need room assignment (not already mapped AND not past)
                     return !in_array($rt['type_id'], $mappedExtras);
                 } else {
                     // Normale Room Types
