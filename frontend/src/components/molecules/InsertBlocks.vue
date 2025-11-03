@@ -5,7 +5,8 @@ import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { useDebouncedSave } from "@/composables/useDebouncedSave";
-import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";  
+import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";
+import SavingToast from "@/components/atoms/SavingToast.vue";  
 
 type InsertPoint = {
   id: number
@@ -56,8 +57,20 @@ const insertPoints = ref<InsertPoint[]>([])
 const blocks = ref<ExtraBlock[]>([])
 
 // --- Debounced update system ---
-const { scheduleUpdate: scheduleUpdateDebounced, flush: flushDebounced } = useDebouncedSave({
+const savingToast = ref(null)
+const countdownSeconds = ref<number | null>(null)
+
+const { scheduleUpdate: scheduleUpdateDebounced, flush: flushDebounced, immediateFlush } = useDebouncedSave({
   delay: DEBOUNCE_DELAY,
+  onShowToast: (countdown) => {
+    countdownSeconds.value = countdown
+  },
+  onHideToast: () => {
+    countdownSeconds.value = null
+  },
+  onCountdownUpdate: (seconds) => {
+    countdownSeconds.value = seconds
+  },
   onSave: async (updates) => {
     await flushUpdates(updates)
   }
@@ -74,9 +87,24 @@ async function flushUpdates(updates: Record<string, any>) {
   
   if (Object.keys(updates).length === 0) return
 
-  // Group updates by block ID
-  const updatesByBlock: Record<string, Record<string, any>> = {}
+  // Separate new blocks from existing block updates
+  const newBlocks: Array<{ name: string, value: any }> = []
+  const existingUpdates: Record<string, any> = {}
+
   Object.entries(updates).forEach(([key, value]) => {
+    if (key.startsWith('block_new_')) {
+      // New block creation
+      const pointId = key.replace('block_new_', '')
+      newBlocks.push({ name: `block_new_${pointId}`, value })
+    } else {
+      // Existing block update
+      existingUpdates[key] = value
+    }
+  })
+
+  // Group existing updates by block ID
+  const updatesByBlock: Record<string, Record<string, any>> = {}
+  Object.entries(existingUpdates).forEach(([key, value]) => {
     // Parse: "123_buffer_before" -> blockId="123", field="buffer_before"
     const parts = key.split('_')
     if (parts.length >= 2) {
@@ -88,6 +116,7 @@ async function flushUpdates(updates: Record<string, any>) {
   })
   
   console.log('Block updates grouped:', updatesByBlock)
+  console.log('New blocks:', newBlocks)
   
   // Apply updates to blocks locally
   for (const [blockId, updates] of Object.entries(updatesByBlock)) {
@@ -98,16 +127,23 @@ async function flushUpdates(updates: Record<string, any>) {
   }
   
   // Convert to parameter-style updates for the parent
-  const updateArray = Object.entries(updates).map(([key, value]) => {
+  const updateArray: Array<{ name: string, value: any }> = []
+  
+  // Add existing block updates
+  Object.entries(existingUpdates).forEach(([key, value]) => {
     // Parse: "28_buffer_before" -> blockId="28", field="buffer_before"
     const parts = key.split('_')
     if (parts.length >= 2) {
       const blockId = parts[0] // "28"
       const field = parts.slice(1).join('_') // "buffer_before"
-      return { name: `block_${blockId}_${field}`, value }
+      updateArray.push({ name: `block_${blockId}_${field}`, value })
+    } else {
+      updateArray.push({ name: key, value }) // fallback
     }
-    return { name: key, value } // fallback
   })
+  
+  // Add new blocks
+  updateArray.push(...newBlocks)
   
   // Send to parent's update system
   console.log('Sending updates to parent:', updateArray)
@@ -201,7 +237,7 @@ function isBlockEditable(pointId: number) {
   return block && block.active !== false
 }
 
-async function togglePoint(point: InsertPoint, enabled: boolean) {
+function togglePoint(point: InsertPoint, enabled: boolean) {
   if (props.planId == null) return // guard
   
   // Finde bestehenden Block
@@ -209,10 +245,10 @@ async function togglePoint(point: InsertPoint, enabled: boolean) {
   const activeValue = enabled ? 1 : 0
 
   if (existing?.id) {
-    // Nur aktiv/inaktiv umschalten → zentral über Parent speichern
+    // Nur aktiv/inaktiv umschalten → caught by debouncer with countdown
     scheduleUpdate(existing.id.toString(), 'active', activeValue)
   } else if (enabled) {
-    // Neuer Block aktivieren → zentral speichern
+    // Neuer Block aktivieren → caught by debouncer with countdown
     const draft: ExtraBlock = {
       plan: props.planId,
       first_program: point.first_program ?? null,
@@ -226,10 +262,12 @@ async function togglePoint(point: InsertPoint, enabled: boolean) {
       active: true
     }
 
-    // Parent informieren
-    if (props.onUpdate) {
-      props.onUpdate([{ name: `block_new_${point.id}`, value: draft }])
-    }
+    // Schedule via debouncer instead of immediate update
+    scheduleUpdateDebounced(`block_new_${point.id}`, draft)
+  } else {
+    // Disabling a new block (that doesn't exist yet) - nothing to do
+    // But if it was just created and we're toggling off, we'd need to track it
+    // For now, this case is handled by the block existing after creation
   }
 }
 
@@ -423,5 +461,12 @@ defineExpose({
     </div>
 
     <div v-if="loading || saving" class="text-sm text-gray-500 px-4 py-2">Speichere / lade…</div>
+    
+    <SavingToast 
+      ref="savingToast" 
+      :countdown="countdownSeconds"
+      :on-immediate-save="immediateFlush"
+      message="Block-Änderungen werden gespeichert..."
+    />
   </div>
 </template>
