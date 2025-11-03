@@ -195,7 +195,7 @@ class PlanController extends Controller
 
         $teamPlanEntries = [];
 
-        // Add explore teams with order
+        // Add explore teams with order (starting from 1)
         foreach ($exploreTeams as $index => $team) {
             $teamPlanEntries[] = [
                 'team' => $team->id,
@@ -205,13 +205,12 @@ class PlanController extends Controller
             ];
         }
 
-        // Add challenge teams with order (continuing from explore teams)
-        $challengeStartOrder = $exploreTeams->count() + 1;
+        // Add challenge teams with order (also starting from 1, independently)
         foreach ($challengeTeams as $index => $team) {
             $teamPlanEntries[] = [
                 'team' => $team->id,
                 'plan' => $planId,
-                'team_number_plan' => $challengeStartOrder + $index,
+                'team_number_plan' => $index + 1,
                 'room' => null
             ];
         }
@@ -282,18 +281,40 @@ class PlanController extends Controller
             return; // All teams already have entries
         }
 
-        // Get the highest current team_number_plan for this plan
-        $maxOrder = TeamPlan::where('plan', $planId)
-            ->max('team_number_plan') ?? 0;
-        Log::info("Max team_number_plan for plan $planId: $maxOrder");
+        // Group missing teams by program
+        $missingExploreTeams = $missingTeams->where('first_program', FirstProgram::EXPLORE->value)->values();
+        $missingChallengeTeams = $missingTeams->where('first_program', FirstProgram::CHALLENGE->value)->values();
 
-        // Add missing teams with sequential order
+        // Get max team_number_plan per program for this plan
+        $existingExploreMax = TeamPlan::where('plan', $planId)
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team.first_program', FirstProgram::EXPLORE->value)
+            ->max('team_plan.team_number_plan') ?? 0;
+        
+        $existingChallengeMax = TeamPlan::where('plan', $planId)
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team.first_program', FirstProgram::CHALLENGE->value)
+            ->max('team_plan.team_number_plan') ?? 0;
+
+        Log::info("Max team_number_plan for explore: $existingExploreMax, challenge: $existingChallengeMax");
+
+        // Add missing teams with sequential order per program (starting from max+1 for each program)
         $teamPlanEntries = [];
-        foreach ($missingTeams as $index => $team) {
+        
+        foreach ($missingExploreTeams as $index => $team) {
             $teamPlanEntries[] = [
                 'team' => $team->id,
                 'plan' => $planId,
-                'team_number_plan' => $maxOrder + $index + 1,
+                'team_number_plan' => $existingExploreMax + $index + 1,
+                'room' => null
+            ];
+        }
+
+        foreach ($missingChallengeTeams as $index => $team) {
+            $teamPlanEntries[] = [
+                'team' => $team->id,
+                'plan' => $planId,
+                'team_number_plan' => $existingChallengeMax + $index + 1,
                 'room' => null
             ];
         }
