@@ -437,7 +437,7 @@ const deleteMessage = computed(() => {
                 <!-- Date field (first line) -->
                 <input 
                   :value="extractDate(b.start || b.end)" 
-                  class="w-full border rounded px-1 py-1 text-xs" 
+                  class="w-full border rounded px-2 py-1 text-sm" 
                   type="date"
                   @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
                 />
@@ -445,7 +445,7 @@ const deleteMessage = computed(() => {
                 <div class="flex space-x-1">
                   <input 
                     :value="extractTime(b.start)" 
-                    class="flex-1 border rounded px-1 py-1 text-xs" 
+                    class="flex-1 border rounded px-2 py-1 text-sm" 
                     type="time"
                     step="300"
                     min="00:00"
@@ -455,7 +455,7 @@ const deleteMessage = computed(() => {
                   />
                   <input 
                     :value="extractTime(b.end)" 
-                    class="flex-1 border rounded px-1 py-1 text-xs" 
+                    class="flex-1 border rounded px-2 py-1 text-sm" 
                     type="time"
                     step="300"
                     min="00:00"
