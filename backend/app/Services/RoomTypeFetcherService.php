@@ -24,7 +24,8 @@ class RoomTypeFetcherService
             'rt.id   as type_id',
             'rt.name as type_name',
             'rt.sequence as type_seq',
-            'rt.first_program'
+            'rt.first_program',
+            DB::raw("'room_type' as item_type")
         )
         ->distinct()
         ->orderBy('rt.sequence')
@@ -44,7 +45,8 @@ class RoomTypeFetcherService
                 'eb.id as type_id',
                 'eb.name as type_name',
                 DB::raw('0 as type_seq'),
-                'eb.first_program'
+                'eb.first_program',
+                DB::raw("'extra_block' as item_type")
             )
             ->distinct()
             ->orderBy('eb.name')
@@ -71,7 +73,8 @@ class RoomTypeFetcherService
                         ->map(fn($r) => [
                             'type_id' => (int) $r->type_id,
                             'type_name' => $r->type_name,
-                            'first_program' => (int) ($r->first_program ?? 0), 
+                            'first_program' => (int) ($r->first_program ?? 0),
+                            'item_type' => $r->item_type ?? 'room_type', // 'room_type' or 'extra_block'
                         ])
                         ->values()
                         ->all(),
