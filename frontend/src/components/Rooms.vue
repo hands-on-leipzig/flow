@@ -108,11 +108,13 @@ onMounted(async () => {
         name: g.name,
         items: g.room_types.map(rt => ({
           id: rt.type_id,
-          key: `activity-${rt.type_id}`,   // ✅ gleiche Struktur wie bei Teams
+          // Use item_type from backend to create unique keys (prevents collision between room_type.id=5 and extra_block.id=5)
+          key: rt.item_type === 'extra_block' ? `activity-eb-${rt.type_id}` : `activity-rt-${rt.type_id}`,
           name: rt.type_name,
           first_program: rt.first_program,
           type: 'activity',
-          group: { id: g.id, name: g.name }
+          group: { id: g.id, name: g.name },
+          item_type: rt.item_type || 'room_type' // Store for reference
         }))
       }))
     },
@@ -133,10 +135,12 @@ onMounted(async () => {
   // 1) Activities (RoomTypes + Extra Blocks)
   roomsData.rooms.forEach(room => {
     (room.room_types ?? []).forEach(rt => {
-      result[`activity-${rt.id}`] = room.id
+      // Use rt prefix for room types
+      result[`activity-rt-${rt.id}`] = room.id
     })
     ;(room.extra_blocks ?? []).forEach(eb => {
-      result[`activity-${eb.id}`] = room.id
+      // Use eb prefix for extra blocks
+      result[`activity-eb-${eb.id}`] = room.id
     })
   })
 
@@ -195,7 +199,7 @@ const assignItemToRoom = async (itemKey, roomId) => {
       type_id: item.id,
       room_id: roomId,
       event: eventStore.selectedEvent?.id,
-      extra_block: item?.group?.id === 999
+      extra_block: item?.item_type === 'extra_block' || item?.group?.id === 999
     })
   }
 
@@ -217,12 +221,57 @@ const assignItemToRoom = async (itemKey, roomId) => {
 // --- Item nach ID finden ---
 const findItemById = (idOrKey) => {
   const str = String(idOrKey)
-  const [prefix, num] = str.includes('-') ? str.split('-') : [null, str]
-  const normalizedId = Number(num)
-  const typeFilter = prefix === 'team' || prefix === 'activity' ? prefix : null
-
+  
+  // Handle new key format: activity-rt-5, activity-eb-5, team-123, proxy-explore, etc.
+  if (str.includes('-')) {
+    const parts = str.split('-')
+    
+    // Handle proxy keys
+    if (parts[0] === 'proxy') {
+      return null // Proxy items don't need lookup
+    }
+    
+    // Handle activity keys: activity-rt-5 or activity-eb-5
+    if (parts[0] === 'activity' && (parts[1] === 'rt' || parts[1] === 'eb')) {
+      const normalizedId = Number(parts[2])
+      for (const category of assignables.value) {
+        if (category.type !== 'activity') continue
+        for (const group of category.groups) {
+          const found = group.items.find(i => i.id === normalizedId)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    
+    // Handle team keys: team-123
+    if (parts[0] === 'team') {
+      const normalizedId = Number(parts[1])
+      for (const category of assignables.value) {
+        if (category.type !== 'team') continue
+        for (const group of category.groups) {
+          const found = group.items.find(i => i.id === normalizedId)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    
+    // Legacy format fallback: activity-5 or team-5 (for backwards compatibility)
+    const normalizedId = Number(parts[1])
+    const typeFilter = parts[0] === 'team' || parts[0] === 'activity' ? parts[0] : null
+    for (const category of assignables.value) {
+      if (typeFilter && category.type !== typeFilter) continue
+      for (const group of category.groups) {
+        const found = group.items.find(i => i.id === normalizedId)
+        if (found) return found
+      }
+    }
+  }
+  
+  // If no dashes, treat as plain ID and search all items
+  const normalizedId = Number(str)
   for (const category of assignables.value) {
-    if (typeFilter && category.type !== typeFilter) continue
     for (const group of category.groups) {
       const found = group.items.find(i => i.id === normalizedId)
       if (found) return found
@@ -246,7 +295,7 @@ const unassignItemFromRoom = async (itemKey) => {
   assignments.value[itemKey] = null
 
   if (item.type === 'activity') {
-    const isExtraBlock = item?.group?.id === 999
+    const isExtraBlock = item?.item_type === 'extra_block' || item?.group?.id === 999
     await axios.put(`/rooms/assign-types`, {
       type_id: item.id,
       room_id: null,
@@ -621,11 +670,11 @@ const getItemsInRoom = (roomId) => {
           }
         } else {
           // Individual mode: show individual teams assigned to this room
-          all.push(...group.items.filter(i => assignments.value[`${i.type}-${i.id}`] === roomId))
+          all.push(...group.items.filter(i => assignments.value[i.key] === roomId))
         }
       } else {
-        // Activities: normal behavior
-        all.push(...group.items.filter(i => assignments.value[`${i.type}-${i.id}`] === roomId))
+        // Activities: use the item's key property (which has rt/eb prefix)
+        all.push(...group.items.filter(i => assignments.value[i.key] === roomId))
       }
     }
   }
@@ -927,7 +976,7 @@ const hasWarning = (tab) => {
                     program: group.id
                   }].filter(p => !assignments[p.key])
                 })()
-              : group.items.filter(i => !assignments[`${i.type}-${i.id}`])"
+              : group.items.filter(i => !assignments[i.key])"
             group="assignables"
             item-key="key"
             class="flex flex-wrap gap-2"
