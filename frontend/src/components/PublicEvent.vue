@@ -20,8 +20,21 @@
       </div>
     </div>
 
-    <!-- Event Content -->
-    <div v-else-if="event" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
+    <!-- Level 4: Public Plan (embedded in iframe) - Full screen, no margins -->
+    <div v-if="!loading && !error && event && isContentVisible(4) && publicPlanId"
+         class="w-full fixed inset-0"
+         style="margin: 0; padding: 0; border: none; z-index: 1000;">
+      <iframe
+        :src="`/output/zeitplan.cgi?plan=${publicPlanId}`"
+        class="w-full h-full border-0"
+        style="margin: 0; padding: 0; border: none; width: 100%; height: 100%;"
+        frameborder="0"
+        scrolling="auto"
+      ></iframe>
+    </div>
+
+    <!-- Event Content (hidden when level 4 is active) -->
+    <div v-else-if="event && !(isContentVisible(4) && publicPlanId)" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
       <!-- Header with Program Logos -->
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ event.name }}</h1>
@@ -260,20 +273,6 @@
         </div>
       </div>
 
-      <!-- Level 4: Public Plan (redirects to zeitplan.cgi) -->
-      <div v-if="isContentVisible(4) && scheduleInfo?.plan"
-           class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div class="text-center">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">
-            Vollständiger Veranstaltungsplan
-          </h2>
-          <p class="text-gray-600 mb-4">
-            Der vollständige Veranstaltungsplan wird geladen...
-          </p>
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        </div>
-      </div>
-
       <!-- QR Code Section -->
       <div v-if="event.link" class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">
@@ -308,6 +307,7 @@ const event = ref(null)
 const scheduleInfo = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const publicPlanId = ref(null)
 
 const loadEvent = async () => {
   try {
@@ -322,15 +322,11 @@ const loadEvent = async () => {
     const scheduleResponse = await axios.get(`/publish/public-information/${event.value.id}`)
     scheduleInfo.value = scheduleResponse.data
 
-    // If level 4, redirect to zeitplan.cgi
+    // If level 4, fetch plan ID for embedding (no redirect)
     if (scheduleInfo.value?.level === 4) {
       try {
         const planResponse = await axios.get(`/plans/public/${event.value.id}`)
-        const planId = planResponse.data.id
-
-        // Redirect to zeitplan.cgi with plan ID
-        window.location.href = `/zeitplan.cgi?plan=${planId}`
-        return
+        publicPlanId.value = planResponse.data.id
       } catch (planError) {
         console.error('Error fetching plan ID:', planError)
         // Continue showing the page if plan fetch fails
