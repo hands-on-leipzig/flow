@@ -150,6 +150,9 @@ onMounted(async () => {
   // 3) Zusammenführen
   assignments.value = result
 
+  // Load saved bulk mode preferences for this event
+  loadBulkModePreferences()
+
   // (Optional zum Prüfen)
   // console.log('Assignments summary:', {
   //   activities: Object.keys(result).filter(k => k.startsWith('activity-')).length,
@@ -382,6 +385,46 @@ const bulkModeChallenge = ref(false)
 // Proxy keys for bulk assignment (constants for internal use)
 const PROXY_EXPLORE_KEY = 'proxy-explore'
 const PROXY_CHALLENGE_KEY = 'proxy-challenge'
+
+// --- Persistence: localStorage with event scope ---
+const getStorageKey = () => {
+  if (!eventId.value) return null
+  return `rooms-bulk-mode-${eventId.value}`
+}
+
+// Load saved bulk mode preferences for current event
+const loadBulkModePreferences = () => {
+  const key = getStorageKey()
+  if (!key) return
+  
+  try {
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      const { explore, challenge } = JSON.parse(saved)
+      bulkModeExplore.value = explore ?? false
+      bulkModeChallenge.value = challenge ?? false
+    }
+  } catch (e) {
+    console.warn('Failed to load bulk mode preferences', e)
+  }
+}
+
+// Save bulk mode preferences when they change
+watch([bulkModeExplore, bulkModeChallenge], ([explore, challenge]) => {
+  const key = getStorageKey()
+  if (!key) return
+  
+  try {
+    localStorage.setItem(key, JSON.stringify({ explore, challenge }))
+  } catch (e) {
+    console.warn('Failed to save bulk mode preferences', e)
+  }
+})
+
+// Reload preferences when event changes
+watch(eventId, () => {
+  loadBulkModePreferences()
+})
 
 // Find proxy assignment room ID (returns null if not assigned)
 const getProxyRoomId = (proxyKey) => {
