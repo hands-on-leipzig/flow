@@ -151,6 +151,7 @@ onMounted(async () => {
   assignments.value = result
 
   // Load saved bulk mode preferences for this event
+  // This will also restore proxy assignments via nextTick callback
   loadBulkModePreferences()
 
   // (Optional zum Prüfen)
@@ -403,9 +404,50 @@ const loadBulkModePreferences = () => {
       const { explore, challenge } = JSON.parse(saved)
       bulkModeExplore.value = explore ?? false
       bulkModeChallenge.value = challenge ?? false
+      
+      // Restore proxy assignments if bulk mode is enabled and teams are assigned
+      // We need to check after assignments are loaded, so we'll call restoreProxyAssignments separately
+      nextTick(() => {
+        restoreProxyAssignments()
+      })
     }
   } catch (e) {
     console.warn('Failed to load bulk mode preferences', e)
+  }
+}
+
+// Restore proxy assignments based on actual team assignments
+const restoreProxyAssignments = () => {
+  // Check Explore teams
+  if (bulkModeExplore.value && exploreTeams.value.length > 0) {
+    const teamsWithAssignments = exploreTeams.value
+      .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
+      .filter(t => t.room !== null && t.room !== undefined)
+    
+    if (teamsWithAssignments.length === exploreTeams.value.length) {
+      // All teams assigned - check if they're in the same room
+      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
+      if (roomIds.length === 1) {
+        // All teams in the same room - restore proxy assignment
+        assignments.value[PROXY_EXPLORE_KEY] = roomIds[0]
+      }
+    }
+  }
+  
+  // Check Challenge teams
+  if (bulkModeChallenge.value && challengeTeams.value.length > 0) {
+    const teamsWithAssignments = challengeTeams.value
+      .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
+      .filter(t => t.room !== null && t.room !== undefined)
+    
+    if (teamsWithAssignments.length === challengeTeams.value.length) {
+      // All teams assigned - check if they're in the same room
+      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
+      if (roomIds.length === 1) {
+        // All teams in the same room - restore proxy assignment
+        assignments.value[PROXY_CHALLENGE_KEY] = roomIds[0]
+      }
+    }
   }
 }
 
