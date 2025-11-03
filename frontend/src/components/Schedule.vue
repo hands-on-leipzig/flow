@@ -17,6 +17,7 @@ import {Parameter, ParameterCondition} from "@/models/Parameter"
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import TeamSelectionExample from "@/components/molecules/TeamSelectionExample.vue";
 import SavingToast from "@/components/atoms/SavingToast.vue";
+import { useDebouncedSave } from "@/composables/useDebouncedSave";
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
@@ -110,6 +111,8 @@ const fetchParams = async (planId: number) => {
     originalValues.value = Object.fromEntries(
         parameters.value.map(p => [p.name, p.value])
     )
+    // Also sync with composable's original values
+    setOriginals(originalValues.value)
 
     // Initial toggle states based on params
     showExplore.value = Number(paramMapByName.value['e_mode']?.value || 0) > 0
@@ -181,15 +184,28 @@ function updateByName(name: string, value: any) {
   updateParam(p)
 }
 
-// Batch parameter update system
-const pendingParamUpdates = ref<Record<string, any>>({})
-const paramUpdateTimeoutId = ref<NodeJS.Timeout | null>(null)
-const PARAM_DEBOUNCE_DELAY = 2000
-
 // Toast notification system
 const showToast = ref(false)
 const progress = ref(100)
 const progressIntervalId = ref<NodeJS.Timeout | null>(null)
+
+// Debounced save system using composable
+const { scheduleUpdate, flush, setOriginal, setOriginals } = useDebouncedSave({
+  delay: 2000,
+  onShowToast: () => savingToast?.value?.show(),
+  onHideToast: () => savingToast?.value?.hide(),
+  changeDetection: (key, newValue, oldValue) => {
+    // String comparison for stable detection
+    const oldVal = String(oldValue ?? '')
+    const newVal = String(newValue ?? '')
+    return oldVal !== newVal
+  },
+  onSave: async (updates) => {
+    // Convert updates to the format expected by updateParams
+    const updateArray = Object.entries(updates).map(([name, value]) => ({name, value}))
+    await updateParams(updateArray)
+  }
+})
 
 // Handle parameter updates from child components
 function handleParamUpdate(param: { name: string, value: any }) {
@@ -213,67 +229,26 @@ function handleParamUpdate(param: { name: string, value: any }) {
   // Update local state immediately
   p.value = param.value
 
-  // Add to pending updates
-  pendingParamUpdates.value[param.name] = param.value
-
-  savingToast?.value?.show()
-
-  // Clear existing timeout
-  if (paramUpdateTimeoutId.value) {
-    clearTimeout(paramUpdateTimeoutId.value)
-  }
-
-  // Schedule batch update
-  paramUpdateTimeoutId.value = setTimeout(() => {
-    flushParamUpdates()
-  }, PARAM_DEBOUNCE_DELAY)
+  // Schedule update using composable
+  scheduleUpdate(param.name, param.value)
 }
 
 // Handle block updates from InsertBlocks component
 function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
   console.log('Received block updates:', updates)
 
-  // Add all block updates to pending parameter updates with proper prefix
+  // Add all block updates using composable
   updates.forEach(update => {
     // Convert "28_buffer_after" to "block_28_buffer_after" for updateParams compatibility
     const prefixedName = update.name.startsWith('block_') ? update.name : `block_${update.name}`
-    pendingParamUpdates.value[prefixedName] = update.value
+    scheduleUpdate(prefixedName, update.value)
   })
-
-  savingToast?.value?.show()
-
-  // Clear existing timeout
-  if (paramUpdateTimeoutId.value) {
-    clearTimeout(paramUpdateTimeoutId.value)
-  }
-
-  // Schedule batch update
-  paramUpdateTimeoutId.value = setTimeout(() => {
-    flushParamUpdates()
-  }, PARAM_DEBOUNCE_DELAY)
 }
 
 // Force immediate update of all pending parameter changes
 function flushParamUpdates() {
-  if (paramUpdateTimeoutId.value) {
-    clearTimeout(paramUpdateTimeoutId.value)
-    paramUpdateTimeoutId.value = null
-  }
-
-  savingToast?.value?.hide()
-
-  if (Object.keys(pendingParamUpdates.value).length > 0) {
-    const updates = {...pendingParamUpdates.value}
-    pendingParamUpdates.value = {}
-
-    updateParams(Object.entries(updates).map(([name, value]) => ({name, value})))
-  }
+  flush()
 }
-
-// Cleanup on unmount
-onUnmounted(() => {
-  flushParamUpdates()
-})
 
 function normalizeValue(value: any, type: string | undefined) {
   if (type === 'boolean') {
@@ -311,6 +286,8 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
       // Nach erfolgreichem Speichern: originalValues anpassen
       params.forEach(({name, value}) => {
         originalValues.value[name] = value
+        // Also sync with composable (though composable already updated its own)
+        setOriginal(name, value)
       })
     }
 

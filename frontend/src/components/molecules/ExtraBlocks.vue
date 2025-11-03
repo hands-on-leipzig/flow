@@ -5,6 +5,8 @@ import ToggleSwitch from '../atoms/ToggleSwitch.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import SavingToast from "@/components/atoms/SavingToast.vue";
+import { useDebouncedSave } from "@/composables/useDebouncedSave";
+import { TIMING_FIELDS, DEBOUNCE_DELAY } from "@/constants/extraBlocks";
 
 type Maybe<T> = T | null | undefined
 
@@ -33,10 +35,16 @@ const blocks = ref<ExtraBlock[]>([])
 const blockToDelete = ref<ExtraBlock | null>(null)
 
 // --- Debounced Saving ---
-const pendingUpdates = ref<Record<string, any>>({})
-const updateTimeoutId = ref<NodeJS.Timeout | null>(null)
-const DEBOUNCE_DELAY = 2000
 const savingToast = ref(null)
+
+const { scheduleUpdate, flush } = useDebouncedSave({
+  delay: DEBOUNCE_DELAY,
+  onShowToast: () => savingToast.value?.show(),
+  onHideToast: () => savingToast.value?.hide(),
+  onSave: async (updates) => {
+    await flushUpdates(updates)
+  }
+})
 
 // --- Computed ---
 const customBlocks = computed(() => blocks.value.filter(b => !('insert_point' in b) || !b.insert_point))
@@ -56,9 +64,7 @@ onMounted(() => {
 })
 watch(() => props.planId, v => { if (v != null) loadBlocks() }, { immediate: true })
 
-onUnmounted(() => {
-  if (updateTimeoutId.value) clearTimeout(updateTimeoutId.value)
-})
+// Cleanup handled by composable
 
 // --- Load blocks ---
 async function loadBlocks() {
@@ -69,23 +75,13 @@ async function loadBlocks() {
 }
 
 // --- Central Flush Logic ---
-async function flushUpdates() {
-  if (updateTimeoutId.value) {
-    clearTimeout(updateTimeoutId.value)
-    updateTimeoutId.value = null
-  }
-
-  savingToast.value?.hide()
-
-  const updates = Object.entries(pendingUpdates.value)
-  if (updates.length === 0) return
-  pendingUpdates.value = {}
+async function flushUpdates(updates: Record<string, any>) {
+  if (!props.planId) return
 
   try {
-    for (const [name, value] of updates) {
+    for (const [name, value] of Object.entries(updates)) {
       if (name === 'extra_block_update' && value) {
-        const timingFields = ['start', 'end', 'buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
-        const hasTimingChanges = Object.keys(value).some(f => timingFields.includes(f))
+        const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f))
         const blockData = { ...value }
         if (!hasTimingChanges) blockData.skip_regeneration = true
         await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
@@ -101,14 +97,6 @@ async function flushUpdates() {
   } catch (error) {
     console.error('Error flushing updates:', error)
   }
-}
-
-// --- Unified Debounced Update ---
-function scheduleFlush(name: string, value: any) {
-  pendingUpdates.value[name] = value
-  savingToast.value?.show()
-  if (updateTimeoutId.value) clearTimeout(updateTimeoutId.value)
-  updateTimeoutId.value = setTimeout(() => flushUpdates(), DEBOUNCE_DELAY)
 }
 
 // --- Helpers ---
@@ -137,7 +125,7 @@ async function addCustom() {
     start: fromLocalInput(start.toISOString().slice(0, 16)),
     end: fromLocalInput(end.toISOString().slice(0, 16))
   }
-  scheduleFlush('extra_block_add', draft)
+  scheduleUpdate('extra_block_add', draft)
 }
 
 function confirmDeleteBlock(block: ExtraBlock) {
@@ -148,18 +136,18 @@ function cancelDeleteBlock() {
 }
 function deleteBlock() {
   if (!blockToDelete.value?.id) return
-  scheduleFlush('extra_block_delete', blockToDelete.value)
+  scheduleUpdate('extra_block_delete', blockToDelete.value)
   blockToDelete.value = null
 }
 
 function saveBlock(block: ExtraBlock) {
-  scheduleFlush('extra_block_update', block)
+  scheduleUpdate('extra_block_update', block)
 }
 
 async function toggleActive(block: ExtraBlock, active: boolean) {
   if (!block.id) return
   block.active = active
-  scheduleFlush('extra_block_update', block)
+  scheduleUpdate('extra_block_update', block)
 }
 
 function toggleProgram(block: ExtraBlock, program: 2 | 3) {
