@@ -152,10 +152,11 @@ function saveBlock(block: ExtraBlock) {
   scheduleUpdate('extra_block_update', block)
 }
 
-async function toggleActive(block: ExtraBlock, active: boolean) {
+function toggleActive(block: ExtraBlock, active: boolean) {
   if (!block.id) return
   block.active = active
-  scheduleUpdate('extra_block_update', block)
+  // Ensure toggle change is caught by debouncer with countdown
+  scheduleUpdate('extra_block_update', { ...block, active })
 }
 
 function toggleProgram(block: ExtraBlock, program: 2 | 3) {
