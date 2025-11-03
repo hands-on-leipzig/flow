@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref} from 'vue'
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import ParameterField from "@/components/molecules/ParameterField.vue"
 import {useEventStore} from '@/stores/event'
@@ -18,6 +18,7 @@ import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import TeamSelectionExample from "@/components/molecules/TeamSelectionExample.vue";
 import SavingToast from "@/components/atoms/SavingToast.vue";
 import { useDebouncedSave } from "@/composables/useDebouncedSave";
+import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
@@ -184,16 +185,32 @@ function updateByName(name: string, value: any) {
   updateParam(p)
 }
 
-// Toast notification system
+// Toast notification system (legacy - can be removed)
 const showToast = ref(false)
 const progress = ref(100)
 const progressIntervalId = ref<NodeJS.Timeout | null>(null)
 
+// Generator state (must be declared before useDebouncedSave)
+const isGenerating = ref(false)
+const generatorError = ref<string | null>(null)
+const errorDetails = ref<string | null>(null)
+
+// Countdown state for SavingToast
+const countdownSeconds = ref<number | null>(null)
+
 // Debounced save system using composable
-const { scheduleUpdate, flush, setOriginal, setOriginals } = useDebouncedSave({
-  delay: 2000,
-  onShowToast: () => savingToast?.value?.show(),
-  onHideToast: () => savingToast?.value?.hide(),
+const { scheduleUpdate, flush, immediateFlush, setOriginal, setOriginals, freeze, unfreeze } = useDebouncedSave({
+  delay: DEBOUNCE_DELAY,
+  isGenerating: () => isGenerating.value,
+  onShowToast: (countdown, onImmediateSave) => {
+    countdownSeconds.value = countdown
+  },
+  onHideToast: () => {
+    countdownSeconds.value = null
+  },
+  onCountdownUpdate: (seconds) => {
+    countdownSeconds.value = seconds
+  },
   changeDetection: (key, newValue, oldValue) => {
     // String comparison for stable detection
     const oldVal = String(oldValue ?? '')
@@ -204,6 +221,20 @@ const { scheduleUpdate, flush, setOriginal, setOriginals } = useDebouncedSave({
     // Convert updates to the format expected by updateParams
     const updateArray = Object.entries(updates).map(([name, value]) => ({name, value}))
     await updateParams(updateArray)
+  }
+})
+
+// Watch generator state to freeze/unfreeze countdown
+watch(isGenerating, (generating) => {
+  if (generating) {
+    freeze()
+  } else {
+    // After generator finishes, check if we need to resume countdown
+    // This is handled automatically by the composable checking isGenerating
+    // But we can also explicitly unfreeze if needed
+    setTimeout(() => {
+      unfreeze()
+    }, 100)
   }
 })
 
@@ -367,10 +398,6 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
     if (afterUpdate) await afterUpdate()
   }
 }
-
-const isGenerating = ref(false)
-const generatorError = ref<string | null>(null)
-const errorDetails = ref<string | null>(null)
 
 async function runGeneratorOnce() {
   if (!selectedPlanId.value) return
@@ -565,9 +592,13 @@ const updateTableName = async () => {
 </script>
 
 <template>
-  <SavingToast ref="savingToast" message="Parameter-Änderungen werden gespeichert..."/>
-
   <div class="h-screen p-6 flex flex-col space-y-5">
+    <SavingToast 
+      ref="savingToast" 
+      :is-generating="isGenerating"
+      :countdown="countdownSeconds"
+      :on-immediate-save="immediateFlush"
+    />
 
     <div v-if="false" class="flex items-center space-x-4">
       <label for="plan-select" class="text-sm font-medium">Plan auswählen:</label>

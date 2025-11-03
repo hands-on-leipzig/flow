@@ -3,7 +3,7 @@ import {computed, onMounted, onBeforeUnmount} from 'vue'
 import IconInfo from "@/components/icons/IconInfo.vue";
 import { useInfoPopover } from '@/composables/useInfoPopover'
 
-const props = defineProps<{ text: string }>()
+const props = defineProps<{ text?: string | null }>()
 const { toggle, isOpen, close } = useInfoPopover()
 
 // Generate a unique ID for this popover instance
@@ -32,7 +32,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <span class="relative inline-block info-popover">
+  <span v-if="props.text" class="relative inline-block info-popover">
     <button
         type="button"
         class="ml-1 text-gray-500 hover:text-blue-600 align-middle"
@@ -48,7 +48,7 @@ onBeforeUnmount(() => {
         v-if="open"
         class="absolute left-0 mt-2 w-64 rounded-md bg-white p-2 shadow-lg border text-sm text-gray-700 z-10"
     >
-      {{ text }}
+      {{ props.text }}
     </div>
   </span>
 </template>
