@@ -185,21 +185,37 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
 }
 
 // --- Helpers ---
-function toLocalInput(dt: Maybe<string>) {
+// Extract date (YYYY-MM-DD) from datetime string
+function extractDate(dt: Maybe<string>): string {
   if (!dt) return ''
-  return dt.replace(' ', 'T').slice(0, 16)
+  // Handle formats: "YYYY-MM-DD HH:mm:ss" or "YYYY-MM-DDTHH:mm:ss"
+  const datePart = dt.replace('T', ' ').split(' ')[0]
+  return datePart
 }
-function fromLocalInput(val: string) {
-  if (!val) return null
-  return val.replace('T', ' ') + ':00'
+
+// Extract time (HH:mm) from datetime string
+function extractTime(dt: Maybe<string>): string {
+  if (!dt) return ''
+  // Handle formats: "YYYY-MM-DD HH:mm:ss" or "YYYY-MM-DDTHH:mm:ss"
+  const timePart = dt.replace('T', ' ').split(' ')[1]
+  if (!timePart) return ''
+  return timePart.slice(0, 5) // Get HH:mm
+}
+
+// Combine date and time back to datetime string format
+function combineDateTime(date: string, time: string): string | null {
+  if (!date || !time) return null
+  // Ensure date is in YYYY-MM-DD format and time is in HH:mm format
+  return `${date} ${time}:00`
 }
 
 // --- Actions ---
 async function addCustom() {
   if (!props.planId) return
   const baseDate = props.eventDate ? new Date(props.eventDate) : new Date()
-  const start = new Date(baseDate); start.setHours(6, 0, 0, 0)
-  const end = new Date(baseDate); end.setHours(7, 0, 0, 0)
+  // Format as YYYY-MM-DD
+  const dateStr = baseDate.toISOString().slice(0, 10)
+  
   const draft: ExtraBlock = {
     plan: props.planId!,
     first_program: 3,
@@ -207,8 +223,8 @@ async function addCustom() {
     description: '',
     link: null,
     active: true,
-    start: fromLocalInput(start.toISOString().slice(0, 16)),
-    end: fromLocalInput(end.toISOString().slice(0, 16))
+    start: combineDateTime(dateStr, '06:00') || `${dateStr} 06:00:00`,
+    end: combineDateTime(dateStr, '07:00') || `${dateStr} 07:00:00`
   }
   scheduleUpdate('extra_block_add', draft)
 }
@@ -251,6 +267,73 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
   saveBlock(block)
 }
 
+// Handle date change (updates both start and end with the same date)
+function handleDateChange(block: ExtraBlock, date: string) {
+  const startTime = extractTime(block.start || '')
+  const endTime = extractTime(block.end || '')
+  
+  block.start = combineDateTime(date, startTime || '00:00')
+  block.end = combineDateTime(date, endTime || '00:00')
+  saveBlock(block)
+}
+
+// Helper function to add 5 minutes to a time string (HH:mm)
+function add5Minutes(time: string): string {
+  if (!time || !time.includes(':')) return '00:00'
+  const [hours, minutes] = time.split(':').map(Number)
+  let totalMinutes = hours * 60 + minutes + 5
+  // Handle day wrap-around (though max should be 23:55)
+  const newHours = Math.floor(totalMinutes / 60) % 24
+  const newMinutes = totalMinutes % 60
+  return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`
+}
+
+// Helper function to compare two time strings (HH:mm)
+function compareTimes(time1: string, time2: string): number {
+  if (!time1 || !time2) return 0
+  const [h1, m1] = time1.split(':').map(Number)
+  const [h2, m2] = time2.split(':').map(Number)
+  const minutes1 = h1 * 60 + m1
+  const minutes2 = h2 * 60 + m2
+  return minutes1 - minutes2
+}
+
+// Handle start time change
+function handleStartTimeChange(block: ExtraBlock, time: string) {
+  // Always use the same date for both start and end
+  const date = extractDate(block.start || block.end || '')
+  let endTime = extractTime(block.end || '')
+  
+  if (!date) return // Need date first
+  
+  // If start time is greater than or equal to end time, set end to start + 5 minutes
+  if (endTime && compareTimes(time, endTime) >= 0) {
+    endTime = add5Minutes(time)
+  } else if (!endTime) {
+    // If no end time exists, set it to start + 5 minutes
+    endTime = add5Minutes(time)
+  }
+  
+  block.start = combineDateTime(date, time)
+  // Ensure end uses the same date
+  block.end = combineDateTime(date, endTime)
+  saveBlock(block)
+}
+
+// Handle end time change
+function handleEndTimeChange(block: ExtraBlock, time: string) {
+  // Always use the same date for both start and end
+  const date = extractDate(block.start || block.end || '')
+  const startTime = extractTime(block.start || '')
+  
+  if (!date) return // Need date first
+  
+  // Ensure start uses the same date
+  block.start = combineDateTime(date, startTime || '00:00')
+  block.end = combineDateTime(date, time)
+  saveBlock(block)
+}
+
 const deleteMessage = computed(() => {
   if (!blockToDelete.value) return ''
   return `Möchtest du den Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen?`
@@ -274,10 +357,10 @@ const deleteMessage = computed(() => {
         <table class="min-w-full text-sm">
           <thead>
           <tr class="text-gray-500 text-xs uppercase tracking-wide">
+            <th class="text-left px-2 py-2 w-20">Aktion</th>
             <th class="text-center px-2 py-2 w-20">Programme</th>
-            <th class="text-left px-2 py-2 w-48">Zeiten</th>
+            <th class="text-left px-2 py-2 w-28">Zeit</th>
             <th class="text-left px-2 py-2">Inhalt</th>
-            <th class="px-2 py-2 w-28">Aktion</th>
           </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
@@ -287,6 +370,24 @@ const deleteMessage = computed(() => {
                 'opacity-60 bg-gray-50': b.active === false,
                 'hover:bg-gray-50': b.active !== false
               }">
+            <td class="px-2 py-2">
+              <div class="flex flex-col items-center space-y-2">
+                <ToggleSwitch
+                  :model-value="b.active !== false"
+                  @update:modelValue="toggleActive(b, $event)"
+                  :disabled="!b.id"
+                />
+                <button
+                  v-if="b.id"
+                  @click="confirmDeleteBlock(b)"
+                  class="text-red-500 hover:text-red-700"
+                  title="Block löschen"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+
             <td class="px-2 py-2 text-center">
               <div class="flex justify-center space-x-1">
                 <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
@@ -302,10 +403,36 @@ const deleteMessage = computed(() => {
 
             <td class="px-2 py-2">
               <div class="space-y-2">
-                <input :value="toLocalInput(b.start)" class="w-full border rounded px-2 py-1 text-sm" type="datetime-local"
-                       placeholder="Beginn" @change="b.start = fromLocalInput(($event.target as HTMLInputElement).value); saveBlock(b)"/>
-                <input :value="toLocalInput(b.end)" class="w-full border rounded px-2 py-1 text-sm" type="datetime-local"
-                       placeholder="Ende" @change="b.end = fromLocalInput(($event.target as HTMLInputElement).value); saveBlock(b)"/>
+                <!-- Date field (first line) -->
+                <input 
+                  :value="extractDate(b.start || b.end)" 
+                  class="w-full border rounded px-1 py-1 text-xs" 
+                  type="date"
+                  @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
+                />
+                <!-- Start and End time fields (second line) -->
+                <div class="flex space-x-1">
+                  <input 
+                    :value="extractTime(b.start)" 
+                    class="flex-1 border rounded px-1 py-1 text-xs" 
+                    type="time"
+                    step="300"
+                    min="00:00"
+                    max="23:55"
+                    placeholder="Start"
+                    @change="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
+                  />
+                  <input 
+                    :value="extractTime(b.end)" 
+                    class="flex-1 border rounded px-1 py-1 text-xs" 
+                    type="time"
+                    step="300"
+                    min="00:00"
+                    max="23:55"
+                    placeholder="Ende"
+                    @change="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
+                  />
+                </div>
               </div>
             </td>
 
@@ -319,24 +446,6 @@ const deleteMessage = computed(() => {
                 </div>
                 <input v-model="b.description" class="w-full border rounded px-2 py-1 text-sm"
                        type="text" placeholder="Beschreibung" @blur="saveBlock(b)"/>
-              </div>
-            </td>
-
-            <td class="px-2 py-2 text-right">
-              <div class="flex flex-col items-end space-y-2">
-                <ToggleSwitch
-                  :model-value="b.active !== false"
-                  @update:modelValue="toggleActive(b, $event)"
-                  :disabled="!b.id"
-                />
-                <button
-                  v-if="b.id"
-                  @click="confirmDeleteBlock(b)"
-                  class="text-red-500 hover:text-red-700"
-                  title="Block löschen"
-                >
-                  🗑️
-                </button>
               </div>
             </td>
           </tr>
