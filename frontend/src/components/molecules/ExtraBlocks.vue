@@ -34,12 +34,16 @@ const props = defineProps<{
 const blocks = ref<ExtraBlock[]>([])
 const blockToDelete = ref<ExtraBlock | null>(null)
 
+// Generator state (must be declared before useDebouncedSave)
+const isGenerating = ref(false)
+
 // --- Debounced Saving ---
 const savingToast = ref(null)
 const countdownSeconds = ref<number | null>(null)
 
 const { scheduleUpdate, flush, immediateFlush } = useDebouncedSave({
   delay: DEBOUNCE_DELAY,
+  isGenerating: () => isGenerating.value,
   onShowToast: (countdown) => {
     countdownSeconds.value = countdown
   },
@@ -86,12 +90,36 @@ async function loadBlocks() {
 async function flushUpdates(updates: Record<string, any>) {
   if (!props.planId) return
 
+  // Determine if regeneration is needed before making API calls
+  let needsRegeneration = false
+  for (const [name, value] of Object.entries(updates)) {
+    if (name === 'extra_block_update' && value) {
+      const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f))
+      if (hasTimingChanges) {
+        needsRegeneration = true
+        break
+      }
+    }
+    if (name === 'extra_block_delete' || name === 'extra_block_add') {
+      needsRegeneration = true
+      break
+    }
+  }
+
+  // Set generating state immediately if regeneration will be needed
+  // This ensures the UI shows "Plan wird generiert" right away
+  if (needsRegeneration) {
+    isGenerating.value = true
+  }
+
   try {
     for (const [name, value] of Object.entries(updates)) {
       if (name === 'extra_block_update' && value) {
         const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f))
         const blockData = { ...value }
-        if (!hasTimingChanges) blockData.skip_regeneration = true
+        if (!hasTimingChanges) {
+          blockData.skip_regeneration = true
+        }
         await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
       }
       if (name === 'extra_block_delete' && value?.id) {
@@ -102,8 +130,57 @@ async function flushUpdates(updates: Record<string, any>) {
       }
     }
     await loadBlocks()
+
+    // Poll for generator status if regeneration was triggered
+    if (needsRegeneration) {
+      await pollUntilReady(props.planId)
+    } else {
+      // No regeneration needed, ensure generating state is off
+      isGenerating.value = false
+    }
   } catch (error) {
     console.error('Error flushing updates:', error)
+    isGenerating.value = false
+  }
+}
+
+// Poll for generator status until ready
+async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 1000) {
+  // Give backend a moment to set status to RUNNING
+  await new Promise(resolve => setTimeout(resolve, 200))
+  
+  // isGenerating is already set to true in flushUpdates
+  const start = Date.now()
+
+  try {
+    while (Date.now() - start < timeoutMs) {
+      const res = await axios.get(`/plans/${planId}/status`)
+      const status = res.data.status
+      
+      if (status === 'done') {
+        isGenerating.value = false
+        return
+      }
+      
+      // Check for failed status
+      if (status === 'failed') {
+        isGenerating.value = false
+        console.error('Plan generation failed')
+        return
+      }
+      
+      // Keep polling if still running
+      await new Promise(resolve => setTimeout(resolve, intervalMs))
+    }
+
+    throw new Error('Timeout: Plan generation took too long')
+  } catch (error) {
+    isGenerating.value = false
+    if (error instanceof Error && error.message.includes('Timeout')) {
+      console.error('Timeout waiting for plan generation')
+    } else {
+      throw error
+    }
   }
 }
 
@@ -287,6 +364,7 @@ const deleteMessage = computed(() => {
 
     <SavingToast 
       ref="savingToast" 
+      :is-generating="isGenerating"
       :countdown="countdownSeconds"
       :on-immediate-save="immediateFlush"
       message="Block-Änderungen werden gespeichert..."
