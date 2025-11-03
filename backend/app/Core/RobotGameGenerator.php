@@ -605,7 +605,8 @@ class RobotGameGenerator
                 break;
 
             case 3:
-                $this->writer->insertPoint('c_after_rg_3', $this->pp("r_duration_results"), $this->rTime);
+                // Insert point after RG3 is now handled in ChallengeGenerator::robotGameFinals()
+                // to support flexible presentation scheduling
                 break;
         }
 
