@@ -2368,4 +2368,233 @@ if ($prepRooms->isNotEmpty()) {
         return response()->json(['shifts' => $shifts]);
     }
 
+    /**
+     * Export room utilization as CSV
+     * Groups activities by day, room, and activity_type, merging consecutive related activities
+     */
+    public function roomUtilizationCsv(int $eventId)
+    {
+        // Get plan for this event
+        $plan = DB::table('plan')
+            ->where('event', $eventId)
+            ->select('id')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
+        }
+
+        // Fetch activities with room data
+        $activities = $this->activityFetcher->fetchActivities(
+            $plan->id,
+            [],                 // All roles
+            true,              // includeRooms
+            true,              // includeGroupMeta (for activity_type)
+            false,             // includeActivityMeta
+            false,             // includeTeamNames
+            true               // freeBlocks
+        );
+
+        // Filter: only activities with rooms
+        $activities = collect($activities)->filter(function ($a) {
+            return !empty($a->room_name) || !empty($a->room_id);
+        });
+
+        if ($activities->isEmpty()) {
+            return response()->json(['error' => 'Keine Aktivitäten mit Räumen gefunden'], 404);
+        }
+
+        // Group activities for merging
+        $grouped = $this->groupActivitiesForUtilization($activities);
+
+        // Generate CSV
+        $csv = $this->generateRoomUtilizationCsv($grouped);
+
+        // Return CSV response - format matches PDF exports
+        $formattedDate = date('Y-m-d');
+        $filename = "FLOW_Raumnutzung_({$formattedDate}).csv";
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    /**
+     * Group activities for room utilization
+     * Groups by day -> room -> activity_type, merging consecutive activities
+     */
+    private function groupActivitiesForUtilization($activities): array
+    {
+        // First, group by day and room
+        $byDayRoom = $activities->groupBy(function ($a) {
+            $startDate = \Carbon\Carbon::parse($a->start_time)->format('Y-m-d');
+            $roomKey = $a->room_name ?? ('Room-' . $a->room_id);
+            $roomSequence = $a->room_sequence ?? 9999; // Put rooms without sequence at the end
+            return $startDate . '|' . str_pad($roomSequence, 10, '0', STR_PAD_LEFT) . '|' . $roomKey;
+        });
+
+        $result = [];
+
+        foreach ($byDayRoom as $dayRoomKey => $dayRoomActivities) {
+            [$date, $roomSequence, $roomName] = explode('|', $dayRoomKey, 3);
+            
+            // Sort activities by start time
+            $sorted = $dayRoomActivities->sortBy('start_time')->values();
+
+            // Group by activity_type (parent type from m_activity_type)
+            $byType = $sorted->groupBy(function ($a) {
+                // Get parent activity_type ID (m_activity_type.id)
+                return $a->activity_type_id ?? $a->activity_type_group ?? 'unknown';
+            });
+
+            // For each activity_type group, merge consecutive activities
+            foreach ($byType as $typeId => $typeActivities) {
+                $merged = $this->mergeConsecutiveActivities($typeActivities);
+                
+                foreach ($merged as $block) {
+                    $result[] = [
+                        'day' => $date,
+                        'room' => $roomName,
+                        'activity_type' => $typeActivities->first()->activity_type_name ?? $typeActivities->first()->group_atd_name ?? 'Unbekannt',
+                        'start_time' => $block['start']->format('Y-m-d H:i:s'),
+                        'end_time' => $block['end']->format('Y-m-d H:i:s'),
+                        'duration_minutes' => $block['duration'],
+                    ];
+                }
+            }
+        }
+
+        // Sort: day first, room sequence second, room name third, start_time fourth
+        // Get room sequences for sorting
+        $roomSequences = [];
+        foreach ($activities as $activity) {
+            $roomKey = $activity->room_name ?? ('Room-' . $activity->room_id);
+            if (!isset($roomSequences[$roomKey])) {
+                $roomSequences[$roomKey] = $activity->room_sequence ?? 9999;
+            }
+        }
+        
+        usort($result, function ($a, $b) use ($roomSequences) {
+            if ($a['day'] !== $b['day']) {
+                return $a['day'] <=> $b['day'];
+            }
+            // Sort by room sequence if available
+            $seqA = $roomSequences[$a['room']] ?? 9999;
+            $seqB = $roomSequences[$b['room']] ?? 9999;
+            if ($seqA !== $seqB) {
+                return $seqA <=> $seqB;
+            }
+            // Fallback to room name if sequence is same
+            if ($a['room'] !== $b['room']) {
+                return strcmp($a['room'], $b['room']);
+            }
+            return strcmp($a['start_time'], $b['start_time']);
+        });
+
+        return $result;
+    }
+
+    /**
+     * Merge consecutive activities of the same type
+     * Merges activities that are consecutive or have short breaks (<= 15 minutes)
+     */
+    private function mergeConsecutiveActivities($activities): array
+    {
+        if ($activities->isEmpty()) {
+            return [];
+        }
+
+        $sorted = $activities->sortBy('start_time')->values();
+        $merged = [];
+        $currentBlock = null;
+
+        foreach ($sorted as $activity) {
+            $start = \Carbon\Carbon::parse($activity->start_time);
+            $end = \Carbon\Carbon::parse($activity->end_time);
+
+            if ($currentBlock === null) {
+                // Start new block
+                $currentBlock = [
+                    'start' => $start,
+                    'end' => $end,
+                ];
+            } else {
+                // Check if this activity is consecutive (within 15 minutes)
+                $gap = $start->diffInMinutes($currentBlock['end']);
+                
+                if ($gap <= 15) {
+                    // Merge: extend end time if needed
+                    if ($end->gt($currentBlock['end'])) {
+                        $currentBlock['end'] = $end;
+                    }
+                } else {
+                    // Gap too large: save current block and start new one
+                    $merged[] = [
+                        'start' => $currentBlock['start'],
+                        'end' => $currentBlock['end'],
+                        'duration' => $currentBlock['start']->diffInMinutes($currentBlock['end']),
+                    ];
+                    $currentBlock = [
+                        'start' => $start,
+                        'end' => $end,
+                    ];
+                }
+            }
+        }
+
+        // Save last block
+        if ($currentBlock !== null) {
+            $merged[] = [
+                'start' => $currentBlock['start'],
+                'end' => $currentBlock['end'],
+                'duration' => $currentBlock['start']->diffInMinutes($currentBlock['end']),
+            ];
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Generate CSV content from grouped activities
+     */
+    private function generateRoomUtilizationCsv(array $grouped): string
+    {
+        $output = fopen('php://temp', 'r+');
+        
+        // Add BOM for Excel UTF-8 support
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // Header
+        fputcsv($output, [
+            'Tag',
+            'Raum',
+            'Aktivitätstyp',
+            'Startzeit',
+            'Endzeit',
+            'Dauer (Minuten)',
+        ], ';'); // Use semicolon for Excel compatibility in German locales
+
+        // Data rows
+        foreach ($grouped as $row) {
+            $dayFormatted = \Carbon\Carbon::parse($row['day'])->format('d.m.Y');
+            $startFormatted = \Carbon\Carbon::parse($row['start_time'])->format('H:i');
+            $endFormatted = \Carbon\Carbon::parse($row['end_time'])->format('H:i');
+            
+            fputcsv($output, [
+                $dayFormatted,
+                $row['room'],
+                $row['activity_type'],
+                $startFormatted,
+                $endFormatted,
+                $row['duration_minutes'],
+            ], ';');
+        }
+
+        rewind($output);
+        $csv = stream_get_contents($output);
+        fclose($output);
+
+        return $csv;
+    }
+
 }
