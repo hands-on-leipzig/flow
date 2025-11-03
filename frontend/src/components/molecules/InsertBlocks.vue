@@ -1,9 +1,11 @@
 <script lang="ts" setup>
-import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
-import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import { useDebouncedSave } from "@/composables/useDebouncedSave";
+import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";  
 
 type InsertPoint = {
   id: number
@@ -54,79 +56,66 @@ const insertPoints = ref<InsertPoint[]>([])
 const blocks = ref<ExtraBlock[]>([])
 
 // --- Debounced update system ---
-const pendingUpdates = ref<Record<string, any>>({})
-const updateTimeoutId = ref<NodeJS.Timeout | null>(null)
-const UPDATE_DEBOUNCE_DELAY = 2000
+const { scheduleUpdate: scheduleUpdateDebounced, flush: flushDebounced } = useDebouncedSave({
+  delay: DEBOUNCE_DELAY,
+  onSave: async (updates) => {
+    await flushUpdates(updates)
+  }
+})
 
 function scheduleUpdate(blockId: string, field: string, value: any) {
   console.log('Scheduling block update:', { blockId, field, value })
   const key = `${blockId}_${field}`
-  pendingUpdates.value[key] = value
-
-  // Clear existing timeout
-  if (updateTimeoutId.value) {
-    clearTimeout(updateTimeoutId.value)
-  }
-
-  // Schedule batch update
-  updateTimeoutId.value = setTimeout(() => {
-    flushUpdates()
-  }, UPDATE_DEBOUNCE_DELAY)
+  scheduleUpdateDebounced(key, value)
 }
 
-function flushUpdates() {
-  console.log('Flushing block updates:', pendingUpdates.value)
+async function flushUpdates(updates: Record<string, any>) {
+  console.log('Flushing block updates:', updates)
   
-  if (updateTimeoutId.value) {
-    clearTimeout(updateTimeoutId.value)
-    updateTimeoutId.value = null
-  }
+  if (Object.keys(updates).length === 0) return
 
-  if (Object.keys(pendingUpdates.value).length > 0) {
-    // Group updates by block ID
-    const updatesByBlock: Record<string, Record<string, any>> = {}
-    Object.entries(pendingUpdates.value).forEach(([key, value]) => {
-      // Parse: "123_buffer_before" -> blockId="123", field="buffer_before"
-      const parts = key.split('_')
-      if (parts.length >= 2) {
-        const blockId = parts[0] // "123"
-        const field = parts.slice(1).join('_') // "buffer_before"
-        if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
-        updatesByBlock[blockId][field] = value
-      }
-    })
-    
-    console.log('Block updates grouped:', updatesByBlock)
-    
-    // Apply updates to blocks locally
-    for (const [blockId, updates] of Object.entries(updatesByBlock)) {
-      const block = blocks.value.find(b => b.id?.toString() === blockId)
-      if (block) {
-        Object.assign(block, updates)
-      }
+  // Group updates by block ID
+  const updatesByBlock: Record<string, Record<string, any>> = {}
+  Object.entries(updates).forEach(([key, value]) => {
+    // Parse: "123_buffer_before" -> blockId="123", field="buffer_before"
+    const parts = key.split('_')
+    if (parts.length >= 2) {
+      const blockId = parts[0] // "123"
+      const field = parts.slice(1).join('_') // "buffer_before"
+      if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
+      updatesByBlock[blockId][field] = value
     }
-    
-    // Convert to parameter-style updates for the parent
-    const updates = Object.entries(pendingUpdates.value).map(([key, value]) => {
-      // Parse: "28_buffer_before" -> blockId="28", field="buffer_before"
-      const parts = key.split('_')
-      if (parts.length >= 2) {
-        const blockId = parts[0] // "28"
-        const field = parts.slice(1).join('_') // "buffer_before"
-        return { name: `block_${blockId}_${field}`, value }
-      }
-      return { name: key, value } // fallback
-    })
-    
-    // Send to parent's update system
-    console.log('Sending updates to parent:', updates)
-    if (props.onUpdate) {
-      props.onUpdate(updates)
+  })
+  
+  console.log('Block updates grouped:', updatesByBlock)
+  
+  // Apply updates to blocks locally
+  for (const [blockId, updates] of Object.entries(updatesByBlock)) {
+    const block = blocks.value.find(b => b.id?.toString() === blockId)
+    if (block) {
+      Object.assign(block, updates)
     }
-    
-    pendingUpdates.value = {}
-    emit('changed')
   }
+  
+  // Convert to parameter-style updates for the parent
+  const updateArray = Object.entries(updates).map(([key, value]) => {
+    // Parse: "28_buffer_before" -> blockId="28", field="buffer_before"
+    const parts = key.split('_')
+    if (parts.length >= 2) {
+      const blockId = parts[0] // "28"
+      const field = parts.slice(1).join('_') // "buffer_before"
+      return { name: `block_${blockId}_${field}`, value }
+    }
+    return { name: key, value } // fallback
+  })
+  
+  // Send to parent's update system
+  console.log('Sending updates to parent:', updateArray)
+  if (props.onUpdate) {
+    props.onUpdate(updateArray)
+  }
+  
+  emit('changed')
 }
 
 // --- Loaders ---
@@ -300,16 +289,10 @@ function onFixedTextInput(pointId: number, field: 'name' | 'description' | 'link
 
 function onFixedBlur() {
   // Trigger immediate update on blur
-  flushUpdates()
+  flushDebounced()
 }
 
-// Cleanup on unmount
-onUnmounted(() => {
-  if (updateTimeoutId.value) {
-    clearTimeout(updateTimeoutId.value)
-  }
-  flushUpdates()
-})
+// Cleanup handled by composable (it will flush on unmount)
 
 // Expose loadAll function to parent if needed
 defineExpose({
