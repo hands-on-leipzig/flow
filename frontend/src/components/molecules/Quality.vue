@@ -85,7 +85,7 @@ const startVolumeTest = () => {
           alert(data.error)
         } else {
           console.error('Backend-Antwort:', status, data)
-          alert('Ein Fehler ist aufgetreten. Bitte prüfe die Eingaben.')
+          alert('Ein Fehler ist aufgetreten. Bitte prüfe deine Eingaben.')
         }
       } else {
         console.error('Netzwerk-Fehler:', error)

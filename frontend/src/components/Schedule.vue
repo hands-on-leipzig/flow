@@ -16,6 +16,7 @@ import FllEvent from "@/models/FllEvent";
 import {Parameter, ParameterCondition} from "@/models/Parameter"
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import TeamSelectionExample from "@/components/molecules/TeamSelectionExample.vue";
+import SavingToast from "@/components/atoms/SavingToast.vue";
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
@@ -26,6 +27,7 @@ const inputName = ref('')
 const plans = ref<Array<{ id: number, name: string, is_chosen?: boolean }>>([])
 const selectedPlanId = ref<number | null>(null)
 const loading = ref(true)
+const savingToast = ref()
 
 const SPECIAL_KEYS = new Set([
   'e1_teams', 'e2_teams',
@@ -189,7 +191,6 @@ const showToast = ref(false)
 const progress = ref(100)
 const progressIntervalId = ref<NodeJS.Timeout | null>(null)
 
-
 // Handle parameter updates from child components
 function handleParamUpdate(param: { name: string, value: any }) {
   const p = paramMapByName.value[param.name]
@@ -215,9 +216,7 @@ function handleParamUpdate(param: { name: string, value: any }) {
   // Add to pending updates
   pendingParamUpdates.value[param.name] = param.value
 
-  // Show toast and start progress animation
-  showToast.value = true
-  startProgressAnimation()
+  savingToast?.value?.show()
 
   // Clear existing timeout
   if (paramUpdateTimeoutId.value) {
@@ -241,9 +240,7 @@ function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
     pendingParamUpdates.value[prefixedName] = update.value
   })
 
-  // Show toast and start progress animation
-  showToast.value = true
-  startProgressAnimation()
+  savingToast?.value?.show()
 
   // Clear existing timeout
   if (paramUpdateTimeoutId.value) {
@@ -256,29 +253,6 @@ function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
   }, PARAM_DEBOUNCE_DELAY)
 }
 
-// Start progress animation
-function startProgressAnimation() {
-  // Reset progress
-  progress.value = 100
-
-  // Clear existing interval
-  if (progressIntervalId.value) {
-    clearInterval(progressIntervalId.value)
-  }
-
-  // Calculate step size (100 steps over the debounce delay)
-  const stepSize = 100 / (PARAM_DEBOUNCE_DELAY / 50) // Update every 50ms
-
-  progressIntervalId.value = setInterval(() => {
-    progress.value -= stepSize
-    if (progress.value <= 0) {
-      progress.value = 0
-      clearInterval(progressIntervalId.value!)
-      progressIntervalId.value = null
-    }
-  }, 50)
-}
-
 // Force immediate update of all pending parameter changes
 function flushParamUpdates() {
   if (paramUpdateTimeoutId.value) {
@@ -286,15 +260,7 @@ function flushParamUpdates() {
     paramUpdateTimeoutId.value = null
   }
 
-  // Clear progress animation
-  if (progressIntervalId.value) {
-    clearInterval(progressIntervalId.value)
-    progressIntervalId.value = null
-  }
-
-  // Hide toast
-  showToast.value = false
-  progress.value = 100
+  savingToast?.value?.hide()
 
   if (Object.keys(pendingParamUpdates.value).length > 0) {
     const updates = {...pendingParamUpdates.value}
@@ -306,9 +272,6 @@ function flushParamUpdates() {
 
 // Cleanup on unmount
 onUnmounted(() => {
-  if (progressIntervalId.value) {
-    clearInterval(progressIntervalId.value)
-  }
   flushParamUpdates()
 })
 
@@ -429,15 +392,60 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 }
 
 const isGenerating = ref(false)
+const generatorError = ref<string | null>(null)
+const errorDetails = ref<string | null>(null)
 
 async function runGeneratorOnce() {
   if (!selectedPlanId.value) return
+  
+  // Clear previous errors
+  generatorError.value = null
+  errorDetails.value = null
+  
   isGenerating.value = true
   try {
     await axios.post(`/plans/${selectedPlanId.value}/generate`)
     await pollUntilReady(selectedPlanId.value)
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error during initial generation:", error)
+    
+    // Extract error message from response
+    let errorMessage = 'Unbekannter Fehler bei der Plan-Generierung'
+    let details: string | null = null
+    
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status
+      const errorData = error.response?.data
+      
+      if (status === 422) {
+        errorMessage = errorData?.error || 'Die aktuelle Konfiguration wird nicht unterstützt'
+        details = errorData?.details || errorData?.message || 'Ungültige Parameter-Kombination'
+      } else if (status === 404) {
+        errorMessage = 'Plan nicht gefunden'
+        details = errorData?.error || errorData?.details || `Plan ${selectedPlanId.value} existiert nicht`
+      } else if (status === 500) {
+        errorMessage = errorData?.error || 'Fehler bei der Plan-Generierung'
+        details = errorData?.details || errorData?.message || 'Interner Serverfehler'
+      } else if (error.message === 'Timeout: Plan generation took too long') {
+        errorMessage = 'Zeitüberschreitung'
+        details = 'Die Generierung dauert zu lange. Bitte versuche es erneut.'
+      } else if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
+        errorMessage = 'Verbindungsfehler'
+        details = 'Bitte überprüfe deine Internetverbindung.'
+      } else {
+        errorMessage = errorData?.error || errorData?.message || error.message || errorMessage
+      }
+    } else if (error instanceof Error) {
+      if (error.message.includes('Timeout')) {
+        errorMessage = 'Zeitüberschreitung'
+        details = 'Die Generierung dauert zu lange. Bitte versuche es erneut.'
+      } else {
+        errorMessage = error.message
+      }
+    }
+    
+    generatorError.value = errorMessage
+    errorDetails.value = details
   } finally {
     isGenerating.value = false
   }
@@ -449,7 +457,17 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
 
   while (Date.now() - start < timeoutMs) {
     const res = await axios.get(`/plans/${planId}/status`)
-    if (res.data.status === 'done') return
+    const status = res.data.status
+    
+    if (status === 'done') return
+    
+    // Check for failed status
+    if (status === 'failed') {
+      generatorError.value = 'Die Generierung ist fehlgeschlagen'
+      errorDetails.value = 'Der Plan konnte nicht generiert werden. Bitte überprüfe die Parameter.'
+      throw new Error('Generation failed')
+    }
+    
     await new Promise(resolve => setTimeout(resolve, intervalMs))
   }
 
@@ -570,18 +588,7 @@ const updateTableName = async () => {
 </script>
 
 <template>
-  <!-- Toast notification for pending parameter updates -->
-  <div v-if="showToast"
-       class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
-    <div class="flex items-center gap-3">
-      <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-      <span class="text-green-800 font-medium">Parameter-Änderungen werden gespeichert...</span>
-    </div>
-    <!--<div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
-      <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
-           :style="{ width: progress + '%' }"></div>
-    </div>-->
-  </div>
+  <SavingToast ref="savingToast" message="Parameter-Änderungen werden gespeichert..."/>
 
   <div class="h-screen p-6 flex flex-col space-y-5">
 
@@ -811,6 +818,30 @@ const updateTableName = async () => {
           />
         </div>
       </transition>
+    </div>
+
+    <!-- Error Alert Banner -->
+    <div v-if="generatorError" class="bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-lg">
+      <div class="flex items-start justify-between">
+        <div class="flex-1">
+          <div class="flex items-center">
+            <svg class="h-5 w-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+            <h3 class="text-red-800 font-semibold text-lg">{{ generatorError }}</h3>
+          </div>
+          <p v-if="errorDetails" class="mt-2 text-red-700 text-sm">{{ errorDetails }}</p>
+        </div>
+        <button
+          @click="generatorError = null; errorDetails = null"
+          class="ml-4 text-red-500 hover:text-red-700 focus:outline-none"
+          aria-label="Fehler schließen"
+        >
+          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div class="flex-grow overflow-hidden">

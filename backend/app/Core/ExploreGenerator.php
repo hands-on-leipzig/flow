@@ -127,7 +127,7 @@ class ExploreGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Failed to generate Explore openings and briefings: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Explore-Eröffnung und Briefings (Gruppe {$group}): {$e->getMessage()}", 0, $e);
         }
     }
 
@@ -161,7 +161,7 @@ class ExploreGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Failed to generate Explore briefings: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Explore-Briefings (Gruppe {$group}): {$e->getMessage()}", 0, $e);
         }
     }
 
@@ -238,7 +238,7 @@ class ExploreGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Failed to generate Explore judging and deliberations: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Explore-Bewertung und Beratungen (Gruppe {$group}): {$e->getMessage()}", 0, $e);
         }
     }
 
@@ -260,7 +260,7 @@ class ExploreGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Failed to generate Explore awards: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Explore-Preisverleihung (Gruppe {$group}, eMode: {$this->eMode}, Challenge: " . ($challenge ? 'ja' : 'nein') . "): {$e->getMessage()}", 0, $e);
         }
     }
 
@@ -308,7 +308,7 @@ class ExploreGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Failed to generate integrated Explore activity: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der integrierten Explore-Aktivität (eMode: {$this->eMode}, Startzeit: " . ($this->integratedExplore->startTime ?? 'nicht gesetzt') . "): {$e->getMessage()}", 0, $e);
         }
     }
 

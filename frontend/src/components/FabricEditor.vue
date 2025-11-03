@@ -19,17 +19,17 @@ import {useEventStore} from "@/stores/event";
 // Resize
 // Border korrekt, Layouting allgemein
 // Undo / Redo
-
 // Custom controls
-
-// Slideshow löschen
-// Zeit-Parameter für Activity-list
 
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 450;
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
+
+const qrWifiUrl = computed(() => {
+  return event.value?.wifi_qrcode ? `data:image/png;base64,${event.value.wifi_qrcode}` : '';
+});
 
 const props = defineProps<{
   slide: Slide
@@ -43,23 +43,24 @@ const canvasEl = shallowRef(null);
 let canvas: Canvas;
 
 const standardImages = [
-  {title: 'Hands on Technology', path: imageUrl('flow/hot.png')},
-  {title: 'Hands on Technology', path: imageUrl('flow/hot_outline.png')},
-  {title: 'Unearthed', path: imageUrl('flow/season_unearthed+fll_h.png')},
-  {title: 'Unearthed', path: imageUrl('flow/season_unearthed_v.png')},
-  {title: 'Unearthed', path: imageUrl('flow/season_unearthed_wordmark.png')},
-  {title: 'First LEGO League', path: imageUrl('flow/first+fll_h.png')},
-  {title: 'First LEGO League', path: imageUrl('flow/first+fll_v.png')},
-  {title: 'First', path: imageUrl('flow/first_h.png')},
-  {title: 'First', path: imageUrl('flow/first_v.png')},
-  {title: 'First', path: imageUrl('flow/first_v.png')},
-  {title: 'FLl Challenge', path: imageUrl('flow/fll_challenge_h.png')},
-  {title: 'FLl Challenge', path: imageUrl('flow/fll_challenge_v.png')},
-  {title: 'FLl Explore', path: imageUrl('flow/fll_explore_h.png')},
-  {title: 'FLl Explore', path: imageUrl('flow/fll_explore_hs.png')},
-  {title: 'FLl Explore', path: imageUrl('flow/fll_explore_v.png')},
+  {title: 'Hands on Technology', url: imageUrl('flow/hot.png')},
+  {title: 'Hands on Technology', url: imageUrl('flow/hot_outline.png')},
+  {title: 'Unearthed', url: imageUrl('flow/season_unearthed+fll_h.png')},
+  {title: 'Unearthed', url: imageUrl('flow/season_unearthed_v.png')},
+  {title: 'Unearthed', url: imageUrl('flow/season_unearthed_wordmark.png')},
+  {title: 'First LEGO League', url: imageUrl('flow/first+fll_h.png')},
+  {title: 'First LEGO League', url: imageUrl('flow/first+fll_v.png')},
+  {title: 'First', url: imageUrl('flow/first_h.png')},
+  {title: 'First', url: imageUrl('flow/first_v.png')},
+  {title: 'First', url: imageUrl('flow/first_v.png')},
+  {title: 'FLl Challenge', url: imageUrl('flow/fll_challenge_h.png')},
+  {title: 'FLl Challenge', url: imageUrl('flow/fll_challenge_v.png')},
+  {title: 'FLl Explore', url: imageUrl('flow/fll_explore_h.png')},
+  {title: 'FLl Explore', url: imageUrl('flow/fll_explore_hs.png')},
+  {title: 'FLl Explore', url: imageUrl('flow/fll_explore_v.png')},
 ];
 const availableImages = ref(standardImages);
+const availableQrCodes = ref([]);
 
 const defaultObjectProperties = {
   transparentCorners: true,
@@ -81,7 +82,6 @@ onMounted(() => {
 
   if (props.slide) {
     paintSlide(props.slide);
-    // addImage();
   }
 
   // Toolbar
@@ -163,6 +163,23 @@ async function loadImages() {
   availableImages.value = [...data, ...standardImages];
 }
 
+async function loadQRCodeImages() {
+  // Load both QR codes (public plan and WiFi)
+  try {
+    const publishData = await axios.get(`/publish/link/${event.value.id}`)
+    const qr = publishData.data?.qrcode ?? null;
+
+    const codes = [{title: 'Zeitplan', content: qr}];
+    if (qrWifiUrl.value) {
+      codes.push({title: 'WiFi', content: qrWifiUrl.value});
+    }
+    availableQrCodes.value = codes;
+  } catch (e) {
+    console.error('Fehler beim Laden von Publish-Daten:', e);
+    return;
+  }
+}
+
 function paintSlide(slide: Slide) {
   if (!canvas || !slide || !slide.content.background) return;
   canvas.clear();
@@ -193,13 +210,16 @@ function addRect() {
 }
 
 const showImageModal = ref(false);
+const imageModalContent = ref([]);
 
-function openImageModal() {
+function openImageModal(images) {
   showImageModal.value = true;
+  imageModalContent.value = images;
 }
 
 function closeImageModal() {
   showImageModal.value = false;
+  imageModalContent.value = [];
 }
 
 async function insertImageFromUrl(url) {
@@ -225,20 +245,21 @@ function insertImage(img) {
   canvas.requestRenderAll();
 }
 
-async function addQRCode() {
-  if (!canvas) return;
+function prepareImageModal() {
+  openImageModal(availableImages.value);
+}
 
-  let qr;
-  try {
-    const res = await axios.get(`/plans/event/${event.value.id}`);
-    const planId = res.data?.id ?? null;
-
-    const publishData = await axios.get(`/publish/link/${planId}`)
-    qr = publishData.data?.qrcode ?? null;
-  } catch (e) {
-    console.error('Fehler beim Laden von Publish-Daten:', e);
-    return;
+async function prepareQrCodeModal() {
+  await loadQRCodeImages();
+  if (availableQrCodes.value?.length > 1) {
+    openImageModal(availableQrCodes.value);
+  } else if (availableQrCodes.value?.length == 1) {
+    await addQRCode(availableQrCodes.value[0].content);
   }
+}
+
+async function addQRCode(qr) {
+  if (!canvas) return;
 
   const image = await FabricImage.fromObject({src: qr});
   insertImage(image);
@@ -461,11 +482,11 @@ async function paste() {
               class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
         <svg-icon type="mdi" :path="mdiFormatText"></svg-icon>
       </button>
-      <button @click="openImageModal" title="Logo einfügen"
+      <button @click="prepareImageModal" title="Logo einfügen"
               class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
         <svg-icon type="mdi" :path="mdiImageArea"></svg-icon>
       </button>
-      <button @click="addQRCode" title="QR-Code zum öffentlichen Zeitplan einfügen"
+      <button @click="prepareQrCodeModal" title="QR-Code einfügen"
               class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
         <svg-icon type="mdi" :path="mdiQrcodePlus"></svg-icon>
       </button>
@@ -528,8 +549,11 @@ async function paste() {
       <div class="bg-white rounded shadow-lg p-6 w-96">
         <h2 class="text-lg font-bold mb-4">Bild auswählen</h2>
         <div class="grid grid-cols-3 gap-4 overflow-y-auto max-h-96">
-          <div v-for="img in availableImages" :key="img" class="cursor-pointer">
-            <img :src="img.url" :alt="img.title"
+          <div v-for="img in imageModalContent" :key="img" class="cursor-pointer">
+            <img v-if="!!img.content" :src="img.content" :alt="img.title"
+                 class="w-24 h-24 object-contain rounded border"
+                 @click="addQRCode(img.content)"/>
+            <img v-else :src="img.url" :alt="img.title"
                  class="w-24 h-24 object-contain rounded border"
                  @click="insertImageFromUrl(img.url)"/>
           </div>

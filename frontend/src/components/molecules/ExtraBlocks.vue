@@ -4,6 +4,7 @@ import axios from 'axios'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import SavingToast from "@/components/atoms/SavingToast.vue";
 
 type Maybe<T> = T | null | undefined
 
@@ -35,9 +36,7 @@ const blockToDelete = ref<ExtraBlock | null>(null)
 const pendingUpdates = ref<Record<string, any>>({})
 const updateTimeoutId = ref<NodeJS.Timeout | null>(null)
 const DEBOUNCE_DELAY = 2000
-const showToast = ref(false)
-const progress = ref(100)
-const progressIntervalId = ref<NodeJS.Timeout | null>(null)
+const savingToast = ref(null)
 
 // --- Computed ---
 const customBlocks = computed(() => blocks.value.filter(b => !('insert_point' in b) || !b.insert_point))
@@ -59,7 +58,6 @@ watch(() => props.planId, v => { if (v != null) loadBlocks() }, { immediate: tru
 
 onUnmounted(() => {
   if (updateTimeoutId.value) clearTimeout(updateTimeoutId.value)
-  if (progressIntervalId.value) clearInterval(progressIntervalId.value)
 })
 
 // --- Load blocks ---
@@ -70,32 +68,14 @@ async function loadBlocks() {
   blocks.value = Array.isArray(data) ? data : []
 }
 
-// --- Toast & Progress Animation ---
-function startProgressAnimation() {
-  progress.value = 100
-  if (progressIntervalId.value) clearInterval(progressIntervalId.value)
-  const stepSize = 100 / (DEBOUNCE_DELAY / 50)
-  progressIntervalId.value = setInterval(() => {
-    progress.value -= stepSize
-    if (progress.value <= 0) {
-      progress.value = 0
-      clearInterval(progressIntervalId.value!)
-      progressIntervalId.value = null
-    }
-  }, 50)
-}
-
 // --- Central Flush Logic ---
 async function flushUpdates() {
   if (updateTimeoutId.value) {
     clearTimeout(updateTimeoutId.value)
     updateTimeoutId.value = null
   }
-  if (progressIntervalId.value) {
-    clearInterval(progressIntervalId.value)
-    progressIntervalId.value = null
-  }
-  showToast.value = false
+
+  savingToast.value?.hide()
 
   const updates = Object.entries(pendingUpdates.value)
   if (updates.length === 0) return
@@ -126,8 +106,7 @@ async function flushUpdates() {
 // --- Unified Debounced Update ---
 function scheduleFlush(name: string, value: any) {
   pendingUpdates.value[name] = value
-  showToast.value = true
-  startProgressAnimation()
+  savingToast.value?.show()
   if (updateTimeoutId.value) clearTimeout(updateTimeoutId.value)
   updateTimeoutId.value = setTimeout(() => flushUpdates(), DEBOUNCE_DELAY)
 }
@@ -200,7 +179,7 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
 
 const deleteMessage = computed(() => {
   if (!blockToDelete.value) return ''
-  return `Möchten Sie den Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen?`
+  return `Möchtest du den Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen?`
 })
 </script>
 
@@ -309,15 +288,6 @@ const deleteMessage = computed(() => {
       @cancel="cancelDeleteBlock"
     />
 
-    <!-- Toast notification -->
-    <div v-if="showToast" class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
-      <div class="flex items-center gap-3">
-        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-        <span class="text-green-800 font-medium">Block-Änderungen werden gespeichert...</span>
-      </div>
-      <div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
-        <div :style="{ width: progress + '%' }" class="bg-green-500 h-full transition-all duration-75 ease-linear"></div>
-      </div>
-    </div>
+    <SavingToast ref="savingToast" message="Block-Änderungen werden gespeichert..." />
   </div>
 </template>

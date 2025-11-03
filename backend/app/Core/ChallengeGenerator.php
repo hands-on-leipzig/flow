@@ -167,7 +167,7 @@ class ChallengeGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Failed to generate openings and briefings: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Challenge-Eröffnung und Briefings (Explore: " . ($explore ? 'aktiv' : 'inaktiv') . "): {$e->getMessage()}", 0, $e);
         }
     }
 
@@ -506,7 +506,7 @@ class ChallengeGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Failed to generate main challenge activities: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Challenge-Hauptaktivitäten (Explore: " . ($explore ? 'aktiv' : 'inaktiv') . "): {$e->getMessage()}", 0, $e);
         }
     }
 
@@ -598,7 +598,7 @@ class ChallengeGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Failed to generate robot game finals: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Robot-Game-Finals: {$e->getMessage()}", 0, $e);
         }
     }
     
@@ -681,7 +681,7 @@ class ChallengeGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Failed to generate awards: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Challenge-Preisverleihung (Explore: " . ($explore ? 'aktiv' : 'inaktiv') . "): {$e->getMessage()}", 0, $e);
         }
     }
 

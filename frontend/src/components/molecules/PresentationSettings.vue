@@ -10,6 +10,7 @@ import {Slideshow} from "@/models/slideshow";
 import axios from "axios";
 import {Slide} from "@/models/slide";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
+import SavingToast from "@/components/atoms/SavingToast.vue";
 
 type RobotGamePublicRounds = {
   vr1: boolean;
@@ -25,6 +26,7 @@ const event = computed(() => eventStore.selectedEvent);
 const loading = ref(true);
 const planId = ref<number | null>(null);
 const slideshows = ref<Slideshow[]>([]);
+const savingToast = ref(null);
 
 const robotGameRounds = ref<RobotGamePublicRounds | null>(null);
 
@@ -66,6 +68,8 @@ async function fetchPlanId() {
 async function updateOrder(slideshow: Slideshow) {
   const slideIds = slideshow.slides.map(slide => slide.id);
 
+  savingToast?.value?.show();
+
   try {
     await axios.put(`/slideshow/${slideshow.id}/updateOrder`, {
       slide_ids: slideIds
@@ -95,6 +99,7 @@ async function addSlideshow() {
 }
 
 async function updateTransitionTime(slideshow: Slideshow) {
+  savingToast?.value?.show();
   try {
     await axios.put(`/slideshow/${slideshow.id}`, {
       transition_time: slideshow.transition_time
@@ -122,6 +127,7 @@ async function addSlide(slideshow: Slideshow) {
 
     const content = JSON.stringify(newSlide.content.toJSON());
     newSlide = {...newSlide, content, order: slideshow.slides.length + 1};
+
     try {
       const response = await axios.put(`slideshow/${slideshow.id}/add`, newSlide);
       console.log(response.data.slide);
@@ -143,6 +149,7 @@ async function getPublicRobotGameRounds() {
 
 async function updateRobotGameRounds(round, value) {
   robotGameRounds.value[round] = value;
+  savingToast?.value?.show();
   await pushPublicRobotGameRoundsUpdate();
 }
 
@@ -160,6 +167,8 @@ function copyUrl(url) {
 </script>
 
 <template>
+  <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
+
   <div class="rounded-xl shadow bg-white p-4 flex flex-col">
     <div class="flex items-center justify-between">
       <h2 class="text-lg font-semibold mb-2">Präsentation</h2>
@@ -190,7 +199,7 @@ function copyUrl(url) {
       <div class="" v-if="robotGameRounds">
         <span class="font-bold">Robot Game: Öffentliche Ergebnisse</span>
         <InfoPopover
-            text="Wählen Sie aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
+            text="Wähle aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
         <div class="grid grid-cols-5 gap-2 mt-2">
           <label class="flex items-center gap-2 px-2">
             <input

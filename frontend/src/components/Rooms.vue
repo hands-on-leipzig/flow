@@ -257,7 +257,6 @@ const unassignItemFromRoom = async (itemKey) => {
 // --- Raum erstellen ---
 const newRoomName = ref('')
 const newRoomNote = ref('')
-const newRoomAccessible = ref(true)
 const newRoomInput = ref(null)
 const newRoomNoteInput = ref(null)
 const isSaving = ref(false)
@@ -274,13 +273,11 @@ const createRoom = async () => {
     const { data } = await axios.post('/rooms', {
       name: newRoomName.value.trim(),
       navigation_instruction: newRoomNote.value.trim(),
-      event: eventId.value,
-      is_accessible: newRoomAccessible.value
+      event: eventId.value
     })
     rooms.value.push(data)
     newRoomName.value = ''
     newRoomNote.value = ''
-    newRoomAccessible.value = true
     await nextTick()
     newRoomInput.value?.focus()
   } finally {
@@ -292,7 +289,11 @@ const createRoom = async () => {
 // --- Drag & Drop ---
 const handleDrop = async (event, room) => {
   const item = event.item.__draggable_context?.element
-  if (item && item.id) {
+  if (item && item.key) {
+    // Use the key directly since all items have a unique key property
+    await assignItemToRoom(item.key, room.id)
+  } else if (item && item.id && item.type) {
+    // Fallback: construct key if not present
     const key = `${item.type}-${item.id}`
     await assignItemToRoom(key, room.id)
   } else {
@@ -456,12 +457,15 @@ const hasWarning = (tab) => {
                   @blur="updateRoom(room)"
                 />
                 <div 
-                  class="text-lg cursor-pointer"
-                  :class="room.is_accessible ? 'text-green-600' : 'text-red-600'"
+                  class="cursor-pointer"
                   :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
                   @click="toggleAccessibility(room)"
                 >
-                  {{ room.is_accessible ? '♿✓' : '♿⭕' }}
+                  <img 
+                    :src="room.is_accessible ? '/flow/accessible_yes.png' : '/flow/accessible_no.png'"
+                    :alt="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                    class="w-6 h-6"
+                  />
                 </div>
               </div>
 
@@ -477,7 +481,7 @@ const hasWarning = (tab) => {
                   <draggable
                     :list="getItemsInRoom(room.id)"
                     group="assignables"
-                    item-key="id"
+                    item-key="key"
                     @add="event => handleDrop(event, room)"
                     @start="isDragging = true"
                     @end="isDragging = false"
@@ -558,7 +562,7 @@ const hasWarning = (tab) => {
             />
           </div>
           <transition name="fade">
-            <div v-if="newRoomName.trim().length > 0 || newRoomNote.trim().length > 0">
+            <div v-if="newRoomName.trim().length > 0">
               <input
                 ref="newRoomNoteInput"
                 v-model="newRoomNote"
@@ -567,25 +571,6 @@ const hasWarning = (tab) => {
                 @keyup.enter="createRoom"
                 :disabled="isSaving"
               />
-              <div class="flex items-center gap-2 mt-2">
-                <input
-                  type="checkbox"
-                  v-model="newRoomAccessible"
-                  id="newRoomAccessible"
-                  class="rounded"
-                  :disabled="isSaving"
-                />
-                <label for="newRoomAccessible" class="text-sm text-gray-700">
-                  Barrierefrei
-                </label>
-              </div>
-              <button
-                @click="createRoom"
-                :disabled="isSaving || (!newRoomName.trim() && !newRoomNote.trim())"
-                class="mt-3 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {{ isSaving ? 'Erstelle...' : 'Raum erstellen' }}
-              </button>
             </div>
           </transition>
         </div>
