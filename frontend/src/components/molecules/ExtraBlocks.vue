@@ -137,30 +137,48 @@ async function flushUpdates(updates: Record<string, any>) {
     }
   }
 
-  // Set generating state immediately if regeneration will be needed
+      // Set generating state immediately if regeneration will be needed
   // This ensures the UI shows "Plan wird generiert" right away
   if (needsRegeneration) {
     isGenerating.value = true
   }
 
-  try {
-    for (const [name, value] of Object.entries(updates)) {
-      if (name === 'extra_block_update' && value) {
-        const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f))
-        const blockData = { ...value }
-        if (!hasTimingChanges) {
-          blockData.skip_regeneration = true
+    try {
+      for (const [name, value] of Object.entries(updates)) {
+        if (name === 'extra_block_update' && value) {
+          const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f))
+          const blockData = { ...value }
+          if (!hasTimingChanges) {
+            blockData.skip_regeneration = true
+          }
+          const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
+          
+          // Check if response contains error from generateLite
+          if (response.data?.error) {
+            generatorError.value = response.data.error
+            errorDetails.value = response.data.details || null
+            isGenerating.value = false
+            await loadBlocks() // Still reload blocks even on error
+            return // Stop processing further updates
+          }
         }
-        await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
+        if (name === 'extra_block_delete' && value?.id) {
+          await axios.delete(`/extra-blocks/${value.id}`)
+        }
+        if (name === 'extra_block_add' && value) {
+          const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
+          
+          // Check if response contains error from generateLite
+          if (response.data?.error) {
+            generatorError.value = response.data.error
+            errorDetails.value = response.data.details || null
+            isGenerating.value = false
+            await loadBlocks() // Still reload blocks even on error
+            return // Stop processing further updates
+          }
+        }
       }
-      if (name === 'extra_block_delete' && value?.id) {
-        await axios.delete(`/extra-blocks/${value.id}`)
-      }
-      if (name === 'extra_block_add' && value) {
-        await axios.post(`/plans/${props.planId}/extra-blocks`, value)
-      }
-    }
-    await loadBlocks()
+      await loadBlocks()
 
     // Poll for generator status if regeneration was triggered
     if (needsRegeneration) {
@@ -323,7 +341,9 @@ async function deleteBlock() {
 }
 
 function saveBlock(block: ExtraBlock) {
-  scheduleUpdate('extra_block_update', block)
+  // Create a new object copy to avoid reference issues during countdown
+  // This ensures each update captures the current state independently
+  scheduleUpdate('extra_block_update', { ...block })
 }
 
 function toggleActive(block: ExtraBlock, active: boolean) {
@@ -358,11 +378,78 @@ function handleDateChange(block: ExtraBlock, date: string) {
   saveBlock(block)
 }
 
+/**
+ * Converts time string (HH:MM) to minutes since midnight.
+ */
+function timeToMinutes(timeString: string): number {
+  if (!timeString || typeof timeString !== 'string') return 0
+  const [hours, minutes] = timeString.split(':').map(Number)
+  return (hours || 0) * 60 + (minutes || 0)
+}
+
+/**
+ * Validates time value with min/max constraints (same as ParameterField.vue)
+ */
+function validateTimeValue(timeValue: string): { valid: boolean; error?: string } {
+  // Allow empty values during typing
+  if (!timeValue || timeValue === '' || timeValue.trim() === '') {
+    return { valid: true }
+  }
+  
+  // Check if time format is valid (hh:mm)
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/
+  if (!timeRegex.test(timeValue)) {
+    return { valid: false, error: 'Ungültiges Zeitformat (hh:mm)' }
+  }
+  
+  // Convert to minutes for comparison
+  const valueMinutes = timeToMinutes(timeValue)
+  
+  // Validate minimum (00:05)
+  const minMinutes = timeToMinutes('00:05')
+  if (valueMinutes < minMinutes) {
+    return { valid: false, error: 'Zeit darf minimal 00:05 sein' }
+  }
+  
+  // Validate maximum (23:55)
+  const maxMinutes = timeToMinutes('23:55')
+  if (valueMinutes > maxMinutes) {
+    return { valid: false, error: 'Zeit darf maximal 23:55 sein' }
+  }
+  
+  // Validate step: minutes must be multiples of 5
+  if (valueMinutes % 5 !== 0) {
+    return { valid: false, error: 'Nur 5-Minuten-Schritte erlaubt' }
+  }
+  
+  return { valid: true }
+}
+
 // Helper function to round minutes to nearest multiple of 5
 function roundTo5Minutes(time: string): string {
-  if (!time || !time.includes(':')) return '00:00'
-  const [hours, minutes] = time.split(':').map(Number)
+  if (!time || typeof time !== 'string' || !time.includes(':')) return '00:05'
+  
+  const parts = time.split(':')
+  if (parts.length !== 2) return '00:05'
+  
+  const hoursStr = parts[0].trim()
+  const minutesStr = parts[1].trim()
+  
+  // Only process if both parts are non-empty
+  if (!hoursStr || !minutesStr) return '00:05'
+  
+  const hours = parseInt(hoursStr, 10)
+  const minutes = parseInt(minutesStr, 10)
+  
+  // Validate inputs are valid numbers
+  if (isNaN(hours) || isNaN(minutes)) return '00:05'
+  
+  // Ensure hours are within valid range before processing
+  if (hours < 0 || hours >= 24) return '00:05'
+  
+  // Round minutes to nearest multiple of 5
   const roundedMinutes = Math.round(minutes / 5) * 5
+  
   // Handle wrap-around if minutes round to 60
   let finalHours = hours
   let finalMinutes = roundedMinutes
@@ -370,6 +457,20 @@ function roundTo5Minutes(time: string): string {
     finalHours = (finalHours + 1) % 24
     finalMinutes = 0
   }
+  
+  // Ensure result is within min/max bounds (00:05 to 23:55)
+  const resultMinutes = finalHours * 60 + finalMinutes
+  const minMinutes = timeToMinutes('00:05')
+  const maxMinutes = timeToMinutes('23:55')
+  
+  if (resultMinutes < minMinutes) return '00:05'
+  if (resultMinutes > maxMinutes) {
+    // Round down to nearest valid time (23:55 or earlier)
+    const adjustedHours = Math.floor(maxMinutes / 60)
+    const adjustedMinutes = Math.floor((maxMinutes % 60) / 5) * 5
+    return `${String(adjustedHours).padStart(2, '0')}:${String(adjustedMinutes).padStart(2, '0')}`
+  }
+  
   return `${String(finalHours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`
 }
 
@@ -387,63 +488,143 @@ function add5Minutes(time: string): string {
 // Helper function to compare two time strings (HH:mm)
 function compareTimes(time1: string, time2: string): number {
   if (!time1 || !time2) return 0
-  const [h1, m1] = time1.split(':').map(Number)
-  const [h2, m2] = time2.split(':').map(Number)
+  const [h1Str, m1Str] = time1.split(':')
+  const [h2Str, m2Str] = time2.split(':')
+  const h1 = parseInt(h1Str, 10)
+  const m1 = parseInt(m1Str, 10)
+  const h2 = parseInt(h2Str, 10)
+  const m2 = parseInt(m2Str, 10)
+  
+  // Validate inputs are numbers
+  if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return 0
+  
   const minutes1 = h1 * 60 + m1
   const minutes2 = h2 * 60 + m2
   return minutes1 - minutes2
 }
 
 // Handle start time change
-function handleStartTimeChange(block: ExtraBlock, time: string) {
+function handleStartTimeChange(block: ExtraBlock, time: string, shouldRound: boolean = true) {
   // Always use the same date for both start and end
   const date = extractDate(block.start || block.end || '')
   let endTime = extractTime(block.end || '')
   
   if (!date) return // Need date first
   
-  // Round time to nearest 5 minutes
-  const roundedTime = roundTo5Minutes(time)
+  if (!time || time === '') return // Don't process empty values
   
-  // If start time is greater than or equal to end time, set end to start + 5 minutes
-  if (endTime && compareTimes(roundedTime, endTime) >= 0) {
-    endTime = add5Minutes(roundedTime)
-  } else if (!endTime) {
-    // If no end time exists, set it to start + 5 minutes
-    endTime = add5Minutes(roundedTime)
-  } else {
-    // Round existing end time as well
-    endTime = roundTo5Minutes(endTime)
+  // Validate time (same as ParameterField.vue)
+  if (shouldRound) {
+    const validation = validateTimeValue(time)
+    if (!validation.valid) {
+      // Show validation error - could be displayed in UI if needed
+      console.warn('Time validation error:', validation.error)
+      // Round anyway to ensure valid value
+      const roundedTime = roundTo5Minutes(time)
+      // Update block optimistically
+      block.start = combineDateTime(date, roundedTime)
+      // Schedule update with a fresh copy
+      scheduleUpdate('extra_block_update', { ...block })
+      return
+    }
   }
   
-  block.start = combineDateTime(date, roundedTime)
-  // Ensure end uses the same date
-  block.end = combineDateTime(date, endTime)
-  saveBlock(block)
+  // Round time to nearest 5 minutes only when explicitly requested (on blur/change, not during typing)
+  const processedTime = shouldRound ? roundTo5Minutes(time) : time
+  
+  // Only do validation and adjustment when rounding (i.e., on blur/change, not during typing)
+  if (shouldRound) {
+    // Ensure processed time is within bounds
+    const finalTime = processedTime
+    
+    // If start time is greater than or equal to end time, set end to start + 5 minutes
+    if (endTime && compareTimes(finalTime, endTime) >= 0) {
+      endTime = add5Minutes(finalTime)
+      // Ensure end time doesn't exceed max
+      const endMinutes = timeToMinutes(endTime)
+      const maxMinutes = timeToMinutes('23:55')
+      if (endMinutes > maxMinutes) {
+        endTime = '23:55'
+      }
+    } else if (!endTime) {
+      // If no end time exists, set it to start + 5 minutes
+      endTime = add5Minutes(finalTime)
+      // Ensure end time doesn't exceed max
+      const endMinutes = timeToMinutes(endTime)
+      const maxMinutes = timeToMinutes('23:55')
+      if (endMinutes > maxMinutes) {
+        endTime = '23:55'
+      }
+    } else {
+      // Round existing end time as well
+      endTime = roundTo5Minutes(endTime)
+    }
+    
+    // Update block optimistically (for immediate UI feedback)
+    block.start = combineDateTime(date, finalTime)
+    block.end = combineDateTime(date, endTime)
+    
+    // Schedule update with a fresh copy to avoid reference issues
+    scheduleUpdate('extra_block_update', { ...block })
+  } else {
+    // During typing (shouldRound = false), just update optimistically
+    // Don't schedule update yet - wait for blur
+    block.start = combineDateTime(date, processedTime)
+  }
 }
 
 // Handle end time change
-function handleEndTimeChange(block: ExtraBlock, time: string) {
+function handleEndTimeChange(block: ExtraBlock, time: string, shouldRound: boolean = true) {
   // Always use the same date for both start and end
   const date = extractDate(block.start || block.end || '')
   let startTime = extractTime(block.start || '')
   
   if (!date) return // Need date first
   
-  // Round time to nearest 5 minutes
-  const roundedTime = roundTo5Minutes(time)
+  if (!time || time === '') return // Don't process empty values
   
-  // Round existing start time as well
-  if (startTime) {
-    startTime = roundTo5Minutes(startTime)
-  } else {
-    startTime = '00:00'
+  // Validate time (same as ParameterField.vue)
+  if (shouldRound) {
+    const validation = validateTimeValue(time)
+    if (!validation.valid) {
+      // Show validation error - could be displayed in UI if needed
+      console.warn('Time validation error:', validation.error)
+      // Round anyway to ensure valid value
+      const roundedTime = roundTo5Minutes(time)
+      // Update block optimistically
+      block.end = combineDateTime(date, roundedTime)
+      // Schedule update with a fresh copy
+      scheduleUpdate('extra_block_update', { ...block })
+      return
+    }
   }
   
-  // Ensure start uses the same date
-  block.start = combineDateTime(date, startTime)
-  block.end = combineDateTime(date, roundedTime)
-  saveBlock(block)
+  // Round time to nearest 5 minutes only when explicitly requested (on blur/change, not during typing)
+  const processedTime = shouldRound ? roundTo5Minutes(time) : time
+  
+  // Only do validation and adjustment when rounding (i.e., on blur/change, not during typing)
+  if (shouldRound) {
+    // Ensure processed time is within bounds
+    const finalTime = processedTime
+    
+    // Round existing start time as well
+    if (startTime) {
+      startTime = roundTo5Minutes(startTime)
+    } else {
+      startTime = '00:05' // Use min value instead of 00:00
+    }
+    
+    // Update block optimistically (for immediate UI feedback)
+    block.start = combineDateTime(date, startTime)
+    block.end = combineDateTime(date, finalTime)
+    
+    // Schedule update with a fresh copy to avoid reference issues
+    scheduleUpdate('extra_block_update', { ...block })
+  } else {
+    // During typing (shouldRound = false), just update optimistically
+    // Don't schedule update yet - wait for blur
+    block.end = combineDateTime(date, processedTime)
+  }
 }
 
 const deleteMessage = computed(() => {
@@ -552,21 +733,19 @@ const deleteMessage = computed(() => {
                     :value="extractTime(b.start)" 
                     class="flex-1 border rounded px-2 py-1 text-sm" 
                     type="time"
-                    step="300"
-                    min="00:00"
+                    min="00:05"
                     max="23:55"
                     placeholder="Start"
-                    @change="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
+                    @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value, true)"
                   />
                   <input 
                     :value="extractTime(b.end)" 
                     class="flex-1 border rounded px-2 py-1 text-sm" 
                     type="time"
-                    step="300"
-                    min="00:00"
+                    min="00:05"
                     max="23:55"
                     placeholder="Ende"
-                    @change="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
+                    @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value, true)"
                   />
                 </div>
               </div>
