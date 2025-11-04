@@ -4,9 +4,7 @@ import axios from 'axios'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
-import { useDebouncedSave } from "@/composables/useDebouncedSave";
-import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";
-import SavingToast from "@/components/atoms/SavingToast.vue";  
+// Note: No debounce system here - blocks save immediately, generator triggers go to Schedule.vue  
 
 type InsertPoint = {
   id: number
@@ -56,102 +54,83 @@ const saving = ref(false)
 const insertPoints = ref<InsertPoint[]>([])
 const blocks = ref<ExtraBlock[]>([])
 
-// --- Debounced update system ---
-const savingToast = ref(null)
-const countdownSeconds = ref<number | null>(null)
+// --- Immediate save system (no debounce for DB saves) ---
+// Note: Block changes are saved immediately to DB, generator triggers are debounced in Schedule.vue
 
-const { scheduleUpdate: scheduleUpdateDebounced, flush: flushDebounced, immediateFlush } = useDebouncedSave({
-  delay: DEBOUNCE_DELAY,
-  onShowToast: (countdown) => {
-    countdownSeconds.value = countdown
-  },
-  onHideToast: () => {
-    countdownSeconds.value = null
-  },
-  onCountdownUpdate: (seconds) => {
-    countdownSeconds.value = seconds
-  },
-  onSave: async (updates) => {
-    await flushUpdates(updates)
-  }
-})
+// Field classification
+const TIMING_FIELDS = ['buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
+const TOGGLE_FIELDS = ['active']
+const NON_TIMING_FIELDS = ['name', 'description', 'link']
 
-function scheduleUpdate(blockId: string, field: string, value: any) {
-  console.log('Scheduling block update:', { blockId, field, value })
-  const key = `${blockId}_${field}`
-  scheduleUpdateDebounced(key, value)
+function isTimingField(field: string): boolean {
+  return TIMING_FIELDS.includes(field)
 }
 
-async function flushUpdates(updates: Record<string, any>) {
-  console.log('Flushing block updates:', updates)
-  
-  if (Object.keys(updates).length === 0) return
+function isToggleField(field: string): boolean {
+  return TOGGLE_FIELDS.includes(field)
+}
 
-  // Separate new blocks from existing block updates
-  const newBlocks: Array<{ name: string, value: any }> = []
-  const existingUpdates: Record<string, any> = {}
+function needsGenerator(field: string): boolean {
+  return isTimingField(field) || isToggleField(field)
+}
 
-  Object.entries(updates).forEach(([key, value]) => {
-    if (key.startsWith('block_new_')) {
-      // New block creation
-      const pointId = key.replace('block_new_', '')
-      newBlocks.push({ name: `block_new_${pointId}`, value })
-    } else {
-      // Existing block update
-      existingUpdates[key] = value
-    }
-  })
-
-  // Group existing updates by block ID
-  const updatesByBlock: Record<string, Record<string, any>> = {}
-  Object.entries(existingUpdates).forEach(([key, value]) => {
-    // Parse: "123_buffer_before" -> blockId="123", field="buffer_before"
-    const parts = key.split('_')
-    if (parts.length >= 2) {
-      const blockId = parts[0] // "123"
-      const field = parts.slice(1).join('_') // "buffer_before"
-      if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
-      updatesByBlock[blockId][field] = value
-    }
-  })
+// Immediate save for block field changes
+async function saveBlockField(blockId: number, field: string, value: any) {
+  if (!props.planId) return
   
-  console.log('Block updates grouped:', updatesByBlock)
-  console.log('New blocks:', newBlocks)
-  
-  // Apply updates to blocks locally
-  for (const [blockId, updates] of Object.entries(updatesByBlock)) {
-    const block = blocks.value.find(b => b.id?.toString() === blockId)
-    if (block) {
-      Object.assign(block, updates)
-    }
+  const block = blocks.value.find(b => b.id === blockId)
+  if (!block) {
+    console.warn(`Block ${blockId} not found`)
+    return
   }
   
-  // Convert to parameter-style updates for the parent
-  const updateArray: Array<{ name: string, value: any }> = []
+  // Update local state immediately
+  block[field as keyof ExtraBlock] = value as any
   
-  // Add existing block updates
-  Object.entries(existingUpdates).forEach(([key, value]) => {
-    // Parse: "28_buffer_before" -> blockId="28", field="buffer_before"
-    const parts = key.split('_')
-    if (parts.length >= 2) {
-      const blockId = parts[0] // "28"
-      const field = parts.slice(1).join('_') // "buffer_before"
-      updateArray.push({ name: `block_${blockId}_${field}`, value })
-    } else {
-      updateArray.push({ name: key, value }) // fallback
-    }
-  })
-  
-  // Add new blocks
-  updateArray.push(...newBlocks)
-  
-  // Send to parent's update system
-  console.log('Sending updates to parent:', updateArray)
-  if (props.onUpdate) {
-    props.onUpdate(updateArray)
+  // Prepare block data for API
+  const blockData: any = { 
+    id: blockId,
+    [field]: value
   }
   
-  emit('changed')
+  // Determine if this triggers generator (timing/toggle fields)
+  const needsGen = needsGenerator(field)
+  if (!needsGen) {
+    blockData.skip_regeneration = true
+  }
+  
+  try {
+    saving.value = true
+    const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
+    
+    // Update local block with response data
+    const saved = response.data?.block || response.data
+    if (saved?.id) {
+      const index = blocks.value.findIndex(b => b.id === saved.id)
+      if (index !== -1) {
+        blocks.value[index] = saved
+      } else {
+        blocks.value.push(saved)
+      }
+    }
+    
+    // If timing/toggle change, notify Schedule for debounced generator trigger
+    if (needsGen && props.onUpdate) {
+      props.onUpdate([{ 
+        name: `block_${blockId}_${field}`, 
+        value: value,
+        triggerGenerator: true 
+      }])
+    }
+    
+    emit('changed')
+  } catch (error) {
+    console.error('Failed to save block field:', error)
+    // Could rollback local state here if needed
+    // For now, just log the error
+  } finally {
+    saving.value = false
+  }
 }
 
 // --- Loaders ---
@@ -237,18 +216,17 @@ function isBlockEditable(pointId: number) {
   return block && block.active !== false
 }
 
-function togglePoint(point: InsertPoint, enabled: boolean) {
+async function togglePoint(point: InsertPoint, enabled: boolean) {
   if (props.planId == null) return // guard
   
-  // Finde bestehenden Block
   const existing = blocks.value.find(b => b.insert_point === point.id && b.plan === props.planId)
   const activeValue = enabled ? 1 : 0
 
   if (existing?.id) {
-    // Nur aktiv/inaktiv umschalten → caught by debouncer with countdown
-    scheduleUpdate(existing.id.toString(), 'active', activeValue)
+    // Toggle active/inactive - save immediately, trigger generator
+    await saveBlockField(existing.id, 'active', activeValue)
   } else if (enabled) {
-    // Neuer Block aktivieren → caught by debouncer with countdown
+    // Create new block - save immediately, trigger generator
     const draft: ExtraBlock = {
       plan: props.planId,
       first_program: point.first_program ?? null,
@@ -261,40 +239,33 @@ function togglePoint(point: InsertPoint, enabled: boolean) {
       buffer_after: 5,
       active: true
     }
-
-    // Schedule via debouncer instead of immediate update
-    scheduleUpdateDebounced(`block_new_${point.id}`, draft)
+    
+    try {
+      saving.value = true
+      const response = await axios.post(`/plans/${props.planId}/extra-blocks`, draft)
+      const saved = response.data?.block || response.data
+      
+      if (saved?.id) {
+        blocks.value.push(saved)
+        
+        // Notify Schedule for debounced generator trigger
+        if (props.onUpdate) {
+          props.onUpdate([{ 
+            name: `block_${saved.id}_active`, 
+            value: 1,
+            triggerGenerator: true 
+          }])
+        }
+      }
+      
+      emit('changed')
+    } catch (error) {
+      console.error('Failed to create block:', error)
+    } finally {
+      saving.value = false
+    }
   } else {
     // Disabling a new block (that doesn't exist yet) - nothing to do
-    // But if it was just created and we're toggling off, we'd need to track it
-    // For now, this case is handled by the block existing after creation
-  }
-}
-
-// Immediate save function (internal use)
-async function saveBlockImmediate(block: ExtraBlock) {
-  if (props.planId == null) return
-  saving.value = true
-  try {
-    const planId = props.planId
-    // Ensure active is sent as 1 or 0
-    const blockData = {
-      ...block,
-      active: block.active ? 1 : 0
-    }
-    const {data: response} = await axios.post(`/plans/${planId}/extra-blocks`, blockData)
-    const saved = response.block || response
-
-    if (saved?.id != null) {
-      const i = blocks.value.findIndex(b => b.id === saved.id)
-      if (i !== -1) blocks.value.splice(i, 1, saved)
-      else blocks.value.push(saved)
-    } else {
-      blocks.value.push(saved)
-    }
-    emit('changed')
-  } finally {
-    saving.value = false
   }
 }
 
@@ -309,9 +280,16 @@ function onFixedNumInput(pointId: number, field: 'buffer_before' | 'duration' | 
   const value = Number.isFinite(v) ? v : 0
   updateFixed(pointId, {[field]: value} as any)
   
+  // Value updated locally, will be saved on blur
+}
+
+async function onFixedNumBlur(pointId: number, field: 'buffer_before' | 'duration' | 'buffer_after', e: Event) {
+  const value = Number((e.target as HTMLInputElement).value)
+  const finalValue = Number.isFinite(value) ? value : 0
+  
   const block = fixedByPoint.value[pointId]
   if (block?.id) {
-    scheduleUpdate(block.id.toString(), field, value)
+    await saveBlockField(block.id, field, finalValue)
   }
 }
 
@@ -319,15 +297,16 @@ function onFixedTextInput(pointId: number, field: 'name' | 'description' | 'link
   const value = (e.target as HTMLInputElement).value
   updateFixed(pointId, {[field]: value} as any)
   
-  const block = fixedByPoint.value[pointId]
-  if (block?.id) {
-    scheduleUpdate(block.id.toString(), field, value)
-  }
+  // Value updated locally, will be saved on blur
 }
 
-function onFixedBlur() {
-  // Trigger immediate update on blur
-  flushDebounced()
+async function onFixedTextBlur(pointId: number, field: 'name' | 'description' | 'link', e: Event) {
+  const value = (e.target as HTMLInputElement).value
+  
+  const block = fixedByPoint.value[pointId]
+  if (block?.id) {
+    await saveBlockField(block.id, field, value)
+  }
 }
 
 // Cleanup handled by composable (it will flush on unmount)
@@ -395,7 +374,7 @@ defineExpose({
                    min="5"
                    step="5"
                    type="number"
-                   @change="onFixedBlur()"
+                   @blur="onFixedNumBlur(p.id, 'buffer_before', $event)"
                    @input="onFixedNumInput(p.id, 'buffer_before', $event)"
             />
 
@@ -407,7 +386,7 @@ defineExpose({
                    min="5"
                    step="5"
                    type="number"
-                   @change="onFixedBlur()"
+                   @blur="onFixedNumBlur(p.id, 'duration', $event)"
                    @input="onFixedNumInput(p.id, 'duration', $event)"
             />
           </td>
@@ -418,7 +397,7 @@ defineExpose({
                    min="5"
                    step="5"
                    type="number"
-                   @change="onFixedBlur()"
+                   @blur="onFixedNumBlur(p.id, 'buffer_after', $event)"
                    @input="onFixedNumInput(p.id, 'buffer_after', $event)"
             />
           </td>
@@ -428,7 +407,7 @@ defineExpose({
                    :value="fixedByPoint[p.id]?.name ?? ''"
                    class="w-full border rounded px-2 py-1"
                    type="text"
-                   @blur="onFixedBlur()"
+                   @blur="onFixedTextBlur(p.id, 'name', $event)"
                    @input="onFixedTextInput(p.id, 'name', $event)"
             />
           </td>
@@ -438,7 +417,7 @@ defineExpose({
                    :value="fixedByPoint[p.id]?.description ?? ''"
                    class="w-full border rounded px-2 py-1"
                    type="text"
-                   @blur="onFixedBlur()"
+                   @blur="onFixedTextBlur(p.id, 'description', $event)"
                    @input="onFixedTextInput(p.id, 'description', $event)"
             />
           </td>
@@ -448,7 +427,7 @@ defineExpose({
                    :value="fixedByPoint[p.id]?.link ?? ''"
                    class="w-full border rounded px-2 py-1"
                    type="text"
-                   @blur="onFixedBlur()"
+                   @blur="onFixedTextBlur(p.id, 'link', $event)"
                    @input="onFixedTextInput(p.id, 'link', $event)"
             />
           </td>
@@ -461,12 +440,5 @@ defineExpose({
     </div>
 
     <div v-if="loading || saving" class="text-sm text-gray-500 px-4 py-2">Speichere / lade…</div>
-    
-    <SavingToast 
-      ref="savingToast" 
-      :countdown="countdownSeconds"
-      :on-immediate-save="immediateFlush"
-      message="Block-Änderungen werden gespeichert..."
-    />
   </div>
 </template>

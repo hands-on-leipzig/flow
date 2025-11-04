@@ -77,10 +77,14 @@ export function useDebouncedSave(options: DebouncedSaveOptions) {
     startCountdown()
 
     // Clear existing timeout and schedule new one
+    // Only set timeout if generator is not running (otherwise it will be set in unfreeze)
     if (timeoutId.value) {
       clearTimeout(timeoutId.value)
     }
-    timeoutId.value = setTimeout(flush, delay)
+    if (!options.isGenerating?.()) {
+      timeoutId.value = setTimeout(flush, delay)
+    }
+    // If generator is running, timeout will be set in unfreeze() when generation completes
   }
 
   /**
@@ -212,7 +216,14 @@ export function useDebouncedSave(options: DebouncedSaveOptions) {
     if (pendingCount.value > 0) {
       // Resume countdown if we have pending updates
       isFrozen.value = false
-      // Restart countdown from beginning (simpler and more predictable)
+      
+      // Check if timeout expired while frozen - if so, restart it
+      if (!timeoutId.value) {
+        // No active timeout, restart it for pending updates
+        timeoutId.value = setTimeout(flush, delay)
+      }
+      
+      // Start countdown from beginning (simpler and more predictable)
       if (countdownSeconds.value !== null && countdownSeconds.value > 0) {
         // Resume from where we were
         startTime.value = Date.now() - ((delay / 1000 - countdownSeconds.value) * 1000)
