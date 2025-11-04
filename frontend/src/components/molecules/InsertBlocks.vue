@@ -75,8 +75,8 @@ function needsGenerator(field: string): boolean {
   return isTimingField(field) || isToggleField(field) || TEXT_FIELDS.includes(field)
 }
 
-// Immediate save for block field changes
-async function saveBlockField(blockId: number, field: string, value: any) {
+// Update local state and trigger debounce (no DB save until countdown)
+function handleFieldChange(blockId: number, field: string, value: any) {
   if (!props.planId) return
   
   const block = blocks.value.find(b => b.id === blockId)
@@ -85,49 +85,70 @@ async function saveBlockField(blockId: number, field: string, value: any) {
     return
   }
   
-  // Update local state immediately
+  // Update local state immediately (for UI responsiveness)
   ;(block as any)[field] = value
   
-  // Prepare block data for API
-  const blockData: any = { 
-    id: blockId,
-    [field]: value
-  }
-  
-  // Determine if this triggers generator (all fields now trigger generator)
-  const needsGen = needsGenerator(field)
-  // Note: All fields now trigger generator, so skip_regeneration is never set
-  
-  // Trigger debounce immediately (in parallel with DB save) for visual feedback
-  if (needsGen && props.onUpdate) {
+  // Trigger debounce immediately (DB save will happen when countdown reaches 0)
+  if (props.onUpdate) {
     props.onUpdate([{ 
       name: `block_${blockId}_${field}`, 
       value: value,
       triggerGenerator: true 
     }])
   }
+}
+
+// Save all enabled blocks to DB (called when countdown triggers)
+async function saveAllEnabledBlocks() {
+  if (!props.planId) return
   
-  // Save to DB in background (don't await for timing/toggle fields to start debounce)
+  // Get all enabled blocks (including newly created ones without ID)
+  const enabledBlocks = blocks.value.filter(b => b.active !== false && b.plan === props.planId)
+  if (enabledBlocks.length === 0) return
+  
   try {
     saving.value = true
-    const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
     
-    // Update local block with response data
-    const saved = response.data?.block || response.data
-    if (saved?.id) {
-      const index = blocks.value.findIndex(b => b.id === saved.id)
-      if (index !== -1) {
-        blocks.value[index] = saved
-      } else {
-        blocks.value.push(saved)
+    // Save all enabled blocks
+    for (const block of enabledBlocks) {
+      const blockData: any = {
+        plan: block.plan,
+        first_program: block.first_program,
+        name: block.name,
+        description: block.description,
+        link: block.link,
+        insert_point: block.insert_point,
+        buffer_before: block.buffer_before,
+        duration: block.duration,
+        buffer_after: block.buffer_after,
+        active: block.active
+      }
+      
+      // Only include id if block already exists in DB
+      if (block.id) {
+        blockData.id = block.id
+      }
+      
+      const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
+      const saved = response.data?.block || response.data
+      
+      if (saved?.id) {
+        const index = blocks.value.findIndex(b => 
+          (b.id && b.id === saved.id) || 
+          (!b.id && b.insert_point === saved.insert_point && b.plan === saved.plan)
+        )
+        if (index !== -1) {
+          blocks.value[index] = saved
+        } else {
+          blocks.value.push(saved)
+        }
       }
     }
     
     emit('changed')
   } catch (error) {
-    console.error('Failed to save block field:', error)
-    // Could rollback local state here if needed
-    // For now, just log the error
+    console.error('Failed to save blocks:', error)
+    throw error // Re-throw so Schedule can handle it
   } finally {
     saving.value = false
   }
@@ -223,10 +244,11 @@ async function togglePoint(point: InsertPoint, enabled: boolean) {
   const activeValue = enabled ? 1 : 0
 
   if (existing?.id) {
-    // Toggle active/inactive - save immediately, trigger generator
-    await saveBlockField(existing.id, 'active', activeValue)
+    // Toggle active/inactive - update local state, trigger debounce
+    handleFieldChange(existing.id, 'active', activeValue)
   } else if (enabled) {
-    // Create new block - save immediately, trigger generator
+    // Create new block - add to local state, trigger debounce
+    // Note: Block will be saved to DB when countdown triggers
     const draft: ExtraBlock = {
       plan: props.planId,
       first_program: point.first_program ?? null,
@@ -240,29 +262,17 @@ async function togglePoint(point: InsertPoint, enabled: boolean) {
       active: true
     }
     
-    try {
-      saving.value = true
-      const response = await axios.post(`/plans/${props.planId}/extra-blocks`, draft)
-      const saved = response.data?.block || response.data
-      
-      if (saved?.id) {
-        blocks.value.push(saved)
-        
-        // Notify Schedule for debounced generator trigger
-        if (props.onUpdate) {
-          props.onUpdate([{ 
-            name: `block_${saved.id}_active`, 
-            value: 1,
-            triggerGenerator: true 
-          }])
-        }
-      }
-      
-      emit('changed')
-    } catch (error) {
-      console.error('Failed to create block:', error)
-    } finally {
-      saving.value = false
+    // Add to local state (no DB save yet)
+    blocks.value.push(draft)
+    
+    // Trigger debounce (save will happen when countdown triggers)
+    if (props.onUpdate) {
+      // Use a temporary ID for the trigger - will be resolved when saved
+      props.onUpdate([{ 
+        name: `block_new_${point.id}`, 
+        value: draft,
+        triggerGenerator: true 
+      }])
     }
   } else {
     // Disabling a new block (that doesn't exist yet) - nothing to do
@@ -283,13 +293,13 @@ function onFixedNumInput(pointId: number, field: 'buffer_before' | 'duration' | 
   // Value updated locally, will be saved on blur
 }
 
-async function onFixedNumBlur(pointId: number, field: 'buffer_before' | 'duration' | 'buffer_after', e: Event) {
+function onFixedNumBlur(pointId: number, field: 'buffer_before' | 'duration' | 'buffer_after', e: Event) {
   const value = Number((e.target as HTMLInputElement).value)
   const finalValue = Number.isFinite(value) ? value : 0
   
   const block = fixedByPoint.value[pointId]
   if (block?.id) {
-    await saveBlockField(block.id, field, finalValue)
+    handleFieldChange(block.id, field, finalValue)
   }
 }
 
@@ -300,20 +310,21 @@ function onFixedTextInput(pointId: number, field: 'name' | 'description' | 'link
   // Value updated locally, will be saved on blur
 }
 
-async function onFixedTextBlur(pointId: number, field: 'name' | 'description' | 'link', e: Event) {
+function onFixedTextBlur(pointId: number, field: 'name' | 'description' | 'link', e: Event) {
   const value = (e.target as HTMLInputElement).value
   
   const block = fixedByPoint.value[pointId]
   if (block?.id) {
-    await saveBlockField(block.id, field, value)
+    handleFieldChange(block.id, field, value)
   }
 }
 
 // Cleanup handled by composable (it will flush on unmount)
 
-// Expose loadAll function to parent if needed
+// Expose functions to parent
 defineExpose({
-  loadAll
+  loadAll,
+  saveAllEnabledBlocks
 })
 </script>
 

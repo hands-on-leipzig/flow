@@ -239,11 +239,14 @@ function handleParamUpdate(param: { name: string, value: any }) {
   scheduleUpdate(param.name, param.value)
 }
 
+// Ref to InsertBlocks component
+const insertBlocksRef = ref<InstanceType<typeof InsertBlocks> | null>(null)
+
 // Handle block updates from InsertBlocks component
-function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
+function handleBlockUpdates(updates: Array<{ name: string, value: any, triggerGenerator?: boolean }>) {
   console.log('Received block updates:', updates)
 
-  // Add all block updates using composable
+  // Add all block updates using composable (triggers debounce)
   updates.forEach(update => {
     // Convert "28_buffer_after" to "block_28_buffer_after" for updateParams compatibility
     const prefixedName = update.name.startsWith('block_') ? update.name : `block_${update.name}`
@@ -272,10 +275,13 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   let needsRegeneration = false
 
   // Separate parameter updates from block generator triggers
-  // Note: Block DB saves are done immediately in InsertBlocks/ExtraBlocks
-  // These are only generator triggers (timing/toggle changes)
   const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
   const blockGeneratorTriggers = params.filter(p => p.name.startsWith('block_'))
+
+  // Set generating state early for immediate user feedback (before block saves)
+  if (blockGeneratorTriggers.length > 0) {
+    isGenerating.value = true
+  }
 
   try {
 
@@ -297,9 +303,9 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
       })
     }
 
-    // 2. Block generator triggers - no DB save needed (already done in child components)
-    // Just mark that generator is needed
-    if (blockGeneratorTriggers.length > 0) {
+    // 2. Save all enabled blocks to DB (when countdown triggers)
+    if (blockGeneratorTriggers.length > 0 && insertBlocksRef.value) {
+      await insertBlocksRef.value.saveAllEnabledBlocks()
       needsRegeneration = true
     }
   } catch (error) {
@@ -745,6 +751,7 @@ const updateTableName = async () => {
       <transition name="fade">
         <div v-if="openGroup === 'extras'" class="p-4">
           <InsertBlocks
+              ref="insertBlocksRef"
               :plan-id="selectedPlanId as number"
               :event-level="selectedEvent?.level ?? null"
               :on-update="handleBlockUpdates"
