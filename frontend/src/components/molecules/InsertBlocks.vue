@@ -4,7 +4,7 @@ import axios from 'axios'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
-// Note: No debounce system here - blocks save immediately, generator triggers go to Schedule.vue  
+// Note: Block changes trigger debounce in Schedule.vue, blocks are saved to DB when countdown triggers  
 
 type InsertPoint = {
   id: number
@@ -54,8 +54,8 @@ const saving = ref(false)
 const insertPoints = ref<InsertPoint[]>([])
 const blocks = ref<ExtraBlock[]>([])
 
-// --- Immediate save system (no debounce for DB saves) ---
-// Note: Block changes are saved immediately to DB, generator triggers are debounced in Schedule.vue
+// --- Batch save system (save on countdown) ---
+// Note: Block changes trigger debounce immediately, blocks are saved to DB when countdown reaches 0 or is clicked
 
 // Field classification
 const TIMING_FIELDS = ['buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
@@ -253,10 +253,10 @@ async function togglePoint(point: InsertPoint, enabled: boolean) {
       plan: props.planId,
       first_program: point.first_program ?? null,
       insert_point: point.id,
-      name: point.ui_label,
+      name: point.ui_label, // Default title from insert point
       description: '',
       link: null,
-      buffer_before: 5,
+      buffer_before: 5, // Default values for time fields
       duration: 5,
       buffer_after: 5,
       active: true
