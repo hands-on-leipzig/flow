@@ -137,7 +137,7 @@ const deleteLogo = async () => {
     // Use translated error message from backend
     const errorMessage = error.response?.data?.message || 'Ein Fehler ist aufgetreten.'
     const errorDetails = error.response?.data?.details || null
-    
+
     if (errorDetails) {
       deleteError.value = `${errorMessage}\n\n${errorDetails}`
     } else {
@@ -436,26 +436,48 @@ onMounted(async () => {
       </button>
     </div>
 
-    <!-- Section 1: All Logos (Edit Mode) -->
-    <div class="mb-8">
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">Logos verwalten</h2>
-      <p class="text-sm text-gray-600 mb-4">Die hier hochgeladenen Logos müssen aktiviert sein, um im öffentlichen Plan
-        zu erscheinen.</p>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div
-            v-for="logo in logos"
-            :key="logo.id"
-            class="border rounded p-3 shadow space-y-1.5 bg-white relative"
-        >
-          <div class="relative">
+    <!-- Split Layout: Left (List) and Right (Sortable) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Left Side: All Logos List -->
+      <div>
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Logos verwalten</h2>
+        <p class="text-sm text-gray-600 mb-4">Die hier hochgeladenen Logos müssen aktiviert sein, um im öffentlichen
+          Plan zu erscheinen.</p>
+
+        <div class="space-y-2">
+          <div
+              v-for="logo in logos"
+              :key="logo.id"
+              class="border rounded p-2 shadow bg-white flex items-center gap-3"
+          >
+            <!-- Logo image -->
             <img
                 :src="logo.url"
                 alt="Logo"
-                class="h-16 mx-auto cursor-pointer hover:opacity-80 transition-opacity"
+                class="h-12 w-12 object-contain cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
                 @click="openLogoPreview(logo)"
             />
-            <!-- Toggle in upper left corner -->
-            <div class="absolute top-0 left-0 bg-white bg-opacity-90 rounded px-1 py-0.5">
+
+            <!-- Input fields stacked vertically -->
+            <div class="flex-1 min-w-0 space-y-1">
+              <input
+                  v-model="logo.title"
+                  @change="updateLogo(logo)"
+                  class="w-full px-2 py-0.5 text-xs border rounded"
+                  placeholder="Titel"
+                  type="text"
+              />
+              <input
+                  v-model="logo.link"
+                  @change="updateLogo(logo)"
+                  class="w-full px-2 py-0.5 text-xs border rounded"
+                  placeholder="Link"
+                  type="url"
+              />
+            </div>
+
+            <!-- Toggle and delete on the right -->
+            <div class="flex items-center gap-2 flex-shrink-0">
               <label class="flex items-center">
                 <input
                     type="checkbox"
@@ -464,112 +486,99 @@ onMounted(async () => {
                     @change="toggleEventLogo(logo)"
                 />
               </label>
-            </div>
-            <!-- Delete button in upper right corner -->
-            <div class="absolute top-0 right-0 bg-white bg-opacity-90 rounded px-1 py-0.5">
               <button @click="confirmDeleteLogo(logo)" class="text-red-600 hover:text-red-800 text-sm">
                 🗑️
               </button>
             </div>
           </div>
-
-          <input
-              v-model="logo.title"
-              @change="updateLogo(logo)"
-              class="w-full px-2 py-1 text-sm border rounded"
-              placeholder="Titel"
-              type="text"
-          />
-
-          <input
-              v-model="logo.link"
-              @change="updateLogo(logo)"
-              class="w-full px-2 py-1 text-sm border rounded"
-              placeholder="Link"
-              type="url"
-          />
         </div>
+
+        <p v-if="logos.length === 0" class="text-sm text-gray-500 italic mt-4">
+          Noch keine Logos hochgeladen.
+        </p>
       </div>
-    </div>
 
-    <!-- Section 2: Assigned Logos (Sorting Mode) -->
-    <div>
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">Logos in Verwendung</h2>
-      <p class="text-sm text-gray-600 mb-4">Ziehe die Logos, um die Reihenfolge zu ändern, in welcher sie im
-        öffentlichen Plan erscheinen.</p>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div
-            v-for="logo in logosWithSpaceMaking.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id)))"
-            :key="logo.id"
-            class="border rounded p-3 shadow bg-white transition-all duration-300 ease-out relative"
-            :class="{
-            'opacity-50 scale-105 rotate-2': draggedLogo?.id === logo.id,
-            'ring-2 ring-blue-500 bg-blue-50': draggedOverLogo?.id === logo.id,
-            'cursor-move': !isDragging,
-            'cursor-grabbing': draggedLogo?.id === logo.id && isDragging
-          }"
-            :style="{ transform: (logo._spaceMakingOffset ? logo._spaceMakingOffset + ' ' : '') }"
-            :draggable="true"
-            @dragstart="handleDragStart($event, logo)"
-            @dragend="handleDragEnd($event)"
-            @dragover.prevent="handleDragOver($event)"
-            @dragenter.prevent="handleDragEnter($event, logo)"
-            @dragleave="handleDragLeave($event)"
-            @drop.prevent="handleDrop($event, logo)"
-        >
-          <!-- Drag handle indicator -->
-          <div
-              class="drag-handle absolute top-2 right-2 text-gray-400 text-xs cursor-move select-none"
-              title="Drag to reorder"
-          >
-            ⋮⋮
-          </div>
+      <!-- Right Side: Assigned Logos (Sortable) -->
+      <div>
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Logos in Verwendung</h2>
+        <p class="text-sm text-gray-600 mb-4">Ziehe die Logos, um die Reihenfolge zu ändern, in welcher sie im
+          öffentlichen Plan erscheinen.</p>
 
-          <!-- Drop indicator -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div
-              v-if="isDragging && draggedOverLogo?.id === logo.id"
-              class="absolute inset-0 border-2 border-dashed border-blue-400 bg-blue-100 bg-opacity-50 rounded flex items-center justify-center"
+              v-for="logo in logosWithSpaceMaking.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id)))"
+              :key="logo.id"
+              class="border rounded p-3 shadow bg-white transition-all duration-300 ease-out relative"
               :class="{
-              'border-t-4': dropPosition === 'before',
-              'border-b-4': dropPosition === 'after'
+              'opacity-50 scale-105 rotate-2': draggedLogo?.id === logo.id,
+              'ring-2 ring-blue-500 bg-blue-50': draggedOverLogo?.id === logo.id,
+              'cursor-move': !isDragging,
+              'cursor-grabbing': draggedLogo?.id === logo.id && isDragging
             }"
+              :style="{ transform: (logo._spaceMakingOffset ? logo._spaceMakingOffset + ' ' : '') }"
+              :draggable="true"
+              @dragstart="handleDragStart($event, logo)"
+              @dragend="handleDragEnd($event)"
+              @dragover.prevent="handleDragOver($event)"
+              @dragenter.prevent="handleDragEnter($event, logo)"
+              @dragleave="handleDragLeave($event)"
+              @drop.prevent="handleDrop($event, logo)"
           >
-            <div class="text-blue-600 font-semibold text-sm">
-              {{ dropPosition === 'before' ? '↑ Drop here' : '↓ Drop here' }}
+            <!-- Drag handle indicator -->
+            <div
+                class="drag-handle absolute top-2 right-2 text-gray-400 text-xs cursor-move select-none"
+                title="Drag to reorder"
+            >
+              ⋮⋮
             </div>
-          </div>
 
-          <img
-              :src="logo.url"
-              alt="Logo"
-              class="h-16 mx-auto cursor-pointer hover:opacity-80 transition-opacity mb-2"
-              @click.stop="openLogoPreview(logo)"
-              draggable="false"
-              @mousedown.stop
-              @dragstart.stop
-          />
+            <!-- Drop indicator -->
+            <div
+                v-if="isDragging && draggedOverLogo?.id === logo.id"
+                class="absolute inset-0 border-2 border-dashed border-blue-400 bg-blue-100 bg-opacity-50 rounded flex items-center justify-center"
+                :class="{
+                'border-t-4': dropPosition === 'before',
+                'border-b-4': dropPosition === 'after'
+              }"
+            >
+              <div class="text-blue-600 font-semibold text-sm">
+                {{ dropPosition === 'before' ? '↑ Drop here' : '↓ Drop here' }}
+              </div>
+            </div>
 
-          <div class="space-y-1 text-center">
-            <div v-if="logo.title" class="text-sm font-medium text-gray-900">
-              {{ logo.title }}
-            </div>
-            <div v-if="logo.link" class="text-xs text-blue-600 truncate" :title="logo.link">
-              {{ logo.link }}
-            </div>
-            <div v-if="!logo.title && !logo.link" class="text-xs text-gray-400 italic">
-              Kein Titel/Link
-            </div>
-          </div>
+            <img
+                :src="logo.url"
+                alt="Logo"
+                class="h-16 mx-auto cursor-pointer hover:opacity-80 transition-opacity mb-2"
+                @click.stop="openLogoPreview(logo)"
+                draggable="false"
+                @mousedown.stop
+                @dragstart.stop
+            />
 
-          <div class="flex items-center justify-center pt-2">
-            <span class="text-xs text-green-600 font-medium">✓ Aktiv</span>
+            <div class="space-y-1 text-center">
+              <div v-if="logo.title" class="text-sm font-medium text-gray-900">
+                {{ logo.title }}
+              </div>
+              <div v-if="logo.link" class="text-xs text-blue-600 truncate" :title="logo.link">
+                {{ logo.link }}
+              </div>
+              <div v-if="!logo.title && !logo.link" class="text-xs text-gray-400 italic">
+                Kein Titel/Link
+              </div>
+            </div>
+
+            <div class="flex items-center justify-center pt-2">
+              <span class="text-xs text-green-600 font-medium">✓ Aktiv</span>
+            </div>
           </div>
         </div>
+
+        <p v-if="sortedLogos.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))).length === 0"
+           class="text-sm text-gray-500 italic mt-4">
+          Keine Logos in Verwendung. Aktiviere Logos links, um sie hier zu sortieren.
+        </p>
       </div>
-      <p v-if="sortedLogos.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))).length === 0"
-         class="text-sm text-gray-500 italic mt-4">
-        Keine Logos in Verwendung. Aktiviere Logos oben, um sie hier zu sortieren.
-      </p>
     </div>
 
     <!-- Logo Preview Modal -->
@@ -611,20 +620,21 @@ onMounted(async () => {
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <div 
-      v-if="logoToDelete"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      @click="cancelDeleteLogo"
+    <div
+        v-if="logoToDelete"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        @click="cancelDeleteLogo"
     >
       <div class="bg-white rounded-lg p-6 max-w-md mx-4" @click.stop>
         <div class="flex items-center mb-4">
           <div class="flex-shrink-0 w-10 h-10 mx-auto rounded-full flex items-center justify-center bg-red-100">
             <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
             </svg>
           </div>
         </div>
-        
+
         <div class="text-center">
           <h3 class="text-lg font-medium text-gray-900 mb-2">
             Logo löschen
@@ -632,27 +642,29 @@ onMounted(async () => {
           <p class="text-sm text-gray-500 mb-6">
             {{ deleteMessage }}
           </p>
-          
+
           <!-- Error message display -->
           <div v-if="deleteError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
             <div class="flex items-start">
               <svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                <path fill-rule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clip-rule="evenodd"/>
               </svg>
               <div class="text-sm text-red-800 whitespace-pre-line">{{ deleteError }}</div>
             </div>
           </div>
-          
+
           <div class="flex space-x-3 justify-center">
             <button
-              @click="cancelDeleteLogo"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                @click="cancelDeleteLogo"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
             >
               Abbrechen
             </button>
             <button
-              @click="deleteLogo"
-              class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                @click="deleteLogo"
+                class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
             >
               Löschen
             </button>
