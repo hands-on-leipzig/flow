@@ -122,6 +122,35 @@ const hasRoomIssues = computed(() => !readiness.value?.room_mapping_ok)
 // --- PDF Download (Composable) ---
 const { isDownloading, anyDownloading, downloadPdf } = usePdfExport()
 
+// --- CSV Download State ---
+const isDownloadingCsv = ref(false)
+
+// --- CSV Download Function ---
+async function downloadRoomUtilizationCsv() {
+  if (!eventId.value || isDownloadingCsv.value) return
+  
+  isDownloadingCsv.value = true
+  try {
+    const response = await axios.get(
+      `/export/csv/room-utilization/${eventId.value}`,
+      { responseType: 'blob' }
+    )
+
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    const dateStr = new Date().toISOString().split('T')[0]
+    link.download = `FLOW_Raumnutzung_(${dateStr}).csv`
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (error) {
+    console.error('Fehler beim CSV-Download (Raumnutzung):', error)
+    alert('Fehler beim Herunterladen der Raumnutzung. Bitte versuche es erneut.')
+  } finally {
+    isDownloadingCsv.value = false
+  }
+}
+
 // --- Worker Shifts Modal ---
 const showModal = ref(false)
 const workerShifts = ref<any>(null)
@@ -297,8 +326,26 @@ function formatDate(dateString: string): string {
         </span>
       </div>
 
-      <!-- PDF Button -->
-      <div class="mt-4 flex justify-end">
+      <!-- Buttons -->
+      <div class="mt-4 flex justify-between">
+        <!-- Raumnutzung CSV Button -->
+        <button
+          class="px-4 py-2 rounded text-sm flex items-center gap-2"
+          :class="!isDownloadingCsv 
+            ? 'bg-gray-200 hover:bg-gray-300' 
+            : 'bg-gray-100 cursor-not-allowed opacity-50'"
+          :disabled="isDownloadingCsv"
+          @click="downloadRoomUtilizationCsv"
+        >
+          <svg v-if="isDownloadingCsv" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+          </svg>
+          <span>{{ isDownloadingCsv ? 'Erzeuge…' : 'Raumnutzung' }}</span>
+        </button>
+
+        <!-- PDF Button -->
         <button
           class="px-4 py-2 rounded text-sm flex items-center gap-2"
           :class="!isDownloading.rooms 

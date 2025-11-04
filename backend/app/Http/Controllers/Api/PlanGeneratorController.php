@@ -104,13 +104,40 @@ class PlanGeneratorController extends Controller
             return $response;
         }
 
-        // Service aufrufen
-        $this->generator->generateLite($planId);
+        try {
+            // Service aufrufen
+            $this->generator->generateLite($planId);
 
-        return response()->json([
-            'status' => 'ok',
-            'message' => "Lite generation completed for plan {$planId}",
-        ]);
+            return response()->json([
+                'status' => 'ok',
+                'message' => "Lite generation completed for plan {$planId}",
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Lite generation failed', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            // Extract meaningful error message from exception
+            $errorMessage = 'Fehler bei der Lite-Generierung';
+            $details = $e->getMessage();
+            
+            // Check if it's a parameter validation error
+            if (str_contains($e->getMessage(), "Parameter '")) {
+                $errorMessage = 'Ungültiger Parameterwert';
+                // The RuntimeException already contains detailed info about parameter name and value
+            } elseif (str_contains($e->getMessage(), "not found")) {
+                $errorMessage = 'Fehlende Daten';
+            } elseif (str_contains($e->getMessage(), "FreeBlockGenerator") || str_contains($e->getMessage(), "free block")) {
+                $errorMessage = 'Fehler beim Einfügen der freien Blöcke';
+            }
+            
+            return response()->json([
+                'error' => $errorMessage,
+                'details' => $details,
+            ], 500);
+        }
     }
 
     private function ensurePlanExists(int $planId): ?JsonResponse

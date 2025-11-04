@@ -63,6 +63,7 @@ class ParameterController extends Controller
                 'lanes' => $option->lanes,
                 'tables' => $option->tables,
                 'note' => $option->note,
+                'alert_level' => $option->alert_level ?? 0,
                 'recommended' => $option->alert_level === 1, // alert_level 1 = recommended
                 'suggested' => $option->alert_level === 1, // alert_level 1 = suggested
             ];

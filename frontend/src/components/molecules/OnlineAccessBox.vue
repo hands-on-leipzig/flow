@@ -4,7 +4,7 @@ import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import { useAuth } from '@/composables/useAuth'
 import { imageUrl } from '@/utils/images'
-import { formatTimeOnly } from '@/utils/dateTimeFormat'
+import { formatTimeOnly, formatDateOnly } from '@/utils/dateTimeFormat'
 
 // Store + Selected Event (autark)
 const eventStore = useEventStore()
@@ -16,7 +16,7 @@ const regenerating = ref(false)
 const savingPublicationLevel = ref(false)
 
 // Detail-Level (3 levels, skipping backend level 2 "Nach Anmeldeschluss")
-const levels = ['Planung', 'Überblick zum Ablauf', 'volle Details']
+const levels = ['Planung und Anmeldung', 'Überblick zum Ablauf', 'volle Details']
 const detailLevel = ref(0)
 
 // Map frontend level (0,1,2) to backend level (1,3,4) - skipping level 2
@@ -230,13 +230,15 @@ async function regenerateLinkAndQR() {
       <div class="flex-1">
         <h3 class="text-sm font-semibold mb-2">Veröffentlichte Informationen</h3>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <template v-for="(_, idx) in Array(3)" :key="idx">
             <div
               class="relative rounded-lg border p-3 text-sm"
               :class="{
                 'opacity-100': isCardActive(idx + 1, detailLevel),
                 'opacity-50': !isCardActive(idx + 1, detailLevel),
+                'sm:col-span-2': idx === 0,
+                'sm:col-span-1': idx === 1 || idx === 2,
               }"
             >
               <div class="absolute top-2 right-2">
@@ -250,64 +252,127 @@ async function regenerateLinkAndQR() {
               </div>
 
               <!-- Card Inhalte -->
-              <!-- Card 1: Level 0 (Planung) - Just headings -->
-              <template v-if="idx === 0">
-                <div class="font-semibold mb-2">Datum</div>
-                <div class="font-semibold mb-2">Adresse</div>
-                <div class="font-semibold mb-2">Kontakt</div>
-                <div class="font-semibold mt-3">Angemeldete Teams</div>
+              <!-- Card 1: Level 0 (Planung) - Basic event information -->
+              <template v-if="idx === 0 && scheduleInfo">
+                <div class="grid grid-cols-2 gap-4">
+                  <!-- Left column: Datum, Adresse, Kontakt -->
+                  <div>
+                    <div class="font-semibold mb-1">Datum</div>
+                    <div v-if="scheduleInfo.date" class="text-gray-700 mb-3">{{ formatDateOnly(scheduleInfo.date) }}</div>
+                    <div v-else class="text-gray-400 mb-3 italic">–</div>
+                    
+                    <div class="font-semibold mb-1">Adresse</div>
+                    <div v-if="scheduleInfo.address" class="text-gray-700 mb-3 whitespace-pre-line text-xs">{{ scheduleInfo.address }}</div>
+                    <div v-else class="text-gray-400 mb-3 italic text-xs">–</div>
+                    
+                    <div class="font-semibold mb-1">Kontakt</div>
+                    <div v-if="scheduleInfo.contact && scheduleInfo.contact.length > 0" class="text-gray-700 mb-3 text-xs">
+                      <div v-for="(contact, contactIdx) in scheduleInfo.contact" :key="contactIdx" class="mb-1">
+                        <div class="font-medium">{{ contact.contact }}</div>
+                        <div v-if="contact.contact_email" class="text-gray-600">{{ contact.contact_email }}</div>
+                        <div v-if="contact.contact_infos" class="text-gray-500">{{ contact.contact_infos }}</div>
+                      </div>
+                    </div>
+                    <div v-else class="text-gray-400 mb-3 italic text-xs">–</div>
+                  </div>
+                  
+                  <!-- Right column: Angemeldete Teams -->
+                  <div>
+                    <div class="font-semibold mb-1">Angemeldete Teams</div>
+                    <div v-if="scheduleInfo.teams" class="text-xs">
+                      <div v-if="scheduleInfo.teams.explore" class="mb-4">
+                        <div class="font-medium mb-2 text-sm">
+                          FIRST LEGO League Explore
+                          <span class="text-gray-600 text-xs font-normal ml-2">
+                            {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet
+                          </span>
+                        </div>
+                        <div v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0" class="text-gray-600 pl-2 text-xs">
+                          <div v-for="(team, teamIdx) in scheduleInfo.teams.explore.list" :key="teamIdx" class="mb-0.5">
+                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-if="scheduleInfo.teams.challenge">
+                        <div class="font-medium mb-2 text-sm">
+                          FIRST LEGO League Challenge
+                          <span class="text-gray-600 text-xs font-normal ml-2">
+                            {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet
+                          </span>
+                        </div>
+                        <div v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0" class="text-gray-600 pl-2 text-xs">
+                          <div v-for="(team, teamIdx) in scheduleInfo.teams.challenge.list" :key="teamIdx" class="mb-0.5">
+                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="text-gray-400 italic text-xs">–</div>
+                  </div>
+                </div>
               </template>
 
               <!-- Card 2: Level 2 (Überblick zum Ablauf) - What's actually shown on the page -->
               <template v-else-if="idx === 1 && scheduleInfo && scheduleInfo.plan">
                 <div class="font-semibold mb-3">Wichtige Zeiten</div>
                 
-                <!-- Explore Section -->
-                <div v-if="scheduleInfo.plan?.explore" class="mb-4">
+                <!-- Explore Section - Only show if there are Explore times -->
+                <div v-if="scheduleInfo.plan?.explore && (
+                    scheduleInfo.plan.explore.briefing?.teams ||
+                    scheduleInfo.plan.explore.briefing?.judges ||
+                    scheduleInfo.plan.explore.opening ||
+                    scheduleInfo.plan.explore.end
+                  )" class="mb-4">
                   <div class="font-medium mb-2">FIRST LEGO League Explore</div>
                   <div class="space-y-1 text-xs">
                     <div v-if="scheduleInfo.plan.explore.briefing?.teams" class="flex justify-between">
                       <span class="text-gray-600">Coach-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.teams) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.teams, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.explore.briefing?.judges" class="flex justify-between">
                       <span class="text-gray-600">Gutachter:innen-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.judges) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.judges, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.explore.opening" class="flex justify-between">
                       <span class="text-gray-600">Eröffnung:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.opening) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.opening, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.explore.end" class="flex justify-between">
                       <span class="text-gray-600">Ende:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.end) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.end, true) }}</span>
                     </div>
                   </div>
                 </div>
 
-                <!-- Challenge Section -->
-                <div v-if="scheduleInfo.plan?.challenge">
+                <!-- Challenge Section - Only show if there are Challenge times -->
+                <div v-if="scheduleInfo.plan?.challenge && (
+                    scheduleInfo.plan.challenge.briefing?.teams ||
+                    scheduleInfo.plan.challenge.briefing?.judges ||
+                    scheduleInfo.plan.challenge.briefing?.referees ||
+                    scheduleInfo.plan.challenge.opening ||
+                    scheduleInfo.plan.challenge.end
+                  )">
                   <div class="font-medium mb-2">FIRST LEGO League Challenge</div>
                   <div class="space-y-1 text-xs">
                     <div v-if="scheduleInfo.plan.challenge.briefing?.teams" class="flex justify-between">
                       <span class="text-gray-600">Coach-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.teams) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.teams, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.challenge.briefing?.judges" class="flex justify-between">
-                      <span class="text-gray-600">Gutachter:innen-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.judges) }}</span>
+                      <span class="text-gray-600">Jury-Briefing:</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.judges, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.challenge.briefing?.referees" class="flex justify-between">
                       <span class="text-gray-600">Schiedsrichter:innen-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.referees) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.referees, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.challenge.opening" class="flex justify-between">
                       <span class="text-gray-600">Eröffnung:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.opening) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.opening, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.challenge.end" class="flex justify-between">
                       <span class="text-gray-600">Ende:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.end) }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.end, true) }}</span>
                     </div>
                   </div>
                 </div>

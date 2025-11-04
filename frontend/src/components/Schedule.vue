@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref} from 'vue'
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import ParameterField from "@/components/molecules/ParameterField.vue"
 import {useEventStore} from '@/stores/event'
@@ -14,7 +14,11 @@ import InsertBlocks from "@/components/molecules/InsertBlocks.vue";
 import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex'
 import FllEvent from "@/models/FllEvent";
 import {Parameter, ParameterCondition} from "@/models/Parameter"
-import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import TeamSelectionExample from "@/components/molecules/TeamSelectionExample.vue";
+import SavingToast from "@/components/atoms/SavingToast.vue";
+import { useDebouncedSave } from "@/composables/useDebouncedSave";
+import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
@@ -25,6 +29,7 @@ const inputName = ref('')
 const plans = ref<Array<{ id: number, name: string, is_chosen?: boolean }>>([])
 const selectedPlanId = ref<number | null>(null)
 const loading = ref(true)
+const savingToast = ref()
 
 const SPECIAL_KEYS = new Set([
   'e1_teams', 'e2_teams',
@@ -105,8 +110,10 @@ const fetchParams = async (planId: number) => {
 
     // Hier Originalwerte ablegen
     originalValues.value = Object.fromEntries(
-      parameters.value.map(p => [p.name, p.value])
+        parameters.value.map(p => [p.name, p.value])
     )
+    // Also sync with composable's original values
+    setOriginals(originalValues.value)
 
     // Initial toggle states based on params
     showExplore.value = Number(paramMapByName.value['e_mode']?.value || 0) > 0
@@ -131,14 +138,14 @@ const expertParams = computed(() =>
     parameters.value
         .filter((p: Parameter) => {
           if (p.context !== 'expert') return false
-          
+
           // Exclude level 3 parameters (they go in Finalparameter section)
           if (p.level === 3) return false
-          
+
           // Filter based on toggle states
           if (p.first_program === 2 && !showExplore.value) return false // Explore disabled
           if (p.first_program === 3 && !showChallenge.value) return false // Challenge disabled
-          
+
           return true
         })
         .sort((a: Parameter, b: Parameter) => (a.first_program || 0) - (b.first_program || 0))
@@ -178,17 +185,58 @@ function updateByName(name: string, value: any) {
   updateParam(p)
 }
 
-// Batch parameter update system
-const pendingParamUpdates = ref<Record<string, any>>({})
-const paramUpdateTimeoutId = ref<NodeJS.Timeout | null>(null)
-const PARAM_DEBOUNCE_DELAY = 2000
-
-// Toast notification system
+// Toast notification system (legacy - can be removed)
 const showToast = ref(false)
 const progress = ref(100)
 const progressIntervalId = ref<NodeJS.Timeout | null>(null)
 
+// Generator state (must be declared before useDebouncedSave)
+const isGenerating = ref(false)
+const generatorError = ref<string | null>(null)
+const errorDetails = ref<string | null>(null)
 
+// Countdown state for SavingToast
+const countdownSeconds = ref<number | null>(null)
+
+// Debounced save system using composable
+const { scheduleUpdate, flush, immediateFlush, setOriginal, setOriginals, freeze, unfreeze } = useDebouncedSave({
+  delay: DEBOUNCE_DELAY,
+  isGenerating: () => isGenerating.value,
+  onShowToast: (countdown, onImmediateSave) => {
+    countdownSeconds.value = countdown
+  },
+  onHideToast: () => {
+    countdownSeconds.value = null
+  },
+  onCountdownUpdate: (seconds) => {
+    countdownSeconds.value = seconds
+  },
+  changeDetection: (key, newValue, oldValue) => {
+    // String comparison for stable detection
+    const oldVal = String(oldValue ?? '')
+    const newVal = String(newValue ?? '')
+    return oldVal !== newVal
+  },
+  onSave: async (updates) => {
+    // Convert updates to the format expected by updateParams
+    const updateArray = Object.entries(updates).map(([name, value]) => ({name, value}))
+    await updateParams(updateArray)
+  }
+})
+
+// Watch generator state to freeze/unfreeze countdown
+watch(isGenerating, (generating) => {
+  if (generating) {
+    freeze()
+  } else {
+    // After generator finishes, check if we need to resume countdown
+    // This is handled automatically by the composable checking isGenerating
+    // But we can also explicitly unfreeze if needed
+    setTimeout(() => {
+      unfreeze()
+    }, 100)
+  }
+})
 
 // Handle parameter updates from child components
 function handleParamUpdate(param: { name: string, value: any }) {
@@ -212,105 +260,26 @@ function handleParamUpdate(param: { name: string, value: any }) {
   // Update local state immediately
   p.value = param.value
 
-  // Add to pending updates
-  pendingParamUpdates.value[param.name] = param.value
-
-  // Show toast and start progress animation
-  showToast.value = true
-  startProgressAnimation()
-
-  // Clear existing timeout
-  if (paramUpdateTimeoutId.value) {
-    clearTimeout(paramUpdateTimeoutId.value)
-  }
-
-  // Schedule batch update
-  paramUpdateTimeoutId.value = setTimeout(() => {
-    flushParamUpdates()
-  }, PARAM_DEBOUNCE_DELAY)
+  // Schedule update using composable
+  scheduleUpdate(param.name, param.value)
 }
 
 // Handle block updates from InsertBlocks component
 function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
   console.log('Received block updates:', updates)
 
-  // Add all block updates to pending parameter updates with proper prefix
+  // Add all block updates using composable
   updates.forEach(update => {
     // Convert "28_buffer_after" to "block_28_buffer_after" for updateParams compatibility
     const prefixedName = update.name.startsWith('block_') ? update.name : `block_${update.name}`
-    pendingParamUpdates.value[prefixedName] = update.value
+    scheduleUpdate(prefixedName, update.value)
   })
-
-  // Show toast and start progress animation
-  showToast.value = true
-  startProgressAnimation()
-
-  // Clear existing timeout
-  if (paramUpdateTimeoutId.value) {
-    clearTimeout(paramUpdateTimeoutId.value)
-  }
-
-  // Schedule batch update
-  paramUpdateTimeoutId.value = setTimeout(() => {
-    flushParamUpdates()
-  }, PARAM_DEBOUNCE_DELAY)
-}
-
-// Start progress animation
-function startProgressAnimation() {
-  // Reset progress
-  progress.value = 100
-
-  // Clear existing interval
-  if (progressIntervalId.value) {
-    clearInterval(progressIntervalId.value)
-  }
-
-  // Calculate step size (100 steps over the debounce delay)
-  const stepSize = 100 / (PARAM_DEBOUNCE_DELAY / 50) // Update every 50ms
-
-  progressIntervalId.value = setInterval(() => {
-    progress.value -= stepSize
-    if (progress.value <= 0) {
-      progress.value = 0
-      clearInterval(progressIntervalId.value!)
-      progressIntervalId.value = null
-    }
-  }, 50)
 }
 
 // Force immediate update of all pending parameter changes
 function flushParamUpdates() {
-  if (paramUpdateTimeoutId.value) {
-    clearTimeout(paramUpdateTimeoutId.value)
-    paramUpdateTimeoutId.value = null
-  }
-
-  // Clear progress animation
-  if (progressIntervalId.value) {
-    clearInterval(progressIntervalId.value)
-    progressIntervalId.value = null
-  }
-
-  // Hide toast
-  showToast.value = false
-  progress.value = 100
-
-  if (Object.keys(pendingParamUpdates.value).length > 0) {
-    const updates = {...pendingParamUpdates.value}
-    pendingParamUpdates.value = {}
-
-    updateParams(Object.entries(updates).map(([name, value]) => ({name, value})))
-  }
+  flush()
 }
-
-// Cleanup on unmount
-onUnmounted(() => {
-  if (progressIntervalId.value) {
-    clearInterval(progressIntervalId.value)
-  }
-  flushParamUpdates()
-})
 
 function normalizeValue(value: any, type: string | undefined) {
   if (type === 'boolean') {
@@ -326,11 +295,11 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 
   loading.value = true
   let needsRegeneration = false
-  
+
   // Separate parameter updates from block updates
   const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
   const blockUpdates = params.filter(p => p.name.startsWith('block_'))
-  
+
   try {
 
     // 1. Save parameters
@@ -346,8 +315,10 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
       })
 
       // Nach erfolgreichem Speichern: originalValues anpassen
-      params.forEach(({ name, value }) => {
+      params.forEach(({name, value}) => {
         originalValues.value[name] = value
+        // Also sync with composable (though composable already updated its own)
+        setOriginal(name, value)
       })
     }
 
@@ -357,7 +328,7 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
       const newBlocks: Record<string, any> = {}
 
       // detect new blocks (from toggle ON)
-      blockUpdates.forEach(({ name, value }) => {
+      blockUpdates.forEach(({name, value}) => {
         if (name.startsWith('block_new_')) {
           const pointId = name.split('_')[2]
           newBlocks[pointId] = value
@@ -365,7 +336,7 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
       })
 
       // detect existing block updates
-      blockUpdates.forEach(({ name, value }) => {
+      blockUpdates.forEach(({name, value}) => {
         // Parse: "block_31_buffer_after" -> blockId="31", field="buffer_after"
         const parts = name.split('_')
         if (parts.length >= 3) {
@@ -378,7 +349,7 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 
       // --- Save existing blocks ---
       for (const [blockId, updates] of Object.entries(updatesByBlock)) {
-        const block = { id: parseInt(blockId), ...updates }
+        const block = {id: parseInt(blockId), ...updates}
 
         console.log('Sending block to API:', block)
 
@@ -427,10 +398,6 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
     if (afterUpdate) await afterUpdate()
   }
 }
-
-const isGenerating = ref(false)
-const generatorError = ref<string | null>(null)
-const errorDetails = ref<string | null>(null)
 
 async function runGeneratorOnce() {
   if (!selectedPlanId.value) return
@@ -625,20 +592,13 @@ const updateTableName = async () => {
 </script>
 
 <template>
-  <!-- Toast notification for pending parameter updates -->
-  <div v-if="showToast"
-       class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
-    <div class="flex items-center gap-3">
-      <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-      <span class="text-green-800 font-medium">Parameter-Änderungen werden gespeichert...</span>
-    </div>
-    <!--<div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
-      <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
-           :style="{ width: progress + '%' }"></div>
-    </div>-->
-  </div>
-
   <div class="h-screen p-6 flex flex-col space-y-5">
+    <SavingToast 
+      ref="savingToast" 
+      :is-generating="isGenerating"
+      :countdown="countdownSeconds"
+      :on-immediate-save="immediateFlush"
+    />
 
     <div v-if="false" class="flex items-center space-x-4">
       <label for="plan-select" class="text-sm font-medium">Plan auswählen:</label>
@@ -709,16 +669,16 @@ const updateTableName = async () => {
           <div class="grid grid-cols-2 gap-6 max-h-[600px] overflow-y-auto">
             <!-- Left column: Explore or turned off message -->
             <div>
-                  <div class="flex items-center gap-2 mb-2">
-                    <img
-                        :src="programLogoSrc('E')"
-                        :alt="programLogoAlt('E')"
-                        class="w-10 h-10 flex-shrink-0"
-                      />
-                    <h3 class="text-lg font-semibold capitalize">
-                      <span class="italic">FIRST</span> LEGO League Explore
-                    </h3>
-                  </div>
+              <div class="flex items-center gap-2 mb-2">
+                <img
+                    :src="programLogoSrc('E')"
+                    :alt="programLogoAlt('E')"
+                    class="w-10 h-10 flex-shrink-0"
+                />
+                <h3 class="text-lg font-semibold capitalize">
+                  <span class="italic">FIRST</span> LEGO League Explore
+                </h3>
+              </div>
               <div v-if="showExplore">
                 <template v-for="(group, programName) in expertParamsGrouped" :key="programName">
                   <template v-if="programName.toLowerCase().includes('explore')">
@@ -743,16 +703,16 @@ const updateTableName = async () => {
 
             <!-- Right column: Challenge or turned off message -->
             <div>
-                  <div class="flex items-center gap-2 mb-2">
-                    <img
-                        :src="programLogoSrc('C')"
-                        :alt="programLogoAlt('C')"
-                        class="w-10 h-10 flex-shrink-0"
-                      />
-                    <h3 class="text-lg font-semibold capitalize">
-                      <span class="italic">FIRST</span> LEGO League Challenge
-                    </h3>
-                  </div>
+              <div class="flex items-center gap-2 mb-2">
+                <img
+                    :src="programLogoSrc('C')"
+                    :alt="programLogoAlt('C')"
+                    class="w-10 h-10 flex-shrink-0"
+                />
+                <h3 class="text-lg font-semibold capitalize">
+                  <span class="italic">FIRST</span> LEGO League Challenge
+                </h3>
+              </div>
               <div v-if="showChallenge">
                 <template v-for="(group, programName) in expertParamsGrouped" :key="programName">
                   <template v-if="programName.toLowerCase().includes('challenge')">
@@ -780,11 +740,11 @@ const updateTableName = async () => {
                     <div v-for="(name, i) in tableNames" :key="i">
                       <label class="block text-xs text-gray-600 mb-1">Tisch {{ i + 1 }}</label>
                       <input
-                        v-model="tableNames[i]"
-                        class="w-full border px-3 py-1 rounded text-sm"
-                        :placeholder="`leer lassen für >>Tisch ${i + 1}<<`"
-                        type="text"
-                        @blur="updateTableName"
+                          v-model="tableNames[i]"
+                          class="w-full border px-3 py-1 rounded text-sm"
+                          :placeholder="`leer lassen für >>Tisch ${i + 1}<<`"
+                          type="text"
+                          @blur="updateTableName"
                       />
                     </div>
                   </div>
@@ -795,9 +755,8 @@ const updateTableName = async () => {
                 <div class="text-sm font-medium mb-1">Challenge ist deaktiviert</div>
                 <div class="text-xs">Aktiviere Challenge, um Expertenparameter zu konfigurieren.</div>
               </div>
-              
-            </div>
 
+            </div>
 
 
           </div>
@@ -829,7 +788,7 @@ const updateTableName = async () => {
                 />
               </template>
             </div>
-            
+
             <!-- Right column: Expert parameters -->
             <div>
               <template v-for="param in finaleExpertParams" :key="param.id">
@@ -904,7 +863,7 @@ const updateTableName = async () => {
           initial-view="overview"
       />
     </div>
- 
+
   </div>
 </template>
 

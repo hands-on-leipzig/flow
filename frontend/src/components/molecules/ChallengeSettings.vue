@@ -3,6 +3,7 @@ import {computed, UnwrapRef, watch, watchEffect} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
+import TeamSelectionCard from "@/components/molecules/TeamSelectionCard.vue";
 import {useEventStore} from '@/stores/event'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
@@ -236,31 +237,12 @@ const getAlertLevelStyle = (level: number) => {
 }
 
 
-const getTeamInputStyle = (level: number) => {
-  switch (level) {
-    case 1:
-      return 'border-green-500 focus:border-green-500 focus:ring-green-500'
-    case 2:
-      return 'border-orange-500 focus:border-orange-500 focus:ring-orange-500'
-    case 3:
-      return 'border-red-500 focus:border-red-500 focus:ring-red-500'
-    default:
-      return 'border-gray-300 focus:border-gray-500 focus:ring-gray-500'
-  }
-}
-
 const planTeams = computed(() => Number(paramMapByName.value['c_teams']?.value || 0))
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsChallenge || 0))
 const capacity = computed(() => Number(event.value?.drahtCapacityChallenge || 0))
 
-const plannedAmountNotMatching = computed(() => {
-  if (planTeams.value === registeredTeams.value) {
-    return false
-  } else if (planTeams.value > capacity.value || planTeams.value < registeredTeams.value) {
-    return true
-  } else {
-    return true
-  }
+const showWarningOnSwitch = computed(() => {
+  return !props.showChallenge && registeredTeams.value > 0
 })
 
 const teamsPerJuryHint = computed(() => {
@@ -299,37 +281,21 @@ const teamsPerJuryHint = computed(() => {
         <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
         <div
             class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
+        <span v-if="showWarningOnSwitch" class="ml-2 w-2 h-2 bg-red-500 rounded-full"></span>
       </label>
 
     </div>
 
     <template v-if="showChallenge">
-      <div class="mb-3 flex items-center gap-2">
-        <span>Plan für</span>
-        <div class="relative">
-          <input
-              :class="getTeamInputStyle(currentConfigAlertLevel)"
-              :max="challengeTeamLimits.max"
-              :min="challengeTeamLimits.min"
-              :value="paramMapByName['c_teams']?.value"
-              class="mt-1 w-16 border-2 rounded px-2 py-1 text-center focus:outline-none focus:ring-2"
-              type="number"
-              @input="updateByName('c_teams', Number(($event.target as HTMLInputElement).value || 0))"
-          />
-          <div
-              v-if="plannedAmountNotMatching"
-              class="absolute top-2 right-5 w-2 h-2 bg-red-500 rounded-full"
-              title="Geplante Anzahl und angemeldete Anzahl Teams stimmen nicht überein."
-          ></div>
-        </div>
-        <label>Teams</label>
-        <span>bei {{ registeredTeams }}/{{ capacity }} angemeldeten</span>
-        <div
-            v-if="plannedAmountNotMatching"
-            class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
-            title="Geplante Anzahl und angemeldete Anzahl Teams stimmen nicht überein."
-        ></div>
-        <InfoPopover :text="paramMapByName['c_teams']?.ui_description"/>
+      <div class="mb-3">
+        <TeamSelectionCard
+            :plan-teams="planTeams"
+            :registered-teams="registeredTeams"
+            :capacity="capacity"
+            :min-teams="challengeTeamLimits.min"
+            :max-teams="challengeTeamLimits.max"
+            :on-update="(value) => updateByName('c_teams', value)"
+        />
       </div>
 
       <!-- Jury lanes -->
@@ -407,6 +373,17 @@ const teamsPerJuryHint = computed(() => {
         </div>
       </div>
 
+      <!-- Alert message banner -->
+      <div v-if="currentLaneNote && currentConfigAlertLevel >= 1"
+           :class="{
+             'bg-green-100 border border-green-300 text-green-700': currentConfigAlertLevel === 1,
+             'bg-orange-100 border border-orange-300 text-orange-700': currentConfigAlertLevel === 2,
+             'bg-red-100 border border-red-300 text-red-700': currentConfigAlertLevel === 3
+           }"
+           class="mt-3 flex items-center gap-2 px-3 py-2 rounded text-sm font-medium">
+        <span>⚠</span>
+        <span>{{ currentLaneNote }}</span>
+      </div>
 
     </template>
 
@@ -414,17 +391,6 @@ const teamsPerJuryHint = computed(() => {
     <div v-else class="text-center py-8 text-gray-500">
       <div class="text-lg font-medium mb-2">Challenge ist deaktiviert</div>
       <div class="text-sm">Aktiviere den Schalter oben rechts, um Challenge-Einstellungen zu konfigurieren.</div>
-    </div>
-
-    <!-- Alert message banner -->
-    <div v-if="currentLaneNote && (currentConfigAlertLevel === 2 || currentConfigAlertLevel === 3)"
-         :class="{
-           'bg-orange-100/60 border border-orange-300/40 text-orange-700': currentConfigAlertLevel === 2,
-           'bg-red-100/60 border border-red-300/40 text-red-700': currentConfigAlertLevel === 3
-         }"
-         class="mt-3 inline-flex items-center gap-1 px-2 py-1 rounded text-xs">
-      <span class="text-xs">⚠</span>
-      {{ currentLaneNote }}
     </div>
   </div>
 </template>

@@ -108,11 +108,13 @@ onMounted(async () => {
         name: g.name,
         items: g.room_types.map(rt => ({
           id: rt.type_id,
-          key: `activity-${rt.type_id}`,   // ✅ gleiche Struktur wie bei Teams
+          // Use item_type from backend to create unique keys (prevents collision between room_type.id=5 and extra_block.id=5)
+          key: rt.item_type === 'extra_block' ? `activity-eb-${rt.type_id}` : `activity-rt-${rt.type_id}`,
           name: rt.type_name,
           first_program: rt.first_program,
           type: 'activity',
-          group: { id: g.id, name: g.name }
+          group: { id: g.id, name: g.name },
+          item_type: rt.item_type || 'room_type' // Store for reference
         }))
       }))
     },
@@ -133,10 +135,12 @@ onMounted(async () => {
   // 1) Activities (RoomTypes + Extra Blocks)
   roomsData.rooms.forEach(room => {
     (room.room_types ?? []).forEach(rt => {
-      result[`activity-${rt.id}`] = room.id
+      // Use rt prefix for room types
+      result[`activity-rt-${rt.id}`] = room.id
     })
     ;(room.extra_blocks ?? []).forEach(eb => {
-      result[`activity-${eb.id}`] = room.id
+      // Use eb prefix for extra blocks
+      result[`activity-eb-${eb.id}`] = room.id
     })
   })
 
@@ -149,6 +153,10 @@ onMounted(async () => {
 
   // 3) Zusammenführen
   assignments.value = result
+
+  // Load saved bulk mode preferences for this event
+  // This will also restore proxy assignments via nextTick callback
+  loadBulkModePreferences()
 
   // (Optional zum Prüfen)
   // console.log('Assignments summary:', {
@@ -174,6 +182,12 @@ const toggleAccessibility = async (room) => {
 
 // --- Gemeinsame Zuordnung Raum <-> Item ---
 const assignItemToRoom = async (itemKey, roomId) => {
+  // Handle proxy items
+  if (itemKey === 'proxy-explore' || itemKey === 'proxy-challenge') {
+    await handleProxyAssignment(itemKey, roomId)
+    return
+  }
+  
   const item = findItemById(itemKey)
   if (!item) return
 
@@ -185,7 +199,7 @@ const assignItemToRoom = async (itemKey, roomId) => {
       type_id: item.id,
       room_id: roomId,
       event: eventStore.selectedEvent?.id,
-      extra_block: item?.group?.id === 999
+      extra_block: item?.item_type === 'extra_block' || item?.group?.id === 999
     })
   }
 
@@ -207,12 +221,57 @@ const assignItemToRoom = async (itemKey, roomId) => {
 // --- Item nach ID finden ---
 const findItemById = (idOrKey) => {
   const str = String(idOrKey)
-  const [prefix, num] = str.includes('-') ? str.split('-') : [null, str]
-  const normalizedId = Number(num)
-  const typeFilter = prefix === 'team' || prefix === 'activity' ? prefix : null
-
+  
+  // Handle new key format: activity-rt-5, activity-eb-5, team-123, proxy-explore, etc.
+  if (str.includes('-')) {
+    const parts = str.split('-')
+    
+    // Handle proxy keys
+    if (parts[0] === 'proxy') {
+      return null // Proxy items don't need lookup
+    }
+    
+    // Handle activity keys: activity-rt-5 or activity-eb-5
+    if (parts[0] === 'activity' && (parts[1] === 'rt' || parts[1] === 'eb')) {
+      const normalizedId = Number(parts[2])
+      for (const category of assignables.value) {
+        if (category.type !== 'activity') continue
+        for (const group of category.groups) {
+          const found = group.items.find(i => i.id === normalizedId)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    
+    // Handle team keys: team-123
+    if (parts[0] === 'team') {
+      const normalizedId = Number(parts[1])
+      for (const category of assignables.value) {
+        if (category.type !== 'team') continue
+        for (const group of category.groups) {
+          const found = group.items.find(i => i.id === normalizedId)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    
+    // Legacy format fallback: activity-5 or team-5 (for backwards compatibility)
+    const normalizedId = Number(parts[1])
+    const typeFilter = parts[0] === 'team' || parts[0] === 'activity' ? parts[0] : null
+    for (const category of assignables.value) {
+      if (typeFilter && category.type !== typeFilter) continue
+      for (const group of category.groups) {
+        const found = group.items.find(i => i.id === normalizedId)
+        if (found) return found
+      }
+    }
+  }
+  
+  // If no dashes, treat as plain ID and search all items
+  const normalizedId = Number(str)
   for (const category of assignables.value) {
-    if (typeFilter && category.type !== typeFilter) continue
     for (const group of category.groups) {
       const found = group.items.find(i => i.id === normalizedId)
       if (found) return found
@@ -223,6 +282,12 @@ const findItemById = (idOrKey) => {
 
 // --- Unassign ---
 const unassignItemFromRoom = async (itemKey) => {
+  // Handle proxy items
+  if (itemKey === 'proxy-explore' || itemKey === 'proxy-challenge') {
+    await handleProxyAssignment(itemKey, null)
+    return
+  }
+  
   const item = findItemById(itemKey)
   if (!item) return
 
@@ -230,7 +295,7 @@ const unassignItemFromRoom = async (itemKey) => {
   assignments.value[itemKey] = null
 
   if (item.type === 'activity') {
-    const isExtraBlock = item?.group?.id === 999
+    const isExtraBlock = item?.item_type === 'extra_block' || item?.group?.id === 999
     await axios.put(`/rooms/assign-types`, {
       type_id: item.id,
       room_id: null,
@@ -289,7 +354,11 @@ const createRoom = async () => {
 // --- Drag & Drop ---
 const handleDrop = async (event, room) => {
   const item = event.item.__draggable_context?.element
-  if (item && item.id) {
+  if (item && item.key) {
+    // Use the key directly since all items have a unique key property
+    await assignItemToRoom(item.key, room.id)
+  } else if (item && item.id && item.type) {
+    // Fallback: construct key if not present
     const key = `${item.type}-${item.id}`
     await assignItemToRoom(key, room.id)
   } else {
@@ -359,12 +428,254 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 const activeTab = ref('activities')
 
+// --- Bulk Team Assignment Feature ---
+const bulkModeExplore = ref(false)
+const bulkModeChallenge = ref(false)
+
+// Proxy keys for bulk assignment (constants for internal use)
+const PROXY_EXPLORE_KEY = 'proxy-explore'
+const PROXY_CHALLENGE_KEY = 'proxy-challenge'
+
+// --- Persistence: localStorage with event scope ---
+const getStorageKey = () => {
+  if (!eventId.value) return null
+  return `rooms-bulk-mode-${eventId.value}`
+}
+
+// Load saved bulk mode preferences for current event
+const loadBulkModePreferences = () => {
+  const key = getStorageKey()
+  if (!key) return
+  
+  try {
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      const { explore, challenge } = JSON.parse(saved)
+      bulkModeExplore.value = explore ?? false
+      bulkModeChallenge.value = challenge ?? false
+      
+      // Restore proxy assignments if bulk mode is enabled and teams are assigned
+      // We need to check after assignments are loaded, so we'll call restoreProxyAssignments separately
+      nextTick(() => {
+        restoreProxyAssignments()
+      })
+    }
+  } catch (e) {
+    console.warn('Failed to load bulk mode preferences', e)
+  }
+}
+
+// Restore proxy assignments based on actual team assignments
+const restoreProxyAssignments = () => {
+  // Check Explore teams
+  if (bulkModeExplore.value && exploreTeams.value.length > 0) {
+    const teamsWithAssignments = exploreTeams.value
+      .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
+      .filter(t => t.room !== null && t.room !== undefined)
+    
+    if (teamsWithAssignments.length === exploreTeams.value.length) {
+      // All teams assigned - check if they're in the same room
+      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
+      if (roomIds.length === 1) {
+        // All teams in the same room - restore proxy assignment
+        assignments.value[PROXY_EXPLORE_KEY] = roomIds[0]
+      }
+    }
+  }
+  
+  // Check Challenge teams
+  if (bulkModeChallenge.value && challengeTeams.value.length > 0) {
+    const teamsWithAssignments = challengeTeams.value
+      .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
+      .filter(t => t.room !== null && t.room !== undefined)
+    
+    if (teamsWithAssignments.length === challengeTeams.value.length) {
+      // All teams assigned - check if they're in the same room
+      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
+      if (roomIds.length === 1) {
+        // All teams in the same room - restore proxy assignment
+        assignments.value[PROXY_CHALLENGE_KEY] = roomIds[0]
+      }
+    }
+  }
+}
+
+// Save bulk mode preferences when they change
+watch([bulkModeExplore, bulkModeChallenge], ([explore, challenge]) => {
+  const key = getStorageKey()
+  if (!key) return
+  
+  try {
+    localStorage.setItem(key, JSON.stringify({ explore, challenge }))
+  } catch (e) {
+    console.warn('Failed to save bulk mode preferences', e)
+  }
+})
+
+// Reload preferences when event changes
+watch(eventId, () => {
+  loadBulkModePreferences()
+})
+
+// Find proxy assignment room ID (returns null if not assigned)
+const getProxyRoomId = (proxyKey) => {
+  return assignments.value[proxyKey] || null
+}
+
+// Get all teams for a program
+const getTeamsForProgram = (program) => {
+  if (program === 'explore') return exploreTeams.value
+  if (program === 'challenge') return challengeTeams.value
+  return []
+}
+
+// Checkbox toggle handler - unassign all teams when enabling bulk mode
+const toggleBulkMode = async (program) => {
+  const isExplore = program === 'explore'
+  const currentMode = isExplore ? bulkModeExplore.value : bulkModeChallenge.value
+  
+  if (!currentMode) {
+    // Enabling bulk mode: unassign all teams of this program
+    const teams = getTeamsForProgram(program)
+    for (const team of teams) {
+      const key = `team-${team.id}`
+      if (assignments.value[key]) {
+        await unassignItemFromRoom(key)
+      }
+    }
+    // Set bulk mode after unassigning
+    if (isExplore) {
+      bulkModeExplore.value = true
+    } else {
+      bulkModeChallenge.value = true
+    }
+  } else {
+    // Disabling bulk mode: if proxy is assigned, keep assignments, otherwise clear
+    const proxyKey = isExplore ? 'proxy-explore' : 'proxy-challenge'
+    const proxyRoomId = getProxyRoomId(proxyKey)
+    
+    if (proxyRoomId) {
+      // Proxy is assigned: all teams should appear individually in that room
+      const teams = getTeamsForProgram(program)
+      // First, assign all teams to backend
+      for (const team of teams) {
+        const key = `team-${team.id}`
+        assignments.value[key] = proxyRoomId
+        await axios.put(`/rooms/assign-teams`, {
+          team_id: team.id,
+          room_id: proxyRoomId,
+          event: eventStore.selectedEvent?.id
+        })
+      }
+      // Remove proxy assignment
+      assignments.value[proxyKey] = null
+    }
+    
+    if (isExplore) {
+      bulkModeExplore.value = false
+    } else {
+      bulkModeChallenge.value = false
+    }
+  }
+  
+  // Refresh readiness after mode change
+  if (eventStore.selectedEvent?.id) {
+    await eventStore.refreshReadiness(eventStore.selectedEvent.id)
+  }
+}
+
+// Bulk assign all teams of a program to a room
+const bulkAssignTeams = async (program, roomId) => {
+  const teams = getTeamsForProgram(program)
+  
+  // Assign all teams to the room
+  for (const team of teams) {
+    const key = `team-${team.id}`
+    assignments.value[key] = roomId
+    
+    await axios.put(`/rooms/assign-teams`, {
+      team_id: team.id,
+      room_id: roomId,
+      event: eventStore.selectedEvent?.id
+    })
+  }
+  
+  // Also set proxy assignment
+  const proxyKey = program === 'explore' ? 'proxy-explore' : 'proxy-challenge'
+  assignments.value[proxyKey] = roomId
+}
+
+// Bulk unassign all teams of a program
+const bulkUnassignTeams = async (program) => {
+  const teams = getTeamsForProgram(program)
+  
+  // Unassign all teams
+  for (const team of teams) {
+    const key = `team-${team.id}`
+    if (assignments.value[key]) {
+      assignments.value[key] = null
+      await axios.put(`/rooms/assign-teams`, {
+        team_id: team.id,
+        room_id: null,
+        event: eventStore.selectedEvent?.id
+      })
+    }
+  }
+  
+  // Remove proxy assignment
+  const proxyKey = program === 'explore' ? 'proxy-explore' : 'proxy-challenge'
+  assignments.value[proxyKey] = null
+}
+
+// Handle proxy item assignment/unassignment
+const handleProxyAssignment = async (proxyKey, roomId) => {
+  const program = proxyKey === 'proxy-explore' ? 'explore' : 'challenge'
+  
+  if (roomId) {
+    await bulkAssignTeams(program, roomId)
+  } else {
+    await bulkUnassignTeams(program)
+  }
+  
+  // Refresh readiness
+  if (eventStore.selectedEvent?.id) {
+    await eventStore.refreshReadiness(eventStore.selectedEvent.id)
+  }
+}
+
 // Hilfsfunktion für Template (typisierte IDs)
 const getItemsInRoom = (roomId) => {
   const all = []
+  
+  // Handle regular items
   for (const category of assignables.value) {
     for (const group of category.groups) {
-      all.push(...group.items.filter(i => assignments.value[`${i.type}-${i.id}`] === roomId))
+      if (category.type === 'team') {
+        // For teams: check bulk mode and show proxy or individual teams
+        const isExplore = group.id === 'explore'
+        const isChallenge = group.id === 'challenge'
+        const bulkMode = isExplore ? bulkModeExplore.value : (isChallenge ? bulkModeChallenge.value : false)
+        
+        if (bulkMode) {
+          // Bulk mode: check if proxy is assigned to this room
+          const proxyKey = isExplore ? 'proxy-explore' : 'proxy-challenge'
+          if (assignments.value[proxyKey] === roomId) {
+            all.push({
+              key: proxyKey,
+              type: 'team-proxy',
+              name: isExplore ? 'Alle FLL Explore Teams' : 'Alle FLL Challenge Teams',
+              first_program: isExplore ? 2 : 3,
+              program: isExplore ? 'explore' : 'challenge'
+            })
+          }
+        } else {
+          // Individual mode: show individual teams assigned to this room
+          all.push(...group.items.filter(i => assignments.value[i.key] === roomId))
+        }
+      } else {
+        // Activities: use the item's key property (which has rt/eb prefix)
+        all.push(...group.items.filter(i => assignments.value[i.key] === roomId))
+      }
     }
   }
   return all
@@ -477,7 +788,7 @@ const hasWarning = (tab) => {
                   <draggable
                     :list="getItemsInRoom(room.id)"
                     group="assignables"
-                    item-key="id"
+                    item-key="key"
                     @add="event => handleDrop(event, room)"
                     @start="isDragging = true"
                     @end="isDragging = false"
@@ -502,6 +813,32 @@ const hasWarning = (tab) => {
                           {{ element.name }}
                           <button
                             class="ml-1 text-sm text-gray-500 hover:text-black"
+                            @click.stop="unassignItemFromRoom(element.key)"
+                          >
+                            ✖
+                          </button>
+                        </span>
+
+                        <!-- Team Proxy -->
+                        <span
+                          v-else-if="element.type === 'team-proxy'"
+                          class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+                        >
+                          <span
+                            class="w-1.5 self-stretch rounded-l-md"
+                            :style="{ backgroundColor: getProgramColor(element) }"
+                          ></span>
+                          <span class="px-2 py-1 flex items-center gap-1">
+                            <img
+                              v-if="programLogoSrc(element.first_program)"
+                              :src="programLogoSrc(element.first_program)"
+                              :alt="programLogoAlt(element.first_program)"
+                              class="w-3 h-3 flex-shrink-0"
+                            />
+                            {{ element.name }}
+                          </span>
+                          <button
+                            class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
                             @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
@@ -613,8 +950,33 @@ const hasWarning = (tab) => {
           <div class="text-lg font-semibold text-black mb-3">
             {{ group.name }}
           </div>
+          
+          <!-- Bulk mode checkbox for teams -->
+          <div v-if="category.type === 'team'" class="mb-2">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                :checked="(group.id === 'explore' ? bulkModeExplore : bulkModeChallenge)"
+                @change="toggleBulkMode(group.id)"
+                class="cursor-pointer"
+              />
+              <span>Alle Teams zusammen</span>
+            </label>
+          </div>
+          
           <draggable
-            :list="group.items.filter(i => !assignments[`${i.type}-${i.id}`])"
+            :list="category.type === 'team' && (group.id === 'explore' ? bulkModeExplore : group.id === 'challenge' ? bulkModeChallenge : false)
+              ? (() => {
+                  const proxyKey = group.id === 'explore' ? 'proxy-explore' : 'proxy-challenge'
+                  return [{
+                    key: proxyKey,
+                    type: 'team-proxy',
+                    name: group.id === 'explore' ? 'Alle FLL Explore Teams' : 'Alle FLL Challenge Teams',
+                    first_program: group.id === 'explore' ? 2 : 3,
+                    program: group.id
+                  }].filter(p => !assignments[p.key])
+                })()
+              : group.items.filter(i => !assignments[i.key])"
             group="assignables"
             item-key="key"
             class="flex flex-wrap gap-2"
@@ -640,6 +1002,25 @@ const hasWarning = (tab) => {
                   class="w-3 h-3 flex-shrink-0"
                 />
                 {{ element.name }}
+              </span>
+
+              <span
+                v-else-if="element.type === 'team-proxy'"
+                class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+              >
+                <span
+                  class="w-1.5 self-stretch rounded-l-md"
+                  :style="{ backgroundColor: getProgramColor(element) }"
+                ></span>
+                <span class="px-2 py-1 flex items-center gap-1">
+                  <img
+                    v-if="programLogoSrc(element.first_program)"
+                    :src="programLogoSrc(element.first_program)"
+                    :alt="programLogoAlt(element.first_program)"
+                    class="w-3 h-3 flex-shrink-0"
+                  />
+                  {{ element.name }}
+                </span>
               </span>
 
               <span

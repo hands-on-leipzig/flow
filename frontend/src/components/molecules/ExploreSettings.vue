@@ -4,6 +4,7 @@ import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import SplitBar from '@/components/atoms/SplitBar.vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue"
+import TeamSelectionCard from "@/components/molecules/TeamSelectionCard.vue"
 import {useEventStore} from '@/stores/event'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
@@ -87,9 +88,9 @@ const hasExplore = computed(() => props.showExplore)
 
 // New UI: Timing options (radio buttons)
 const timingOptions = [
-  { value: 'morning', label: 'Vormittag' },
-  { value: 'afternoon', label: 'Nachmittag' },
-  { value: 'both', label: 'beides' }
+  {value: 'morning', label: 'Vormittag'},
+  {value: 'afternoon', label: 'Nachmittag'},
+  {value: 'both', label: 'beides'}
 ]
 
 // New UI: Timing mode (radio button selection)
@@ -111,7 +112,7 @@ const timingMode = computed({
 const integrationEnabled = computed({
   get: () => {
     const timing = timingMode.value
-    
+
     if (timing === 'morning') {
       // Morning: Ja = mode 1 (integrated), Nein = mode 3 (decoupled)
       return eMode.value === 1 ? 'yes' : 'no'
@@ -122,12 +123,12 @@ const integrationEnabled = computed({
       // Both: Ja = mode 8 (hybrid both), Nein = mode 5 (decoupled both)
       return eMode.value === 8 ? 'yes' : 'no'
     }
-    
+
     return 'no'
   },
   set: (value) => {
     const timing = timingMode.value
-    
+
     if (timing === 'morning') {
       // Morning: Ja = integrated (1), Nein = decoupled (3)
       setMode(value === 'yes' ? 1 : 3)
@@ -146,33 +147,46 @@ function updateTimingMode(timing: string) {
   // User will need to set integration again for the new timing
   let baseMode: number
   switch (timing) {
-    case 'morning': 
+    case 'morning':
       baseMode = 3; // Decoupled morning
       break
-    case 'afternoon': 
+    case 'afternoon':
       baseMode = 4; // Decoupled afternoon
       break
-    case 'both': 
+    case 'both':
       baseMode = 5; // Decoupled both
       break
-    default: 
-      baseMode = 3; 
+    default:
+      baseMode = 3;
       break
   }
-  
+
   setMode(baseMode)
 }
 
-// Check if challenge is enabled (for disabling integrated modes)
-const isChallengeEnabled = computed(() => props.showChallenge !== false)
+// Check if challenge is enabled (check c_mode parameter directly)
+const cMode = computed(() => Number(paramMapByName.value['c_mode']?.value || 0))
+const isChallengeEnabled = computed(() => cMode.value > 0)
 
-// Watch for challenge being disabled and switch away from integrated modes
-watch(isChallengeEnabled, (enabled) => {
-  if (!enabled && (eMode.value === 1 || eMode.value === 2 || eMode.value === 6 || eMode.value === 7)) {
-    // Challenge disabled while in integrated mode - switch to separate AM
-    setMode(3)
+// Watch for challenge being disabled and ensure integration is set to 'no'
+watch(cMode, (newMode) => {
+  if (newMode === 0) {
+    // Challenge disabled - ensure integration is set to 'no'
+    // Map current mode to decoupled equivalent
+    if (eMode.value === 1 || eMode.value === 6) {
+      // Was integrated morning -> switch to decoupled morning
+      setMode(3)
+    } else if (eMode.value === 2 || eMode.value === 7) {
+      // Was integrated afternoon -> switch to decoupled afternoon
+      setMode(4)
+    } else if (eMode.value === 8) {
+      // Was hybrid both -> switch to decoupled both
+      setMode(5)
+    }
+    // When mode is already decoupled (3, 4, or 5), integrationEnabled will show 'no'
+    // The setMode() calls above ensure the mode is decoupled, which means integrationEnabled is 'no'
   }
-})
+}, { immediate: true })
 
 /** Fancy mode changes **/
 function setMode(mode: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) {
@@ -501,31 +515,12 @@ const getAlertLevelStyle = (level: number) => {
 }
 
 
-const getTeamInputStyle = (level: number) => {
-  switch (level) {
-    case 1:
-      return 'border-green-500 focus:border-green-500 focus:ring-green-500'
-    case 2:
-      return 'border-orange-500 focus:border-orange-500 focus:ring-orange-500'
-    case 3:
-      return 'border-red-500 focus:border-red-500 focus:ring-red-500'
-    default:
-      return 'border-gray-300 focus:border-gray-500 focus:ring-gray-500'
-  }
-}
-
 const planTeams = computed(() => Number(paramMapByName.value['e_teams']?.value || 0))
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsExplore || 0))
 const capacity = computed(() => Number(event.value?.drahtCapacityExplore || 0))
 
-const plannedAmountNotMatching = computed(() => {
-  if (planTeams.value === registeredTeams.value) {
-    return false
-  } else if (planTeams.value > capacity.value || planTeams.value < registeredTeams.value) {
-    return true
-  } else {
-    return true
-  }
+const showWarningOnSwitch = computed(() => {
+  return !props.showExplore && registeredTeams.value > 0
 })
 
 const teamsPerJuryHint1 = computed(() => {
@@ -590,46 +585,37 @@ const teamsPerJuryHint2 = computed(() => {
         <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
         <div
             class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
+        <span v-if="showWarningOnSwitch" class="ml-2 w-2 h-2 bg-red-500 rounded-full"></span>
       </label>
     </div>
 
     <!-- DEBUG: Show e_mode value -->
+    <!--
     <div v-if="hasExplore" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm">
-      <strong>DEBUG:</strong> e_mode = {{ eMode }} ({{ 
+      <strong>DEBUG:</strong> e_mode = {{ eMode }} ({{
         eMode === 0 ? 'NONE' :
-        eMode === 1 ? 'INTEGRATED_MORNING' :
-        eMode === 2 ? 'INTEGRATED_AFTERNOON' :
-        eMode === 3 ? 'DECOUPLED_MORNING' :
-        eMode === 4 ? 'DECOUPLED_AFTERNOON' :
-        eMode === 5 ? 'DECOUPLED_BOTH' :
-        eMode === 6 ? 'HYBRID_MORNING' :
-        eMode === 7 ? 'HYBRID_AFTERNOON' :
-        eMode === 8 ? 'HYBRID_BOTH' :
-        'UNKNOWN'
+            eMode === 1 ? 'INTEGRATED_MORNING' :
+                eMode === 2 ? 'INTEGRATED_AFTERNOON' :
+                    eMode === 3 ? 'DECOUPLED_MORNING' :
+                        eMode === 4 ? 'DECOUPLED_AFTERNOON' :
+                            eMode === 5 ? 'DECOUPLED_BOTH' :
+                                eMode === 6 ? 'HYBRID_MORNING' :
+                                    eMode === 7 ? 'HYBRID_AFTERNOON' :
+                                        eMode === 8 ? 'HYBRID_BOTH' :
+                                            'UNKNOWN'
       }})
     </div>
+    -->
 
-    <div v-if="hasExplore" class="mb-3 flex items-center gap-2">
-      <span>Plan für</span>
-      <div class="relative">
-        <input
-            :class="getTeamInputStyle(currentConfigAlertLevelIntegrated)"
-            :max="exploreTeamLimits.max"
-            :min="exploreTeamLimits.min"
-            :value="paramMapByName['e_teams']?.value"
-            class="mt-1 w-16 border-2 rounded px-2 py-1 text-center focus:outline-none focus:ring-2"
-            type="number"
-            @input="updateByName('e_teams', Number(($event.target as HTMLInputElement).value || 0))"
-        />
-        <div
-            v-if="plannedAmountNotMatching"
-            class="absolute top-2 right-5 w-2 h-2 bg-red-500 rounded-full"
-            title="Geplante Anzahl und angemeldete Anzahl Teams stimmen nicht überein."
-        ></div>
-      </div>
-      <label>Teams</label>
-      <span class="relative">bei {{ registeredTeams }}/{{ capacity }} angemeldeten      </span>
-      <InfoPopover :text="paramMapByName['e_teams']?.ui_description"/>
+    <div v-if="hasExplore" class="mb-3">
+      <TeamSelectionCard
+          :plan-teams="planTeams"
+          :registered-teams="registeredTeams"
+          :capacity="capacity"
+          :min-teams="exploreTeamLimits.min"
+          :max-teams="exploreTeamLimits.max"
+          :on-update="(value) => updateByName('e_teams', value)"
+      />
     </div>
 
     <!-- New UI: Two-row approach -->
@@ -658,8 +644,8 @@ const teamsPerJuryHint2 = computed(() => {
           <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
         </div>
 
-        <!-- Second row: Integration (Simple Ja/Nein) -->
-        <div class="flex items-center gap-2">
+        <!-- Second row: Integration (Simple Ja/Nein) - Only show if Challenge is enabled -->
+        <div v-if="isChallengeEnabled" class="flex items-center gap-2">
           <span class="text-sm font-medium">Integration mit Challenge</span>
           <RadioGroup v-model="integrationEnabled" class="flex gap-1">
             <RadioGroupOption
@@ -701,7 +687,7 @@ const teamsPerJuryHint2 = computed(() => {
     </div>
 
     <!-- Gutachter:innen-Gruppen selection - Based on timing mode only -->
-    
+
     <!-- AM timing: Show AM lanes selection -->
     <div v-if="hasExplore && timingMode === 'morning'" class="mt-4">
       <div class="flex items-start gap-2">
@@ -779,93 +765,93 @@ const teamsPerJuryHint2 = computed(() => {
             @update:e2="(v:number) => updateByName('e2_teams', v)"
         />
       </div>
-      
+
       <!-- Two columns for AM and PM -->
       <div class="mt-4 grid grid-cols-2 gap-8 text-gray-800">
-      <!-- AM -->
-      <div :class="(eMode === 4 || eMode === 7 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
-        <div class="text-sm font-medium mb-1">
-          Vormittag
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <RadioGroup v-model="eLanesAMProxy" class="flex gap-1">
-            <RadioGroupOption
-                v-for="n in allLaneOptions"
-                :key="'e_lane_am_' + n"
-                v-slot="{ checked, disabled }"
-                :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
-                :value="n"
-            >
-              <button
-                  :aria-disabled="disabled"
-                  :class="[
+        <!-- AM -->
+        <div :class="(eMode === 4 || eMode === 7 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
+          <div class="text-sm font-medium mb-1">
+            Vormittag
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <RadioGroup v-model="eLanesAMProxy" class="flex gap-1">
+              <RadioGroupOption
+                  v-for="n in allLaneOptions"
+                  :key="'e_lane_am_' + n"
+                  v-slot="{ checked, disabled }"
+                  :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
+                  :value="n"
+              >
+                <button
+                    :aria-disabled="disabled"
+                    :class="[
                   checked ? getAlertLevelStyle(currentConfigAlertLevelAM) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
-                  class="px-2 py-1 rounded-md border text-sm transition
+                    class="px-2 py-1 rounded-md border text-sm transition
                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  type="button"
-              >
-                {{ n }}
-              </button>
-            </RadioGroupOption>
-          </RadioGroup>
+                    type="button"
+                >
+                  {{ n }}
+                </button>
+              </RadioGroupOption>
+            </RadioGroup>
 
-          <!-- zweizeiliger Block unter den Buttons -->
-          <div class="basis-full mt-1">
-            <div class="flex flex-col">
-              <span class="text-sm font-medium">Gutacher:innen-Gruppen</span>
-              <span class="text-xs text-gray-500 italic">
+            <!-- zweizeiliger Block unter den Buttons -->
+            <div class="basis-full mt-1">
+              <div class="flex flex-col">
+                <span class="text-sm font-medium">Gutacher:innen-Gruppen</span>
+                <span class="text-xs text-gray-500 italic">
                 {{ teamsPerJuryHint1 }}
               </span>
+              </div>
             </div>
           </div>
+
+
         </div>
 
-
-      </div>
-
-      <!-- PM -->
-      <div :class="(eMode === 3 || eMode === 6 || e2Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
-        <div class="text-sm font-medium mb-1">
-          Nachmittag
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <RadioGroup v-model="eLanesPMProxy" class="flex gap-1">
-            <RadioGroupOption
-                v-for="n in allLaneOptions"
-                :key="'e_lane_pm_' + n"
-                v-slot="{ checked, disabled }"
-                :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
-                :value="n"
-            >
-              <button
-                  :aria-disabled="disabled"
-                  :class="[
+        <!-- PM -->
+        <div :class="(eMode === 3 || eMode === 6 || e2Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
+          <div class="text-sm font-medium mb-1">
+            Nachmittag
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <RadioGroup v-model="eLanesPMProxy" class="flex gap-1">
+              <RadioGroupOption
+                  v-for="n in allLaneOptions"
+                  :key="'e_lane_pm_' + n"
+                  v-slot="{ checked, disabled }"
+                  :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
+                  :value="n"
+              >
+                <button
+                    :aria-disabled="disabled"
+                    :class="[
                   checked ? getAlertLevelStyle(currentConfigAlertLevelPM) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
-                  class="px-2 py-1 rounded-md border text-sm transition
+                    class="px-2 py-1 rounded-md border text-sm transition
                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  type="button"
-              >
-                {{ n }}
-              </button>
-            </RadioGroupOption>
-          </RadioGroup>
+                    type="button"
+                >
+                  {{ n }}
+                </button>
+              </RadioGroupOption>
+            </RadioGroup>
 
-          <!-- zweizeiliger Block unter den Buttons -->
-          <div class="basis-full mt-1">
-            <div class="flex flex-col">
-              <span class="text-sm font-medium">Gutacher:innen-Gruppen</span>
-              <span class="text-xs text-gray-500 italic">
+            <!-- zweizeiliger Block unter den Buttons -->
+            <div class="basis-full mt-1">
+              <div class="flex flex-col">
+                <span class="text-sm font-medium">Gutacher:innen-Gruppen</span>
+                <span class="text-xs text-gray-500 italic">
                 {{ teamsPerJuryHint2 }}
               </span>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
     </template>
 
     <!-- Alert message banner -->
