@@ -94,11 +94,48 @@ class ExtraBlockController extends Controller
         if (!$skipRegeneration) {
             try {
                 $generator = app(PlanGeneratorController::class);
-                $generator->generateLite($planId);
+                $response = $generator->generateLite($planId);
+                
+                // Check if the response indicates an error
+                if ($response->getStatusCode() !== 200) {
+                    $responseData = $response->getData(true);
+                    Log::error("Fehler bei der Lite-Regeneration des Plans {$planId}", [
+                        'status' => $response->getStatusCode(),
+                        'error' => $responseData['error'] ?? 'Unknown error',
+                        'details' => $responseData['details'] ?? null,
+                    ]);
+                    // Return error response to frontend
+                    return response()->json([
+                        'block' => $block,
+                        'skip_regeneration' => $skipRegeneration,
+                        'error' => $responseData['error'] ?? 'Fehler bei der Lite-Generierung',
+                        'details' => $responseData['details'] ?? $responseData['message'] ?? null,
+                    ], $response->getStatusCode());
+                }
             } catch (\Throwable $e) {
                 Log::error("Fehler bei der Regeneration des Plans {$planId}: " . $e->getMessage(), [
                     'trace' => $e->getTraceAsString(),
                 ]);
+                
+                // Extract meaningful error message
+                $errorMessage = 'Fehler bei der Lite-Generierung';
+                $details = $e->getMessage();
+                
+                if (str_contains($e->getMessage(), "Parameter '")) {
+                    $errorMessage = 'Ungültiger Parameterwert';
+                } elseif (str_contains($e->getMessage(), "not found") || str_contains($e->getMessage(), "existiert nicht")) {
+                    $errorMessage = 'Fehlende Daten';
+                } elseif (str_contains($e->getMessage(), "FreeBlockGenerator") || str_contains($e->getMessage(), "freien Aktivitäten")) {
+                    $errorMessage = 'Fehler beim Einfügen der freien Blöcke';
+                }
+                
+                // Return error response to frontend
+                return response()->json([
+                    'block' => $block,
+                    'skip_regeneration' => $skipRegeneration,
+                    'error' => $errorMessage,
+                    'details' => $details,
+                ], 500);
             }
         }
 

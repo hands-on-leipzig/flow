@@ -187,7 +187,8 @@ class ActivityFetcherService
                 rt_room.sequence as room_type_sequence,
                 r.id as room_id,
                 r.name as room_name,
-                r.navigation_instruction as room_navigation
+                r.navigation_instruction as room_navigation,
+                r.sequence as room_sequence
             ';
         }
 
@@ -218,6 +219,8 @@ class ActivityFetcherService
                 ag_atd.first_program       as group_first_program_id,
                 ag_fp.name                 as group_first_program_name,
                 ag_at.overview_plan_column as group_overview_plan_column,
+                ag_at.id                   as activity_type_id,
+                ag_at.name                 as activity_type_name,
                 a.extra_block as is_extra_block,
                 ag.activity_type_detail as activity_type_detail,
                 CASE 

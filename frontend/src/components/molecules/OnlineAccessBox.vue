@@ -359,7 +359,7 @@ async function regenerateLinkAndQR() {
                       <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.teams, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.challenge.briefing?.judges" class="flex justify-between">
-                      <span class="text-gray-600">Gutachter:innen-Briefing:</span>
+                      <span class="text-gray-600">Jury-Briefing:</span>
                       <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.judges, true) }}</span>
                     </div>
                     <div v-if="scheduleInfo.plan.challenge.briefing?.referees" class="flex justify-between">
