@@ -79,11 +79,7 @@ class CarouselController extends Controller
         $res = Slide::with('slideshow')
             ->findOrFail($slide);
 
-        $slideshow = $res->slideshow;
-        if (!is_object($slideshow)) {
-            $slideshow = SlideShow::with('event')->find($slideshow);
-        }
-        $this->hasEventAccessOrThrow($slideshow->event);
+        $this->hasEventAccessOrThrow($res->slideshow->event);
 
         return response()->json($res);
     }
@@ -94,11 +90,7 @@ class CarouselController extends Controller
 
         $slideModel = Slide::findOrFail($slide);
 
-        $slideshow = $slideModel->slideshow;
-        if (!is_object($slideshow)) {
-            $slideshow = SlideShow::with('event')->find($slideshow);
-        }
-        $this->hasEventAccessOrThrow($slideshow->event);
+        $this->hasEventAccessOrThrow($slideModel->slideshow->event);
 
         $slideModel->update($data);
         return response()->json(['success' => true]);
@@ -120,7 +112,7 @@ class CarouselController extends Controller
 
         foreach ($slideIds as $order => $slideId) {
             Slide::where('id', $slideId)
-                ->where('slideshow', $slideshowId)
+                ->whereBelongsTo($slideshow)
                 ->update(['order' => $order]);
         }
 
@@ -151,11 +143,7 @@ class CarouselController extends Controller
             return response()->json(['error' => 'Slide nicht gefunden'], 404);
         }
 
-        $slideshow = $slide->slideshow;
-        if (!is_object($slideshow)) {
-            $slideshow = SlideShow::with('event')->find($slideshow);
-        }
-        $this->hasEventAccessOrThrow($slideshow->event);
+        $this->hasEventAccessOrThrow($slide->slideshow->event);
 
         $slide->delete();
 
@@ -172,12 +160,12 @@ class CarouselController extends Controller
         $providedContent = $data['content'] ?? null;
         if ($providedContent) {
             $providedContent = json_decode($providedContent, true);
-            $providedContent['background'] = json_decode($this->generatePublicPlanBackground());
+            $providedContent['background'] = json_decode($this->slideGeneratorService->generateStandardBackground());
             $data['content'] = json_encode($providedContent);
         } else {
-            $data['content'] = '{"background": ' . $this->generatePublicPlanBackground() . '}';
+            $data['content'] = '{"background": ' . $this->slideGeneratorService->generateStandardBackground() . '}';
         }
-        $data['slideshow'] = $slideshowId;
+        $data['slideshow_id'] = $slideshowId;
 
         // TODO Input-Validierung (Type korrekt, etc.)
 

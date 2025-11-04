@@ -31,7 +31,7 @@ class SlideGeneratorService
         return $slide;
     }
 
-    private function generateStandardBackground()
+    public function generateStandardBackground()
     {
         return json_encode("{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage . "}");
     }
