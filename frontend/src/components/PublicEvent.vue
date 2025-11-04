@@ -10,15 +10,38 @@
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="min-h-screen flex items-center justify-center">
-      <div class="text-center bg-white rounded-2xl shadow-xl p-8 max-w-md mx-4">
-        <div class="text-red-500 text-7xl mb-4 animate-bounce">⚠️</div>
-        <h2 class="text-3xl font-bold text-gray-900 mb-2">Fehler beim Laden</h2>
-        <p class="text-gray-600 mb-6">{{ error }}</p>
-        <button @click="loadEvent"
-                class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-purple-700 font-semibold shadow-lg transform hover:scale-105 transition-all">
-          Erneut versuchen
-        </button>
+    <div v-else-if="error" class="min-h-screen flex items-center justify-center p-4">
+      <div class="text-center max-w-2xl mx-auto">
+        <!-- Colorful Header -->
+        <div class="bg-gradient-to-r from-orange-400 via-pink-500 to-purple-600 rounded-3xl shadow-2xl p-8 mb-8 transform hover:scale-[1.02] transition-transform">
+          <div class="text-white text-6xl mb-4">🔍</div>
+          <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 drop-shadow-lg">
+            {{ error === 'Plan nicht gefunden' ? 'Plan nicht gefunden' : 'Event nicht gefunden' }}
+          </h1>
+          <div class="flex justify-center items-center gap-4 mt-6">
+            <div class="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-full px-6 py-2">
+              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-12 h-12 drop-shadow-lg"/>
+              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-12 h-12 drop-shadow-lg"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Friendly Message Card -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 border-2 border-orange-200">
+          <p class="text-lg text-gray-700 mb-6 leading-relaxed">
+            Hey! 👋 Für die Adresse, die du aufgerufen hast, konnten wir leider {{ error === 'Plan nicht gefunden' ? 'keinen Plan' : 'kein Event' }} finden.
+          </p>
+          <p class="text-base text-gray-600 mb-6">
+            Bitte überprüfe nochmal die Adresse, die du verwendet hast. Vielleicht hat sich ein kleiner Tippfehler eingeschlichen?
+          </p>
+          
+          <div class="bg-gradient-to-r from-orange-50 to-pink-50 rounded-xl p-6 border border-orange-200">
+            <p class="text-sm text-gray-600 font-medium mb-2">Du hast folgende Adresse aufgerufen:</p>
+            <p class="text-lg font-mono text-gray-800 break-all bg-white p-3 rounded-lg border border-gray-200">
+              {{ route.params.slug || 'N/A' }}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -70,12 +93,12 @@
             <div v-else-if="event.event_challenge && !event.event_explore"
                  class="flex items-center bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
               <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-16 h-16 drop-shadow-lg"/>
-            </div>
+          </div>
             <div v-else-if="event.event_explore && event.event_challenge"
                  class="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-full px-6 py-2">
               <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-12 h-12 drop-shadow-lg"/>
               <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-12 h-12 drop-shadow-lg"/>
-            </div>
+          </div>
           </div>
         </div>
       </div>
@@ -258,8 +281,8 @@
             <div class="flex items-center justify-between">
               <h3 class="font-bold text-white text-lg flex items-center gap-2">
                 <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-8 h-8 drop-shadow-lg"/>
-                FIRST LEGO League Explore
-              </h3>
+              FIRST LEGO League Explore
+            </h3>
               <div v-if="scheduleInfo.teams.explore.capacity > 0"
                    class="text-sm text-white font-semibold bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1">
                 <span class="font-bold text-lg">{{ scheduleInfo.teams.explore.registered }}</span>
@@ -311,8 +334,8 @@
             <div class="flex items-center justify-between">
               <h3 class="font-bold text-white text-lg flex items-center gap-2">
                 <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-8 h-8 drop-shadow-lg"/>
-                FIRST LEGO League Challenge
-              </h3>
+              FIRST LEGO League Challenge
+            </h3>
               <div v-if="scheduleInfo.teams.challenge.capacity > 0"
                    class="text-sm text-white font-semibold bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1">
                 <span class="font-bold text-lg">{{ scheduleInfo.teams.challenge.registered }}</span>
@@ -512,7 +535,7 @@
           <div class="bg-white p-4 rounded-lg min-h-[256px] min-w-[256px] flex items-center justify-center">
             <canvas ref="qrCodeRef" class="max-w-full max-h-full"></canvas>
             <div v-if="!mapCoordinates" class="text-gray-400 text-sm absolute">Lade Standort...</div>
-          </div>
+      </div>
           <p class="text-sm text-gray-600 text-center">
             Scannen Sie den QR-Code, um den Standort in Google Maps zu öffnen
           </p>
@@ -558,12 +581,13 @@
 
 <script setup>
 import {ref, onMounted, onBeforeUnmount, watch, nextTick, Teleport} from 'vue'
-import {useRoute} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import QRCode from 'qrcode'
 
 const route = useRoute()
+const router = useRouter()
 const event = ref(null)
 const scheduleInfo = ref(null)
 const loading = ref(true)
@@ -608,7 +632,13 @@ const loadEvent = async () => {
         publicPlanId.value = planResponse.data.id
       } catch (planError) {
         console.error('Error fetching plan ID:', planError)
-        // Continue showing the page if plan fetch fails
+        // If plan can't be found, show 404 page
+        if (planError.response?.status === 404) {
+          error.value = 'Plan nicht gefunden'
+        } else {
+          // For other errors, continue showing the page
+          console.warn('Plan fetch failed, but continuing with page display')
+        }
       }
     }
 
@@ -656,6 +686,11 @@ const formatTimeOnly = (timeString) => {
 const isContentVisible = (level) => {
   if (!scheduleInfo.value) return false
   return scheduleInfo.value.level >= level
+}
+
+// Navigate to home
+const goHome = () => {
+  router.push('/')
 }
 
 // Geocode address using backend API (proxies to OpenStreetMap Nominatim API)
