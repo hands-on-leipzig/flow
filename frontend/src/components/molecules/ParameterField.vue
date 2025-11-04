@@ -1,6 +1,7 @@
 <script setup>
 import {ref, watch, computed} from 'vue'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
+import TimePicker from "@/components/atoms/TimePicker.vue";
 
 const props = defineProps({
   param: {
@@ -336,35 +337,35 @@ const isDefaultValue = computed(() => {
         </span>
       </div>
 
-      <!-- Time inputs with default value overlay -->
-      <div v-else-if="param.type === 'time'" class="relative">
-        <input
-            type="time"
-            v-model="localValue"
-            @change="emitChange"
-            @input="validateValue(localValue, param)"
-            @blur="validateValue(localValue, param)"
-            :disabled="disabled"
-            :min="param.min || undefined"
-            :max="param.max || undefined"
-            :step="param.step ? param.step * 60 : undefined"
-            class="w-24 border rounded px-2 py-1 pr-8 text-sm shadow-sm"
-            :class="{ 
-              'opacity-50 cursor-not-allowed': disabled,
-              'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled,
-              'border-red-300 bg-red-50': validationError,
-              'border-gray-300': !validationError
-            }"
-        />
+      <!-- Time inputs with custom time picker -->
+      <div v-else-if="param.type === 'time'" class="relative flex items-center gap-2">
+        <div 
+          class="inline-block"
+          :class="{ 
+            'opacity-50': disabled,
+            'ring-2 ring-orange-300 rounded': isChangedFromDefault(param) && !disabled,
+            'ring-2 ring-red-300 rounded': validationError
+          }"
+        >
+          <TimePicker
+              :model-value="localValue"
+              @update:model-value="localValue = $event; validateValue(localValue, param); emitChange()"
+              @change="validateValue(localValue, param); emitChange()"
+              :disabled="disabled"
+              :min="param.min || undefined"
+              :max="param.max || undefined"
+              :step="param.step || 5"
+          />
+        </div>
         <span v-if="showDefaultValue(param) && !validationError"
-              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+              class="text-xs text-gray-400 pointer-events-none whitespace-nowrap">
           {{ showDefaultValue(param) }}
         </span>
-        <!-- Validation error tooltip -->
-        <div v-if="validationError" 
-             class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-red-500 pointer-events-none">
+        <!-- Validation error indicator -->
+        <span v-if="validationError" 
+             class="text-xs text-red-500 pointer-events-none">
           ⚠️
-        </div>
+        </span>
       </div>
 
       <!-- Text inputs with default value overlay -->
