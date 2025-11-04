@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Slide extends Model
 {
@@ -16,12 +17,12 @@ class Slide extends Model
         'type',
         'content',
         'order',
-        'slideshow',
+        'slideshow_id',
         'active',
     ];
 
-    public function slideshow()
+    public function slideshow(): BelongsTo
     {
-        return $this->belongsTo(SlideShow::class, 'slideshow');
+        return $this->belongsTo(SlideShow::class, 'slideshow_id');
     }
 }

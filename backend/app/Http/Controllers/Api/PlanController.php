@@ -410,7 +410,7 @@ class PlanController extends Controller
             'plan' => $planId,
             'first_program' => FirstProgram::CHALLENGE->value,
             'name' => 'Check-In FLL Challenge',
-            'description' => 'Teams, Juror:innen und Schiedsrichter:inne bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
+            'description' => 'Teams, Juror:innen und Schiedsrichter:innen bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
             'link' => null,
             'start' => $start,
             'end' => $end,
