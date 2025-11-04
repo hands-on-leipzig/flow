@@ -30,6 +30,10 @@ const props = defineProps<{
   eventDate?: string
 }>()
 
+const emit = defineEmits<{
+  (e: 'changed'): void
+}>()
+
 // --- State ---
 const blocks = ref<ExtraBlock[]>([])
 const blockToDelete = ref<ExtraBlock | null>(null)
@@ -59,6 +63,9 @@ const { scheduleUpdate, flush, immediateFlush } = useDebouncedSave({
     await flushUpdates(updates)
   }
 })
+
+// --- Batch save system (save on countdown) ---
+// Note: Block changes trigger debounce immediately, blocks are saved to DB when countdown reaches 0 or is clicked
 
 // --- Computed ---
 const customBlocks = computed(() => blocks.value.filter(b => !('insert_point' in b) || !b.insert_point))
@@ -113,6 +120,82 @@ async function loadBlocks() {
   })
 }
 
+// Save all enabled blocks to DB (called when countdown triggers)
+async function saveAllEnabledBlocks() {
+  if (!props.planId) return
+  
+  // Get all enabled blocks (including newly created ones without ID)
+  const enabledBlocks = blocks.value.filter(b => b.active !== false && b.plan === props.planId)
+  if (enabledBlocks.length === 0) return
+  
+  try {
+    saving.value = true
+    
+    // Save all enabled blocks
+    for (const block of enabledBlocks) {
+      const blockData: any = {
+        plan: block.plan,
+        first_program: block.first_program,
+        name: block.name,
+        description: block.description,
+        link: block.link,
+        start: block.start,
+        end: block.end,
+        room: block.room,
+        active: block.active
+      }
+      
+      // Only include id if block already exists in DB
+      if (block.id) {
+        blockData.id = block.id
+      }
+      
+      // Check if this block has timing changes (start/end times)
+      const hasTimingChanges = block.start || block.end
+      
+      const response = await axios.post(`/plans/${props.planId}/extra-blocks`, {
+        ...blockData,
+        skip_regeneration: !hasTimingChanges
+      })
+      const saved = response.data?.block || response.data
+      
+      // Check if response contains error from generateLite
+      if (response.data?.error) {
+        generatorError.value = response.data.error
+        errorDetails.value = response.data.details || null
+        isGenerating.value = false
+        await loadBlocks() // Still reload blocks even on error
+        throw new Error(response.data.error) // Re-throw so caller can handle it
+      }
+      
+      if (saved?.id) {
+        const index = blocks.value.findIndex(b => 
+          (b.id && b.id === saved.id) || 
+          (!b.id && !saved.id && b.plan === saved.plan && 
+           b.start === saved.start && b.end === saved.end)
+        )
+        if (index !== -1) {
+          blocks.value[index] = saved
+        } else {
+          blocks.value.push(saved)
+        }
+      }
+    }
+    
+    emit('changed')
+  } catch (error) {
+    console.error('Failed to save blocks:', error)
+    throw error // Re-throw so caller can handle it
+  } finally {
+    saving.value = false
+  }
+}
+
+// Expose functions to parent (for consistency with InsertBlocks)
+defineExpose({
+  saveAllEnabledBlocks
+})
+
 // --- Central Flush Logic ---
 async function flushUpdates(updates: Record<string, any>) {
   if (!props.planId) return
@@ -125,7 +208,7 @@ async function flushUpdates(updates: Record<string, any>) {
   let needsRegeneration = false
   for (const [name, value] of Object.entries(updates)) {
     if (name === 'extra_block_update' && value) {
-      const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f))
+      const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f) || f === 'start' || f === 'end')
       if (hasTimingChanges) {
         needsRegeneration = true
         break
@@ -137,48 +220,48 @@ async function flushUpdates(updates: Record<string, any>) {
     }
   }
 
-      // Set generating state immediately if regeneration will be needed
+  // Set generating state immediately if regeneration will be needed
   // This ensures the UI shows "Plan wird generiert" right away
   if (needsRegeneration) {
     isGenerating.value = true
   }
 
-    try {
-      for (const [name, value] of Object.entries(updates)) {
-        if (name === 'extra_block_update' && value) {
-          const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f))
-          const blockData = { ...value }
-          if (!hasTimingChanges) {
-            blockData.skip_regeneration = true
-          }
-          const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
-          
-          // Check if response contains error from generateLite
-          if (response.data?.error) {
-            generatorError.value = response.data.error
-            errorDetails.value = response.data.details || null
-            isGenerating.value = false
-            await loadBlocks() // Still reload blocks even on error
-            return // Stop processing further updates
-          }
+  try {
+    for (const [name, value] of Object.entries(updates)) {
+      if (name === 'extra_block_update' && value) {
+        const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f) || f === 'start' || f === 'end')
+        const blockData = { ...value }
+        if (!hasTimingChanges) {
+          blockData.skip_regeneration = true
         }
-        if (name === 'extra_block_delete' && value?.id) {
-          await axios.delete(`/extra-blocks/${value.id}`)
-        }
-        if (name === 'extra_block_add' && value) {
-          const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
-          
-          // Check if response contains error from generateLite
-          if (response.data?.error) {
-            generatorError.value = response.data.error
-            errorDetails.value = response.data.details || null
-            isGenerating.value = false
-            await loadBlocks() // Still reload blocks even on error
-            return // Stop processing further updates
-          }
+        const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
+        
+        // Check if response contains error from generateLite
+        if (response.data?.error) {
+          generatorError.value = response.data.error
+          errorDetails.value = response.data.details || null
+          isGenerating.value = false
+          await loadBlocks() // Still reload blocks even on error
+          return // Stop processing further updates
         }
       }
-      await loadBlocks()
+      if (name === 'extra_block_delete' && value?.id) {
+        await axios.delete(`/extra-blocks/${value.id}`)
+      }
+      if (name === 'extra_block_add' && value) {
+        const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
+        
+        // Check if response contains error from generateLite
+        if (response.data?.error) {
+          generatorError.value = response.data.error
+          errorDetails.value = response.data.details || null
+          isGenerating.value = false
+          await loadBlocks() // Still reload blocks even on error
+          return // Stop processing further updates
+        }
+      }
+    }
+    await loadBlocks()
 
     // Poll for generator status if regeneration was triggered
     if (needsRegeneration) {
@@ -340,9 +423,11 @@ async function deleteBlock() {
   await immediateFlush()
 }
 
+// Update local state and trigger debounce (no DB save until countdown)
 function saveBlock(block: ExtraBlock) {
   // Create a new object copy to avoid reference issues during countdown
   // This ensures each update captures the current state independently
+  // Note: DB save will happen when countdown reaches 0 or is clicked
   scheduleUpdate('extra_block_update', { ...block })
 }
 
