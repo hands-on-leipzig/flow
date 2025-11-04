@@ -48,9 +48,17 @@ class LogoController extends Controller
 
     public function destroy(Logo $logo)
     {
-        $this->authorize('delete', $logo);
-        $logo->delete();
-        return response()->json();
+        try {
+            $this->authorize('delete', $logo);
+            $logo->delete();
+            return response()->json();
+        } catch (\Exception $e) {
+            $translated = \App\Services\ErrorTranslationService::translateException($e);
+            return response()->json([
+                'message' => $translated['message'],
+                'details' => $translated['details'],
+            ], 500);
+        }
     }
 
     public function toggleEvent(Request $request, Logo $logo)

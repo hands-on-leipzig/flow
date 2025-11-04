@@ -2,7 +2,6 @@
 import {ref, onMounted, computed, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
-import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 
 const logos = ref([])
 const eventStore = useEventStore()
@@ -12,6 +11,7 @@ const fileInput = ref(null)
 const selectedLogoForPreview = ref(null)
 const logoToDelete = ref(null)
 const isUploading = ref(false)
+const deleteError = ref(null)
 
 // Drag and drop state
 const draggedLogo = ref(null)
@@ -120,10 +120,13 @@ const confirmDeleteLogo = (logo) => {
 
 const cancelDeleteLogo = () => {
   logoToDelete.value = null
+  deleteError.value = null
 }
 
 const deleteLogo = async () => {
   if (!logoToDelete.value) return
+
+  deleteError.value = null
 
   try {
     await axios.delete(`/logos/${logoToDelete.value.id}`)
@@ -131,7 +134,16 @@ const deleteLogo = async () => {
     logoToDelete.value = null
   } catch (error) {
     console.error('Error deleting logo:', error)
-    alert('Fehler beim Löschen des Logos: ' + error.message)
+    // Use translated error message from backend
+    const errorMessage = error.response?.data?.message || 'Ein Fehler ist aufgetreten.'
+    const errorDetails = error.response?.data?.details || null
+    
+    if (errorDetails) {
+      deleteError.value = `${errorMessage}\n\n${errorDetails}`
+    } else {
+      deleteError.value = errorMessage
+    }
+    // Keep the modal open so user can see the error
   }
 }
 
@@ -599,16 +611,55 @@ onMounted(async () => {
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <ConfirmationModal
-        :show="!!logoToDelete"
-        title="Logo löschen"
-        :message="deleteMessage"
-        type="danger"
-        confirm-text="Löschen"
-        cancel-text="Abbrechen"
-        @confirm="deleteLogo"
-        @cancel="cancelDeleteLogo"
-    />
+    <div 
+      v-if="logoToDelete"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click="cancelDeleteLogo"
+    >
+      <div class="bg-white rounded-lg p-6 max-w-md mx-4" @click.stop>
+        <div class="flex items-center mb-4">
+          <div class="flex-shrink-0 w-10 h-10 mx-auto rounded-full flex items-center justify-center bg-red-100">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+          </div>
+        </div>
+        
+        <div class="text-center">
+          <h3 class="text-lg font-medium text-gray-900 mb-2">
+            Logo löschen
+          </h3>
+          <p class="text-sm text-gray-500 mb-6">
+            {{ deleteMessage }}
+          </p>
+          
+          <!-- Error message display -->
+          <div v-if="deleteError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <div class="flex items-start">
+              <svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+              </svg>
+              <div class="text-sm text-red-800 whitespace-pre-line">{{ deleteError }}</div>
+            </div>
+          </div>
+          
+          <div class="flex space-x-3 justify-center">
+            <button
+              @click="cancelDeleteLogo"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            >
+              Abbrechen
+            </button>
+            <button
+              @click="deleteLogo"
+              class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+              Löschen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
