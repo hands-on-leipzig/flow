@@ -37,6 +37,7 @@ const emit = defineEmits<{
 // --- State ---
 const blocks = ref<ExtraBlock[]>([])
 const blockToDelete = ref<ExtraBlock | null>(null)
+const saving = ref(false)
 
 // Generator state (must be declared before useDebouncedSave)
 const isGenerating = ref(false)
@@ -724,28 +725,34 @@ const deleteMessage = computed(() => {
             <td class="px-2 py-2">
               <div class="space-y-2">
                 <div class="flex space-x-2">
-                  <input v-model="b.name"
+                  <input :value="b.name"
                          :disabled="b.active === false"
                          :class="['flex-1 border rounded px-2 py-1 text-sm',
                                   b.active !== false
                                     ? 'bg-white border-gray-300'
                                     : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                         type="text" placeholder="Titel" @blur="saveBlock(b)"/>
-                  <input v-model="b.link"
+                         type="text" placeholder="Titel"
+                         @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
+                         @blur="saveBlock(b)"/>
+                  <input :value="b.link ?? ''"
                          :disabled="b.active === false"
                          :class="['flex-1 border rounded px-2 py-1 text-sm',
                                   b.active !== false
                                     ? 'bg-white border-gray-300'
                                     : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                         type="url" placeholder="https://example.com" @blur="saveBlock(b)"/>
+                         type="url" placeholder="https://example.com"
+                         @input="(e) => { b.link = (e.target as HTMLInputElement).value }"
+                         @blur="saveBlock(b)"/>
                 </div>
-                <input v-model="b.description"
+                <input :value="b.description"
                        :disabled="b.active === false"
                        :class="['w-full border rounded px-2 py-1 text-sm',
                                 b.active !== false
                                   ? 'bg-white border-gray-300'
                                   : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                       type="text" placeholder="Beschreibung" @blur="saveBlock(b)"/>
+                       type="text" placeholder="Beschreibung"
+                       @input="(e) => { b.description = (e.target as HTMLInputElement).value }"
+                       @blur="saveBlock(b)"/>
               </div>
             </td>
           </tr>
