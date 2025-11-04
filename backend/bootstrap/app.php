@@ -18,5 +18,34 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Handle API exceptions - translate SQL errors to user-friendly messages
+        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+            // Only handle API routes
+            if (!$request->is('api/*')) {
+                return null; // Let Laravel handle non-API routes normally
+            }
+
+            // Let validation exceptions pass through (they have their own format)
+            if ($e instanceof \Illuminate\Validation\ValidationException) {
+                return null;
+            }
+
+            // Let authorization exceptions pass through
+            if ($e instanceof \Illuminate\Auth\Access\AuthorizationException) {
+                return null;
+            }
+
+            // Let authentication exceptions pass through
+            if ($e instanceof \Illuminate\Auth\AuthenticationException) {
+                return null;
+            }
+
+            // Translate all other exceptions (including SQL errors)
+            $translated = \App\Services\ErrorTranslationService::translateException($e);
+            
+            return response()->json([
+                'message' => $translated['message'],
+                'details' => $translated['details'],
+            ], 500);
+        });
     })->create();

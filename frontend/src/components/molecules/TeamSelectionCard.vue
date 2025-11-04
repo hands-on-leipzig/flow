@@ -23,17 +23,6 @@ const plannedAmountNotMatching = computed(() => {
   return false
 })
 
-const getPlanCardClass = computed(() => {
-  return plannedAmountNotMatching.value
-    ? 'border-orange-300'
-    : 'border-gray-200'
-})
-
-const getInputClass = computed(() => {
-  return plannedAmountNotMatching.value
-    ? 'border-orange-400 focus:border-orange-500 focus:ring-orange-500'
-    : 'border-gray-300 focus:border-gray-500 focus:ring-gray-500'
-})
 </script>
 
 <template>
@@ -43,72 +32,65 @@ const getInputClass = computed(() => {
       
       <!-- Card 1: Plan für (Editable) -->
       <div 
-        class="border rounded-lg p-3 bg-white transition-colors"
-        :class="getPlanCardClass"
+        class="border border-gray-200 rounded-lg p-4 bg-white transition-colors shadow-sm"
       >
-        <div class="flex items-center gap-2 mb-2">
-          <span class="text-sm font-medium text-gray-700">Plan für</span>
+        <div class="mb-3">
+          <span class="text-sm font-semibold text-gray-700">Plan für</span>
         </div>
         <div class="relative">
-          <input
-            type="number"
-            :value="planTeams"
-            :min="minTeams"
-            :max="maxTeams"
-            readonly
-            class="w-full text-xl font-semibold text-center border rounded py-1.5 pl-14 pr-12 focus:outline-none focus:ring-2 transition-all bg-white appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none cursor-default"
-            :class="getInputClass"
-            @keydown.prevent
-          />
-          <span v-if="plannedAmountNotMatching" class="absolute left-8 top-1/2 -translate-y-1/2 w-2 h-2 bg-red-500 rounded-full"></span>
-          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">Teams</span>
-          <!-- Custom up/down arrows -->
-          <div class="absolute left-1.5 top-0 bottom-0 flex flex-col justify-center gap-px">
-            <button
-              type="button"
-              class="w-5 h-3.5 flex items-center justify-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              @click="onUpdate(Math.min(maxTeams, planTeams + 1))"
-              :disabled="planTeams >= maxTeams"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              class="w-5 h-3.5 flex items-center justify-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              @click="onUpdate(Math.max(minTeams, planTeams - 1))"
-              :disabled="planTeams <= minTeams"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+          <div class="w-full text-2xl font-bold bg-white relative flex items-center justify-center gap-2">
+            <span v-if="plannedAmountNotMatching" class="w-2 h-2 bg-red-500 rounded-full"></span>
+            <!-- Custom up/down arrows -->
+            <div class="flex flex-col gap-0.5">
+              <button
+                type="button"
+                class="w-6 h-3.5 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                @click="onUpdate(Math.min(maxTeams, planTeams + 1))"
+                :disabled="planTeams >= maxTeams"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="w-6 h-3.5 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                @click="onUpdate(Math.max(minTeams, planTeams - 1))"
+                :disabled="planTeams <= minTeams"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </div>
+            <span v-if="planTeams > 0">{{ planTeams }}</span>
+            <span v-else class="text-gray-400">0</span>
+            <span class="text-xs font-medium text-gray-500">Teams</span>
           </div>
         </div>
       </div>
       
       <!-- Card 2: Angemeldet (Registered) -->
-      <div class="border border-gray-200 rounded-lg p-3 bg-white">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="text-sm font-medium text-gray-700">Angemeldet</span>
+      <div class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+        <div class="mb-3">
+          <span class="text-sm font-semibold text-gray-700">Angemeldet</span>
         </div>
-        <div class="w-full text-xl font-semibold text-center border border-gray-300 rounded px-2 py-1.5 bg-gray-50 text-gray-700 relative">
+        <div class="w-full text-2xl font-bold bg-white text-gray-900 flex items-center justify-center gap-2">
           <span v-if="registeredTeams > 0">{{ registeredTeams }}</span>
           <span v-else class="text-gray-400">0</span>
-          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">Teams</span>
+          <span class="text-xs font-medium text-gray-500">Teams</span>
         </div>
       </div>
       
       <!-- Card 3: Kapazität (Capacity) -->
-      <div class="border border-gray-200 rounded-lg p-3 bg-white">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="text-sm font-medium text-gray-700">Kapazität</span>
+      <div class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+        <div class="mb-3">
+          <span class="text-sm font-semibold text-gray-700">Kapazität</span>
         </div>
-        <div class="w-full text-xl font-semibold text-center border border-gray-300 rounded px-2 py-1.5 bg-gray-50 text-gray-700 relative">
+        <div class="w-full text-2xl font-bold bg-white text-gray-900 flex items-center justify-center gap-2">
           <span v-if="capacity > 0">{{ capacity }}</span>
           <span v-else class="text-gray-400">0</span>
-          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">Teams</span>
+          <span class="text-xs font-medium text-gray-500">Teams</span>
         </div>
       </div>
     </div>
