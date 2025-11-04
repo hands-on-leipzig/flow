@@ -39,7 +39,7 @@ type ExtraBlock = {
 const props = defineProps<{
   planId: number | null
   eventLevel?: number | null
-  onUpdate?: (updates: Array<{name: string, value: any}>) => void
+  onUpdate?: (updates: Array<{name: string, value: any, triggerGenerator?: boolean}>) => void
   showExplore?: boolean
   showChallenge?: boolean
 }>()
@@ -60,7 +60,7 @@ const blocks = ref<ExtraBlock[]>([])
 // Field classification
 const TIMING_FIELDS = ['buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
 const TOGGLE_FIELDS = ['active']
-const NON_TIMING_FIELDS = ['name', 'description', 'link']
+const TEXT_FIELDS = ['name', 'description', 'link']
 
 function isTimingField(field: string): boolean {
   return TIMING_FIELDS.includes(field)
@@ -71,7 +71,8 @@ function isToggleField(field: string): boolean {
 }
 
 function needsGenerator(field: string): boolean {
-  return isTimingField(field) || isToggleField(field)
+  // All fields trigger generator (toggle, timing, and text fields)
+  return isTimingField(field) || isToggleField(field) || TEXT_FIELDS.includes(field)
 }
 
 // Immediate save for block field changes
@@ -85,7 +86,7 @@ async function saveBlockField(blockId: number, field: string, value: any) {
   }
   
   // Update local state immediately
-  block[field as keyof ExtraBlock] = value as any
+  ;(block as any)[field] = value
   
   // Prepare block data for API
   const blockData: any = { 
@@ -93,12 +94,20 @@ async function saveBlockField(blockId: number, field: string, value: any) {
     [field]: value
   }
   
-  // Determine if this triggers generator (timing/toggle fields)
+  // Determine if this triggers generator (all fields now trigger generator)
   const needsGen = needsGenerator(field)
-  if (!needsGen) {
-    blockData.skip_regeneration = true
+  // Note: All fields now trigger generator, so skip_regeneration is never set
+  
+  // Trigger debounce immediately (in parallel with DB save) for visual feedback
+  if (needsGen && props.onUpdate) {
+    props.onUpdate([{ 
+      name: `block_${blockId}_${field}`, 
+      value: value,
+      triggerGenerator: true 
+    }])
   }
   
+  // Save to DB in background (don't await for timing/toggle fields to start debounce)
   try {
     saving.value = true
     const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
@@ -112,15 +121,6 @@ async function saveBlockField(blockId: number, field: string, value: any) {
       } else {
         blocks.value.push(saved)
       }
-    }
-    
-    // If timing/toggle change, notify Schedule for debounced generator trigger
-    if (needsGen && props.onUpdate) {
-      props.onUpdate([{ 
-        name: `block_${blockId}_${field}`, 
-        value: value,
-        triggerGenerator: true 
-      }])
     }
     
     emit('changed')
@@ -361,7 +361,7 @@ defineExpose({
                   @update:modelValue="togglePoint(p, $event)"
               />
 
-              <span>
+              <span class="text-gray-900">
                 <span class="font-medium">{{ p.ui_label }}</span>
                   <InfoPopover v-if="p.ui_description" :text="p.ui_description"/>
               </span>
@@ -370,7 +370,10 @@ defineExpose({
 
           <td class="px-2 py-2 text-center">
             <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.buffer_before ?? ''"
-                   class="w-16 border rounded px-2 py-1 text-center"
+                   :class="['w-16 border rounded px-2 py-1 text-center', 
+                            isBlockEditable(p.id) 
+                              ? 'bg-white border-gray-300' 
+                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                    min="5"
                    step="5"
                    type="number"
@@ -382,7 +385,10 @@ defineExpose({
 
           <td class="px-2 py-2 text-center">
             <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.duration ?? ''"
-                   class="w-16 border rounded px-2 py-1 text-center"
+                   :class="['w-16 border rounded px-2 py-1 text-center', 
+                            isBlockEditable(p.id) 
+                              ? 'bg-white border-gray-300' 
+                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                    min="5"
                    step="5"
                    type="number"
@@ -393,7 +399,10 @@ defineExpose({
 
           <td class="px-2 py-2 text-center">
             <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.buffer_after ?? ''"
-                   class="w-16 border rounded px-2 py-1 text-center"
+                   :class="['w-16 border rounded px-2 py-1 text-center', 
+                            isBlockEditable(p.id) 
+                              ? 'bg-white border-gray-300' 
+                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                    min="5"
                    step="5"
                    type="number"
@@ -405,7 +414,10 @@ defineExpose({
           <td class="px-2 py-2">
             <input :disabled="!isBlockEditable(p.id)"
                    :value="fixedByPoint[p.id]?.name ?? ''"
-                   class="w-full border rounded px-2 py-1"
+                   :class="['w-full border rounded px-2 py-1', 
+                            isBlockEditable(p.id) 
+                              ? 'bg-white border-gray-300' 
+                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                    type="text"
                    @blur="onFixedTextBlur(p.id, 'name', $event)"
                    @input="onFixedTextInput(p.id, 'name', $event)"
@@ -415,7 +427,10 @@ defineExpose({
           <td class="px-2 py-2">
             <input :disabled="!isBlockEditable(p.id)"
                    :value="fixedByPoint[p.id]?.description ?? ''"
-                   class="w-full border rounded px-2 py-1"
+                   :class="['w-full border rounded px-2 py-1', 
+                            isBlockEditable(p.id) 
+                              ? 'bg-white border-gray-300' 
+                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                    type="text"
                    @blur="onFixedTextBlur(p.id, 'description', $event)"
                    @input="onFixedTextInput(p.id, 'description', $event)"
@@ -425,7 +440,10 @@ defineExpose({
           <td class="px-2 py-2">
             <input :disabled="!isBlockEditable(p.id)"
                    :value="fixedByPoint[p.id]?.link ?? ''"
-                   class="w-full border rounded px-2 py-1"
+                   :class="['w-full border rounded px-2 py-1', 
+                            isBlockEditable(p.id) 
+                              ? 'bg-white border-gray-300' 
+                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                    type="text"
                    @blur="onFixedTextBlur(p.id, 'link', $event)"
                    @input="onFixedTextInput(p.id, 'link', $event)"
