@@ -793,13 +793,25 @@ const deleteMessage = computed(() => {
             <td class="px-2 py-2 text-center">
               <div class="flex justify-center space-x-1">
                 <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
-                     class="w-8 h-8 cursor-pointer transition-all duration-200 hover:scale-110"
-                     :class="{ 'opacity-100': b.first_program === 2 || b.first_program === 0, 'opacity-30 grayscale': !(b.first_program === 2 || b.first_program === 0) }"
-                     @click="toggleProgram(b, 2)" title="Explore"/>
+                     :class="[
+                       'w-8 h-8 transition-all duration-200',
+                       b.active === false
+                         ? 'opacity-30 grayscale cursor-not-allowed'
+                         : (b.first_program === 2 || b.first_program === 0
+                            ? 'opacity-100 cursor-pointer hover:scale-110'
+                            : 'opacity-30 grayscale cursor-pointer hover:scale-110')
+                     ]"
+                     @click="b.active !== false && toggleProgram(b, 2)" title="Explore"/>
                 <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
-                     class="w-8 h-8 cursor-pointer transition-all duration-200 hover:scale-110"
-                     :class="{ 'opacity-100': b.first_program === 3 || b.first_program === 0, 'opacity-30 grayscale': !(b.first_program === 3 || b.first_program === 0) }"
-                     @click="toggleProgram(b, 3)" title="Challenge"/>
+                     :class="[
+                       'w-8 h-8 transition-all duration-200',
+                       b.active === false
+                         ? 'opacity-30 grayscale cursor-not-allowed'
+                         : (b.first_program === 3 || b.first_program === 0
+                            ? 'opacity-100 cursor-pointer hover:scale-110'
+                            : 'opacity-30 grayscale cursor-pointer hover:scale-110')
+                     ]"
+                     @click="b.active !== false && toggleProgram(b, 3)" title="Challenge"/>
               </div>
             </td>
 
@@ -808,7 +820,11 @@ const deleteMessage = computed(() => {
                 <!-- Date field (first line) -->
                 <input 
                   :value="extractDate(b.start || b.end)" 
-                  class="w-full border rounded px-2 py-1 text-sm" 
+                  :disabled="b.active === false"
+                  :class="['w-full border rounded px-2 py-1 text-sm',
+                           b.active !== false
+                             ? 'bg-white border-gray-300'
+                             : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                   type="date"
                   @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
                 />
@@ -816,7 +832,11 @@ const deleteMessage = computed(() => {
                 <div class="flex space-x-1">
                   <input 
                     :value="extractTime(b.start)" 
-                    class="flex-1 border rounded px-2 py-1 text-sm" 
+                    :disabled="b.active === false"
+                    :class="['flex-1 border rounded px-2 py-1 text-sm',
+                             b.active !== false
+                               ? 'bg-white border-gray-300'
+                               : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                     type="time"
                     min="00:05"
                     max="23:55"
@@ -825,7 +845,11 @@ const deleteMessage = computed(() => {
                   />
                   <input 
                     :value="extractTime(b.end)" 
-                    class="flex-1 border rounded px-2 py-1 text-sm" 
+                    :disabled="b.active === false"
+                    :class="['flex-1 border rounded px-2 py-1 text-sm',
+                             b.active !== false
+                               ? 'bg-white border-gray-300'
+                               : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                     type="time"
                     min="00:05"
                     max="23:55"
@@ -839,12 +863,27 @@ const deleteMessage = computed(() => {
             <td class="px-2 py-2">
               <div class="space-y-2">
                 <div class="flex space-x-2">
-                  <input v-model="b.name" class="flex-1 border rounded px-2 py-1 text-sm"
+                  <input v-model="b.name"
+                         :disabled="b.active === false"
+                         :class="['flex-1 border rounded px-2 py-1 text-sm',
+                                  b.active !== false
+                                    ? 'bg-white border-gray-300'
+                                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                          type="text" placeholder="Titel" @blur="saveBlock(b)"/>
-                  <input v-model="b.link" class="flex-1 border rounded px-2 py-1 text-sm"
+                  <input v-model="b.link"
+                         :disabled="b.active === false"
+                         :class="['flex-1 border rounded px-2 py-1 text-sm',
+                                  b.active !== false
+                                    ? 'bg-white border-gray-300'
+                                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                          type="url" placeholder="https://example.com" @blur="saveBlock(b)"/>
                 </div>
-                <input v-model="b.description" class="w-full border rounded px-2 py-1 text-sm"
+                <input v-model="b.description"
+                       :disabled="b.active === false"
+                       :class="['w-full border rounded px-2 py-1 text-sm',
+                                b.active !== false
+                                  ? 'bg-white border-gray-300'
+                                  : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                        type="text" placeholder="Beschreibung" @blur="saveBlock(b)"/>
               </div>
             </td>
