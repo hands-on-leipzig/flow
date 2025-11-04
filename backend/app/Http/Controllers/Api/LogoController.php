@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Logo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class LogoController extends Controller
 {
@@ -88,5 +89,31 @@ class LogoController extends Controller
         }
 
         return response()->json(['status' => 'sort_order_updated']);
+    }
+
+    /**
+     * Get logos for a specific event (public endpoint)
+     */
+    public function getEventLogos($eventId)
+    {
+        // Get logos assigned to this event, ordered by sort_order from pivot table
+        $logos = DB::table('logo')
+            ->join('event_logo', 'logo.id', '=', 'event_logo.logo')
+            ->where('event_logo.event', $eventId)
+            ->select('logo.id', 'logo.title', 'logo.link', 'logo.path', 'event_logo.sort_order')
+            ->orderBy('event_logo.sort_order')
+            ->get()
+            ->map(function($logo) {
+                return [
+                    'id' => $logo->id,
+                    'title' => $logo->title,
+                    'link' => $logo->link,
+                    'path' => $logo->path,
+                    'url' => asset('storage/' . $logo->path),
+                    'sort_order' => $logo->sort_order
+                ];
+            });
+
+        return response()->json($logos);
     }
 }
