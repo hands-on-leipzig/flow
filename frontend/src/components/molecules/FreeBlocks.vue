@@ -508,7 +508,7 @@ function handleStartTimeChange(block: ExtraBlock, time: string) {
   const normalizedStart = normalizeTime(time)
   const startMinutes = timeToMinutes(normalizedStart)
   
-  // Get current end time and normalize it
+  // Get current end time from block (use current state, not stale)
   const currentEnd = extractTime(block.end || '')
   const normalizedEnd = currentEnd ? normalizeTime(currentEnd) : '23:55'
   let endMinutes = timeToMinutes(normalizedEnd)
@@ -520,14 +520,16 @@ function handleStartTimeChange(block: ExtraBlock, time: string) {
     const endMins = endMinutes % 60
     const newEnd = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`
     
+    // Update block immediately (for UI reactivity)
     block.start = combineDateTime(date, normalizedStart)
     block.end = combineDateTime(date, newEnd)
   } else {
+    // Update block immediately (for UI reactivity)
     block.start = combineDateTime(date, normalizedStart)
     block.end = combineDateTime(date, normalizedEnd)
   }
   
-  // Trigger debounce
+  // Trigger debounce with current block state (this will overwrite any pending update)
   scheduleUpdate('extra_block_update', { ...block })
 }
 
@@ -540,7 +542,7 @@ function handleEndTimeChange(block: ExtraBlock, time: string) {
   const normalizedEnd = normalizeTime(time)
   const endMinutes = timeToMinutes(normalizedEnd)
   
-  // Get current start time and normalize it
+  // Get current start time from block (use current state, not stale)
   const currentStart = extractTime(block.start || '')
   const normalizedStart = currentStart ? normalizeTime(currentStart) : '00:05'
   const startMinutes = timeToMinutes(normalizedStart)
@@ -554,14 +556,16 @@ function handleEndTimeChange(block: ExtraBlock, time: string) {
     const startMins = newStartMinutes % 60
     const newStart = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`
     
+    // Update block immediately (for UI reactivity)
     block.start = combineDateTime(date, newStart)
     block.end = combineDateTime(date, normalizedEnd)
   } else {
+    // Update block immediately (for UI reactivity)
     block.start = combineDateTime(date, normalizedStart)
     block.end = combineDateTime(date, normalizedEnd)
   }
   
-  // Trigger debounce
+  // Trigger debounce with current block state (this will overwrite any pending update)
   scheduleUpdate('extra_block_update', { ...block })
 }
 
@@ -695,6 +699,7 @@ const deleteMessage = computed(() => {
                     max="23:55"
                     step="300"
                     placeholder="Start"
+                    @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start }"
                     @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
                   />
                   <input 
@@ -709,6 +714,7 @@ const deleteMessage = computed(() => {
                     max="23:55"
                     step="300"
                     placeholder="Ende"
+                    @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
                     @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
                   />
                 </div>
