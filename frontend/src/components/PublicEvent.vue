@@ -88,7 +88,94 @@
             class="bg-white rounded-3xl shadow-2xl p-8 mb-6 transform transition-transform">
           <div class="flex items-center gap-6">
             <img :src="imageUrl('/flow/hot+fll.png')" alt="FLOW Logo" class="h-16 w-auto drop-shadow-lg flex-shrink-0"/>
-            <h1 class="text-4xl md:text-5xl font-bold text-[#F78B1F] drop-shadow-lg flex-1 text-center">{{ event.name }}</h1>
+            <h1 class="text-4xl md:text-5xl font-bold text-[#F78B1F] drop-shadow-lg flex-1 text-center">{{
+                event.name
+              }}</h1>
+          </div>
+        </div>
+      </div>
+
+      <!-- Level 2 & 3: Times on Timeline -->
+      <div v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
+           class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8">
+        <h2 class="text-2xl font-bold text-[#F78B1F] mb-6 flex items-center gap-2">
+          <span class="text-3xl">⏰</span>
+          Veranstaltungszeiten
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Explore: Timeline -->
+          <div v-if="scheduleInfo.plan.explore && getExploreTimelineItems().length > 0"
+               class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl p-6 border-2 border-green-300 shadow-lg flex flex-col">
+            <h3 class="font-bold text-green-800 mb-6 text-lg flex items-center gap-2">
+              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-6 h-6"/>
+              FIRST LEGO League Explore
+            </h3>
+            <div class="relative flex-1" :style="{ minHeight: timelineMinHeight }">
+              <!-- Timeline line -->
+              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
+
+              <!-- Timeline items - evenly spaced -->
+              <div class="relative h-full flex flex-col justify-between">
+                <div
+                    v-for="(item, index) in getExploreTimelineItems()"
+                    :key="index"
+                    class="relative pl-12"
+                    :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getExploreTimelineItems().length - 1 ? '0' : 'auto' }"
+                >
+                  <!-- Timeline dot -->
+                  <div class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md"
+                       :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'">
+                  </div>
+
+                  <!-- Timeline content -->
+                  <div class="bg-white rounded-lg p-3 shadow-sm border border-green-200">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{ item.label }}</span>
+                      <span class="text-lg font-bold text-green-800">{{ item.time }}</span>
+                    </div>
+                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Challenge: Timeline -->
+          <div v-if="scheduleInfo.plan.challenge && getChallengeTimelineItems().length > 0"
+               class="bg-gradient-to-br from-red-100 to-pink-100 rounded-xl p-6 border-2 border-red-300 shadow-lg flex flex-col">
+            <h3 class="font-bold text-red-800 mb-6 text-lg flex items-center gap-2">
+              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-6 h-6"/>
+              FIRST LEGO League Challenge
+            </h3>
+            <div class="relative flex-1" :style="{ minHeight: timelineMinHeight }">
+              <!-- Timeline line -->
+              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-red-400"></div>
+
+              <!-- Timeline items - evenly spaced -->
+              <div class="relative h-full flex flex-col justify-between">
+                <div
+                    v-for="(item, index) in getChallengeTimelineItems()"
+                    :key="index"
+                    class="relative pl-12"
+                    :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getChallengeTimelineItems().length - 1 ? '0' : 'auto' }"
+                >
+                  <!-- Timeline dot -->
+                  <div class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-red-600 bg-white shadow-md"
+                       :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'">
+                  </div>
+
+                  <!-- Timeline content -->
+                  <div class="bg-white rounded-lg p-3 shadow-sm border border-red-200">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="text-xs font-semibold text-red-700 uppercase tracking-wide">{{ item.label }}</span>
+                      <span class="text-lg font-bold text-red-800">{{ item.time }}</span>
+                    </div>
+                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -372,91 +459,6 @@
         </div>
       </div>
 
-      <!-- Level 2 & 3: Times on Timeline -->
-      <div v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
-           class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8">
-        <h2 class="text-2xl font-bold text-[#F78B1F] mb-6 flex items-center gap-2">
-          <span class="text-3xl">⏰</span>
-          Veranstaltungszeiten
-        </h2>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Explore: Timeline -->
-          <div v-if="scheduleInfo.plan.explore && getExploreTimelineItems().length > 0"
-               class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl p-6 border-2 border-green-300 shadow-lg flex flex-col">
-            <h3 class="font-bold text-green-800 mb-6 text-lg flex items-center gap-2">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-6 h-6"/>
-              FIRST LEGO League Explore
-            </h3>
-            <div class="relative flex-1" :style="{ minHeight: timelineMinHeight }">
-              <!-- Timeline line -->
-              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
-
-              <!-- Timeline items - evenly spaced -->
-              <div class="relative h-full flex flex-col justify-between">
-                <div
-                    v-for="(item, index) in getExploreTimelineItems()"
-                    :key="index"
-                    class="relative pl-12"
-                    :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getExploreTimelineItems().length - 1 ? '0' : 'auto' }"
-                >
-                  <!-- Timeline dot -->
-                  <div class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md"
-                       :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'">
-                  </div>
-
-                  <!-- Timeline content -->
-                  <div class="bg-white rounded-lg p-3 shadow-sm border border-green-200">
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{ item.label }}</span>
-                      <span class="text-lg font-bold text-green-800">{{ item.time }}</span>
-                    </div>
-                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Challenge: Timeline -->
-          <div v-if="scheduleInfo.plan.challenge && getChallengeTimelineItems().length > 0"
-               class="bg-gradient-to-br from-red-100 to-pink-100 rounded-xl p-6 border-2 border-red-300 shadow-lg flex flex-col">
-            <h3 class="font-bold text-red-800 mb-6 text-lg flex items-center gap-2">
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-6 h-6"/>
-              FIRST LEGO League Challenge
-            </h3>
-            <div class="relative flex-1" :style="{ minHeight: timelineMinHeight }">
-              <!-- Timeline line -->
-              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-red-400"></div>
-
-              <!-- Timeline items - evenly spaced -->
-              <div class="relative h-full flex flex-col justify-between">
-                <div
-                    v-for="(item, index) in getChallengeTimelineItems()"
-                    :key="index"
-                    class="relative pl-12"
-                    :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getChallengeTimelineItems().length - 1 ? '0' : 'auto' }"
-                >
-                  <!-- Timeline dot -->
-                  <div class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-red-600 bg-white shadow-md"
-                       :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'">
-                  </div>
-
-                  <!-- Timeline content -->
-                  <div class="bg-white rounded-lg p-3 shadow-sm border border-red-200">
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="text-xs font-semibold text-red-700 uppercase tracking-wide">{{ item.label }}</span>
-                      <span class="text-lg font-bold text-red-800">{{ item.time }}</span>
-                    </div>
-                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
     </div>
 
     <!-- QR Code Modal -->
@@ -519,21 +521,6 @@
                 class="h-14 max-w-36 object-contain"
             />
           </a>
-        </div>
-
-        <!-- Sponsors -->
-        <div class="flex flex-wrap items-center justify-center gap-6">
-          <div
-              v-for="i in 12"
-              :key="i"
-              class="flex items-center justify-center bg-white rounded-xl p-4 shadow-lg hover:shadow-xl hover:scale-110 transition-all transform"
-          >
-            <img
-                :src="getSponsorImage(i)"
-                :alt="`Sponsor ${i}`"
-                class="h-12 max-w-32 object-contain"
-            />
-          </div>
         </div>
       </div>
     </div>
@@ -780,27 +767,6 @@ const timelineMinHeight = computed(() => {
   // Base height for timeline line
   return `${maxItems * 100}px`
 })
-
-// Sponsor images mapping
-const sponsorImages = {
-  1: sponsor01,
-  2: sponsor02,
-  3: sponsor03,
-  4: sponsor04,
-  5: sponsor05,
-  6: sponsor06,
-  7: sponsor07,
-  8: sponsor08,
-  9: sponsor09,
-  10: sponsor10,
-  11: sponsor11,
-  12: sponsor12,
-}
-
-// Get sponsor image path
-const getSponsorImage = (index) => {
-  return sponsorImages[index] || ''
-}
 
 // Check if content should be visible based on publication level
 const isContentVisible = (level) => {
