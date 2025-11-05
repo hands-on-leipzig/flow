@@ -1,11 +1,11 @@
 <template>
-  <div class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen">
+  <div class="bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 w-full min-h-screen">
     <!-- Loading State -->
     <div v-if="loading" class="min-h-screen flex items-center justify-center">
       <div class="text-center">
         <div
-            class="animate-spin rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent mx-auto mb-4"></div>
-        <p class="text-purple-700 font-semibold text-lg">Veranstaltung wird geladen...</p>
+            class="animate-spin rounded-full h-16 w-16 border-4 border-[#F78B1F] border-t-transparent mx-auto mb-4"></div>
+        <p class="text-[#F78B1F] font-semibold text-lg">Veranstaltung wird geladen...</p>
       </div>
     </div>
 
@@ -13,7 +13,7 @@
     <div v-else-if="error" class="min-h-screen flex items-center justify-center p-4">
       <div class="text-center max-w-2xl mx-auto">
         <!-- Colorful Header -->
-        <div class="bg-gradient-to-r from-orange-400 via-pink-500 to-purple-600 rounded-3xl shadow-2xl p-8 mb-8 transform hover:scale-[1.02] transition-transform">
+        <div class="bg-[#F78B1F] rounded-3xl shadow-2xl p-8 mb-8 transform hover:scale-[1.02] transition-transform">
           <div class="text-white text-6xl mb-4">🔍</div>
           <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 drop-shadow-lg">
             {{ error === 'Plan nicht gefunden' ? 'Plan nicht gefunden' : 'Event nicht gefunden' }}
@@ -27,15 +27,17 @@
         </div>
 
         <!-- Friendly Message Card -->
-        <div class="bg-white rounded-2xl shadow-xl p-8 border-2 border-orange-200">
+        <div class="bg-white rounded-2xl shadow-xl p-8 border-2 border-[#F78B1F]/30">
           <p class="text-lg text-gray-700 mb-6 leading-relaxed">
-            Hey! 👋 Für die Adresse, die du aufgerufen hast, konnten wir leider {{ error === 'Plan nicht gefunden' ? 'keinen Plan' : 'kein Event' }} finden.
+            Hey! 👋 Für die Adresse, die du aufgerufen hast, konnten wir leider
+            {{ error === 'Plan nicht gefunden' ? 'keinen Plan' : 'kein Event' }} finden.
           </p>
           <p class="text-base text-gray-600 mb-6">
-            Bitte überprüfe nochmal die Adresse, die du verwendet hast. Vielleicht hat sich ein kleiner Tippfehler eingeschlichen?
+            Bitte überprüfe nochmal die Adresse, die du verwendet hast. Vielleicht hat sich ein kleiner Tippfehler
+            eingeschlichen?
           </p>
-          
-          <div class="bg-gradient-to-r from-orange-50 to-pink-50 rounded-xl p-6 border border-orange-200">
+
+          <div class="bg-orange-50 rounded-xl p-6 border-2 border-[#F78B1F]/20">
             <p class="text-sm text-gray-600 font-medium mb-2">Du hast folgende Adresse aufgerufen:</p>
             <p class="text-lg font-mono text-gray-800 break-all bg-white p-3 rounded-lg border border-gray-200">
               {{ route.params.slug || 'N/A' }}
@@ -83,7 +85,7 @@
       <!-- Header with Program Logos -->
       <div class="text-center mb-12">
         <div
-            class="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-3xl shadow-2xl p-8 mb-6 transform hover:scale-[1.02] transition-transform">
+            class="bg-[#F78B1F] rounded-3xl shadow-2xl p-8 mb-6 transform transition-transform">
           <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 drop-shadow-lg">{{ event.name }}</h1>
           <div class="flex justify-center items-center gap-4">
             <div v-if="event.event_explore && !event.event_challenge"
@@ -93,37 +95,37 @@
             <div v-else-if="event.event_challenge && !event.event_explore"
                  class="flex items-center bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
               <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-16 h-16 drop-shadow-lg"/>
-          </div>
+            </div>
             <div v-else-if="event.event_explore && event.event_challenge"
                  class="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-full px-6 py-2">
               <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-12 h-12 drop-shadow-lg"/>
               <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-12 h-12 drop-shadow-lg"/>
-          </div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Level 1: Basic Event Information -->
       <div v-if="isContentVisible(1) && scheduleInfo"
-           class="mt-8 bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-xl border-2 border-blue-200 p-8 transform hover:shadow-2xl transition-shadow">
-        <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-6 flex items-center gap-2">
+           class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8 transform hover:shadow-2xl transition-shadow">
+        <h2 class="text-2xl font-bold text-[#F78B1F] mb-6 flex items-center gap-2">
           <span class="text-3xl">📅</span>
           Veranstaltungsinformationen
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div class="bg-white/60 backdrop-blur-sm rounded-xl p-5 border border-blue-100">
-            <h3 class="font-bold text-blue-700 mb-3 text-lg flex items-center gap-2">
+          <div class="bg-orange-50 rounded-xl p-5 border-2 border-[#F78B1F]/20">
+            <h3 class="font-bold text-[#F78B1F] mb-3 text-lg flex items-center gap-2">
               <span>📍</span>
               Datum & Ort
             </h3>
             <p class="text-gray-800 font-medium text-lg">{{ formatDateOnly(scheduleInfo.date) }}</p>
             <div v-if="!mapCoordinates && scheduleInfo.address"
-                 class="mt-3 text-sm text-gray-700 whitespace-pre-line bg-blue-50 rounded-lg p-3">
+                 class="mt-3 text-sm text-gray-700 whitespace-pre-line bg-white rounded-lg p-3 border border-[#F78B1F]/20">
               {{ scheduleInfo.address }}
             </div>
             <!-- OpenStreetMap Map -->
             <div v-if="scheduleInfo.address"
-                 class="mt-4 rounded-lg overflow-hidden border-2 border-blue-200 shadow-lg relative"
+                 class="mt-4 rounded-lg overflow-hidden border-2 border-[#F78B1F] shadow-lg relative"
                  style="height: 300px;">
               <div v-if="!mapCoordinates" class="w-full h-full flex items-center justify-center bg-gray-100">
                 <p class="text-gray-500 text-sm">Karte wird geladen...</p>
@@ -250,16 +252,16 @@
             </Teleport>
           </div>
           <div v-if="scheduleInfo.contact?.length"
-               class="bg-white/60 backdrop-blur-sm rounded-xl p-5 border border-purple-100">
-            <h3 class="font-bold text-purple-700 mb-3 text-lg flex items-center gap-2">
+               class="bg-orange-50 rounded-xl p-5 border-2 border-[#F78B1F]/20">
+            <h3 class="font-bold text-[#F78B1F] mb-3 text-lg flex items-center gap-2">
               <span>✉️</span>
               Kontakt
             </h3>
             <div class="space-y-3">
               <div v-for="(contact, index) in scheduleInfo.contact" :key="index"
-                   class="text-sm bg-purple-50 rounded-lg p-3">
+                   class="text-sm bg-white rounded-lg p-3 border border-[#F78B1F]/20">
                 <div class="font-semibold text-gray-900">{{ contact.contact }}</div>
-                <div class="text-purple-700 font-medium">{{ contact.contact_email }}</div>
+                <div class="text-[#F78B1F] font-medium">{{ contact.contact_email }}</div>
                 <div v-if="contact.contact_infos" class="text-gray-600 text-xs mt-1">{{ contact.contact_infos }}</div>
               </div>
             </div>
@@ -269,8 +271,8 @@
 
       <!-- Level 1: Teams -->
       <div v-if="isContentVisible(1) && scheduleInfo"
-           class="mt-8 bg-gradient-to-br from-white to-purple-50 rounded-2xl shadow-xl border-2 border-purple-200 p-8">
-        <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-8 flex items-center gap-2">
+           class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8">
+        <h2 class="text-2xl font-bold text-[#F78B1F] mb-8 flex items-center gap-2">
           <span class="text-3xl">👥</span>
           Angemeldete Teams
         </h2>
@@ -281,8 +283,8 @@
             <div class="flex items-center justify-between">
               <h3 class="font-bold text-white text-lg flex items-center gap-2">
                 <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-8 h-8 drop-shadow-lg"/>
-              FIRST LEGO League Explore
-            </h3>
+                FIRST LEGO League Explore
+              </h3>
               <div v-if="scheduleInfo.teams.explore.capacity > 0"
                    class="text-sm text-white font-semibold bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1">
                 <span class="font-bold text-lg">{{ scheduleInfo.teams.explore.registered }}</span>
@@ -301,7 +303,7 @@
             <table class="min-w-full divide-y divide-green-100">
               <thead class="bg-gradient-to-r from-green-500 to-emerald-500">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Team-Nr.</th>
+                <th class="w-16"></th>
                 <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Team-Name</th>
                 <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Institution</th>
                 <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Ort</th>
@@ -310,7 +312,7 @@
               <tbody class="bg-white divide-y divide-green-50">
               <tr v-for="team in scheduleInfo.teams.explore.list" :key="team.team_number_hot || team.name"
                   class="hover:bg-green-50 transition-colors">
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-700">
+                <td class="w-16 px-2 py-4 whitespace-nowrap text-sm font-bold text-green-700 text-right">
                   {{ team.team_number_hot || '-' }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -334,8 +336,8 @@
             <div class="flex items-center justify-between">
               <h3 class="font-bold text-white text-lg flex items-center gap-2">
                 <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-8 h-8 drop-shadow-lg"/>
-              FIRST LEGO League Challenge
-            </h3>
+                FIRST LEGO League Challenge
+              </h3>
               <div v-if="scheduleInfo.teams.challenge.capacity > 0"
                    class="text-sm text-white font-semibold bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1">
                 <span class="font-bold text-lg">{{ scheduleInfo.teams.challenge.registered }}</span>
@@ -354,7 +356,7 @@
             <table class="min-w-full divide-y divide-red-100">
               <thead class="bg-gradient-to-r from-red-500 to-pink-500">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Team-Nr.</th>
+                <th class="w-16"></th>
                 <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Team-Name</th>
                 <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Institution</th>
                 <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Ort</th>
@@ -363,7 +365,7 @@
               <tbody class="bg-white divide-y divide-red-50">
               <tr v-for="team in scheduleInfo.teams.challenge.list" :key="team.team_number_hot || team.name"
                   class="hover:bg-red-50 transition-colors">
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-700">
+                <td class="w-16 px-2 py-4 whitespace-nowrap text-sm font-bold text-red-700 text-right">
                   {{ team.team_number_hot || '-' }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -382,129 +384,85 @@
         </div>
       </div>
 
-      <!-- Level 2: Begin and End Times -->
-      <div v-if="isContentVisible(2) && scheduleInfo?.plan"
-           class="mt-8 bg-gradient-to-br from-white to-yellow-50 rounded-2xl shadow-xl border-2 border-yellow-200 p-8">
-        <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-orange-600 mb-6 flex items-center gap-2">
+      <!-- Level 2 & 3: Times on Timeline -->
+      <div v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
+           class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8">
+        <h2 class="text-2xl font-bold text-[#F78B1F] mb-6 flex items-center gap-2">
           <span class="text-3xl">⏰</span>
           Veranstaltungszeiten
         </h2>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Explore Times -->
-          <div v-if="scheduleInfo.plan.explore"
-               class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl p-6 border-2 border-green-300 shadow-lg">
-            <h3 class="font-bold text-green-800 mb-4 text-lg flex items-center gap-2">
+          <!-- Explore: Timeline -->
+          <div v-if="scheduleInfo.plan.explore && getExploreTimelineItems().length > 0"
+               class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl p-6 border-2 border-green-300 shadow-lg flex flex-col">
+            <h3 class="font-bold text-green-800 mb-6 text-lg flex items-center gap-2">
               <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-6 h-6"/>
               FIRST LEGO League Explore
             </h3>
-            <div class="space-y-3">
-              <div v-if="scheduleInfo.plan.explore.opening"
-                   class="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm">
-                <span class="text-green-700 font-semibold">Beginn:</span>
-                <span class="font-bold text-lg text-green-800">{{
-                    formatTimeOnly(scheduleInfo.plan.explore.opening)
-                  }}</span>
-              </div>
-              <div v-if="scheduleInfo.plan.explore.end"
-                   class="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm">
-                <span class="text-green-700 font-semibold">Ende:</span>
-                <span class="font-bold text-lg text-green-800">{{
-                    formatTimeOnly(scheduleInfo.plan.explore.end)
-                  }}</span>
+            <div class="relative flex-1" :style="{ minHeight: timelineMinHeight }">
+              <!-- Timeline line -->
+              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
+
+              <!-- Timeline items - evenly spaced -->
+              <div class="relative h-full flex flex-col justify-between">
+                <div
+                    v-for="(item, index) in getExploreTimelineItems()"
+                    :key="index"
+                    class="relative pl-12"
+                    :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getExploreTimelineItems().length - 1 ? '0' : 'auto' }"
+                >
+                  <!-- Timeline dot -->
+                  <div class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md"
+                       :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'">
+                  </div>
+
+                  <!-- Timeline content -->
+                  <div class="bg-white rounded-lg p-3 shadow-sm border border-green-200">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{ item.label }}</span>
+                      <span class="text-lg font-bold text-green-800">{{ item.time }}</span>
+                    </div>
+                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Challenge Times -->
-          <div v-if="scheduleInfo.plan.challenge"
-               class="bg-gradient-to-br from-red-100 to-pink-100 rounded-xl p-6 border-2 border-red-300 shadow-lg">
-            <h3 class="font-bold text-red-800 mb-4 text-lg flex items-center gap-2">
+          <!-- Challenge: Timeline -->
+          <div v-if="scheduleInfo.plan.challenge && getChallengeTimelineItems().length > 0"
+               class="bg-gradient-to-br from-red-100 to-pink-100 rounded-xl p-6 border-2 border-red-300 shadow-lg flex flex-col">
+            <h3 class="font-bold text-red-800 mb-6 text-lg flex items-center gap-2">
               <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-6 h-6"/>
               FIRST LEGO League Challenge
             </h3>
-            <div class="space-y-3">
-              <div v-if="scheduleInfo.plan.challenge.opening"
-                   class="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm">
-                <span class="text-red-700 font-semibold">Beginn:</span>
-                <span class="font-bold text-lg text-red-800">{{
-                    formatTimeOnly(scheduleInfo.plan.challenge.opening)
-                  }}</span>
-              </div>
-              <div v-if="scheduleInfo.plan.challenge.end"
-                   class="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm">
-                <span class="text-red-700 font-semibold">Ende:</span>
-                <span class="font-bold text-lg text-red-800">{{
-                    formatTimeOnly(scheduleInfo.plan.challenge.end)
-                  }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+            <div class="relative flex-1" :style="{ minHeight: timelineMinHeight }">
+              <!-- Timeline line -->
+              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-red-400"></div>
 
-      <!-- Level 3: Briefing Times -->
-      <div v-if="isContentVisible(3) && scheduleInfo?.plan"
-           class="mt-8 bg-gradient-to-br from-white to-indigo-50 rounded-2xl shadow-xl border-2 border-indigo-200 p-8">
-        <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-6 flex items-center gap-2">
-          <span class="text-3xl">📋</span>
-          Briefing-Zeiten
-        </h2>
+              <!-- Timeline items - evenly spaced -->
+              <div class="relative h-full flex flex-col justify-between">
+                <div
+                    v-for="(item, index) in getChallengeTimelineItems()"
+                    :key="index"
+                    class="relative pl-12"
+                    :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getChallengeTimelineItems().length - 1 ? '0' : 'auto' }"
+                >
+                  <!-- Timeline dot -->
+                  <div class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-red-600 bg-white shadow-md"
+                       :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'">
+                  </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Explore Briefings -->
-          <div v-if="scheduleInfo.plan.explore"
-               class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl p-6 border-2 border-green-300 shadow-lg">
-            <h3 class="font-bold text-green-800 mb-4 text-lg flex items-center gap-2">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-6 h-6"/>
-              FIRST LEGO League Explore
-            </h3>
-            <div class="space-y-3">
-              <div v-if="scheduleInfo.plan.explore.briefing?.teams"
-                   class="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm">
-                <span class="text-green-700 font-semibold">Coach-Briefing:</span>
-                <span class="font-bold text-lg text-green-800">{{
-                    formatTimeOnly(scheduleInfo.plan.explore.briefing.teams)
-                  }}</span>
-              </div>
-              <div v-if="scheduleInfo.plan.explore.briefing?.judges"
-                   class="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm">
-                <span class="text-green-700 font-semibold">Gutachter:innen-Briefing:</span>
-                <span class="font-bold text-lg text-green-800">{{
-                    formatTimeOnly(scheduleInfo.plan.explore.briefing.judges)
-                  }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Challenge Briefings -->
-          <div v-if="scheduleInfo.plan.challenge"
-               class="bg-gradient-to-br from-red-100 to-pink-100 rounded-xl p-6 border-2 border-red-300 shadow-lg">
-            <h3 class="font-bold text-red-800 mb-4 text-lg flex items-center gap-2">
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-6 h-6"/>
-              FIRST LEGO League Challenge
-            </h3>
-            <div class="space-y-3">
-              <div v-if="scheduleInfo.plan.challenge.briefing?.teams"
-                   class="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm">
-                <span class="text-red-700 font-semibold">Coach-Briefing:</span>
-                <span class="font-bold text-lg text-red-800">{{
-                    formatTimeOnly(scheduleInfo.plan.challenge.briefing.teams)
-                  }}</span>
-              </div>
-              <div v-if="scheduleInfo.plan.challenge.briefing?.judges"
-                   class="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm">
-                <span class="text-red-700 font-semibold">Gutachter:innen-Briefing:</span>
-                <span class="font-bold text-lg text-red-800">{{
-                    formatTimeOnly(scheduleInfo.plan.challenge.briefing.judges)
-                  }}</span>
-              </div>
-              <div v-if="scheduleInfo.plan.challenge.briefing?.referees"
-                   class="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm">
-                <span class="text-red-700 font-semibold">Schiedsrichter:innen-Briefing:</span>
-                <span class="font-bold text-lg text-red-800">{{
-                    formatTimeOnly(scheduleInfo.plan.challenge.briefing.referees)
-                  }}</span>
+                  <!-- Timeline content -->
+                  <div class="bg-white rounded-lg p-3 shadow-sm border border-red-200">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="text-xs font-semibold text-red-700 uppercase tracking-wide">{{ item.label }}</span>
+                      <span class="text-lg font-bold text-red-800">{{ item.time }}</span>
+                    </div>
+                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -535,7 +493,7 @@
           <div class="bg-white p-4 rounded-lg min-h-[256px] min-w-[256px] flex items-center justify-center">
             <canvas ref="qrCodeRef" class="max-w-full max-h-full"></canvas>
             <div v-if="!mapCoordinates" class="text-gray-400 text-sm absolute">Lade Standort...</div>
-      </div>
+          </div>
           <p class="text-sm text-gray-600 text-center">
             Scannen Sie den QR-Code, um den Standort in Google Maps zu öffnen
           </p>
@@ -556,7 +514,7 @@
 
     <!-- Event Logos Footer - at the very bottom -->
     <div v-if="eventLogos.length > 0"
-         class="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 py-8 mt-12 shadow-2xl">
+         class="bg-[#F78B1F] py-8 mt-12 shadow-2xl">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex flex-wrap items-center justify-center gap-8">
           <a
@@ -580,7 +538,7 @@
 </template>
 
 <script setup>
-import {ref, onMounted, onBeforeUnmount, watch, nextTick, Teleport} from 'vue'
+import {ref, computed, onMounted, onBeforeUnmount, watch, nextTick, Teleport} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
@@ -681,6 +639,131 @@ const formatTimeOnly = (timeString) => {
     minute: '2-digit'
   })
 }
+
+// Get timeline items for Explore program, sorted chronologically
+const getExploreTimelineItems = () => {
+  if (!scheduleInfo.value?.plan?.explore) return []
+
+  const items = []
+  const plan = scheduleInfo.value.plan.explore
+
+  // Add opening time
+  if (plan.opening) {
+    items.push({
+      time: formatTimeOnly(plan.opening),
+      label: 'Beginn',
+      type: 'opening',
+      timestamp: new Date(plan.opening).getTime()
+    })
+  }
+
+  // Add briefing times
+  if (plan.briefing?.teams) {
+    items.push({
+      time: formatTimeOnly(plan.briefing.teams),
+      label: 'Coach-Briefing',
+      type: 'briefing',
+      description: 'Briefing für Coaches',
+      timestamp: new Date(plan.briefing.teams).getTime()
+    })
+  }
+
+  if (plan.briefing?.judges) {
+    items.push({
+      time: formatTimeOnly(plan.briefing.judges),
+      label: 'Gutachter:innen-Briefing',
+      type: 'briefing',
+      description: 'Briefing für Gutachter:innen',
+      timestamp: new Date(plan.briefing.judges).getTime()
+    })
+  }
+
+  // Add end time
+  if (plan.end) {
+    items.push({
+      time: formatTimeOnly(plan.end),
+      label: 'Ende',
+      type: 'end',
+      timestamp: new Date(plan.end).getTime()
+    })
+  }
+
+  // Sort by timestamp
+  return items.sort((a, b) => a.timestamp - b.timestamp)
+}
+
+// Get timeline items for Challenge program, sorted chronologically
+const getChallengeTimelineItems = () => {
+  if (!scheduleInfo.value?.plan?.challenge) return []
+
+  const items = []
+  const plan = scheduleInfo.value.plan.challenge
+
+  // Add opening time
+  if (plan.opening) {
+    items.push({
+      time: formatTimeOnly(plan.opening),
+      label: 'Beginn',
+      type: 'opening',
+      timestamp: new Date(plan.opening).getTime()
+    })
+  }
+
+  // Add briefing times
+  if (plan.briefing?.teams) {
+    items.push({
+      time: formatTimeOnly(plan.briefing.teams),
+      label: 'Coach-Briefing',
+      type: 'briefing',
+      description: 'Briefing für Coaches',
+      timestamp: new Date(plan.briefing.teams).getTime()
+    })
+  }
+
+  if (plan.briefing?.judges) {
+    items.push({
+      time: formatTimeOnly(plan.briefing.judges),
+      label: 'Gutachter:innen-Briefing',
+      type: 'briefing',
+      description: 'Briefing für Gutachter:innen',
+      timestamp: new Date(plan.briefing.judges).getTime()
+    })
+  }
+
+  if (plan.briefing?.referees) {
+    items.push({
+      time: formatTimeOnly(plan.briefing.referees),
+      label: 'Schiedsrichter:innen-Briefing',
+      type: 'briefing',
+      description: 'Briefing für Schiedsrichter:innen',
+      timestamp: new Date(plan.briefing.referees).getTime()
+    })
+  }
+
+  // Add end time
+  if (plan.end) {
+    items.push({
+      time: formatTimeOnly(plan.end),
+      label: 'Ende',
+      type: 'end',
+      timestamp: new Date(plan.end).getTime()
+    })
+  }
+
+  // Sort by timestamp (chronological order)
+  return items.sort((a, b) => a.timestamp - b.timestamp)
+}
+
+// Get timeline minimum height based on max items
+const timelineMinHeight = computed(() => {
+  const exploreItems = getExploreTimelineItems()
+  const challengeItems = getChallengeTimelineItems()
+  const maxItems = Math.max(exploreItems.length, challengeItems.length)
+
+  // Each item takes approximately 100px (card + spacing)
+  // Base height for timeline line
+  return `${maxItems * 100}px`
+})
 
 // Check if content should be visible based on publication level
 const isContentVisible = (level) => {

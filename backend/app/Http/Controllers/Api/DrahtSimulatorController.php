@@ -197,7 +197,7 @@ class DrahtSimulatorController extends Controller
 
         return $events[$eventId] ?? [
             'name' => "FLL Event {$eventId}",
-            'address' => "Musterstraße 1, 12345 Musterstadt, Deutschland",
+            'address' => "INF 205, 69168 Heidelberg, Deutschland",
             'contact_name' => 'Max Mustermann',
             'contact_email' => 'max.mustermann@example.com',
             'contact_phone' => '+49 123 456789',
