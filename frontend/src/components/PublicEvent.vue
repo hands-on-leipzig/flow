@@ -513,10 +513,10 @@
     </div>
 
     <!-- Event Logos Footer - at the very bottom -->
-    <div v-if="eventLogos.length > 0"
-         class="bg-[#F78B1F] py-8 mt-12 shadow-2xl">
+    <div class="bg-[#F78B1F] py-8 mt-12 shadow-2xl">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex flex-wrap items-center justify-center gap-8">
+        <!-- Event Logos -->
+        <div v-if="eventLogos.length > 0" class="flex flex-wrap items-center justify-center gap-8 mb-8">
           <a
               v-for="logo in eventLogos"
               :key="logo.id"
@@ -532,6 +532,21 @@
             />
           </a>
         </div>
+        
+        <!-- Sponsors -->
+        <div class="flex flex-wrap items-center justify-center gap-6">
+          <div
+              v-for="i in 12"
+              :key="i"
+              class="flex items-center justify-center bg-white rounded-xl p-4 shadow-lg hover:shadow-xl hover:scale-110 transition-all transform"
+          >
+            <img
+                :src="getSponsorImage(i)"
+                :alt="`Sponsor ${i}`"
+                class="h-12 max-w-32 object-contain"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -543,6 +558,19 @@ import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import QRCode from 'qrcode'
+// Import sponsor images
+import sponsor01 from '@/assets/sponsors/01.webp'
+import sponsor02 from '@/assets/sponsors/02.webp'
+import sponsor03 from '@/assets/sponsors/03.webp'
+import sponsor04 from '@/assets/sponsors/04.webp'
+import sponsor05 from '@/assets/sponsors/05.webp'
+import sponsor06 from '@/assets/sponsors/06.svg'
+import sponsor07 from '@/assets/sponsors/07.webp'
+import sponsor08 from '@/assets/sponsors/08.webp'
+import sponsor09 from '@/assets/sponsors/09.webp'
+import sponsor10 from '@/assets/sponsors/10.webp'
+import sponsor11 from '@/assets/sponsors/11.webp'
+import sponsor12 from '@/assets/sponsors/12.webp'
 
 const route = useRoute()
 const router = useRouter()
@@ -764,6 +792,27 @@ const timelineMinHeight = computed(() => {
   // Base height for timeline line
   return `${maxItems * 100}px`
 })
+
+// Sponsor images mapping
+const sponsorImages = {
+  1: sponsor01,
+  2: sponsor02,
+  3: sponsor03,
+  4: sponsor04,
+  5: sponsor05,
+  6: sponsor06,
+  7: sponsor07,
+  8: sponsor08,
+  9: sponsor09,
+  10: sponsor10,
+  11: sponsor11,
+  12: sponsor12,
+}
+
+// Get sponsor image path
+const getSponsorImage = (index) => {
+  return sponsorImages[index] || ''
+}
 
 // Check if content should be visible based on publication level
 const isContentVisible = (level) => {
