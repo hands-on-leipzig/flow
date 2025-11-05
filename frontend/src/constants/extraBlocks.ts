@@ -14,5 +14,5 @@ export const TIMING_FIELDS = [
 
 export const TOGGLE_FIELDS = ['active'] as const
 
-export const DEBOUNCE_DELAY = 60000
+export const DEBOUNCE_DELAY = 20000 // 20 seconds for testing
 

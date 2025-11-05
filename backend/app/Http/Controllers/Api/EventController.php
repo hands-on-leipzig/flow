@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Encoding\Encoding;
 
@@ -50,6 +51,7 @@ class EventController extends Controller
                 'event_explore' => $event->event_explore,
                 'event_challenge' => $event->event_challenge,
                 'link' => $event->link,
+                'qrcode' => $event->qrcode ? 'data:image/png;base64,' . $event->qrcode : null,
                 'season' => $event->season,
                 'level' => $event->level,
                 'regional_partner' => $event->regional_partner,
@@ -304,6 +306,48 @@ class EventController extends Controller
         });
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Geocode an address using OpenStreetMap Nominatim API
+     * Proxies the request to avoid CORS issues
+     */
+    public function geocodeAddress(Request $request)
+    {
+        $request->validate([
+            'address' => 'required|string|max:500',
+        ]);
+
+        try {
+            $response = Http::withHeaders([
+                'User-Agent' => 'FLL Flow Planning Tool (https://github.com/your-org/flow)',
+            ])->get('https://nominatim.openstreetmap.org/search', [
+                'q' => $request->input('address'),
+                'format' => 'json',
+                'limit' => 1,
+            ]);
+
+            if ($response->successful() && $response->json()) {
+                $data = $response->json();
+                if (!empty($data) && isset($data[0])) {
+                    $result = $data[0];
+                    return response()->json([
+                        'lat' => (float) $result['lat'],
+                        'lon' => (float) $result['lon'],
+                        'display_name' => $result['display_name'] ?? $request->input('address'),
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'error' => 'Address not found',
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Geocoding error: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Geocoding service unavailable',
+            ], 500);
+        }
     }
 
 }

@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import dayjs from 'dayjs'
-import ExtraBlocks from '@/components/molecules/ExtraBlocks.vue'
+import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 
 const eventStore = useEventStore()
@@ -166,7 +166,7 @@ onMounted(async () => {
         <!-- RECHTE SPALTE -->
         <div class="col-span-2 p-4 border rounded shadow h-fit">
           <h2 class="text-lg font-semibold mb-2">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
-          <ExtraBlocks
+          <FreeBlocks
             :event-date="event?.date"
             :plan-id="planId"
             :show-challenge="showChallenge"

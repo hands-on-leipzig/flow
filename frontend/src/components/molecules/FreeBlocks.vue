@@ -30,9 +30,14 @@ const props = defineProps<{
   eventDate?: string
 }>()
 
+const emit = defineEmits<{
+  (e: 'changed'): void
+}>()
+
 // --- State ---
 const blocks = ref<ExtraBlock[]>([])
 const blockToDelete = ref<ExtraBlock | null>(null)
+const saving = ref(false)
 
 // Generator state (must be declared before useDebouncedSave)
 const isGenerating = ref(false)
@@ -59,6 +64,9 @@ const { scheduleUpdate, flush, immediateFlush } = useDebouncedSave({
     await flushUpdates(updates)
   }
 })
+
+// --- Batch save system (save on countdown) ---
+// Note: Block changes trigger debounce immediately, blocks are saved to DB when countdown reaches 0 or is clicked
 
 // --- Computed ---
 const customBlocks = computed(() => blocks.value.filter(b => !('insert_point' in b) || !b.insert_point))
@@ -113,6 +121,82 @@ async function loadBlocks() {
   })
 }
 
+// Save all enabled blocks to DB (called when countdown triggers)
+async function saveAllEnabledBlocks() {
+  if (!props.planId) return
+  
+  // Get all enabled blocks (including newly created ones without ID)
+  const enabledBlocks = blocks.value.filter(b => b.active !== false && b.plan === props.planId)
+  if (enabledBlocks.length === 0) return
+  
+  try {
+    saving.value = true
+    
+    // Save all enabled blocks
+    for (const block of enabledBlocks) {
+      const blockData: any = {
+        plan: block.plan,
+        first_program: block.first_program,
+        name: block.name,
+        description: block.description,
+        link: block.link,
+        start: block.start,
+        end: block.end,
+        room: block.room,
+        active: block.active
+      }
+      
+      // Only include id if block already exists in DB
+      if (block.id) {
+        blockData.id = block.id
+      }
+      
+      // Check if this block has timing changes (start/end times)
+      const hasTimingChanges = block.start || block.end
+      
+      const response = await axios.post(`/plans/${props.planId}/extra-blocks`, {
+        ...blockData,
+        skip_regeneration: !hasTimingChanges
+      })
+      const saved = response.data?.block || response.data
+      
+      // Check if response contains error from generateLite
+      if (response.data?.error) {
+        generatorError.value = response.data.error
+        errorDetails.value = response.data.details || null
+        isGenerating.value = false
+        await loadBlocks() // Still reload blocks even on error
+        throw new Error(response.data.error) // Re-throw so caller can handle it
+      }
+      
+      if (saved?.id) {
+        const index = blocks.value.findIndex(b => 
+          (b.id && b.id === saved.id) || 
+          (!b.id && !saved.id && b.plan === saved.plan && 
+           b.start === saved.start && b.end === saved.end)
+        )
+        if (index !== -1) {
+          blocks.value[index] = saved
+        } else {
+          blocks.value.push(saved)
+        }
+      }
+    }
+    
+    emit('changed')
+  } catch (error) {
+    console.error('Failed to save blocks:', error)
+    throw error // Re-throw so caller can handle it
+  } finally {
+    saving.value = false
+  }
+}
+
+// Expose functions to parent (for consistency with InsertBlocks)
+defineExpose({
+  saveAllEnabledBlocks
+})
+
 // --- Central Flush Logic ---
 async function flushUpdates(updates: Record<string, any>) {
   if (!props.planId) return
@@ -125,7 +209,7 @@ async function flushUpdates(updates: Record<string, any>) {
   let needsRegeneration = false
   for (const [name, value] of Object.entries(updates)) {
     if (name === 'extra_block_update' && value) {
-      const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f))
+      const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f) || f === 'start' || f === 'end')
       if (hasTimingChanges) {
         needsRegeneration = true
         break
@@ -137,48 +221,48 @@ async function flushUpdates(updates: Record<string, any>) {
     }
   }
 
-      // Set generating state immediately if regeneration will be needed
+  // Set generating state immediately if regeneration will be needed
   // This ensures the UI shows "Plan wird generiert" right away
   if (needsRegeneration) {
     isGenerating.value = true
   }
 
-    try {
-      for (const [name, value] of Object.entries(updates)) {
-        if (name === 'extra_block_update' && value) {
-          const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f))
-          const blockData = { ...value }
-          if (!hasTimingChanges) {
-            blockData.skip_regeneration = true
-          }
-          const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
-          
-          // Check if response contains error from generateLite
-          if (response.data?.error) {
-            generatorError.value = response.data.error
-            errorDetails.value = response.data.details || null
-            isGenerating.value = false
-            await loadBlocks() // Still reload blocks even on error
-            return // Stop processing further updates
-          }
+  try {
+    for (const [name, value] of Object.entries(updates)) {
+      if (name === 'extra_block_update' && value) {
+        const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f) || f === 'start' || f === 'end')
+        const blockData = { ...value }
+        if (!hasTimingChanges) {
+          blockData.skip_regeneration = true
         }
-        if (name === 'extra_block_delete' && value?.id) {
-          await axios.delete(`/extra-blocks/${value.id}`)
-        }
-        if (name === 'extra_block_add' && value) {
-          const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
-          
-          // Check if response contains error from generateLite
-          if (response.data?.error) {
-            generatorError.value = response.data.error
-            errorDetails.value = response.data.details || null
-            isGenerating.value = false
-            await loadBlocks() // Still reload blocks even on error
-            return // Stop processing further updates
-          }
+        const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
+        
+        // Check if response contains error from generateLite
+        if (response.data?.error) {
+          generatorError.value = response.data.error
+          errorDetails.value = response.data.details || null
+          isGenerating.value = false
+          await loadBlocks() // Still reload blocks even on error
+          return // Stop processing further updates
         }
       }
-      await loadBlocks()
+      if (name === 'extra_block_delete' && value?.id) {
+        await axios.delete(`/extra-blocks/${value.id}`)
+      }
+      if (name === 'extra_block_add' && value) {
+        const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
+        
+        // Check if response contains error from generateLite
+        if (response.data?.error) {
+          generatorError.value = response.data.error
+          errorDetails.value = response.data.details || null
+          isGenerating.value = false
+          await loadBlocks() // Still reload blocks even on error
+          return // Stop processing further updates
+        }
+      }
+    }
+    await loadBlocks()
 
     // Poll for generator status if regeneration was triggered
     if (needsRegeneration) {
@@ -340,9 +424,11 @@ async function deleteBlock() {
   await immediateFlush()
 }
 
+// Update local state and trigger debounce (no DB save until countdown)
 function saveBlock(block: ExtraBlock) {
   // Create a new object copy to avoid reference issues during countdown
   // This ensures each update captures the current state independently
+  // Note: DB save will happen when countdown reaches 0 or is clicked
   scheduleUpdate('extra_block_update', { ...block })
 }
 
@@ -388,243 +474,100 @@ function timeToMinutes(timeString: string): number {
 }
 
 /**
- * Validates time value with min/max constraints (same as ParameterField.vue)
+ * Normalizes time: rounds to 5-minute intervals and clamps to 00:05-23:55
  */
-function validateTimeValue(timeValue: string): { valid: boolean; error?: string } {
-  // Allow empty values during typing
-  if (!timeValue || timeValue === '' || timeValue.trim() === '') {
-    return { valid: true }
-  }
-  
-  // Check if time format is valid (hh:mm)
-  const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/
-  if (!timeRegex.test(timeValue)) {
-    return { valid: false, error: 'Ungültiges Zeitformat (hh:mm)' }
-  }
-  
-  // Convert to minutes for comparison
-  const valueMinutes = timeToMinutes(timeValue)
-  
-  // Validate minimum (00:05)
-  const minMinutes = timeToMinutes('00:05')
-  if (valueMinutes < minMinutes) {
-    return { valid: false, error: 'Zeit darf minimal 00:05 sein' }
-  }
-  
-  // Validate maximum (23:55)
-  const maxMinutes = timeToMinutes('23:55')
-  if (valueMinutes > maxMinutes) {
-    return { valid: false, error: 'Zeit darf maximal 23:55 sein' }
-  }
-  
-  // Validate step: minutes must be multiples of 5
-  if (valueMinutes % 5 !== 0) {
-    return { valid: false, error: 'Nur 5-Minuten-Schritte erlaubt' }
-  }
-  
-  return { valid: true }
-}
-
-// Helper function to round minutes to nearest multiple of 5
-function roundTo5Minutes(time: string): string {
+function normalizeTime(time: string): string {
   if (!time || typeof time !== 'string' || !time.includes(':')) return '00:05'
   
-  const parts = time.split(':')
-  if (parts.length !== 2) return '00:05'
-  
-  const hoursStr = parts[0].trim()
-  const minutesStr = parts[1].trim()
-  
-  // Only process if both parts are non-empty
-  if (!hoursStr || !minutesStr) return '00:05'
-  
-  const hours = parseInt(hoursStr, 10)
-  const minutes = parseInt(minutesStr, 10)
-  
-  // Validate inputs are valid numbers
+  const [hours, minutes] = time.split(':').map(Number)
   if (isNaN(hours) || isNaN(minutes)) return '00:05'
   
-  // Ensure hours are within valid range before processing
-  if (hours < 0 || hours >= 24) return '00:05'
-  
-  // Round minutes to nearest multiple of 5
+  // Round to nearest 5 minutes
   const roundedMinutes = Math.round(minutes / 5) * 5
+  let totalMinutes = hours * 60 + roundedMinutes
   
-  // Handle wrap-around if minutes round to 60
-  let finalHours = hours
-  let finalMinutes = roundedMinutes
-  if (finalMinutes >= 60) {
-    finalHours = (finalHours + 1) % 24
-    finalMinutes = 0
-  }
+  // Clamp to 00:05 - 23:55
+  const minMinutes = 5 // 00:05
+  const maxMinutes = 23 * 60 + 55 // 23:55
   
-  // Ensure result is within min/max bounds (00:05 to 23:55)
-  const resultMinutes = finalHours * 60 + finalMinutes
-  const minMinutes = timeToMinutes('00:05')
-  const maxMinutes = timeToMinutes('23:55')
+  if (totalMinutes < minMinutes) totalMinutes = minMinutes
+  if (totalMinutes > maxMinutes) totalMinutes = maxMinutes
   
-  if (resultMinutes < minMinutes) return '00:05'
-  if (resultMinutes > maxMinutes) {
-    // Round down to nearest valid time (23:55 or earlier)
-    const adjustedHours = Math.floor(maxMinutes / 60)
-    const adjustedMinutes = Math.floor((maxMinutes % 60) / 5) * 5
-    return `${String(adjustedHours).padStart(2, '0')}:${String(adjustedMinutes).padStart(2, '0')}`
-  }
+  // Convert back to hours and minutes
+  const finalHours = Math.floor(totalMinutes / 60)
+  const finalMinutes = totalMinutes % 60
   
   return `${String(finalHours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`
 }
 
-// Helper function to add 5 minutes to a time string (HH:mm)
-function add5Minutes(time: string): string {
-  if (!time || !time.includes(':')) return '00:00'
-  const [hours, minutes] = time.split(':').map(Number)
-  let totalMinutes = hours * 60 + minutes + 5
-  // Handle day wrap-around (though max should be 23:55)
-  const newHours = Math.floor(totalMinutes / 60) % 24
-  const newMinutes = totalMinutes % 60
-  return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`
-}
-
-// Helper function to compare two time strings (HH:mm)
-function compareTimes(time1: string, time2: string): number {
-  if (!time1 || !time2) return 0
-  const [h1Str, m1Str] = time1.split(':')
-  const [h2Str, m2Str] = time2.split(':')
-  const h1 = parseInt(h1Str, 10)
-  const m1 = parseInt(m1Str, 10)
-  const h2 = parseInt(h2Str, 10)
-  const m2 = parseInt(m2Str, 10)
-  
-  // Validate inputs are numbers
-  if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return 0
-  
-  const minutes1 = h1 * 60 + m1
-  const minutes2 = h2 * 60 + m2
-  return minutes1 - minutes2
-}
-
-// Handle start time change
-function handleStartTimeChange(block: ExtraBlock, time: string, shouldRound: boolean = true) {
-  // Always use the same date for both start and end
+// Handle start time change (called on blur)
+function handleStartTimeChange(block: ExtraBlock, time: string) {
   const date = extractDate(block.start || block.end || '')
-  let endTime = extractTime(block.end || '')
+  if (!date || !time) return
   
-  if (!date) return // Need date first
+  // Normalize start time (round to 5 min, clamp to 00:05-23:55)
+  const normalizedStart = normalizeTime(time)
+  const startMinutes = timeToMinutes(normalizedStart)
   
-  if (!time || time === '') return // Don't process empty values
+  // Get current end time from block (use current state, not stale)
+  const currentEnd = extractTime(block.end || '')
+  const normalizedEnd = currentEnd ? normalizeTime(currentEnd) : '23:55'
+  let endMinutes = timeToMinutes(normalizedEnd)
   
-  // Validate time (same as ParameterField.vue)
-  if (shouldRound) {
-    const validation = validateTimeValue(time)
-    if (!validation.valid) {
-      // Show validation error - could be displayed in UI if needed
-      console.warn('Time validation error:', validation.error)
-      // Round anyway to ensure valid value
-      const roundedTime = roundTo5Minutes(time)
-      // Update block optimistically
-      block.start = combineDateTime(date, roundedTime)
-      // Schedule update with a fresh copy
-      scheduleUpdate('extra_block_update', { ...block })
-      return
-    }
-  }
-  
-  // Round time to nearest 5 minutes only when explicitly requested (on blur/change, not during typing)
-  const processedTime = shouldRound ? roundTo5Minutes(time) : time
-  
-  // Only do validation and adjustment when rounding (i.e., on blur/change, not during typing)
-  if (shouldRound) {
-    // Ensure processed time is within bounds
-    const finalTime = processedTime
+  // If start >= end, set end = start + 5 min (capped at 23:55)
+  if (startMinutes >= endMinutes) {
+    endMinutes = Math.min(startMinutes + 5, 23 * 60 + 55) // Cap at 23:55
+    const endHours = Math.floor(endMinutes / 60)
+    const endMins = endMinutes % 60
+    const newEnd = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`
     
-    // If start time is greater than or equal to end time, set end to start + 5 minutes
-    if (endTime && compareTimes(finalTime, endTime) >= 0) {
-      endTime = add5Minutes(finalTime)
-      // Ensure end time doesn't exceed max
-      const endMinutes = timeToMinutes(endTime)
-      const maxMinutes = timeToMinutes('23:55')
-      if (endMinutes > maxMinutes) {
-        endTime = '23:55'
-      }
-    } else if (!endTime) {
-      // If no end time exists, set it to start + 5 minutes
-      endTime = add5Minutes(finalTime)
-      // Ensure end time doesn't exceed max
-      const endMinutes = timeToMinutes(endTime)
-      const maxMinutes = timeToMinutes('23:55')
-      if (endMinutes > maxMinutes) {
-        endTime = '23:55'
-      }
-    } else {
-      // Round existing end time as well
-      endTime = roundTo5Minutes(endTime)
-    }
-    
-    // Update block optimistically (for immediate UI feedback)
-    block.start = combineDateTime(date, finalTime)
-    block.end = combineDateTime(date, endTime)
-    
-    // Schedule update with a fresh copy to avoid reference issues
-    scheduleUpdate('extra_block_update', { ...block })
+    // Update block immediately (for UI reactivity)
+    block.start = combineDateTime(date, normalizedStart)
+    block.end = combineDateTime(date, newEnd)
   } else {
-    // During typing (shouldRound = false), just update optimistically
-    // Don't schedule update yet - wait for blur
-    block.start = combineDateTime(date, processedTime)
+    // Update block immediately (for UI reactivity)
+    block.start = combineDateTime(date, normalizedStart)
+    block.end = combineDateTime(date, normalizedEnd)
   }
+  
+  // Trigger debounce with current block state (this will overwrite any pending update)
+  scheduleUpdate('extra_block_update', { ...block })
 }
 
-// Handle end time change
-function handleEndTimeChange(block: ExtraBlock, time: string, shouldRound: boolean = true) {
-  // Always use the same date for both start and end
+// Handle end time change (called on blur)
+function handleEndTimeChange(block: ExtraBlock, time: string) {
   const date = extractDate(block.start || block.end || '')
-  let startTime = extractTime(block.start || '')
+  if (!date || !time) return
   
-  if (!date) return // Need date first
+  // Normalize end time (round to 5 min, clamp to 00:05-23:55)
+  const normalizedEnd = normalizeTime(time)
+  const endMinutes = timeToMinutes(normalizedEnd)
   
-  if (!time || time === '') return // Don't process empty values
+  // Get current start time from block (use current state, not stale)
+  const currentStart = extractTime(block.start || '')
+  const normalizedStart = currentStart ? normalizeTime(currentStart) : '00:05'
+  const startMinutes = timeToMinutes(normalizedStart)
   
-  // Validate time (same as ParameterField.vue)
-  if (shouldRound) {
-    const validation = validateTimeValue(time)
-    if (!validation.valid) {
-      // Show validation error - could be displayed in UI if needed
-      console.warn('Time validation error:', validation.error)
-      // Round anyway to ensure valid value
-      const roundedTime = roundTo5Minutes(time)
-      // Update block optimistically
-      block.end = combineDateTime(date, roundedTime)
-      // Schedule update with a fresh copy
-      scheduleUpdate('extra_block_update', { ...block })
-      return
-    }
-  }
-  
-  // Round time to nearest 5 minutes only when explicitly requested (on blur/change, not during typing)
-  const processedTime = shouldRound ? roundTo5Minutes(time) : time
-  
-  // Only do validation and adjustment when rounding (i.e., on blur/change, not during typing)
-  if (shouldRound) {
-    // Ensure processed time is within bounds
-    const finalTime = processedTime
+  // Ensure end >= start (if not, adjust start down)
+  if (endMinutes < startMinutes) {
+    // This shouldn't happen if user is editing end, but handle it gracefully
+    // Set start to end - 5 min (min 00:05)
+    const newStartMinutes = Math.max(endMinutes - 5, 5)
+    const startHours = Math.floor(newStartMinutes / 60)
+    const startMins = newStartMinutes % 60
+    const newStart = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`
     
-    // Round existing start time as well
-    if (startTime) {
-      startTime = roundTo5Minutes(startTime)
-    } else {
-      startTime = '00:05' // Use min value instead of 00:00
-    }
-    
-    // Update block optimistically (for immediate UI feedback)
-    block.start = combineDateTime(date, startTime)
-    block.end = combineDateTime(date, finalTime)
-    
-    // Schedule update with a fresh copy to avoid reference issues
-    scheduleUpdate('extra_block_update', { ...block })
+    // Update block immediately (for UI reactivity)
+    block.start = combineDateTime(date, newStart)
+    block.end = combineDateTime(date, normalizedEnd)
   } else {
-    // During typing (shouldRound = false), just update optimistically
-    // Don't schedule update yet - wait for blur
-    block.end = combineDateTime(date, processedTime)
+    // Update block immediately (for UI reactivity)
+    block.start = combineDateTime(date, normalizedStart)
+    block.end = combineDateTime(date, normalizedEnd)
   }
+  
+  // Trigger debounce with current block state (this will overwrite any pending update)
+  scheduleUpdate('extra_block_update', { ...block })
 }
 
 const deleteMessage = computed(() => {
@@ -708,13 +651,25 @@ const deleteMessage = computed(() => {
             <td class="px-2 py-2 text-center">
               <div class="flex justify-center space-x-1">
                 <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
-                     class="w-8 h-8 cursor-pointer transition-all duration-200 hover:scale-110"
-                     :class="{ 'opacity-100': b.first_program === 2 || b.first_program === 0, 'opacity-30 grayscale': !(b.first_program === 2 || b.first_program === 0) }"
-                     @click="toggleProgram(b, 2)" title="Explore"/>
+                     :class="[
+                       'w-8 h-8 transition-all duration-200',
+                       b.active === false
+                         ? 'opacity-30 grayscale cursor-not-allowed'
+                         : (b.first_program === 2 || b.first_program === 0
+                            ? 'opacity-100 cursor-pointer hover:scale-110'
+                            : 'opacity-30 grayscale cursor-pointer hover:scale-110')
+                     ]"
+                     @click="b.active !== false && toggleProgram(b, 2)" title="Explore"/>
                 <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
-                     class="w-8 h-8 cursor-pointer transition-all duration-200 hover:scale-110"
-                     :class="{ 'opacity-100': b.first_program === 3 || b.first_program === 0, 'opacity-30 grayscale': !(b.first_program === 3 || b.first_program === 0) }"
-                     @click="toggleProgram(b, 3)" title="Challenge"/>
+                     :class="[
+                       'w-8 h-8 transition-all duration-200',
+                       b.active === false
+                         ? 'opacity-30 grayscale cursor-not-allowed'
+                         : (b.first_program === 3 || b.first_program === 0
+                            ? 'opacity-100 cursor-pointer hover:scale-110'
+                            : 'opacity-30 grayscale cursor-pointer hover:scale-110')
+                     ]"
+                     @click="b.active !== false && toggleProgram(b, 3)" title="Challenge"/>
               </div>
             </td>
 
@@ -723,7 +678,11 @@ const deleteMessage = computed(() => {
                 <!-- Date field (first line) -->
                 <input 
                   :value="extractDate(b.start || b.end)" 
-                  class="w-full border rounded px-2 py-1 text-sm" 
+                  :disabled="b.active === false"
+                  :class="['w-full border rounded px-2 py-1 text-sm',
+                           b.active !== false
+                             ? 'bg-white border-gray-300'
+                             : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                   type="date"
                   @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
                 />
@@ -731,21 +690,33 @@ const deleteMessage = computed(() => {
                 <div class="flex space-x-1">
                   <input 
                     :value="extractTime(b.start)" 
-                    class="flex-1 border rounded px-2 py-1 text-sm" 
+                    :disabled="b.active === false"
+                    :class="['flex-1 border rounded px-2 py-1 text-sm',
+                             b.active !== false
+                               ? 'bg-white border-gray-300'
+                               : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                     type="time"
                     min="00:05"
                     max="23:55"
+                    step="300"
                     placeholder="Start"
-                    @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value, true)"
+                    @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start }"
+                    @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
                   />
                   <input 
                     :value="extractTime(b.end)" 
-                    class="flex-1 border rounded px-2 py-1 text-sm" 
+                    :disabled="b.active === false"
+                    :class="['flex-1 border rounded px-2 py-1 text-sm',
+                             b.active !== false
+                               ? 'bg-white border-gray-300'
+                               : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
                     type="time"
                     min="00:05"
                     max="23:55"
+                    step="300"
                     placeholder="Ende"
-                    @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value, true)"
+                    @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
+                    @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
                   />
                 </div>
               </div>
@@ -754,13 +725,34 @@ const deleteMessage = computed(() => {
             <td class="px-2 py-2">
               <div class="space-y-2">
                 <div class="flex space-x-2">
-                  <input v-model="b.name" class="flex-1 border rounded px-2 py-1 text-sm"
-                         type="text" placeholder="Titel" @blur="saveBlock(b)"/>
-                  <input v-model="b.link" class="flex-1 border rounded px-2 py-1 text-sm"
-                         type="url" placeholder="https://example.com" @blur="saveBlock(b)"/>
+                  <input :value="b.name"
+                         :disabled="b.active === false"
+                         :class="['flex-1 border rounded px-2 py-1 text-sm',
+                                  b.active !== false
+                                    ? 'bg-white border-gray-300'
+                                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                         type="text" placeholder="Titel"
+                         @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
+                         @blur="saveBlock(b)"/>
+                  <input :value="b.link ?? ''"
+                         :disabled="b.active === false"
+                         :class="['flex-1 border rounded px-2 py-1 text-sm',
+                                  b.active !== false
+                                    ? 'bg-white border-gray-300'
+                                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                         type="url" placeholder="https://example.com"
+                         @input="(e) => { b.link = (e.target as HTMLInputElement).value }"
+                         @blur="saveBlock(b)"/>
                 </div>
-                <input v-model="b.description" class="w-full border rounded px-2 py-1 text-sm"
-                       type="text" placeholder="Beschreibung" @blur="saveBlock(b)"/>
+                <input :value="b.description"
+                       :disabled="b.active === false"
+                       :class="['w-full border rounded px-2 py-1 text-sm',
+                                b.active !== false
+                                  ? 'bg-white border-gray-300'
+                                  : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                       type="text" placeholder="Beschreibung"
+                       @input="(e) => { b.description = (e.target as HTMLInputElement).value }"
+                       @blur="saveBlock(b)"/>
               </div>
             </td>
           </tr>

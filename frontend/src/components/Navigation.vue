@@ -7,6 +7,7 @@ import { useAuth } from '@/composables/useAuth'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import { imageUrl } from '@/utils/images'
+import keycloak from '@/keycloak.js'
 
 const eventStore = useEventStore()
 const { isAdmin, initializeUserRoles } = useAuth()
@@ -116,13 +117,24 @@ function goTo(tab) {
 }
 
 function logout() {
+  // Clear local storage
   localStorage.removeItem('kc_token')
-  window.location.reload()
+  
+  // Logout from Keycloak IDP - this will redirect to Keycloak logout endpoint
+  // After logout, user will be redirected back to the app (or to Keycloak login page)
+  if (keycloak.authenticated) {
+    keycloak.logout({
+      redirectUri: window.location.origin
+    })
+  } else {
+    // If keycloak is not authenticated, just reload
+    window.location.reload()
+  }
 }
 </script>
 
 <template>
-  <div class="flex items-center justify-between border-b px-2 py-2 bg-white shadow-sm">
+  <div class="sticky top-0 z-50 flex items-center justify-between border-b px-2 py-2 bg-white shadow-sm">
     <div class="flex items-center gap-8">
       <img :src="imageUrl('/flow/flow.png')" alt="Logo" class="h-8 w-auto"/>
       <img :src="imageUrl('/flow/hot+fll.png')" alt="Logo" class="h-8 w-auto"/>
