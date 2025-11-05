@@ -104,6 +104,10 @@ class ContaoController extends Controller
             ->select('te.team_name as name', 'te.id as id', 'a.points as points', 'r.matches as num_matches')
             ->get();
 
+        if (!$scores) {
+            return;
+        }
+
         $maxPoints = [];
 
         foreach ($scores as $score) {
@@ -198,7 +202,7 @@ class ContaoController extends Controller
 
             $roundData = $results['rounds'][$roundKey];
 
-            $totalMatches = $roundData['num_matches'] ?? 0;
+            $totalMatches = isset($roundData['num_matches']) ? (int)$roundData['num_matches'] : 0;
 
             if ($totalMatches === 0) {
                 return 0.0;
@@ -237,10 +241,10 @@ class ContaoController extends Controller
         // -> und die nächste Runde mindestens zur Hälfte bewertet ist (um sicherzustellen, dass die nächste Runde auch wirklich begonnen hat)
         // Das Halbfinale ist nie automatisch öffentlich sichtbar, da diese Ergebnisse in der Siegerehrung vorgestellt werden sollen.
         return [
-            'vr1' => ($vr1Ratio > (2 / 3)) && ($vr2Ratio > 0.5),
-            'vr2' => ($vr2Ratio > (2 / 3)) && ($vr3Ratio > 0.5),
-            'vr3' => ($vr3Ratio > (2 / 3)) && ($vfRatio > 0.5),
-            'vf' => ($vfRatio > (2 / 3)) && ($hfRatio > 0.5),
+            'vr1' => ($vr1Ratio > 0.6) && ($vr2Ratio > 0.3),
+            'vr2' => ($vr2Ratio > 0.6) && ($vr3Ratio > 0.3),
+            'vr3' => ($vr3Ratio > 0.6) && ($vfRatio > 0.3 || $hfRatio > 0.3),
+            'vf' => ($vfRatio > 0.6) && ($hfRatio > 0.3),
             'hf' => false,
         ];
     }
