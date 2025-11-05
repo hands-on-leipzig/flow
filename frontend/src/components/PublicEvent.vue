@@ -82,25 +82,13 @@
     <!-- Event Content (hidden when level 4 is active) -->
     <div v-else-if="event && !(isContentVisible(4) && publicPlanId)"
          class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
-      <!-- Header with Program Logos -->
-      <div class="text-center mb-12">
+      <!-- Header with Flow Logo and Event Name -->
+      <div class="mb-12">
         <div
-            class="bg-[#F78B1F] rounded-3xl shadow-2xl p-8 mb-6 transform transition-transform">
-          <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 drop-shadow-lg">{{ event.name }}</h1>
-          <div class="flex justify-center items-center gap-4">
-            <div v-if="event.event_explore && !event.event_challenge"
-                 class="flex items-center bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-16 h-16 drop-shadow-lg"/>
-            </div>
-            <div v-else-if="event.event_challenge && !event.event_explore"
-                 class="flex items-center bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-16 h-16 drop-shadow-lg"/>
-            </div>
-            <div v-else-if="event.event_explore && event.event_challenge"
-                 class="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-full px-6 py-2">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-12 h-12 drop-shadow-lg"/>
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-12 h-12 drop-shadow-lg"/>
-            </div>
+            class="bg-white rounded-3xl shadow-2xl p-8 mb-6 transform transition-transform">
+          <div class="flex items-center gap-6">
+            <img :src="imageUrl('/flow/hot+fll.png')" alt="FLOW Logo" class="h-16 w-auto drop-shadow-lg flex-shrink-0"/>
+            <h1 class="text-4xl md:text-5xl font-bold text-[#F78B1F] drop-shadow-lg flex-1 text-center">{{ event.name }}</h1>
           </div>
         </div>
       </div>
@@ -532,7 +520,7 @@
             />
           </a>
         </div>
-        
+
         <!-- Sponsors -->
         <div class="flex flex-wrap items-center justify-center gap-6">
           <div
@@ -556,7 +544,7 @@
 import {ref, computed, onMounted, onBeforeUnmount, watch, nextTick, Teleport} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
-import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {programLogoSrc, programLogoAlt, imageUrl} from '@/utils/images'
 import QRCode from 'qrcode'
 // Import sponsor images
 import sponsor01 from '@/assets/sponsors/01.webp'
