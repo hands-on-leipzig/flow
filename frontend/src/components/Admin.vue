@@ -1,5 +1,5 @@
 <script setup>
-import {ref, watch} from 'vue'
+import {ref, watch, onMounted} from 'vue'
 import axios from 'axios'
 import Multiselect from '@vueform/multiselect'
 import Quality from '@/components/molecules/Quality.vue'
@@ -15,6 +15,19 @@ const activeTab = ref('statistics')
 
 const parameters = ref([])
 const conditions = ref([])
+const isDevEnvironment = ref(false)
+
+// Check environment on mount
+onMounted(async () => {
+  try {
+    const response = await axios.get('/environment')
+    isDevEnvironment.value = response.data.is_dev || false
+  } catch (error) {
+    console.error('Failed to fetch environment:', error)
+    // Default to false (not dev) if check fails
+    isDevEnvironment.value = false
+  }
+})
 
 const syncDrahtRegions = async () => {
   if (!confirm('Möchtest du wirklich alle Regional Partner aus DRAHT synchronisieren?\n\nDies wird alle Regional Partner aus DRAHT in die Datenbank importieren.')) {
@@ -105,11 +118,18 @@ fetchConditions()
       </button>
 
             <button
-        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-        :class="{ 'bg-white font-semibold shadow': activeTab === 'main-tables' }"
-        @click="activeTab = 'main-tables'"
+        class="w-full text-left px-3 py-2 rounded"
+        :class="{ 
+          'bg-white font-semibold shadow': activeTab === 'main-tables',
+          'opacity-50 cursor-not-allowed bg-gray-100': !isDevEnvironment,
+          'hover:bg-gray-200': isDevEnvironment
+        }"
+        @click="isDevEnvironment && (activeTab = 'main-tables')"
+        :disabled="!isDevEnvironment"
+        :title="!isDevEnvironment ? 'Main Tables sind nur auf Dev verfügbar' : ''"
       >
         📝 Main Tables
+        <span v-if="!isDevEnvironment" class="ml-2 text-xs text-gray-500">(nur Dev)</span>
       </button>
 
       <button
