@@ -27,8 +27,22 @@ function refreshMTables(): void
         }
     }
     
+    // Always remove migration record for master tables creation so it will be re-run
+    // This allows migrate --force to recreate the m_ tables, even if they don't exist yet
+    $masterTablesMigration = '2025_01_01_000000_create_master_tables';
+    $deleted = DB::table('migrations')
+        ->where('migration', $masterTablesMigration)
+        ->delete();
+    
+    if ($deleted > 0) {
+        echo "  ✓ Removed migration record for {$masterTablesMigration} (will be re-run)\n";
+    } else {
+        echo "  ⚠️  Migration record for {$masterTablesMigration} not found (may not exist yet)\n";
+    }
+    
     if (empty($mTableNames)) {
-        echo "⚠️  No m_ tables found to refresh.\n";
+        echo "⚠️  No m_ tables found to drop (they will be created by migration).\n";
+        echo "\n✅ Migration record removed. Ready for migration.\n";
         return;
     }
     
@@ -46,19 +60,6 @@ function refreshMTables(): void
         foreach ($mTableNames as $table) {
             Schema::dropIfExists($table);
             echo "  ✓ Dropped $table\n";
-        }
-        
-        // Remove migration record for master tables creation so it will be re-run
-        // This allows migrate --force to recreate the m_ tables
-        $masterTablesMigration = '2025_01_01_000000_create_master_tables';
-        $deleted = DB::table('migrations')
-            ->where('migration', $masterTablesMigration)
-            ->delete();
-        
-        if ($deleted > 0) {
-            echo "  ✓ Removed migration record for {$masterTablesMigration} (will be re-run)\n";
-        } else {
-            echo "  ⚠️  Migration record for {$masterTablesMigration} not found (may not exist yet)\n";
         }
         
         echo "\n✅ All m_ tables dropped successfully.\n";
