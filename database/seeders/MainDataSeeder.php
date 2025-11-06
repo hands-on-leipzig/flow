@@ -1060,16 +1060,15 @@ class MainDataSeeder extends Seeder
   'level' => 1,
   'type' => 'integer',
   'value' => '3',
-  'min' => '0',
+  'min' => '1',
   'max' => '5',
   'step' => '1',
   'first_program' => 3,
   'sequence' => 90,
-  'ui_label' => 'Präsentationen',
+  'ui_label' => 'Präsentationen - Anzahl',
   'ui_description' => 'Anzahl der Forschungspräsentationen auf der Bühne.
 Es müssen nicht unbedingt die Teams präsentieren, die später als nominierte vorgestellt werden. Das steht zu diesem Zeitpunkt meist noch gar nicht fest. Statt dessen sollte jede Jury-Gruppe unabhängig von den anderen, Teams aussuchen, die "sehenswerte" Präsentationen haben.
-Die Präsentationen auf der Bühne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte möglich nicht darauf verzichtet werden.
-Bei Eingabe von 0, wird der Block komplett übersprungen.',
+Die Präsentationen auf der Bühne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte möglich nicht darauf verzichtet werden.',
 ),
             array (
   'id' => 38,
@@ -1082,7 +1081,7 @@ Bei Eingabe von 0, wird der Block komplett übersprungen.',
   'max' => '15',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 91,
+  'sequence' => 92,
   'ui_label' => 'Wechsel zu/von den Präsentationen',
   'ui_description' => 'Zeit für den Umbau von Robot-Game. Die gleiche Zeit wird auch für den Umbau zurück zu den Robot-Game-Finalrunden verwendet.',
 ),
@@ -1113,7 +1112,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => '20',
   'step' => '5',
   'first_program' => 3,
-  'sequence' => 93,
+  'sequence' => 94,
   'ui_label' => 'Wechsel zur Preisverleihung',
   'ui_description' => 'Zeit für den Umbau von Finalrunden zur Preisverleihung.
 Üblicherweise werden die Robot-Game-Tische zur Seite gestellt. Die Teams der Finalrunden bringen ihr Material in den Vorbereitungsbereich und dann versammeln sich alle wieder vor der "Bühne".',
@@ -1436,7 +1435,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
             array (
   'id' => 95,
   'name' => 'c_presentations_last',
-  'context' => 'expert',
+  'context' => 'protected',
   'level' => 1,
   'type' => 'boolean',
   'value' => '0',
@@ -1444,7 +1443,7 @@ Für weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams
   'max' => NULL,
   'step' => NULL,
   'first_program' => 3,
-  'sequence' => 92,
+  'sequence' => 93,
   'ui_label' => 'Präsentationen nach Robot-Game-Finale',
   'ui_description' => 'Es ist üblich, die sehenswerten Forschungspräsentationen zwischen der letzten Robot-Game-Vorrunde und den Finalrunden zu zeigen. Der Vorteil davon ist, dass zu dem Zeitpunkt noch alle Teams da sind, weil noch nicht klar ist, wer in den Finalrunden dabei ist.
 Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfinden.',
@@ -1929,6 +1928,27 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'ui_label' => 'LC Dauer große Pause Juror:innen',
   'ui_description' => 'Dauer Pause nach drei Teams',
 ),
+            array (
+  'id' => 130,
+  'name' => 'c_presentations_when',
+  'context' => 'expert',
+  'level' => 1,
+  'type' => 'integer',
+  'value' => '1',
+  'min' => '0',
+  'max' => '4',
+  'step' => '1',
+  'first_program' => 3,
+  'sequence' => 91,
+  'ui_label' => 'Präsentationen - Wann',
+  'ui_description' => 'Üblicherweise finden die Präsentationen zwischen Robot-Game-Vorrunden und -Finalrunden statt. Wer möchte, kann sie weiter nach hinten verschieben.
+Die Werte bedeuten
+0 = keine Präsentationen
+1 = nach den Vorrunden
+2 = nach dem Viertelfinale
+3 = nach dem Halbfinale
+4 = nach dem Finale',
+),
         ];
         
         foreach ($data as $item) {
@@ -2065,7 +2085,7 @@ Alternativ können die Präsentationen auch nach dem Robot-Game-Finale stattfind
   'sequence' => 0,
   'description' => NULL,
   'first_program' => 3,
-  'overview_plan_column' => 'Challenge',
+  'overview_plan_column' => NULL,
 ),
             array (
   'id' => 16,
