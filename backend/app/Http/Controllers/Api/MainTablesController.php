@@ -12,24 +12,34 @@ use Illuminate\Support\Facades\Log;
 class MainTablesController extends Controller
 {
     /**
+     * Dynamically discover all m_ tables from the database
+     */
+    private function discoverMTables(): array
+    {
+        $databaseName = DB::connection()->getDatabaseName();
+        $tables = DB::select("SHOW TABLES");
+        $tableKey = "Tables_in_{$databaseName}";
+        
+        $mTableNames = [];
+        foreach ($tables as $table) {
+            $tableName = $table->$tableKey;
+            if (str_starts_with($tableName, 'm_')) {
+                $mTableNames[] = $tableName;
+            }
+        }
+        
+        // Sort alphabetically for consistency
+        sort($mTableNames);
+        
+        return $mTableNames;
+    }
+
+    /**
      * Get all available main tables with their record counts
      */
     public function index(): JsonResponse
     {
-        $tables = [
-            'm_season',
-            'm_level',
-            'm_room_type',
-            'm_room_type_group',
-            'm_parameter',
-            'm_activity_type',
-            'm_activity_type_detail',
-            'm_first_program',
-            'm_insert_point',
-            'm_role',
-            'm_visibility',
-            'm_supported_plan'
-        ];
+        $tables = $this->discoverMTables();
 
         $result = [];
         foreach ($tables as $table) {
@@ -161,20 +171,14 @@ class MainTablesController extends Controller
     public function export()
     {
         try {
-            $tables = [
-                'm_season',
-                'm_level',
-                'm_room_type',
-                'm_room_type_group',
-                'm_parameter',
-                'm_activity_type',
-                'm_activity_type_detail',
-                'm_first_program',
-                'm_insert_point',
-                'm_role',
-                'm_visibility',
-                'm_supported_plan'
-            ];
+            // Dynamically discover all m_ tables from the database
+            $tables = $this->discoverMTables();
+            
+            if (empty($tables)) {
+                throw new \Exception('No m_ tables found in the database');
+            }
+            
+            Log::info("Exporting m_ tables", ['tables' => $tables, 'count' => count($tables)]);
 
             $exportData = [];
             foreach ($tables as $table) {
