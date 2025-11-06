@@ -48,6 +48,19 @@ function refreshMTables(): void
             echo "  ✓ Dropped $table\n";
         }
         
+        // Remove migration record for master tables creation so it will be re-run
+        // This allows migrate --force to recreate the m_ tables
+        $masterTablesMigration = '2025_01_01_000000_create_master_tables';
+        $deleted = DB::table('migrations')
+            ->where('migration', $masterTablesMigration)
+            ->delete();
+        
+        if ($deleted > 0) {
+            echo "  ✓ Removed migration record for {$masterTablesMigration} (will be re-run)\n";
+        } else {
+            echo "  ⚠️  Migration record for {$masterTablesMigration} not found (may not exist yet)\n";
+        }
+        
         echo "\n✅ All m_ tables dropped successfully.\n";
     } finally {
         // Re-enable foreign key checks
