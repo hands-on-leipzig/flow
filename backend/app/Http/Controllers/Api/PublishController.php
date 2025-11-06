@@ -201,6 +201,15 @@ class PublishController extends Controller
         // Log::info('DrahtController::show() data', $drahtData);
 
 
+        // Get color information from m_first_program table
+        $exploreColor = DB::table('m_first_program')
+            ->where('name', 'EXPLORE')
+            ->value('color_hex') ?? '00A651'; // Default green if not found
+        
+        $challengeColor = DB::table('m_first_program')
+            ->where('name', 'CHALLENGE')
+            ->value('color_hex') ?? 'ED1C24'; // Default red if not found
+
         // JSON bauen
         $data = [
             'event_id' => $eventId,
@@ -213,6 +222,7 @@ class PublishController extends Controller
                 'explore' => [
                     'capacity'   => $drahtData['capacity_explore'] ?? 0,
                     'registered' => count($drahtData['teams_explore'] ?? []),
+                    'color_hex' => $exploreColor,
                     'list'       => $level >= 1 ? array_map(function($team) {
                         return [
                             'team_number_hot' => $team['team_number_hot'] ?? null,
@@ -225,6 +235,7 @@ class PublishController extends Controller
                 'challenge' => [
                     'capacity'   => $drahtData['capacity_challenge'] ?? 0,
                     'registered' => count($drahtData['teams_challenge'] ?? []),
+                    'color_hex' => $challengeColor,
                     'list'       => $level >= 1 ? array_map(function($team) {
                         return [
                             'team_number_hot' => $team['team_number_hot'] ?? null,

@@ -17,15 +17,40 @@ class MainDataSeeder extends Seeder
         
         // Load data from JSON export file (in repo at database/exports/)
         $exportFilePath = database_path('exports/main-tables-latest.json');
+        
+        // Better error reporting
         if (!file_exists($exportFilePath)) {
+            $absolutePath = base_path('database/exports/main-tables-latest.json');
+            $checkPath = __DIR__ . '/../exports/main-tables-latest.json';
+            
+            $this->command->error("Export file not found at: {$exportFilePath}");
+            $this->command->error("Checked absolute path: {$absolutePath} (exists: " . (file_exists($absolutePath) ? 'yes' : 'no') . ")");
+            $this->command->error("Checked relative path: {$checkPath} (exists: " . (file_exists($checkPath) ? 'yes' : 'no') . ")");
+            
+            // List directory contents for debugging
+            $exportsDir = database_path('exports');
+            if (is_dir($exportsDir)) {
+                $files = scandir($exportsDir);
+                $this->command->error("Files in database/exports/: " . implode(', ', array_filter($files, fn($f) => $f !== '.' && $f !== '..')));
+            } else {
+                $this->command->error("Directory database/exports/ does not exist");
+            }
+            
             throw new \Exception("Export file not found: {$exportFilePath}. Please ensure main-tables-latest.json exists in database/exports/.");
         }
         
         $content = file_get_contents($exportFilePath);
+        if ($content === false) {
+            throw new \Exception("Failed to read export file: {$exportFilePath}");
+        }
+        
         $exportData = json_decode($content, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception("Invalid JSON in export file: " . json_last_error_msg());
+        }
         
         if (!$exportData || !isset($exportData['_metadata'])) {
-            throw new \Exception('Invalid export file format');
+            throw new \Exception('Invalid export file format - missing _metadata. File size: ' . filesize($exportFilePath) . ' bytes');
         }
         
         // Get table list from metadata (dynamic - tables can be added/removed in dev)

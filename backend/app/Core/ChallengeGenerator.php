@@ -527,31 +527,19 @@ class ChallengeGenerator
             // 2 followed by robot game finals
             // 3 awards
             //
-            // 1 and 2 may be flipped
-
-            // -----------------------------------------------------------------------------------
-            // FLL Challenge: Research presentations on stage
-            // -----------------------------------------------------------------------------------
-            // Organizer may chose not to show any presentations.
-            // They can also decide to show them at the end
+            // Presentations can be inserted at various points:
+            // - After round 3 (normal robot game rounds)
+            // - After quarter final (8 teams)
+            // - After semi final (4 teams)
+            // - After final (2 teams)
 
             // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
             $this->rTime->set($this->cTime->current());
 
-            if ($this->pp('c_presentations') == 0 || $this->pp('c_presentations_last')) {
-
-                // Break for referees and time to annouce advancing teams
-                $this->rTime->addMinutes($this->pp('r_duration_break'));
-
-            } else {
-
-                // Research presentations on stage
-                $this->rTime->addMinutes($this->pp('c_ready_presentations'));
-
-                // Nutzt den existierenden ChallengeGenerator
-                $this->presentations();
-                // ChallengeGenerator verschiebt $rTime intern bereits um die Dauer
-            }
+            // -----------------------------------------------------------------------------------
+            // After round 3 (before finals start)
+            // -----------------------------------------------------------------------------------
+            $this->handleTimingPoint(1, 'c_after_rg_3', 'r_duration_results');
 
             // -----------------------------------------------------------------------------------
             /// Robot-game final rounds
@@ -560,30 +548,24 @@ class ChallengeGenerator
             // Round of best 16 (optional, only for finale events)
             if ($this->pp('g_finale') && $this->pp('r_final_16')) {
                 $this->matchPlan->insertFinalRound(16);
+                // Note: No timing point after 16, it's handled by the 8-team round
             }
 
             // Round of best 8 (optional, auto-enabled if r_final_16 is active)
             if ($this->pp('r_final_8') || $this->pp('r_final_16')) {
-                $this->matchPlan->insertFinalRound(8);
+                $this->matchPlan->insertFinalRound(8, true); // Skip insertPoint, handle in handleTimingPoint
             }
+            // Handle timing point after QF (even if QF doesn't exist, if presentations are scheduled there)
+            $this->handleTimingPoint(2, 'c_after_final_8', 'r_duration_results');
 
             // Semi finale is a must
-            $this->matchPlan->insertFinalRound(4);
+            $this->matchPlan->insertFinalRound(4, true); // Skip insertPoint, handle in handleTimingPoint
+            $this->handleTimingPoint(3, 'c_after_final_4', 'r_duration_results');
 
             // Final matches
-            $this->matchPlan->insertFinalRound(2);
+            $this->matchPlan->insertFinalRound(2, true); // Skip insertPoint, handle in handleTimingPoint
+            $this->handleTimingPoint(4, 'c_after_final_2', 'c_ready_awards');
 
-            // -----------------------------------------------------------------------------------
-            // FLL Challenge: Research presentations on stage
-            // -----------------------------------------------------------------------------------
-            if ($this->pp('c_presentations') > 0 && $this->pp('c_presentations_last')) {
-                // Research presentations on stage
-                $this->rTime->addMinutes($this->pp('c_ready_presentations'));
-
-                $this->presentations();
-            }
-
-    
             // back to only one action a time
             $this->cTime->set($this->rTime->current());
 
@@ -601,6 +583,30 @@ class ChallengeGenerator
             throw new \RuntimeException("Fehler beim Generieren der Robot-Game-Finals: {$e->getMessage()}", 0, $e);
         }
     }
+
+    /**
+     * Handle timing point logic: presentations OR extra_block OR break
+     * 
+     * @param int $when Timing point (1=after round 3, 2=after QF, 3=after SF, 4=after F)
+     * @param string $insertPointCode Code for the insert point (for extra_block lookup)
+     * @param string $durationParam Parameter name for default duration (break)
+     */
+    private function handleTimingPoint(int $when, string $insertPointCode, string $durationParam): void
+    {
+        $presentationWhen = (int) $this->pp('c_presentations_when');
+        $presentationsCount = (int) $this->pp('c_presentations');
+
+        // If presentations are scheduled for this timing point
+        if ($presentationsCount > 0 && $presentationWhen === $when) {
+            // Insert presentations, skip extra_block, no break
+            $this->rTime->addMinutes($this->pp('c_ready_presentations'));
+            $this->presentations();
+            // presentations() already handles time advancement
+        } else {
+            // Normal logic: extra_block OR break via insertPoint
+            $this->writer->insertPoint($insertPointCode, $this->pp($durationParam), $this->rTime);
+        }
+    }
     
     public function presentations(): void
     {
@@ -612,11 +618,13 @@ class ChallengeGenerator
 
         $this->rTime->addMinutes($duration);
 
-        $insertPoint = $this->pp('c_presentations_last')
-            ? 'c_ready_awards'
-            : 'c_ready_presentations';
+        // Insert point after presentations - use appropriate duration based on when they occur
+        $presentationWhen = (int) $this->pp('c_presentations_when');
+        $insertPointDuration = ($presentationWhen === 4) 
+            ? $this->pp('c_ready_awards') 
+            : $this->pp('c_ready_presentations');
 
-        $this->writer->insertPoint('c_after_presentations', $this->pp($insertPoint), $this->rTime);
+        $this->writer->insertPoint('c_after_presentations', $insertPointDuration, $this->rTime);
     }
 
 

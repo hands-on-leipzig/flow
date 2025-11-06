@@ -209,23 +209,50 @@ class PlanGeneratorService
 
     public function generateLite(int $planId): void
     {
-        // Schritt 1: Alle activity_groups finden mit passenden activity_type_detail-Codes
-        $groupIds = DB::table('activity_group AS ag')
-            ->join('m_activity_type_detail AS atd', 'ag.activity_type_detail', '=', 'atd.id')
-            ->where('ag.plan', $planId)
-            ->whereIn('atd.code', ['c_free_block', 'e_free_block', 'g_free_block'])
-            ->pluck('ag.id');
+        try {
+            // Set generator status to RUNNING (so frontend can track state)
+            DB::table('plan')->where('id', $planId)->update([
+                'generator_status' => GeneratorStatus::RUNNING->value,
+            ]);
 
-        // Schritt 2: Löschen – Activities hängen per FK dran und gehen mit weg
-        if ($groupIds->isNotEmpty()) {
-            DB::table('activity_group')
-                ->whereIn('id', $groupIds)
-                ->delete();
+            // Schritt 1: Alle activity_groups finden mit passenden activity_type_detail-Codes
+            $groupIds = DB::table('activity_group AS ag')
+                ->join('m_activity_type_detail AS atd', 'ag.activity_type_detail', '=', 'atd.id')
+                ->where('ag.plan', $planId)
+                ->whereIn('atd.code', ['c_free_block', 'e_free_block', 'g_free_block'])
+                ->pluck('ag.id');
+
+            // Schritt 2: Löschen – Activities hängen per FK dran und gehen mit weg
+            if ($groupIds->isNotEmpty()) {
+                DB::table('activity_group')
+                    ->whereIn('id', $groupIds)
+                    ->delete();
+            }
+
+            // Schritt 3: Neue FreeActivities einsetzen
+            $writer = new \App\Core\ActivityWriter($planId);
+            $params = \App\Support\PlanParameter::load($planId);
+            (new \App\Core\FreeBlockGenerator($writer, $params))->insertFreeActivities();
+
+            // Set generator status to DONE
+            // Note: finalize() also updates s_generator table, but lite generation doesn't create an entry
+            // So we only update the plan table status
+            DB::table('plan')->where('id', $planId)->update([
+                'generator_status' => GeneratorStatus::DONE->value,
+                'last_change'      => Carbon::now(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Fehler bei der Lite-Generierung des Plans', [
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            // Set generator status to FAILED
+            DB::table('plan')->where('id', $planId)->update([
+                'generator_status' => GeneratorStatus::FAILED->value,
+                'last_change'      => Carbon::now(),
+            ]);
+            throw $e;
         }
-
-        // Schritt 3: Neue FreeActivities einsetzen
-        $writer = new \App\Core\ActivityWriter($planId);
-        $params = \App\Support\PlanParameter::load($planId);
-        (new \App\Core\FreeBlockGenerator($writer, $params))->insertFreeActivities();
 }
 }

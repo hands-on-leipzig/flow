@@ -88,7 +88,22 @@ class FreeBlockGenerator
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Fehler beim Einfügen der freien Aktivitäten (Plan-ID: {$this->planId}): {$e->getMessage()}", 0, $e);
+            
+            // Provide more specific error messages based on exception type
+            $message = "Fehler beim Einfügen der freien Aktivitäten";
+            if (str_contains($e->getMessage(), "Parameter '")) {
+                $message = "Ungültiger Parameterwert in freien Blöcken";
+            } elseif (str_contains($e->getMessage(), "not found") || str_contains($e->getMessage(), "existiert nicht")) {
+                $message = "Fehlende Daten für freie Blöcke";
+            } elseif (str_contains($e->getMessage(), "activity_type_detail")) {
+                $message = "Fehler bei der Aktivitätstyp-Zuordnung";
+            } elseif ($e instanceof \RuntimeException) {
+                $message = $e->getMessage();
+            } else {
+                $message .= ": {$e->getMessage()}";
+            }
+            
+            throw new \RuntimeException($message, 0, $e);
         }
     }
 }

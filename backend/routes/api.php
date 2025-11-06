@@ -48,6 +48,8 @@ Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actio
 Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
+Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
+Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
 
 // Draht API Simulator (for test environment)
 if (app()->environment('local', 'staging')) {
@@ -242,6 +244,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/available-team-programs/{eventId}', [PlanExportController::class, 'availableTeamPrograms']);
         Route::get('/event-overview/{planId}', [PlanExportController::class, 'eventOverviewPdf']);
         Route::get('/worker-shifts/{eventId}', [PlanExportController::class, 'workerShifts']);
+        Route::get('/csv/room-utilization/{eventId}', [PlanExportController::class, 'roomUtilizationCsv']);
     });
 
 

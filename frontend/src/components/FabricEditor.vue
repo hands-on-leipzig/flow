@@ -52,7 +52,6 @@ const standardImages = [
   {title: 'First LEGO League', url: imageUrl('flow/first+fll_v.png')},
   {title: 'First', url: imageUrl('flow/first_h.png')},
   {title: 'First', url: imageUrl('flow/first_v.png')},
-  {title: 'First', url: imageUrl('flow/first_v.png')},
   {title: 'FLl Challenge', url: imageUrl('flow/fll_challenge_h.png')},
   {title: 'FLl Challenge', url: imageUrl('flow/fll_challenge_v.png')},
   {title: 'FLl Explore', url: imageUrl('flow/fll_explore_h.png')},

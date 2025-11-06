@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref} from 'vue'
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import ParameterField from "@/components/molecules/ParameterField.vue"
 import {useEventStore} from '@/stores/event'
@@ -17,6 +17,8 @@ import {Parameter, ParameterCondition} from "@/models/Parameter"
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import TeamSelectionExample from "@/components/molecules/TeamSelectionExample.vue";
 import SavingToast from "@/components/atoms/SavingToast.vue";
+import { useDebouncedSave } from "@/composables/useDebouncedSave";
+import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";
 
 const eventStore = useEventStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
@@ -93,8 +95,7 @@ const disabledMap = computed<Record<number, boolean>>(() => {
   return map
 })
 
-// zusätzlich zur Parameterliste
-const originalValues = ref<Record<string, any>>({})
+// Note: originalValues is managed by useDebouncedSave composable (single source of truth)
 
 const fetchParams = async (planId: number) => {
   if (!planId) return
@@ -106,10 +107,10 @@ const fetchParams = async (planId: number) => {
     parameters.value = Array.isArray(rawParams) ? rawParams : []
     displayConditions.value = Array.isArray(conditions) ? conditions : []
 
-    // Hier Originalwerte ablegen
-    originalValues.value = Object.fromEntries(
+    // Set original values in composable (single source of truth)
+    setOriginals(Object.fromEntries(
         parameters.value.map(p => [p.name, p.value])
-    )
+    ))
 
     // Initial toggle states based on params
     showExplore.value = Number(paramMapByName.value['e_mode']?.value || 0) > 0
@@ -181,15 +182,47 @@ function updateByName(name: string, value: any) {
   updateParam(p)
 }
 
-// Batch parameter update system
-const pendingParamUpdates = ref<Record<string, any>>({})
-const paramUpdateTimeoutId = ref<NodeJS.Timeout | null>(null)
-const PARAM_DEBOUNCE_DELAY = 2000
-
-// Toast notification system
+// Toast notification system (legacy - can be removed)
 const showToast = ref(false)
 const progress = ref(100)
 const progressIntervalId = ref<NodeJS.Timeout | null>(null)
+
+// Generator state (must be declared before useDebouncedSave)
+const isGenerating = ref(false)
+const generatorError = ref<string | null>(null)
+const errorDetails = ref<string | null>(null)
+
+// Countdown state for SavingToast
+const countdownSeconds = ref<number | null>(null)
+
+// Debounced save system using composable
+const { scheduleUpdate, flush, immediateFlush, setOriginal, setOriginals, freeze, unfreeze } = useDebouncedSave({
+  delay: DEBOUNCE_DELAY,
+  isGenerating: () => isGenerating.value,
+  onShowToast: (countdown, onImmediateSave) => {
+    countdownSeconds.value = countdown
+  },
+  onHideToast: () => {
+    countdownSeconds.value = null
+  },
+  onCountdownUpdate: (seconds) => {
+    countdownSeconds.value = seconds
+  },
+  changeDetection: (key, newValue, oldValue) => {
+    // String comparison for stable detection
+    const oldVal = String(oldValue ?? '')
+    const newVal = String(newValue ?? '')
+    return oldVal !== newVal
+  },
+  onSave: async (updates) => {
+    // Convert updates to the format expected by updateParams
+    const updateArray = Object.entries(updates).map(([name, value]) => ({name, value}))
+    await updateParams(updateArray)
+  }
+})
+
+// Note: Generator state freeze/unfreeze is handled automatically by useDebouncedSave
+// via the isGenerating() callback in startCountdown() - no manual watcher needed
 
 // Handle parameter updates from child components
 function handleParamUpdate(param: { name: string, value: any }) {
@@ -199,81 +232,32 @@ function handleParamUpdate(param: { name: string, value: any }) {
     return
   }
 
-  // Normalisieren für stabilen Vergleich
-  const oldVal = String(originalValues.value[param.name] ?? '')
-  const newVal = String(param.value ?? '')
-
-  if (oldVal === newVal) {
-    console.log(`No change for ${param.name}, skipping update`)
-    return
-  }
-
-  console.log(`Param change detected → ${param.name}: ${oldVal} → ${newVal}`)
-
-  // Update local state immediately
+  // Update local state immediately for UI responsiveness
   p.value = param.value
 
-  // Add to pending updates
-  pendingParamUpdates.value[param.name] = param.value
-
-  savingToast?.value?.show()
-
-  // Clear existing timeout
-  if (paramUpdateTimeoutId.value) {
-    clearTimeout(paramUpdateTimeoutId.value)
-  }
-
-  // Schedule batch update
-  paramUpdateTimeoutId.value = setTimeout(() => {
-    flushParamUpdates()
-  }, PARAM_DEBOUNCE_DELAY)
+  // Schedule update - composable handles change detection
+  scheduleUpdate(param.name, param.value)
 }
 
+// Ref to InsertBlocks component
+const insertBlocksRef = ref<InstanceType<typeof InsertBlocks> | null>(null)
+
 // Handle block updates from InsertBlocks component
-function handleBlockUpdates(updates: Array<{ name: string, value: any }>) {
+function handleBlockUpdates(updates: Array<{ name: string, value: any, triggerGenerator?: boolean }>) {
   console.log('Received block updates:', updates)
 
-  // Add all block updates to pending parameter updates with proper prefix
+  // Add all block updates using composable (triggers debounce)
   updates.forEach(update => {
     // Convert "28_buffer_after" to "block_28_buffer_after" for updateParams compatibility
     const prefixedName = update.name.startsWith('block_') ? update.name : `block_${update.name}`
-    pendingParamUpdates.value[prefixedName] = update.value
+    scheduleUpdate(prefixedName, update.value)
   })
-
-  savingToast?.value?.show()
-
-  // Clear existing timeout
-  if (paramUpdateTimeoutId.value) {
-    clearTimeout(paramUpdateTimeoutId.value)
-  }
-
-  // Schedule batch update
-  paramUpdateTimeoutId.value = setTimeout(() => {
-    flushParamUpdates()
-  }, PARAM_DEBOUNCE_DELAY)
 }
 
 // Force immediate update of all pending parameter changes
 function flushParamUpdates() {
-  if (paramUpdateTimeoutId.value) {
-    clearTimeout(paramUpdateTimeoutId.value)
-    paramUpdateTimeoutId.value = null
-  }
-
-  savingToast?.value?.hide()
-
-  if (Object.keys(pendingParamUpdates.value).length > 0) {
-    const updates = {...pendingParamUpdates.value}
-    pendingParamUpdates.value = {}
-
-    updateParams(Object.entries(updates).map(([name, value]) => ({name, value})))
-  }
+  flush()
 }
-
-// Cleanup on unmount
-onUnmounted(() => {
-  flushParamUpdates()
-})
 
 function normalizeValue(value: any, type: string | undefined) {
   if (type === 'boolean') {
@@ -290,9 +274,14 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
   loading.value = true
   let needsRegeneration = false
 
-  // Separate parameter updates from block updates
+  // Separate parameter updates from block generator triggers
   const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
-  const blockUpdates = params.filter(p => p.name.startsWith('block_'))
+  const blockGeneratorTriggers = params.filter(p => p.name.startsWith('block_'))
+
+  // Set generating state early for immediate user feedback (before block saves)
+  if (blockGeneratorTriggers.length > 0) {
+    isGenerating.value = true
+  }
 
   try {
 
@@ -308,68 +297,19 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
         })
       })
 
-      // Nach erfolgreichem Speichern: originalValues anpassen
-      params.forEach(({name, value}) => {
-        originalValues.value[name] = value
+      // Update original values in composable after successful save (single source of truth)
+      paramUpdates.forEach(({name, value}) => {
+        setOriginal(name, value)
       })
     }
 
-    // 2. Save block updates
-    if (blockUpdates.length > 0) {
-      const updatesByBlock: Record<string, Record<string, any>> = {}
-      const newBlocks: Record<string, any> = {}
-
-      // detect new blocks (from toggle ON)
-      blockUpdates.forEach(({name, value}) => {
-        if (name.startsWith('block_new_')) {
-          const pointId = name.split('_')[2]
-          newBlocks[pointId] = value
-        }
-      })
-
-      // detect existing block updates
-      blockUpdates.forEach(({name, value}) => {
-        // Parse: "block_31_buffer_after" -> blockId="31", field="buffer_after"
-        const parts = name.split('_')
-        if (parts.length >= 3) {
-          const blockId = parts[1] // "31"
-          const field = parts.slice(2).join('_') // "buffer_after"
-          if (!updatesByBlock[blockId]) updatesByBlock[blockId] = {}
-          updatesByBlock[blockId][field] = value
-        }
-      })
-
-      // --- Save existing blocks ---
-      for (const [blockId, updates] of Object.entries(updatesByBlock)) {
-        const block = {id: parseInt(blockId), ...updates}
-
-        console.log('Sending block to API:', block)
-
-        // classify change type
-        const timingFields = ['start', 'end', 'buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
-        const toggleFields = ['active']
-        const hasTimingChanges = Object.keys(updates).some(field => timingFields.includes(field))
-        const hasToggleChange = Object.keys(updates).some(field => toggleFields.includes(field))
-
-        // Generator immer bei Toggle oder Timing-Änderung
-        if (hasTimingChanges || hasToggleChange) {
-          needsRegeneration = true
-        } else {
-          block.skip_regeneration = true
-        }
-
-        await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, block)
-      }
-
-      // --- Save new blocks (toggle ON) ---
-      for (const [pointId, blockData] of Object.entries(newBlocks)) {
-        console.log('Creating new block for insert_point', pointId, blockData)
-        await axios.post(`/plans/${selectedPlanId.value}/extra-blocks`, blockData)
-        needsRegeneration = true // always regenerate after new block
-      }
+    // 2. Save all enabled blocks to DB (when countdown triggers)
+    if (blockGeneratorTriggers.length > 0 && insertBlocksRef.value) {
+      await insertBlocksRef.value.saveAllEnabledBlocks()
+      needsRegeneration = true
     }
   } catch (error) {
-    console.error('Error saving parameters/blocks:', error)
+    console.error('Error saving parameters:', error)
     loading.value = false
     return
   }
@@ -386,14 +326,9 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 
 
   } else {
-    console.log('Skipping regeneration - only non-timing extra block fields changed')
     if (afterUpdate) await afterUpdate()
   }
 }
-
-const isGenerating = ref(false)
-const generatorError = ref<string | null>(null)
-const errorDetails = ref<string | null>(null)
 
 async function runGeneratorOnce() {
   if (!selectedPlanId.value) return
@@ -448,6 +383,8 @@ async function runGeneratorOnce() {
     errorDetails.value = details
   } finally {
     isGenerating.value = false
+    // Unfreeze countdown if there are pending changes
+    unfreeze()
   }
 }
 
@@ -588,9 +525,13 @@ const updateTableName = async () => {
 </script>
 
 <template>
-  <SavingToast ref="savingToast" message="Parameter-Änderungen werden gespeichert..."/>
-
   <div class="h-screen p-6 flex flex-col space-y-5">
+    <SavingToast 
+      ref="savingToast" 
+      :is-generating="isGenerating"
+      :countdown="countdownSeconds"
+      :on-immediate-save="immediateFlush"
+    />
 
     <div v-if="false" class="flex items-center space-x-4">
       <label for="plan-select" class="text-sm font-medium">Plan auswählen:</label>
@@ -810,6 +751,7 @@ const updateTableName = async () => {
       <transition name="fade">
         <div v-if="openGroup === 'extras'" class="p-4">
           <InsertBlocks
+              ref="insertBlocksRef"
               :plan-id="selectedPlanId as number"
               :event-level="selectedEvent?.level ?? null"
               :on-update="handleBlockUpdates"

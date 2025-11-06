@@ -165,11 +165,29 @@ jobs:
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear
-            # Drop and recreate database for fresh test environment
-            php artisan migrate:fresh --force
+            # Verify JSON export file exists before migration
+            if [ ! -f "database/exports/main-tables-latest.json" ]; then
+              echo "ERROR: main-tables-latest.json not found in database/exports/"
+              echo "Listing database/exports/ contents:"
+              ls -la database/exports/ || echo "database/exports/ directory does not exist"
+              exit 1
+            fi
+            # Drop only m_ tables (master tables), preserve other data
+            echo "Dropping m_ tables..."
+            php artisan tinker --execute="include 'database/scripts/refresh_m_tables.php'; refreshMTables();"
+            # Run migrations to recreate m_ tables and update other tables
+            php artisan migrate --force
             php artisan storage:link
             # Populate master data (m_ tables) from seeder file
-            php artisan db:seed --class=MainDataSeeder --force
+            echo "Running MainDataSeeder..."
+            php artisan db:seed --class=MainDataSeeder --force || {
+              echo "ERROR: MainDataSeeder failed"
+              echo "Checking if JSON file exists:"
+              ls -la database/exports/main-tables-latest.json
+              echo "Checking JSON file content (first 100 chars):"
+              head -c 100 database/exports/main-tables-latest.json
+              exit 1
+            }
 
   deploy-production:
     if: github.ref == 'refs/heads/production'
@@ -249,9 +267,25 @@ jobs:
             php artisan config:clear
             php artisan route:clear
             php artisan view:clear
+            # Verify JSON export file exists before migration
+            if [ ! -f "database/exports/main-tables-latest.json" ]; then
+              echo "ERROR: main-tables-latest.json not found in database/exports/"
+              echo "Listing database/exports/ contents:"
+              ls -la database/exports/ || echo "database/exports/ directory does not exist"
+              exit 1
+            fi
+            # Drop only m_ tables (master tables), preserve other data
+            echo "Dropping m_ tables..."
+            php artisan tinker --execute="include 'database/scripts/refresh_m_tables.php'; refreshMTables();"
+            # Run migrations to recreate m_ tables and update other tables
             php artisan migrate --force
             php artisan storage:link
             # Populate master data (m_ tables) from seeder file
-            php artisan db:seed --class=MainDataSeeder --force
-            # Refresh main tables after migration
-            php artisan tinker --execute="include 'database/scripts/refresh_main_tables.php'; refreshMainTables();"
+            php artisan db:seed --class=MainDataSeeder --force || {
+              echo "ERROR: MainDataSeeder failed"
+              echo "Checking if JSON file exists:"
+              ls -la database/exports/main-tables-latest.json
+              echo "Checking JSON file content (first 100 chars):"
+              head -c 100 database/exports/main-tables-latest.json
+              exit 1
+            }
