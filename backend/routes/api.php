@@ -62,6 +62,15 @@ Route::prefix('contao')->group(function () {
 });
 
 Route::middleware(['keycloak'])->group(function () {
+    Route::get('/environment', function () {
+        return response()->json([
+            'environment' => app()->environment(),
+            'is_dev' => app()->environment('local'),
+            'is_test' => app()->environment('staging', 'testing'),
+            'is_prod' => app()->environment('production')
+        ]);
+    });
+    
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/selected-event', function (Request $request) {
         $eventId = $request->user()?->selection_event;
