@@ -232,6 +232,18 @@ const isContentVisible = (level) => {
   return scheduleInfo.value.level >= level
 }
 
+// Get color from database for Explore teams
+const exploreColor = computed(() => {
+  if (!scheduleInfo.value?.teams?.explore?.color_hex) return '#00A651' // Default green
+  return `#${scheduleInfo.value.teams.explore.color_hex}`
+})
+
+// Get color from database for Challenge teams
+const challengeColor = computed(() => {
+  if (!scheduleInfo.value?.teams?.challenge?.color_hex) return '#ED1C24' // Default red
+  return `#${scheduleInfo.value.teams.challenge.color_hex}`
+})
+
 // Navigate to home
 const goHome = () => {
   router.push('/')
@@ -569,8 +581,8 @@ onBeforeUnmount(() => {
           </h1>
           <div class="flex justify-center items-center gap-4 mt-6">
             <div class="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-full px-6 py-2">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-12 h-12 drop-shadow-lg"/>
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-12 h-12 drop-shadow-lg"/>
+              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-12 h-12 drop-shadow-lg"/>
+              <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="w-12 h-12 drop-shadow-lg"/>
             </div>
           </div>
         </div>
@@ -603,9 +615,9 @@ onBeforeUnmount(() => {
       <iframe
           :src="`/output/zeitplan.cgi?plan=${publicPlanId}`"
           class="flex-1 border-0"
-          style="margin: 0; padding: 0; border: none; width: 100%;"
           frameborder="0"
           scrolling="auto"
+          style="margin: 0; padding: 0; border: none; width: 100%;"
       ></iframe>
       <!-- Event Logos Footer for Level 4 -->
       <div v-if="eventLogos.length > 0" class="bg-white border-t border-gray-200 py-4 px-4">
@@ -614,13 +626,13 @@ onBeforeUnmount(() => {
               v-for="logo in eventLogos"
               :key="logo.id"
               :href="logo.link || '#'"
-              :target="logo.link ? '_blank' : '_self'"
               :rel="logo.link ? 'noopener noreferrer' : ''"
+              :target="logo.link ? '_blank' : '_self'"
               class="flex items-center justify-center hover:opacity-80 transition-opacity"
           >
             <img
-                :src="logo.url"
                 :alt="logo.title || 'Logo'"
+                :src="logo.url"
                 class="h-12 max-w-32 object-contain"
             />
           </a>
@@ -645,22 +657,21 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Level 2 & 3: Times on Timeline -->
-      <div v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
-           class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8">
+      <div class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8">
         <h2 class="text-2xl font-bold text-[#F78B1F] mb-6 flex items-center gap-2">
-          <span class="text-3xl">⏰</span>
-          Veranstaltungszeiten
+          Zeitplan
         </h2>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
+             class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Explore: Timeline -->
           <div v-if="scheduleInfo.plan.explore && getExploreTimelineItems().length > 0"
                class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl p-6 border-2 border-green-300 shadow-lg flex flex-col">
             <h3 class="font-bold text-green-800 mb-6 text-lg flex items-center gap-2">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-6 h-6"/>
+              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
               FIRST LEGO League Explore
             </h3>
-            <div class="relative flex-1" :style="{ minHeight: timelineMinHeight }">
+            <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
               <!-- Timeline line -->
               <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
 
@@ -669,12 +680,13 @@ onBeforeUnmount(() => {
                 <div
                     v-for="(item, index) in getExploreTimelineItems()"
                     :key="index"
-                    class="relative pl-12"
                     :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getExploreTimelineItems().length - 1 ? '0' : 'auto' }"
+                    class="relative pl-12"
                 >
                   <!-- Timeline dot -->
-                  <div class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md"
-                       :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'">
+                  <div
+                      :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
+                      class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
                   </div>
 
                   <!-- Timeline content -->
@@ -694,10 +706,10 @@ onBeforeUnmount(() => {
           <div v-if="scheduleInfo.plan.challenge && getChallengeTimelineItems().length > 0"
                class="bg-gradient-to-br from-red-100 to-pink-100 rounded-xl p-6 border-2 border-red-300 shadow-lg flex flex-col">
             <h3 class="font-bold text-red-800 mb-6 text-lg flex items-center gap-2">
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-6 h-6"/>
+              <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="w-6 h-6"/>
               FIRST LEGO League Challenge
             </h3>
-            <div class="relative flex-1" :style="{ minHeight: timelineMinHeight }">
+            <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
               <!-- Timeline line -->
               <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-red-400"></div>
 
@@ -706,12 +718,13 @@ onBeforeUnmount(() => {
                 <div
                     v-for="(item, index) in getChallengeTimelineItems()"
                     :key="index"
-                    class="relative pl-12"
                     :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getChallengeTimelineItems().length - 1 ? '0' : 'auto' }"
+                    class="relative pl-12"
                 >
                   <!-- Timeline dot -->
-                  <div class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-red-600 bg-white shadow-md"
-                       :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'">
+                  <div
+                      :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
+                      class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-red-600 bg-white shadow-md">
                   </div>
 
                   <!-- Timeline content -->
@@ -727,14 +740,19 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </div>
+
+        <div v-else>
+          <p>Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht, wirst du ihn hier
+            sehen können. Bitte kontaktiere sie direkt, um weitere
+            Informationen zu erhalten.</p>
+        </div>
       </div>
 
       <!-- Level 1: Basic Event Information -->
       <div v-if="isContentVisible(1) && scheduleInfo"
            class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8 transform hover:shadow-2xl transition-shadow">
         <h2 class="text-2xl font-bold text-[#F78B1F] mb-6 flex items-center gap-2">
-          <span class="text-3xl">📅</span>
-          Veranstaltungsinformationen
+          Allgemeine Infos
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div class="bg-orange-50 rounded-xl p-5 border-2 border-[#F78B1F]/20">
@@ -754,20 +772,22 @@ onBeforeUnmount(() => {
               <div v-if="!mapCoordinates" class="w-full h-full flex items-center justify-center bg-gray-100">
                 <p class="text-gray-500 text-sm">Karte wird geladen...</p>
               </div>
-              <div :id="'map-' + event.id" v-else class="w-full h-full"></div>
+              <div v-else :id="'map-' + event.id" class="w-full h-full"></div>
 
               <!-- Map Options Menu Button (inside map container, upper right corner) -->
               <div v-if="mapCoordinates" class="absolute top-2 right-2 z-[1000]">
                 <div class="relative">
                   <button
                       ref="mapMenuButton"
-                      @click="showMapMenu = !showMapMenu"
                       class="bg-white hover:bg-gray-50 rounded-lg shadow-lg p-2 border border-gray-200 flex items-center gap-2 transition-colors"
                       title="Karten-Optionen"
+                      @click="showMapMenu = !showMapMenu"
                   >
                     <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                      <path
+                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                          stroke-linecap="round" stroke-linejoin="round"
+                          stroke-width="2"/>
                     </svg>
                   </button>
                 </div>
@@ -778,17 +798,17 @@ onBeforeUnmount(() => {
             <Teleport to="body">
               <div
                   v-if="showMapMenu && mapCoordinates && mapMenuButton"
-                  data-map-menu
                   :style="getMenuPosition()"
                   class="fixed w-64 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[9999]"
+                  data-map-menu
               >
                 <div class="py-1">
                   <!-- Open in Google Maps -->
                   <button
-                      @click="openInGoogleMaps"
                       class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                      @click="openInGoogleMaps"
                   >
-                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                       <path
                           d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                     </svg>
@@ -798,10 +818,10 @@ onBeforeUnmount(() => {
                   <!-- Open in Apple Maps -->
                   <button
                       v-if="isAppleDevice"
-                      @click="openInAppleMaps"
                       class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                      @click="openInAppleMaps"
                   >
-                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                       <path
                           d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                     </svg>
@@ -810,10 +830,10 @@ onBeforeUnmount(() => {
 
                   <!-- Open in OpenStreetMap -->
                   <button
-                      @click="openInOpenStreetMap"
                       class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                      @click="openInOpenStreetMap"
                   >
-                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                       <path
                           d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                     </svg>
@@ -825,24 +845,28 @@ onBeforeUnmount(() => {
 
                   <!-- Copy Coordinates -->
                   <button
-                      @click="copyCoordinates"
                       class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                      @click="copyCoordinates"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                      <path
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          stroke-linecap="round" stroke-linejoin="round"
+                          stroke-width="2"/>
                     </svg>
                     <span>Koordinaten kopieren</span>
                   </button>
 
                   <!-- Copy Address -->
                   <button
-                      @click="copyAddress"
                       class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                      @click="copyAddress"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                      <path
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          stroke-linecap="round" stroke-linejoin="round"
+                          stroke-width="2"/>
                     </svg>
                     <span>Adresse kopieren</span>
                   </button>
@@ -850,24 +874,28 @@ onBeforeUnmount(() => {
                   <!-- Share Location -->
                   <button
                       v-if="canShare"
-                      @click="shareLocation"
                       class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                      @click="shareLocation"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+                      <path
+                          d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                          stroke-linecap="round" stroke-linejoin="round"
+                          stroke-width="2"/>
                     </svg>
                     <span>Teilen</span>
                   </button>
 
                   <!-- QR Code -->
                   <button
-                      @click="showMapMenu = false; showQRCode = true"
                       class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+                      @click="showMapMenu = false; showQRCode = true"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+                      <path
+                          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                          stroke-linecap="round" stroke-linejoin="round"
+                          stroke-width="2"/>
                     </svg>
                     <span>QR-Code anzeigen</span>
                   </button>
@@ -897,55 +925,53 @@ onBeforeUnmount(() => {
       <div v-if="isContentVisible(1) && scheduleInfo"
            class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8">
         <h2 class="text-2xl font-bold text-[#F78B1F] mb-8 flex items-center gap-2">
-          <span class="text-3xl">👥</span>
           Angemeldete Teams
         </h2>
 
-        <!-- Explore Teams -->
         <div v-if="scheduleInfo.teams.explore.list?.length" class="mb-10">
-          <div class="bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl p-4 mb-5 shadow-lg">
-            <div class="flex items-center justify-between">
-              <h3 class="font-bold text-white text-lg flex items-center gap-2">
-                <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-8 h-8 drop-shadow-lg"/>
-                FIRST LEGO League Explore
-              </h3>
-              <div v-if="scheduleInfo.teams.explore.capacity > 0"
-                   class="text-sm text-white font-semibold bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1">
-                <span class="font-bold text-lg">{{ scheduleInfo.teams.explore.registered }}</span>
-                von <span class="font-bold">{{ scheduleInfo.teams.explore.capacity }}</span> Plätzen
-              </div>
-            </div>
-          </div>
-          <div v-if="scheduleInfo.teams.explore.capacity > 0"
-               class="w-full bg-gray-200 rounded-full h-4 mb-6 shadow-inner">
-            <div
-                class="bg-gradient-to-r from-green-500 to-emerald-600 h-4 rounded-full shadow-lg transition-all duration-500"
-                :style="{ width: `${Math.min(100, (scheduleInfo.teams.explore.registered / scheduleInfo.teams.explore.capacity) * 100)}%` }"
-            ></div>
-          </div>
-          <div class="overflow-x-auto rounded-xl border-2 border-green-200 shadow-lg">
-            <table class="min-w-full divide-y divide-green-100">
-              <thead class="bg-gradient-to-r from-green-500 to-emerald-500">
+          <div
+              class="overflow-x-auto rounded-xl border-4 shadow-xl"
+              :style="{
+              borderColor: exploreColor,
+              boxShadow: `0 10px 15px -3px ${exploreColor}40, 0 4px 6px -2px ${exploreColor}20`
+            }"
+          >
+            <table class="w-full" style="table-layout: fixed;">
+              <colgroup>
+                <col style="width: 25%;">
+                <col style="width: 25%;">
+                <col style="width: 25%;">
+                <col style="width: 25%;">
+              </colgroup>
+              <thead>
               <tr>
-                <th class="w-16"></th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Team-Name</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Institution</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Ort</th>
+                <th colspan="4" class="px-4 py-4 text-right">
+                  <div class="flex items-center justify-end">
+                    <img :alt="programLogoAlt('E')" :src="imageUrl('/flow/FLL-RGB_Explore-horiz-full-color.png')"
+                         class="h-20 w-auto object-contain"/>
+                  </div>
+                </th>
               </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-green-50">
-              <tr v-for="team in scheduleInfo.teams.explore.list" :key="team.team_number_hot || team.name"
-                  class="hover:bg-green-50 transition-colors">
-                <td class="w-16 px-2 py-4 whitespace-nowrap text-sm font-bold text-green-700 text-right">
+              <tbody class="bg-white">
+              <tr v-for="(team, index) in scheduleInfo.teams.explore.list" :key="team.team_number_hot || team.name"
+                  :style="{ 
+                    borderTop: index > 0 ? '1px solid ' + exploreColor + '30' : 'none',
+                    '--hover-color': exploreColor + '15'
+                  }"
+                  class="hover:transition-colors"
+                  :class="`hover:bg-[var(--hover-color)]`">
+                <td class="px-4 py-4 whitespace-nowrap text-base font-bold text-right"
+                    :style="{ color: exploreColor }">
                   {{ team.team_number_hot || '-' }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <td class="px-4 py-4 whitespace-nowrap text-base font-medium text-gray-900">
                   {{ team.name }}
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-700">
+                <td class="px-4 py-4 text-base text-gray-700">
                   {{ team.organization || '-' }}
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-700">
+                <td class="px-4 py-4 text-base text-gray-700">
                   {{ team.location || '-' }}
                 </td>
               </tr>
@@ -954,51 +980,50 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Challenge Teams -->
         <div v-if="scheduleInfo.teams.challenge.list?.length">
-          <div class="bg-gradient-to-r from-red-400 to-pink-500 rounded-xl p-4 mb-5 shadow-lg">
-            <div class="flex items-center justify-between">
-              <h3 class="font-bold text-white text-lg flex items-center gap-2">
-                <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-8 h-8 drop-shadow-lg"/>
-                FIRST LEGO League Challenge
-              </h3>
-              <div v-if="scheduleInfo.teams.challenge.capacity > 0"
-                   class="text-sm text-white font-semibold bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1">
-                <span class="font-bold text-lg">{{ scheduleInfo.teams.challenge.registered }}</span>
-                von <span class="font-bold">{{ scheduleInfo.teams.challenge.capacity }}</span> Plätzen
-              </div>
-            </div>
-          </div>
-          <div v-if="scheduleInfo.teams.challenge.capacity > 0"
-               class="w-full bg-gray-200 rounded-full h-4 mb-6 shadow-inner">
-            <div
-                class="bg-gradient-to-r from-red-500 to-pink-600 h-4 rounded-full shadow-lg transition-all duration-500"
-                :style="{ width: `${Math.min(100, (scheduleInfo.teams.challenge.registered / scheduleInfo.teams.challenge.capacity) * 100)}%` }"
-            ></div>
-          </div>
-          <div class="overflow-x-auto rounded-xl border-2 border-red-200 shadow-lg">
-            <table class="min-w-full divide-y divide-red-100">
-              <thead class="bg-gradient-to-r from-red-500 to-pink-500">
+          <div
+              class="overflow-x-auto rounded-xl border-4 shadow-xl"
+              :style="{
+              borderColor: challengeColor,
+              boxShadow: `0 10px 15px -3px ${challengeColor}40, 0 4px 6px -2px ${challengeColor}20`
+            }"
+          >
+            <table class="w-full" style="table-layout: fixed;">
+              <colgroup>
+                <col style="width: 25%;">
+                <col style="width: 25%;">
+                <col style="width: 25%;">
+                <col style="width: 25%;">
+              </colgroup>
+              <thead>
               <tr>
-                <th class="w-16"></th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Team-Name</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Institution</th>
-                <th class="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Ort</th>
+                <th colspan="4" class="px-4 py-4 text-right">
+                  <div class="flex items-center justify-end">
+                    <img :alt="programLogoAlt('C')" :src="imageUrl('/flow/FLL-RGB_Challenge-horiz-full-color.png')"
+                         class="h-20 w-auto object-contain"/>
+                  </div>
+                </th>
               </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-red-50">
-              <tr v-for="team in scheduleInfo.teams.challenge.list" :key="team.team_number_hot || team.name"
-                  class="hover:bg-red-50 transition-colors">
-                <td class="w-16 px-2 py-4 whitespace-nowrap text-sm font-bold text-red-700 text-right">
+              <tbody class="bg-white">
+              <tr v-for="(team, index) in scheduleInfo.teams.challenge.list" :key="team.team_number_hot || team.name"
+                  :style="{ 
+                    borderTop: index > 0 ? '1px solid ' + challengeColor + '30' : 'none',
+                    '--hover-color': challengeColor + '15'
+                  }"
+                  class="hover:transition-colors"
+                  :class="`hover:bg-[var(--hover-color)]`">
+                <td class="px-4 py-4 whitespace-nowrap text-base font-bold text-right"
+                    :style="{ color: challengeColor }">
                   {{ team.team_number_hot || '-' }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <td class="px-4 py-4 whitespace-nowrap text-base font-medium text-gray-900">
                   {{ team.name }}
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-700">
+                <td class="px-4 py-4 text-base text-gray-700">
                   {{ team.organization || '-' }}
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-700">
+                <td class="px-4 py-4 text-base text-gray-700">
                   {{ team.location || '-' }}
                 </td>
               </tr>
@@ -1020,11 +1045,11 @@ onBeforeUnmount(() => {
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-lg font-semibold text-gray-900">QR-Code für Standort</h3>
           <button
-              @click="showQRCode = false"
               class="text-gray-400 hover:text-gray-600 transition-colors"
+              @click="showQRCode = false"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
             </svg>
           </button>
         </div>
@@ -1046,7 +1071,7 @@ onBeforeUnmount(() => {
         class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2"
     >
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
       </svg>
       <span>{{ copySuccessMessage }}</span>
     </div>
@@ -1060,13 +1085,13 @@ onBeforeUnmount(() => {
               v-for="logo in eventLogos"
               :key="logo.id"
               :href="logo.link || '#'"
-              :target="logo.link ? '_blank' : '_self'"
               :rel="logo.link ? 'noopener noreferrer' : ''"
+              :target="logo.link ? '_blank' : '_self'"
               class="flex items-center justify-center bg-white rounded-xl p-4 shadow-lg hover:shadow-xl hover:scale-110 transition-all transform"
           >
             <img
-                :src="logo.url"
                 :alt="logo.title || 'Logo'"
+                :src="logo.url"
                 class="h-14 max-w-36 object-contain"
             />
           </a>
