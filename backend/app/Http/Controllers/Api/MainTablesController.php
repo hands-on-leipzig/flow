@@ -16,22 +16,40 @@ class MainTablesController extends Controller
      */
     private function discoverMTables(): array
     {
-        $databaseName = DB::connection()->getDatabaseName();
-        $tables = DB::select("SHOW TABLES");
-        $tableKey = "Tables_in_{$databaseName}";
-        
-        $mTableNames = [];
-        foreach ($tables as $table) {
-            $tableName = $table->$tableKey;
-            if (str_starts_with($tableName, 'm_')) {
-                $mTableNames[] = $tableName;
+        try {
+            $databaseName = DB::connection()->getDatabaseName();
+            $tables = DB::select("SHOW TABLES");
+            $tableKey = "Tables_in_{$databaseName}";
+            
+            Log::info("Discovering m_ tables", [
+                'database' => $databaseName,
+                'total_tables' => count($tables)
+            ]);
+            
+            $mTableNames = [];
+            foreach ($tables as $table) {
+                $tableName = $table->$tableKey;
+                if (str_starts_with($tableName, 'm_')) {
+                    $mTableNames[] = $tableName;
+                }
             }
+            
+            // Sort alphabetically for consistency
+            sort($mTableNames);
+            
+            Log::info("Discovered m_ tables", [
+                'count' => count($mTableNames),
+                'tables' => $mTableNames
+            ]);
+            
+            return $mTableNames;
+        } catch (\Exception $e) {
+            Log::error("Error discovering m_ tables: " . $e->getMessage(), [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
-        
-        // Sort alphabetically for consistency
-        sort($mTableNames);
-        
-        return $mTableNames;
     }
 
     /**
@@ -181,11 +199,42 @@ class MainTablesController extends Controller
             Log::info("Exporting m_ tables", ['tables' => $tables, 'count' => count($tables)]);
 
             $exportData = [];
+            $exportErrors = [];
+            
             foreach ($tables as $table) {
-                $data = DB::table($table)->get()->toArray();
-                $exportData[$table] = array_map(function($record) {
-                    return (array) $record;
-                }, $data);
+                try {
+                    Log::info("Exporting table: {$table}");
+                    $data = DB::table($table)->get()->toArray();
+                    $exportData[$table] = array_map(function($record) {
+                        return (array) $record;
+                    }, $data);
+                    Log::info("Successfully exported {$table}", ['record_count' => count($exportData[$table])]);
+                } catch (\Exception $e) {
+                    $errorMsg = "Failed to export table {$table}: " . $e->getMessage();
+                    Log::error($errorMsg, [
+                        'table' => $table,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    $exportErrors[] = $errorMsg;
+                    // Still include the table in export with empty array so it's not missing
+                    $exportData[$table] = [];
+                }
+            }
+            
+            // Log any errors but don't fail the export
+            if (!empty($exportErrors)) {
+                Log::warning("Export completed with errors", ['errors' => $exportErrors]);
+            }
+            
+            // Verify all discovered tables are in export data
+            $missingTables = array_diff($tables, array_keys($exportData));
+            if (!empty($missingTables)) {
+                Log::error("Some tables are missing from export data", ['missing' => $missingTables]);
+                // Add missing tables with empty arrays
+                foreach ($missingTables as $missingTable) {
+                    $exportData[$missingTable] = [];
+                }
             }
 
             // Add metadata
@@ -212,10 +261,26 @@ class MainTablesController extends Controller
             // Generate MainDataSeeder.php for local use
             \Artisan::call('main-data:generate-seeder');
 
+            // Verify export data structure
+            $exportedTableCount = count(array_filter($exportData, fn($key) => $key !== '_metadata', ARRAY_FILTER_USE_KEY));
+            $expectedTableCount = count($tables);
+            
+            if ($exportedTableCount !== $expectedTableCount) {
+                Log::error("Table count mismatch in export", [
+                    'expected' => $expectedTableCount,
+                    'exported' => $exportedTableCount,
+                    'tables' => $tables,
+                    'export_keys' => array_keys(array_filter($exportData, fn($key) => $key !== '_metadata', ARRAY_FILTER_USE_KEY))
+                ]);
+            }
+            
             Log::info("Main tables exported successfully", [
                 'filename' => $filename,
                 'tables' => $tables,
-                'total_records' => array_sum(array_map('count', $exportData)),
+                'table_count' => $exportedTableCount,
+                'expected_table_count' => $expectedTableCount,
+                'total_records' => array_sum(array_map('count', array_filter($exportData, fn($key) => $key !== '_metadata', ARRAY_FILTER_USE_KEY))),
+                'errors' => $exportErrors ?? [],
                 'seeder_generated' => true,
                 'note' => 'Use Create GitHub PR button for deployment updates'
             ]);
