@@ -191,6 +191,79 @@ class PublishController extends Controller
         return $this->linkAndQRcode($eventId);
     }
 
+    /**
+     * Regenerate links and QR codes for all events in a season (admin only)
+     */
+    public function regenerateLinksForSeason(int $seasonId): JsonResponse
+    {
+        try {
+            // Get all events for this season
+            $events = DB::table('event')
+                ->where('season', $seasonId)
+                ->get();
+
+            if ($events->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No events found for this season',
+                    'regenerated' => 0,
+                    'failed' => 0
+                ], 404);
+            }
+
+            $regenerated = 0;
+            $failed = 0;
+            $errors = [];
+
+            Log::info("Regenerating links for season {$seasonId}", [
+                'event_count' => $events->count()
+            ]);
+
+            foreach ($events as $event) {
+                try {
+                    // Clear existing link and QR code to force regeneration
+                    DB::table('event')
+                        ->where('id', $event->id)
+                        ->update([
+                            'slug' => null,
+                            'link' => null,
+                            'qrcode' => null,
+                        ]);
+
+                    // Regenerate link and QR code
+                    $this->linkAndQRcode($event->id);
+                    $regenerated++;
+                    
+                    Log::info("Regenerated link for event {$event->id} ({$event->name})");
+                } catch (\Exception $e) {
+                    $failed++;
+                    $errorMsg = "Failed to regenerate link for event {$event->id} ({$event->name}): " . $e->getMessage();
+                    $errors[] = $errorMsg;
+                    Log::error($errorMsg, [
+                        'event_id' => $event->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Regenerated links for {$regenerated} events" . ($failed > 0 ? ", {$failed} failed" : ''),
+                'regenerated' => $regenerated,
+                'failed' => $failed,
+                'total' => $events->count(),
+                'errors' => $errors
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error regenerating links for season {$seasonId}: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
  
     // Informationen fürs Volk ...
 

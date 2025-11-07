@@ -16,6 +16,9 @@ const activeTab = ref('statistics')
 const parameters = ref([])
 const conditions = ref([])
 const isDevEnvironment = ref(false)
+const seasons = ref([])
+const selectedSeason = ref(null)
+const regeneratingLinks = ref(false)
 
 // Check environment on mount
 onMounted(async () => {
@@ -26,6 +29,14 @@ onMounted(async () => {
     console.error('Failed to fetch environment:', error)
     // Default to false (not dev) if check fails
     isDevEnvironment.value = false
+  }
+  
+  // Fetch seasons
+  try {
+    const seasonsResponse = await axios.get('/seasons')
+    seasons.value = seasonsResponse.data
+  } catch (error) {
+    console.error('Failed to fetch seasons:', error)
   }
 })
 
@@ -98,6 +109,32 @@ watch(conditions, async (newVal) => {
     }
   }
 }, {deep: true})
+
+const regenerateLinksForSeason = async () => {
+  if (!selectedSeason.value) {
+    alert('Bitte wähle eine Saison aus')
+    return
+  }
+  
+  const seasonName = seasons.value.find(s => s.id === selectedSeason.value)?.name || 'unbekannt'
+  if (!confirm(`Möchtest du wirklich alle öffentlichen Links für die Saison "${seasonName}" regenerieren?\n\nDies wird für alle Events dieser Saison neue Links und QR-Codes erstellen.`)) {
+    return
+  }
+  
+  regeneratingLinks.value = true
+  try {
+    const response = await axios.post(`/publish/regenerate-season/${selectedSeason.value}`)
+    if (response.data.success) {
+      alert(`✅ ${response.data.message}\n\nRegeneriert: ${response.data.regenerated}\nFehlgeschlagen: ${response.data.failed}\nGesamt: ${response.data.total}`)
+    } else {
+      alert('Fehler: ' + (response.data.message || response.data.error || 'Unbekannter Fehler'))
+    }
+  } catch (error) {
+    alert('Fehler beim Regenerieren der Links: ' + (error.response?.data?.message || error.message))
+  } finally {
+    regeneratingLinks.value = false
+  }
+}
 
 
 fetchParameters()
@@ -285,6 +322,38 @@ fetchConditions()
             >
               🔁 Events synchronisieren
             </button>
+          </div>
+          
+          <!-- Regenerate Public Links -->
+          <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <h3 class="text-lg font-semibold mb-2">Öffentliche Links regenerieren</h3>
+            <p class="text-gray-600 mb-4">
+              Regeneriert alle öffentlichen Links und QR-Codes für alle Events einer ausgewählten Saison.
+              Dies erstellt neue Links und QR-Codes und aktualisiert sie auch in DRAHT.
+            </p>
+            <div class="flex items-center gap-4">
+              <select 
+                v-model="selectedSeason" 
+                class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                :disabled="regeneratingLinks"
+              >
+                <option :value="null">-- Saison auswählen --</option>
+                <option 
+                  v-for="season in seasons" 
+                  :key="season.id" 
+                  :value="season.id"
+                >
+                  {{ season.name }} ({{ season.year }})
+                </option>
+              </select>
+              <button 
+                class="px-6 py-2 rounded bg-green-500 text-white hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                @click="regenerateLinksForSeason"
+                :disabled="!selectedSeason || regeneratingLinks"
+              >
+                {{ regeneratingLinks ? '⏳ Regeneriere...' : '🔗 Links regenerieren' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
