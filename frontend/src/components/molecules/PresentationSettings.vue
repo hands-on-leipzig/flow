@@ -48,6 +48,7 @@ onMounted(getPublicRobotGameRounds);
 onMounted(fetchPlanId);
 
 async function loadSlideshows() {
+  if (!event.value?.id) return;
   const response = await axios.get(`/slideshow/${event.value?.id}`);
   if (response && response.data) {
     slideshows.value = response.data;
