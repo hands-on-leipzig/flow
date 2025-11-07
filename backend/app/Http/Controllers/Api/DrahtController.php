@@ -40,10 +40,25 @@ class DrahtController extends Controller
             ]);
             // Return a mock successful response
             return new class {
-                public function ok() { return true; }
-                public function status() { return 200; }
-                public function json() { return ['success' => true]; }
-                public function body() { return json_encode(['success' => true]); }
+                public function ok()
+                {
+                    return true;
+                }
+
+                public function status()
+                {
+                    return 200;
+                }
+
+                public function json()
+                {
+                    return ['success' => true];
+                }
+
+                public function body()
+                {
+                    return json_encode(['success' => true]);
+                }
             };
         }
 
@@ -344,7 +359,7 @@ class DrahtController extends Controller
 
     /**
      * Update the public link in DRAHT for an event
-     * 
+     *
      * @param int $drahtEventId The DRAHT event ID (event_explore or event_challenge)
      * @param string $link The public link URL
      * @return bool True if successful, false otherwise
@@ -354,7 +369,7 @@ class DrahtController extends Controller
         try {
             $response = $this->makeDrahtPostCall(
                 "/handson/planner/setplanlink/{$drahtEventId}",
-                ['data' => $link]
+                ['data' => ['link' => $link]]
             );
 
             if ($response->ok()) {
