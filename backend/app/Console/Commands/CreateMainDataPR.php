@@ -40,8 +40,30 @@ class CreateMainDataPR extends Command
             }
 
             $this->info('  ✓ JSON file is valid');
-            $this->line('  - Tables: ' . count($jsonData['_metadata']['tables'] ?? []));
+            $tablesInMetadata = $jsonData['_metadata']['tables'] ?? [];
+            $this->line('  - Tables in metadata: ' . count($tablesInMetadata));
             $this->line('  - Exported at: ' . ($jsonData['_metadata']['exported_at'] ?? 'unknown'));
+            
+            // Verify all tables from metadata exist in export data
+            $missingTables = [];
+            foreach ($tablesInMetadata as $table) {
+                if (!isset($jsonData[$table])) {
+                    $missingTables[] = $table;
+                }
+            }
+            
+            if (!empty($missingTables)) {
+                $this->error('  ❌ Some tables from metadata are missing in export data: ' . implode(', ', $missingTables));
+                $this->error('  Please re-export the main tables data.');
+                return 1;
+            }
+            
+            // Show table summary
+            $this->line('  - Tables with data:');
+            foreach ($tablesInMetadata as $table) {
+                $recordCount = count($jsonData[$table] ?? []);
+                $this->line("    • {$table}: {$recordCount} records");
+            }
 
             // Step 2: Create GitHub PR
             if ($this->option('dry-run')) {
