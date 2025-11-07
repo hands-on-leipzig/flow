@@ -112,7 +112,7 @@ const getExploreTimelineItems = () => {
   if (plan.opening) {
     items.push({
       time: formatTimeOnly(plan.opening),
-      label: 'Beginn',
+      label: 'Eröffnung',
       type: 'opening',
       timestamp: new Date(plan.opening).getTime()
     })
