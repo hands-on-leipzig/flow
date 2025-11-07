@@ -230,6 +230,15 @@ Route::middleware(['keycloak'])->group(function () {
         Route::delete('/{table}/{id}', [MainTablesController::class, 'destroy']);
     });
 
+    Route::get('/seasons', function () {
+        return response()->json(
+            DB::table('m_season')
+                ->select('id', 'name', 'year')
+                ->orderBy('year', 'desc')
+                ->get()
+        );
+    }); // Get all seasons for dropdowns
+    
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
@@ -237,6 +246,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
         Route::post('/regenerate/{eventId}', [PublishController::class, 'regenerateLinkAndQRcode']); // Link und QR-Code neu generieren (Admin)
+        Route::post('/regenerate-season/{seasonId}', [PublishController::class, 'regenerateLinksForSeason']); // Links für alle Events einer Saison regenerieren (Admin)
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
