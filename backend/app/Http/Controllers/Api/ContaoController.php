@@ -153,12 +153,14 @@ class ContaoController extends Controller
         if (!$completed && $settings) {
             return $settings;
         } else if ($completed) {
+            // Für DB in 0/1 umwandeln
+            // TODO testen: passt dann auch der return-Wert für den Client?
             $merged = [
-                'vr1' => $settings['vr1'] || $completed['vr1'],
-                'vr2' => $settings['vr2'] || $completed['vr2'],
-                'vr3' => $settings['vr3'] || $completed['vr3'],
-                'vf' => $settings['vf'] || $completed['vf'],
-                'hf' => $settings['hf'] || $completed['hf'],
+                'vr1' => ($settings['vr1'] || $completed['vr1']) ? 1 : 0,
+                'vr2' => ($settings['vr2'] || $completed['vr2']) ? 1 : 0,
+                'vr3' => ($settings['vr3'] || $completed['vr3']) ? 1 : 0,
+                'vf' => ($settings['vf'] || $completed['vf']) ? 1 : 0,
+                'hf' => ($settings['hf'] || $completed['hf']) ? 1 : 0,
             ];
 
             DB::table('contao_public_rounds')->updateOrInsert(
