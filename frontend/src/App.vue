@@ -75,10 +75,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-screen flex flex-col w-full font-sans" :class="{ 'px-10': !isPublicRoute }">
+  <div :class="['flex flex-col w-full font-sans', isPublicRoute ? 'min-h-screen' : 'h-screen', { 'px-10': !isPublicRoute }]">
     <Navigation v-if="!isPublicRoute"/>
 
-    <router-view class="flex-1 shadow-lg"/>
+    <router-view :class="['shadow-lg', isPublicRoute ? 'flex-grow' : 'flex-1']"/>
 
     <!-- News Modal -->
     <NewsModal 

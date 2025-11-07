@@ -1,5 +1,5 @@
 <script setup>
-import {ref, watch} from 'vue'
+import {ref, watch, onMounted} from 'vue'
 import axios from 'axios'
 import Multiselect from '@vueform/multiselect'
 import Quality from '@/components/molecules/Quality.vue'
@@ -15,6 +15,30 @@ const activeTab = ref('statistics')
 
 const parameters = ref([])
 const conditions = ref([])
+const isDevEnvironment = ref(false)
+const seasons = ref([])
+const selectedSeason = ref(null)
+const regeneratingLinks = ref(false)
+
+// Check environment on mount
+onMounted(async () => {
+  try {
+    const response = await axios.get('/environment')
+    isDevEnvironment.value = response.data.is_dev || false
+  } catch (error) {
+    console.error('Failed to fetch environment:', error)
+    // Default to false (not dev) if check fails
+    isDevEnvironment.value = false
+  }
+  
+  // Fetch seasons
+  try {
+    const seasonsResponse = await axios.get('/seasons')
+    seasons.value = seasonsResponse.data
+  } catch (error) {
+    console.error('Failed to fetch seasons:', error)
+  }
+})
 
 const syncDrahtRegions = async () => {
   if (!confirm('Möchtest du wirklich alle Regional Partner aus DRAHT synchronisieren?\n\nDies wird alle Regional Partner aus DRAHT in die Datenbank importieren.')) {
@@ -86,6 +110,32 @@ watch(conditions, async (newVal) => {
   }
 }, {deep: true})
 
+const regenerateLinksForSeason = async () => {
+  if (!selectedSeason.value) {
+    alert('Bitte wähle eine Saison aus')
+    return
+  }
+  
+  const seasonName = seasons.value.find(s => s.id === selectedSeason.value)?.name || 'unbekannt'
+  if (!confirm(`Möchtest du wirklich alle öffentlichen Links für die Saison "${seasonName}" regenerieren?\n\nDies wird für alle Events dieser Saison neue Links und QR-Codes erstellen.`)) {
+    return
+  }
+  
+  regeneratingLinks.value = true
+  try {
+    const response = await axios.post(`/publish/regenerate-season/${selectedSeason.value}`)
+    if (response.data.success) {
+      alert(`✅ ${response.data.message}\n\nRegeneriert: ${response.data.regenerated}\nFehlgeschlagen: ${response.data.failed}\nGesamt: ${response.data.total}`)
+    } else {
+      alert('Fehler: ' + (response.data.message || response.data.error || 'Unbekannter Fehler'))
+    }
+  } catch (error) {
+    alert('Fehler beim Regenerieren der Links: ' + (error.response?.data?.message || error.message))
+  } finally {
+    regeneratingLinks.value = false
+  }
+}
+
 
 fetchParameters()
 fetchConditions()
@@ -105,11 +155,18 @@ fetchConditions()
       </button>
 
             <button
-        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-        :class="{ 'bg-white font-semibold shadow': activeTab === 'main-tables' }"
-        @click="activeTab = 'main-tables'"
+        class="w-full text-left px-3 py-2 rounded"
+        :class="{ 
+          'bg-white font-semibold shadow': activeTab === 'main-tables',
+          'opacity-50 cursor-not-allowed bg-gray-100': !isDevEnvironment,
+          'hover:bg-gray-200': isDevEnvironment
+        }"
+        @click="isDevEnvironment && (activeTab = 'main-tables')"
+        :disabled="!isDevEnvironment"
+        :title="!isDevEnvironment ? 'Main Tables sind nur auf Dev verfügbar' : ''"
       >
         📝 Main Tables
+        <span v-if="!isDevEnvironment" class="ml-2 text-xs text-gray-500">(nur Dev)</span>
       </button>
 
       <button
@@ -265,6 +322,38 @@ fetchConditions()
             >
               🔁 Events synchronisieren
             </button>
+          </div>
+          
+          <!-- Regenerate Public Links -->
+          <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <h3 class="text-lg font-semibold mb-2">Öffentliche Links regenerieren</h3>
+            <p class="text-gray-600 mb-4">
+              Regeneriert alle öffentlichen Links und QR-Codes für alle Events einer ausgewählten Saison.
+              Dies erstellt neue Links und QR-Codes und aktualisiert sie auch in DRAHT.
+            </p>
+            <div class="flex items-center gap-4">
+              <select 
+                v-model="selectedSeason" 
+                class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                :disabled="regeneratingLinks"
+              >
+                <option :value="null">-- Saison auswählen --</option>
+                <option 
+                  v-for="season in seasons" 
+                  :key="season.id" 
+                  :value="season.id"
+                >
+                  {{ season.name }} ({{ season.year }})
+                </option>
+              </select>
+              <button 
+                class="px-6 py-2 rounded bg-green-500 text-white hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                @click="regenerateLinksForSeason"
+                :disabled="!selectedSeason || regeneratingLinks"
+              >
+                {{ regeneratingLinks ? '⏳ Regeneriere...' : '🔗 Links regenerieren' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>

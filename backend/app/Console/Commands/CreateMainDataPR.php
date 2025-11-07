@@ -9,40 +9,72 @@ use Illuminate\Support\Facades\Storage;
 class CreateMainDataPR extends Command
 {
     protected $signature = 'main-data:create-pr {--dry-run : Show what would be done without creating PR}';
-    protected $description = 'Export main data and create a GitHub PR with the updated MainDataSeeder.php';
+    protected $description = 'Create a GitHub PR with the updated main-tables-latest.json file';
 
     public function handle()
     {
         $this->info('🚀 Creating main data export and GitHub PR...');
 
         try {
-            // Step 1: Export current data
-            $this->info('📤 Exporting current main data...');
-            $this->call('main-data:export');
-
-            // Step 2: Generate MainDataSeeder.php
-            $this->info('🔧 Generating MainDataSeeder.php...');
-            $this->call('main-data:generate-seeder');
-
-            // Step 3: Read the generated seeder
-            $seederPath = database_path('seeders/MainDataSeeder.php');
-            if (!file_exists($seederPath)) {
-                $this->error('MainDataSeeder.php not found after generation');
+            // Step 1: Read the JSON export file (should already exist from MainTablesController::export())
+            $jsonPath = database_path('exports/main-tables-latest.json');
+            if (!file_exists($jsonPath)) {
+                $this->error('JSON export file not found. Please export the main tables data first using the admin interface.');
+                $this->line('  Expected location: ' . $jsonPath);
                 return 1;
             }
 
-            $seederContent = file_get_contents($seederPath);
+            $this->info('📄 Reading JSON export file...');
+            $jsonContent = file_get_contents($jsonPath);
+            
+            // Validate JSON
+            $jsonData = json_decode($jsonContent, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $this->error('Invalid JSON in export file: ' . json_last_error_msg());
+                return 1;
+            }
 
-            // Step 4: Create GitHub PR
+            if (!isset($jsonData['_metadata'])) {
+                $this->error('Invalid export file format - missing _metadata');
+                return 1;
+            }
+
+            $this->info('  ✓ JSON file is valid');
+            $tablesInMetadata = $jsonData['_metadata']['tables'] ?? [];
+            $this->line('  - Tables in metadata: ' . count($tablesInMetadata));
+            $this->line('  - Exported at: ' . ($jsonData['_metadata']['exported_at'] ?? 'unknown'));
+            
+            // Verify all tables from metadata exist in export data
+            $missingTables = [];
+            foreach ($tablesInMetadata as $table) {
+                if (!isset($jsonData[$table])) {
+                    $missingTables[] = $table;
+                }
+            }
+            
+            if (!empty($missingTables)) {
+                $this->error('  ❌ Some tables from metadata are missing in export data: ' . implode(', ', $missingTables));
+                $this->error('  Please re-export the main tables data.');
+                return 1;
+            }
+            
+            // Show table summary
+            $this->line('  - Tables with data:');
+            foreach ($tablesInMetadata as $table) {
+                $recordCount = count($jsonData[$table] ?? []);
+                $this->line("    • {$table}: {$recordCount} records");
+            }
+
+            // Step 2: Create GitHub PR
             if ($this->option('dry-run')) {
                 $this->info('🔍 DRY RUN - Would create PR with:');
                 $this->line('  - Branch: main-data-update-' . now()->format('Y-m-d-H-i-s'));
-                $this->line('  - File: database/seeders/MainDataSeeder.php');
-                $this->line('  - Content length: ' . strlen($seederContent) . ' characters');
+                $this->line('  - File: database/exports/main-tables-latest.json');
+                $this->line('  - Content length: ' . strlen($jsonContent) . ' characters');
                 return 0;
             }
 
-            $this->createGitHubPR($seederContent);
+            $this->createGitHubPR($jsonContent);
 
             $this->info('✅ GitHub PR created successfully!');
             return 0;
@@ -53,7 +85,7 @@ class CreateMainDataPR extends Command
         }
     }
 
-    private function createGitHubPR($seederContent)
+    private function createGitHubPR($jsonContent)
     {
         $this->info('🐙 Creating GitHub PR...');
 
@@ -98,35 +130,35 @@ class CreateMainDataPR extends Command
             throw new \Exception('Failed to create branch: ' . $branchResponse->body());
         }
 
-        // Step 3: Get current MainDataSeeder.php SHA (if exists)
-        $this->line('  📄 Getting current MainDataSeeder.php SHA...');
+        // Step 3: Get current main-tables-latest.json SHA (if exists)
+        $this->line('  📄 Getting current main-tables-latest.json SHA...');
         $fileResponse = Http::withHeaders($headers)
-            ->get("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/database/seeders/MainDataSeeder.php");
+            ->get("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/database/exports/main-tables-latest.json");
 
         $fileSha = null;
         if ($fileResponse->successful()) {
             $fileSha = $fileResponse->json()['sha'];
         }
 
-        // Step 4: Create/Update MainDataSeeder.php
-        $this->line('  💾 Uploading MainDataSeeder.php...');
+        // Step 4: Create/Update main-tables-latest.json
+        $this->line('  💾 Uploading main-tables-latest.json...');
         $updateResponse = Http::withHeaders($headers)
-            ->put("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/database/seeders/MainDataSeeder.php", [
-                'message' => 'Update MainDataSeeder.php with latest main data export',
-                'content' => base64_encode($seederContent),
+            ->put("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/database/exports/main-tables-latest.json", [
+                'message' => 'Update main-tables-latest.json with latest main data export',
+                'content' => base64_encode($jsonContent),
                 'branch' => $branchName,
                 'sha' => $fileSha // null for new file, existing SHA for update
             ]);
 
         if (!$updateResponse->successful()) {
-            throw new \Exception('Failed to update MainDataSeeder.php: ' . $updateResponse->body());
+            throw new \Exception('Failed to update main-tables-latest.json: ' . $updateResponse->body());
         }
 
         // Step 5: Create Pull Request
         $this->line('  🔀 Creating pull request...');
         $prResponse = Http::withHeaders($headers)
             ->post("https://api.github.com/repos/{$repoOwner}/{$repoName}/pulls", [
-                'title' => 'Update Main Data Seeder - ' . now()->format('Y-m-d H:i:s'),
+                'title' => 'Update Main Data Export (JSON) - ' . now()->format('Y-m-d H:i:s'),
                 'head' => $branchName,
                 'base' => $baseBranch,
                 'body' => $this->generatePRDescription(),
@@ -147,17 +179,18 @@ class CreateMainDataPR extends Command
     {
         return "## 📊 Main Data Export Update
 
-This PR contains an updated `MainDataSeeder.php` file generated from the current main data export.
+This PR contains an updated `main-tables-latest.json` file with the latest main data export.
 
 ### 📋 What's included:
-- Updated main data seeder with current database state
-- All `m_` table data preserved
-- Ready for deployment to test/production environments
+- Updated JSON export file with current database state
+- All `m_` table data preserved in JSON format
+- The `MainDataSeeder.php` is dynamic and reads from this JSON file during deployment
 
 ### 🚀 Deployment:
-Once this PR is merged, the updated seeder will be used during:
+Once this PR is merged, the updated JSON file will be used during:
 - Test environment deployment (`test` branch)
 - Production environment deployment (`production` branch)
+- The `MainDataSeeder` will automatically read from `database/exports/main-tables-latest.json`
 
 ### 📝 Generated on:
 " . now()->format('Y-m-d H:i:s') . "

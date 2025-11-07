@@ -27,6 +27,47 @@ class DrahtController extends Controller
     }
 
     /**
+     * Make a POST request to DRAHT API
+     */
+    public function makeDrahtPostCall($route, array $data)
+    {
+        // Use simulator in test environments
+        if (app()->environment('local', 'staging')) {
+            // For POST requests in simulator, we'll just log it
+            Log::info('DRAHT POST call (simulated)', [
+                'route' => $route,
+                'data' => $data
+            ]);
+            // Return a mock successful response
+            return new class {
+                public function ok()
+                {
+                    return true;
+                }
+
+                public function status()
+                {
+                    return 200;
+                }
+
+                public function json()
+                {
+                    return ['success' => true];
+                }
+
+                public function body()
+                {
+                    return json_encode(['success' => true]);
+                }
+            };
+        }
+
+        $headers = ['DOLAPIKEY' => config('services.draht_api.key')];
+        return Http::withHeaders($headers)
+            ->post(config('services.draht_api.base_url') . $route, $data);
+    }
+
+    /**
      * Make simulated Draht API calls for test environments
      */
     private function makeSimulatedCall($route)
@@ -314,6 +355,43 @@ class DrahtController extends Controller
         });
 
         return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);
+    }
+
+    /**
+     * Update the public link in DRAHT for an event
+     *
+     * @param int $drahtEventId The DRAHT event ID (event_explore or event_challenge)
+     * @param string $link The public link URL
+     * @return bool True if successful, false otherwise
+     */
+    public function updateEventLink(int $drahtEventId, string $link): bool
+    {
+        try {
+            $response = $this->makeDrahtPostCall(
+                "/handson/planner/setplanlink/{$drahtEventId}",
+                ['data' => ['link' => $link]]
+            );
+
+            if ($response->ok()) {
+                Log::info("Successfully updated link in DRAHT for event {$drahtEventId}", [
+                    'link' => $link
+                ]);
+                return true;
+            } else {
+                Log::error("Failed to update link in DRAHT for event {$drahtEventId}", [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'link' => $link
+                ]);
+                return false;
+            }
+        } catch (\Exception $e) {
+            Log::error("Exception while updating link in DRAHT for event {$drahtEventId}", [
+                'error' => $e->getMessage(),
+                'link' => $link
+            ]);
+            return false;
+        }
     }
 
     /**

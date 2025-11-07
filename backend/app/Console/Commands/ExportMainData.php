@@ -30,21 +30,15 @@ class ExportMainData extends Command
     {
         $this->info('🔄 Exporting main data from current database...');
         
-        // Define all m_ tables
-        $masterTables = [
-            'm_season',
-            'm_level', 
-            'm_room_type',
-            'm_room_type_group',
-            'm_parameter',
-            'm_activity_type',
-            'm_activity_type_detail',
-            'm_first_program',
-            'm_insert_point',
-            'm_role',
-            'm_visibility',
-            'm_supported_plan'
-        ];
+        // Dynamically discover all m_ tables from the database
+        $masterTables = $this->discoverMTables();
+        
+        if (empty($masterTables)) {
+            $this->error('No m_ tables found in the database');
+            return 1;
+        }
+        
+        $this->info('Found ' . count($masterTables) . ' m_ tables: ' . implode(', ', $masterTables));
         
         $seederContent = "<?php\n\nnamespace Database\\Seeders;\n\nuse Illuminate\\Database\\Seeder;\nuse Illuminate\\Support\\Facades\\DB;\n\nclass MainDataSeeder extends Seeder\n{\n    /**\n     * Run the database seeds.\n     */\n    public function run(): void\n    {\n        \$this->command->info('🌱 Seeding main data...');\n        \n";
         
@@ -103,5 +97,28 @@ class ExportMainData extends Command
         
         $this->info('✅ Main data export completed!');
         return 0;
+    }
+    
+    /**
+     * Dynamically discover all m_ tables from the database
+     */
+    private function discoverMTables(): array
+    {
+        $databaseName = DB::connection()->getDatabaseName();
+        $tables = DB::select("SHOW TABLES");
+        $tableKey = "Tables_in_{$databaseName}";
+        
+        $mTableNames = [];
+        foreach ($tables as $table) {
+            $tableName = $table->$tableKey;
+            if (str_starts_with($tableName, 'm_')) {
+                $mTableNames[] = $tableName;
+            }
+        }
+        
+        // Sort alphabetically for consistency
+        sort($mTableNames);
+        
+        return $mTableNames;
     }
 }
