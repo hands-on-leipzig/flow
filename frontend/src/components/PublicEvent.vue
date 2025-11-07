@@ -922,8 +922,9 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Level 1: Teams -->
-      <div v-if="isContentVisible(1) && scheduleInfo"
-           class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8">
+      <div
+          v-if="isContentVisible(1) && scheduleInfo && (scheduleInfo.teams.explore.list?.length || scheduleInfo.teams.challenge.list?.length)"
+          class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8">
         <h2 class="text-2xl font-bold text-[#F78B1F] mb-8 flex items-center gap-2">
           Angemeldete Teams
         </h2>
