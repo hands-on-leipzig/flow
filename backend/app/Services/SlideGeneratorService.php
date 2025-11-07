@@ -20,15 +20,7 @@ class SlideGeneratorService
             . ', "planId": ' . $planId
             . '}';
 
-        $slide = Slide::create([
-            'name' => 'Öffentlicher Zeitplan',
-            'slideshow' => $slideshowId,
-            'type' => 'PublicPlanSlideContent',
-            'content' => $content,
-            'order' => 0,
-        ]);
-
-        return $slide;
+        return $this->createSlide('Öffentlicher Zeitplan', $slideshowId, 'PublicPlanSlideContent', $content, 0);
     }
 
     public function generateStandardBackground()
@@ -39,16 +31,7 @@ class SlideGeneratorService
     public function generateQRCodeSlide($eventId, $slideshowId)
     {
         $content = '{"background": ' . $this->generateQRCodeSlideBackground($eventId) . '}';
-
-        $slide = Slide::create([
-            'name' => 'Zeitplan-QR-Code',
-            'slideshow' => $slideshowId,
-            'type' => 'FabricSlideContent',
-            'content' => $content,
-            'order' => 1,
-        ]);
-
-        return $slide;
+        return $this->createSlide('Zeitplan-QR-Code', $slideshowId, 'FabricSlideContent', $content, 1);
     }
 
     private function generateQRCodeSlideBackground($eventId)
@@ -65,16 +48,19 @@ class SlideGeneratorService
     public function generateRobotGameResultsSlide($slideshowId, $order = 2)
     {
         $content = '{"background": ' . $this->generateStandardBackground() . '}';
+        return $this->createSlide("Robot-Game Ergebnisse", $slideshowId, 'RobotGameSlideContent', $content, $order);
+    }
 
-        $slide = Slide::create([
-            'name' => 'Robot-Game Ergebnisse',
-            'slideshow' => $slideshowId,
-            'type' => 'RobotGameSlideContent',
+    private function createSlide($name, $slideshowId, $type, $content, $order)
+    {
+        return Slide::create([
+            'name' => $name,
+            'slideshow_id' => $slideshowId,
+            'type' => $type,
             'content' => $content,
             'order' => $order,
+            'active' => 1,
         ]);
-
-        return $slide;
     }
 
 }
