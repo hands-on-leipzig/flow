@@ -112,7 +112,7 @@ const getExploreTimelineItems = () => {
   if (plan.opening) {
     items.push({
       time: formatTimeOnly(plan.opening),
-      label: 'Beginn',
+      label: 'Eröffnung',
       type: 'opening',
       timestamp: new Date(plan.opening).getTime()
     })
@@ -948,7 +948,7 @@ onBeforeUnmount(() => {
               <tr>
                 <th colspan="4" class="px-4 py-4 text-right">
                   <div class="flex items-center justify-end">
-                    <img :alt="programLogoAlt('E')" :src="imageUrl('/flow/FLL-RGB_Explore-horiz-full-color.png')"
+                    <img :alt="programLogoAlt('E')" :src="imageUrl('/flow/fll_explore_h.png')"
                          class="h-20 w-auto object-contain"/>
                   </div>
                 </th>
@@ -1000,7 +1000,7 @@ onBeforeUnmount(() => {
               <tr>
                 <th colspan="4" class="px-4 py-4 text-right">
                   <div class="flex items-center justify-end">
-                    <img :alt="programLogoAlt('C')" :src="imageUrl('/flow/FLL-RGB_Challenge-horiz-full-color.png')"
+                    <img :alt="programLogoAlt('C')" :src="imageUrl('/flow/fll_challenge_h.png')"
                          class="h-20 w-auto object-contain"/>
                   </div>
                 </th>

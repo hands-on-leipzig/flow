@@ -5,6 +5,7 @@ import { useEventStore } from '@/stores/event'
 import { useAuth } from '@/composables/useAuth'
 import { imageUrl } from '@/utils/images'
 import { formatTimeOnly, formatDateOnly } from '@/utils/dateTimeFormat'
+import SavingToast from "@/components/atoms/SavingToast.vue";
 
 // Store + Selected Event (autark)
 const eventStore = useEventStore()
@@ -13,7 +14,7 @@ const { isAdmin } = useAuth()
 
 const scheduleInfo = ref<any>(null)
 const regenerating = ref(false)
-const savingPublicationLevel = ref(false)
+const saving = ref(null)
 
 // Detail-Level (3 levels, skipping backend level 2 "Nach Anmeldeschluss")
 const levels = ['Planung und Anmeldung', 'Überblick zum Ablauf', 'volle Details']
@@ -53,7 +54,7 @@ async function updatePublicationLevel(level: number) {
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop
     const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft
     
-    savingPublicationLevel.value = true
+    saving?.value?.show();
     
     // Restore scroll position immediately to prevent any movement
     requestAnimationFrame(() => {
@@ -75,7 +76,7 @@ async function updatePublicationLevel(level: number) {
   } catch (e) {
     console.error('Fehler beim Setzen des Publication Levels:', e)
   } finally {
-    savingPublicationLevel.value = false
+    saving.value?.hide();
   }
 }
 
@@ -155,17 +156,7 @@ async function regenerateLinkAndQR() {
 </script>
 
 <template>
-  <!-- Toast notification for pending publication level updates -->
-  <Teleport to="body">
-    <div v-if="savingPublicationLevel"
-         style="position: fixed; top: 16px; right: 16px; z-index: 9999;"
-         class="bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md pointer-events-none">
-      <div class="flex items-center gap-3">
-        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-        <span class="text-green-800 font-medium">Publikations-Level wird gespeichert...</span>
-      </div>
-    </div>
-  </Teleport>
+  <SavingToast ref="saving" message="Publikations-Level wird gespeichert..." />
 
   <div class="rounded-xl shadow bg-white p-6 space-y-4" style="overflow-anchor: none;">
     <h2 class="text-lg font-semibold">Online – von der Planung bis zur Veranstaltung</h2>

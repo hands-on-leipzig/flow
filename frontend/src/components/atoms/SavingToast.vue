@@ -1,83 +1,74 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import {onUnmounted, ref} from "vue";
 
 const props = withDefaults(defineProps<{
-  message?: string,
-  countdown?: number | null,
-  isGenerating?: boolean,
-  onImmediateSave?: (() => void) | undefined,
+  message: string,
 }>(), {
   message: "Änderungen werden gespeichert...",
-  countdown: null,
-  isGenerating: false,
-  onImmediateSave: undefined,
 });
 
-const displayCountdownText = computed(() => {
-  const seconds = props.countdown;
-  if (seconds === null || seconds === undefined || seconds <= 0) return null;
-  // Two-digit format (e.g., "03", "02", "01")
-  return String(Math.max(0, Math.ceil(seconds))).padStart(2, '0');
-});
+const visible = ref(false);
+const progress = ref(100);
+let intervalId: NodeJS.Timeout | undefined = undefined;
 
-const visible = computed(() => {
-  return props.countdown !== null && props.countdown !== undefined && props.countdown > 0 || props.isGenerating;
-});
-
-const isClickable = computed(() => {
-  return !props.isGenerating && displayCountdownText.value !== null && props.onImmediateSave !== undefined;
-});
-
-const buttonClass = computed(() => {
-  if (props.isGenerating) {
-    return "bg-gray-300 text-gray-600 cursor-not-allowed";
+function startProgress(duration = 2000) {
+  if (intervalId) {
+    clearInterval(intervalId);
   }
-  return "bg-green-500 hover:bg-green-600 text-white cursor-pointer";
-});
+  progress.value = 100;
+  const step = 100 / (duration / 50);
 
-function handleClick() {
-  if (isClickable.value && props.onImmediateSave) {
-    props.onImmediateSave();
-  }
+  intervalId = setInterval(() => {
+    progress.value -= step;
+    if (progress.value <= 0) {
+      progress.value = 0;
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+      // kurz sichtbar lassen, dann ausblenden
+      setTimeout(() => { visible.value = false; }, 220);
+    }
+  }, 50);
 }
 
-// Legacy API support (for components that still use show/hide)
-function show() {
-  // This is now handled via props.countdown
+function show(durationMs = 2000) {
+  visible.value = true;
+  startProgress(durationMs);
 }
+
 function hide() {
-  // This is now handled via props.countdown
+  visible.value = false;
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null
+  }
+  progress.value = 100;
 }
+
+onUnmounted(() => {
+  if (intervalId) {
+    clearInterval(intervalId);
+  }
+});
 
 defineExpose({ show, hide });
 </script>
 
 <template>
-  <div v-show="visible"
-       class="fixed top-4 right-4 z-50 min-w-48">
-    <button
-      :class="[
-        'w-full rounded-lg shadow-lg px-4 py-3 font-medium transition-colors flex items-center justify-center gap-3',
-        buttonClass
-      ]"
-      :disabled="!isClickable"
-      @click="handleClick"
-    >
-      <div v-if="isGenerating" class="flex items-center gap-2">
-        <div class="w-3 h-3 bg-gray-600 rounded-full animate-pulse"></div>
-        <span>Plan wird generiert</span>
-      </div>
-      <template v-else-if="displayCountdownText !== null">
-        <span class="text-2xl font-bold font-mono">{{ displayCountdownText }}</span>
-        <span>Generieren</span>
-      </template>
-      <template v-else>
-        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-        <span>{{ message }}</span>
-      </template>
-    </button>
+  <div v-if="visible"
+       class="fixed top-4 right-4 z-50 bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 min-w-80 max-w-md">
+    <div class="flex items-center gap-3">
+      <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+      <span class="text-green-800 font-medium"> {{ message }}</span>
+    </div>
+    <div class="mt-3 bg-green-200 rounded-full h-2 overflow-hidden">
+      <div class="bg-green-500 h-full transition-all duration-75 ease-linear"
+           :style="{ width: progress + '%' }"></div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+
 </style>
