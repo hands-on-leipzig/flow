@@ -319,35 +319,57 @@ class EventController extends Controller
         ]);
 
         try {
-            $response = Http::withHeaders([
-                'User-Agent' => 'FLL Flow Planning Tool (https://github.com/your-org/flow)',
-            ])->get('https://nominatim.openstreetmap.org/search', [
-                'q' => $request->input('address'),
-                'format' => 'json',
-                'limit' => 1,
-            ]);
+            $address = $request->input('address');
+            $result = $this->callGeocodeAPI($address);
 
-            if ($response->successful() && $response->json()) {
-                $data = $response->json();
-                if (!empty($data) && isset($data[0])) {
-                    $result = $data[0];
-                    return response()->json([
-                        'lat' => (float) $result['lat'],
-                        'lon' => (float) $result['lon'],
-                        'display_name' => $result['display_name'] ?? $request->input('address'),
-                    ]);
-                }
+            if (!$result) {
+                // If the full address didn't work, try the address without the first part
+                // typically the first line is a building name, and the remaining part should be a street address
+                $parts = explode("\n", $address);
+                array_shift($parts); // remove first part
+                $address = implode("\n", $parts);
+
+                $result = $this->callGeocodeAPI($address);
             }
 
-            return response()->json([
-                'error' => 'Address not found',
-            ], 404);
+            if (!$result) {
+                return response()->json([
+                    'error' => 'Address not found',
+                ], 404);
+            }
+
+            return response()->json($result);
         } catch (\Exception $e) {
             Log::error('Geocoding error: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Geocoding service unavailable',
             ], 500);
         }
+    }
+
+    private function callGeocodeAPI($address)
+    {
+        $response = Http::withHeaders([
+            'User-Agent' => 'FLL Flow Planning Tool (https://github.com/hands-on-leipzig/flow)',
+        ])->get('https://nominatim.openstreetmap.org/search', [
+            'q' => $address,
+            'format' => 'json',
+            'limit' => 1,
+        ]);
+
+        if ($response->successful() && $response->json()) {
+            $data = $response->json();
+            if (!empty($data) && isset($data[0])) {
+                $result = $data[0];
+                return [
+                    'lat' => (float) $result['lat'],
+                    'lon' => (float) $result['lon'],
+                    'display_name' => $result['display_name'] ?? $address,
+                ];
+            }
+        }
+
+        return null;
     }
 
 }
