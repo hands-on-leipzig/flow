@@ -572,35 +572,35 @@ onBeforeUnmount(() => {
 
     <!-- Error State -->
     <div v-else-if="error" class="min-h-screen flex items-center justify-center p-4">
-      <div class="text-center max-w-2xl mx-auto w-full">
+      <div class="text-center max-w-2xl mx-auto">
         <!-- Colorful Header -->
-        <div class="bg-[#F78B1F] rounded-2xl md:rounded-3xl shadow-xl md:shadow-2xl p-6 md:p-8 mb-6 md:mb-8 transform hover:scale-[1.02] transition-transform">
-          <div class="text-white text-4xl md:text-6xl mb-3 md:mb-4">🔍</div>
-          <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 md:mb-4 drop-shadow-lg px-2">
+        <div class="bg-[#F78B1F] rounded-3xl shadow-2xl p-8 mb-8 transform hover:scale-[1.02] transition-transform">
+          <div class="text-white text-6xl mb-4">🔍</div>
+          <h1 class="text-4xl md:text-5xl font-bold text-white mb-4 drop-shadow-lg">
             {{ error === 'Plan nicht gefunden' ? 'Plan nicht gefunden' : 'Event nicht gefunden' }}
           </h1>
-          <div class="flex justify-center items-center gap-3 md:gap-4 mt-4 md:mt-6">
-            <div class="flex items-center gap-2 md:gap-3 bg-white/20 backdrop-blur-sm rounded-full px-4 md:px-6 py-2">
-              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-8 h-8 md:w-12 md:h-12 drop-shadow-lg"/>
-              <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="w-8 h-8 md:w-12 md:h-12 drop-shadow-lg"/>
+          <div class="flex justify-center items-center gap-4 mt-6">
+            <div class="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-full px-6 py-2">
+              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-12 h-12 drop-shadow-lg"/>
+              <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="w-12 h-12 drop-shadow-lg"/>
             </div>
           </div>
         </div>
 
         <!-- Friendly Message Card -->
-        <div class="bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl p-4 md:p-6 lg:p-8 border-2 border-[#F78B1F]/30">
-          <p class="text-base md:text-lg text-gray-700 mb-4 md:mb-6 leading-relaxed">
+        <div class="bg-white rounded-2xl shadow-xl p-8 border-2 border-[#F78B1F]/30">
+          <p class="text-lg text-gray-700 mb-6 leading-relaxed">
             Hey! 👋 Für die Adresse, die du aufgerufen hast, konnten wir leider
             {{ error === 'Plan nicht gefunden' ? 'keinen Plan' : 'kein Event' }} finden.
           </p>
-          <p class="text-sm md:text-base text-gray-600 mb-4 md:mb-6">
+          <p class="text-base text-gray-600 mb-6">
             Bitte überprüfe nochmal die Adresse, die du verwendet hast. Vielleicht hat sich ein kleiner Tippfehler
             eingeschlichen?
           </p>
 
-          <div class="bg-orange-50 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-[#F78B1F]/20">
-            <p class="text-xs md:text-sm text-gray-600 font-medium mb-2">Du hast folgende Adresse aufgerufen:</p>
-            <p class="text-sm md:text-base lg:text-lg font-mono text-gray-800 break-all bg-white p-2 md:p-3 rounded-lg border border-gray-200">
+          <div class="bg-orange-50 rounded-xl p-6 border-2 border-[#F78B1F]/20">
+            <p class="text-sm text-gray-600 font-medium mb-2">Du hast folgende Adresse aufgerufen:</p>
+            <p class="text-lg font-mono text-gray-800 break-all bg-white p-3 rounded-lg border border-gray-200">
               {{ route.params.slug || 'N/A' }}
             </p>
           </div>
@@ -620,8 +620,8 @@ onBeforeUnmount(() => {
           style="margin: 0; padding: 0; border: none; width: 100%;"
       ></iframe>
       <!-- Event Logos Footer for Level 4 -->
-      <div v-if="eventLogos.length > 0" class="bg-white border-t border-gray-200 py-3 md:py-4 px-3 md:px-4">
-        <div class="flex flex-wrap items-center justify-center gap-3 md:gap-4 lg:gap-6 max-w-7xl mx-auto">
+      <div v-if="eventLogos.length > 0" class="bg-white border-t border-gray-200 py-4 px-4">
+        <div class="flex flex-wrap items-center justify-center gap-6 max-w-7xl mx-auto">
           <a
               v-for="logo in eventLogos"
               :key="logo.id"
@@ -633,7 +633,7 @@ onBeforeUnmount(() => {
             <img
                 :alt="logo.title || 'Logo'"
                 :src="logo.url"
-                class="h-8 md:h-10 lg:h-12 max-w-24 md:max-w-28 lg:max-w-32 object-contain"
+                class="h-12 max-w-32 object-contain"
             />
           </a>
         </div>
@@ -642,14 +642,14 @@ onBeforeUnmount(() => {
 
     <!-- Event Content (hidden when level 4 is active) -->
     <div v-else-if="event && !(isContentVisible(4) && publicPlanId)"
-         class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8 pb-12 md:pb-16">
+         class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
       <!-- Header with Flow Logo and Event Name -->
-      <div class="mb-8 md:mb-12">
+      <div class="mb-12">
         <div
-            class="bg-white rounded-2xl md:rounded-3xl shadow-xl md:shadow-2xl p-4 md:p-8 mb-4 md:mb-6 transform transition-transform">
-          <div class="flex flex-col md:flex-row items-center gap-3 md:gap-6">
-            <img :src="imageUrl('/flow/hot+fll.png')" alt="FLOW Logo" class="h-10 md:h-16 w-auto drop-shadow-lg flex-shrink-0"/>
-            <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#F78B1F] drop-shadow-lg flex-1 text-center md:text-center">{{
+            class="bg-white rounded-3xl shadow-2xl p-8 mb-6 transform transition-transform">
+          <div class="flex items-center gap-6">
+            <img :src="imageUrl('/flow/hot+fll.png')" alt="FLOW Logo" class="h-16 w-auto drop-shadow-lg flex-shrink-0"/>
+            <h1 class="text-4xl md:text-5xl font-bold text-[#F78B1F] drop-shadow-lg flex-1 text-center">{{
                 event.name
               }}</h1>
           </div>
@@ -657,17 +657,17 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Level 2 & 3: Times on Timeline -->
-      <div class="mt-6 md:mt-8 bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border-2 border-[#F78B1F] p-4 md:p-8">
-        <h2 class="text-xl md:text-2xl font-bold text-[#F78B1F] mb-4 md:mb-6 flex items-center gap-2">
+      <div class="mt-8 bg-white rounded-2xl shadow-xl border-2 border-[#F78B1F] p-8">
+        <h2 class="text-2xl font-bold text-[#F78B1F] mb-6 flex items-center gap-2">
           Zeitplan
         </h2>
 
         <div v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
-             class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+             class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Explore: Timeline -->
           <div v-if="scheduleInfo.plan.explore && getExploreTimelineItems().length > 0"
-               class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
-            <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
+               class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl p-6 border-2 border-green-300 shadow-lg flex flex-col">
+            <h3 class="font-bold text-green-800 mb-6 text-lg flex items-center gap-2">
               <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
               FIRST LEGO League Explore
             </h3>
