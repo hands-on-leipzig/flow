@@ -40,17 +40,6 @@ function handleClick() {
     props.onImmediateSave();
   }
 }
-
-// Legacy API support (for components that still use show/hide)
-function show() {
-  props.countdown = 5;
-}
-
-function hide() {
-  props.countdown = null;
-}
-
-defineExpose({ show, hide });
 </script>
 
 <template>
