@@ -249,17 +249,33 @@ class MainTablesController extends Controller
             Storage::put("exports/{$filename}", json_encode($exportData, JSON_PRETTY_PRINT));
 
             // Also save to database/exports/ for repo (used by MainDataSeeder during deployment)
-            // Use database_path to ensure we're always in backend/database/exports
-            $repoPath = database_path('exports');
+            // Use absolute path based on controller location to ensure we're in backend/database/exports
+            // This works regardless of working directory or base_path() resolution
+            $controllerDir = __DIR__; // /path/to/flow/backend/app/Http/Controllers/Api
+            $backendPath = dirname(dirname(dirname(dirname($controllerDir)))); // Go up 4 levels to backend/
+            $repoPath = $backendPath . '/database/exports';
+            
+            // Debug logging
+            Log::info("Export path resolution", [
+                'controller_dir' => $controllerDir,
+                'backend_path' => $backendPath,
+                'base_path' => base_path(),
+                'database_path' => database_path(),
+                'repo_path' => $repoPath,
+                'backend_path_exists' => file_exists($backendPath),
+                'repo_path_exists' => file_exists($repoPath),
+            ]);
+            
             if (!file_exists($repoPath)) {
                 mkdir($repoPath, 0755, true);
             }
-            $filePath = database_path('exports/main-tables-latest.json');
+            $filePath = $repoPath . '/main-tables-latest.json';
             file_put_contents($filePath, json_encode($exportData, JSON_PRETTY_PRINT));
             
             Log::info("JSON file saved to database/exports", [
                 'path' => $filePath,
-                'exists' => file_exists($filePath)
+                'exists' => file_exists($filePath),
+                'absolute_path' => realpath($filePath) ?: $filePath
             ]);
 
             // Generate MainDataSeeder.php for local use
@@ -368,18 +384,31 @@ class MainTablesController extends Controller
             ];
 
             // Save to database/exports/ for repo (used by MainDataSeeder during deployment)
-            // Use database_path to ensure we're always in backend/database/exports
-            $repoPath = database_path('exports');
+            // Use absolute path based on controller location to ensure we're in backend/database/exports
+            $controllerDir = __DIR__; // /path/to/flow/backend/app/Http/Controllers/Api
+            $backendPath = dirname(dirname(dirname(dirname($controllerDir)))); // Go up 4 levels to backend/
+            $repoPath = $backendPath . '/database/exports';
+            
+            // Debug logging
+            Log::info("Export path resolution (createPR)", [
+                'controller_dir' => $controllerDir,
+                'backend_path' => $backendPath,
+                'base_path' => base_path(),
+                'database_path' => database_path(),
+                'repo_path' => $repoPath,
+            ]);
+            
             if (!file_exists($repoPath)) {
                 mkdir($repoPath, 0755, true);
             }
             $jsonContent = json_encode($exportData, JSON_PRETTY_PRINT);
-            $filePath = database_path('exports/main-tables-latest.json');
+            $filePath = $repoPath . '/main-tables-latest.json';
             file_put_contents($filePath, $jsonContent);
             
             Log::info("JSON file saved to database/exports", [
                 'path' => $filePath,
-                'exists' => file_exists($filePath)
+                'exists' => file_exists($filePath),
+                'absolute_path' => realpath($filePath) ?: $filePath
             ]);
             
             Log::info("JSON file saved successfully", [
