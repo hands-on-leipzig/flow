@@ -17,7 +17,8 @@ class CreateMainDataPR extends Command
 
         try {
             // Step 1: Read the JSON export file (should already exist from MainTablesController::export())
-            $jsonPath = database_path('exports/main-tables-latest.json');
+            // Use base_path to ensure we're reading from backend/database/exports, not root/database/exports
+            $jsonPath = base_path('database/exports/main-tables-latest.json');
             if (!file_exists($jsonPath)) {
                 $this->error('JSON export file not found. Please export the main tables data first using the admin interface.');
                 $this->line('  Expected location: ' . $jsonPath);
