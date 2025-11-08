@@ -28,17 +28,17 @@ const plannedAmountNotMatching = computed(() => {
 <template>
   <div class="mb-3">
     <!-- Three-card layout -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       
       <!-- Card 1: Plan für (Editable) -->
       <div 
-        class="border border-gray-200 rounded-lg p-4 bg-white transition-colors shadow-sm"
+        class="border border-gray-200 rounded-lg p-3 sm:p-4 bg-white transition-colors shadow-sm"
       >
-        <div class="mb-3">
-          <span class="text-sm font-semibold text-gray-700">Plan für</span>
+        <div class="mb-2 sm:mb-3">
+          <span class="text-xs sm:text-sm font-semibold text-gray-700">Plan für</span>
         </div>
         <div class="relative">
-          <div class="w-full text-2xl font-bold bg-white relative flex items-center justify-center gap-2">
+          <div class="w-full text-xl sm:text-2xl font-bold bg-white relative flex items-center justify-center gap-1.5 sm:gap-2">
             <span v-if="plannedAmountNotMatching" class="w-2 h-2 bg-red-500 rounded-full"></span>
             <!-- Custom up/down arrows -->
             <div class="flex flex-col gap-0.5">
@@ -71,11 +71,11 @@ const plannedAmountNotMatching = computed(() => {
       </div>
       
       <!-- Card 2: Angemeldet (Registered) -->
-      <div class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
-        <div class="mb-3">
-          <span class="text-sm font-semibold text-gray-700">Angemeldet</span>
+      <div class="border border-gray-200 rounded-lg p-3 sm:p-4 bg-white shadow-sm">
+        <div class="mb-2 sm:mb-3">
+          <span class="text-xs sm:text-sm font-semibold text-gray-700">Angemeldet</span>
         </div>
-        <div class="w-full text-2xl font-bold bg-white text-gray-900 flex items-center justify-center gap-2">
+        <div class="w-full text-xl sm:text-2xl font-bold bg-white text-gray-900 flex items-center justify-center gap-1.5 sm:gap-2">
           <span v-if="registeredTeams > 0">{{ registeredTeams }}</span>
           <span v-else class="text-gray-400">0</span>
           <span class="text-xs font-medium text-gray-500">Teams</span>
@@ -83,11 +83,11 @@ const plannedAmountNotMatching = computed(() => {
       </div>
       
       <!-- Card 3: Kapazität (Capacity) -->
-      <div class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
-        <div class="mb-3">
-          <span class="text-sm font-semibold text-gray-700">Kapazität</span>
+      <div class="border border-gray-200 rounded-lg p-3 sm:p-4 bg-white shadow-sm">
+        <div class="mb-2 sm:mb-3">
+          <span class="text-xs sm:text-sm font-semibold text-gray-700">Kapazität</span>
         </div>
-        <div class="w-full text-2xl font-bold bg-white text-gray-900 flex items-center justify-center gap-2">
+        <div class="w-full text-xl sm:text-2xl font-bold bg-white text-gray-900 flex items-center justify-center gap-1.5 sm:gap-2">
           <span v-if="capacity > 0">{{ capacity }}</span>
           <span v-else class="text-gray-400">0</span>
           <span class="text-xs font-medium text-gray-500">Teams</span>
