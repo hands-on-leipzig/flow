@@ -1,0 +1,6221 @@
+{
+    "m_activity_type": [
+        {
+            "id": 1,
+            "name": "Robot-Game",
+            "sequence": 220,
+            "description": "",
+            "first_program": 3,
+            "overview_plan_column": "Robot-Game"
+        },
+        {
+            "id": 2,
+            "name": "Jury",
+            "sequence": 210,
+            "description": "",
+            "first_program": 3,
+            "overview_plan_column": "Challenge"
+        },
+        {
+            "id": 3,
+            "name": "Ausstellung",
+            "sequence": 120,
+            "description": "",
+            "first_program": 2,
+            "overview_plan_column": "Explore"
+        },
+        {
+            "id": 4,
+            "name": "Mittagspause",
+            "sequence": 130,
+            "description": "",
+            "first_program": 3,
+            "overview_plan_column": "Challenge"
+        },
+        {
+            "id": 5,
+            "name": "Er\u00f6ffnung Challenge",
+            "sequence": 200,
+            "description": "",
+            "first_program": 3,
+            "overview_plan_column": "Challenge"
+        },
+        {
+            "id": 6,
+            "name": "Preisverleihung Challenge",
+            "sequence": 250,
+            "description": "",
+            "first_program": 3,
+            "overview_plan_column": "Challenge"
+        },
+        {
+            "id": 7,
+            "name": "Orga",
+            "sequence": 0,
+            "description": "",
+            "first_program": null,
+            "overview_plan_column": ""
+        },
+        {
+            "id": 8,
+            "name": "Live-Challenge",
+            "sequence": 255,
+            "description": "",
+            "first_program": 3,
+            "overview_plan_column": "Live-Challenge"
+        },
+        {
+            "id": 9,
+            "name": "Zusatzblock",
+            "sequence": 255,
+            "description": "",
+            "first_program": null,
+            "overview_plan_column": null
+        },
+        {
+            "id": 10,
+            "name": "Er\u00f6ffnung Explore",
+            "sequence": 110,
+            "description": "",
+            "first_program": 2,
+            "overview_plan_column": "Explore"
+        },
+        {
+            "id": 11,
+            "name": "Preisverleihung Explore",
+            "sequence": 150,
+            "description": "",
+            "first_program": 2,
+            "overview_plan_column": "Explore"
+        },
+        {
+            "id": 12,
+            "name": "Er\u00f6ffnung",
+            "sequence": 0,
+            "description": null,
+            "first_program": null,
+            "overview_plan_column": "Allgemein"
+        },
+        {
+            "id": 13,
+            "name": "Preisverleihung",
+            "sequence": 0,
+            "description": null,
+            "first_program": null,
+            "overview_plan_column": "Allgemein"
+        },
+        {
+            "id": 14,
+            "name": "Party",
+            "sequence": 300,
+            "description": null,
+            "first_program": null,
+            "overview_plan_column": null
+        },
+        {
+            "id": 15,
+            "name": "Zusatzblock Challenge",
+            "sequence": 0,
+            "description": null,
+            "first_program": 3,
+            "overview_plan_column": null
+        },
+        {
+            "id": 16,
+            "name": "Forschung auf der B\u00fchne",
+            "sequence": 0,
+            "description": null,
+            "first_program": 3,
+            "overview_plan_column": null
+        }
+    ],
+    "m_activity_type_detail": [
+        {
+            "id": 1,
+            "name": "Begutachtung",
+            "code": "e_with_team",
+            "name_preview": "Mit Team",
+            "sequence": 30,
+            "first_program": 2,
+            "description": "Die Gutachter:innen sprechen mit den Kindern",
+            "link": null,
+            "link_text": null,
+            "activity_type": 3
+        },
+        {
+            "id": 2,
+            "name": "Beratung (zum Team)",
+            "code": "e_scoring",
+            "name_preview": "Ohne Team",
+            "sequence": 35,
+            "first_program": 2,
+            "description": "Die Gutachter:innen beraten nach der Begutachtung eines Teams",
+            "link": "",
+            "link_text": null,
+            "activity_type": 3
+        },
+        {
+            "id": 3,
+            "name": "Beratung (alle)",
+            "code": "e_deliberations",
+            "name_preview": "Beratung",
+            "sequence": 60,
+            "first_program": 2,
+            "description": "Alle Gutachter:innen beraten gemeinsam \u00fcber Auszeichnungen f\u00fcr alle Teams",
+            "link": "",
+            "link_text": null,
+            "activity_type": 3
+        },
+        {
+            "id": 4,
+            "name": "Begutachtung",
+            "code": "e_judging_package",
+            "name_preview": "Begutachtung",
+            "sequence": 20,
+            "first_program": 2,
+            "description": "Die Kinder erkl\u00e4ren den Gutachter:innen ihre Modelle",
+            "link": "",
+            "link_text": null,
+            "activity_type": 3
+        },
+        {
+            "id": 5,
+            "name": "Er\u00f6ffnung Explore",
+            "code": "e_opening",
+            "name_preview": "Er\u00f6ffnung E",
+            "sequence": 10,
+            "first_program": 2,
+            "description": "Der FIRST LEGO League Explore-Wettbewerb wird er\u00f6ffnet",
+            "link": "",
+            "link_text": null,
+            "activity_type": 10
+        },
+        {
+            "id": 6,
+            "name": "Er\u00f6ffnung Challenge",
+            "code": "c_opening",
+            "name_preview": "Er\u00f6ffnung C",
+            "sequence": 10,
+            "first_program": 3,
+            "description": "Der FIRST LEGO League Challenge Wettbewerb wird er\u00f6ffnet",
+            "link": "",
+            "link_text": null,
+            "activity_type": 5
+        },
+        {
+            "id": 7,
+            "name": "Gemeinsame Er\u00f6ffnung",
+            "code": "g_opening",
+            "name_preview": "Er\u00f6ffnung",
+            "sequence": 10,
+            "first_program": null,
+            "description": "Die FIRST LEGO League Explore und Challenge Wettbewerbe werden er\u00f6ffnet",
+            "link": "",
+            "link_text": null,
+            "activity_type": 12
+        },
+        {
+            "id": 8,
+            "name": "Robot-Game Testrunde",
+            "code": "r_test_round",
+            "name_preview": "Test",
+            "sequence": 41,
+            "first_program": 3,
+            "description": "Die Teams haben die M\u00f6glichkeit die Robot-Game-Tische zu testen und Fragen mit den Schiedsrichter:innen zur kl\u00e4ren",
+            "link": "",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 9,
+            "name": "Robot-Game Vorrunde 1",
+            "code": "r_round_1",
+            "name_preview": "Runde 1",
+            "sequence": 42,
+            "first_program": 3,
+            "description": "Die erste von drei Robot-Game-Runden",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 10,
+            "name": "Robot-Game Vorrunde 2",
+            "code": "r_round_2",
+            "name_preview": "Runde 2",
+            "sequence": 43,
+            "first_program": 3,
+            "description": "Die zweite von drei Robot-Game-Runden",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 11,
+            "name": "Robot-Game Vorrunde 3",
+            "code": "r_round_3",
+            "name_preview": "Runde 3",
+            "sequence": 44,
+            "first_program": 3,
+            "description": "Die dritte von drei Robot-Game-Runden",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 12,
+            "name": "Robot-Game Viertelfinale",
+            "code": "r_final_8",
+            "name_preview": "VF",
+            "sequence": 46,
+            "first_program": 3,
+            "description": "Die besten 8 Teams treten noch einmal an",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 13,
+            "name": "Robot-Game Halbfinale",
+            "code": "r_final_4",
+            "name_preview": "HF",
+            "sequence": 47,
+            "first_program": 3,
+            "description": "Die besten 4 Teams treten noch einmal an",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 14,
+            "name": "Robot-Game Finale",
+            "code": "r_final_2",
+            "name_preview": "F",
+            "sequence": 48,
+            "first_program": 3,
+            "description": "Die besten 2 Teams sind im Finale. Es finden zwei Matches statt. Die Summe der erzielten Punkte enscheidet",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 15,
+            "name": "Robot-Game Match",
+            "code": "r_match",
+            "name_preview": "Match",
+            "sequence": 40,
+            "first_program": 3,
+            "description": "In einem Match stehen sich zwei Teams gegen\u00fcber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:inner Punkte pro gel\u00f6ster Aufgabe",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 16,
+            "name": "Robot Check",
+            "code": "r_check",
+            "name_preview": "Check",
+            "sequence": 39,
+            "first_program": 3,
+            "description": "Vor einem Match zeigen die Teams, dass ihre Roboter den Regeln des Robot-Games entsprechen",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 17,
+            "name": "Jurygespr\u00e4ch",
+            "code": "j_with_team",
+            "name_preview": "Mit Team",
+            "sequence": 32,
+            "first_program": 3,
+            "description": "Die Teams pr\u00e4sentieren ihr Forschungprojekt und ihr Vorgehen beim Roboter-Design. Zu beiden gibt es Fragen von den Juror:innen",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
+            "link_text": null,
+            "activity_type": 2
+        },
+        {
+            "id": 18,
+            "name": "Juryberatung (zum Team)",
+            "code": "j_scoring",
+            "name_preview": "Ohne Team",
+            "sequence": 33,
+            "first_program": 3,
+            "description": "Nachdem die Teams den Raum verlassen haben, vergeben die Juror:innen Punkte",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
+            "link_text": null,
+            "activity_type": 2
+        },
+        {
+            "id": 19,
+            "name": "Juryberatung (alle)",
+            "code": "j_deliberations",
+            "name_preview": "Beratung",
+            "sequence": 34,
+            "first_program": 3,
+            "description": "Alle Juror:innen beraten gemeinsam, welche Teams f\u00fcr Pokale nominiert werden und wer die Pokale bekommt",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
+            "link_text": null,
+            "activity_type": 2
+        },
+        {
+            "id": 20,
+            "name": "Jurybewertung",
+            "code": "j_package",
+            "name_preview": "Runde",
+            "sequence": 31,
+            "first_program": 3,
+            "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboter-Design. Anschlie\u00dfend vergeben die Juror:innen Punkte",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
+            "link_text": null,
+            "activity_type": 2
+        },
+        {
+            "id": 21,
+            "name": "Mittagspause Challenge",
+            "code": "c_lunch_break",
+            "name_preview": "Mittagspause",
+            "sequence": 60,
+            "first_program": 3,
+            "description": "Mittagspause ",
+            "link": "",
+            "link_text": null,
+            "activity_type": 5
+        },
+        {
+            "id": 32,
+            "name": "Preisverleihung Challenge",
+            "code": "c_awards",
+            "name_preview": "Preise C",
+            "sequence": 75,
+            "first_program": 3,
+            "description": "Pokale f\u00fcr die FIRST LEGO League Challenge Teams",
+            "link": "",
+            "link_text": null,
+            "activity_type": 6
+        },
+        {
+            "id": 33,
+            "name": "Forschung auf der B\u00fchne",
+            "code": "c_presentations",
+            "name_preview": "Forschung",
+            "sequence": 70,
+            "first_program": 3,
+            "description": "Von den Juror:innen ausgew\u00e4hlte Forschungspr\u00e4sentationen werden noch einmal \u00f6ffentlich gezeigt. Eine Fragerunde gibt es dazu allerdings nicht",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
+            "link_text": null,
+            "activity_type": 16
+        },
+        {
+            "id": 34,
+            "name": "Gemeinsame Preisverleihung",
+            "code": "g_awards",
+            "name_preview": "Preise",
+            "sequence": 20,
+            "first_program": null,
+            "description": "Auszeichnungen f\u00fcr die FIRST LEGO League Explore Teams und Pokale f\u00fcr die FIRST LEGO League Challenge Teams",
+            "link": "",
+            "link_text": null,
+            "activity_type": 13
+        },
+        {
+            "id": 35,
+            "name": "Coach Briefing",
+            "code": "c_briefing",
+            "name_preview": "Briefing",
+            "sequence": 11,
+            "first_program": 3,
+            "description": "Im Coach Briefing wird der Ablauf des Tages besprochen und offene Fragen beantwortet",
+            "link": "",
+            "link_text": null,
+            "activity_type": 7
+        },
+        {
+            "id": 36,
+            "name": "Jury Briefing",
+            "code": "j_briefing",
+            "name_preview": "Briefing",
+            "sequence": 30,
+            "first_program": 3,
+            "description": "Das Briefing f\u00fcr Juror:innen sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
+            "link_text": null,
+            "activity_type": 2
+        },
+        {
+            "id": 37,
+            "name": "Schiedsrichter:innen Briefing",
+            "code": "r_briefing",
+            "name_preview": "Briefing",
+            "sequence": 38,
+            "first_program": 3,
+            "description": "Im Schiedsrichter:innen Briefing werden aktuelle Regel\u00e4nderungen besprochen und offene Fragen beantwortet",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 38,
+            "name": "Coach Briefing",
+            "code": "e_briefing_coach",
+            "name_preview": "Briefing",
+            "sequence": 15,
+            "first_program": 2,
+            "description": "Im Coach Briefing wir der Ablauf des Tages besprochen und offene Fragen beantwortet",
+            "link": "",
+            "link_text": null,
+            "activity_type": 7
+        },
+        {
+            "id": 39,
+            "name": "Gutachter:innen Briefing",
+            "code": "e_briefing_judge",
+            "name_preview": "Briefing",
+            "sequence": 21,
+            "first_program": 2,
+            "description": "Das Briefing f\u00fcr Gutachter:innen sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
+            "link": "",
+            "link_text": null,
+            "activity_type": 3
+        },
+        {
+            "id": 40,
+            "name": "Live Challenge Jury Briefing",
+            "code": "lc_briefing",
+            "name_preview": "Briefing",
+            "sequence": 90,
+            "first_program": 3,
+            "description": "Im Briefing lernen die Live Challenge Juror:innen die Aufgabe und den zeitlichen Ablauf kennen",
+            "link": "",
+            "link_text": null,
+            "activity_type": 8
+        },
+        {
+            "id": 41,
+            "name": "Live Challenge",
+            "code": "lc_package",
+            "name_preview": "Runde",
+            "sequence": 91,
+            "first_program": 3,
+            "description": "Die Live Challenge gibt es nur beim Finale. Die Teams m\u00fcssen sich unbekannten Aufgaben stellen. Die Bewertung geht NICHT in die Champion-Wertung ein, aber es gibt einen eigenen Pokal",
+            "link": "",
+            "link_text": null,
+            "activity_type": 8
+        },
+        {
+            "id": 42,
+            "name": "Live Challenge: Aktion",
+            "code": "lc_with_team",
+            "name_preview": "Mit Team",
+            "sequence": 92,
+            "first_program": 3,
+            "description": "Die Juror:innen erkl\u00e4ren die Aufgaben, Regeln und wie viel Zeit zur Verf\u00fcgung steht. Dann l\u00f6sen die Teams m\u00f6glichst viele Aufgaben der Live-Challenge",
+            "link": "",
+            "link_text": null,
+            "activity_type": 8
+        },
+        {
+            "id": 43,
+            "name": "Live Challenge: Nachbereitung",
+            "code": "lc_scoring",
+            "name_preview": "Ohne Team",
+            "sequence": 93,
+            "first_program": 3,
+            "description": "Nachdem die Teams den Raum verlassen haben, notieren die Juror:innen das Ergebnis",
+            "link": "",
+            "link_text": null,
+            "activity_type": 8
+        },
+        {
+            "id": 44,
+            "name": "Live Challenge: Auswertung",
+            "code": "lc_deliberations",
+            "name_preview": "Auswertung",
+            "sequence": 95,
+            "first_program": 3,
+            "description": "Alle Juror:innen bringen die Ergebnisse zur Gesamtwertung zusammen",
+            "link": "",
+            "link_text": null,
+            "activity_type": 8
+        },
+        {
+            "id": 45,
+            "name": "Robot-Game Achtelfinale",
+            "code": "r_final_16",
+            "name_preview": "AF",
+            "sequence": 45,
+            "first_program": 3,
+            "description": "Die besten 16 Teams treten noch einmal an",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 46,
+            "name": "Schiedsrichter:innen Debriefing",
+            "code": "r_debriefing",
+            "name_preview": "Debrief",
+            "sequence": 49,
+            "first_program": 3,
+            "description": "Im Schiedsrichter:innen Debriefing besprechen die Schiedsrichter:innen die besonderen Erlebnisse des Tages und besprechen m\u00f6glicherweise Anpassungen f\u00fcr den n\u00e4chsten Tag",
+            "link": null,
+            "link_text": null,
+            "activity_type": 1
+        },
+        {
+            "id": 47,
+            "name": "Eingeschobener Block",
+            "code": "g_inserted_block",
+            "name_preview": null,
+            "sequence": 30,
+            "first_program": null,
+            "description": "",
+            "link": null,
+            "link_text": null,
+            "activity_type": 9
+        },
+        {
+            "id": 48,
+            "name": "Eingeschobener Block Explore",
+            "code": "e_inserted_block",
+            "name_preview": null,
+            "sequence": 95,
+            "first_program": 2,
+            "description": "",
+            "link": null,
+            "link_text": null,
+            "activity_type": 9
+        },
+        {
+            "id": 49,
+            "name": "Eingeschobener Block Challenge",
+            "code": "c_inserted_block",
+            "name_preview": null,
+            "sequence": 80,
+            "first_program": 3,
+            "description": null,
+            "link": null,
+            "link_text": null,
+            "activity_type": 15
+        },
+        {
+            "id": 50,
+            "name": "Freier Block",
+            "code": "g_free_block",
+            "name_preview": null,
+            "sequence": 30,
+            "first_program": null,
+            "description": null,
+            "link": null,
+            "link_text": null,
+            "activity_type": 9
+        },
+        {
+            "id": 51,
+            "name": "Freier Block Explore",
+            "code": "e_free_block",
+            "name_preview": null,
+            "sequence": 90,
+            "first_program": 2,
+            "description": "",
+            "link": null,
+            "link_text": null,
+            "activity_type": 9
+        },
+        {
+            "id": 52,
+            "name": "Freier Block Challenge",
+            "code": "c_free_block",
+            "name_preview": null,
+            "sequence": 81,
+            "first_program": 3,
+            "description": "",
+            "link": null,
+            "link_text": null,
+            "activity_type": 9
+        },
+        {
+            "id": 54,
+            "name": "Er\u00f6ffnung Tag 1",
+            "code": "c_opening_day_1",
+            "name_preview": "Er\u00f6ffnung Tag 1",
+            "sequence": 97,
+            "first_program": 3,
+            "description": "Kleine Er\u00f6ffnung vor Live-Challenge und Robot-Game-Testrunden",
+            "link": null,
+            "link_text": null,
+            "activity_type": 5
+        },
+        {
+            "id": 55,
+            "name": "Jury Briefing (Tag 1)",
+            "code": "j_briefing_day_1",
+            "name_preview": "Briefing",
+            "sequence": 98,
+            "first_program": 3,
+            "description": "Das Briefing (an Tag 1) f\u00fcr Juror:innen sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
+            "link_text": null,
+            "activity_type": 2
+        },
+        {
+            "id": 56,
+            "name": "Preisverleihung Explore",
+            "code": "e_awards",
+            "name_preview": "Preise E",
+            "sequence": 70,
+            "first_program": 2,
+            "description": "Auszeichnungen f\u00fcr die FIRST LEGO League Explore Teams",
+            "link": null,
+            "link_text": null,
+            "activity_type": 11
+        },
+        {
+            "id": 59,
+            "name": "Team-Party",
+            "code": "g_party_teams",
+            "name_preview": "Party T",
+            "sequence": 100,
+            "first_program": 3,
+            "description": "Musik und Tanz und Essen",
+            "link": null,
+            "link_text": null,
+            "activity_type": 14
+        },
+        {
+            "id": 60,
+            "name": "Volunteer-Party",
+            "code": "g_party_volunteers",
+            "name_preview": "Party V",
+            "sequence": 101,
+            "first_program": null,
+            "description": "Essen und Gespr\u00e4che",
+            "link": null,
+            "link_text": null,
+            "activity_type": 14
+        },
+        {
+            "id": 62,
+            "name": "Ausstellung",
+            "code": "e_exhibition",
+            "name_preview": null,
+            "sequence": 19,
+            "first_program": 2,
+            "description": "Die Kindern stellen ihre Modelle und Poster aus und freuen sich \u00fcber Fragen dazu",
+            "link": null,
+            "link_text": null,
+            "activity_type": 3
+        }
+    ],
+    "m_first_program": [
+        {
+            "id": 1,
+            "name": "DISCOVER",
+            "sequence": 3,
+            "color_hex": "662D91",
+            "logo_white": "FLL_Explore_column_heading.png"
+        },
+        {
+            "id": 2,
+            "name": "EXPLORE",
+            "sequence": 2,
+            "color_hex": "00A651",
+            "logo_white": "FLL_Explore_column_heading.png"
+        },
+        {
+            "id": 3,
+            "name": "CHALLENGE",
+            "sequence": 1,
+            "color_hex": "ED1C24",
+            "logo_white": "FLL_Challenge_column_heading.png"
+        }
+    ],
+    "m_insert_point": [
+        {
+            "id": 1,
+            "code": "c_after_rg_3",
+            "first_program": 3,
+            "level": 1,
+            "sequence": 310,
+            "ui_label": "Nach Robot-Game Runde 3",
+            "ui_description": "Der zus\u00e4tzluche Blick wird direkt nach Robot-Game Runde 3 eingef\u00fcgt."
+        },
+        {
+            "id": 2,
+            "code": "c_after_presentations",
+            "first_program": 3,
+            "level": 1,
+            "sequence": 320,
+            "ui_label": "Nach Forschungspr\u00e4sentationen",
+            "ui_description": "Der zus\u00e4tzliche Block wird direkt nach den Pr\u00e4sentationen eingef\u00fcgt."
+        },
+        {
+            "id": 3,
+            "code": "c_after_final_2",
+            "first_program": 3,
+            "level": 1,
+            "sequence": 340,
+            "ui_label": "Nach Robot-Game Final-Matches",
+            "ui_description": "Der zus\u00e4tzliche Block wird direkt nach den beiden Final-Matches eingef\u00fcgt."
+        },
+        {
+            "id": 4,
+            "code": "c_after_final_4",
+            "first_program": 3,
+            "level": 1,
+            "sequence": 330,
+            "ui_label": "Nach Robot-Game Halbfinale",
+            "ui_description": "Der zus\u00e4tzliche Block wird direkt nach dem Halbfinale eingef\u00fcgt."
+        },
+        {
+            "id": 6,
+            "code": "c_after_tr",
+            "first_program": 3,
+            "level": 1,
+            "sequence": 210,
+            "ui_label": "Nach Robot-Game Testrunde",
+            "ui_description": "Der zus\u00e4tzliche Block wird direkt nach der Robot-Game Testrunde eingef\u00fcgt."
+        },
+        {
+            "id": 7,
+            "code": "c_after_rg_1",
+            "first_program": 3,
+            "level": 1,
+            "sequence": 220,
+            "ui_label": "Nach Robot-Game Runde 1",
+            "ui_description": "Der zus\u00e4tzliche Block wird direkt nach Robot-Game Runde 1 eingef\u00fcgt."
+        },
+        {
+            "id": 8,
+            "code": "c_after_rg_2",
+            "first_program": 3,
+            "level": 1,
+            "sequence": 230,
+            "ui_label": "Nach Robot-Game Runde 2",
+            "ui_description": "Der zus\u00e4tzliche Block wird direkt nach Robot-Game Runde 2 eingef\u00fcgt."
+        },
+        {
+            "id": 9,
+            "code": "c_after_final_8",
+            "first_program": 3,
+            "level": 1,
+            "sequence": 325,
+            "ui_label": "Nach Robot-Game Viertelfinale",
+            "ui_description": "Der zus\u00e4tzliche Block wird direkt nach dem Viertelfinale eingef\u00fcgt."
+        },
+        {
+            "id": 10,
+            "code": "c_after_final_16",
+            "first_program": 3,
+            "level": 3,
+            "sequence": 324,
+            "ui_label": "Nach Robot-Game-Achtelfinale",
+            "ui_description": "Der zus\u00e4tzliche Block wird direkt nach dem Achtellfinale eingef\u00fcgt."
+        }
+    ],
+    "m_level": [
+        {
+            "id": 1,
+            "name": "Regionalwettbewerb"
+        },
+        {
+            "id": 2,
+            "name": "Qualifikationswettbewerb"
+        },
+        {
+            "id": 3,
+            "name": "Finale"
+        }
+    ],
+    "m_news": [
+        {
+            "id": 1,
+            "title": "Test News: System News Feature",
+            "text": "Wir haben eine neue Funktion eingef\u00fchrt! Ab sofort werden Sie \u00fcber System-News informiert, wenn Sie zwischen den Hauptbildschirmen navigieren.\n\nDiese Funktion erm\u00f6glicht es uns, Sie \u00fcber neue Features, Bugfixes und wichtige \u00c4nderungen zu informieren.",
+            "link": "https:\/\/github.com\/hands-on-leipzig\/flow",
+            "created_at": "2025-10-21 12:15:07",
+            "updated_at": "2025-10-21 12:15:07"
+        },
+        {
+            "id": 3,
+            "title": "Das ist die Implementierung von FLOW-893",
+            "text": "Eigentlich wollte ich ja nichts mehr machen, aber dann kam mir diese Idee.\nUnd die Implementierung hat keine 30 Minuten gedauert.",
+            "link": "https:\/\/hendrikmdy.atlassian.net\/browse\/FLOW-893",
+            "created_at": "2025-10-21 12:18:25",
+            "updated_at": "2025-10-21 12:18:25"
+        },
+        {
+            "id": 4,
+            "title": "Finale Generator ist da! \ud83c\udf89",
+            "text": "Hey du! Wir haben den ersten Finale Generator implementiert! Das ist ein gro\u00dfer Schritt f\u00fcr unser System.Was ist neu:\u2022 2-Tage Finale Events (Level 3)\u2022 Tag 1: Live Challenge + Test Runden\u2022 Tag 2: Hauptwettbewerb mit allen Features\u2022 Automatische Team-Zuordnung zwischen den TagenEs ist noch nicht perfekt, aber es funktioniert! Wir arbeiten weiter daran und verbessern es Schritt f\u00fcr Schritt.",
+            "link": null,
+            "created_at": "2025-10-22 09:02:42",
+            "updated_at": "2025-10-22 09:02:42"
+        }
+    ],
+    "m_parameter": [
+        {
+            "id": 2,
+            "name": "g_start_opening",
+            "context": "input",
+            "level": 1,
+            "type": "time",
+            "value": "09:00",
+            "min": "08:00",
+            "max": "11:00",
+            "step": "5",
+            "first_program": null,
+            "sequence": 28,
+            "ui_label": "Start gemeinsame Er\u00f6ffnung",
+            "ui_description": "Startzeit der gemeinsamen Er\u00f6ffnung f\u00fcr FLL Explore und FLL Challenge zusammen."
+        },
+        {
+            "id": 3,
+            "name": "g_duration_opening",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "45",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": null,
+            "sequence": 29,
+            "ui_label": "Dauer gemeinsame Er\u00f6ffnung ",
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+        },
+        {
+            "id": 4,
+            "name": "e2_duration_opening",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "15",
+            "max": "45",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 35,
+            "ui_label": "Dauer Er\u00f6ffnung (Explore - Gruppe 2 )",
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+        },
+        {
+            "id": 5,
+            "name": "e2_start_opening",
+            "context": "input",
+            "level": 1,
+            "type": "time",
+            "value": "13:00",
+            "min": "11:00",
+            "max": "15:00",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 34,
+            "ui_label": "Start Er\u00f6ffnung (Explore - Gruppe 2)",
+            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr FLL Explore im Nachmittag"
+        },
+        {
+            "id": 6,
+            "name": "e_teams",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "7",
+            "min": "1",
+            "max": "30",
+            "step": "1",
+            "first_program": 2,
+            "sequence": 15,
+            "ui_label": "FLL Explore Teams",
+            "ui_description": "Anzahl FLL Explore Teams"
+        },
+        {
+            "id": 7,
+            "name": "e_mode",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "1",
+            "min": "0",
+            "max": "8",
+            "step": "1",
+            "first_program": 2,
+            "sequence": 16,
+            "ui_label": "FLL Explore Modus",
+            "ui_description": "Wenn FLL Explore zusammen mit FLL Challenge am selben Tag stattfindet, gibt es mehrere Varianten, wie das im Ablauf integriert wird."
+        },
+        {
+            "id": 8,
+            "name": "e1_duration_briefing_t",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 47,
+            "ui_label": "Dauer Coach:innen-Briefing (Vormittag)",
+            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+        },
+        {
+            "id": 9,
+            "name": "e1_duration_briefing_j",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 49,
+            "ui_label": "Dauer Gutachter:innen-Briefing (Vormittag)",
+            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen die Bewertungskriterien, die Gutachter:innnen-Gruppen-Einteilung und der Zeitplan besprochen werden."
+        },
+        {
+            "id": 10,
+            "name": "e_ready_opening",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 51,
+            "ui_label": "Wechsel zur Er\u00f6ffnung",
+            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
+        },
+        {
+            "id": 11,
+            "name": "e1_duration_opening",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "15",
+            "max": "45",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 32,
+            "ui_label": "Dauer Er\u00f6ffnung (Explore - Gruppe 1)",
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+        },
+        {
+            "id": 12,
+            "name": "e_ready_action",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 54,
+            "ui_label": "Wechsel zur Begutachtung",
+            "ui_description": "Nach der Er\u00f6ffnung gehen die Kinder in den Austellungsbereich. Die Guterachter:innen gehen ebenfalls zur Austellung oder in eigene R\u00e4ume, wenn das vorgesehen ist."
+        },
+        {
+            "id": 13,
+            "name": "e_duration_break",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "5",
+            "max": "15",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 55,
+            "ui_label": "Dauer Pause Gutachter:innen",
+            "ui_description": "Dauer der Pause zwischen zwei Begutachtungen. In der Zeit f\u00fcr eine Begutachtgung ist schon die Zeit f\u00fcr eine Besprechung der Gutacher:innen ohne die Kinder enthalten."
+        },
+        {
+            "id": 14,
+            "name": "r_robot_check_16",
+            "context": "expert",
+            "level": 3,
+            "type": "boolean",
+            "value": "1",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 83,
+            "ui_label": "Check Achtelfinale",
+            "ui_description": "Gibt es einen Check vor jedem Match? Der Robot-Check erleichtert den Schiedsrichter:innen die Arbeit, kostet aber Zeit extra. "
+        },
+        {
+            "id": 15,
+            "name": "e_ready_deliberations",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "10",
+            "max": "30",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 56,
+            "ui_label": "Wechsel zur Beratung",
+            "ui_description": "Nach der letzter Begutachtung kommen alle Gutachter:innen zur Beratung zusammen. Diese Zeit ist f\u00fcr den n\u00f6tigen Raumwechsel."
+        },
+        {
+            "id": 16,
+            "name": "r_duration_results",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "5",
+            "min": "",
+            "max": "",
+            "step": "",
+            "first_program": 3,
+            "sequence": 11,
+            "ui_label": "Dauer Ergebnisse",
+            "ui_description": "Vor jeder Finalrunden muss bekanntgegeben werden, welche Team an welchen Tischen starten."
+        },
+        {
+            "id": 17,
+            "name": "e1_duration_deliberations",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "45",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 57,
+            "ui_label": "Dauer Gutachter:innen-Beratung (Vormittag)",
+            "ui_description": "Dauer der FLL Explore Gutachter:innen-Beratung"
+        },
+        {
+            "id": 18,
+            "name": "e_ready_awards",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "10",
+            "max": "20",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 59,
+            "ui_label": "Wechsel zur Preisverleihung",
+            "ui_description": "Vor der Preisverleihung muss ggfs umger\u00e4umt werden. Dieselbe Zeit wird auch f\u00fcr Umr\u00e4umen nach der Preisverleihung verwendet."
+        },
+        {
+            "id": 19,
+            "name": "e1_duration_awards",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "45",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 33,
+            "ui_label": "Dauer Preisverleihung (Explore - Gruppe 1)",
+            "ui_description": "Dauer der FLL Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. F\u00fcr die Kinder ist k\u00fcrzer besser."
+        },
+        {
+            "id": 20,
+            "name": "e_duration_with_team",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "",
+            "max": "",
+            "step": "",
+            "first_program": 2,
+            "sequence": 1,
+            "ui_label": "Dauer Gutachter:innen mit Team",
+            "ui_description": "Dauer der Begutachtung mit den Kindern. "
+        },
+        {
+            "id": 21,
+            "name": "e_duration_scoring",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "5",
+            "min": "",
+            "max": "",
+            "step": "",
+            "first_program": 2,
+            "sequence": 2,
+            "ui_label": "Dauer Gutachter:innen ohne Team",
+            "ui_description": "Dauer der Besprechung und Bewertung ohne die Kinder. "
+        },
+        {
+            "id": 22,
+            "name": "c_teams",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "11",
+            "min": "4",
+            "max": "30",
+            "step": "1",
+            "first_program": 3,
+            "sequence": 22,
+            "ui_label": "FLL Challenge Teams",
+            "ui_description": "Anzahl FLL Challenge Teams"
+        },
+        {
+            "id": 23,
+            "name": "j_lanes",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "2",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 23,
+            "ui_label": "Jury-Spuren",
+            "ui_description": "Anzahl Jury-Gruppen, die parallel arbeiten. Die m\u00f6gliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Jury-Gruppen, ergeben sich vier bis sechs Runden, in denen die Teams bewertet werden."
+        },
+        {
+            "id": 24,
+            "name": "r_tables",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "4",
+            "min": "2",
+            "max": "4",
+            "step": "2",
+            "first_program": 3,
+            "sequence": 24,
+            "ui_label": "Robot-Game-Tische",
+            "ui_description": "Anzahl Tische im Robot-Game. Die Auswahl wird passend zur Anzahl Team und Jury-Spuren angeboten. Vier Tische f\u00fcr zu k\u00fcrzen Robot-Game-Runden. Das kann gut sein, aber auch zu Leerlauf f\u00fcr Teams und Besucher f\u00fchren. Ausserdem brauchen vier Tische mehr Platz, Material und Schiedsrichter."
+        },
+        {
+            "id": 25,
+            "name": "c_duration_briefing",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 60,
+            "ui_label": "Dauer Coach:innen-Briefing",
+            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Robot-Game statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+        },
+        {
+            "id": 26,
+            "name": "j_duration_briefing",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 62,
+            "ui_label": "Dauer Juror:innen-Briefing",
+            "ui_description": "Das Briefing findet vor der ersten Jury-Runde statt. Darin sollen die Bewertungskriterien, die Jury-Gruppen-Einteilung und der Zeitplan besprochen werden."
+        },
+        {
+            "id": 27,
+            "name": "r_duration_briefing",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 64,
+            "ui_label": "Dauer SR-Briefing",
+            "ui_description": "Das Briefing findet vor dem ersten Robot-Game statt. Darin sollen aktuelle Regel-\u00c4nderungen, die Einteilung zu den Robot-Game-Tischen und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker zu diesem Briefing dazu."
+        },
+        {
+            "id": 28,
+            "name": "c_ready_opening",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 66,
+            "ui_label": "Wechsel zur Er\u00f6ffnung",
+            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
+        },
+        {
+            "id": 29,
+            "name": "c_duration_opening",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 26,
+            "ui_label": "Dauer Er\u00f6ffnung (Challenge)",
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+        },
+        {
+            "id": 30,
+            "name": "j_ready_action",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 70,
+            "ui_label": "Wechsel zu Jury",
+            "ui_description": "Nach der Er\u00f6ffnung gehen die Juror:innen in ihre R\u00e4ume. Die ersten Teams machen sich bereit."
+        },
+        {
+            "id": 31,
+            "name": "j_duration_break",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "5",
+            "max": "15",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 71,
+            "ui_label": "Dauer Pause Juror:innen",
+            "ui_description": "Dauer der Pause zwischen zwei Bewertungen. In der Zeit f\u00fcr eine Bewertung ist schon die Zeit f\u00fcr eine Besprechung der Juror:innen ohne die Kinder enthalten."
+        },
+        {
+            "id": 32,
+            "name": "j_duration_lunch",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "10",
+            "max": "60",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 72,
+            "ui_label": "Dauer Mittagspause Juror:innen",
+            "ui_description": "Dauer der Mittagspause f\u00fcr FLL Challenge Juror:innen"
+        },
+        {
+            "id": 33,
+            "name": "r_duration_break",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "5",
+            "max": "15",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 78,
+            "ui_label": "Dauer Pause Schiedsrichter:innen",
+            "ui_description": "Dauer der Pause zwischen zwei Robot-Game-Runden. Zwischen den Matches haben die Schiedsrichter:innen keine Zeit f\u00fcr eine Pause. Daher ist diese Pause wichtig!"
+        },
+        {
+            "id": 34,
+            "name": "r_duration_lunch",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "10",
+            "max": "60",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 79,
+            "ui_label": "Dauer Mittagspause Schiedsrichter:innen",
+            "ui_description": "Dauer der Mittagspause f\u00fcr Schiedsrichter:innen"
+        },
+        {
+            "id": 35,
+            "name": "j_ready_deliberations",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "10",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 73,
+            "ui_label": "Wechsel zur Beratung",
+            "ui_description": "Nach der letzter Begutachtung kommen alle Juror:innen zur Beratung zusammen. Diese Zeit ist f\u00fcr den n\u00f6tigen Raumwechsel."
+        },
+        {
+            "id": 36,
+            "name": "j_duration_deliberations",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "45",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 74,
+            "ui_label": "Dauer Juror:innen Beratung",
+            "ui_description": "Dauer der FLL Challenge Juror:innen-Beratung"
+        },
+        {
+            "id": 37,
+            "name": "c_presentations",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "3",
+            "min": "1",
+            "max": "5",
+            "step": "1",
+            "first_program": 3,
+            "sequence": 90,
+            "ui_label": "Pr\u00e4sentationen - Anzahl",
+            "ui_description": "Anzahl der Forschungspr\u00e4sentationen auf der B\u00fchne.\nEs m\u00fcssen nicht unbedingt die Teams pr\u00e4sentieren, die sp\u00e4ter als nominierte vorgestellt werden. Das steht zu diesem Zeitpunkt meist noch gar nicht fest. Statt dessen sollte jede Jury-Gruppe unabh\u00e4ngig von den anderen, Teams aussuchen, die \"sehenswerte\" Pr\u00e4sentationen haben.\nDie Pr\u00e4sentationen auf der B\u00fchne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte m\u00f6glich nicht darauf verzichtet werden."
+        },
+        {
+            "id": 38,
+            "name": "c_ready_presentations",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "5",
+            "max": "15",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 92,
+            "ui_label": "Wechsel zu\/von den Pr\u00e4sentationen",
+            "ui_description": "Zeit f\u00fcr den Umbau von Robot-Game. Die gleiche Zeit wird auch f\u00fcr den Umbau zur\u00fcck zu den Robot-Game-Finalrunden verwendet."
+        },
+        {
+            "id": 39,
+            "name": "r_final_8",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "1",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 81,
+            "ui_label": "Viertelfinale",
+            "ui_description": "Gibt es ein Robot-Game-Viertelfinale? Unabh\u00e4ngig von der Eingabe hier, geht das erst ab 8 Teams.\nF\u00fcr weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams nicht mitmachen d\u00fcrfen. Auf das Viertelfinale zu verzichten kann da besser f\u00fcr die Stimmung sein."
+        },
+        {
+            "id": 40,
+            "name": "c_ready_awards",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "10",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 94,
+            "ui_label": "Wechsel zur Preisverleihung",
+            "ui_description": "Zeit f\u00fcr den Umbau von Finalrunden zur Preisverleihung.\n\u00dcblicherweise werden die Robot-Game-Tische zur Seite gestellt. Die Teams der Finalrunden bringen ihr Material in den Vorbereitungsbereich und dann versammeln sich alle wieder vor der \"B\u00fchne\"."
+        },
+        {
+            "id": 41,
+            "name": "c_duration_awards",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "45",
+            "min": "30",
+            "max": "60",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 27,
+            "ui_label": "Dauer Preisverleihung (Challenge)",
+            "ui_description": "Dauer der FLL Challenge Preisverleihung. 45 Minuten sind sicher ausreichend f\u00fcr bis zu 12 Teams. F\u00fcr mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe l\u00e4nger dauert. Au\u00dferdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Ablauf l\u00e4nger dauert."
+        },
+        {
+            "id": 42,
+            "name": "j_duration_with_team",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "35",
+            "min": "",
+            "max": "",
+            "step": "",
+            "first_program": 3,
+            "sequence": 5,
+            "ui_label": "Dauer Juror:innen mit Team",
+            "ui_description": "Dauer von Forschung-, Roboter-Design- und Grundwerte-Bewertung mit den Kindern."
+        },
+        {
+            "id": 43,
+            "name": "j_duration_scoring",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "10",
+            "max": "15",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 6,
+            "ui_label": "Dauer Juror:innen ohne Team",
+            "ui_description": "Dauer Besprechung und Bewertung ohne die Kinder. Darin enthalten ist auch die Zeit zum Eingeben der Ergebnisse in Online-System."
+        },
+        {
+            "id": 44,
+            "name": "c_duration_transfer",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 3,
+            "ui_label": "Dauer Transfer",
+            "ui_description": "Zeit, die ein Team mindestens zwischen zwei Aktionen hat. Aktionen sind dabei TR, RG1 bis RG3 und Jury."
+        },
+        {
+            "id": 45,
+            "name": "c_duration_presentation",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "5",
+            "min": "",
+            "max": "",
+            "step": "",
+            "first_program": 3,
+            "sequence": 10,
+            "ui_label": "Dauer Forschungspr\u00e4sentation",
+            "ui_description": "Dauer einer Forschungspr\u00e4senation auf der B\u00fchne."
+        },
+        {
+            "id": 46,
+            "name": "r_duration_match",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "",
+            "max": "",
+            "step": "",
+            "first_program": 3,
+            "sequence": 7,
+            "ui_label": "Dauer Match",
+            "ui_description": "Dauer einer Robot-Game-Matches inklusive Punktevergabe durch die Schiedsrichter:innen."
+        },
+        {
+            "id": 47,
+            "name": "r_duration_next_start",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "5",
+            "min": "",
+            "max": "",
+            "step": "",
+            "first_program": 3,
+            "sequence": 9,
+            "ui_label": "Dauer Versatz",
+            "ui_description": "Nur f\u00fcr vier Tische: Dauer zwischen dem Start zweier Matches"
+        },
+        {
+            "id": 48,
+            "name": "r_duration_test_match",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "",
+            "max": "",
+            "step": "",
+            "first_program": 3,
+            "sequence": 8,
+            "ui_label": "Dauer Testrunde",
+            "ui_description": "Dauer einer Matches in der Testrunde inklusive Dialog zwischen Schiedsrichter:innen und Team"
+        },
+        {
+            "id": 81,
+            "name": "e1_lanes",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "2",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 2,
+            "sequence": 18,
+            "ui_label": "Gutacher:innen-Spuren - Gruppe 1",
+            "ui_description": "Anzahl Gutacher:innen-Gruppen die parallel arbeiten. Die m\u00f6gliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Gutachter:innen-Gruppen, ergeben sich drei bis f\u00fcnf Runden, in denen die Teams begutachtet werden."
+        },
+        {
+            "id": 82,
+            "name": "r_robot_check",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 84,
+            "ui_label": "Robot-Check Vorrunden",
+            "ui_description": "Gibt es einen Check vor den Matches? Der Robot-Check erleichtert den Schiedsrichter:innen die Arbeit, kostet aber Zeit extra."
+        },
+        {
+            "id": 83,
+            "name": "r_duration_robot_check",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "5",
+            "max": "10",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 88,
+            "ui_label": "Dauer Robot-Check",
+            "ui_description": "Dauer eines Robot-Checks"
+        },
+        {
+            "id": 84,
+            "name": "r_duration_debriefing",
+            "context": "expert",
+            "level": 3,
+            "type": "integer",
+            "value": "15",
+            "min": "10",
+            "max": "30",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 44,
+            "ui_label": "Dauer Schiedsrichter:innen-Debrief Tag 1",
+            "ui_description": "Dauer des Debrief der Schiedsrichter nach dem letzten Robotgames des Tages"
+        },
+        {
+            "id": 85,
+            "name": "lc_duration_briefing",
+            "context": "expert",
+            "level": 3,
+            "type": "integer",
+            "value": "45",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 39,
+            "ui_label": "LC Dauer Juror:innen-Briefing ",
+            "ui_description": "Dauer des LC-Briefings"
+        },
+        {
+            "id": 86,
+            "name": "f_start_opening_day_1",
+            "context": "input",
+            "level": 3,
+            "type": "time",
+            "value": "12:00",
+            "min": "9:00",
+            "max": "15:00",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 37,
+            "ui_label": "Start Er\u00f6ffnung Tag 1",
+            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Live Challenge und Robot-Game-Testrunden"
+        },
+        {
+            "id": 87,
+            "name": "lc_duration_with_team",
+            "context": "protected",
+            "level": 3,
+            "type": "integer",
+            "value": "35",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 12,
+            "ui_label": "LC Dauer mit Team",
+            "ui_description": "Dauer pro Team"
+        },
+        {
+            "id": 88,
+            "name": "lc_duration_scoring",
+            "context": "protected",
+            "level": 3,
+            "type": "integer",
+            "value": "5",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 13,
+            "ui_label": "LC Dauer ohne Team",
+            "ui_description": "Dauer Besprechung nachdem das Team den Raum verlassen hat"
+        },
+        {
+            "id": 89,
+            "name": "lc_duration_break_short",
+            "context": "protected",
+            "level": 3,
+            "type": "integer",
+            "value": "10",
+            "min": "5",
+            "max": "15",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 14,
+            "ui_label": "LC Dauer kleine Pause Juror:innen",
+            "ui_description": "Dauer Pause zwischen zwei Teams"
+        },
+        {
+            "id": 90,
+            "name": "lc_ready_deliberations",
+            "context": "expert",
+            "level": 3,
+            "type": "integer",
+            "value": "20",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 42,
+            "ui_label": "LC Wechsel zur Auswertung",
+            "ui_description": "Dauer des Wechsel von letztem Team zur Auswertung"
+        },
+        {
+            "id": 91,
+            "name": "lc_duration_deliberations",
+            "context": "expert",
+            "level": 3,
+            "type": "integer",
+            "value": "30",
+            "min": "30",
+            "max": "45",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 43,
+            "ui_label": "LC Dauer Auswertung",
+            "ui_description": "Dauer der LC-Auswertung"
+        },
+        {
+            "id": 92,
+            "name": "r_duration_briefing_2",
+            "context": "expert",
+            "level": 3,
+            "type": "integer",
+            "value": "15",
+            "min": "15",
+            "max": "30",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 89,
+            "ui_label": "Dauer Schiedsrichter:innen-Briefing Tag 2",
+            "ui_description": "Dauer des Briefings an zweiten (und dritten) Tag."
+        },
+        {
+            "id": 94,
+            "name": "e1_start_opening",
+            "context": "input",
+            "level": 1,
+            "type": "time",
+            "value": "10:00",
+            "min": "08:00",
+            "max": "11:00",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 31,
+            "ui_label": "Start Er\u00f6ffnung (Explore - Gruppe 1)",
+            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr FLL Explore im Vormittag."
+        },
+        {
+            "id": 95,
+            "name": "c_presentations_last",
+            "context": "protected",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 93,
+            "ui_label": "Pr\u00e4sentationen nach Robot-Game-Finale",
+            "ui_description": "Es ist \u00fcblich, die sehenswerten Forschungspr\u00e4sentationen zwischen der letzten Robot-Game-Vorrunde und den Finalrunden zu zeigen. Der Vorteil davon ist, dass zu dem Zeitpunkt noch alle Teams da sind, weil noch nicht klar ist, wer in den Finalrunden dabei ist.\nAlternativ k\u00f6nnen die Pr\u00e4sentationen auch nach dem Robot-Game-Finale stattfinden."
+        },
+        {
+            "id": 96,
+            "name": "c_start_opening",
+            "context": "input",
+            "level": 1,
+            "type": "time",
+            "value": "9:00",
+            "min": "08:00",
+            "max": "11:00",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 25,
+            "ui_label": "Start Er\u00f6ffnung (Challenge)",
+            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr FLL Challenge."
+        },
+        {
+            "id": 97,
+            "name": "g_duration_awards",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "45",
+            "min": "30",
+            "max": "90",
+            "step": "5",
+            "first_program": null,
+            "sequence": 30,
+            "ui_label": "Dauer gemeinsame Preisverleihung",
+            "ui_description": "Dauer der gemeinsamen Preisverleihung f\u00fcr FLL Explore und FLL Challenge zusammen."
+        },
+        {
+            "id": 99,
+            "name": "f_duration_opening_day_1",
+            "context": "input",
+            "level": 3,
+            "type": "integer",
+            "value": "15",
+            "min": "10",
+            "max": "30",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 38,
+            "ui_label": "Dauer Er\u00f6ffnung Tag 1",
+            "ui_description": "Nur ein kurzes Willkommen zu Tag 1"
+        },
+        {
+            "id": 100,
+            "name": "f_duration_briefing_day_1",
+            "context": "expert",
+            "level": 3,
+            "type": "integer",
+            "value": "60",
+            "min": "0",
+            "max": "90",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 46,
+            "ui_label": "Dauer Jury-Briefing Tag 1",
+            "ui_description": "Optionales Meeting an Tag 1. Wenn es nicht gebraucht wird, kann Dauer auf 0 gesetzt werden."
+        },
+        {
+            "id": 101,
+            "name": "f_ready_action_day_1",
+            "context": "expert",
+            "level": 3,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 40,
+            "ui_label": "Wechsel zu LC \/ RG Testrunden",
+            "ui_description": "Nach der Er\u00f6ffnung machen sich Juroren, Teams, und Schiedsrichter:innen bereit f\u00fcr LC und RG-Testrunden"
+        },
+        {
+            "id": 103,
+            "name": "f_ready_briefing_day_1",
+            "context": "expert",
+            "level": 3,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 45,
+            "ui_label": "Wechsel zu Jury-Briefing",
+            "ui_description": "Zeit um von LC-Beratung zu Challenge-Jury-Briefing zu wechseln."
+        },
+        {
+            "id": 104,
+            "name": "j_ready_briefing",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 69,
+            "ui_label": "Wechsel zum Juror:innen-Briefing",
+            "ui_description": "Zeit um nach der Er\u00f6ffnung zum Jury-Briefung zu kommen."
+        },
+        {
+            "id": 105,
+            "name": "e_ready_briefing",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 53,
+            "ui_label": "Wechsel zum Briefing",
+            "ui_description": "Zeit um nach der Er\u00f6ffnung zum Gutachter:innen-Briefung zu kommen."
+        },
+        {
+            "id": 106,
+            "name": "j_briefing_after_opening",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 68,
+            "ui_label": "Juror:innen-Briefing nach Er\u00f6ffnung",
+            "ui_description": "Soll das Jury-Briefing erst nach der Er\u00f6ffnung stattfinden?"
+        },
+        {
+            "id": 107,
+            "name": "e_briefing_after_opening_j",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 2,
+            "sequence": 52,
+            "ui_label": "Gutachter:innen-Briefing nach Er\u00f6ffnung",
+            "ui_description": "Soll das Guracher:innen-Briefing erst nach der Er\u00f6ffnung stattfinden?"
+        },
+        {
+            "id": 108,
+            "name": "r_ready_briefing",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "10",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 76,
+            "ui_label": "Wechsel zum Schiedsrichter:innen-Briefing",
+            "ui_description": "Zeit um nach der Er\u00f6ffnung zum Schiedsrichter:innen-Briefung zu kommen. Wenn das Briefing vor der Er\u00f6ffnung stattfindet, hat dieser Parameter keine Auswirkungen."
+        },
+        {
+            "id": 109,
+            "name": "r_briefing_after_opening",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 75,
+            "ui_label": "Schiedsrichter:innen-Briefing nach Er\u00f6ffnung",
+            "ui_description": "Soll das Schiedsrichter:innen-Briefing erst nach der Er\u00f6ffnung stattfinden?"
+        },
+        {
+            "id": 110,
+            "name": "e2_duration_awards",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "45",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 36,
+            "ui_label": "Dauer Preisverleihung (Explore - Gruppe 2)",
+            "ui_description": "Dauer der FLL Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. F\u00fcr die Kinder ist k\u00fcrzer besser."
+        },
+        {
+            "id": 111,
+            "name": "e1_teams",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "7",
+            "min": "1",
+            "max": "30",
+            "step": "1",
+            "first_program": 2,
+            "sequence": 17,
+            "ui_label": "FLL Expore Teams - Gruppe 1",
+            "ui_description": "Anzahl FLL Explore Teams im Vormittag"
+        },
+        {
+            "id": 112,
+            "name": "e2_teams",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "4",
+            "min": "1",
+            "max": "30",
+            "step": "1",
+            "first_program": 2,
+            "sequence": 19,
+            "ui_label": "FLL Explore Teams - Gruppe 2",
+            "ui_description": "Anzahl FLL Explore Teams im Nachmittag"
+        },
+        {
+            "id": 113,
+            "name": "e2_duration_briefing_t",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 48,
+            "ui_label": "Dauer Coach:innen-Briefing (Nachmittag)",
+            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+        },
+        {
+            "id": 114,
+            "name": "e2_duration_briefing_j",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 50,
+            "ui_label": "Dauer Gutachter:innen-Briefing (Nachmittag)",
+            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen die Bewertungskriterien, die Gutachter:innnen-Gruppen-Einteilung und der Zeitplan besprochen werden."
+        },
+        {
+            "id": 115,
+            "name": "e2_duration_deliberations",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "30",
+            "min": "15",
+            "max": "45",
+            "step": "5",
+            "first_program": 2,
+            "sequence": 58,
+            "ui_label": "Dauer Gutachter:innen-Beratung (Nachmittag)",
+            "ui_description": "Dauer der FLL Explore Gutachter:innen-Beratung"
+        },
+        {
+            "id": 116,
+            "name": "r_ready_action",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 77,
+            "ui_label": "Wechsel zum Robot-Game",
+            "ui_description": "Nach der Er\u00f6ffnung gehen gehen die Schiedsrichter:innen zu den Tischen. Die ersten Teams machen sich bereit."
+        },
+        {
+            "id": 117,
+            "name": "e2_lanes",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "1",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 2,
+            "sequence": 20,
+            "ui_label": "Gutacher:innen-Spuren - Gruppe 2",
+            "ui_description": "Anzahl Gutacher:innen-Gruppen die parallel arbeiten. Die m\u00f6gliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Gutachter:innen-Gruppen, ergeben sich drei bis f\u00fcnf Runden, in denen die Teams begutachtet werden."
+        },
+        {
+            "id": 118,
+            "name": "r_robot_check_8",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 85,
+            "ui_label": "Robot-Check Viertelfinale",
+            "ui_description": "Robot-Check vor dem Viertelfinale?"
+        },
+        {
+            "id": 119,
+            "name": "r_robot_check_4",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 86,
+            "ui_label": "Robot-Check Halbfinale",
+            "ui_description": "Robot-Check vor dem Halbfinale? Wenn die Teams in den Finalrunden den Robot-Game-Bereich nicht mehr verlassen und sicher gestellt ist, dass sie ihre Roboter nicht mehr umbauen, kann darauf verzichtet werden."
+        },
+        {
+            "id": 120,
+            "name": "r_robot_check_2",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 87,
+            "ui_label": "Robot-Check Finale",
+            "ui_description": "Gibt es einen Check vor dem ersten der beiden Final-Matches?  Wenn die Teams in den Finalrunden den Robot-Game-Bereich nicht mehr verlassen und sicher gestellt ist, dass sie ihre Roboter nicht mehr umbauen, kann darauf verzichtet werden."
+        },
+        {
+            "id": 121,
+            "name": "j_calibration",
+            "context": "protected",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 4,
+            "ui_label": "Jury-Kalibrierung",
+            "ui_description": "UNUSED Sollen sich alle Juror:innen gemeinsam eine Team ansehen, um dann eine einheitliche Bewertung festzulegen?"
+        },
+        {
+            "id": 122,
+            "name": "c_mode",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "1",
+            "min": "0",
+            "max": "1",
+            "step": "1",
+            "first_program": 3,
+            "sequence": 21,
+            "ui_label": "FLL Explore Modus",
+            "ui_description": "Findet FLL Challenge statt oder nicht?"
+        },
+        {
+            "id": 123,
+            "name": "c_duration_lunch_break",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "0",
+            "min": "0",
+            "max": "90",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 80,
+            "ui_label": "Echte Mittagspause",
+            "ui_description": "Wenn hier ein Wert > 0 eingeben wird, dann wird eine Mittagspause eingef\u00fcgt. Sie beginnt nach Robot-Game-Runde 2 bzw nach der zgh Jury-Runde. Die Eingaben f\u00fcr \"Dauer Mittagspause Juror:innen\" und \"Dauer Mittagspause Schiedsrichter:innen\" werden dabei ignoriert."
+        },
+        {
+            "id": 124,
+            "name": "g_start_party_teams",
+            "context": "input",
+            "level": 3,
+            "type": "time",
+            "value": "18:00",
+            "min": "17:00",
+            "max": "20:00",
+            "step": "5",
+            "first_program": null,
+            "sequence": 61,
+            "ui_label": "Start Team-Party",
+            "ui_description": "Startzeit der Team-Party"
+        },
+        {
+            "id": 125,
+            "name": "g_start_party_volunteers",
+            "context": "input",
+            "level": 3,
+            "type": "time",
+            "value": "19:00",
+            "min": "17:00",
+            "max": "20:00",
+            "step": "5",
+            "first_program": null,
+            "sequence": 65,
+            "ui_label": "Start Volunteer-Party",
+            "ui_description": "Startzeit der Volunteer-Party"
+        },
+        {
+            "id": 126,
+            "name": "g_duration_party_teams",
+            "context": "input",
+            "level": 3,
+            "type": "integer",
+            "value": "120",
+            "min": "60",
+            "max": "240",
+            "step": "15",
+            "first_program": null,
+            "sequence": 63,
+            "ui_label": "Dauer Team-Party",
+            "ui_description": "Dauer der Team-Party"
+        },
+        {
+            "id": 127,
+            "name": "g_duration_party_volunteers",
+            "context": "input",
+            "level": 3,
+            "type": "integer",
+            "value": "180",
+            "min": "60",
+            "max": "480",
+            "step": "15",
+            "first_program": null,
+            "sequence": 67,
+            "ui_label": "Dauer Volunteer-Party",
+            "ui_description": "Dauer der Volunteer-Party"
+        },
+        {
+            "id": 128,
+            "name": "r_final_16",
+            "context": "expert",
+            "level": 3,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 82,
+            "ui_label": "Achtelfinale",
+            "ui_description": "Gibt es ein Robot-Game-Achtefinale? Wird nur f\u00fcr das Finale erlaubt."
+        },
+        {
+            "id": 129,
+            "name": "lc_duration_break_long",
+            "context": "expert",
+            "level": 3,
+            "type": "integer",
+            "value": "20",
+            "min": "10",
+            "max": "30",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 41,
+            "ui_label": "LC Dauer gro\u00dfe Pause Juror:innen",
+            "ui_description": "Dauer Pause nach drei Teams"
+        },
+        {
+            "id": 130,
+            "name": "c_presentations_when",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "1",
+            "min": "0",
+            "max": "4",
+            "step": "1",
+            "first_program": 3,
+            "sequence": 91,
+            "ui_label": "Pr\u00e4sentationen - Wann",
+            "ui_description": "\u00dcblicherweise finden die Pr\u00e4sentationen zwischen Robot-Game-Vorrunden und -Finalrunden statt. Wer m\u00f6chte, kann sie weiter nach hinten verschieben.\nDie Werte bedeuten\n0 = keine Pr\u00e4sentationen\n1 = nach den Vorrunden\n2 = nach dem Viertelfinale\n3 = nach dem Halbfinale\n4 = nach dem Finale"
+        }
+    ],
+    "m_parameter_condition": [],
+    "m_role": [
+        {
+            "id": 1,
+            "name": "Organisation",
+            "name_short": null,
+            "sequence": 8,
+            "first_program": 3,
+            "description": "K\u00fcmmert sich um alles, was FLL Challenge ist :-)",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 0
+        },
+        {
+            "id": 2,
+            "name": "Moderation",
+            "name_short": null,
+            "sequence": 2,
+            "first_program": null,
+            "description": "Moderator f\u00fcr Er\u00f6ffnung, Robot-Game und Preisverleihung",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 0
+        },
+        {
+            "id": 3,
+            "name": "Team",
+            "name_short": "C T",
+            "sequence": 2,
+            "first_program": 3,
+            "description": "Nehmen als FLL Challenge Team teil",
+            "differentiation_type": "number",
+            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"c_teams\" and plan_param_value.plan=[plan]",
+            "differentiation_parameter": "team",
+            "preview_matrix": 1,
+            "pdf_export": 1
+        },
+        {
+            "id": 4,
+            "name": "Jury",
+            "name_short": "C J",
+            "sequence": 3,
+            "first_program": 3,
+            "description": "Bewerten die FLL Challenge Teams",
+            "differentiation_type": "number",
+            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"j_lanes\" and plan_param_value.plan=[plan]",
+            "differentiation_parameter": "lane",
+            "preview_matrix": 1,
+            "pdf_export": 1
+        },
+        {
+            "id": 5,
+            "name": "Schiedsrichter:in",
+            "name_short": "RG T",
+            "sequence": 5,
+            "first_program": 3,
+            "description": "K\u00fcmmern sich um das Robot-Game der FLL Challenge Teams",
+            "differentiation_type": "number",
+            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
+            "differentiation_parameter": "table",
+            "preview_matrix": 1,
+            "pdf_export": 1
+        },
+        {
+            "id": 6,
+            "name": "Publikum",
+            "name_short": null,
+            "sequence": 1,
+            "first_program": 3,
+            "description": "Interessiert sich f\u00fcr FLL Challenge, macht aber nicht selber mit",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 0
+        },
+        {
+            "id": 7,
+            "name": "Organisation",
+            "name_short": null,
+            "sequence": 5,
+            "first_program": 2,
+            "description": "K\u00fcmmert sich um alles, was FLL Explore ist :-)",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 0
+        },
+        {
+            "id": 8,
+            "name": "Team",
+            "name_short": "E T",
+            "sequence": 2,
+            "first_program": 2,
+            "description": "Nehmen als FLL Explore Team teil",
+            "differentiation_type": "number",
+            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"e_teams\" and plan_param_value.plan=[plan]",
+            "differentiation_parameter": "team",
+            "preview_matrix": 1,
+            "pdf_export": 1
+        },
+        {
+            "id": 9,
+            "name": "Gutachter:in",
+            "name_short": "E G",
+            "sequence": 3,
+            "first_program": 2,
+            "description": "Begutachten die FLL ExploreTeams",
+            "differentiation_type": "number",
+            "differentiation_source": "select sum(set_value) from plan_param_value as ppv join m_parameter on ppv.parameter=m_parameter.id where (m_parameter.name=\"e1_lanes\" or m_parameter.name=\"e2_lanes\") and ppv.plan=[plan]",
+            "differentiation_parameter": "lane",
+            "preview_matrix": 1,
+            "pdf_export": 1
+        },
+        {
+            "id": 10,
+            "name": "Publikum",
+            "name_short": null,
+            "sequence": 1,
+            "first_program": 2,
+            "description": "Interessiert sich f\u00fcr FLL Explore, macht aber nicht selber mit",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 0
+        },
+        {
+            "id": 11,
+            "name": "Robot-Check",
+            "name_short": "RC T",
+            "sequence": 4,
+            "first_program": 3,
+            "description": "Schaut genau hin",
+            "differentiation_type": "number",
+            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
+            "differentiation_parameter": "table",
+            "preview_matrix": 1,
+            "pdf_export": 1
+        },
+        {
+            "id": 12,
+            "name": "Moderation",
+            "name_short": null,
+            "sequence": 4,
+            "first_program": 2,
+            "description": "Moderation f\u00fcr Explore",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 1
+        },
+        {
+            "id": 13,
+            "name": "Moderation",
+            "name_short": null,
+            "sequence": 7,
+            "first_program": 3,
+            "description": "Moderation f\u00fcr Challenge",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 1
+        },
+        {
+            "id": 14,
+            "name": "Publikum",
+            "name_short": null,
+            "sequence": 1,
+            "first_program": null,
+            "description": "Besucher f\u00fcr alle Programme",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 0
+        },
+        {
+            "id": 15,
+            "name": "Organisation",
+            "name_short": null,
+            "sequence": 3,
+            "first_program": null,
+            "description": "Gesamt-Organisation",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 0
+        },
+        {
+            "id": 16,
+            "name": "Live-Challenge-Jury",
+            "name_short": "LC J",
+            "sequence": 6,
+            "first_program": 3,
+            "description": "Leiten die Live-Challenge",
+            "differentiation_type": "number",
+            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"j_lanes\" and plan_param_value.plan=[plan]",
+            "differentiation_parameter": "lane",
+            "preview_matrix": 1,
+            "pdf_export": 1
+        },
+        {
+            "id": 17,
+            "name": "Gesamt\u00fcberblick",
+            "name_short": null,
+            "sequence": 6,
+            "first_program": 2,
+            "description": "Alle Explore-Aktivit\u00e4ten",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 1
+        },
+        {
+            "id": 18,
+            "name": "Gesamt\u00fcberblick",
+            "name_short": null,
+            "sequence": 9,
+            "first_program": 3,
+            "description": "Alle Challenge-Aktivit\u00e4ten",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 1
+        },
+        {
+            "id": 19,
+            "name": "Gesamt\u00fcberblick",
+            "name_short": null,
+            "sequence": 4,
+            "first_program": null,
+            "description": "Alle Aktivit\u00e4ten",
+            "differentiation_type": null,
+            "differentiation_source": null,
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 0
+        }
+    ],
+    "m_room_type": [
+        {
+            "id": 1,
+            "code": "r_match",
+            "name": "Robot-Game-Bereich",
+            "sequence": 460,
+            "room_type_group": 3,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 2,
+            "code": "j_lane_1",
+            "name": "Jury 1",
+            "sequence": 411,
+            "room_type_group": 3,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 3,
+            "code": "j_lane_2",
+            "name": "Jury 2",
+            "sequence": 412,
+            "room_type_group": 3,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 4,
+            "code": "j_lane_3",
+            "name": "Jury 3",
+            "sequence": 413,
+            "room_type_group": 3,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 5,
+            "code": "j_lane_4",
+            "name": "Jury 4",
+            "sequence": 414,
+            "room_type_group": 3,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 6,
+            "code": "j_lane_5",
+            "name": "Jury 5",
+            "sequence": 415,
+            "room_type_group": 3,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 8,
+            "code": "e_lane_1",
+            "name": "Begutachtung 1",
+            "sequence": 311,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 9,
+            "code": "e_lane_2",
+            "name": "Begutachtung 2",
+            "sequence": 312,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 10,
+            "code": "e_lane_3",
+            "name": "Begutachtung 3",
+            "sequence": 313,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 11,
+            "code": "e_lane_4",
+            "name": "Begutachtung 4",
+            "sequence": 314,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 12,
+            "code": "e_lane_5",
+            "name": "Begutachtung 5",
+            "sequence": 315,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 14,
+            "code": "g_opening",
+            "name": "Gemeinsame Er\u00f6ffnung",
+            "sequence": 110,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 0
+        },
+        {
+            "id": 15,
+            "code": "j_briefing",
+            "name": "Jury Briefing",
+            "sequence": 410,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 16,
+            "code": "e_briefing_judge",
+            "name": "Gutachter:innen Briefing",
+            "sequence": 310,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 17,
+            "code": "c_briefing",
+            "name": "Challenge Coach Briefing",
+            "sequence": 409,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 18,
+            "code": "e_briefing_coach",
+            "name": "Explore Coach Briefing",
+            "sequence": 309,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 19,
+            "code": "c_lunch",
+            "name": "Mittagspause",
+            "sequence": 150,
+            "room_type_group": 3,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 22,
+            "code": "e_exhibition",
+            "name": "Explore Ausstellung",
+            "sequence": 200,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 23,
+            "code": "g_awards",
+            "name": "Gemeinsame Preisverleihung",
+            "sequence": 510,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 0
+        },
+        {
+            "id": 24,
+            "code": "c_presentations",
+            "name": "Forschung auf der B\u00fchne",
+            "sequence": 490,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 25,
+            "code": "lc_lane_1",
+            "name": "LC 1",
+            "sequence": 211,
+            "room_type_group": 6,
+            "level": 3,
+            "first_program": 3
+        },
+        {
+            "id": 26,
+            "code": "lc_lane_2",
+            "name": "LC 2",
+            "sequence": 212,
+            "room_type_group": 6,
+            "level": 3,
+            "first_program": 3
+        },
+        {
+            "id": 27,
+            "code": "lc_lane_3",
+            "name": "LC 3",
+            "sequence": 213,
+            "room_type_group": 6,
+            "level": 3,
+            "first_program": 3
+        },
+        {
+            "id": 28,
+            "code": "lc_lane_4",
+            "name": "LC 4",
+            "sequence": 214,
+            "room_type_group": 6,
+            "level": 3,
+            "first_program": 3
+        },
+        {
+            "id": 29,
+            "code": "lc_lane_5",
+            "name": "LC 5",
+            "sequence": 215,
+            "room_type_group": 6,
+            "level": 3,
+            "first_program": 3
+        },
+        {
+            "id": 31,
+            "code": "lc_briefing",
+            "name": "LC Briefing",
+            "sequence": 210,
+            "room_type_group": 1,
+            "level": 3,
+            "first_program": 3
+        },
+        {
+            "id": 32,
+            "code": "c_opening_day_1",
+            "name": "Er\u00f6ffnung Tag 1",
+            "sequence": 100,
+            "room_type_group": 5,
+            "level": 3,
+            "first_program": 3
+        },
+        {
+            "id": 34,
+            "code": "j_briefing_day_1",
+            "name": "Jury Briefing Tag 1",
+            "sequence": 409,
+            "room_type_group": 1,
+            "level": 3,
+            "first_program": 3
+        },
+        {
+            "id": 35,
+            "code": "j_deliberations",
+            "name": "Jury Beratung",
+            "sequence": 420,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 36,
+            "code": "e_deliberations",
+            "name": "Gutachter:innen Beratung",
+            "sequence": 320,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 37,
+            "code": "r_briefing",
+            "name": "Schiedsrichter:Innen Briefing",
+            "sequence": 440,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 0
+        },
+        {
+            "id": 44,
+            "code": "r_check",
+            "name": "Robot-Check-Bereich",
+            "sequence": 450,
+            "room_type_group": 3,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 45,
+            "code": "c_opening",
+            "name": "Er\u00f6ffnung Challenge",
+            "sequence": 140,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 46,
+            "code": "e_opening",
+            "name": "Er\u00f6ffnung Explore",
+            "sequence": 130,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 47,
+            "code": "e_awards",
+            "name": "Preisverleihung Explore",
+            "sequence": 530,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 48,
+            "code": "c_awards",
+            "name": "Preisverleihung Challenge",
+            "sequence": 540,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 3
+        },
+        {
+            "id": 49,
+            "code": "lc_deliberations",
+            "name": "LC Beratung",
+            "sequence": 220,
+            "room_type_group": 1,
+            "level": 3,
+            "first_program": 3
+        },
+        {
+            "id": 50,
+            "code": "g_party_teams",
+            "name": "Team-Party",
+            "sequence": 92,
+            "room_type_group": 1,
+            "level": 3,
+            "first_program": 3
+        },
+        {
+            "id": 51,
+            "code": "g_party_volunteers",
+            "name": "Volunteer-Party",
+            "sequence": 94,
+            "room_type_group": 1,
+            "level": 3,
+            "first_program": 0
+        },
+        {
+            "id": 52,
+            "code": "e_lane_6",
+            "name": "Begutachtung 6",
+            "sequence": 316,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 53,
+            "code": "e_lane_7",
+            "name": "Begutachtung 7",
+            "sequence": 317,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 54,
+            "code": "e_lane_8",
+            "name": "Begutachtung 8",
+            "sequence": 318,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        }
+    ],
+    "m_room_type_group": [
+        {
+            "id": 1,
+            "name": "Organisation",
+            "sequence": 1
+        },
+        {
+            "id": 2,
+            "name": "FLL Explore",
+            "sequence": 2
+        },
+        {
+            "id": 3,
+            "name": "FLL Challenge",
+            "sequence": 3
+        },
+        {
+            "id": 4,
+            "name": "X",
+            "sequence": null
+        },
+        {
+            "id": 5,
+            "name": "Mit Publikum",
+            "sequence": 10
+        },
+        {
+            "id": 6,
+            "name": "Live Challenge",
+            "sequence": 4
+        },
+        {
+            "id": 10,
+            "name": "Zus\u00e4tzliche Bl\u00f6cke",
+            "sequence": 99
+        }
+    ],
+    "m_season": [
+        {
+            "id": 1,
+            "name": "SUBMERGED",
+            "year": 2024
+        },
+        {
+            "id": 2,
+            "name": "UNEARTHED",
+            "year": 2025
+        }
+    ],
+    "m_supported_plan": [
+        {
+            "id": 1,
+            "first_program": 3,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.",
+            "alert_level": 2
+        },
+        {
+            "id": 2,
+            "first_program": 3,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.",
+            "alert_level": 2
+        },
+        {
+            "id": 3,
+            "first_program": 3,
+            "teams": 9,
+            "lanes": 2,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 9 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 4,
+            "first_program": 3,
+            "teams": 9,
+            "lanes": 2,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 5,
+            "first_program": 3,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 10 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 6,
+            "first_program": 3,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 7,
+            "first_program": 3,
+            "teams": 11,
+            "lanes": 2,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 11 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 8,
+            "first_program": 3,
+            "teams": 11,
+            "lanes": 2,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 9,
+            "first_program": 3,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 12 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 10,
+            "first_program": 3,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 11,
+            "first_program": 3,
+            "teams": 12,
+            "lanes": 3,
+            "tables": 2,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 12,
+            "first_program": 3,
+            "teams": 12,
+            "lanes": 3,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 13,
+            "first_program": 3,
+            "teams": 13,
+            "lanes": 3,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 13 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 14,
+            "first_program": 3,
+            "teams": 14,
+            "lanes": 3,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 14 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 15,
+            "first_program": 3,
+            "teams": 15,
+            "lanes": 3,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 15 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 16,
+            "first_program": 3,
+            "teams": 16,
+            "lanes": 3,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 16 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 17,
+            "first_program": 3,
+            "teams": 16,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 18,
+            "first_program": 3,
+            "teams": 17,
+            "lanes": 3,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 17 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 19,
+            "first_program": 3,
+            "teams": 17,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 20,
+            "first_program": 3,
+            "teams": 18,
+            "lanes": 3,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 18 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 21,
+            "first_program": 3,
+            "teams": 18,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 22,
+            "first_program": 3,
+            "teams": 19,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 19 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 23,
+            "first_program": 3,
+            "teams": 20,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 20 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 24,
+            "first_program": 3,
+            "teams": 21,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 21 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 25,
+            "first_program": 3,
+            "teams": 22,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 22 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 26,
+            "first_program": 3,
+            "teams": 23,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 23 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 27,
+            "first_program": 3,
+            "teams": 24,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 24 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 34,
+            "first_program": 2,
+            "teams": 1,
+            "lanes": 1,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 35,
+            "first_program": 2,
+            "teams": 2,
+            "lanes": 1,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 36,
+            "first_program": 2,
+            "teams": 3,
+            "lanes": 1,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 37,
+            "first_program": 2,
+            "teams": 4,
+            "lanes": 1,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 38,
+            "first_program": 2,
+            "teams": 5,
+            "lanes": 1,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 39,
+            "first_program": 2,
+            "teams": 6,
+            "lanes": 2,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 40,
+            "first_program": 2,
+            "teams": 7,
+            "lanes": 2,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 41,
+            "first_program": 2,
+            "teams": 8,
+            "lanes": 2,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 42,
+            "first_program": 2,
+            "teams": 9,
+            "lanes": 2,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 43,
+            "first_program": 2,
+            "teams": 10,
+            "lanes": 2,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 44,
+            "first_program": 2,
+            "teams": 11,
+            "lanes": 3,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 45,
+            "first_program": 2,
+            "teams": 12,
+            "lanes": 3,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 46,
+            "first_program": 2,
+            "teams": 13,
+            "lanes": 3,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 47,
+            "first_program": 2,
+            "teams": 14,
+            "lanes": 3,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 48,
+            "first_program": 2,
+            "teams": 15,
+            "lanes": 3,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 49,
+            "first_program": 2,
+            "teams": 16,
+            "lanes": 4,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 50,
+            "first_program": 2,
+            "teams": 17,
+            "lanes": 4,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 51,
+            "first_program": 2,
+            "teams": 18,
+            "lanes": 4,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 52,
+            "first_program": 2,
+            "teams": 19,
+            "lanes": 4,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 53,
+            "first_program": 2,
+            "teams": 20,
+            "lanes": 4,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 54,
+            "first_program": 2,
+            "teams": 21,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 55,
+            "first_program": 2,
+            "teams": 22,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 56,
+            "first_program": 2,
+            "teams": 23,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 57,
+            "first_program": 2,
+            "teams": 24,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 58,
+            "first_program": 2,
+            "teams": 25,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 64,
+            "first_program": 3,
+            "teams": 4,
+            "lanes": 1,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 4 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 65,
+            "first_program": 3,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 5 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 66,
+            "first_program": 3,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 6 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 67,
+            "first_program": 3,
+            "teams": 7,
+            "lanes": 2,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 68,
+            "first_program": 3,
+            "teams": 7,
+            "lanes": 2,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 69,
+            "first_program": 3,
+            "teams": 11,
+            "lanes": 3,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.",
+            "alert_level": 2
+        },
+        {
+            "id": 70,
+            "first_program": 3,
+            "teams": 11,
+            "lanes": 3,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.",
+            "alert_level": 2
+        },
+        {
+            "id": 71,
+            "first_program": 2,
+            "teams": 9,
+            "lanes": 3,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 72,
+            "first_program": 2,
+            "teams": 10,
+            "lanes": 3,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 73,
+            "first_program": 2,
+            "teams": 12,
+            "lanes": 4,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 74,
+            "first_program": 2,
+            "teams": 13,
+            "lanes": 4,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 75,
+            "first_program": 2,
+            "teams": 14,
+            "lanes": 4,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 76,
+            "first_program": 2,
+            "teams": 15,
+            "lanes": 4,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 77,
+            "first_program": 2,
+            "teams": 15,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 78,
+            "first_program": 2,
+            "teams": 16,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 79,
+            "first_program": 2,
+            "teams": 17,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 80,
+            "first_program": 2,
+            "teams": 18,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 81,
+            "first_program": 2,
+            "teams": 19,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 82,
+            "first_program": 2,
+            "teams": 20,
+            "lanes": 5,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 91,
+            "first_program": 3,
+            "teams": 15,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 93,
+            "first_program": 3,
+            "teams": 10,
+            "lanes": 3,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 94,
+            "first_program": 3,
+            "teams": 10,
+            "lanes": 3,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 95,
+            "first_program": 3,
+            "teams": 13,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 96,
+            "first_program": 3,
+            "teams": 14,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
+            "alert_level": 2
+        },
+        {
+            "id": 97,
+            "first_program": 3,
+            "teams": 16,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 4 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 98,
+            "first_program": 3,
+            "teams": 17,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 4 Jurygruppe umgestellt werden.",
+            "alert_level": 2
+        },
+        {
+            "id": 99,
+            "first_program": 3,
+            "teams": 18,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 100,
+            "first_program": 3,
+            "teams": 19,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 101,
+            "first_program": 3,
+            "teams": 20,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 102,
+            "first_program": 3,
+            "teams": 21,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 103,
+            "first_program": 3,
+            "teams": 22,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 104,
+            "first_program": 3,
+            "teams": 23,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 105,
+            "first_program": 3,
+            "teams": 24,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 106,
+            "first_program": 3,
+            "teams": 25,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 25 Teams",
+            "alert_level": 1
+        }
+    ],
+    "m_visibility": [
+        {
+            "id": 8,
+            "activity_type_detail": 1,
+            "role": 8
+        },
+        {
+            "id": 9,
+            "activity_type_detail": 1,
+            "role": 9
+        },
+        {
+            "id": 10,
+            "activity_type_detail": 1,
+            "role": 10
+        },
+        {
+            "id": 19,
+            "activity_type_detail": 2,
+            "role": 9
+        },
+        {
+            "id": 27,
+            "activity_type_detail": 3,
+            "role": 7
+        },
+        {
+            "id": 29,
+            "activity_type_detail": 3,
+            "role": 9
+        },
+        {
+            "id": 38,
+            "activity_type_detail": 4,
+            "role": 8
+        },
+        {
+            "id": 40,
+            "activity_type_detail": 4,
+            "role": 10
+        },
+        {
+            "id": 47,
+            "activity_type_detail": 5,
+            "role": 7
+        },
+        {
+            "id": 48,
+            "activity_type_detail": 5,
+            "role": 8
+        },
+        {
+            "id": 49,
+            "activity_type_detail": 5,
+            "role": 9
+        },
+        {
+            "id": 50,
+            "activity_type_detail": 5,
+            "role": 10
+        },
+        {
+            "id": 51,
+            "activity_type_detail": 6,
+            "role": 1
+        },
+        {
+            "id": 52,
+            "activity_type_detail": 6,
+            "role": 2
+        },
+        {
+            "id": 53,
+            "activity_type_detail": 6,
+            "role": 3
+        },
+        {
+            "id": 54,
+            "activity_type_detail": 6,
+            "role": 4
+        },
+        {
+            "id": 55,
+            "activity_type_detail": 6,
+            "role": 5
+        },
+        {
+            "id": 56,
+            "activity_type_detail": 6,
+            "role": 6
+        },
+        {
+            "id": 61,
+            "activity_type_detail": 7,
+            "role": 1
+        },
+        {
+            "id": 62,
+            "activity_type_detail": 7,
+            "role": 2
+        },
+        {
+            "id": 63,
+            "activity_type_detail": 7,
+            "role": 3
+        },
+        {
+            "id": 64,
+            "activity_type_detail": 7,
+            "role": 4
+        },
+        {
+            "id": 65,
+            "activity_type_detail": 7,
+            "role": 5
+        },
+        {
+            "id": 66,
+            "activity_type_detail": 7,
+            "role": 6
+        },
+        {
+            "id": 67,
+            "activity_type_detail": 7,
+            "role": 7
+        },
+        {
+            "id": 68,
+            "activity_type_detail": 7,
+            "role": 8
+        },
+        {
+            "id": 69,
+            "activity_type_detail": 7,
+            "role": 9
+        },
+        {
+            "id": 70,
+            "activity_type_detail": 7,
+            "role": 10
+        },
+        {
+            "id": 72,
+            "activity_type_detail": 8,
+            "role": 2
+        },
+        {
+            "id": 73,
+            "activity_type_detail": 8,
+            "role": 3
+        },
+        {
+            "id": 75,
+            "activity_type_detail": 8,
+            "role": 5
+        },
+        {
+            "id": 76,
+            "activity_type_detail": 8,
+            "role": 6
+        },
+        {
+            "id": 81,
+            "activity_type_detail": 9,
+            "role": 2
+        },
+        {
+            "id": 82,
+            "activity_type_detail": 9,
+            "role": 3
+        },
+        {
+            "id": 84,
+            "activity_type_detail": 9,
+            "role": 5
+        },
+        {
+            "id": 85,
+            "activity_type_detail": 9,
+            "role": 6
+        },
+        {
+            "id": 91,
+            "activity_type_detail": 10,
+            "role": 2
+        },
+        {
+            "id": 92,
+            "activity_type_detail": 10,
+            "role": 3
+        },
+        {
+            "id": 94,
+            "activity_type_detail": 10,
+            "role": 5
+        },
+        {
+            "id": 95,
+            "activity_type_detail": 10,
+            "role": 6
+        },
+        {
+            "id": 101,
+            "activity_type_detail": 11,
+            "role": 2
+        },
+        {
+            "id": 102,
+            "activity_type_detail": 11,
+            "role": 3
+        },
+        {
+            "id": 104,
+            "activity_type_detail": 11,
+            "role": 5
+        },
+        {
+            "id": 105,
+            "activity_type_detail": 11,
+            "role": 6
+        },
+        {
+            "id": 111,
+            "activity_type_detail": 12,
+            "role": 2
+        },
+        {
+            "id": 112,
+            "activity_type_detail": 12,
+            "role": 3
+        },
+        {
+            "id": 114,
+            "activity_type_detail": 12,
+            "role": 5
+        },
+        {
+            "id": 115,
+            "activity_type_detail": 12,
+            "role": 6
+        },
+        {
+            "id": 121,
+            "activity_type_detail": 13,
+            "role": 2
+        },
+        {
+            "id": 122,
+            "activity_type_detail": 13,
+            "role": 3
+        },
+        {
+            "id": 124,
+            "activity_type_detail": 13,
+            "role": 5
+        },
+        {
+            "id": 125,
+            "activity_type_detail": 13,
+            "role": 6
+        },
+        {
+            "id": 131,
+            "activity_type_detail": 14,
+            "role": 2
+        },
+        {
+            "id": 132,
+            "activity_type_detail": 14,
+            "role": 3
+        },
+        {
+            "id": 134,
+            "activity_type_detail": 14,
+            "role": 5
+        },
+        {
+            "id": 141,
+            "activity_type_detail": 15,
+            "role": 2
+        },
+        {
+            "id": 142,
+            "activity_type_detail": 15,
+            "role": 3
+        },
+        {
+            "id": 144,
+            "activity_type_detail": 15,
+            "role": 5
+        },
+        {
+            "id": 145,
+            "activity_type_detail": 15,
+            "role": 6
+        },
+        {
+            "id": 152,
+            "activity_type_detail": 16,
+            "role": 3
+        },
+        {
+            "id": 165,
+            "activity_type_detail": 6,
+            "role": 11
+        },
+        {
+            "id": 166,
+            "activity_type_detail": 7,
+            "role": 11
+        },
+        {
+            "id": 179,
+            "activity_type_detail": 17,
+            "role": 3
+        },
+        {
+            "id": 180,
+            "activity_type_detail": 17,
+            "role": 4
+        },
+        {
+            "id": 182,
+            "activity_type_detail": 17,
+            "role": 6
+        },
+        {
+            "id": 191,
+            "activity_type_detail": 18,
+            "role": 4
+        },
+        {
+            "id": 199,
+            "activity_type_detail": 19,
+            "role": 1
+        },
+        {
+            "id": 213,
+            "activity_type_detail": 20,
+            "role": 4
+        },
+        {
+            "id": 223,
+            "activity_type_detail": 21,
+            "role": 3
+        },
+        {
+            "id": 224,
+            "activity_type_detail": 21,
+            "role": 4
+        },
+        {
+            "id": 225,
+            "activity_type_detail": 21,
+            "role": 5
+        },
+        {
+            "id": 226,
+            "activity_type_detail": 21,
+            "role": 6
+        },
+        {
+            "id": 231,
+            "activity_type_detail": 21,
+            "role": 11
+        },
+        {
+            "id": 234,
+            "activity_type_detail": 32,
+            "role": 3
+        },
+        {
+            "id": 246,
+            "activity_type_detail": 32,
+            "role": 4
+        },
+        {
+            "id": 258,
+            "activity_type_detail": 32,
+            "role": 5
+        },
+        {
+            "id": 270,
+            "activity_type_detail": 32,
+            "role": 6
+        },
+        {
+            "id": 334,
+            "activity_type_detail": 14,
+            "role": 6
+        },
+        {
+            "id": 338,
+            "activity_type_detail": 39,
+            "role": 9
+        },
+        {
+            "id": 339,
+            "activity_type_detail": 38,
+            "role": 8
+        },
+        {
+            "id": 341,
+            "activity_type_detail": 35,
+            "role": 3
+        },
+        {
+            "id": 342,
+            "activity_type_detail": 33,
+            "role": 3
+        },
+        {
+            "id": 343,
+            "activity_type_detail": 33,
+            "role": 6
+        },
+        {
+            "id": 345,
+            "activity_type_detail": 36,
+            "role": 4
+        },
+        {
+            "id": 346,
+            "activity_type_detail": 32,
+            "role": 6
+        },
+        {
+            "id": 347,
+            "activity_type_detail": 32,
+            "role": 3
+        },
+        {
+            "id": 348,
+            "activity_type_detail": 32,
+            "role": 5
+        },
+        {
+            "id": 349,
+            "activity_type_detail": 32,
+            "role": 4
+        },
+        {
+            "id": 350,
+            "activity_type_detail": 32,
+            "role": 13
+        },
+        {
+            "id": 351,
+            "activity_type_detail": 37,
+            "role": 5
+        },
+        {
+            "id": 352,
+            "activity_type_detail": 12,
+            "role": 13
+        },
+        {
+            "id": 353,
+            "activity_type_detail": 9,
+            "role": 13
+        },
+        {
+            "id": 354,
+            "activity_type_detail": 10,
+            "role": 13
+        },
+        {
+            "id": 355,
+            "activity_type_detail": 11,
+            "role": 13
+        },
+        {
+            "id": 356,
+            "activity_type_detail": 37,
+            "role": 1
+        },
+        {
+            "id": 358,
+            "activity_type_detail": 32,
+            "role": 15
+        },
+        {
+            "id": 359,
+            "activity_type_detail": 35,
+            "role": 1
+        },
+        {
+            "id": 361,
+            "activity_type_detail": 14,
+            "role": 4
+        },
+        {
+            "id": 362,
+            "activity_type_detail": 14,
+            "role": 13
+        },
+        {
+            "id": 363,
+            "activity_type_detail": 14,
+            "role": 1
+        },
+        {
+            "id": 364,
+            "activity_type_detail": 33,
+            "role": 5
+        },
+        {
+            "id": 365,
+            "activity_type_detail": 33,
+            "role": 11
+        },
+        {
+            "id": 366,
+            "activity_type_detail": 33,
+            "role": 13
+        },
+        {
+            "id": 367,
+            "activity_type_detail": 33,
+            "role": 1
+        },
+        {
+            "id": 368,
+            "activity_type_detail": 13,
+            "role": 13
+        },
+        {
+            "id": 369,
+            "activity_type_detail": 13,
+            "role": 1
+        },
+        {
+            "id": 370,
+            "activity_type_detail": 36,
+            "role": 1
+        },
+        {
+            "id": 371,
+            "activity_type_detail": 20,
+            "role": 1
+        },
+        {
+            "id": 373,
+            "activity_type_detail": 15,
+            "role": 13
+        },
+        {
+            "id": 374,
+            "activity_type_detail": 21,
+            "role": 1
+        },
+        {
+            "id": 376,
+            "activity_type_detail": 32,
+            "role": 11
+        },
+        {
+            "id": 377,
+            "activity_type_detail": 32,
+            "role": 1
+        },
+        {
+            "id": 379,
+            "activity_type_detail": 8,
+            "role": 13
+        },
+        {
+            "id": 380,
+            "activity_type_detail": 8,
+            "role": 1
+        },
+        {
+            "id": 382,
+            "activity_type_detail": 12,
+            "role": 1
+        },
+        {
+            "id": 386,
+            "activity_type_detail": 9,
+            "role": 1
+        },
+        {
+            "id": 387,
+            "activity_type_detail": 10,
+            "role": 1
+        },
+        {
+            "id": 388,
+            "activity_type_detail": 11,
+            "role": 1
+        },
+        {
+            "id": 389,
+            "activity_type_detail": 4,
+            "role": 12
+        },
+        {
+            "id": 390,
+            "activity_type_detail": 4,
+            "role": 7
+        },
+        {
+            "id": 391,
+            "activity_type_detail": 38,
+            "role": 7
+        },
+        {
+            "id": 392,
+            "activity_type_detail": 5,
+            "role": 12
+        },
+        {
+            "id": 393,
+            "activity_type_detail": 39,
+            "role": 7
+        },
+        {
+            "id": 398,
+            "activity_type_detail": 7,
+            "role": 13
+        },
+        {
+            "id": 399,
+            "activity_type_detail": 7,
+            "role": 12
+        },
+        {
+            "id": 400,
+            "activity_type_detail": 7,
+            "role": 14
+        },
+        {
+            "id": 401,
+            "activity_type_detail": 7,
+            "role": 15
+        },
+        {
+            "id": 402,
+            "activity_type_detail": 34,
+            "role": 6
+        },
+        {
+            "id": 403,
+            "activity_type_detail": 34,
+            "role": 3
+        },
+        {
+            "id": 404,
+            "activity_type_detail": 34,
+            "role": 5
+        },
+        {
+            "id": 405,
+            "activity_type_detail": 34,
+            "role": 11
+        },
+        {
+            "id": 406,
+            "activity_type_detail": 34,
+            "role": 13
+        },
+        {
+            "id": 407,
+            "activity_type_detail": 34,
+            "role": 4
+        },
+        {
+            "id": 408,
+            "activity_type_detail": 34,
+            "role": 1
+        },
+        {
+            "id": 409,
+            "activity_type_detail": 34,
+            "role": 10
+        },
+        {
+            "id": 410,
+            "activity_type_detail": 34,
+            "role": 8
+        },
+        {
+            "id": 411,
+            "activity_type_detail": 34,
+            "role": 9
+        },
+        {
+            "id": 412,
+            "activity_type_detail": 34,
+            "role": 12
+        },
+        {
+            "id": 413,
+            "activity_type_detail": 34,
+            "role": 7
+        },
+        {
+            "id": 414,
+            "activity_type_detail": 34,
+            "role": 14
+        },
+        {
+            "id": 415,
+            "activity_type_detail": 34,
+            "role": 2
+        },
+        {
+            "id": 416,
+            "activity_type_detail": 34,
+            "role": 15
+        },
+        {
+            "id": 417,
+            "activity_type_detail": 6,
+            "role": 14
+        },
+        {
+            "id": 418,
+            "activity_type_detail": 6,
+            "role": 15
+        },
+        {
+            "id": 419,
+            "activity_type_detail": 14,
+            "role": 14
+        },
+        {
+            "id": 420,
+            "activity_type_detail": 14,
+            "role": 15
+        },
+        {
+            "id": 421,
+            "activity_type_detail": 20,
+            "role": 14
+        },
+        {
+            "id": 423,
+            "activity_type_detail": 20,
+            "role": 15
+        },
+        {
+            "id": 424,
+            "activity_type_detail": 13,
+            "role": 15
+        },
+        {
+            "id": 425,
+            "activity_type_detail": 33,
+            "role": 2
+        },
+        {
+            "id": 426,
+            "activity_type_detail": 33,
+            "role": 14
+        },
+        {
+            "id": 427,
+            "activity_type_detail": 33,
+            "role": 15
+        },
+        {
+            "id": 428,
+            "activity_type_detail": 19,
+            "role": 15
+        },
+        {
+            "id": 429,
+            "activity_type_detail": 21,
+            "role": 15
+        },
+        {
+            "id": 430,
+            "activity_type_detail": 21,
+            "role": 14
+        },
+        {
+            "id": 431,
+            "activity_type_detail": 21,
+            "role": 2
+        },
+        {
+            "id": 432,
+            "activity_type_detail": 32,
+            "role": 14
+        },
+        {
+            "id": 433,
+            "activity_type_detail": 32,
+            "role": 2
+        },
+        {
+            "id": 434,
+            "activity_type_detail": 32,
+            "role": 15
+        },
+        {
+            "id": 436,
+            "activity_type_detail": 37,
+            "role": 15
+        },
+        {
+            "id": 437,
+            "activity_type_detail": 8,
+            "role": 14
+        },
+        {
+            "id": 438,
+            "activity_type_detail": 8,
+            "role": 15
+        },
+        {
+            "id": 439,
+            "activity_type_detail": 12,
+            "role": 14
+        },
+        {
+            "id": 440,
+            "activity_type_detail": 12,
+            "role": 15
+        },
+        {
+            "id": 441,
+            "activity_type_detail": 9,
+            "role": 14
+        },
+        {
+            "id": 442,
+            "activity_type_detail": 9,
+            "role": 15
+        },
+        {
+            "id": 443,
+            "activity_type_detail": 10,
+            "role": 14
+        },
+        {
+            "id": 444,
+            "activity_type_detail": 10,
+            "role": 15
+        },
+        {
+            "id": 445,
+            "activity_type_detail": 11,
+            "role": 14
+        },
+        {
+            "id": 446,
+            "activity_type_detail": 11,
+            "role": 15
+        },
+        {
+            "id": 447,
+            "activity_type_detail": 4,
+            "role": 14
+        },
+        {
+            "id": 448,
+            "activity_type_detail": 4,
+            "role": 2
+        },
+        {
+            "id": 449,
+            "activity_type_detail": 4,
+            "role": 15
+        },
+        {
+            "id": 450,
+            "activity_type_detail": 3,
+            "role": 15
+        },
+        {
+            "id": 451,
+            "activity_type_detail": 38,
+            "role": 15
+        },
+        {
+            "id": 452,
+            "activity_type_detail": 5,
+            "role": 15
+        },
+        {
+            "id": 453,
+            "activity_type_detail": 5,
+            "role": 2
+        },
+        {
+            "id": 454,
+            "activity_type_detail": 5,
+            "role": 14
+        },
+        {
+            "id": 455,
+            "activity_type_detail": 39,
+            "role": 15
+        },
+        {
+            "id": 456,
+            "activity_type_detail": 32,
+            "role": 15
+        },
+        {
+            "id": 457,
+            "activity_type_detail": 32,
+            "role": 14
+        },
+        {
+            "id": 458,
+            "activity_type_detail": 32,
+            "role": 2
+        },
+        {
+            "id": 459,
+            "activity_type_detail": 32,
+            "role": 15
+        },
+        {
+            "id": 460,
+            "activity_type_detail": 19,
+            "role": 4
+        },
+        {
+            "id": 465,
+            "activity_type_detail": 37,
+            "role": 11
+        },
+        {
+            "id": 467,
+            "activity_type_detail": 32,
+            "role": 11
+        },
+        {
+            "id": 468,
+            "activity_type_detail": 13,
+            "role": 14
+        },
+        {
+            "id": 469,
+            "activity_type_detail": 17,
+            "role": 14
+        },
+        {
+            "id": 470,
+            "activity_type_detail": 15,
+            "role": 14
+        },
+        {
+            "id": 471,
+            "activity_type_detail": 16,
+            "role": 11
+        },
+        {
+            "id": 477,
+            "activity_type_detail": 9,
+            "role": 11
+        },
+        {
+            "id": 478,
+            "activity_type_detail": 10,
+            "role": 11
+        },
+        {
+            "id": 479,
+            "activity_type_detail": 11,
+            "role": 11
+        },
+        {
+            "id": 480,
+            "activity_type_detail": 44,
+            "role": 16
+        },
+        {
+            "id": 481,
+            "activity_type_detail": 40,
+            "role": 16
+        },
+        {
+            "id": 482,
+            "activity_type_detail": 42,
+            "role": 16
+        },
+        {
+            "id": 483,
+            "activity_type_detail": 43,
+            "role": 16
+        },
+        {
+            "id": 484,
+            "activity_type_detail": 41,
+            "role": 16
+        },
+        {
+            "id": 485,
+            "activity_type_detail": 42,
+            "role": 3
+        },
+        {
+            "id": 486,
+            "activity_type_detail": 41,
+            "role": 3
+        },
+        {
+            "id": 487,
+            "activity_type_detail": 41,
+            "role": 1
+        },
+        {
+            "id": 489,
+            "activity_type_detail": 40,
+            "role": 1
+        },
+        {
+            "id": 491,
+            "activity_type_detail": 7,
+            "role": 16
+        },
+        {
+            "id": 497,
+            "activity_type_detail": 33,
+            "role": 4
+        },
+        {
+            "id": 499,
+            "activity_type_detail": 45,
+            "role": 6
+        },
+        {
+            "id": 500,
+            "activity_type_detail": 45,
+            "role": 3
+        },
+        {
+            "id": 501,
+            "activity_type_detail": 45,
+            "role": 5
+        },
+        {
+            "id": 503,
+            "activity_type_detail": 45,
+            "role": 13
+        },
+        {
+            "id": 504,
+            "activity_type_detail": 45,
+            "role": 1
+        },
+        {
+            "id": 506,
+            "activity_type_detail": 45,
+            "role": 14
+        },
+        {
+            "id": 507,
+            "activity_type_detail": 45,
+            "role": 2
+        },
+        {
+            "id": 508,
+            "activity_type_detail": 45,
+            "role": 15
+        },
+        {
+            "id": 509,
+            "activity_type_detail": 35,
+            "role": 18
+        },
+        {
+            "id": 510,
+            "activity_type_detail": 6,
+            "role": 18
+        },
+        {
+            "id": 511,
+            "activity_type_detail": 33,
+            "role": 18
+        },
+        {
+            "id": 512,
+            "activity_type_detail": 36,
+            "role": 18
+        },
+        {
+            "id": 513,
+            "activity_type_detail": 20,
+            "role": 18
+        },
+        {
+            "id": 514,
+            "activity_type_detail": 19,
+            "role": 18
+        },
+        {
+            "id": 515,
+            "activity_type_detail": 18,
+            "role": 18
+        },
+        {
+            "id": 516,
+            "activity_type_detail": 17,
+            "role": 18
+        },
+        {
+            "id": 517,
+            "activity_type_detail": 44,
+            "role": 18
+        },
+        {
+            "id": 518,
+            "activity_type_detail": 40,
+            "role": 18
+        },
+        {
+            "id": 519,
+            "activity_type_detail": 42,
+            "role": 18
+        },
+        {
+            "id": 520,
+            "activity_type_detail": 43,
+            "role": 18
+        },
+        {
+            "id": 521,
+            "activity_type_detail": 41,
+            "role": 18
+        },
+        {
+            "id": 522,
+            "activity_type_detail": 21,
+            "role": 18
+        },
+        {
+            "id": 523,
+            "activity_type_detail": 32,
+            "role": 18
+        },
+        {
+            "id": 524,
+            "activity_type_detail": 32,
+            "role": 18
+        },
+        {
+            "id": 525,
+            "activity_type_detail": 32,
+            "role": 18
+        },
+        {
+            "id": 526,
+            "activity_type_detail": 32,
+            "role": 18
+        },
+        {
+            "id": 527,
+            "activity_type_detail": 32,
+            "role": 18
+        },
+        {
+            "id": 528,
+            "activity_type_detail": 32,
+            "role": 18
+        },
+        {
+            "id": 529,
+            "activity_type_detail": 16,
+            "role": 18
+        },
+        {
+            "id": 530,
+            "activity_type_detail": 45,
+            "role": 18
+        },
+        {
+            "id": 531,
+            "activity_type_detail": 14,
+            "role": 18
+        },
+        {
+            "id": 532,
+            "activity_type_detail": 13,
+            "role": 18
+        },
+        {
+            "id": 533,
+            "activity_type_detail": 15,
+            "role": 18
+        },
+        {
+            "id": 534,
+            "activity_type_detail": 8,
+            "role": 18
+        },
+        {
+            "id": 535,
+            "activity_type_detail": 12,
+            "role": 18
+        },
+        {
+            "id": 536,
+            "activity_type_detail": 9,
+            "role": 18
+        },
+        {
+            "id": 537,
+            "activity_type_detail": 10,
+            "role": 18
+        },
+        {
+            "id": 538,
+            "activity_type_detail": 11,
+            "role": 18
+        },
+        {
+            "id": 539,
+            "activity_type_detail": 37,
+            "role": 18
+        },
+        {
+            "id": 541,
+            "activity_type_detail": 34,
+            "role": 18
+        },
+        {
+            "id": 542,
+            "activity_type_detail": 7,
+            "role": 18
+        },
+        {
+            "id": 543,
+            "activity_type_detail": 34,
+            "role": 16
+        },
+        {
+            "id": 586,
+            "activity_type_detail": 34,
+            "role": 17
+        },
+        {
+            "id": 587,
+            "activity_type_detail": 7,
+            "role": 17
+        },
+        {
+            "id": 592,
+            "activity_type_detail": 5,
+            "role": 17
+        },
+        {
+            "id": 593,
+            "activity_type_detail": 1,
+            "role": 17
+        },
+        {
+            "id": 595,
+            "activity_type_detail": 3,
+            "role": 17
+        },
+        {
+            "id": 596,
+            "activity_type_detail": 2,
+            "role": 17
+        },
+        {
+            "id": 597,
+            "activity_type_detail": 38,
+            "role": 17
+        },
+        {
+            "id": 598,
+            "activity_type_detail": 39,
+            "role": 17
+        },
+        {
+            "id": 600,
+            "activity_type_detail": 35,
+            "role": 19
+        },
+        {
+            "id": 601,
+            "activity_type_detail": 6,
+            "role": 19
+        },
+        {
+            "id": 602,
+            "activity_type_detail": 33,
+            "role": 19
+        },
+        {
+            "id": 603,
+            "activity_type_detail": 36,
+            "role": 19
+        },
+        {
+            "id": 604,
+            "activity_type_detail": 20,
+            "role": 19
+        },
+        {
+            "id": 605,
+            "activity_type_detail": 19,
+            "role": 19
+        },
+        {
+            "id": 606,
+            "activity_type_detail": 18,
+            "role": 19
+        },
+        {
+            "id": 607,
+            "activity_type_detail": 17,
+            "role": 19
+        },
+        {
+            "id": 608,
+            "activity_type_detail": 44,
+            "role": 19
+        },
+        {
+            "id": 609,
+            "activity_type_detail": 40,
+            "role": 19
+        },
+        {
+            "id": 610,
+            "activity_type_detail": 42,
+            "role": 19
+        },
+        {
+            "id": 611,
+            "activity_type_detail": 43,
+            "role": 19
+        },
+        {
+            "id": 612,
+            "activity_type_detail": 41,
+            "role": 19
+        },
+        {
+            "id": 613,
+            "activity_type_detail": 21,
+            "role": 19
+        },
+        {
+            "id": 614,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 615,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 616,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 617,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 618,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 619,
+            "activity_type_detail": 16,
+            "role": 19
+        },
+        {
+            "id": 620,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 621,
+            "activity_type_detail": 15,
+            "role": 19
+        },
+        {
+            "id": 622,
+            "activity_type_detail": 45,
+            "role": 19
+        },
+        {
+            "id": 623,
+            "activity_type_detail": 14,
+            "role": 19
+        },
+        {
+            "id": 624,
+            "activity_type_detail": 13,
+            "role": 19
+        },
+        {
+            "id": 625,
+            "activity_type_detail": 12,
+            "role": 19
+        },
+        {
+            "id": 626,
+            "activity_type_detail": 8,
+            "role": 19
+        },
+        {
+            "id": 627,
+            "activity_type_detail": 9,
+            "role": 19
+        },
+        {
+            "id": 628,
+            "activity_type_detail": 10,
+            "role": 19
+        },
+        {
+            "id": 629,
+            "activity_type_detail": 11,
+            "role": 19
+        },
+        {
+            "id": 630,
+            "activity_type_detail": 37,
+            "role": 19
+        },
+        {
+            "id": 631,
+            "activity_type_detail": 4,
+            "role": 19
+        },
+        {
+            "id": 632,
+            "activity_type_detail": 1,
+            "role": 19
+        },
+        {
+            "id": 633,
+            "activity_type_detail": 3,
+            "role": 19
+        },
+        {
+            "id": 634,
+            "activity_type_detail": 2,
+            "role": 19
+        },
+        {
+            "id": 635,
+            "activity_type_detail": 38,
+            "role": 19
+        },
+        {
+            "id": 636,
+            "activity_type_detail": 5,
+            "role": 19
+        },
+        {
+            "id": 637,
+            "activity_type_detail": 39,
+            "role": 19
+        },
+        {
+            "id": 638,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 639,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 640,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 641,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 642,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 643,
+            "activity_type_detail": 7,
+            "role": 19
+        },
+        {
+            "id": 644,
+            "activity_type_detail": 34,
+            "role": 19
+        },
+        {
+            "id": 645,
+            "activity_type_detail": 46,
+            "role": 5
+        },
+        {
+            "id": 646,
+            "activity_type_detail": 46,
+            "role": 11
+        },
+        {
+            "id": 656,
+            "activity_type_detail": 49,
+            "role": 6
+        },
+        {
+            "id": 657,
+            "activity_type_detail": 49,
+            "role": 3
+        },
+        {
+            "id": 658,
+            "activity_type_detail": 49,
+            "role": 5
+        },
+        {
+            "id": 659,
+            "activity_type_detail": 49,
+            "role": 11
+        },
+        {
+            "id": 660,
+            "activity_type_detail": 49,
+            "role": 4
+        },
+        {
+            "id": 662,
+            "activity_type_detail": 49,
+            "role": 13
+        },
+        {
+            "id": 663,
+            "activity_type_detail": 49,
+            "role": 1
+        },
+        {
+            "id": 664,
+            "activity_type_detail": 49,
+            "role": 18
+        },
+        {
+            "id": 665,
+            "activity_type_detail": 48,
+            "role": 17
+        },
+        {
+            "id": 666,
+            "activity_type_detail": 48,
+            "role": 7
+        },
+        {
+            "id": 667,
+            "activity_type_detail": 48,
+            "role": 12
+        },
+        {
+            "id": 668,
+            "activity_type_detail": 48,
+            "role": 9
+        },
+        {
+            "id": 669,
+            "activity_type_detail": 48,
+            "role": 8
+        },
+        {
+            "id": 670,
+            "activity_type_detail": 48,
+            "role": 10
+        },
+        {
+            "id": 672,
+            "activity_type_detail": 49,
+            "role": 14
+        },
+        {
+            "id": 673,
+            "activity_type_detail": 49,
+            "role": 2
+        },
+        {
+            "id": 674,
+            "activity_type_detail": 49,
+            "role": 15
+        },
+        {
+            "id": 675,
+            "activity_type_detail": 49,
+            "role": 19
+        },
+        {
+            "id": 676,
+            "activity_type_detail": 48,
+            "role": 14
+        },
+        {
+            "id": 677,
+            "activity_type_detail": 48,
+            "role": 2
+        },
+        {
+            "id": 678,
+            "activity_type_detail": 48,
+            "role": 15
+        },
+        {
+            "id": 679,
+            "activity_type_detail": 48,
+            "role": 19
+        },
+        {
+            "id": 680,
+            "activity_type_detail": 47,
+            "role": 6
+        },
+        {
+            "id": 681,
+            "activity_type_detail": 47,
+            "role": 3
+        },
+        {
+            "id": 682,
+            "activity_type_detail": 47,
+            "role": 5
+        },
+        {
+            "id": 683,
+            "activity_type_detail": 47,
+            "role": 11
+        },
+        {
+            "id": 684,
+            "activity_type_detail": 47,
+            "role": 4
+        },
+        {
+            "id": 685,
+            "activity_type_detail": 47,
+            "role": 16
+        },
+        {
+            "id": 686,
+            "activity_type_detail": 47,
+            "role": 13
+        },
+        {
+            "id": 687,
+            "activity_type_detail": 47,
+            "role": 1
+        },
+        {
+            "id": 688,
+            "activity_type_detail": 47,
+            "role": 18
+        },
+        {
+            "id": 689,
+            "activity_type_detail": 47,
+            "role": 10
+        },
+        {
+            "id": 690,
+            "activity_type_detail": 47,
+            "role": 8
+        },
+        {
+            "id": 691,
+            "activity_type_detail": 47,
+            "role": 9
+        },
+        {
+            "id": 692,
+            "activity_type_detail": 47,
+            "role": 12
+        },
+        {
+            "id": 693,
+            "activity_type_detail": 47,
+            "role": 7
+        },
+        {
+            "id": 694,
+            "activity_type_detail": 47,
+            "role": 17
+        },
+        {
+            "id": 695,
+            "activity_type_detail": 47,
+            "role": 14
+        },
+        {
+            "id": 696,
+            "activity_type_detail": 47,
+            "role": 2
+        },
+        {
+            "id": 697,
+            "activity_type_detail": 47,
+            "role": 15
+        },
+        {
+            "id": 698,
+            "activity_type_detail": 47,
+            "role": 19
+        },
+        {
+            "id": 699,
+            "activity_type_detail": 6,
+            "role": 13
+        },
+        {
+            "id": 701,
+            "activity_type_detail": 1,
+            "role": 14
+        },
+        {
+            "id": 702,
+            "activity_type_detail": 1,
+            "role": 2
+        },
+        {
+            "id": 703,
+            "activity_type_detail": 1,
+            "role": 15
+        },
+        {
+            "id": 704,
+            "activity_type_detail": 52,
+            "role": 3
+        },
+        {
+            "id": 705,
+            "activity_type_detail": 52,
+            "role": 1
+        },
+        {
+            "id": 706,
+            "activity_type_detail": 52,
+            "role": 18
+        },
+        {
+            "id": 708,
+            "activity_type_detail": 52,
+            "role": 6
+        },
+        {
+            "id": 709,
+            "activity_type_detail": 52,
+            "role": 5
+        },
+        {
+            "id": 710,
+            "activity_type_detail": 52,
+            "role": 11
+        },
+        {
+            "id": 711,
+            "activity_type_detail": 52,
+            "role": 4
+        },
+        {
+            "id": 712,
+            "activity_type_detail": 52,
+            "role": 16
+        },
+        {
+            "id": 713,
+            "activity_type_detail": 52,
+            "role": 13
+        },
+        {
+            "id": 714,
+            "activity_type_detail": 52,
+            "role": 14
+        },
+        {
+            "id": 715,
+            "activity_type_detail": 52,
+            "role": 2
+        },
+        {
+            "id": 716,
+            "activity_type_detail": 52,
+            "role": 15
+        },
+        {
+            "id": 717,
+            "activity_type_detail": 52,
+            "role": 19
+        },
+        {
+            "id": 726,
+            "activity_type_detail": 51,
+            "role": 14
+        },
+        {
+            "id": 727,
+            "activity_type_detail": 51,
+            "role": 2
+        },
+        {
+            "id": 728,
+            "activity_type_detail": 51,
+            "role": 15
+        },
+        {
+            "id": 729,
+            "activity_type_detail": 51,
+            "role": 19
+        },
+        {
+            "id": 730,
+            "activity_type_detail": 50,
+            "role": 6
+        },
+        {
+            "id": 731,
+            "activity_type_detail": 50,
+            "role": 3
+        },
+        {
+            "id": 732,
+            "activity_type_detail": 50,
+            "role": 5
+        },
+        {
+            "id": 733,
+            "activity_type_detail": 50,
+            "role": 11
+        },
+        {
+            "id": 734,
+            "activity_type_detail": 51,
+            "role": 10
+        },
+        {
+            "id": 735,
+            "activity_type_detail": 51,
+            "role": 8
+        },
+        {
+            "id": 736,
+            "activity_type_detail": 51,
+            "role": 9
+        },
+        {
+            "id": 737,
+            "activity_type_detail": 51,
+            "role": 12
+        },
+        {
+            "id": 738,
+            "activity_type_detail": 51,
+            "role": 7
+        },
+        {
+            "id": 739,
+            "activity_type_detail": 51,
+            "role": 17
+        },
+        {
+            "id": 740,
+            "activity_type_detail": 50,
+            "role": 4
+        },
+        {
+            "id": 741,
+            "activity_type_detail": 50,
+            "role": 16
+        },
+        {
+            "id": 742,
+            "activity_type_detail": 50,
+            "role": 13
+        },
+        {
+            "id": 743,
+            "activity_type_detail": 50,
+            "role": 1
+        },
+        {
+            "id": 744,
+            "activity_type_detail": 50,
+            "role": 18
+        },
+        {
+            "id": 745,
+            "activity_type_detail": 50,
+            "role": 10
+        },
+        {
+            "id": 746,
+            "activity_type_detail": 50,
+            "role": 8
+        },
+        {
+            "id": 747,
+            "activity_type_detail": 50,
+            "role": 9
+        },
+        {
+            "id": 748,
+            "activity_type_detail": 50,
+            "role": 12
+        },
+        {
+            "id": 749,
+            "activity_type_detail": 50,
+            "role": 7
+        },
+        {
+            "id": 750,
+            "activity_type_detail": 50,
+            "role": 17
+        },
+        {
+            "id": 751,
+            "activity_type_detail": 50,
+            "role": 14
+        },
+        {
+            "id": 752,
+            "activity_type_detail": 50,
+            "role": 2
+        },
+        {
+            "id": 753,
+            "activity_type_detail": 50,
+            "role": 15
+        },
+        {
+            "id": 754,
+            "activity_type_detail": 50,
+            "role": 19
+        },
+        {
+            "id": 755,
+            "activity_type_detail": 41,
+            "role": 6
+        },
+        {
+            "id": 756,
+            "activity_type_detail": 42,
+            "role": 6
+        },
+        {
+            "id": 757,
+            "activity_type_detail": 41,
+            "role": 14
+        },
+        {
+            "id": 758,
+            "activity_type_detail": 42,
+            "role": 14
+        },
+        {
+            "id": 759,
+            "activity_type_detail": 54,
+            "role": 6
+        },
+        {
+            "id": 760,
+            "activity_type_detail": 54,
+            "role": 3
+        },
+        {
+            "id": 761,
+            "activity_type_detail": 54,
+            "role": 5
+        },
+        {
+            "id": 762,
+            "activity_type_detail": 54,
+            "role": 11
+        },
+        {
+            "id": 764,
+            "activity_type_detail": 54,
+            "role": 16
+        },
+        {
+            "id": 765,
+            "activity_type_detail": 54,
+            "role": 13
+        },
+        {
+            "id": 766,
+            "activity_type_detail": 54,
+            "role": 1
+        },
+        {
+            "id": 767,
+            "activity_type_detail": 54,
+            "role": 18
+        },
+        {
+            "id": 768,
+            "activity_type_detail": 54,
+            "role": 14
+        },
+        {
+            "id": 769,
+            "activity_type_detail": 54,
+            "role": 2
+        },
+        {
+            "id": 770,
+            "activity_type_detail": 54,
+            "role": 15
+        },
+        {
+            "id": 771,
+            "activity_type_detail": 54,
+            "role": 19
+        },
+        {
+            "id": 772,
+            "activity_type_detail": 32,
+            "role": 6
+        },
+        {
+            "id": 773,
+            "activity_type_detail": 32,
+            "role": 3
+        },
+        {
+            "id": 774,
+            "activity_type_detail": 32,
+            "role": 5
+        },
+        {
+            "id": 775,
+            "activity_type_detail": 32,
+            "role": 11
+        },
+        {
+            "id": 776,
+            "activity_type_detail": 32,
+            "role": 4
+        },
+        {
+            "id": 778,
+            "activity_type_detail": 32,
+            "role": 13
+        },
+        {
+            "id": 779,
+            "activity_type_detail": 32,
+            "role": 1
+        },
+        {
+            "id": 780,
+            "activity_type_detail": 32,
+            "role": 18
+        },
+        {
+            "id": 781,
+            "activity_type_detail": 32,
+            "role": 14
+        },
+        {
+            "id": 782,
+            "activity_type_detail": 32,
+            "role": 2
+        },
+        {
+            "id": 783,
+            "activity_type_detail": 32,
+            "role": 15
+        },
+        {
+            "id": 784,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 785,
+            "activity_type_detail": 46,
+            "role": 18
+        },
+        {
+            "id": 786,
+            "activity_type_detail": 46,
+            "role": 19
+        },
+        {
+            "id": 787,
+            "activity_type_detail": 55,
+            "role": 4
+        },
+        {
+            "id": 788,
+            "activity_type_detail": 55,
+            "role": 1
+        },
+        {
+            "id": 789,
+            "activity_type_detail": 55,
+            "role": 18
+        },
+        {
+            "id": 790,
+            "activity_type_detail": 55,
+            "role": 19
+        },
+        {
+            "id": 791,
+            "activity_type_detail": 55,
+            "role": 15
+        },
+        {
+            "id": 801,
+            "activity_type_detail": 13,
+            "role": 11
+        },
+        {
+            "id": 802,
+            "activity_type_detail": 14,
+            "role": 11
+        },
+        {
+            "id": 803,
+            "activity_type_detail": 45,
+            "role": 11
+        },
+        {
+            "id": 804,
+            "activity_type_detail": 8,
+            "role": 11
+        },
+        {
+            "id": 805,
+            "activity_type_detail": 35,
+            "role": 15
+        },
+        {
+            "id": 806,
+            "activity_type_detail": 36,
+            "role": 15
+        },
+        {
+            "id": 807,
+            "activity_type_detail": 40,
+            "role": 15
+        },
+        {
+            "id": 808,
+            "activity_type_detail": 41,
+            "role": 15
+        },
+        {
+            "id": 810,
+            "activity_type_detail": 43,
+            "role": 15
+        },
+        {
+            "id": 812,
+            "activity_type_detail": 32,
+            "role": 1
+        },
+        {
+            "id": 813,
+            "activity_type_detail": 46,
+            "role": 1
+        },
+        {
+            "id": 814,
+            "activity_type_detail": 46,
+            "role": 15
+        },
+        {
+            "id": 815,
+            "activity_type_detail": 56,
+            "role": 10
+        },
+        {
+            "id": 816,
+            "activity_type_detail": 56,
+            "role": 8
+        },
+        {
+            "id": 817,
+            "activity_type_detail": 56,
+            "role": 9
+        },
+        {
+            "id": 818,
+            "activity_type_detail": 56,
+            "role": 12
+        },
+        {
+            "id": 819,
+            "activity_type_detail": 56,
+            "role": 7
+        },
+        {
+            "id": 820,
+            "activity_type_detail": 56,
+            "role": 17
+        },
+        {
+            "id": 821,
+            "activity_type_detail": 56,
+            "role": 14
+        },
+        {
+            "id": 822,
+            "activity_type_detail": 56,
+            "role": 2
+        },
+        {
+            "id": 823,
+            "activity_type_detail": 56,
+            "role": 15
+        },
+        {
+            "id": 824,
+            "activity_type_detail": 56,
+            "role": 19
+        },
+        {
+            "id": 825,
+            "activity_type_detail": 4,
+            "role": 9
+        },
+        {
+            "id": 829,
+            "activity_type_detail": 4,
+            "role": 17
+        },
+        {
+            "id": 831,
+            "activity_type_detail": 18,
+            "role": 1
+        },
+        {
+            "id": 832,
+            "activity_type_detail": 12,
+            "role": 11
+        },
+        {
+            "id": 833,
+            "activity_type_detail": 21,
+            "role": 13
+        },
+        {
+            "id": 834,
+            "activity_type_detail": 44,
+            "role": 1
+        },
+        {
+            "id": 835,
+            "activity_type_detail": 44,
+            "role": 15
+        },
+        {
+            "id": 836,
+            "activity_type_detail": 59,
+            "role": 3
+        },
+        {
+            "id": 837,
+            "activity_type_detail": 59,
+            "role": 4
+        },
+        {
+            "id": 838,
+            "activity_type_detail": 59,
+            "role": 11
+        },
+        {
+            "id": 839,
+            "activity_type_detail": 59,
+            "role": 5
+        },
+        {
+            "id": 840,
+            "activity_type_detail": 59,
+            "role": 16
+        },
+        {
+            "id": 841,
+            "activity_type_detail": 59,
+            "role": 13
+        },
+        {
+            "id": 842,
+            "activity_type_detail": 59,
+            "role": 1
+        },
+        {
+            "id": 843,
+            "activity_type_detail": 59,
+            "role": 18
+        },
+        {
+            "id": 844,
+            "activity_type_detail": 60,
+            "role": 4
+        },
+        {
+            "id": 845,
+            "activity_type_detail": 60,
+            "role": 11
+        },
+        {
+            "id": 846,
+            "activity_type_detail": 60,
+            "role": 5
+        },
+        {
+            "id": 847,
+            "activity_type_detail": 60,
+            "role": 16
+        },
+        {
+            "id": 848,
+            "activity_type_detail": 60,
+            "role": 13
+        },
+        {
+            "id": 849,
+            "activity_type_detail": 60,
+            "role": 1
+        },
+        {
+            "id": 850,
+            "activity_type_detail": 60,
+            "role": 18
+        },
+        {
+            "id": 851,
+            "activity_type_detail": 59,
+            "role": 2
+        },
+        {
+            "id": 852,
+            "activity_type_detail": 60,
+            "role": 2
+        },
+        {
+            "id": 853,
+            "activity_type_detail": 59,
+            "role": 15
+        },
+        {
+            "id": 854,
+            "activity_type_detail": 60,
+            "role": 15
+        },
+        {
+            "id": 855,
+            "activity_type_detail": 59,
+            "role": 19
+        },
+        {
+            "id": 856,
+            "activity_type_detail": 60,
+            "role": 19
+        },
+        {
+            "id": 857,
+            "activity_type_detail": 6,
+            "role": 16
+        },
+        {
+            "id": 858,
+            "activity_type_detail": 14,
+            "role": 16
+        },
+        {
+            "id": 859,
+            "activity_type_detail": 32,
+            "role": 16
+        },
+        {
+            "id": 860,
+            "activity_type_detail": 33,
+            "role": 16
+        },
+        {
+            "id": 861,
+            "activity_type_detail": 49,
+            "role": 16
+        }
+    ],
+    "_metadata": {
+        "exported_at": "2025-11-08T20:41:40.250302Z",
+        "tables": [
+            "m_activity_type",
+            "m_activity_type_detail",
+            "m_first_program",
+            "m_insert_point",
+            "m_level",
+            "m_news",
+            "m_parameter",
+            "m_parameter_condition",
+            "m_role",
+            "m_room_type",
+            "m_room_type_group",
+            "m_season",
+            "m_supported_plan",
+            "m_visibility"
+        ],
+        "version": "1.0"
+    }
+}
