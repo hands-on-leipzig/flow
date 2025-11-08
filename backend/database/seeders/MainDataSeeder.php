@@ -16,20 +16,18 @@ class MainDataSeeder extends Seeder
         $this->command->info('🌱 Seeding main data...');
         
         // Load data from JSON export file (in repo at backend/database/exports/)
-        // Using database_path() which follows Laravel conventions and points to backend/database/exports/
-        $exportFilePath = database_path('exports/main-tables-latest.json');
+        // Use base_path to ensure we're reading from backend/database/exports, not root/database/exports
+        $exportFilePath = base_path('database/exports/main-tables-latest.json');
         
         // Better error reporting
         if (!file_exists($exportFilePath)) {
-            $absolutePath = base_path('database/exports/main-tables-latest.json');
             $checkPath = __DIR__ . '/../exports/main-tables-latest.json';
             
             $this->command->error("Export file not found at: {$exportFilePath}");
-            $this->command->error("Checked absolute path: {$absolutePath} (exists: " . (file_exists($absolutePath) ? 'yes' : 'no') . ")");
             $this->command->error("Checked relative path: {$checkPath} (exists: " . (file_exists($checkPath) ? 'yes' : 'no') . ")");
             
             // List directory contents for debugging
-            $exportsDir = database_path('exports');
+            $exportsDir = base_path('database/exports');
             if (is_dir($exportsDir)) {
                 $files = scandir($exportsDir);
                 $this->command->error("Files in database/exports/: " . implode(', ', array_filter($files, fn($f) => $f !== '.' && $f !== '..')));

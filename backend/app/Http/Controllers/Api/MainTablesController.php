@@ -249,12 +249,13 @@ class MainTablesController extends Controller
             Storage::put("exports/{$filename}", json_encode($exportData, JSON_PRETTY_PRINT));
 
             // Also save to database/exports/ for repo (used by MainDataSeeder during deployment)
-            $repoPath = database_path('exports');
+            // Use base_path to ensure we're in backend/database/exports, not root/database/exports
+            $repoPath = base_path('database/exports');
             if (!file_exists($repoPath)) {
                 mkdir($repoPath, 0755, true);
             }
             file_put_contents(
-                database_path('exports/main-tables-latest.json'),
+                base_path('database/exports/main-tables-latest.json'),
                 json_encode($exportData, JSON_PRETTY_PRINT)
             );
 
@@ -364,18 +365,17 @@ class MainTablesController extends Controller
             ];
 
             // Save to database/exports/ for repo (used by MainDataSeeder during deployment)
-            $repoPath = database_path('exports');
+            // Use base_path to ensure we're in backend/database/exports, not root/database/exports
+            $repoPath = base_path('database/exports');
             if (!file_exists($repoPath)) {
                 mkdir($repoPath, 0755, true);
             }
             $jsonContent = json_encode($exportData, JSON_PRETTY_PRINT);
-            file_put_contents(
-                database_path('exports/main-tables-latest.json'),
-                $jsonContent
-            );
+            $filePath = base_path('database/exports/main-tables-latest.json');
+            file_put_contents($filePath, $jsonContent);
             
             Log::info("JSON file saved successfully", [
-                'path' => database_path('exports/main-tables-latest.json'),
+                'path' => $filePath,
                 'tables' => $tables,
                 'table_count' => count($tables)
             ]);
