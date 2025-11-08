@@ -138,23 +138,29 @@ class PublishController extends Controller
             ]);
 
         // Update link in DRAHT for both explore and challenge events if they exist
-        try {
-            $drahtController = app(\App\Http\Controllers\Api\DrahtController::class);
-            
-            // Update link for challenge event if it exists
-            if (!empty($event->event_challenge)) {
-                $drahtController->updateEventLink($event->event_challenge, $link);
+        // Only update DRAHT in production environment
+        if (app()->environment('production')) {
+            try {
+                $drahtController = app(\App\Http\Controllers\Api\DrahtController::class);
+                
+                // Update link for challenge event if it exists
+                if (!empty($event->event_challenge)) {
+                    $drahtController->updateEventLink($event->event_challenge, $link);
+                }
+                
+                // Update link for explore event if it exists
+                if (!empty($event->event_explore)) {
+                    $drahtController->updateEventLink($event->event_explore, $link);
+                }
+            } catch (\Exception $e) {
+                // Log error but don't fail the link generation
+                Log::error("Failed to update link in DRAHT for event {$event->id}", [
+                    'error' => $e->getMessage()
+                ]);
             }
-            
-            // Update link for explore event if it exists
-            if (!empty($event->event_explore)) {
-                $drahtController->updateEventLink($event->event_explore, $link);
-            }
-        } catch (\Exception $e) {
-            // Log error but don't fail the link generation
-            Log::error("Failed to update link in DRAHT for event {$event->id}", [
-                'error' => $e->getMessage()
-            ]);
+        } else {
+            // Log that we're skipping DRAHT update in non-production environment
+            Log::info("Skipping DRAHT link update for event {$event->id} (environment: " . app()->environment() . ")");
         }
 
         // In Response Prefix hinzufügen
