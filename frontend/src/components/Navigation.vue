@@ -67,7 +67,7 @@ async function fetchSelectableEvents() {
   try {
     const response = await axios.get('/events/selectable')
     selectableEvents.value = response.data
-    
+
     // For admins, get their regional partners to filter events to show only their own
     if (isAdmin.value) {
       try {
@@ -94,7 +94,7 @@ async function fetchSelectableEvents() {
 // --- Filter events for dropdown ---
 const dropdownEvents = computed(() => {
   if (!selectableEvents.value.length) return []
-  
+
   if (isAdmin.value) {
     // For admins: show only events from their own regional partners
     const filtered = selectableEvents.value
@@ -106,18 +106,18 @@ const dropdownEvents = computed(() => {
         // If we can't determine user's regional partners, show all (fallback)
         return true
       })
-      .flatMap((rp: any) => 
+      .flatMap((rp: any) =>
         rp.events.map((event: any) => ({
           ...event,
           regional_partner_id: rp.regional_partner.id,
           regional_partner_name: rp.regional_partner.name
         }))
       )
-    
+
     return filtered
   } else {
     // For non-admins: show all their events (already filtered by API)
-    return selectableEvents.value.flatMap((rp: any) => 
+    return selectableEvents.value.flatMap((rp: any) =>
       rp.events.map((event: any) => ({
         ...event,
         regional_partner_id: rp.regional_partner.id,
@@ -218,6 +218,7 @@ function closeHelpModal() {
 
 // --- UI Navigation ---
 const selectedTab = ref('Schedule')
+const mobileMenuOpen = ref(false)
 
 function isActive(path: string) {
   const cleanPath = path.replace(/^\//, '')
@@ -227,6 +228,12 @@ function isActive(path: string) {
 function goTo(tab) {
   selectedTab.value = tab.name
   router.push(tab.path)
+  // Close mobile menu after navigation
+  mobileMenuOpen.value = false
+}
+
+function toggleMobileMenu() {
+  mobileMenuOpen.value = !mobileMenuOpen.value
 }
 
 function logout() {
@@ -247,10 +254,14 @@ function logout() {
 </script>
 
 <template>
-  <div class="sticky top-0 z-50 flex items-center justify-between border-b px-2 py-2 bg-white shadow-sm">
-    <div class="flex items-center gap-8">
-      <img :src="imageUrl('/flow/flow.png')" alt="Logo" class="h-8 w-auto"/>
-      <img :src="imageUrl('/flow/hot+fll.png')" alt="Logo" class="h-8 w-auto"/>
+  <div class="sticky top-0 z-50 bg-white shadow-sm border-b">
+    <!-- Desktop Navigation -->
+    <div class="hidden md:flex items-center justify-between px-3 lg:px-4 py-2">
+      <div class="flex items-center gap-4 lg:gap-8 flex-1 min-w-0">
+        <div class="flex items-center gap-2 lg:gap-4 flex-shrink-0">
+          <img :src="imageUrl('/flow/flow.png')" alt="Logo" class="h-6 lg:h-8 w-auto"/>
+          <img :src="imageUrl('/flow/hot+fll.png')" alt="Logo" class="h-6 lg:h-8 w-auto"/>
+        </div>
 
       <TabGroup v-model="selectedTab" as="div">
         <TabList class="flex space-x-2">
@@ -319,8 +330,8 @@ function logout() {
                 :class="[
                   'w-full text-left px-4 py-3 transition-all duration-200 min-w-0',
                   active || focus ? 'bg-gradient-to-r from-blue-50 to-blue-50/50' : '',
-                  eventStore.selectedEvent?.id === event.id 
-                    ? 'bg-gradient-to-r from-blue-50 via-blue-50/80 to-transparent border-l-4 border-blue-500 shadow-sm' 
+                  eventStore.selectedEvent?.id === event.id
+                    ? 'bg-gradient-to-r from-blue-50 via-blue-50/80 to-transparent border-l-4 border-blue-500 shadow-sm'
                     : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent'
                 ]"
               >
@@ -353,8 +364,8 @@ function logout() {
                         title="FIRST LEGO League Challenge"
                       />
                     </div>
-                    <div 
-                      v-if="eventStore.selectedEvent?.id === event.id" 
+                    <div
+                      v-if="eventStore.selectedEvent?.id === event.id"
                       class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold"
                     >
                       ✓
@@ -363,7 +374,7 @@ function logout() {
                 </div>
               </button>
             </MenuItem>
-            
+
             <!-- "More" option for admins -->
             <MenuItem v-if="isAdmin" v-slot="{ active }">
               <div class="border-t border-gray-200 mt-2 pt-2">
