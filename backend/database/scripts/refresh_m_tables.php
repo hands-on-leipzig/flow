@@ -27,17 +27,22 @@ function refreshMTables(): void
         }
     }
     
-    // Always remove migration record for master tables creation so it will be re-run
+    // Always remove migration records for all m_ table migrations so they will be re-run
     // This allows migrate --force to recreate the m_ tables, even if they don't exist yet
-    $masterTablesMigration = '2025_01_01_000000_create_master_tables';
-    $deleted = DB::table('migrations')
-        ->where('migration', $masterTablesMigration)
-        ->delete();
+    $mTableMigrations = [
+        '2025_01_01_000000_create_master_tables', // Main master tables migration
+        '2025_10_21_120706_create_m_news_table', // m_news table migration
+        // Add any other m_ table migrations here as needed
+    ];
     
-    if ($deleted > 0) {
-        echo "  ✓ Removed migration record for {$masterTablesMigration} (will be re-run)\n";
-    } else {
-        echo "  ⚠️  Migration record for {$masterTablesMigration} not found (may not exist yet)\n";
+    foreach ($mTableMigrations as $migration) {
+        $deleted = DB::table('migrations')
+            ->where('migration', $migration)
+            ->delete();
+        
+        if ($deleted > 0) {
+            echo "  ✓ Removed migration record for {$migration} (will be re-run)\n";
+        }
     }
     
     if (empty($mTableNames)) {
