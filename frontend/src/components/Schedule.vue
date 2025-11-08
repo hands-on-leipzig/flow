@@ -525,7 +525,7 @@ const updateTableName = async () => {
 </script>
 
 <template>
-  <div class="h-screen p-6 flex flex-col space-y-5">
+  <div class="h-screen p-3 md:p-6 flex flex-col space-y-3 md:space-y-5 overflow-y-auto">
     <ScheduleToast
       ref="savingToast" 
       :is-generating="isGenerating"
@@ -549,15 +549,15 @@ const updateTableName = async () => {
 
     <div class="bg-white border rounded-lg shadow">
       <button
-          class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
+          class="w-full text-left px-3 md:px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base"
           @click="toggle('general')"
       >
         Allgemein
         <AccordionArrow :opened="openGroup === 'general'"/>
       </button>
       <transition name="fade">
-        <div v-if="openGroup === 'general'" class="p-4">
-          <div class="grid grid-cols-3 gap-4 mt-4">
+        <div v-if="openGroup === 'general'" class="p-3 md:p-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-2 md:mt-4">
             <ExploreSettings
                 :parameters="parameters"
                 :show-explore="showExplore"
@@ -591,24 +591,24 @@ const updateTableName = async () => {
 
     <div class="bg-white border rounded-lg shadow">
       <button
-          class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
+          class="w-full text-left px-3 md:px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base"
           @click="toggle('expert')"
       >
         Expertenparameter
         <AccordionArrow :opened="openGroup === 'expert'"/>
       </button>
       <transition name="fade">
-        <div v-if="openGroup === 'expert'" class="p-4">
-          <div class="grid grid-cols-2 gap-6 max-h-[600px] overflow-y-auto">
+        <div v-if="openGroup === 'expert'" class="p-3 md:p-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-h-[400px] md:max-h-[600px] overflow-y-auto">
             <!-- Left column: Explore or turned off message -->
             <div>
               <div class="flex items-center gap-2 mb-2">
                 <img
                     :src="programLogoSrc('E')"
                     :alt="programLogoAlt('E')"
-                    class="w-10 h-10 flex-shrink-0"
+                    class="w-8 h-8 md:w-10 md:h-10 flex-shrink-0"
                 />
-                <h3 class="text-lg font-semibold capitalize">
+                <h3 class="text-base md:text-lg font-semibold capitalize">
                   <span class="italic">FIRST</span> LEGO League Explore
                 </h3>
               </div>
@@ -640,9 +640,9 @@ const updateTableName = async () => {
                 <img
                     :src="programLogoSrc('C')"
                     :alt="programLogoAlt('C')"
-                    class="w-10 h-10 flex-shrink-0"
+                    class="w-8 h-8 md:w-10 md:h-10 flex-shrink-0"
                 />
-                <h3 class="text-lg font-semibold capitalize">
+                <h3 class="text-base md:text-lg font-semibold capitalize">
                   <span class="italic">FIRST</span> LEGO League Challenge
                 </h3>
               </div>
@@ -664,12 +664,12 @@ const updateTableName = async () => {
 
 
                 <!-- Robot-Game-Tische -->
-                <div class="p-4 border rounded shadow mt-4 w-full max-w-lg">
-                  <div class="flex items-center mb-3">
-                    <span class="font-medium text-gray-800">Bezeichnung der Robot-Game-Tische</span>
+                <div class="p-3 md:p-4 border rounded shadow mt-3 md:mt-4 w-full max-w-lg">
+                  <div class="flex items-center mb-2 md:mb-3">
+                    <span class="text-sm md:text-base font-medium text-gray-800">Bezeichnung der Robot-Game-Tische</span>
                   </div>
 
-                  <div class="grid grid-cols-2 gap-4">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                     <div v-for="(name, i) in tableNames" :key="i">
                       <label class="block text-xs text-gray-600 mb-1">Tisch {{ i + 1 }}</label>
                       <input
@@ -699,15 +699,15 @@ const updateTableName = async () => {
 
     <div class="bg-white border rounded-lg shadow" v-if="selectedEvent?.level === 3">
       <button
-          class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
+          class="w-full text-left px-3 md:px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base"
           @click="toggle('finals')"
       >
         Finalparameter
         <AccordionArrow :opened="openGroup === 'finals'"/>
       </button>
       <transition name="fade">
-        <div v-if="openGroup === 'finals'" class="p-4">
-          <div class="grid grid-cols-2 gap-6 max-h-[600px] overflow-y-auto">
+        <div v-if="openGroup === 'finals'" class="p-3 md:p-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-h-[400px] md:max-h-[600px] overflow-y-auto">
             <!-- Left column: Input parameters -->
             <div>
               <template v-for="param in finaleInputParams" :key="param.id">
@@ -742,14 +742,14 @@ const updateTableName = async () => {
 
     <div class="bg-white border rounded-lg shadow">
       <button
-          class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
+          class="w-full text-left px-3 md:px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base"
           @click="toggle('extras')"
       >
         Zusatzblöcke
         <AccordionArrow :opened="openGroup === 'extras'"/>
       </button>
       <transition name="fade">
-        <div v-if="openGroup === 'extras'" class="p-4">
+        <div v-if="openGroup === 'extras'" class="p-3 md:p-4">
           <InsertBlocks
               ref="insertBlocksRef"
               :plan-id="selectedPlanId as number"
@@ -763,30 +763,31 @@ const updateTableName = async () => {
     </div>
 
     <!-- Error Alert Banner -->
-    <div v-if="generatorError" class="bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-lg">
-      <div class="flex items-start justify-between">
-        <div class="flex-1">
+    <div v-if="generatorError" class="bg-red-50 border-l-4 border-red-500 p-3 md:p-4 rounded shadow-lg">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex-1 min-w-0">
           <div class="flex items-center">
-            <svg class="h-5 w-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="h-4 w-4 md:h-5 md:w-5 text-red-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
             </svg>
-            <h3 class="text-red-800 font-semibold text-lg">{{ generatorError }}</h3>
+            <h3 class="text-red-800 font-semibold text-sm md:text-lg break-words">{{ generatorError }}</h3>
           </div>
-          <p v-if="errorDetails" class="mt-2 text-red-700 text-sm">{{ errorDetails }}</p>
+          <p v-if="errorDetails" class="mt-2 text-red-700 text-xs md:text-sm break-words">{{ errorDetails }}</p>
         </div>
         <button
           @click="generatorError = null; errorDetails = null"
-          class="ml-4 text-red-500 hover:text-red-700 focus:outline-none"
+          class="ml-2 text-red-500 hover:text-red-700 focus:outline-none flex-shrink-0"
           aria-label="Fehler schließen"
         >
-          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+          <svg class="h-4 w-4 md:h-5 md:w-5" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
           </svg>
         </button>
       </div>
     </div>
 
-    <div class="flex-grow overflow-hidden">
+    <!-- Preview Section - Hidden on mobile, shown on tablet+ -->
+    <div class="hidden md:flex flex-grow overflow-hidden">
       <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-gray-600">
         <LoaderFlow/>
         <LoaderText/>
@@ -796,6 +797,30 @@ const updateTableName = async () => {
           :plan-id="selectedPlanId as number"
           initial-view="overview"
       />
+    </div>
+    
+    <!-- Mobile Preview Toggle -->
+    <div class="md:hidden bg-white border rounded-lg shadow">
+      <button
+          class="w-full text-left px-3 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center text-sm"
+          @click="toggle('preview')"
+      >
+        Vorschau
+        <AccordionArrow :opened="openGroup === 'preview'"/>
+      </button>
+      <transition name="fade">
+        <div v-if="openGroup === 'preview'" class="p-3 max-h-[400px] overflow-y-auto">
+          <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-gray-600 py-8">
+            <LoaderFlow/>
+            <LoaderText/>
+          </div>
+          <Preview
+              v-else-if="selectedPlanId"
+              :plan-id="selectedPlanId as number"
+              initial-view="overview"
+          />
+        </div>
+      </transition>
     </div>
 
   </div>
