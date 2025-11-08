@@ -204,10 +204,10 @@ class MainTablesController extends Controller
             foreach ($tables as $table) {
                 try {
                     Log::info("Exporting table: {$table}");
-                    $data = DB::table($table)->get()->toArray();
-                    $exportData[$table] = array_map(function($record) {
-                        return (array) $record;
-                    }, $data);
+                $data = DB::table($table)->get()->toArray();
+                $exportData[$table] = array_map(function($record) {
+                    return (array) $record;
+                }, $data);
                     Log::info("Successfully exported {$table}", ['record_count' => count($exportData[$table])]);
                 } catch (\Exception $e) {
                     $errorMsg = "Failed to export table {$table}: " . $e->getMessage();
@@ -249,34 +249,13 @@ class MainTablesController extends Controller
             Storage::put("exports/{$filename}", json_encode($exportData, JSON_PRETTY_PRINT));
 
             // Also save to database/exports/ for repo (used by MainDataSeeder during deployment)
-            // Use absolute path based on controller location to ensure we're in backend/database/exports
-            // This works regardless of working directory or base_path() resolution
-            $controllerDir = __DIR__; // /path/to/flow/backend/app/Http/Controllers/Api
-            $backendPath = dirname(dirname(dirname(dirname($controllerDir)))); // Go up 4 levels to backend/
-            $repoPath = $backendPath . '/database/exports';
-            
-            // Debug logging
-            Log::info("Export path resolution", [
-                'controller_dir' => $controllerDir,
-                'backend_path' => $backendPath,
-                'base_path' => base_path(),
-                'database_path' => database_path(),
-                'repo_path' => $repoPath,
-                'backend_path_exists' => file_exists($backendPath),
-                'repo_path_exists' => file_exists($repoPath),
-            ]);
-            
+            // Use database_path() which should now work correctly with APP_BASE_PATH set in .env
+            $repoPath = database_path('exports');
             if (!file_exists($repoPath)) {
                 mkdir($repoPath, 0755, true);
             }
-            $filePath = $repoPath . '/main-tables-latest.json';
+            $filePath = database_path('exports/main-tables-latest.json');
             file_put_contents($filePath, json_encode($exportData, JSON_PRETTY_PRINT));
-            
-            Log::info("JSON file saved to database/exports", [
-                'path' => $filePath,
-                'exists' => file_exists($filePath),
-                'absolute_path' => realpath($filePath) ?: $filePath
-            ]);
 
             // Generate MainDataSeeder.php for local use
             \Artisan::call('main-data:generate-seeder');
@@ -293,7 +272,7 @@ class MainTablesController extends Controller
                     'export_keys' => array_keys(array_filter($exportData, fn($key) => $key !== '_metadata', ARRAY_FILTER_USE_KEY))
                 ]);
             }
-            
+
             Log::info("Main tables exported successfully", [
                 'filename' => $filename,
                 'tables' => $tables,
@@ -384,32 +363,14 @@ class MainTablesController extends Controller
             ];
 
             // Save to database/exports/ for repo (used by MainDataSeeder during deployment)
-            // Use absolute path based on controller location to ensure we're in backend/database/exports
-            $controllerDir = __DIR__; // /path/to/flow/backend/app/Http/Controllers/Api
-            $backendPath = dirname(dirname(dirname(dirname($controllerDir)))); // Go up 4 levels to backend/
-            $repoPath = $backendPath . '/database/exports';
-            
-            // Debug logging
-            Log::info("Export path resolution (createPR)", [
-                'controller_dir' => $controllerDir,
-                'backend_path' => $backendPath,
-                'base_path' => base_path(),
-                'database_path' => database_path(),
-                'repo_path' => $repoPath,
-            ]);
-            
+            // Use database_path() which should now work correctly with APP_BASE_PATH set in .env
+            $repoPath = database_path('exports');
             if (!file_exists($repoPath)) {
                 mkdir($repoPath, 0755, true);
             }
             $jsonContent = json_encode($exportData, JSON_PRETTY_PRINT);
-            $filePath = $repoPath . '/main-tables-latest.json';
+            $filePath = database_path('exports/main-tables-latest.json');
             file_put_contents($filePath, $jsonContent);
-            
-            Log::info("JSON file saved to database/exports", [
-                'path' => $filePath,
-                'exists' => file_exists($filePath),
-                'absolute_path' => realpath($filePath) ?: $filePath
-            ]);
             
             Log::info("JSON file saved successfully", [
                 'path' => $filePath,
