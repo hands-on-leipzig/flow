@@ -15,7 +15,8 @@ class MainDataSeeder extends Seeder
     {
         $this->command->info('🌱 Seeding main data...');
         
-        // Load data from JSON export file (in repo at database/exports/)
+        // Load data from JSON export file (in repo at backend/database/exports/)
+        // Using database_path() which follows Laravel conventions and points to backend/database/exports/
         $exportFilePath = database_path('exports/main-tables-latest.json');
         
         // Better error reporting
@@ -36,7 +37,7 @@ class MainDataSeeder extends Seeder
                 $this->command->error("Directory database/exports/ does not exist");
             }
             
-            throw new \Exception("Export file not found: {$exportFilePath}. Please ensure main-tables-latest.json exists in database/exports/.");
+            throw new \Exception("Export file not found: {$exportFilePath}. Please ensure main-tables-latest.json exists in backend/database/exports/.");
         }
         
         $content = file_get_contents($exportFilePath);

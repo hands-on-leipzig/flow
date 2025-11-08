@@ -4,9 +4,9 @@ import axios from 'axios'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
-import SavingToast from "@/components/atoms/SavingToast.vue";
 import { useDebouncedSave } from "@/composables/useDebouncedSave";
 import { TIMING_FIELDS, DEBOUNCE_DELAY } from "@/constants/extraBlocks";
+import ScheduleToast from "@/components/atoms/ScheduleToast.vue";
 
 type Maybe<T> = T | null | undefined
 
@@ -778,7 +778,7 @@ const deleteMessage = computed(() => {
       @cancel="cancelDeleteBlock"
     />
 
-    <SavingToast 
+    <ScheduleToast
       ref="savingToast" 
       :is-generating="isGenerating"
       :countdown="countdownSeconds"
