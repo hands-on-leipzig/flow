@@ -81,10 +81,12 @@ class MainDataSeeder extends Seeder
         // Verify that tables were populated (dynamic verification)
         $this->command->info('Verifying seeded data...');
         $verificationErrors = [];
+        $verificationWarnings = [];
         
         foreach ($tables as $table) {
             if (!Schema::hasTable($table)) {
-                $verificationErrors[] = "Table {$table} does not exist";
+                // Table doesn't exist - this is a warning, not an error (migration may not have run yet)
+                $verificationWarnings[] = "Table {$table} does not exist (migration may not have run yet)";
                 continue;
             }
             
@@ -98,6 +100,18 @@ class MainDataSeeder extends Seeder
             }
         }
         
+        // Show warnings (non-fatal)
+        if (!empty($verificationWarnings)) {
+            $this->command->warn('Verification warnings (non-fatal):');
+            foreach ($verificationWarnings as $warning) {
+                $this->command->warn("  - {$warning}");
+            }
+            $this->command->warn('');
+            $this->command->warn('💡 Note: If migrations run later and create these tables,');
+            $this->command->warn('   re-run this seeder to populate them: php artisan db:seed --class=MainDataSeeder --force');
+        }
+        
+        // Show errors (fatal)
         if (!empty($verificationErrors)) {
             $this->command->error('Verification failed:');
             foreach ($verificationErrors as $error) {
@@ -124,6 +138,12 @@ class MainDataSeeder extends Seeder
     {
         $displayName = str_replace('m_', '', $table);
         $this->command->info("  Seeding {$displayName}...");
+        
+        // Check if table exists before trying to seed
+        if (!Schema::hasTable($table)) {
+            $this->command->warn("    ⚠️  Table {$table} does not exist - skipping (migration may not have run yet)");
+            return;
+        }
         
         if (empty($data)) {
             $this->command->warn("    ⚠️  No data found for {$table}");
