@@ -16,8 +16,8 @@ class MainDataSeeder extends Seeder
         $this->command->info('🌱 Seeding main data...');
         
         // Load data from JSON export file (in repo at backend/database/exports/)
-        // Use base_path to ensure we're reading from backend/database/exports, not root/database/exports
-        $exportFilePath = base_path('database/exports/main-tables-latest.json');
+        // Use database_path to ensure we're always reading from backend/database/exports
+        $exportFilePath = database_path('exports/main-tables-latest.json');
         
         // Better error reporting
         if (!file_exists($exportFilePath)) {
@@ -27,7 +27,7 @@ class MainDataSeeder extends Seeder
             $this->command->error("Checked relative path: {$checkPath} (exists: " . (file_exists($checkPath) ? 'yes' : 'no') . ")");
             
             // List directory contents for debugging
-            $exportsDir = base_path('database/exports');
+            $exportsDir = database_path('exports');
             if (is_dir($exportsDir)) {
                 $files = scandir($exportsDir);
                 $this->command->error("Files in database/exports/: " . implode(', ', array_filter($files, fn($f) => $f !== '.' && $f !== '..')));
