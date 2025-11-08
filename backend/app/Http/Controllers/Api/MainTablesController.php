@@ -249,15 +249,18 @@ class MainTablesController extends Controller
             Storage::put("exports/{$filename}", json_encode($exportData, JSON_PRETTY_PRINT));
 
             // Also save to database/exports/ for repo (used by MainDataSeeder during deployment)
-            // Use base_path to ensure we're in backend/database/exports, not root/database/exports
-            $repoPath = base_path('database/exports');
+            // Use database_path to ensure we're always in backend/database/exports
+            $repoPath = database_path('exports');
             if (!file_exists($repoPath)) {
                 mkdir($repoPath, 0755, true);
             }
-            file_put_contents(
-                base_path('database/exports/main-tables-latest.json'),
-                json_encode($exportData, JSON_PRETTY_PRINT)
-            );
+            $filePath = database_path('exports/main-tables-latest.json');
+            file_put_contents($filePath, json_encode($exportData, JSON_PRETTY_PRINT));
+            
+            Log::info("JSON file saved to database/exports", [
+                'path' => $filePath,
+                'exists' => file_exists($filePath)
+            ]);
 
             // Generate MainDataSeeder.php for local use
             \Artisan::call('main-data:generate-seeder');
@@ -365,14 +368,19 @@ class MainTablesController extends Controller
             ];
 
             // Save to database/exports/ for repo (used by MainDataSeeder during deployment)
-            // Use base_path to ensure we're in backend/database/exports, not root/database/exports
-            $repoPath = base_path('database/exports');
+            // Use database_path to ensure we're always in backend/database/exports
+            $repoPath = database_path('exports');
             if (!file_exists($repoPath)) {
                 mkdir($repoPath, 0755, true);
             }
             $jsonContent = json_encode($exportData, JSON_PRETTY_PRINT);
-            $filePath = base_path('database/exports/main-tables-latest.json');
+            $filePath = database_path('exports/main-tables-latest.json');
             file_put_contents($filePath, $jsonContent);
+            
+            Log::info("JSON file saved to database/exports", [
+                'path' => $filePath,
+                'exists' => file_exists($filePath)
+            ]);
             
             Log::info("JSON file saved successfully", [
                 'path' => $filePath,
