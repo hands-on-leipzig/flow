@@ -111,8 +111,13 @@ function refreshMTables(): void
         echo "  - $table\n";
     }
     
-    // Disable foreign key checks
-    DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+    // Disable foreign key checks before dropping
+    $driver = DB::connection()->getDriverName();
+    if ($driver === 'mysql' || $driver === 'mariadb') {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+    } elseif ($driver === 'sqlite') {
+        DB::statement('PRAGMA foreign_keys = OFF;');
+    }
     
     try {
         // Drop all m_ tables
@@ -125,7 +130,11 @@ function refreshMTables(): void
         echo "\n✅ All m_ tables dropped successfully.\n";
     } finally {
         // Re-enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        if ($driver === 'mysql' || $driver === 'mariadb') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = ON;');
+        }
     }
     
     echo "\n💡 Next steps:\n";
