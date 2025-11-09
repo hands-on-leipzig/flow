@@ -10,9 +10,15 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::table('m_parameter_condition', function (Blueprint $table) {
-            $table->enum('action', ['show', 'hide', 'disable'])->default('show')->change();
-        });
+        if (Schema::hasColumn('m_parameter_condition', 'action')) {
+            try {
+                Schema::table('m_parameter_condition', function (Blueprint $table) {
+                    $table->enum('action', ['show', 'hide', 'disable'])->default('show')->change();
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be modified; ignore
+            }
+        }
     }
 
     /**

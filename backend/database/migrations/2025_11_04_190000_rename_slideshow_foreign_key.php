@@ -10,26 +10,35 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::table('slide', function (Blueprint $table) {
-            try {
-                $table->dropForeign(['slideshow']);
-            } catch (\Throwable $e) {
-                // FK might not exist or have different name; ignore
-            }
-            
-            // Only rename if column exists
-            if (Schema::hasColumn('slide', 'slideshow')) {
-                $table->renameColumn('slideshow', 'slideshow_id');
-            }
-        });
-        
-        // Try to add foreign key separately (may fail if column types don't match)
+        // Drop foreign key first (if exists)
         try {
             Schema::table('slide', function (Blueprint $table) {
-                $table->foreign('slideshow_id')->references('id')->on('slideshow')->onDelete('cascade');
+                $table->dropForeign(['slideshow']);
             });
         } catch (\Throwable $e) {
-            // Ignore if foreign key can't be added (type mismatch or column doesn't exist)
+            // FK might not exist or have different name; ignore
+        }
+        
+        // Rename column if it exists
+        if (Schema::hasColumn('slide', 'slideshow') && !Schema::hasColumn('slide', 'slideshow_id')) {
+            try {
+                Schema::table('slide', function (Blueprint $table) {
+                    $table->renameColumn('slideshow', 'slideshow_id');
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be renamed; ignore
+            }
+        }
+        
+        // Try to add foreign key separately (may fail if column types don't match)
+        if (Schema::hasColumn('slide', 'slideshow_id')) {
+            try {
+                Schema::table('slide', function (Blueprint $table) {
+                    $table->foreign('slideshow_id')->references('id')->on('slideshow')->onDelete('cascade');
+                });
+            } catch (\Throwable $e) {
+                // Ignore if foreign key can't be added (type mismatch)
+            }
         }
     }
 
@@ -38,11 +47,36 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::table('slide', function (Blueprint $table) {
-            $table->dropForeign(['slideshow_id']);
-            $table->renameColumn('slideshow_id', 'slideshow');
-            $table->foreign('slideshow')->references('id')->on('slideshows')->onDelete('cascade');
-        });
+        // Drop foreign key first (if exists)
+        try {
+            Schema::table('slide', function (Blueprint $table) {
+                $table->dropForeign(['slideshow_id']);
+            });
+        } catch (\Throwable $e) {
+            // FK might not exist; ignore
+        }
+        
+        // Rename column if it exists
+        if (Schema::hasColumn('slide', 'slideshow_id') && !Schema::hasColumn('slide', 'slideshow')) {
+            try {
+                Schema::table('slide', function (Blueprint $table) {
+                    $table->renameColumn('slideshow_id', 'slideshow');
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be renamed; ignore
+            }
+        }
+        
+        // Try to add foreign key separately
+        if (Schema::hasColumn('slide', 'slideshow')) {
+            try {
+                Schema::table('slide', function (Blueprint $table) {
+                    $table->foreign('slideshow')->references('id')->on('slideshows')->onDelete('cascade');
+                });
+            } catch (\Throwable $e) {
+                // Ignore if foreign key can't be added (type mismatch or table doesn't exist)
+            }
+        }
     }
 };
 

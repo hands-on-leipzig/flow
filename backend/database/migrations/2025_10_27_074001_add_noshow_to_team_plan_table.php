@@ -21,8 +21,14 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('team_plan', function (Blueprint $table) {
-            $table->dropColumn('noshow');
-        });
+        if (Schema::hasColumn('team_plan', 'noshow')) {
+            try {
+                Schema::table('team_plan', function (Blueprint $table) {
+                    $table->dropColumn('noshow');
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be dropped; ignore
+            }
+        }
     }
 };

@@ -13,26 +13,44 @@ return new class extends Migration
     {
         // Remove unused room.room_type field (if exists)
         if (Schema::hasColumn('room', 'room_type')) {
-            Schema::table('room', function (Blueprint $table) {
-                try {
+            // Drop foreign key first (if exists)
+            try {
+                Schema::table('room', function (Blueprint $table) {
                     $table->dropForeign(['room_type']);
-                } catch (\Throwable $e) {
-                    // Foreign key might not exist; ignore
-                }
-                $table->dropColumn('room_type');
-            });
+                });
+            } catch (\Throwable $e) {
+                // Foreign key might not exist; ignore
+            }
+            
+            // Then drop column
+            try {
+                Schema::table('room', function (Blueprint $table) {
+                    $table->dropColumn('room_type');
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be dropped; ignore
+            }
         }
 
         // Remove unused team.room field (if exists)
         if (Schema::hasColumn('team', 'room')) {
-            Schema::table('team', function (Blueprint $table) {
-                try {
+            // Drop foreign key first (if exists)
+            try {
+                Schema::table('team', function (Blueprint $table) {
                     $table->dropForeign(['room']);
-                } catch (\Throwable $e) {
-                    // Foreign key might not exist; ignore
-                }
-                $table->dropColumn('room');
-            });
+                });
+            } catch (\Throwable $e) {
+                // Foreign key might not exist; ignore
+            }
+            
+            // Then drop column
+            try {
+                Schema::table('team', function (Blueprint $table) {
+                    $table->dropColumn('room');
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be dropped; ignore
+            }
         }
     }
 

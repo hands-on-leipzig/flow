@@ -39,12 +39,15 @@ return new class extends Migration
             DB::statement('ALTER TABLE `logo` CHANGE COLUMN `title` `name` VARCHAR(100) NULL');
         }
 
-        Schema::table('logo', function (Blueprint $table) {
-            // Remove 'link' column if it exists
-            if (Schema::hasColumn('logo', 'link')) {
-                $table->dropColumn('link');
+        if (Schema::hasColumn('logo', 'link')) {
+            try {
+                Schema::table('logo', function (Blueprint $table) {
+                    $table->dropColumn('link');
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be dropped; ignore
             }
-        });
+        }
     }
 };
 

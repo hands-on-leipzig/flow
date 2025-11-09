@@ -12,15 +12,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('m_activity_type', function (Blueprint $table) {
-            // First, set default values for any null values
-            DB::table('m_activity_type')
-                ->whereNull('overview_plan_column')
-                ->update(['overview_plan_column' => '']);
-            
-            // Then make the column NOT NULL
-            $table->string('overview_plan_column', 100)->nullable(false)->change();
-        });
+        if (Schema::hasColumn('m_activity_type', 'overview_plan_column')) {
+            try {
+                // First, set default values for any null values
+                DB::table('m_activity_type')
+                    ->whereNull('overview_plan_column')
+                    ->update(['overview_plan_column' => '']);
+                
+                // Then make the column NOT NULL
+                Schema::table('m_activity_type', function (Blueprint $table) {
+                    $table->string('overview_plan_column', 100)->nullable(false)->change();
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be modified; ignore
+            }
+        }
     }
 
     /**
