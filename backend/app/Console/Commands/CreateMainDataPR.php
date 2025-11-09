@@ -17,6 +17,7 @@ class CreateMainDataPR extends Command
 
         try {
             // Step 1: Read the JSON export file (should already exist from MainTablesController::export())
+            // Use database_path to ensure we're always reading from backend/database/exports
             $jsonPath = database_path('exports/main-tables-latest.json');
             if (!file_exists($jsonPath)) {
                 $this->error('JSON export file not found. Please export the main tables data first using the admin interface.');
@@ -69,7 +70,7 @@ class CreateMainDataPR extends Command
             if ($this->option('dry-run')) {
                 $this->info('🔍 DRY RUN - Would create PR with:');
                 $this->line('  - Branch: main-data-update-' . now()->format('Y-m-d-H-i-s'));
-                $this->line('  - File: database/exports/main-tables-latest.json');
+                $this->line('  - File: backend/database/exports/main-tables-latest.json');
                 $this->line('  - Content length: ' . strlen($jsonContent) . ' characters');
                 return 0;
             }
@@ -133,7 +134,7 @@ class CreateMainDataPR extends Command
         // Step 3: Get current main-tables-latest.json SHA (if exists)
         $this->line('  📄 Getting current main-tables-latest.json SHA...');
         $fileResponse = Http::withHeaders($headers)
-            ->get("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/database/exports/main-tables-latest.json");
+            ->get("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/backend/database/exports/main-tables-latest.json");
 
         $fileSha = null;
         if ($fileResponse->successful()) {
@@ -143,7 +144,7 @@ class CreateMainDataPR extends Command
         // Step 4: Create/Update main-tables-latest.json
         $this->line('  💾 Uploading main-tables-latest.json...');
         $updateResponse = Http::withHeaders($headers)
-            ->put("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/database/exports/main-tables-latest.json", [
+            ->put("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/backend/database/exports/main-tables-latest.json", [
                 'message' => 'Update main-tables-latest.json with latest main data export',
                 'content' => base64_encode($jsonContent),
                 'branch' => $branchName,
@@ -190,7 +191,7 @@ This PR contains an updated `main-tables-latest.json` file with the latest main 
 Once this PR is merged, the updated JSON file will be used during:
 - Test environment deployment (`test` branch)
 - Production environment deployment (`production` branch)
-- The `MainDataSeeder` will automatically read from `database/exports/main-tables-latest.json`
+- The `MainDataSeeder` will automatically read from `backend/database/exports/main-tables-latest.json`
 
 ### 📝 Generated on:
 " . now()->format('Y-m-d H:i:s') . "
