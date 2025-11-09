@@ -31,17 +31,22 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('q_plan', function (Blueprint $table) {
-            $table->dropColumn([
-                'q2_1_count',
-                'q2_2_count',
-                'q2_3_count',
-                'q2_score_avg',
-                'q3_1_count',
-                'q3_2_count',
-                'q3_3_count',
-                'q3_score_avg',
-            ]);
-        });
+        $columnsToDrop = [];
+        $columns = ['q2_1_count', 'q2_2_count', 'q2_3_count', 'q2_score_avg', 'q3_1_count', 'q3_2_count', 'q3_3_count', 'q3_score_avg'];
+        foreach ($columns as $column) {
+            if (Schema::hasColumn('q_plan', $column)) {
+                $columnsToDrop[] = $column;
+            }
+        }
+        
+        if (!empty($columnsToDrop)) {
+            try {
+                Schema::table('q_plan', function (Blueprint $table) use ($columnsToDrop) {
+                    $table->dropColumn($columnsToDrop);
+                });
+            } catch (\Throwable $e) {
+                // Columns might not exist or can't be dropped; ignore
+            }
+        }
     }
 };

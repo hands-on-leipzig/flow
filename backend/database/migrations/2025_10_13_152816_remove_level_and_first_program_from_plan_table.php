@@ -11,36 +11,43 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('plan', function (Blueprint $table) {
-            // Drop foreign key constraints first (may not exist)
-            try {
+        // Drop foreign key constraints first (may not exist)
+        // Wrap each Schema::table call in try-catch because Laravel executes immediately
+        try {
+            Schema::table('plan', function (Blueprint $table) {
                 $table->dropForeign(['level']);
-            } catch (\Throwable $e) {
-                // Foreign key might not exist; ignore
-            }
-            
-            try {
+            });
+        } catch (\Throwable $e) {
+            // Foreign key might not exist; ignore
+        }
+        
+        try {
+            Schema::table('plan', function (Blueprint $table) {
                 $table->dropForeign(['first_program']);
-            } catch (\Throwable $e) {
-                // Foreign key might not exist; ignore
-            }
-        });
+            });
+        } catch (\Throwable $e) {
+            // Foreign key might not exist; ignore
+        }
         
         // Drop the columns (only if they exist)
-        Schema::table('plan', function (Blueprint $table) {
-            if (Schema::hasColumn('plan', 'level') || Schema::hasColumn('plan', 'first_program')) {
-                $columnsToDrop = [];
-                if (Schema::hasColumn('plan', 'level')) {
-                    $columnsToDrop[] = 'level';
-                }
-                if (Schema::hasColumn('plan', 'first_program')) {
-                    $columnsToDrop[] = 'first_program';
-                }
-                if (!empty($columnsToDrop)) {
-                    $table->dropColumn($columnsToDrop);
+        if (Schema::hasColumn('plan', 'level') || Schema::hasColumn('plan', 'first_program')) {
+            $columnsToDrop = [];
+            if (Schema::hasColumn('plan', 'level')) {
+                $columnsToDrop[] = 'level';
+            }
+            if (Schema::hasColumn('plan', 'first_program')) {
+                $columnsToDrop[] = 'first_program';
+            }
+            if (!empty($columnsToDrop)) {
+                try {
+                    Schema::table('plan', function (Blueprint $table) use ($columnsToDrop) {
+                        $table->dropColumn($columnsToDrop);
+                    });
+                } catch (\Throwable $e) {
+                    // Columns might not exist or can't be dropped; ignore
                 }
             }
-        });
+        }
     }
 
     /**

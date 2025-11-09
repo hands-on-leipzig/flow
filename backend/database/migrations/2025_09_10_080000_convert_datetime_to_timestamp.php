@@ -14,32 +14,48 @@ return new class extends Migration
     {
         // Convert plan table columns from datetime to timestamp
         if (Schema::hasTable('plan')) {
-            Schema::table('plan', function (Blueprint $table) {
-                // Change created column to timestamp
-                if (Schema::hasColumn('plan', 'created')) {
-                    $table->timestamp('created')->nullable()->change();
+            if (Schema::hasColumn('plan', 'created')) {
+                try {
+                    Schema::table('plan', function (Blueprint $table) {
+                        $table->timestamp('created')->nullable()->change();
+                    });
+                } catch (\Throwable $e) {
+                    // Column might not exist or can't be modified; ignore
                 }
-                
-                // Change last_change column to timestamp
-                if (Schema::hasColumn('plan', 'last_change')) {
-                    $table->timestamp('last_change')->nullable()->change();
+            }
+            
+            if (Schema::hasColumn('plan', 'last_change')) {
+                try {
+                    Schema::table('plan', function (Blueprint $table) {
+                        $table->timestamp('last_change')->nullable()->change();
+                    });
+                } catch (\Throwable $e) {
+                    // Column might not exist or can't be modified; ignore
                 }
-            });
+            }
         }
 
         // Convert q_run table columns from datetime to timestamp
         if (Schema::hasTable('q_run')) {
-            Schema::table('q_run', function (Blueprint $table) {
-                // Change started_at column to timestamp
-                if (Schema::hasColumn('q_run', 'started_at')) {
-                    $table->timestamp('started_at')->nullable()->change();
+            if (Schema::hasColumn('q_run', 'started_at')) {
+                try {
+                    Schema::table('q_run', function (Blueprint $table) {
+                        $table->timestamp('started_at')->nullable()->change();
+                    });
+                } catch (\Throwable $e) {
+                    // Column might not exist or can't be modified; ignore
                 }
-                
-                // Change finished_at column to timestamp
-                if (Schema::hasColumn('q_run', 'finished_at')) {
-                    $table->timestamp('finished_at')->nullable()->change();
+            }
+            
+            if (Schema::hasColumn('q_run', 'finished_at')) {
+                try {
+                    Schema::table('q_run', function (Blueprint $table) {
+                        $table->timestamp('finished_at')->nullable()->change();
+                    });
+                } catch (\Throwable $e) {
+                    // Column might not exist or can't be modified; ignore
                 }
-            });
+            }
         }
 
         // Note: s_generator.start and s_generator.end are already timestamps

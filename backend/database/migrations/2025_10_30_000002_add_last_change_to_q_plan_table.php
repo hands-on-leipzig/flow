@@ -18,11 +18,15 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('q_plan', function (Blueprint $table) {
-            if (Schema::hasColumn('q_plan', 'last_change')) {
-                $table->dropColumn('last_change');
+        if (Schema::hasColumn('q_plan', 'last_change')) {
+            try {
+                Schema::table('q_plan', function (Blueprint $table) {
+                    $table->dropColumn('last_change');
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be dropped; ignore
             }
-        });
+        }
     }
 };
 

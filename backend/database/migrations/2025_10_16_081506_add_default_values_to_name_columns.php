@@ -12,13 +12,26 @@ return new class extends Migration
     public function up(): void
     {
         // Add default values to name columns that are NOT NULL without defaults
-        Schema::table('room', function (Blueprint $table) {
-            $table->string('name', 100)->default('Unnamed Room')->change();
-        });
+        // Only modify columns that exist
+        if (Schema::hasColumn('room', 'name')) {
+            try {
+                Schema::table('room', function (Blueprint $table) {
+                    $table->string('name', 100)->default('Unnamed Room')->change();
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be modified; ignore
+            }
+        }
         
-        Schema::table('team', function (Blueprint $table) {
-            $table->string('name', 100)->default('Unnamed Team')->change();
-        });
+        if (Schema::hasColumn('team', 'name')) {
+            try {
+                Schema::table('team', function (Blueprint $table) {
+                    $table->string('name', 100)->default('Unnamed Team')->change();
+                });
+            } catch (\Throwable $e) {
+                // Column might not exist or can't be modified; ignore
+            }
+        }
     }
 
     /**

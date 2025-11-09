@@ -12,15 +12,28 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('m_supported_plan', function (Blueprint $table) {
-            // Add jury_rounds column with default value of 0
-            $table->unsignedSmallInteger('jury_rounds')->default(0)->after('tables');
-        });
+        // Only add column if it doesn't exist
+        if (!Schema::hasColumn('m_supported_plan', 'jury_rounds')) {
+            try {
+                Schema::table('m_supported_plan', function (Blueprint $table) {
+                    // Add jury_rounds column with default value of 0
+                    $table->unsignedSmallInteger('jury_rounds')->default(0)->after('tables');
+                });
+            } catch (\Throwable $e) {
+                // Column might already exist or can't be added; ignore
+            }
+        }
         
-        // Set default value for existing records
-        DB::table('m_supported_plan')
-            ->whereNull('jury_rounds')
-            ->update(['jury_rounds' => 0]);
+        // Set default value for existing records (if column exists)
+        if (Schema::hasColumn('m_supported_plan', 'jury_rounds')) {
+            try {
+                DB::table('m_supported_plan')
+                    ->whereNull('jury_rounds')
+                    ->update(['jury_rounds' => 0]);
+            } catch (\Throwable $e) {
+                // Ignore if update fails
+            }
+        }
     }
 
     /**
