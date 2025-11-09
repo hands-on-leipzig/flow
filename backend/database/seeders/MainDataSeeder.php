@@ -58,16 +58,46 @@ class MainDataSeeder extends Seeder
             throw new \Exception('No tables found in export metadata');
         }
         
+        $this->command->info("Found " . count($tables) . " tables in export metadata:");
+        foreach ($tables as $table) {
+            $dataCount = count($exportData[$table] ?? []);
+            $this->command->line("  - {$table}: {$dataCount} records");
+        }
+        
         // Disable foreign key checks during seeding to handle data inconsistencies
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        $driver = DB::connection()->getDriverName();
+        if ($driver === 'mysql' || $driver === 'mariadb') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = OFF;');
+        }
         
         $errors = [];
+        $skippedTables = [];
+        $successfulTables = [];
         try {
             // Seed all tables dynamically from JSON metadata
             foreach ($tables as $table) {
                 try {
                     $tableData = $exportData[$table] ?? [];
+                    
+                    // Check if table exists before attempting to seed
+                    if (!Schema::hasTable($table)) {
+                        // Table doesn't exist - try to create it dynamically from JSON data
+                        $this->command->warn("  ⚠️  Table {$table} does not exist - attempting to create from JSON structure...");
+                        try {
+                            $this->createTableFromData($table, $tableData);
+                            $this->command->info("  ✓ Created table {$table} from JSON structure");
+                        } catch (\Exception $e) {
+                            $skippedTables[] = $table;
+                            $this->command->error("  ❌ Failed to create table {$table}: " . $e->getMessage());
+                            $this->command->warn("  ⚠️  Skipping {$table} - could not create table");
+                            continue;
+                        }
+                    }
+                    
                     $this->seedTable($table, $tableData);
+                    $successfulTables[] = $table;
                 } catch (\Exception $e) {
                     $errors[] = "Error seeding {$table}: " . $e->getMessage();
                     $this->command->error("  ❌ Failed to seed {$table}: " . $e->getMessage());
@@ -75,8 +105,27 @@ class MainDataSeeder extends Seeder
             }
         } finally {
             // Re-enable foreign key checks
-            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            if ($driver === 'mysql' || $driver === 'mariadb') {
+                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            } elseif ($driver === 'sqlite') {
+                DB::statement('PRAGMA foreign_keys = ON;');
+            }
         }
+        
+        // Summary of seeding results
+        $this->command->info('');
+        $this->command->info('📊 Seeding Summary:');
+        $this->command->info("  ✓ Successfully seeded: " . count($successfulTables) . " table(s)");
+        if (!empty($skippedTables)) {
+            $this->command->warn("  ⚠️  Skipped (table doesn't exist): " . count($skippedTables) . " table(s)");
+            foreach ($skippedTables as $table) {
+                $this->command->warn("    - {$table}");
+            }
+        }
+        if (!empty($errors)) {
+            $this->command->error("  ❌ Failed: " . count($errors) . " table(s)");
+        }
+        $this->command->info('');
         
         // Verify that tables were populated (dynamic verification)
         $this->command->info('Verifying seeded data...');
@@ -181,5 +230,97 @@ class MainDataSeeder extends Seeder
         }
         
         $this->command->line("    ✓ Seeded " . count($data) . " {$displayName}");
+    }
+    
+    /**
+     * Create a table dynamically from JSON data structure
+     * This makes the JSON file the source of truth - if a table is in JSON, it should exist
+     */
+    private function createTableFromData(string $table, array $data): void
+    {
+        if (empty($data)) {
+            throw new \Exception("Cannot create table {$table} - no data provided to infer schema");
+        }
+        
+        // Get the first record to infer column structure
+        $firstRecord = reset($data);
+        if (!is_array($firstRecord)) {
+            throw new \Exception("Cannot create table {$table} - invalid data structure");
+        }
+        
+        // Check if timestamps are needed
+        $hasTimestamps = false;
+        foreach ($data as $record) {
+            if (isset($record['created_at']) || isset($record['updated_at'])) {
+                $hasTimestamps = true;
+                break;
+            }
+        }
+        
+        Schema::create($table, function ($tableBlueprint) use ($firstRecord, $data, $hasTimestamps) {
+            // Always add id column first (primary key)
+            $tableBlueprint->id();
+            
+            // Infer column types from the first record
+            foreach ($firstRecord as $columnName => $value) {
+                // Skip id as we already added it
+                if ($columnName === 'id') {
+                    continue;
+                }
+                
+                // Infer column type from value
+                if (is_int($value)) {
+                    // Check if it's a small integer (like sequence, year)
+                    if ($value >= -32768 && $value <= 32767 && (
+                        str_contains($columnName, 'sequence') || 
+                        str_contains($columnName, 'year') ||
+                        str_contains($columnName, 'level') ||
+                        str_contains($columnName, 'rounds') ||
+                        str_contains($columnName, 'count')
+                    )) {
+                        $tableBlueprint->smallInteger($columnName)->nullable();
+                    } elseif ($value >= -2147483648 && $value <= 2147483647) {
+                        $tableBlueprint->integer($columnName)->nullable();
+                    } else {
+                        $tableBlueprint->bigInteger($columnName)->nullable();
+                    }
+                } elseif (is_bool($value) || $value === 0 || $value === 1) {
+                    $tableBlueprint->boolean($columnName)->nullable();
+                } elseif (is_float($value)) {
+                    $tableBlueprint->decimal($columnName, 10, 2)->nullable();
+                } elseif (is_string($value)) {
+                    // Estimate string length from all records to get max length
+                    $maxLength = strlen($value);
+                    foreach ($data as $record) {
+                        if (isset($record[$columnName]) && is_string($record[$columnName])) {
+                            $maxLength = max($maxLength, strlen($record[$columnName]));
+                        }
+                    }
+                    
+                    if ($maxLength <= 50) {
+                        $tableBlueprint->string($columnName, 50)->nullable();
+                    } elseif ($maxLength <= 100) {
+                        $tableBlueprint->string($columnName, 100)->nullable();
+                    } elseif ($maxLength <= 255) {
+                        $tableBlueprint->string($columnName, 255)->nullable();
+                    } elseif ($maxLength <= 500) {
+                        $tableBlueprint->string($columnName, 500)->nullable();
+                    } else {
+                        $tableBlueprint->text($columnName)->nullable();
+                    }
+                } else {
+                    // Default to text for unknown types
+                    $tableBlueprint->text($columnName)->nullable();
+                }
+            }
+            
+            // Add timestamps if needed
+            if ($hasTimestamps) {
+                $tableBlueprint->timestamps();
+            }
+        });
+        
+        $columnCount = count($firstRecord) + ($hasTimestamps ? 2 : 0);
+        $this->command->info("    ✓ Created table {$table} with {$columnCount} columns");
     }
 }
