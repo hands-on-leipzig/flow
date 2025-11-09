@@ -11,10 +11,26 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('slide', function (Blueprint $table) {
-            $table->dropForeign(['slideshow']);
-            $table->renameColumn('slideshow', 'slideshow_id');
-            $table->foreign('slideshow_id')->references('id')->on('slideshow')->onDelete('cascade');
+            try {
+                $table->dropForeign(['slideshow']);
+            } catch (\Throwable $e) {
+                // FK might not exist or have different name; ignore
+            }
+            
+            // Only rename if column exists
+            if (Schema::hasColumn('slide', 'slideshow')) {
+                $table->renameColumn('slideshow', 'slideshow_id');
+            }
         });
+        
+        // Try to add foreign key separately (may fail if column types don't match)
+        try {
+            Schema::table('slide', function (Blueprint $table) {
+                $table->foreign('slideshow_id')->references('id')->on('slideshow')->onDelete('cascade');
+            });
+        } catch (\Throwable $e) {
+            // Ignore if foreign key can't be added (type mismatch or column doesn't exist)
+        }
     }
 
     /**

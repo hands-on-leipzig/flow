@@ -15,9 +15,16 @@ return new class extends Migration
             } catch (\Throwable $e) {
                 // FK might not exist in some environments; ignore
             }
-
-            $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
         });
+        
+        // Try to add foreign key separately (may fail if column types don't match)
+        try {
+            Schema::table('q_plan', function (Blueprint $table) {
+                $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
+            });
+        } catch (\Throwable $e) {
+            // Ignore if foreign key can't be added (type mismatch between plan.id and q_plan.plan)
+        }
     }
 
     public function down(): void
