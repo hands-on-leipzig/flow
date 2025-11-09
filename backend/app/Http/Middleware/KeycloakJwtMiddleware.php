@@ -60,7 +60,7 @@ class KeycloakJwtMiddleware
                     return response()->json(['error' => 'Forbidden - tester role required'], 403);
                 }
             } elseif ($env === 'production') {
-                if (!in_array('regionalpartner', $roles) && !in_array('flow-admin', $roles)) {
+                if (!in_array('regionalpartner', $roles) && !in_array('flow_admin', $roles)) {
                     return response()->json(['error' => 'Forbidden - partner or admin role required'], 403);
                 }
             }
