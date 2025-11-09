@@ -36,8 +36,8 @@ This will:
 ```bash
 # Run the main table refresh script
 php artisan tinker
->>> include 'database/scripts/refresh_main_tables.php';
->>> refreshMainTables();
+>>> include 'database/scripts/refresh_m_tables.php';
+>>> refreshMTables();
 ```
 
 ### 1.3 Import Main Data from Dev
@@ -90,8 +90,8 @@ php artisan migrate
 ```bash
 # Run the main table refresh script
 php artisan tinker
->>> include 'database/scripts/refresh_main_tables.php';
->>> refreshMainTables();
+>>> include 'database/scripts/refresh_m_tables.php';
+>>> refreshMTables();
 ```
 
 ### 2.4 Import Main Data from Dev
