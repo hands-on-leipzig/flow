@@ -25,7 +25,7 @@ return new class extends Migration {
             Schema::dropIfExists('m_season');
         }
         Schema::create('m_season', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 50);
             $table->unsignedSmallInteger('year');
         });
@@ -35,7 +35,7 @@ return new class extends Migration {
             Schema::dropIfExists('m_level');
         }
         Schema::create('m_level', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 50);
         });
 
@@ -44,7 +44,7 @@ return new class extends Migration {
             Schema::dropIfExists('m_room_type_group');
         }
         Schema::create('m_room_type_group', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 255)->nullable();
             $table->integer('sequence')->nullable();
         });
@@ -54,12 +54,12 @@ return new class extends Migration {
             Schema::dropIfExists('m_room_type');
         }
         Schema::create('m_room_type', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('code', 100)->nullable()->unique();
             $table->string('name', 255)->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
-            $table->unsignedBigInteger('room_type_group')->nullable();
-            $table->unsignedBigInteger('level')->nullable();
+            $table->unsignedInteger('room_type_group')->nullable();
+            $table->unsignedInteger('level')->nullable();
             $table->unsignedTinyInteger('first_program')->default(0);
 
             $table->foreign('room_type_group')->references('id')->on('m_room_type_group');
@@ -71,7 +71,7 @@ return new class extends Migration {
             Schema::dropIfExists('m_first_program');
         }
         Schema::create('m_first_program', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 50);
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->string('color_hex', 10)->nullable();
@@ -83,16 +83,16 @@ return new class extends Migration {
             Schema::dropIfExists('m_parameter');
         }
         Schema::create('m_parameter', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 255)->nullable();
             $table->enum('context', ['input', 'expert', 'protected', 'finale'])->nullable();
-            $table->unsignedBigInteger('level');
+            $table->unsignedInteger('level');
             $table->enum('type', ['integer', 'decimal', 'time', 'date', 'boolean'])->nullable();
             $table->string('value', 255)->nullable();
             $table->string('min', 255)->nullable();
             $table->string('max', 255)->nullable();
             $table->string('step', 255)->nullable();
-            $table->unsignedBigInteger('first_program')->nullable();
+            $table->unsignedInteger('first_program')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->string('ui_label', 255)->nullable();
             $table->longText('ui_description')->nullable();
@@ -106,10 +106,10 @@ return new class extends Migration {
             Schema::dropIfExists('m_parameter_condition');
         }
         Schema::create('m_parameter_condition', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger("parameter")->nullable();
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger("parameter")->nullable();
             $table->foreign("parameter")->references("id")->on("m_parameter")->nullOnDelete();
-            $table->unsignedBigInteger("if_parameter")->nullable();
+            $table->unsignedInteger("if_parameter")->nullable();
             $table->foreign("if_parameter")->references("id")->on("m_parameter")->nullOnDelete();
             $table->enum("is", ["=", "<", ">"])->nullable();
             $table->string("value")->nullable();
@@ -121,11 +121,11 @@ return new class extends Migration {
             Schema::dropIfExists('m_activity_type');
         }
         Schema::create('m_activity_type', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->text('description')->nullable();
-            $table->unsignedBigInteger('first_program')->nullable();
+            $table->unsignedInteger('first_program')->nullable();
             $table->string('overview_plan_column', 100)->nullable();
 
             $table->foreign('first_program')->references('id')->on('m_first_program');
@@ -136,16 +136,16 @@ return new class extends Migration {
             Schema::dropIfExists('m_activity_type_detail');
         }
         Schema::create('m_activity_type_detail', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
             $table->string('code', 50)->nullable();
             $table->string('name_preview', 100)->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
-            $table->unsignedBigInteger('first_program')->nullable();
+            $table->unsignedInteger('first_program')->nullable();
             $table->text('description')->nullable();
             $table->string('link', 255)->nullable();
             $table->string('link_text', 100)->nullable();
-            $table->unsignedBigInteger('activity_type');
+            $table->unsignedInteger('activity_type');
 
             $table->foreign('activity_type')->references('id')->on('m_activity_type');
             $table->foreign('first_program')->references('id')->on('m_first_program');
@@ -156,9 +156,9 @@ return new class extends Migration {
             Schema::dropIfExists('m_insert_point');
         }
         Schema::create('m_insert_point', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('first_program')->nullable();
-            $table->unsignedBigInteger('level')->nullable();
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('first_program')->nullable();
+            $table->unsignedInteger('level')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->string('ui_label', 255)->nullable();
             $table->text('ui_description')->nullable();
@@ -173,11 +173,11 @@ return new class extends Migration {
             Schema::dropIfExists('m_role');
         }
         Schema::create('m_role', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
             $table->string('name_short', 50)->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
-            $table->unsignedBigInteger('first_program')->nullable();
+            $table->unsignedInteger('first_program')->nullable();
             $table->text('description')->nullable();
             $table->string('differentiation_type', 100)->nullable();
             $table->text('differentiation_source')->nullable();
@@ -193,9 +193,9 @@ return new class extends Migration {
             Schema::dropIfExists('m_visibility');
         }
         Schema::create('m_visibility', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('activity_type_detail')->nullable();
-            $table->unsignedBigInteger('role')->nullable();
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('activity_type_detail')->nullable();
+            $table->unsignedInteger('role')->nullable();
 
             $table->foreign('activity_type_detail')->references('id')->on('m_activity_type_detail');
             $table->foreign('role')->references('id')->on('m_role');
@@ -206,8 +206,8 @@ return new class extends Migration {
             Schema::dropIfExists('m_supported_plan');
         }
         Schema::create('m_supported_plan', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('first_program')->nullable();
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('first_program')->nullable();
             $table->unsignedSmallInteger('teams')->nullable();
             $table->unsignedSmallInteger('lanes')->nullable();
             $table->unsignedSmallInteger('tables')->nullable();
@@ -237,8 +237,8 @@ return new class extends Migration {
             $table->unsignedSmallInteger('event_explore')->nullable();
             $table->unsignedSmallInteger('event_challenge')->nullable();
             $table->unsignedBigInteger('regional_partner')->nullable();
-            $table->unsignedBigInteger('level');
-            $table->unsignedBigInteger('season');
+            $table->unsignedInteger('level');
+            $table->unsignedInteger('season');
             $table->date('date')->nullable();
             $table->unsignedTinyInteger('days')->nullable();
             $table->string('link', 255)->nullable();
@@ -336,7 +336,7 @@ return new class extends Migration {
         Schema::create('room', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
-            $table->unsignedBigInteger('room_type')->nullable();
+            $table->unsignedInteger('room_type')->nullable();
             $table->unsignedBigInteger('event');
             $table->text('navigation_instruction')->nullable();
 
@@ -366,7 +366,7 @@ return new class extends Migration {
             $table->string('name', 100);
             $table->unsignedBigInteger('event');
             $table->unsignedBigInteger('room')->nullable();
-            $table->unsignedBigInteger('first_program');
+            $table->unsignedInteger('first_program');
             $table->integer('team_number_hot')->nullable();
             $table->boolean('noshow')->default(false);
             $table->string('location', 255)->nullable();
@@ -385,7 +385,7 @@ return new class extends Migration {
             $table->string('name', 100);
             $table->unsignedBigInteger('event');
             $table->unsignedBigInteger('level');
-            $table->unsignedBigInteger('first_program');
+            $table->unsignedInteger('first_program');
             $table->timestamp('created')->nullable();
             $table->timestamp('last_change')->nullable();
             $table->string('generator_status', 50)->nullable();
@@ -430,7 +430,7 @@ return new class extends Migration {
         Schema::create('extra_block', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('plan');
-            $table->unsignedBigInteger('first_program')->nullable();
+            $table->unsignedInteger('first_program')->nullable();
             $table->string('name', 50)->nullable();
             $table->text('description')->nullable();
             $table->string('link', 255)->nullable();
@@ -464,14 +464,11 @@ return new class extends Migration {
         if (!Schema::hasTable('activity_group')) {
         Schema::create('activity_group', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100)->nullable();
-            $table->unsignedBigInteger('event')->nullable();
-            $table->unsignedBigInteger('plan');
-            $table->unsignedBigInteger('activity_type_detail')->nullable();
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('plan');
 
-            $table->foreign('event')->references('id')->on('event');
-            $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
             $table->foreign('activity_type_detail')->references('id')->on('m_activity_type_detail');
+            $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
         });
         }
 
@@ -479,30 +476,25 @@ return new class extends Migration {
         if (!Schema::hasTable('activity')) {
         Schema::create('activity', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100)->nullable();
-            $table->unsignedBigInteger('activity_type')->nullable();
-            $table->unsignedBigInteger('activity_type_detail')->nullable();
-            $table->unsignedBigInteger('event')->nullable();
-            $table->unsignedBigInteger('room')->nullable();
-            $table->unsignedBigInteger('room_type')->nullable();
-            $table->unsignedBigInteger('activity_group')->nullable();
-            $table->unsignedBigInteger('extra_block')->nullable();
+            $table->unsignedInteger('activity_group');
             $table->datetime('start');
             $table->datetime('end');
-            $table->integer('jury_lane')->nullable();
-            $table->integer('jury_team')->nullable();
-            $table->integer('table_1')->nullable();
-            $table->integer('table_1_team')->nullable();
-            $table->integer('table_2')->nullable();
-            $table->integer('table_2_team')->nullable();
+            $table->unsignedInteger('room_type')->nullable();
+            $table->unsignedTinyInteger('jury_lane')->nullable();
+            $table->unsignedInteger('jury_team')->nullable();
+            $table->unsignedTinyInteger('table_1')->nullable();
+            $table->unsignedInteger('table_1_team')->nullable();
+            $table->unsignedTinyInteger('table_2')->nullable();
+            $table->unsignedInteger('table_2_team')->nullable();
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('plan_extra_block')->nullable();
+            $table->unsignedInteger('extra_block')->nullable();
 
-            $table->foreign('activity_type')->references('id')->on('m_activity_type');
-            $table->foreign('activity_type_detail')->references('id')->on('m_activity_type_detail');
-            $table->foreign('event')->references('id')->on('event');
-            $table->foreign('room')->references('id')->on('room')->onDelete('set null');
-            $table->foreign('room_type')->references('id')->on('m_room_type');
             $table->foreign('activity_group')->references('id')->on('activity_group')->onDelete('cascade');
-            $table->foreign('extra_block')->references('id')->on('extra_block');
+            $table->foreign('room_type')->references('id')->on('m_room_type');
+            $table->foreign('activity_type_detail')->references('id')->on('m_activity_type_detail');
+            $table->foreign('plan_extra_block')->references('id')->on('plan_extra_block')->nullOnDelete();
+            $table->foreign('extra_block')->references('id')->on('extra_block')->nullOnDelete();
         });
         }
 
@@ -555,7 +547,7 @@ return new class extends Migration {
                     $table->id();
                     $table->string('name', 100);
                     $table->unsignedBigInteger('event');
-                    $table->unsignedBigInteger('level');
+                    $table->unsignedInteger('level');
 
                     $table->foreign('event')->references('id')->on('event');
                     $table->foreign('level')->references('id')->on('m_level');
