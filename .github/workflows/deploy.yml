@@ -277,15 +277,80 @@ jobs:
               ls -la database/exports/ || echo "database/exports/ directory does not exist"
               exit 1
             fi
+            # Fix migration records for existing tables (before running migrations)
+            echo "Fixing migration records for existing tables..."
+            php artisan tinker --execute="include 'database/scripts/fix_migration_records.php'; fixMigrationRecords();" || {
+              echo "WARNING: fix_migration_records.php failed, but continuing..."
+            }
             # Drop only m_ tables (master tables), preserve other data
             echo "Dropping m_ tables..."
-            php artisan tinker --execute="include 'database/scripts/refresh_m_tables.php'; refreshMTables();"
+            php artisan tinker --execute="include 'database/scripts/refresh_m_tables.php'; refreshMTables();" || {
+              echo "ERROR: refresh_m_tables.php failed"
+              exit 1
+            }
+            # Check migration status before running
+            echo "Checking migration status before running..."
+            php artisan migrate:status || echo "Note: migrate:status may fail if migrations table doesn't exist yet"
             # Run migrations to recreate m_ tables and update other tables
             echo "Running migrations..."
-            php artisan migrate --force
+            php artisan migrate --force || {
+              echo "ERROR: Migrations failed!"
+              echo "Checking migration status after failure..."
+              php artisan migrate:status || true
+              exit 1
+            }
             # Verify migrations ran successfully
             echo "Verifying migrations..."
-            php artisan tinker --execute="echo 'Migration records: ' . DB::table('migrations')->count() . PHP_EOL;"
+            echo "Checking migration status..."
+            php artisan migrate:status || echo "Note: migrate:status command output above"
+            echo ""
+            echo "Counting migration records in database..."
+            php artisan tinker --execute="
+              use Illuminate\Support\Facades\DB;
+              use Illuminate\Support\Facades\Schema;
+              if (Schema::hasTable('migrations')) {
+                \$count = DB::table('migrations')->count();
+                echo 'Migration records in database: ' . \$count . PHP_EOL;
+                if (\$count > 0) {
+                  echo 'Sample migration records:' . PHP_EOL;
+                  DB::table('migrations')->orderBy('id', 'desc')->limit(5)->get()->each(function(\$m) {
+                    echo '  - ' . \$m->migration . ' (batch: ' . \$m->batch . ')' . PHP_EOL;
+                  });
+                } else {
+                  echo 'WARNING: Migrations table is empty!' . PHP_EOL;
+                }
+              } else {
+                echo 'ERROR: migrations table does NOT exist!' . PHP_EOL;
+              }
+            " || {
+              echo "ERROR: Failed to check migration records"
+              exit 1
+            }
+            # Verify table count matches dev/test
+            echo ""
+            echo "Verifying table count..."
+            TABLE_COUNT=$(php artisan tinker --execute="
+              \$tables = DB::select('SHOW TABLES');
+              \$tableKey = 'Tables_in_' . DB::connection()->getDatabaseName();
+              echo count(\$tables);
+            " 2>/dev/null | grep -E '^[0-9]+$' || echo "0")
+            echo "Current table count: $TABLE_COUNT"
+            echo "Expected: ~45 tables (dev/test have 45)"
+            if [ "$TABLE_COUNT" -lt "40" ]; then
+              echo "ERROR: Table count is too low! Only $TABLE_COUNT tables found, expected ~45."
+              echo "This indicates migrations did not run successfully."
+              echo "Listing all tables:"
+              php artisan tinker --execute="
+                \$tables = DB::select('SHOW TABLES');
+                \$tableKey = 'Tables_in_' . DB::connection()->getDatabaseName();
+                foreach (\$tables as \$table) {
+                  echo '  - ' . \$table->\$tableKey . PHP_EOL;
+                }
+              " || true
+              exit 1
+            else
+              echo "✓ Table count verification passed ($TABLE_COUNT tables)"
+            fi
             php artisan storage:link
             # Populate master data (m_ tables) from seeder file
             php artisan db:seed --class=MainDataSeeder --force || {
