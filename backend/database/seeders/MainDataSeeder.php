@@ -202,6 +202,21 @@ class MainDataSeeder extends Seeder
         // Get actual table columns to filter out non-existent columns
         $tableColumns = Schema::getColumnListing($table);
         
+        // Get column information to check for NOT NULL constraints
+        $columnInfo = [];
+        try {
+            $columns = DB::select("SHOW COLUMNS FROM `{$table}`");
+            foreach ($columns as $column) {
+                $columnInfo[$column->Field] = [
+                    'nullable' => $column->Null === 'YES',
+                    'default' => $column->Default,
+                    'type' => $column->Type,
+                ];
+            }
+        } catch (\Throwable $e) {
+            // If we can't get column info, proceed without it
+        }
+        
         // Determine unique key for updateOrInsert
         // Check first record to determine available keys
         $firstRecord = reset($data);
@@ -211,6 +226,30 @@ class MainDataSeeder extends Seeder
         foreach ($data as $item) {
             // Filter item to only include columns that exist in the table
             $filteredItem = array_intersect_key($item, array_flip($tableColumns));
+            
+            // Handle NOT NULL columns with null values
+            foreach ($filteredItem as $key => $value) {
+                if ($value === null && isset($columnInfo[$key])) {
+                    $info = $columnInfo[$key];
+                    if (!$info['nullable']) {
+                        // Column is NOT NULL but value is null
+                        // Remove it to let database use default, or provide sensible default
+                        if ($info['default'] !== null) {
+                            // Database has a default, remove the null value
+                            unset($filteredItem[$key]);
+                        } else {
+                            // No default, provide sensible default based on type
+                            $default = $this->getSensibleDefault($info['type'], $key);
+                            if ($default !== null) {
+                                $filteredItem[$key] = $default;
+                            } else {
+                                // Can't provide default, remove it (will fail if truly required)
+                                unset($filteredItem[$key]);
+                            }
+                        }
+                    }
+                }
+            }
             
             // Use appropriate unique key for updateOrInsert
             // Prioritize 'id' over 'name' to preserve IDs for foreign key relationships
@@ -230,6 +269,60 @@ class MainDataSeeder extends Seeder
         }
         
         $this->command->line("    ✓ Seeded " . count($data) . " {$displayName}");
+    }
+    
+    /**
+     * Get a sensible default value for a NOT NULL column based on its type
+     */
+    private function getSensibleDefault(string $type, string $columnName): mixed
+    {
+        // String types - default to empty string
+        if (stripos($type, 'varchar') !== false || 
+            stripos($type, 'char') !== false || 
+            stripos($type, 'text') !== false) {
+            // Special case: overview_plan_column should be empty string (per migration)
+            if ($columnName === 'overview_plan_column') {
+                return '';
+            }
+            return '';
+        }
+        
+        // Integer types - default to 0
+        if (stripos($type, 'int') !== false || 
+            stripos($type, 'tinyint') !== false || 
+            stripos($type, 'smallint') !== false || 
+            stripos($type, 'mediumint') !== false || 
+            stripos($type, 'bigint') !== false) {
+            return 0;
+        }
+        
+        // Decimal/float types - default to 0.0
+        if (stripos($type, 'decimal') !== false || 
+            stripos($type, 'float') !== false || 
+            stripos($type, 'double') !== false) {
+            return 0.0;
+        }
+        
+        // Boolean types - default to false
+        if (stripos($type, 'bool') !== false || 
+            stripos($type, 'tinyint(1)') !== false) {
+            return false;
+        }
+        
+        // Date/time types - return null (let database handle)
+        if (stripos($type, 'date') !== false || 
+            stripos($type, 'time') !== false || 
+            stripos($type, 'timestamp') !== false) {
+            return null;
+        }
+        
+        // JSON types - default to empty array
+        if (stripos($type, 'json') !== false) {
+            return '[]';
+        }
+        
+        // Unknown type - return null
+        return null;
     }
     
     /**
