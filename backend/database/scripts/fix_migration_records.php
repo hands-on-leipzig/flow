@@ -18,36 +18,15 @@ function fixMigrationRecords(): void
     echo str_repeat("=", 50) . "\n\n";
     
     // Map tables to their migrations
-    // NOTE: m_ tables are NOT included here because they get dropped and recreated
-    // by refresh_m_tables.php, so their migrations should always run
+    // NOTE: 
+    // - m_ tables are NOT included here because they get dropped and recreated by refresh_m_tables.php
+    // - create_master_tables is NOT included here because it creates BOTH m_ tables AND non-m_ tables.
+    //   Since refresh_m_tables.php will remove its migration record and we only drop m_ tables,
+    //   the non-m_ tables still exist, so we can't mark this migration as run.
+    //   The migration will be re-run, but it will use Schema::create() which should handle existing tables
+    //   gracefully (or we need to use Schema::createIfNotExists() - but that's a migration change).
     $tableToMigration = [
-        // From create_master_tables (excluding m_ tables - those are handled separately)
-        'regional_partner' => '2025_01_01_000000_create_master_tables',
-        'event' => '2025_01_01_000000_create_master_tables',
-        'slideshow' => '2025_01_01_000000_create_master_tables',
-        'slide' => '2025_01_01_000000_create_master_tables',
-        'publication' => '2025_01_01_000000_create_master_tables',
-        'user' => '2025_01_01_000000_create_master_tables',
-        'user_regional_partner' => '2025_01_01_000000_create_master_tables',
-        'room' => '2025_01_01_000000_create_master_tables',
-        'room_type_room' => '2025_01_01_000000_create_master_tables',
-        'team' => '2025_01_01_000000_create_master_tables',
-        'plan' => '2025_01_01_000000_create_master_tables',
-        'team_plan' => '2025_01_01_000000_create_master_tables',
-        'plan_param_value' => '2025_01_01_000000_create_master_tables',
-        'extra_block' => '2025_01_01_000000_create_master_tables',
-        'plan_extra_block' => '2025_01_01_000000_create_master_tables',
-        'activity_group' => '2025_01_01_000000_create_master_tables',
-        'activity' => '2025_01_01_000000_create_master_tables',
-        'logo' => '2025_01_01_000000_create_master_tables',
-        'event_logo' => '2025_01_01_000000_create_master_tables',
-        'table_event' => '2025_01_01_000000_create_master_tables',
-        'q_plan' => '2025_01_01_000000_create_master_tables',
-        'q_plan_match' => '2025_01_01_000000_create_master_tables',
-        'q_plan_team' => '2025_01_01_000000_create_master_tables',
-        'q_run' => '2025_01_01_000000_create_master_tables',
-        
-        // Other migrations
+        // Other migrations (NOT create_master_tables - that's handled by refresh_m_tables.php)
         's_generator' => '2025_09_10_061841_create_s_generator_table',
         // m_news is handled by refresh_m_tables.php, don't mark it here
         'news_user' => '2025_10_21_120956_create_news_user_table',
