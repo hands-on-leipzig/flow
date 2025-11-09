@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration {
     /**
@@ -10,6 +11,15 @@ return new class extends Migration {
      */
     public function up(): void
     {
+        // Disable foreign key checks to avoid constraint issues during table creation
+        $driver = DB::connection()->getDriverName();
+        if ($driver === 'mysql' || $driver === 'mariadb') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        } elseif ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = OFF;');
+        }
+        
+        try {
         // Create m_season table
         Schema::create('m_season', function (Blueprint $table) {
             $table->id();
@@ -488,6 +498,14 @@ return new class extends Migration {
             $table->foreign('q_plan')->references('id')->on('q_plan');
             $table->foreign('team')->references('id')->on('team');
         });
+        } finally {
+            // Re-enable foreign key checks
+            if ($driver === 'mysql' || $driver === 'mariadb') {
+                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            } elseif ($driver === 'sqlite') {
+                DB::statement('PRAGMA foreign_keys = ON;');
+            }
+        }
     }
 
     /**
