@@ -20,27 +20,39 @@ return new class extends Migration {
         }
         
         try {
-        // Create m_season table
+        // Create m_season table (always recreate m_ tables)
+        if (Schema::hasTable('m_season')) {
+            Schema::dropIfExists('m_season');
+        }
         Schema::create('m_season', function (Blueprint $table) {
             $table->id();
             $table->string('name', 50);
             $table->unsignedSmallInteger('year');
         });
 
-        // Create m_level table
+        // Create m_level table (always recreate m_ tables)
+        if (Schema::hasTable('m_level')) {
+            Schema::dropIfExists('m_level');
+        }
         Schema::create('m_level', function (Blueprint $table) {
             $table->id();
             $table->string('name', 50);
         });
 
-        // Create m_room_type_group table
+        // Create m_room_type_group table (always recreate m_ tables)
+        if (Schema::hasTable('m_room_type_group')) {
+            Schema::dropIfExists('m_room_type_group');
+        }
         Schema::create('m_room_type_group', function (Blueprint $table) {
             $table->id();
             $table->string('name', 255)->nullable();
             $table->integer('sequence')->nullable();
         });
 
-        // Create m_room_type table
+        // Create m_room_type table (always recreate m_ tables)
+        if (Schema::hasTable('m_room_type')) {
+            Schema::dropIfExists('m_room_type');
+        }
         Schema::create('m_room_type', function (Blueprint $table) {
             $table->id();
             $table->string('code', 100)->nullable()->unique();
@@ -54,7 +66,10 @@ return new class extends Migration {
             $table->foreign('level')->references('id')->on('m_level');
         });
 
-        // Create m_first_program table
+        // Create m_first_program table (always recreate m_ tables)
+        if (Schema::hasTable('m_first_program')) {
+            Schema::dropIfExists('m_first_program');
+        }
         Schema::create('m_first_program', function (Blueprint $table) {
             $table->id();
             $table->string('name', 50);
@@ -63,7 +78,10 @@ return new class extends Migration {
             $table->string('logo_white', 255)->nullable();
         });
 
-        // Create m_parameter table
+        // Create m_parameter table (always recreate m_ tables)
+        if (Schema::hasTable('m_parameter')) {
+            Schema::dropIfExists('m_parameter');
+        }
         Schema::create('m_parameter', function (Blueprint $table) {
             $table->id();
             $table->string('name', 255)->nullable();
@@ -83,7 +101,10 @@ return new class extends Migration {
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
-        // Create m_parameter_condition table
+        // Create m_parameter_condition table (always recreate m_ tables)
+        if (Schema::hasTable('m_parameter_condition')) {
+            Schema::dropIfExists('m_parameter_condition');
+        }
         Schema::create('m_parameter_condition', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger("parameter")->nullable();
@@ -95,7 +116,10 @@ return new class extends Migration {
             $table->enum("action", ["hide", "show"])->nullable();
         });
 
-        // Create m_activity_type table
+        // Create m_activity_type table (always recreate m_ tables)
+        if (Schema::hasTable('m_activity_type')) {
+            Schema::dropIfExists('m_activity_type');
+        }
         Schema::create('m_activity_type', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
@@ -107,7 +131,10 @@ return new class extends Migration {
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
-        // Create m_activity_type_detail table
+        // Create m_activity_type_detail table (always recreate m_ tables)
+        if (Schema::hasTable('m_activity_type_detail')) {
+            Schema::dropIfExists('m_activity_type_detail');
+        }
         Schema::create('m_activity_type_detail', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
@@ -124,7 +151,10 @@ return new class extends Migration {
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
-        // Create m_insert_point table
+        // Create m_insert_point table (always recreate m_ tables)
+        if (Schema::hasTable('m_insert_point')) {
+            Schema::dropIfExists('m_insert_point');
+        }
         Schema::create('m_insert_point', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('first_program')->nullable();
@@ -138,7 +168,10 @@ return new class extends Migration {
             $table->foreign('level')->references('id')->on('m_level');
         });
 
-        // Create m_role table
+        // Create m_role table (always recreate m_ tables)
+        if (Schema::hasTable('m_role')) {
+            Schema::dropIfExists('m_role');
+        }
         Schema::create('m_role', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
@@ -155,7 +188,10 @@ return new class extends Migration {
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
-        // Create m_visibility table
+        // Create m_visibility table (always recreate m_ tables)
+        if (Schema::hasTable('m_visibility')) {
+            Schema::dropIfExists('m_visibility');
+        }
         Schema::create('m_visibility', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('activity_type_detail')->nullable();
@@ -165,7 +201,10 @@ return new class extends Migration {
             $table->foreign('role')->references('id')->on('m_role');
         });
 
-        // Create m_supported_plan table
+        // Create m_supported_plan table (always recreate m_ tables)
+        if (Schema::hasTable('m_supported_plan')) {
+            Schema::dropIfExists('m_supported_plan');
+        }
         Schema::create('m_supported_plan', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('first_program')->nullable();
@@ -179,15 +218,18 @@ return new class extends Migration {
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
-        // Create regional_partner table
+        // Create regional_partner table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('regional_partner')) {
         Schema::create('regional_partner', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
             $table->string('region', 100)->nullable();
             $table->integer('dolibarr_id')->nullable();
         });
+        }
 
-        // Create event table
+        // Create event table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('event')) {
         Schema::create('event', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100)->nullable();
@@ -210,8 +252,10 @@ return new class extends Migration {
             $table->foreign('level')->references('id')->on('m_level');
             $table->foreign('season')->references('id')->on('m_season');
         });
+        }
 
-        // Create slideshow table
+        // Create slideshow table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('slideshow')) {
         Schema::create('slideshow', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable(true);
@@ -220,7 +264,8 @@ return new class extends Migration {
             $table->foreign('event')->references('id')->on('event');
         });
 
-        // Create slide table
+        // Create slide table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('slide')) {
         Schema::create('slide', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -230,8 +275,10 @@ return new class extends Migration {
             $table->unsignedBigInteger('slideshow');
             $table->foreign('slideshow')->references('id')->on('slideshow')->onDelete('cascade');
         });
+        }
 
-        // Create publication table
+        // Create publication table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('publication')) {
         Schema::create('publication', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('event');
@@ -240,8 +287,10 @@ return new class extends Migration {
 
             $table->foreign('event')->references('id')->on('event')->onDelete('cascade');
         });
+        }
 
-        // Create user table
+        // Create user table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('user')) {
         Schema::create('user', function (Blueprint $table) {
             $table->id();
             $table->string('nick', 255)->nullable();
@@ -256,7 +305,8 @@ return new class extends Migration {
             $table->foreign('selection_event')->references('id')->on('event');
         });
 
-        // Create user_regional_partner table
+        // Create user_regional_partner table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('user_regional_partner')) {
         Schema::create('user_regional_partner', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user');
@@ -266,7 +316,8 @@ return new class extends Migration {
             $table->foreign('regional_partner')->references('id')->on('regional_partner');
         });
 
-        // Create room table
+        // Create room table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('room')) {
         Schema::create('room', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
@@ -278,7 +329,8 @@ return new class extends Migration {
             $table->foreign('event')->references('id')->on('event');
         });
 
-        // Create room_type_room table
+        // Create room_type_room table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('room_type_room')) {
         Schema::create('room_type_room', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('room_type');
@@ -290,7 +342,8 @@ return new class extends Migration {
             $table->foreign('event')->references('id')->on('event');
         });
 
-        // Create team table
+        // Create team table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('team')) {
         Schema::create('team', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
@@ -307,7 +360,8 @@ return new class extends Migration {
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
-        // Create plan table
+        // Create plan table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('plan')) {
         Schema::create('plan', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
@@ -323,7 +377,8 @@ return new class extends Migration {
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
 
-        // Create team_plan table
+        // Create team_plan table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('team_plan')) {
         Schema::create('team_plan', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('team');
@@ -336,7 +391,8 @@ return new class extends Migration {
             $table->foreign('room')->references('id')->on('room');
         });
 
-        // Create plan_param_value table
+        // Create plan_param_value table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('plan_param_value')) {
         Schema::create('plan_param_value', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('plan');
@@ -348,7 +404,8 @@ return new class extends Migration {
             $table->foreign('parameter')->references('id')->on('m_parameter');
         });
 
-        // Create extra_block table
+        // Create extra_block table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('extra_block')) {
         Schema::create('extra_block', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('plan');
@@ -369,7 +426,8 @@ return new class extends Migration {
             $table->foreign('room')->references('id')->on('room');
         });
 
-        // Create plan_extra_block table
+        // Create plan_extra_block table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('plan_extra_block')) {
         Schema::create('plan_extra_block', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('plan');
@@ -379,7 +437,8 @@ return new class extends Migration {
             $table->foreign('extra_block')->references('id')->on('extra_block');
         });
 
-        // Create activity_group table
+        // Create activity_group table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('activity_group')) {
         Schema::create('activity_group', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100)->nullable();
@@ -392,7 +451,8 @@ return new class extends Migration {
             $table->foreign('activity_type_detail')->references('id')->on('m_activity_type_detail');
         });
 
-        // Create activity table
+        // Create activity table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('activity')) {
         Schema::create('activity', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100)->nullable();
@@ -421,7 +481,8 @@ return new class extends Migration {
             $table->foreign('extra_block')->references('id')->on('extra_block');
         });
 
-        // Create logo table
+        // Create logo table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('logo')) {
         Schema::create('logo', function (Blueprint $table) {
             $table->id();
             $table->string('title', 100)->nullable();
@@ -433,8 +494,10 @@ return new class extends Migration {
             $table->foreign('event')->references('id')->on('event');
             $table->foreign('regional_partner')->references('id')->on('regional_partner');
         });
+        }
 
-        // Create event_logo table
+        // Create event_logo table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('event_logo')) {
         Schema::create('event_logo', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('event');
@@ -444,8 +507,10 @@ return new class extends Migration {
             $table->foreign('event')->references('id')->on('event');
             $table->foreign('logo')->references('id')->on('logo');
         });
+        }
 
-        // Create table_event table
+        // Create table_event table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('table_event')) {
         Schema::create('table_event', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
@@ -455,8 +520,10 @@ return new class extends Migration {
 
             $table->foreign('event')->references('id')->on('event');
         });
+        }
 
-        // Create q_plan table
+        // Create q_plan table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('q_plan')) {
         Schema::create('q_plan', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
@@ -466,8 +533,10 @@ return new class extends Migration {
             $table->foreign('event')->references('id')->on('event');
             $table->foreign('level')->references('id')->on('m_level');
         });
+        }
 
-        // Create q_plan_match table
+        // Create q_plan_match table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('q_plan_match')) {
         Schema::create('q_plan_match', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('q_plan');
@@ -476,8 +545,10 @@ return new class extends Migration {
             $table->foreign('q_plan')->references('id')->on('q_plan');
             $table->foreign('team')->references('id')->on('team');
         });
+        }
 
-        // Create q_plan_team table
+        // Create q_plan_team table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('q_plan_team')) {
         Schema::create('q_plan_team', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('q_plan');
@@ -486,8 +557,10 @@ return new class extends Migration {
             $table->foreign('q_plan')->references('id')->on('q_plan');
             $table->foreign('team')->references('id')->on('team');
         });
+        }
 
-        // Create q_run table
+        // Create q_run table (only if it doesn't exist - preserve data)
+        if (!Schema::hasTable('q_run')) {
         Schema::create('q_run', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('q_plan');
@@ -498,6 +571,7 @@ return new class extends Migration {
             $table->foreign('q_plan')->references('id')->on('q_plan');
             $table->foreign('team')->references('id')->on('team');
         });
+        }
         } finally {
             // Re-enable foreign key checks
             if ($driver === 'mysql' || $driver === 'mariadb') {
