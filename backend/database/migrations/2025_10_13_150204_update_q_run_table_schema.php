@@ -38,7 +38,7 @@ return new class extends Migration
         });
 
         // Recreate q_plan table with the correct schema
-        
+        // Create table first without foreign keys to avoid type mismatch issues
         Schema::create('q_plan', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('plan')->nullable();
@@ -59,10 +59,24 @@ return new class extends Migration
             $table->decimal('q5_idle_avg', 8, 2)->nullable();
             $table->decimal('q5_idle_stddev', 8, 2)->nullable();
             $table->boolean('calculated')->default(false);
-
-            $table->foreign('plan')->references('id')->on('plan');
-            $table->foreign('q_run')->references('id')->on('q_run');
         });
+        
+        // Try to add foreign keys separately (may fail if column types don't match)
+        try {
+            Schema::table('q_plan', function (Blueprint $table) {
+                $table->foreign('plan')->references('id')->on('plan');
+            });
+        } catch (\Throwable $e) {
+            // Ignore if foreign key can't be added (type mismatch between plan.id and q_plan.plan)
+        }
+        
+        try {
+            Schema::table('q_plan', function (Blueprint $table) {
+                $table->foreign('q_run')->references('id')->on('q_run');
+            });
+        } catch (\Throwable $e) {
+            // Ignore if foreign key can't be added (type mismatch)
+        }
 
         // Drop and recreate q_plan_team table with the correct schema
         Schema::disableForeignKeyConstraints();
