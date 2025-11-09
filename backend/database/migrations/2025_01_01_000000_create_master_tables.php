@@ -255,14 +255,20 @@ return new class extends Migration {
         }
 
         // Create slideshow table (only if it doesn't exist - preserve data)
+        // Note: If table exists, we skip it entirely to avoid foreign key conflicts
         if (!Schema::hasTable('slideshow')) {
-        Schema::create('slideshow', function (Blueprint $table) {
-            $table->id();
-            $table->string('name')->nullable(true);
-            $table->unsignedBigInteger('event');
-            $table->integer('transition_time')->default(15);
-            $table->foreign('event')->references('id')->on('event');
-        });
+            try {
+                Schema::create('slideshow', function (Blueprint $table) {
+                    $table->id();
+                    $table->string('name')->nullable(true);
+                    $table->unsignedBigInteger('event');
+                    $table->integer('transition_time')->default(15);
+                    $table->foreign('event')->references('id')->on('event');
+                });
+            } catch (\Throwable $e) {
+                // Ignore errors if table was created by another process or FK fails
+                // This can happen in race conditions or if table structure differs
+            }
         }
 
         // Create slide table (only if it doesn't exist - preserve data)
