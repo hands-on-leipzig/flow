@@ -11,7 +11,7 @@ const props = defineProps<{
   eventId: number
 }>();
 
-const { scores, error, loadScores, startAutoRefresh, stopAutoRefresh, setDemoData } = useScores(props.eventId);
+const { scores, error, loadScores, startAutoRefresh, stopAutoRefresh } = useScores(props.eventId);
 
 const currentIndex = ref(0);
 const isPaused = ref(false);
@@ -45,11 +45,6 @@ onMounted(() => {
 
   // Add keydown event listener
   window.addEventListener('keydown', handleKeyDown);
-});
-
-// Test demo data
-onMounted(() => {
-  setDemoData();
 });
 
 onUnmounted(() => {

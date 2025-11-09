@@ -23,16 +23,17 @@ class ContaoController extends Controller
                 return response()->json(['error' => 'event_id parameter is required'], 400);
             }
 
-            $roundShowSetting = $this->getRoundsToShow($eventId);
             $tournamentId = $this->getTournamentId($eventId);
 
             if (!$tournamentId) {
                 return response()->json(['error' => "No Contao ID found for event {$eventId}. Please set contao_id_challenge or contao_id_explore."], 404);
             }
 
+            $roundShowSetting = $this->getRoundsToShow($eventId, $tournamentId);
+
             // Get tournament data
             $tournament = DB::connection('contao')
-                ->table('hot_tournament')
+                ->table('tl_hot_tournament')
                 ->where('region', $tournamentId)
                 ->first();
 
@@ -56,39 +57,7 @@ class ContaoController extends Controller
 
             // Get scores for each round
             foreach ($roundsToShow as $round) {
-                $scores = DB::connection('contao')
-                    ->table('hot_round as r')
-                    ->join('hot_tournament as t', 'r.tournament', '=', 't.id')
-                    ->join('hot_match as m', 'm.round', '=', 'r.id')
-                    ->join('hot_assessment as a', 'a.matchx', '=', 'm.id')
-                    ->join('hot_teams as te', 'a.team', '=', 'te.id')
-                    ->where('t.region', $tournamentId)
-                    ->where('r.type', $round)
-                    ->where('a.confirmed_team', '1')
-                    ->where('a.confirmed_referee', '1')
-                    ->orderBy('a.crdate', 'asc')
-                    ->select('te.team_name as name', 'te.id as id', 'a.points as points', 'r.matches as num_matches')
-                    ->get();
-
-                $maxPoints = [];
-
-                foreach ($scores as $score) {
-                    $teamId = $score->id;
-
-                    if (!isset($maxPoints[$teamId])) {
-                        $maxPoints[$teamId] = 0;
-                    }
-                    if ($score->points > $maxPoints[$teamId]) {
-                        $maxPoints[$teamId] = $score->points;
-                    }
-
-                    $results["rounds"][$round][$teamId]["scores"][] = [
-                        "points" => $score->points,
-                        "highlight" => false,
-                    ];
-
-                    $results["rounds"][$round][$teamId]["name"] = $score->name;
-                }
+                $this->getScoresForRound($round, $tournamentId, $results);
             }
 
             // Apply round visibility settings for VR rounds
@@ -115,36 +84,209 @@ class ContaoController extends Controller
     }
 
     /**
+     * Get scores for a specific round
+     * @param string $round Round type (e.g., 'VR', 'VF', 'HF')
+     * @param int $tournamentId Tournament region ID
+     * @param array &$results Reference to results array to populate
+     */
+    private function getScoresForRound(string $round, int $tournamentId, array &$results): void
+    {
+        $scores = DB::connection('contao')
+            ->table('tl_hot_round as r')
+            ->join('tl_hot_tournament as t', 'r.tournament', '=', 't.id')
+            ->join('tl_hot_match as m', 'm.round', '=', 'r.id')
+            ->join('tl_hot_assessment as a', 'a.matchx', '=', 'm.id')
+            ->join('tl_hot_teams as te', 'a.team', '=', 'te.id')
+            ->where('t.region', $tournamentId)
+            ->where('r.type', $round)
+            ->where('a.confirmed_team', '1')
+            ->where('a.confirmed_referee', '1')
+            ->orderBy('a.crdate', 'asc')
+            ->select('te.team_name as name', 'te.id as id', 'a.points as points', 'r.matches as num_matches')
+            ->get();
+
+        if (!$scores) {
+            return;
+        }
+
+        $maxPoints = [];
+
+        foreach ($scores as $score) {
+            $teamId = $score->id;
+
+            if (!isset($maxPoints[$teamId])) {
+                $maxPoints[$teamId] = 0;
+            }
+            if ($score->points > $maxPoints[$teamId]) {
+                $maxPoints[$teamId] = $score->points;
+            }
+
+            $results["rounds"][$round][$teamId]["scores"][] = [
+                "points" => $score->points,
+                "highlight" => false,
+            ];
+
+            $results["rounds"][$round][$teamId]["name"] = $score->name;
+        }
+    }
+
+    /**
      * Get rounds to show setting for an event
      */
-    private function getRoundsToShow($eventId): object
+    private function getRoundsToShow($eventId, $tournamentId): object
     {
-
         // 1) Get manually published rounds from the database
         $settings = DB::table('contao_public_rounds')->where('event_id', $eventId)->first();
-        if ($settings) {
+
+        if (!$tournamentId && $settings) {
             return $settings;
         }
 
-        // 2) Check if additional rounds should be public
-        // General idea: A round should be public once it is fully complete and the next round has started
-        // TODO implement
+        // 2) Überprüfen, welche Runden automatisch veröffentlicht werden können
+        $completed = null;
+        if ($tournamentId) {
+            $completed = $this->getCompletedRounds($tournamentId);
+        }
 
-        // This method should return the round visibility settings
-        // For now, returning default settings - you may need to adapt this
-        // based on how this data is stored in your system
+        // Fehler beim Berechnen der abgeschlossenen Runden -> manuelle Werte nutzen
+        if (!$completed && $settings) {
+            return $settings;
+        } else if ($completed && !$settings) {
+            // Einstellung in DB speichern
+            DB::table('contao_public_rounds')->updateOrInsert(
+                ['event_id' => $eventId],
+                $completed
+            );
+            return (object)$completed;
+        } else if ($completed && $settings) {
+            // Merge mit manuellen Einstellungen
+            $merged = [
+                'vr1' => ($settings->vr1 || $completed['vr1']) ? 1 : 0,
+                'vr2' => ($settings->vr2 || $completed['vr2']) ? 1 : 0,
+                'vr3' => ($settings->vr3 || $completed['vr3']) ? 1 : 0,
+                'vf' => ($settings->vf || $completed['vf']) ? 1 : 0,
+                'hf' => ($settings->hf || $completed['hf']) ? 1 : 0,
+            ];
+
+            DB::table('contao_public_rounds')->updateOrInsert(
+                ['event_id' => $eventId],
+                $merged
+            );
+
+            return (object)$merged;
+        }
+
+        // 3) Default: Nothing visible
         return (object)[
-            'vr1' => true,
-            'vr2' => true,
-            'vr3' => true,
-            'vf' => true,
-            'hf' => true,
+            'vr1' => false,
+            'vr2' => false,
+            'vr3' => false,
+            'vf' => false,
+            'hf' => false,
+        ];
+    }
+
+    private string $completedVrSql = <<<'SQL'
+        WITH vr_assess AS (
+        SELECT a.team, count(a.team) as c, r.matches * 2 / 3 as matches
+        FROM tl_hot_round r
+            JOIN tl_hot_tournament t ON r.tournament = t.id
+            JOIN tl_hot_match m ON m.round = r.id
+            JOIN tl_hot_assessment a ON a.matchx = m.id
+        WHERE t.region = :region
+            AND r.type = 'VR'
+            AND a.confirmed_team = TRUE
+            AND a.confirmed_referee = TRUE
+        GROUP BY a.team, r.matches
+        )
+        SELECT
+            IF(MAX(matches) > 0, SUM(c > 0) / MAX(matches), 0) as vr1,
+            IF(MAX(matches) > 0, SUM(c > 1) / MAX(matches), 0) as vr2,
+            IF(MAX(matches) > 0, SUM(c > 2) / MAX(matches), 0) as vr3,
+            MAX(matches) as matches
+        FROM vr_assess;
+        SQL;
+
+    private string $completedFinalsSql = <<<'SQL'
+        SELECT r.matches, r.type, count(a.id) / 2 as assessments_count
+        FROM tl_hot_round r
+            JOIN tl_hot_tournament as t ON r.tournament = t.id
+            JOIN tl_hot_match as m ON m.round = r.id
+            JOIN tl_hot_assessment as a ON a.matchx = m.id
+        WHERE t.region = :region
+            AND a.confirmed_team = TRUE
+            AND a.confirmed_referee = TRUE
+        GROUP BY r.type, r.matches;
+        SQL;
+
+
+    private function getCompletedRounds(int $tournamentId): ?array
+    {
+        $pdo = DB::connection('contao')->getPdo();
+
+        // 1) Vorrunde prüfen
+        $stmt = $pdo->prepare($this->completedVrSql);
+        $stmt->bindValue(':region', $tournamentId, \PDO::PARAM_INT);
+        $stmt->execute();
+        $vrResult = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$vrResult) {
+            Log::error('Failed to fetch VR completion data for tournament ID: ' . $tournamentId);
+            return null;
+        }
+
+        if ($vrResult['vr3'] < 0.6) {
+            // Vorrunden noch nicht abgeschlossen, keine Prüfung der Finalrunden notwendig
+            return [
+                'vr1' => ($vrResult['vr1'] > 0.6) && ($vrResult['vr2'] > 0.3),
+                'vr2' => ($vrResult['vr2'] > 0.6) && ($vrResult['vr3'] > 0.3),
+                'vr3' => false,
+                'vf' => false,
+                'hf' => false,
+            ];
+        }
+
+        // 2) Finalrunden prüfen
+        $stmt = $pdo->prepare($this->completedFinalsSql);
+        $stmt->bindValue(':region', $tournamentId, \PDO::PARAM_INT);
+        $stmt->execute();
+        $finalsResults = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $progress = [];
+        foreach ($finalsResults as $finalResult) {
+            $type = $finalResult['type'];
+            $matches = $finalResult['matches'];
+            $assessmentsCount = $finalResult['assessments_count'];
+
+            if ($matches <= 0) {
+                $progress[$type] = 0.0;
+                continue;
+            }
+
+            $val = $assessmentsCount / $matches;
+            $progress[$type] = max(0.0, min(1.0, $val));
+        }
+
+        // Runde abgeschlossen und öffentlich sichtbar wenn
+        // -> mindestens 2/3 der Paarungen bewertet sind (ignoriert Teams die nicht erschienen sind)
+        // -> und die nächste Runde zu mindestens 1/3 bewertet ist (um sicherzustellen, dass die nächste Runde auch wirklich begonnen hat)
+        // Das Halbfinale ist nie automatisch öffentlich sichtbar, da diese Ergebnisse in der Siegerehrung vorgestellt werden sollen.
+        return [
+            'vr1' => ($vrResult['vr1'] ?? 0 > 0.6) && ($vrResult['vr2'] ?? 0 > 0.3),
+            'vr2' => ($vrResult['vr2'] ?? 0 > 0.6) && ($vrResult['vr3'] ?? 0 > 0.3),
+            'vr3' => ($vrResult['vr3'] ?? 0 > 0.6) && (($progress['VF'] ?? 0 > 0.3) || ($progress['HF'] ?? 0 > 0.3)),
+            'vf' => ($progress['VF'] ?? 0 > 0.6) & ($progress['HF'] ?? 0 > 0.3),
+            'hf' => false,
         ];
     }
 
     public function getRoundsToShowEndpoint(Request $request, $eventId): JsonResponse
     {
-        $roundsToShow = $this->getRoundsToShow($eventId);
+        $tournamentId = $this->getTournamentId($eventId);
+        if (!$tournamentId) {
+            return response()->json(['error' => "No Contao ID found for event {$eventId}. Please set contao_id_challenge or contao_id_explore."], 404);
+        }
+        $roundsToShow = $this->getRoundsToShow($eventId, $tournamentId);
         return response()->json($roundsToShow);
     }
 
@@ -155,8 +297,8 @@ class ContaoController extends Controller
                 'vr1' => 'nullable|boolean',
                 'vr2' => 'nullable|boolean',
                 'vr3' => 'nullable|boolean',
-                'vf'  => 'nullable|boolean',
-                'hf'  => 'nullable|boolean',
+                'vf' => 'nullable|boolean',
+                'hf' => 'nullable|boolean',
             ]);
 
             // Sicherstellen, dass das Event existiert
@@ -170,8 +312,8 @@ class ContaoController extends Controller
                 'vr1' => isset($validated['vr1']) ? (int)$validated['vr1'] : 0,
                 'vr2' => isset($validated['vr2']) ? (int)$validated['vr2'] : 0,
                 'vr3' => isset($validated['vr3']) ? (int)$validated['vr3'] : 0,
-                'vf'  => isset($validated['vf'])  ? (int)$validated['vf']  : 0,
-                'hf'  => isset($validated['hf'])  ? (int)$validated['hf']  : 0,
+                'vf' => isset($validated['vf']) ? (int)$validated['vf'] : 0,
+                'hf' => isset($validated['hf']) ? (int)$validated['hf'] : 0,
             ];
 
             DB::table('contao_public_rounds')->updateOrInsert(

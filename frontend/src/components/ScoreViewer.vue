@@ -20,12 +20,10 @@ const {
   scores,
   error,
   loadScores,
-  setDemoData
 } = useScores(Number(props.eventId));
 
 onMounted(() => {
   loadScores();
-  setDemoData();
 });
 </script>
 
