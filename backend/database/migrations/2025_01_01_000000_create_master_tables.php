@@ -263,6 +263,7 @@ return new class extends Migration {
             $table->integer('transition_time')->default(15);
             $table->foreign('event')->references('id')->on('event');
         });
+        }
 
         // Create slide table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('slide')) {
@@ -304,6 +305,7 @@ return new class extends Migration {
             $table->foreign('selection_regional_partner')->references('id')->on('regional_partner');
             $table->foreign('selection_event')->references('id')->on('event');
         });
+        }
 
         // Create user_regional_partner table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('user_regional_partner')) {
@@ -315,6 +317,7 @@ return new class extends Migration {
             $table->foreign('user')->references('id')->on('user');
             $table->foreign('regional_partner')->references('id')->on('regional_partner');
         });
+        }
 
         // Create room table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('room')) {
@@ -328,6 +331,7 @@ return new class extends Migration {
             $table->foreign('room_type')->references('id')->on('m_room_type');
             $table->foreign('event')->references('id')->on('event');
         });
+        }
 
         // Create room_type_room table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('room_type_room')) {
@@ -341,6 +345,7 @@ return new class extends Migration {
             $table->foreign('room')->references('id')->on('room')->onDelete('cascade');
             $table->foreign('event')->references('id')->on('event');
         });
+        }
 
         // Create team table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('team')) {
@@ -359,6 +364,7 @@ return new class extends Migration {
             $table->foreign('room')->references('id')->on('room')->onDelete('set null');
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
+        }
 
         // Create plan table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('plan')) {
@@ -376,6 +382,7 @@ return new class extends Migration {
             $table->foreign('level')->references('id')->on('m_level');
             $table->foreign('first_program')->references('id')->on('m_first_program');
         });
+        }
 
         // Create team_plan table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('team_plan')) {
@@ -390,6 +397,7 @@ return new class extends Migration {
             $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
             $table->foreign('room')->references('id')->on('room');
         });
+        }
 
         // Create plan_param_value table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('plan_param_value')) {
@@ -403,6 +411,7 @@ return new class extends Migration {
             $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
             $table->foreign('parameter')->references('id')->on('m_parameter');
         });
+        }
 
         // Create extra_block table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('extra_block')) {
@@ -425,6 +434,7 @@ return new class extends Migration {
             $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
             $table->foreign('room')->references('id')->on('room');
         });
+        }
 
         // Create plan_extra_block table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('plan_extra_block')) {
@@ -436,6 +446,7 @@ return new class extends Migration {
             $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
             $table->foreign('extra_block')->references('id')->on('extra_block');
         });
+        }
 
         // Create activity_group table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('activity_group')) {
@@ -450,6 +461,7 @@ return new class extends Migration {
             $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
             $table->foreign('activity_type_detail')->references('id')->on('m_activity_type_detail');
         });
+        }
 
         // Create activity table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('activity')) {
@@ -480,6 +492,7 @@ return new class extends Migration {
             $table->foreign('activity_group')->references('id')->on('activity_group')->onDelete('cascade');
             $table->foreign('extra_block')->references('id')->on('extra_block');
         });
+        }
 
         // Create logo table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('logo')) {
