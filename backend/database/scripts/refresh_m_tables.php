@@ -120,6 +120,30 @@ function refreshMTables(): void
     }
     
     try {
+        // Drop foreign keys that reference m_ tables before dropping the m_ tables themselves
+        // This prevents type mismatch errors when recreating m_ tables with different column types
+        echo "\n🔗 Dropping foreign keys that reference m_ tables...\n";
+        
+        // Drop foreign key from news_user to m_news if it exists
+        if (Schema::hasTable('news_user')) {
+            try {
+                $foreignKeys = DB::select("
+                    SELECT CONSTRAINT_NAME 
+                    FROM information_schema.KEY_COLUMN_USAGE 
+                    WHERE TABLE_SCHEMA = ? 
+                    AND TABLE_NAME = 'news_user' 
+                    AND REFERENCED_TABLE_NAME = 'm_news'
+                ", [DB::connection()->getDatabaseName()]);
+                
+                foreach ($foreignKeys as $fk) {
+                    DB::statement("ALTER TABLE `news_user` DROP FOREIGN KEY `{$fk->CONSTRAINT_NAME}`");
+                    echo "  ✓ Dropped foreign key {$fk->CONSTRAINT_NAME} from news_user\n";
+                }
+            } catch (\Throwable $e) {
+                // Ignore if foreign key doesn't exist or can't be dropped
+            }
+        }
+        
         // Drop all m_ tables
         echo "\n🗑️  Dropping m_ tables...\n";
         foreach ($mTableNames as $table) {
