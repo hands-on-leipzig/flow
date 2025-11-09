@@ -23,16 +23,17 @@ class ContaoController extends Controller
                 return response()->json(['error' => 'event_id parameter is required'], 400);
             }
 
-            $roundShowSetting = $this->getRoundsToShow($eventId);
             $tournamentId = $this->getTournamentId($eventId);
 
             if (!$tournamentId) {
                 return response()->json(['error' => "No Contao ID found for event {$eventId}. Please set contao_id_challenge or contao_id_explore."], 404);
             }
 
+            $roundShowSetting = $this->getRoundsToShow($eventId, $tournamentId);
+
             // Get tournament data
             $tournament = DB::connection('contao')
-                ->table('hot_tournament')
+                ->table('tl_hot_tournament')
                 ->where('region', $tournamentId)
                 ->first();
 
@@ -88,14 +89,14 @@ class ContaoController extends Controller
      * @param int $tournamentId Tournament region ID
      * @param array &$results Reference to results array to populate
      */
-    private function getScoresForRound($round, $tournamentId, &$results)
+    private function getScoresForRound(string $round, int $tournamentId, array &$results): void
     {
         $scores = DB::connection('contao')
-            ->table('hot_round as r')
-            ->join('hot_tournament as t', 'r.tournament', '=', 't.id')
-            ->join('hot_match as m', 'm.round', '=', 'r.id')
-            ->join('hot_assessment as a', 'a.matchx', '=', 'm.id')
-            ->join('hot_teams as te', 'a.team', '=', 'te.id')
+            ->table('tl_hot_round as r')
+            ->join('tl_hot_tournament as t', 'r.tournament', '=', 't.id')
+            ->join('tl_hot_match as m', 'm.round', '=', 'r.id')
+            ->join('tl_hot_assessment as a', 'a.matchx', '=', 'm.id')
+            ->join('tl_hot_teams as te', 'a.team', '=', 'te.id')
             ->where('t.region', $tournamentId)
             ->where('r.type', $round)
             ->where('a.confirmed_team', '1')
@@ -132,13 +133,11 @@ class ContaoController extends Controller
     /**
      * Get rounds to show setting for an event
      */
-    private function getRoundsToShow($eventId): object
+    private function getRoundsToShow($eventId, $tournamentId): object
     {
-
         // 1) Get manually published rounds from the database
         $settings = DB::table('contao_public_rounds')->where('event_id', $eventId)->first();
 
-        $tournamentId = $this->getTournamentId($eventId);
         if (!$tournamentId && $settings) {
             return $settings;
         }
@@ -152,15 +151,21 @@ class ContaoController extends Controller
         // Fehler beim Berechnen der abgeschlossenen Runden -> manuelle Werte nutzen
         if (!$completed && $settings) {
             return $settings;
-        } else if ($completed) {
-            // Für DB in 0/1 umwandeln
-            // TODO testen: passt dann auch der return-Wert für den Client?
+        } else if ($completed && !$settings) {
+            // Einstellung in DB speichern
+            DB::table('contao_public_rounds')->updateOrInsert(
+                ['event_id' => $eventId],
+                $completed
+            );
+            return (object)$completed;
+        } else if ($completed && $settings) {
+            // Merge mit manuellen Einstellungen
             $merged = [
-                'vr1' => ($settings['vr1'] || $completed['vr1']) ? 1 : 0,
-                'vr2' => ($settings['vr2'] || $completed['vr2']) ? 1 : 0,
-                'vr3' => ($settings['vr3'] || $completed['vr3']) ? 1 : 0,
-                'vf' => ($settings['vf'] || $completed['vf']) ? 1 : 0,
-                'hf' => ($settings['hf'] || $completed['hf']) ? 1 : 0,
+                'vr1' => ($settings->vr1 || $completed['vr1']) ? 1 : 0,
+                'vr2' => ($settings->vr2 || $completed['vr2']) ? 1 : 0,
+                'vr3' => ($settings->vr3 || $completed['vr3']) ? 1 : 0,
+                'vf' => ($settings->vf || $completed['vf']) ? 1 : 0,
+                'hf' => ($settings->hf || $completed['hf']) ? 1 : 0,
             ];
 
             DB::table('contao_public_rounds')->updateOrInsert(
@@ -181,79 +186,107 @@ class ContaoController extends Controller
         ];
     }
 
+    private string $completedVrSql = <<<'SQL'
+        WITH vr_assess AS (
+        SELECT a.team, count(a.team) as c, r.matches * 2 / 3 as matches
+        FROM tl_hot_round r
+            JOIN tl_hot_tournament t ON r.tournament = t.id
+            JOIN tl_hot_match m ON m.round = r.id
+            JOIN tl_hot_assessment a ON a.matchx = m.id
+        WHERE t.region = :region
+            AND r.type = 'VR'
+            AND a.confirmed_team = TRUE
+            AND a.confirmed_referee = TRUE
+        GROUP BY a.team, r.matches
+        )
+        SELECT
+            IF(MAX(matches) > 0, SUM(c > 0) / MAX(matches), 0) as vr1,
+            IF(MAX(matches) > 0, SUM(c > 1) / MAX(matches), 0) as vr2,
+            IF(MAX(matches) > 0, SUM(c > 2) / MAX(matches), 0) as vr3,
+            MAX(matches) as matches
+        FROM vr_assess;
+        SQL;
+
+    private string $completedFinalsSql = <<<'SQL'
+        SELECT r.matches, r.type, count(a.id) / 2 as assessments_count
+        FROM tl_hot_round r
+            JOIN tl_hot_tournament as t ON r.tournament = t.id
+            JOIN tl_hot_match as m ON m.round = r.id
+            JOIN tl_hot_assessment as a ON a.matchx = m.id
+        WHERE t.region = :region
+            AND a.confirmed_team = TRUE
+            AND a.confirmed_referee = TRUE
+        GROUP BY r.type, r.matches;
+        SQL;
+
+
     private function getCompletedRounds(int $tournamentId): ?array
     {
-        $results = [
-            "rounds" => [],
-        ];
+        $pdo = DB::connection('contao')->getPdo();
 
-        // Alle Scores laden
-        try {
-            $this->getScoresForRound("VR", $tournamentId, $results);
-            $this->getScoresForRound('VF', $tournamentId, $results);
-            $this->getScoresForRound("HF", $tournamentId, $results);
-        } catch (Exception $e) {
+        // 1) Vorrunde prüfen
+        $stmt = $pdo->prepare($this->completedVrSql);
+        $stmt->bindValue(':region', $tournamentId, \PDO::PARAM_INT);
+        $stmt->execute();
+        $vrResult = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$vrResult) {
+            Log::error('Failed to fetch VR completion data for tournament ID: ' . $tournamentId);
             return null;
         }
 
-        // Hilfsfunktion: ermittelt das Verhältnis erfüllter Paarungen für einen Runde/Index
-        $computeRatio = function (array $results, string $roundKey, ?int $subIndex = null): float {
-            if (!isset($results['rounds'][$roundKey])) {
-                return 0.0;
+        if ($vrResult['vr3'] < 0.6) {
+            // Vorrunden noch nicht abgeschlossen, keine Prüfung der Finalrunden notwendig
+            return [
+                'vr1' => ($vrResult['vr1'] > 0.6) && ($vrResult['vr2'] > 0.3),
+                'vr2' => ($vrResult['vr2'] > 0.6) && ($vrResult['vr3'] > 0.3),
+                'vr3' => false,
+                'vf' => false,
+                'hf' => false,
+            ];
+        }
+
+        // 2) Finalrunden prüfen
+        $stmt = $pdo->prepare($this->completedFinalsSql);
+        $stmt->bindValue(':region', $tournamentId, \PDO::PARAM_INT);
+        $stmt->execute();
+        $finalsResults = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $progress = [];
+        foreach ($finalsResults as $finalResult) {
+            $type = $finalResult['type'];
+            $matches = $finalResult['matches'];
+            $assessmentsCount = $finalResult['assessments_count'];
+
+            if ($matches <= 0) {
+                $progress[$type] = 0.0;
+                continue;
             }
 
-            $roundData = $results['rounds'][$roundKey];
-
-            $totalMatches = isset($roundData['num_matches']) ? (int)$roundData['num_matches'] : 0;
-
-            if ($totalMatches === 0) {
-                return 0.0;
-            }
-
-            // subIndex == null => keine Vorrunde, gesamte Runde prüfen: zählen aller vorhandenen Bewertungen
-            if ($subIndex === null) {
-                $teamScoreCount = 0;
-                foreach ($roundData as $k => $v) {
-                    if (!is_int($k)) continue;
-                    if (!empty($v['scores'])) $teamScoreCount += count($v['scores']);
-                }
-                $pairingsScored = (int)floor($teamScoreCount / 2);
-                return $pairingsScored / $totalMatches;
-            }
-
-            // Für eine Unterrunde (z. B. VR1 = index 0)
-            $teamsWithScoreAtIndex = 0;
-            foreach ($roundData as $k => $v) {
-                if (!is_int($k)) continue;
-                if (isset($v['scores'][$subIndex])) $teamsWithScoreAtIndex++;
-            }
-            $pairingsScored = (int)floor($teamsWithScoreAtIndex / 2);
-            return $pairingsScored / $totalMatches;
-        };
-
-        // Berechne Verhältnisse
-        $vr1Ratio = $computeRatio($results, 'VR', 0);
-        $vr2Ratio = $computeRatio($results, 'VR', 1);
-        $vr3Ratio = $computeRatio($results, 'VR', 2);
-        $vfRatio = $computeRatio($results, 'VF', null); // VF als ganze Runde
-        $hfRatio = $computeRatio($results, 'HF', null); // HF als ganze Runde
+            $val = $assessmentsCount / $matches;
+            $progress[$type] = max(0.0, min(1.0, $val));
+        }
 
         // Runde abgeschlossen und öffentlich sichtbar wenn
         // -> mindestens 2/3 der Paarungen bewertet sind (ignoriert Teams die nicht erschienen sind)
-        // -> und die nächste Runde mindestens zur Hälfte bewertet ist (um sicherzustellen, dass die nächste Runde auch wirklich begonnen hat)
+        // -> und die nächste Runde zu mindestens 1/3 bewertet ist (um sicherzustellen, dass die nächste Runde auch wirklich begonnen hat)
         // Das Halbfinale ist nie automatisch öffentlich sichtbar, da diese Ergebnisse in der Siegerehrung vorgestellt werden sollen.
         return [
-            'vr1' => ($vr1Ratio > 0.6) && ($vr2Ratio > 0.3),
-            'vr2' => ($vr2Ratio > 0.6) && ($vr3Ratio > 0.3),
-            'vr3' => ($vr3Ratio > 0.6) && ($vfRatio > 0.3 || $hfRatio > 0.3),
-            'vf' => ($vfRatio > 0.6) && ($hfRatio > 0.3),
+            'vr1' => ($vrResult['vr1'] ?? 0 > 0.6) && ($vrResult['vr2'] ?? 0 > 0.3),
+            'vr2' => ($vrResult['vr2'] ?? 0 > 0.6) && ($vrResult['vr3'] ?? 0 > 0.3),
+            'vr3' => ($vrResult['vr3'] ?? 0 > 0.6) && (($progress['VF'] ?? 0 > 0.3) || ($progress['HF'] ?? 0 > 0.3)),
+            'vf' => ($progress['VF'] ?? 0 > 0.6) & ($progress['HF'] ?? 0 > 0.3),
             'hf' => false,
         ];
     }
 
     public function getRoundsToShowEndpoint(Request $request, $eventId): JsonResponse
     {
-        $roundsToShow = $this->getRoundsToShow($eventId);
+        $tournamentId = $this->getTournamentId($eventId);
+        if (!$tournamentId) {
+            return response()->json(['error' => "No Contao ID found for event {$eventId}. Please set contao_id_challenge or contao_id_explore."], 404);
+        }
+        $roundsToShow = $this->getRoundsToShow($eventId, $tournamentId);
         return response()->json($roundsToShow);
     }
 
