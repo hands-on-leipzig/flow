@@ -12,12 +12,34 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('plan', function (Blueprint $table) {
-            // Drop foreign key constraints first
-            $table->dropForeign(['level']);
-            $table->dropForeign(['first_program']);
+            // Drop foreign key constraints first (may not exist)
+            try {
+                $table->dropForeign(['level']);
+            } catch (\Throwable $e) {
+                // Foreign key might not exist; ignore
+            }
             
-            // Drop the columns
-            $table->dropColumn(['level', 'first_program']);
+            try {
+                $table->dropForeign(['first_program']);
+            } catch (\Throwable $e) {
+                // Foreign key might not exist; ignore
+            }
+        });
+        
+        // Drop the columns (only if they exist)
+        Schema::table('plan', function (Blueprint $table) {
+            if (Schema::hasColumn('plan', 'level') || Schema::hasColumn('plan', 'first_program')) {
+                $columnsToDrop = [];
+                if (Schema::hasColumn('plan', 'level')) {
+                    $columnsToDrop[] = 'level';
+                }
+                if (Schema::hasColumn('plan', 'first_program')) {
+                    $columnsToDrop[] = 'first_program';
+                }
+                if (!empty($columnsToDrop)) {
+                    $table->dropColumn($columnsToDrop);
+                }
+            }
         });
     }
 

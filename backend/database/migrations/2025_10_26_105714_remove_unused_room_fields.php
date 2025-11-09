@@ -11,17 +11,29 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Remove unused room.room_type field
-        Schema::table('room', function (Blueprint $table) {
-            $table->dropForeign(['room_type']);
-            $table->dropColumn('room_type');
-        });
+        // Remove unused room.room_type field (if exists)
+        if (Schema::hasColumn('room', 'room_type')) {
+            Schema::table('room', function (Blueprint $table) {
+                try {
+                    $table->dropForeign(['room_type']);
+                } catch (\Throwable $e) {
+                    // Foreign key might not exist; ignore
+                }
+                $table->dropColumn('room_type');
+            });
+        }
 
-        // Remove unused team.room field
-        Schema::table('team', function (Blueprint $table) {
-            $table->dropForeign(['room']);
-            $table->dropColumn('room');
-        });
+        // Remove unused team.room field (if exists)
+        if (Schema::hasColumn('team', 'room')) {
+            Schema::table('team', function (Blueprint $table) {
+                try {
+                    $table->dropForeign(['room']);
+                } catch (\Throwable $e) {
+                    // Foreign key might not exist; ignore
+                }
+                $table->dropColumn('room');
+            });
+        }
     }
 
     /**

@@ -11,18 +11,30 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Drop existing foreign key constraints
-        Schema::table('q_plan', function (Blueprint $table) {
-            $table->dropForeign(['q_run']);
-        });
+        // Drop existing foreign key constraints (may not exist)
+        try {
+            Schema::table('q_plan', function (Blueprint $table) {
+                $table->dropForeign(['q_run']);
+            });
+        } catch (\Throwable $e) {
+            // Foreign key might not exist; ignore
+        }
         
-        Schema::table('q_plan_team', function (Blueprint $table) {
-            $table->dropForeign(['q_plan']);
-        });
+        try {
+            Schema::table('q_plan_team', function (Blueprint $table) {
+                $table->dropForeign(['q_plan']);
+            });
+        } catch (\Throwable $e) {
+            // Foreign key might not exist; ignore
+        }
         
-        Schema::table('q_plan_match', function (Blueprint $table) {
-            $table->dropForeign(['q_plan']);
-        });
+        try {
+            Schema::table('q_plan_match', function (Blueprint $table) {
+                $table->dropForeign(['q_plan']);
+            });
+        } catch (\Throwable $e) {
+            // Foreign key might not exist; ignore
+        }
 
         // Recreate foreign key constraints with CASCADE DELETE
         // Try each one separately and ignore errors if types don't match
