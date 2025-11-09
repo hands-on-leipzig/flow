@@ -281,7 +281,11 @@ jobs:
             echo "Dropping m_ tables..."
             php artisan tinker --execute="include 'database/scripts/refresh_m_tables.php'; refreshMTables();"
             # Run migrations to recreate m_ tables and update other tables
+            echo "Running migrations..."
             php artisan migrate --force
+            # Verify migrations ran successfully
+            echo "Verifying migrations..."
+            php artisan tinker --execute="echo 'Migration records: ' . DB::table('migrations')->count() . PHP_EOL;"
             php artisan storage:link
             # Populate master data (m_ tables) from seeder file
             php artisan db:seed --class=MainDataSeeder --force || {
