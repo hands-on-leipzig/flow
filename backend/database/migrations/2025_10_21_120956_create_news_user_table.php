@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -18,7 +19,7 @@ return new class extends Migration
                 Schema::create('news_user', function (Blueprint $table) {
                     $table->id();
                     $table->unsignedBigInteger('user_id');
-                    $table->unsignedBigInteger('news_id');
+                    $table->unsignedInteger('news_id');
                     $table->timestamp('read_at')->useCurrent();
                     
                     $table->unique(['user_id', 'news_id']);
@@ -42,6 +43,34 @@ return new class extends Migration
                 }
             } catch (\Throwable $e) {
                 // Ignore errors if table was created by another process or structure differs
+            }
+        } else {
+            // Table exists - update news_id column type to match m_news.id (int instead of bigint)
+            if (Schema::hasColumn('news_user', 'news_id')) {
+                try {
+                    // Drop foreign key first if it exists
+                    $foreignKeys = DB::select("
+                        SELECT CONSTRAINT_NAME 
+                        FROM information_schema.KEY_COLUMN_USAGE 
+                        WHERE TABLE_SCHEMA = ? 
+                        AND TABLE_NAME = 'news_user' 
+                        AND REFERENCED_TABLE_NAME = 'm_news'
+                    ", [DB::connection()->getDatabaseName()]);
+                    
+                    foreach ($foreignKeys as $fk) {
+                        DB::statement("ALTER TABLE `news_user` DROP FOREIGN KEY `{$fk->CONSTRAINT_NAME}`");
+                    }
+                    
+                    // Change column type from bigint to int
+                    DB::statement('ALTER TABLE `news_user` MODIFY COLUMN `news_id` INT(10) UNSIGNED NOT NULL');
+                    
+                    // Re-add foreign key
+                    Schema::table('news_user', function (Blueprint $table) {
+                        $table->foreign('news_id')->references('id')->on('m_news')->onDelete('cascade');
+                    });
+                } catch (\Throwable $e) {
+                    // Ignore if column can't be modified or foreign key can't be added
+                }
             }
         }
     }
