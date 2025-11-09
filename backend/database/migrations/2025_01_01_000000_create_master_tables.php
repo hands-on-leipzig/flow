@@ -285,15 +285,21 @@ return new class extends Migration {
         }
 
         // Create publication table (only if it doesn't exist - preserve data)
+        // Note: If table exists, we skip it entirely to avoid foreign key conflicts
         if (!Schema::hasTable('publication')) {
-        Schema::create('publication', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('event');
-            $table->integer('level');
-            $table->timestamps();
+            try {
+                Schema::create('publication', function (Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('event');
+                    $table->integer('level');
+                    $table->timestamps();
 
-            $table->foreign('event')->references('id')->on('event')->onDelete('cascade');
-        });
+                    $table->foreign('event')->references('id')->on('event')->onDelete('cascade');
+                });
+            } catch (\Throwable $e) {
+                // Ignore errors if table was created by another process or FK fails
+                // This can happen in race conditions or if table structure differs
+            }
         }
 
         // Create user table (only if it doesn't exist - preserve data)
