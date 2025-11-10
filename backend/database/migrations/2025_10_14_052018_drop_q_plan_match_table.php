@@ -25,8 +25,8 @@ return new class extends Migration
         if (!Schema::hasTable('q_plan_match')) {
             try {
                 Schema::create('q_plan_match', function (Blueprint $table) {
-                    $table->id();
-                    $table->unsignedBigInteger('q_plan');
+                    $table->unsignedInteger('id')->autoIncrement();
+                    $table->unsignedInteger('q_plan');
                     $table->integer('round');
                     $table->integer('match_no');
                     $table->integer('table_1');

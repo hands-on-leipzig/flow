@@ -25,7 +25,7 @@ return new class extends Migration
         
         // Recreate q_run table with the correct schema
         Schema::create('q_run', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
             $table->text('comment')->nullable();
             $table->text('selection')->nullable();
@@ -40,9 +40,9 @@ return new class extends Migration
         // Recreate q_plan table with the correct schema
         // Create table first without foreign keys to avoid type mismatch issues
         Schema::create('q_plan', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('plan')->nullable();
-            $table->unsignedBigInteger('q_run');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('plan')->nullable();
+            $table->unsignedInteger('q_run');
             $table->string('name', 100);
             $table->integer('c_teams');
             $table->integer('r_tables');
@@ -84,8 +84,8 @@ return new class extends Migration
         Schema::enableForeignKeyConstraints();
         
         Schema::create('q_plan_team', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('q_plan');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('q_plan');
             $table->integer('team');
             $table->boolean('q1_ok')->default(false);
             $table->decimal('q1_transition_1_2', 8, 2)->default(0);
@@ -111,8 +111,8 @@ return new class extends Migration
         Schema::enableForeignKeyConstraints();
         
         Schema::create('q_plan_match', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('q_plan');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('q_plan');
             $table->integer('round');
             $table->integer('match_no');
             $table->integer('table_1');
@@ -143,9 +143,9 @@ return new class extends Migration
         
         // Recreate the old schema
         Schema::create('q_run', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('q_plan');
-            $table->unsignedBigInteger('team');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('q_plan');
+            $table->unsignedInteger('team');
             $table->datetime('start');
             $table->datetime('end');
 

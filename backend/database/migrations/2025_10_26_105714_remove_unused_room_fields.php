@@ -61,13 +61,13 @@ return new class extends Migration
     {
         // Restore room.room_type field
         Schema::table('room', function (Blueprint $table) {
-            $table->unsignedBigInteger('room_type')->nullable();
+            $table->unsignedInteger('room_type')->nullable();
             $table->foreign('room_type')->references('id')->on('m_room_type');
         });
 
         // Restore team.room field
         Schema::table('team', function (Blueprint $table) {
-            $table->unsignedBigInteger('room')->nullable();
+            $table->unsignedInteger('room')->nullable();
             $table->foreign('room')->references('id')->on('room')->onDelete('set null');
         });
     }

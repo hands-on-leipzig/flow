@@ -57,8 +57,8 @@ return new class extends Migration
     {
         Schema::table('plan', function (Blueprint $table) {
             // Re-add the columns
-            $table->unsignedBigInteger('level');
-            $table->unsignedBigInteger('first_program');
+            $table->unsignedInteger('level');
+            $table->unsignedInteger('first_program');
             
             // Re-add foreign key constraints
             $table->foreign('level')->references('id')->on('m_level');
