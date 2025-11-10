@@ -16,8 +16,8 @@ return new class extends Migration
             try {
                 // Create table first without foreign key
                 Schema::create('match', function (Blueprint $table) {
-                    $table->id();
-                    $table->unsignedBigInteger('plan');
+                    $table->unsignedInteger('id')->autoIncrement();
+                    $table->unsignedInteger('plan');
                     $table->integer('round');
                     $table->integer('match_no');
                     $table->integer('table_1');

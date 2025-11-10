@@ -17,8 +17,8 @@ return new class extends Migration
             try {
                 // Create table first without foreign keys
                 Schema::create('news_user', function (Blueprint $table) {
-                    $table->id();
-                    $table->unsignedBigInteger('user_id');
+                    $table->unsignedInteger('id')->autoIncrement();
+                    $table->unsignedInteger('user_id');
                     $table->unsignedInteger('news_id');
                     $table->timestamp('read_at')->useCurrent();
                     

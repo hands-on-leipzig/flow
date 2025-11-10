@@ -15,8 +15,8 @@ return new class extends Migration
         if (!Schema::hasTable('s_generator')) {
             try {
                 Schema::create('s_generator', function (Blueprint $table) {
-                    $table->id();
-                    $table->unsignedBigInteger('plan');
+                    $table->unsignedInteger('id')->autoIncrement();
+                    $table->unsignedInteger('plan');
                     $table->timestamp('start')->nullable();
                     $table->timestamp('end')->nullable();
                     $table->string('mode')->nullable(); // 'job' or 'direct'

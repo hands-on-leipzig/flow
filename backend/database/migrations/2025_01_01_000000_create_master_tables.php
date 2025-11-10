@@ -221,7 +221,7 @@ return new class extends Migration {
         // Create regional_partner table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('regional_partner')) {
         Schema::create('regional_partner', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
             $table->string('region', 100)->nullable();
             $table->integer('dolibarr_id')->nullable();
@@ -231,12 +231,12 @@ return new class extends Migration {
         // Create event table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('event')) {
         Schema::create('event', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100)->nullable();
             $table->string('slug', 255)->nullable();
             $table->unsignedSmallInteger('event_explore')->nullable();
             $table->unsignedSmallInteger('event_challenge')->nullable();
-            $table->unsignedBigInteger('regional_partner')->nullable();
+            $table->unsignedInteger('regional_partner')->nullable();
             $table->unsignedInteger('level');
             $table->unsignedInteger('season');
             $table->date('date')->nullable();
@@ -259,9 +259,9 @@ return new class extends Migration {
         if (!Schema::hasTable('slideshow')) {
             try {
                 Schema::create('slideshow', function (Blueprint $table) {
-                    $table->id();
+                    $table->unsignedInteger('id')->autoIncrement();
                     $table->string('name')->nullable(true);
-                    $table->unsignedBigInteger('event');
+                    $table->unsignedInteger('event');
                     $table->integer('transition_time')->default(15);
                     $table->foreign('event')->references('id')->on('event');
                 });
@@ -274,12 +274,12 @@ return new class extends Migration {
         // Create slide table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('slide')) {
         Schema::create('slide', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name');
             $table->string('type');
             $table->json('content');
             $table->integer('order')->default(0);
-            $table->unsignedBigInteger('slideshow');
+            $table->unsignedInteger('slideshow');
             $table->foreign('slideshow')->references('id')->on('slideshow')->onDelete('cascade');
         });
         }
@@ -289,8 +289,8 @@ return new class extends Migration {
         if (!Schema::hasTable('publication')) {
             try {
                 Schema::create('publication', function (Blueprint $table) {
-                    $table->id();
-                    $table->unsignedBigInteger('event');
+                    $table->unsignedInteger('id')->autoIncrement();
+                    $table->unsignedInteger('event');
                     $table->integer('level');
                     $table->timestamps();
 
@@ -305,14 +305,14 @@ return new class extends Migration {
         // Create user table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('user')) {
         Schema::create('user', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('nick', 255)->nullable();
             $table->string('subject', 255)->nullable();
             $table->integer('dolibarr_id')->nullable();
             $table->string('lang', 10)->nullable();
             $table->timestamp('last_login')->nullable();
-            $table->unsignedBigInteger('selection_regional_partner')->nullable();
-            $table->unsignedBigInteger('selection_event')->nullable();
+            $table->unsignedInteger('selection_regional_partner')->nullable();
+            $table->unsignedInteger('selection_event')->nullable();
 
             $table->foreign('selection_regional_partner')->references('id')->on('regional_partner');
             $table->foreign('selection_event')->references('id')->on('event');
@@ -322,9 +322,9 @@ return new class extends Migration {
         // Create user_regional_partner table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('user_regional_partner')) {
         Schema::create('user_regional_partner', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('user');
-            $table->unsignedBigInteger('regional_partner');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('user');
+            $table->unsignedInteger('regional_partner');
 
             $table->foreign('user')->references('id')->on('user');
             $table->foreign('regional_partner')->references('id')->on('regional_partner');
@@ -334,10 +334,10 @@ return new class extends Migration {
         // Create room table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('room')) {
         Schema::create('room', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
             $table->unsignedInteger('room_type')->nullable();
-            $table->unsignedBigInteger('event');
+            $table->unsignedInteger('event');
             $table->text('navigation_instruction')->nullable();
 
             $table->foreign('room_type')->references('id')->on('m_room_type');
@@ -348,10 +348,10 @@ return new class extends Migration {
         // Create room_type_room table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('room_type_room')) {
         Schema::create('room_type_room', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('room_type');
-            $table->unsignedBigInteger('room');
-            $table->unsignedBigInteger('event');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('room_type');
+            $table->unsignedInteger('room');
+            $table->unsignedInteger('event');
 
             $table->foreign('room_type')->references('id')->on('m_room_type');
             $table->foreign('room')->references('id')->on('room')->onDelete('cascade');
@@ -362,10 +362,10 @@ return new class extends Migration {
         // Create team table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('team')) {
         Schema::create('team', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
-            $table->unsignedBigInteger('event');
-            $table->unsignedBigInteger('room')->nullable();
+            $table->unsignedInteger('event');
+            $table->unsignedInteger('room')->nullable();
             $table->unsignedInteger('first_program');
             $table->integer('team_number_hot')->nullable();
             $table->boolean('noshow')->default(false);
@@ -381,10 +381,10 @@ return new class extends Migration {
         // Create plan table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('plan')) {
         Schema::create('plan', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
-            $table->unsignedBigInteger('event');
-            $table->unsignedBigInteger('level');
+            $table->unsignedInteger('event');
+            $table->unsignedInteger('level');
             $table->unsignedInteger('first_program');
             $table->timestamp('created')->nullable();
             $table->timestamp('last_change')->nullable();
@@ -399,11 +399,11 @@ return new class extends Migration {
         // Create team_plan table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('team_plan')) {
         Schema::create('team_plan', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('team');
-            $table->unsignedBigInteger('plan');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('team');
+            $table->unsignedInteger('plan');
             $table->integer('team_number_plan')->nullable();
-            $table->unsignedBigInteger('room')->nullable();
+            $table->unsignedInteger('room')->nullable();
 
             $table->foreign('team')->references('id')->on('team');
             $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
@@ -414,9 +414,9 @@ return new class extends Migration {
         // Create plan_param_value table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('plan_param_value')) {
         Schema::create('plan_param_value', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('plan');
-            $table->unsignedBigInteger('parameter');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('plan');
+            $table->unsignedInteger('parameter');
             $table->string('value', 255)->nullable();
             $table->string('set_value', 255)->nullable();
 
@@ -428,8 +428,8 @@ return new class extends Migration {
         // Create extra_block table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('extra_block')) {
         Schema::create('extra_block', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('plan');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('plan');
             $table->unsignedInteger('first_program')->nullable();
             $table->string('name', 50)->nullable();
             $table->text('description')->nullable();
@@ -440,7 +440,7 @@ return new class extends Migration {
             $table->integer('buffer_after')->nullable();
             $table->datetime('start')->nullable();
             $table->datetime('end')->nullable();
-            $table->unsignedBigInteger('room')->nullable();
+            $table->unsignedInteger('room')->nullable();
             $table->boolean('active')->default(true);
 
             $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
@@ -451,9 +451,9 @@ return new class extends Migration {
         // Create plan_extra_block table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('plan_extra_block')) {
         Schema::create('plan_extra_block', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('plan');
-            $table->unsignedBigInteger('extra_block');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('plan');
+            $table->unsignedInteger('extra_block');
 
             $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
             $table->foreign('extra_block')->references('id')->on('extra_block');
@@ -463,7 +463,7 @@ return new class extends Migration {
         // Create activity_group table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('activity_group')) {
         Schema::create('activity_group', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->unsignedInteger('activity_type_detail');
             $table->unsignedInteger('plan');
 
@@ -475,7 +475,7 @@ return new class extends Migration {
         // Create activity table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('activity')) {
         Schema::create('activity', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->unsignedInteger('activity_group');
             $table->datetime('start');
             $table->datetime('end');
@@ -501,12 +501,12 @@ return new class extends Migration {
         // Create logo table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('logo')) {
         Schema::create('logo', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('title', 100)->nullable();
             $table->string('link', 500)->nullable();
             $table->string('path', 255);
-            $table->unsignedBigInteger('event')->nullable();
-            $table->unsignedBigInteger('regional_partner')->nullable();
+            $table->unsignedInteger('event')->nullable();
+            $table->unsignedInteger('regional_partner')->nullable();
 
             $table->foreign('event')->references('id')->on('event');
             $table->foreign('regional_partner')->references('id')->on('regional_partner');
@@ -516,9 +516,9 @@ return new class extends Migration {
         // Create event_logo table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('event_logo')) {
         Schema::create('event_logo', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('event');
-            $table->unsignedBigInteger('logo');
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('event');
+            $table->unsignedInteger('logo');
             $table->unsignedSmallInteger('sort_order')->default(0);
 
             $table->foreign('event')->references('id')->on('event');
@@ -529,11 +529,11 @@ return new class extends Migration {
         // Create table_event table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('table_event')) {
         Schema::create('table_event', function (Blueprint $table) {
-            $table->id();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
             $table->string('table_name', 100);
             $table->integer('table_number');
-            $table->unsignedBigInteger('event');
+            $table->unsignedInteger('event');
 
             $table->foreign('event')->references('id')->on('event');
         });
@@ -544,9 +544,9 @@ return new class extends Migration {
         if (!Schema::hasTable('q_plan')) {
             try {
                 Schema::create('q_plan', function (Blueprint $table) {
-                    $table->id();
+                    $table->unsignedInteger('id')->autoIncrement();
                     $table->string('name', 100);
-                    $table->unsignedBigInteger('event');
+                    $table->unsignedInteger('event');
                     $table->unsignedInteger('level');
 
                     $table->foreign('event')->references('id')->on('event');
@@ -563,9 +563,9 @@ return new class extends Migration {
         if (!Schema::hasTable('q_plan_match')) {
             try {
                 Schema::create('q_plan_match', function (Blueprint $table) {
-                    $table->id();
-                    $table->unsignedBigInteger('q_plan');
-                    $table->unsignedBigInteger('team');
+                    $table->unsignedInteger('id')->autoIncrement();
+                    $table->unsignedInteger('q_plan');
+                    $table->unsignedInteger('team');
 
                     $table->foreign('q_plan')->references('id')->on('q_plan');
                     $table->foreign('team')->references('id')->on('team');
@@ -581,9 +581,9 @@ return new class extends Migration {
         if (!Schema::hasTable('q_plan_team')) {
             try {
                 Schema::create('q_plan_team', function (Blueprint $table) {
-                    $table->id();
-                    $table->unsignedBigInteger('q_plan');
-                    $table->unsignedBigInteger('team');
+                    $table->unsignedInteger('id')->autoIncrement();
+                    $table->unsignedInteger('q_plan');
+                    $table->unsignedInteger('team');
 
                     $table->foreign('q_plan')->references('id')->on('q_plan');
                     $table->foreign('team')->references('id')->on('team');
@@ -599,9 +599,9 @@ return new class extends Migration {
         if (!Schema::hasTable('q_run')) {
             try {
                 Schema::create('q_run', function (Blueprint $table) {
-                    $table->id();
-                    $table->unsignedBigInteger('q_plan');
-                    $table->unsignedBigInteger('team');
+                    $table->unsignedInteger('id')->autoIncrement();
+                    $table->unsignedInteger('q_plan');
+                    $table->unsignedInteger('team');
                     $table->datetime('start');
                     $table->datetime('end');
 
