@@ -302,7 +302,7 @@ class DrahtController extends Controller
                     if (empty($existingEvent->enddate) && $enddate) {
                         $updateData['days'] = $days;
                     }
-                    if (empty($existingEvent->level) && $eventData['level']) {
+                    if (empty($existingEvent->level) && isset($eventData['level']) && $eventData['level']) {
                         $updateData['level'] = $eventData['level'];
                     }
 
@@ -310,13 +310,13 @@ class DrahtController extends Controller
                     $event = $existingEvent;
                 } else {
                     $eventAttributes = [
-                        'name' => $eventData['name'],
+                        'name' => $eventData['name'] ?? null,
                         'date' => $date,
                         'enddate' => $enddate,
                         'season' => $seasonId,
                         'days' => $days,
                         'regional_partner' => $regionalPartner?->id,
-                        'level' => $eventData['level'],
+                        'level' => $eventData['level'] ?? null,
                     ];
                     match ($firstProgram) {
                         2 => $eventAttributes['event_explore'] = $eventData['id'],
