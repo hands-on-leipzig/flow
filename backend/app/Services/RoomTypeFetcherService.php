@@ -61,7 +61,11 @@ class RoomTypeFetcherService
         // --- Gruppieren für Frontend ---
         $grouped = $merged
             ->groupBy('group_id')
-            ->sortBy(fn($items) => $items->min('type_seq'))
+            ->sortBy(function ($items) {
+                $first = $items->first();
+                $seq = $first->group_seq ?? null;
+                return $seq === null ? PHP_INT_MAX : (int) $seq;
+            })
             ->map(function ($items) {
                 $first = $items->first();
 
