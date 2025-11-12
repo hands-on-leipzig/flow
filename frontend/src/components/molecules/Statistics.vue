@@ -8,11 +8,32 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
 
-const data = ref(null)
-const totals = ref(null)
+type FlattenedRow = {
+  partner_id: number | null
+  partner_name: string | null
+  event_id: number | null
+  event_name: string | null
+  event_date: string | null
+  event_explore: number | null
+  event_challenge: number | null
+  event_teams_explore: number
+  event_teams_challenge: number
+  plan_id: number | null
+  plan_created: string | null
+  plan_last_change: string | null
+  generator_stats: number | null
+  expert_param_changes?: number
+  extra_blocks?: number
+  publication_level?: number | null
+  publication_date?: string | null
+  publication_last_change?: string | null
+}
+
+const data = ref<any>(null)
+const totals = ref<any>(null)
 const loading = ref(true)
-const error = ref(null)
-const selectedSeasonKey = ref(null)
+const error = ref<string | null>(null)
+const selectedSeasonKey = ref<string | null>(null)
 
 const router = useRouter()
 const eventStore = useEventStore()
@@ -97,13 +118,13 @@ const badgeClass = (n) =>
     ? 'bg-red-100 text-red-800 border border-red-300'
     : 'bg-gray-100 text-gray-700 border border-gray-300'
 
-const flattenedRows = computed(() => {
+const flattenedRows = computed<FlattenedRow[]>(() => {
   const season = data.value?.seasons.find(
     s => `${s.season_year}-${s.season_name}` === selectedSeasonKey.value
   )
   if (!season) return []
 
-  const rows = []
+  const rows: FlattenedRow[] = []
 
   for (const partner of season.partners) {
     if (!partner.events || partner.events.length === 0) {
@@ -115,6 +136,8 @@ const flattenedRows = computed(() => {
         event_date: null,
         event_explore: null,
         event_challenge: null,
+        event_teams_explore: 0,
+        event_teams_challenge: 0,
         plan_id: null,
         plan_created: null,
         plan_last_change: null,
@@ -124,6 +147,8 @@ const flattenedRows = computed(() => {
     }
 
     for (const event of partner.events) {
+      const teamsExplore = Number(event.teams_explore ?? 0)
+      const teamsChallenge = Number(event.teams_challenge ?? 0)
       if (!event.plans || event.plans.length === 0) {
         rows.push({
           partner_id: partner.partner_id,
@@ -133,6 +158,8 @@ const flattenedRows = computed(() => {
           event_date: event.event_date,
           event_explore: event.event_explore,
           event_challenge: event.event_challenge,
+          event_teams_explore: teamsExplore,
+          event_teams_challenge: teamsChallenge,
           plan_id: null,
           plan_created: null,
           plan_last_change: null,
@@ -150,6 +177,8 @@ const flattenedRows = computed(() => {
           event_date: event.event_date,
           event_explore: event.event_explore,
           event_challenge: event.event_challenge,
+          event_teams_explore: teamsExplore,
+          event_teams_challenge: teamsChallenge,
           plan_id: plan.plan_id,
           plan_created: plan.plan_created,
           plan_last_change: plan.plan_last_change,
@@ -317,7 +346,7 @@ async function confirmDeletePlan() {
             <th class="px-3 py-2">RP</th>
             <th class="px-3 py-2">Partner</th>
             <th class="px-3 py-2">Event</th>
-            <th class="px-3 py-2">Eventname</th>
+            <th class="px-3 py-2">Name, Datum, Anmeldungen</th>
             <th class="px-3 py-2">Plan</th>
             <th class="px-3 py-2">Erstellt</th>
             <th class="px-3 py-2">Letzte Änderung</th>
@@ -392,19 +421,36 @@ async function confirmDeletePlan() {
               </a>
 
               <span class="text-gray-500"> ({{ formatDateOnly(row.event_date) }})</span>
-              <span class="inline-flex items-center space-x-1 ml-2">
-                <img
+              <span
+                v-if="row.event_explore || row.event_challenge"
+                class="inline-flex items-center space-x-2 ml-2"
+              >
+                <span
                   v-if="row.event_explore"
-                  :src="programLogoSrc('E')"
-                  :alt="programLogoAlt('E')"
-                  class="w-5 h-5 inline-block"
-                />
-                <img
+                  class="inline-flex items-center space-x-1"
+                >
+                  <img
+                    :src="programLogoSrc('E')"
+                    :alt="programLogoAlt('E')"
+                    class="w-5 h-5 inline-block"
+                  />
+                  <span class="text-xs text-gray-600">
+                    {{ row.event_teams_explore ?? 0 }}
+                  </span>
+                </span>
+                <span
                   v-if="row.event_challenge"
-                  :src="programLogoSrc('C')"
-                  :alt="programLogoAlt('C')"
-                  class="w-5 h-5 inline-block"
-                />
+                  class="inline-flex items-center space-x-1"
+                >
+                  <img
+                    :src="programLogoSrc('C')"
+                    :alt="programLogoAlt('C')"
+                    class="w-5 h-5 inline-block"
+                  />
+                  <span class="text-xs text-gray-600">
+                    {{ row.event_teams_challenge ?? 0 }}
+                  </span>
+                </span>
               </span>
             </template>
             <template v-else>
