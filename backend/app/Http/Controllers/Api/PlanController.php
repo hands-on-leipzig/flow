@@ -60,10 +60,15 @@ class PlanController extends Controller
 
 
             if ($data) {
-                if (array_key_exists('capacity_explore', $data)) {
+                if (!empty($data['teams_explore']) && is_array($data['teams_explore'])) {
+                    $e_teams = count($data['teams_explore']);
+                } elseif (array_key_exists('capacity_explore', $data)) {
                     $e_teams = (int)$data['capacity_explore'];
                 }
-                if (array_key_exists('capacity_challenge', $data)) {
+
+                if (!empty($data['teams_challenge']) && is_array($data['teams_challenge'])) {
+                    $c_teams = count($data['teams_challenge']);
+                } elseif (array_key_exists('capacity_challenge', $data)) {
                     $c_teams = (int)$data['capacity_challenge'];
                 }
             }
