@@ -24,6 +24,8 @@ class UserRegionalPartnerController extends Controller
                     'urp.user as user_id',
                     'urp.regional_partner as regional_partner_id',
                     'u.subject as user_subject',
+                    'u.name as user_name',
+                    'u.email as user_email',
                     'rp.name as regional_partner_name',
                     'rp.region as regional_partner_region',
                     'rp.dolibarr_id as regional_partner_dolibarr_id'
@@ -38,6 +40,8 @@ class UserRegionalPartnerController extends Controller
                 return [
                     'user_id' => $firstRelation->user_id,
                     'user_subject' => $firstRelation->user_subject,
+                    'user_name' => $firstRelation->user_name,
+                    'user_email' => $firstRelation->user_email,
                     'regional_partners' => $userRelations->map(function ($relation) {
                         return [
                             'id' => $relation->regional_partner_id,
@@ -74,14 +78,31 @@ class UserRegionalPartnerController extends Controller
     public function getSelectionData(): JsonResponse
     {
         try {
-            $users = User::select('id', 'subject')
+            $users = User::select('id', 'subject', 'name', 'email')
                 ->orderBy('subject')
                 ->get()
                 ->map(function ($user) {
+                    $displayParts = [];
+                    if ($user->name) {
+                        $displayParts[] = $user->name;
+                    }
+                    if ($user->email) {
+                        $displayParts[] = "({$user->email})";
+                    }
+                    if ($user->subject) {
+                        $displayParts[] = "[{$user->subject}]";
+                    }
+                    
+                    $displayName = !empty($displayParts) 
+                        ? implode(' ', $displayParts)
+                        : "User {$user->id}";
+                    
                     return [
                         'id' => $user->id,
                         'subject' => $user->subject,
-                        'display_name' => $user->subject ? "User {$user->id} ({$user->subject})" : "User {$user->id}"
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'display_name' => $displayName
                     ];
                 });
 

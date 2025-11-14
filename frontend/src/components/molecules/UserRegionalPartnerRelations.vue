@@ -97,7 +97,9 @@ const searchUsers = () => {
   filteredUsers.value = selectionData.value.users.filter(user => 
     user.subject?.toLowerCase().includes(query) ||
     user.id.toString().includes(query) ||
-    user.display_name.toLowerCase().includes(query)
+    user.display_name?.toLowerCase().includes(query) ||
+    user.name?.toLowerCase().includes(query) ||
+    user.email?.toLowerCase().includes(query)
   )
   
   showUserDropdown.value = filteredUsers.value.length > 0
@@ -204,7 +206,7 @@ onMounted(() => {
                   @focus="searchUsers"
                   @blur="setTimeout(() => showUserDropdown = false, 200)"
                   type="text"
-                  placeholder="Type to search by user ID or subject..."
+                  placeholder="Type to search by name, email, ID or subject..."
                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 
@@ -235,6 +237,11 @@ onMounted(() => {
                     class="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
                   >
                     <div class="text-sm font-medium text-gray-900">{{ user.display_name }}</div>
+                    <div v-if="user.name || user.email" class="text-xs text-gray-600">
+                      <span v-if="user.name">{{ user.name }}</span>
+                      <span v-if="user.name && user.email"> • </span>
+                      <span v-if="user.email">{{ user.email }}</span>
+                    </div>
                     <div v-if="user.subject" class="text-xs text-gray-500">{{ user.subject }}</div>
                   </div>
                 </div>
@@ -313,11 +320,22 @@ onMounted(() => {
             <div class="flex items-center justify-between mb-3">
               <div>
                 <h4 class="text-sm font-medium text-gray-900">
-                  User ID: {{ userRelation.user_id }}
+                  <span v-if="userRelation.user_name">{{ userRelation.user_name }}</span>
+                  <span v-else-if="userRelation.user_email">{{ userRelation.user_email }}</span>
+                  <span v-else-if="userRelation.user_subject">{{ userRelation.user_subject }}</span>
+                  <span v-else>User ID: {{ userRelation.user_id }}</span>
                 </h4>
-                <p class="text-sm text-gray-500">
-                  Subject: {{ userRelation.user_subject || 'N/A' }}
-                </p>
+                <div class="text-sm text-gray-500 space-y-1">
+                  <p v-if="userRelation.user_email" class="text-gray-600">
+                    📧 {{ userRelation.user_email }}
+                  </p>
+                  <p v-if="userRelation.user_subject" class="text-gray-500">
+                    Subject: {{ userRelation.user_subject }}
+                  </p>
+                  <p v-if="!userRelation.user_name && !userRelation.user_email && !userRelation.user_subject" class="text-xs text-gray-400">
+                    ID: {{ userRelation.user_id }}
+                  </p>
+                </div>
               </div>
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                 {{ userRelation.regional_partners.length }} Partner{{ userRelation.regional_partners.length !== 1 ? 's' : '' }}

@@ -75,11 +75,17 @@ class KeycloakJwtMiddleware
                 
                 // Try to get dolibarr_id from JWT token if available
                 $dolibarrId = $claims['dolibarr_id'] ?? $claims['dolibarrId'] ?? null;
+                
+                // Get name and email from JWT token
+                $name = $claims['name'] ?? null;
+                $email = $claims['email'] ?? null;
 
                 $user = User::firstOrCreate(
                     ['subject' => $subject],
                     [
                         'subject' => $subject,
+                        'name' => $name,
+                        'email' => $email,
                         'dolibarr_id' => $dolibarrId,
                         'selection_event' => null,
                         'selection_regional_partner' => null,
@@ -87,10 +93,20 @@ class KeycloakJwtMiddleware
                     ]
                 );
 
-                // Update dolibarr_id if it's in the token but not in the database
+                // Update user fields from JWT token if they're available
+                $updateData = [];
                 if ($dolibarrId && !$user->dolibarr_id) {
-                    $user->dolibarr_id = $dolibarrId;
-                    $user->save();
+                    $updateData['dolibarr_id'] = $dolibarrId;
+                }
+                if ($name && $user->name !== $name) {
+                    $updateData['name'] = $name;
+                }
+                if ($email && $user->email !== $email) {
+                    $updateData['email'] = $email;
+                }
+                
+                if (!empty($updateData)) {
+                    $user->update($updateData);
                 }
 
                 // Update last_login timestamp for existing users

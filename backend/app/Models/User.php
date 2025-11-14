@@ -25,6 +25,8 @@ class User extends Authenticatable
         'id',
         'nick',
         'subject',
+        'name',
+        'email',
         'dolibarr_id',
         'lang',
         'selection_event',
