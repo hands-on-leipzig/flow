@@ -40,6 +40,7 @@ class QPlan extends Model
         'q4_ok_count',
         'q5_idle_avg',
         'q5_idle_stddev',
+        'q6_duration',
         'calculated',
     ];
 
