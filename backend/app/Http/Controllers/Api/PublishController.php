@@ -8,6 +8,7 @@ use App\Models\MActivityTypeDetail;
 use App\Services\ActivityFetcherService;
 use App\Services\PdfLayoutService;
 
+use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +26,9 @@ use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Logo\Logo;
 
 
-use Barryvdh\DomPDF\Facade\Pdf;        // composer require barryvdh/laravel-dompdf
+use Barryvdh\DomPDF\Facade\Pdf;
+
+// composer require barryvdh/laravel-dompdf
 
 
 class PublishController extends Controller
@@ -56,7 +59,7 @@ class PublishController extends Controller
                 'qrcode' => 'data:image/png;base64,' . $event->qrcode,
             ]);
         }
-    
+
         $region = DB::table('regional_partner')
             ->where('id', $event->regional_partner)
             ->value('region');
@@ -69,12 +72,13 @@ class PublishController extends Controller
 
             case 1:
 
-                $link =  $region;
+                $link = $region;
 
                 // Prüfen, ob mehrere Regio für diesen Regionalpartner existieren
                 $eventCount = DB::table('event')
                     ->where('regional_partner', $event->regional_partner)
                     ->where('level', 1)
+                    ->where('season', SeasonService::currentSeasonId())
                     ->count();
 
                 if ($eventCount > 1) {
@@ -87,12 +91,12 @@ class PublishController extends Controller
                 }
                 break;
 
-            case 2:    
-                $link = "quali-". $region;
+            case 2:
+                $link = "quali-" . $region;
                 break;
 
             case 3:
-              $link = "finale"; // Region bewusst weggelassen
+                $link = "finale"; // Region bewusst weggelassen
         }
 
         // Link "säubern"
@@ -132,8 +136,8 @@ class PublishController extends Controller
         DB::table('event')
             ->where('id', $event->id)
             ->update([
-                'slug'   => $slug,
-                'link'   => $link,
+                'slug' => $slug,
+                'link' => $link,
                 'qrcode' => $qrcodeRaw,
             ]);
 
@@ -142,12 +146,12 @@ class PublishController extends Controller
         if (app()->environment('production')) {
             try {
                 $drahtController = app(\App\Http\Controllers\Api\DrahtController::class);
-                
+
                 // Update link for challenge event if it exists
                 if (!empty($event->event_challenge)) {
                     $drahtController->updateEventLink($event->event_challenge, $link);
                 }
-                
+
                 // Update link for explore event if it exists
                 if (!empty($event->event_explore)) {
                     $drahtController->updateEventLink($event->event_explore, $link);
@@ -239,7 +243,7 @@ class PublishController extends Controller
                     // Regenerate link and QR code
                     $this->linkAndQRcode($event->id);
                     $regenerated++;
-                    
+
                     Log::info("Regenerated link for event {$event->id} ({$event->name})");
                 } catch (\Exception $e) {
                     $failed++;
@@ -270,7 +274,7 @@ class PublishController extends Controller
         }
     }
 
- 
+
     // Informationen fürs Volk ...
 
 
@@ -287,7 +291,7 @@ class PublishController extends Controller
         // Falls im Request level übergeben wird -> überschreibt DB-Wert
         $override = $request->input('level'); // liest Body ODER Query
         if ($override !== null) {
-            $level = (int) $override;
+            $level = (int)$override;
         }
 
         // Basisdaten aus DrahtController holen
@@ -304,7 +308,7 @@ class PublishController extends Controller
         $exploreColor = DB::table('m_first_program')
             ->where('name', 'EXPLORE')
             ->value('color_hex') ?? '00A651'; // Default green if not found
-        
+
         $challengeColor = DB::table('m_first_program')
             ->where('name', 'CHALLENGE')
             ->value('color_hex') ?? 'ED1C24'; // Default red if not found
@@ -312,17 +316,17 @@ class PublishController extends Controller
         // JSON bauen
         $data = [
             'event_id' => $eventId,
-            'level'    => $level,
-            'date'     => $event->date,
-            'address'  => $drahtData['address'] ?? null,
+            'level' => $level,
+            'date' => $event->date,
+            'address' => $drahtData['address'] ?? null,
             // hier direkt durchreichen:
-            'contact'  => $drahtData['contact'] ?? [],
-            'teams'    => [
+            'contact' => $drahtData['contact'] ?? [],
+            'teams' => [
                 'explore' => [
-                    'capacity'   => $drahtData['capacity_explore'] ?? 0,
+                    'capacity' => $drahtData['capacity_explore'] ?? 0,
                     'registered' => count($drahtData['teams_explore'] ?? []),
                     'color_hex' => $exploreColor,
-                    'list'       => $level >= 1 ? array_map(function($team) {
+                    'list' => $level >= 1 ? array_map(function ($team) {
                         return [
                             'team_number_hot' => $team['team_number_hot'] ?? null,
                             'name' => $team['name'] ?? '',
@@ -332,10 +336,10 @@ class PublishController extends Controller
                     }, $drahtData['teams_explore'] ?? []) : [],
                 ],
                 'challenge' => [
-                    'capacity'   => $drahtData['capacity_challenge'] ?? 0,
+                    'capacity' => $drahtData['capacity_challenge'] ?? 0,
                     'registered' => count($drahtData['teams_challenge'] ?? []),
                     'color_hex' => $challengeColor,
-                    'list'       => $level >= 1 ? array_map(function($team) {
+                    'list' => $level >= 1 ? array_map(function ($team) {
                         return [
                             'team_number_hot' => $team['team_number_hot'] ?? null,
                             'name' => $team['name'] ?? '',
@@ -371,10 +375,10 @@ class PublishController extends Controller
         // Falls noch kein Eintrag vorhanden → neuen mit Level 1 anlegen
         if (!$publication) {
             DB::table('publication')->insert([
-                'event'     => $eventId,
-                'level'     => 1,
-                'created_at'=> Carbon::now(),
-                'updated_at'=> Carbon::now(),
+                'event' => $eventId,
+                'level' => 1,
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
             ]);
 
             $level = 1;
@@ -384,14 +388,14 @@ class PublishController extends Controller
 
         return response()->json([
             'event_id' => $eventId,
-            'level'    => $level,
+            'level' => $level,
         ]);
     }
 
     // Level setzen/überschreiben
     public function setPublicationLevel(int $eventId, Request $request): JsonResponse
     {
-        $level = (int) $request->input('level', 1);
+        $level = (int)$request->input('level', 1);
 
         DB::table('publication')
             ->updateOrInsert(
@@ -402,11 +406,11 @@ class PublishController extends Controller
         return response()->json([
             'success' => true,
             'event_id' => $eventId,
-            'level'    => $level,
+            'level' => $level,
         ]);
     }
 
-   // Wichtige Zeite für die Veröffentlichung 
+    // Wichtige Zeite für die Veröffentlichung
 
     private function importantTimes(int $eventId): \Illuminate\Http\JsonResponse
     {
@@ -440,45 +444,45 @@ class PublishController extends Controller
         ])->pluck('id', 'code');
 
         // Hilfsfunktion: Erste Startzeit für gegebene codes finden
-        $findStart = function($codes) use ($activities, $atdIds) {
-            $ids = collect((array) $codes)->map(fn($code) => $atdIds[$code] ?? null)->filter();
+        $findStart = function ($codes) use ($activities, $atdIds) {
+            $ids = collect((array)$codes)->map(fn($code) => $atdIds[$code] ?? null)->filter();
             $act = $activities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
             return $act ? $act->start_time : null;
         };
 
         // Hilfsfunktion: Ende der Aktivität (end_time) für gegebene codes
-        $findEnd = function($codes) use ($activities, $atdIds) {
-            $ids = collect((array) $codes)->map(fn($code) => $atdIds[$code] ?? null)->filter();
+        $findEnd = function ($codes) use ($activities, $atdIds) {
+            $ids = collect((array)$codes)->map(fn($code) => $atdIds[$code] ?? null)->filter();
             $act = $activities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
             return $act ? $act->end_time : null;
         };
 
         $data = [
-            'plan_id'      => $plan->id,
+            'plan_id' => $plan->id,
             'last_change' => $plan->last_change,
             'explore' => [
                 'briefing' => [
-                    'teams'  => $findStart('e_briefing_coach'),
+                    'teams' => $findStart('e_briefing_coach'),
                     'judges' => $findStart('e_briefing_judge'),
                 ],
                 'opening' => $findStart(['e_opening', 'g_opening']), // spezifisch oder gemeinsam
-                'end'     => $findEnd(['e_awards', 'g_awards']),     // spezifisch oder gemeinsam
+                'end' => $findEnd(['e_awards', 'g_awards']),     // spezifisch oder gemeinsam
             ],
             'challenge' => [
                 'briefing' => [
-                    'teams'    => $findStart('c_briefing'),
-                    'judges'   => $findStart('j_briefing'),
+                    'teams' => $findStart('c_briefing'),
+                    'judges' => $findStart('j_briefing'),
                     'referees' => $findStart('r_briefing'),
                 ],
                 'opening' => $findStart(['c_opening', 'g_opening']), // spezifisch oder gemeinsam
-                'end'     => $findEnd(['c_awards', 'g_awards']),     // spezifisch oder gemeinsam
+                'end' => $findEnd(['c_awards', 'g_awards']),     // spezifisch oder gemeinsam
             ],
         ];
 
         return response()->json($data);
     }
 
-     /**
+    /**
      * Gemeinsamer Builder: Erzeugt HTML aus Event + Typ
      */
     private function buildEventSheetHtml(string $type, int $eventId): string
@@ -497,8 +501,8 @@ class PublishController extends Controller
 
         // Inhalt + Layout rendern
         $contentHtml = view('pdf.content.qr_codes', [
-            'event'        => $event,
-            'wifi'         => $type === 'plan_wifi',
+            'event' => $event,
+            'wifi' => $type === 'plan_wifi',
             'wifiPassword' => $wifiPassword,
         ])->render();
 
