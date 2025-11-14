@@ -312,6 +312,151 @@ class DrahtController extends Controller
     }
 
     /**
+     * Get regional partners for a user from Draht API
+     *
+     * @param int $dolibarrId The user's dolibarr_id
+     * @return array Array of regional partner dolibarr_ids
+     */
+    public function getUserRegionalPartners(int $dolibarrId): array
+    {
+        try {
+            $response = $this->makeDrahtCall("/handson/contact/{$dolibarrId}/regionalpartner");
+
+            if (!$response->ok()) {
+                Log::warning("Failed to fetch regional partners for user", [
+                    'dolibarr_id' => $dolibarrId,
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return [];
+            }
+
+            $data = $response->json();
+            
+            // Handle different response formats
+            if (is_array($data)) {
+                // If it's an array of IDs
+                if (isset($data[0]) && is_numeric($data[0])) {
+                    return $data;
+                }
+                // If it's an array of objects with 'id' field
+                if (isset($data[0]) && is_array($data[0]) && isset($data[0]['id'])) {
+                    return array_column($data, 'id');
+                }
+                // If it's a single object with 'id' field
+                if (isset($data['id'])) {
+                    return [$data['id']];
+                }
+            }
+
+            Log::warning("Unexpected response format from Draht API for user regional partners", [
+                'dolibarr_id' => $dolibarrId,
+                'response' => $data
+            ]);
+
+            return [];
+        } catch (\Exception $e) {
+            Log::error("Exception while fetching regional partners for user", [
+                'dolibarr_id' => $dolibarrId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Sync user-regional partner relations from Draht API
+     *
+     * @param \App\Models\User $user The user to sync
+     * @return bool True if sync was successful, false otherwise
+     */
+    public function syncUserRegionalPartners(\App\Models\User $user): bool
+    {
+        if (!$user->dolibarr_id) {
+            Log::info("Skipping regional partner sync - user has no dolibarr_id", [
+                'user_id' => $user->id,
+                'subject' => $user->subject
+            ]);
+            return false;
+        }
+
+        try {
+            $regionalPartnerIds = $this->getUserRegionalPartners($user->dolibarr_id);
+
+            if (empty($regionalPartnerIds)) {
+                Log::info("No regional partners found for user", [
+                    'user_id' => $user->id,
+                    'dolibarr_id' => $user->dolibarr_id
+                ]);
+                // Remove all existing relations if API returns empty
+                DB::table('user_regional_partner')->where('user', $user->id)->delete();
+                return true;
+            }
+
+            // Get regional partners by dolibarr_id
+            $regionalPartners = RegionalPartner::whereIn('dolibarr_id', $regionalPartnerIds)->get();
+
+            if ($regionalPartners->isEmpty()) {
+                Log::warning("Regional partners not found in database", [
+                    'user_id' => $user->id,
+                    'dolibarr_ids' => $regionalPartnerIds
+                ]);
+                return false;
+            }
+
+            // Get current relations
+            $currentRelations = DB::table('user_regional_partner')
+                ->where('user', $user->id)
+                ->pluck('regional_partner')
+                ->toArray();
+
+            // Get target relations
+            $targetRelations = $regionalPartners->pluck('id')->toArray();
+
+            // Remove relations that are no longer valid
+            $toRemove = array_diff($currentRelations, $targetRelations);
+            if (!empty($toRemove)) {
+                DB::table('user_regional_partner')
+                    ->where('user', $user->id)
+                    ->whereIn('regional_partner', $toRemove)
+                    ->delete();
+                Log::info("Removed regional partner relations", [
+                    'user_id' => $user->id,
+                    'removed' => $toRemove
+                ]);
+            }
+
+            // Add new relations
+            $toAdd = array_diff($targetRelations, $currentRelations);
+            if (!empty($toAdd)) {
+                $insertData = array_map(function ($rpId) use ($user) {
+                    return [
+                        'user' => $user->id,
+                        'regional_partner' => $rpId
+                    ];
+                }, $toAdd);
+
+                DB::table('user_regional_partner')->insert($insertData);
+                Log::info("Added regional partner relations", [
+                    'user_id' => $user->id,
+                    'added' => $toAdd
+                ]);
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Failed to sync user regional partners", [
+                'user_id' => $user->id,
+                'dolibarr_id' => $user->dolibarr_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Format contact data for frontend consumption
      */
     private function formatContactData($contactData)
