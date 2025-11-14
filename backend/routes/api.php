@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
-use App\Http\Controllers\Api\DrahtSimulatorController;
 use App\Http\Controllers\Api\EventController;
 use App\Models\Event;
 use App\Http\Controllers\Api\ExtraBlockController;
@@ -51,10 +50,6 @@ Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanFo
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
 
-// Draht API Simulator (for test environment)
-if (app()->environment('local', 'staging')) {
-    Route::any('/draht-simulator/{path?}', [DrahtSimulatorController::class, 'handle'])->where('path', '.*');
-}
 
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Api\DrahtController;
 
 class KeycloakJwtMiddleware
 {
@@ -51,6 +52,10 @@ class KeycloakJwtMiddleware
             $request->attributes->set('jwt', $claims);
 
             $roles = $claims['resource_access']->flow->roles ?? [];
+            foreach ($claims['realm_access']->roles as $role) {
+                $roles[] = $role;
+            }
+
             $env = App::environment();
             $path = $request->path();
 
@@ -60,23 +65,49 @@ class KeycloakJwtMiddleware
                     return response()->json(['error' => 'Forbidden - tester role required'], 403);
                 }
             } elseif ($env === 'production') {
-                if (!in_array('regionalpartner', $roles) && !in_array('flow_admin', $roles)) {
+                if (!in_array('regionalpartner', $roles) && !in_array('flow_admin', $roles) && !in_array('Geschäftsstelle MA', $roles)) {
                     return response()->json(['error' => 'Forbidden - partner or admin role required'], 403);
                 }
             }
 
             try {
                 $subject = $claims['sub'] ?? null;
+                
+                // Try to get dolibarr_id from JWT token if available
+                $dolibarrId = $claims['dolibarr_id'] ?? $claims['dolibarrId'] ?? null;
+                
+                // Get name and email from JWT token
+                $name = $claims['name'] ?? null;
+                $email = $claims['email'] ?? null;
 
                 $user = User::firstOrCreate(
                     ['subject' => $subject],
                     [
                         'subject' => $subject,
+                        'name' => $name,
+                        'email' => $email,
+                        'dolibarr_id' => $dolibarrId,
                         'selection_event' => null,
                         'selection_regional_partner' => null,
                         'last_login' => now()
                     ]
                 );
+
+                // Update user fields from JWT token if they're available
+                $updateData = [];
+                if ($dolibarrId && !$user->dolibarr_id) {
+                    $updateData['dolibarr_id'] = $dolibarrId;
+                }
+                if ($name && $user->name !== $name) {
+                    $updateData['name'] = $name;
+                }
+                if ($email && $user->email !== $email) {
+                    $updateData['email'] = $email;
+                }
+                
+                if (!empty($updateData)) {
+                    $user->update($updateData);
+                }
 
                 // Update last_login timestamp for existing users
                 if (!$user->wasRecentlyCreated) {
@@ -106,11 +137,14 @@ class KeycloakJwtMiddleware
                 $this->assignTestRegionalPartners($user);
             }
 
+            // Sync user-regional partner relations from Draht API on each login
+            $this->syncUserRegionalPartnersFromDraht($user);
+
             Auth::login($user);
 
             // Admin route restriction
             if (str_starts_with($path, 'api/admin') || str_starts_with($path, 'api/plans/activities/')) {
-                if (!in_array('flow-admin', $roles) && !in_array('flow_admin', $roles)) {
+                if (!in_array('flow_admin', $roles)) {
                     return response()->json(['error' => 'Forbidden - admin role required'], 403);
                 }
             }
@@ -249,6 +283,24 @@ class KeycloakJwtMiddleware
             Log::error("Failed to create test regional partners and events", [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Sync user-regional partner relations from Draht API
+     */
+    private function syncUserRegionalPartnersFromDraht($user)
+    {
+        try {
+            $drahtController = app(DrahtController::class);
+            $drahtController->syncUserRegionalPartners($user);
+        } catch (\Exception $e) {
+            // Don't fail authentication if sync fails
+            Log::error("Failed to sync user regional partners from Draht on login", [
+                'user_id' => $user->id,
+                'dolibarr_id' => $user->dolibarr_id,
+                'error' => $e->getMessage()
             ]);
         }
     }

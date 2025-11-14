@@ -59,4 +59,12 @@ class QPlanTeam extends Model
     {
         return $this->belongsTo(QPlan::class, 'q_plan');
     }
+
+    /**
+     * Returns the team this quality entry belongs to
+     */
+    public function team()
+    {
+        return $this->belongsTo(Team::class, 'team');
+    }
 }
