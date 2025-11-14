@@ -9,6 +9,7 @@ use App\Models\RegionalPartner;
 use App\Models\Slide;
 use App\Models\TableEvent;
 use App\Models\User;
+use App\Services\SeasonService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -32,7 +33,9 @@ class EventController extends Controller
     public function getEventBySlug($slug)
     {
         try {
-            $event = Event::where('slug', $slug)->first();
+            $event = Event::where('slug', $slug)
+                ->where('season', SeasonService::currentSeasonId())
+                ->first();
 
             if (!$event) {
                 return response()->json(['error' => 'Event not found'], 404);
@@ -77,8 +80,8 @@ class EventController extends Controller
         if ($isAdmin) {
             // Admin users can see all events
             $regionalPartners = RegionalPartner::whereHas('events', function ($query) use ($season) {
-                    $query->where('season', $season->id);
-                })
+                $query->where('season', $season->id);
+            })
                 ->with(['events' => function ($query) use ($season) {
                     $query->where('season', $season->id)
                         ->orderBy('date')
@@ -298,9 +301,9 @@ class EventController extends Controller
                 }
 
                 TableEvent::create([
-                    'event'         => $eventId,
-                    'table_number'  => (int) $entry['table_number'],
-                    'table_name'    => $entry['table_name'],
+                    'event' => $eventId,
+                    'table_number' => (int)$entry['table_number'],
+                    'table_name' => $entry['table_name'],
                 ]);
             }
         });
@@ -362,8 +365,8 @@ class EventController extends Controller
             if (!empty($data) && isset($data[0])) {
                 $result = $data[0];
                 return [
-                    'lat' => (float) $result['lat'],
-                    'lon' => (float) $result['lon'],
+                    'lat' => (float)$result['lat'],
+                    'lon' => (float)$result['lon'],
                     'display_name' => $result['display_name'] ?? $address,
                 ];
             }
@@ -371,5 +374,4 @@ class EventController extends Controller
 
         return null;
     }
-
 }
