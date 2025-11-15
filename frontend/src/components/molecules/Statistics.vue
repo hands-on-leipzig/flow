@@ -171,6 +171,14 @@ const badgeClass = (n) =>
     ? 'bg-red-100 text-red-800 border border-red-300'
     : 'bg-gray-100 text-gray-700 border border-gray-300'
 
+const publicationTotals = computed(() => ({
+  total: totals.value?.publication_totals?.total ?? 0,
+  level_1: totals.value?.publication_totals?.level_1 ?? 0,
+  level_2: totals.value?.publication_totals?.level_2 ?? 0,
+  level_3: totals.value?.publication_totals?.level_3 ?? 0,
+  level_4: totals.value?.publication_totals?.level_4 ?? 0,
+}))
+
 const flattenedRows = computed<FlattenedRow[]>(() => {
   const season = data.value?.seasons.find(
     s => `${s.season_year}-${s.season_name}` === selectedSeasonKey.value
@@ -423,7 +431,7 @@ async function confirmModal() {
         </div>
 
         <!-- Season totals (3 boxes) -->
-        <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Box 1: regional partners -->
           <div class="bg-white border rounded shadow-sm p-4 space-y-1">
             <div class="flex justify-between text-gray-700">
@@ -458,6 +466,20 @@ async function confirmModal() {
             <span>Activity Groups | Activities</span>
             <span class="font-semibold">
               {{ formatNumber(seasonTotals.activity_groups_total) }} | {{ formatNumber(seasonTotals.activities_total) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Box 4: Publications -->
+        <div class="bg-white border rounded shadow-sm p-4 space-y-1">
+          <div class="flex justify-between text-gray-700">
+            <span>Veröffentlichte Pläne</span>
+            <span class="font-semibold">{{ formatNumber(publicationTotals.total) }}</span>
+          </div>
+          <div class="flex justify-between text-gray-700">
+            <span>Level 1 | 2 | 3 | 4</span>
+            <span class="font-semibold">
+              {{ formatNumber(publicationTotals.level_1) }} | {{ formatNumber(publicationTotals.level_2) }} | {{ formatNumber(publicationTotals.level_3) }} | {{ formatNumber(publicationTotals.level_4) }}
             </span>
           </div>
         </div>
@@ -648,14 +670,14 @@ async function confirmModal() {
                 :href="row.event_link"
                 class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
               >
                 <span class="flex">
                   <span
                     v-for="n in 4"
                     :key="n"
                     class="w-3 h-3 rounded-full mx-0.5"
-                      :class="n <= (row.publication_level ?? 0)
+                    :class="n <= (row.publication_level ?? 0)
                       ? 'bg-blue-600'
                       : 'bg-gray-300'"
                   ></span>

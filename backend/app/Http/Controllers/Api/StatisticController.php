@@ -416,6 +416,7 @@ class StatisticController extends Controller
 
         return response()->json([
             'seasons' => $resultSeasons,
+            'publication_totals' => $this->publicationTotals(),
             'global_orphans' => [
                 'events' => [
                     'orphans' => $eventsOrphans,
@@ -431,6 +432,36 @@ class StatisticController extends Controller
                 ],
             ],
         ]);
+    }
+
+    protected function publicationTotals(): array
+    {
+        $latest = DB::table('publication as p')
+            ->select('p.event', 'p.level')
+            ->join(DB::raw('(SELECT event, MAX(updated_at) as max_updated FROM publication GROUP BY event) latest'), function ($join) {
+                $join->on('p.event', '=', 'latest.event')
+                    ->on('p.updated_at', '=', 'latest.max_updated');
+            })
+            ->pluck('p.level');
+
+        $levels = $latest->groupBy(function ($level) {
+            return (int)$level;
+        })->map(function ($group) {
+            return $group->count();
+        });
+
+        $level1 = (int)($levels[1] ?? 0);
+        $level2 = (int)($levels[2] ?? 0);
+        $level3 = (int)($levels[3] ?? 0);
+        $level4 = (int)($levels[4] ?? 0);
+
+        return [
+            'total' => $level1 + $level2 + $level3 + $level4,
+            'level_1' => $level1,
+            'level_2' => $level2,
+            'level_3' => $level3,
+            'level_4' => $level4,
+        ];
     }
 
     public function cleanupOrphans(string $type): JsonResponse
