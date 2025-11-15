@@ -1519,6 +1519,9 @@ if ($prepRooms->isNotEmpty()) {
             // Jury
             if (!is_null($a->team)) {
                 $n = (int)$a->team;
+                if ($n <= 0) {
+                    continue;
+                }
                 $teamSet[$n] = true;
                 if (!empty($a->jury_team_name) && empty($teamNames[$n])) {
                     $teamNames[$n] = $a->jury_team_name;
@@ -1534,6 +1537,9 @@ if ($prepRooms->isNotEmpty()) {
             // Table 1
             if (!is_null($a->table_1_team)) {
                 $n = (int)$a->table_1_team;
+                if ($n <= 0) {
+                    continue;
+                }
                 $teamSet[$n] = true;
                 if (!empty($a->table_1_team_name) && empty($teamNames[$n])) {
                     $teamNames[$n] = $a->table_1_team_name;
@@ -1549,6 +1555,9 @@ if ($prepRooms->isNotEmpty()) {
             // Table 2
             if (!is_null($a->table_2_team)) {
                 $n = (int)$a->table_2_team;
+                if ($n <= 0) {
+                    continue;
+                }
                 $teamSet[$n] = true;
                 if (!empty($a->table_2_team_name) && empty($teamNames[$n])) {
                     $teamNames[$n] = $a->table_2_team_name;
@@ -1587,6 +1596,9 @@ if ($prepRooms->isNotEmpty()) {
         sort($teamNums, SORT_NUMERIC);
 
         foreach ($teamNums as $num) {
+            if ($num <= 0) {
+                continue;
+            }
             // Alle Acts, die dieses Team betreffen (Jury ODER Table1 ODER Table2)
             $ownActs = $acts->filter(function ($a) use ($num) {
                 return (!is_null($a->team) && (int)$a->team === $num)
