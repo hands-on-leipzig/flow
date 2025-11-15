@@ -57,7 +57,7 @@ onMounted(async () => {
     totals.value = totalsRes.data
 
     if (data.value?.seasons?.length > 0) {
-      // Default: letzte Saison vorselektieren
+      // Default: preselect the most recent season
       const last = data.value.seasons[data.value.seasons.length - 1]
       selectedSeasonKey.value = `${last.season_year}-${last.season_name}`
     }
@@ -69,7 +69,7 @@ onMounted(async () => {
   }
 })
 
-// Map für schnellen Zugriff auf Totals per "year-name"
+// Map for quick access to totals per "year-name"
 const totalsByKey = computed(() => {
   const map = new Map()
   if (!totals.value?.seasons) return map
@@ -79,7 +79,7 @@ const totalsByKey = computed(() => {
   return map
 })
 
-// ersetzt deine aktuelle seasonTotals-Definition
+// Replaces the previous seasonTotals definition
 const seasonTotals = computed(() => {
   const ZERO = {
     rp_total: 0,
@@ -99,7 +99,7 @@ const seasonTotals = computed(() => {
     rp_total: s.rp?.total ?? 0,
     rp_with_events: s.rp?.with_events ?? 0,
     events_total: s.events?.total ?? 0,
-    events_with_plan: s.events?.with_plan ?? 0,   // nutzt neues Feld
+    events_with_plan: s.events?.with_plan ?? 0,   // uses the new field
     plans_total: s.plans?.total ?? 0,
     activity_groups_total: s.activity_groups?.total ?? 0,
     activities_total: s.activities?.total ?? 0,
@@ -242,7 +242,7 @@ async function confirmDeletePlan() {
   if (!planToDelete.value.id) return
   try {
     await axios.delete(`/plans/${planToDelete.value.id}`)
-    // Nach Löschen Liste aktualisieren
+    // Refresh the list after deletion
     const [plansRes, totalsRes] = await Promise.all([
       axios.get('/stats/plans'),
       axios.get('/stats/totals'),
@@ -264,7 +264,7 @@ async function confirmDeletePlan() {
     <div v-if="loading" class="text-gray-500">Lade Daten …</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
-      <!-- Globale Orphans -->
+      <!-- Global orphans -->
       <div class="mb-4 flex flex-wrap items-center gap-3">
         <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.events)]">
           Events (ohne/ungültiger RP): {{ orphans.events }}
@@ -279,7 +279,7 @@ async function confirmDeletePlan() {
           Activities (ohne/ungültiger ActGroup): {{ orphans.acts }}
         </div>
       </div>
-        <!-- Season Filter -->
+        <!-- Season filter -->
         <div class="mb-6">
           <div class="flex flex-wrap gap-4">
             <label
@@ -298,9 +298,9 @@ async function confirmDeletePlan() {
           </div>
         </div>
 
-        <!-- Saison-Totals (3 Boxen) -->
+        <!-- Season totals (3 boxes) -->
         <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- Box 1: RP -->
+          <!-- Box 1: regional partners -->
           <div class="bg-white border rounded shadow-sm p-4 space-y-1">
             <div class="flex justify-between text-gray-700">
               <span>Regionalpartner</span>
@@ -312,7 +312,7 @@ async function confirmDeletePlan() {
             </div>
           </div>
 
-          <!-- Box 2: Events -->
+          <!-- Box 2: events -->
           <div class="bg-white border rounded shadow-sm p-4 space-y-1">
             <div class="flex justify-between text-gray-700">
               <span>Events</span>
@@ -324,7 +324,7 @@ async function confirmDeletePlan() {
             </div>
           </div>
 
-        <!-- Box 3: Plan & Aktivitäten -->
+        <!-- Box 3: plans & activities -->
         <div class="bg-white border rounded shadow-sm p-4 space-y-1">
           <div class="flex justify-between text-gray-700">
             <span>Pläne</span>
@@ -339,7 +339,7 @@ async function confirmDeletePlan() {
         </div>
       </div>
 
-      <!-- Tabelle -->
+      <!-- Table -->
       <table class="min-w-full text-sm border border-gray-300 bg-white">
         <thead class="bg-gray-100 text-left">
           <tr>
@@ -374,7 +374,7 @@ async function confirmDeletePlan() {
             </template>
           </td>
 
-          <!-- RP Name -->
+          <!-- RP name -->
           <td class="px-3 py-2">
             <template v-if="shouldShowPartner(index)">
               {{ row.partner_name }}
@@ -394,24 +394,24 @@ async function confirmDeletePlan() {
             </template>
           </td>
 
-          <!-- Event Name + Date -->
+          <!-- Event name + date -->
           <td class="px-3 py-2">
             <template v-if="shouldShowEvent(index)">
               <span class="mr-2">
                 <template v-if="row.plan_id === null">
-                  <!-- ⬜️  Kein Plan -->
+                  <!-- ⬜️  No plan -->
                   ⬜️ 
                 </template>
                 <template v-else-if="getPlanCount(row.event_id) === 1">
-                  <!-- ✅ Genau ein Plan -->
+                  <!-- ✅ Exactly one plan -->
                   ✅
                 </template>
                 <template v-else>
-                  <!-- ⚠️ Mehrere Pläne -->
+                  <!-- ⚠️ Multiple plans -->
                   ⚠️
                 </template>
               </span>
-              <!-- klickbarer Name -->
+              <!-- Clickable name -->
               <a
                 href="#"
                 class="text-blue-600 hover:underline cursor-pointer"
@@ -458,12 +458,12 @@ async function confirmDeletePlan() {
             </template>
           </td>
 
-          <!-- Plan ID + Buttons -->
+          <!-- Plan ID + buttons -->
           <td class="px-3 py-2 text-gray-400">
             <div class="flex flex-col items-start">
               <span>{{ row.plan_id }}</span>
               <div v-if="row.plan_id" class="flex gap-2 mt-1">
-                <!-- Vorschau -->
+                <!-- Preview -->
                 <button
                   class="text-blue-600 hover:text-blue-800"
                   title="Vorschau öffnen"
@@ -471,7 +471,7 @@ async function confirmDeletePlan() {
                 >
                   🧾
                 </button>
-                <!-- Löschen -->
+                <!-- Delete -->
                 <button
                   class="text-red-600 hover:text-red-800"
                   title="Plan löschen"
@@ -483,13 +483,13 @@ async function confirmDeletePlan() {
             </div>
           </td>
 
-          <!-- Plan Created -->
+          <!-- Plan created -->
           <td class="px-3 py-2">{{ formatDateTime(row.plan_created) }}</td>
 
-          <!-- Plan Last Change -->
+          <!-- Plan last change -->
           <td class="px-3 py-2">{{ formatDateTime(row.plan_last_change) }}</td>
   
-          <!-- Generator Stats -->
+          <!-- Generator stats -->
           <td class="px-3 py-2 text-right">
             <template v-if="row.plan_id && row.generator_stats !== null">
               {{ row.generator_stats }}
@@ -499,7 +499,7 @@ async function confirmDeletePlan() {
             </template>
           </td>     
 
-          <!-- Expert Param Changes -->
+          <!-- Expert parameter changes -->
           <td class="px-3 py-2 text-right">
             <template v-if="row.plan_id">
               {{ row.expert_param_changes }}
@@ -507,7 +507,7 @@ async function confirmDeletePlan() {
             <template v-else>–</template>
           </td>
 
-          <!-- Extra Blocks -->
+          <!-- Extra blocks -->
           <td class="px-3 py-2 text-right">
             <template v-if="row.plan_id">
               {{ row.extra_blocks }}
@@ -515,7 +515,7 @@ async function confirmDeletePlan() {
             <template v-else>–</template>
           </td>
 
-          <!-- Publication Level -->
+          <!-- Publication level -->
           <td class="px-3 py-2">
             <span class="inline-flex items-center gap-1">
               <!-- Icons -->
@@ -529,12 +529,12 @@ async function confirmDeletePlan() {
                     : 'bg-gray-300'"
                 ></span>
               </span>
-              <!-- Zahl -->
+              <!-- Number -->
               <span>{{ row.publication_level ?? '–' }}</span>
             </span>
           </td>
 
-          <!-- Publication Date -->
+          <!-- Publication date -->
           <td class="px-3 py-2">
             <template v-if="row.plan_id && row.publication_date">
               {{ formatDateTime(row.publication_date) }}
@@ -542,7 +542,7 @@ async function confirmDeletePlan() {
             <template v-else>–</template>
           </td>
 
-          <!-- Publication Last Change -->
+          <!-- Publication last change -->
           <td class="px-3 py-2">
             <template v-if="row.plan_id && row.publication_last_change">
               {{ formatDateTime(row.publication_last_change) }}
