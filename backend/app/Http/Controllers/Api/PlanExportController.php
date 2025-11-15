@@ -2600,15 +2600,24 @@ if ($prepRooms->isNotEmpty()) {
         $base = $activity->activity_atd_name ?? ($activity->activity_name ?? '–');
         $code = $activity->group_activity_type_code ?? $activity->activity_type_code ?? null;
 
-        $roundLabels = [
-            'r_test_round' => 'Testrunde',
-            'r_round_1'    => 'Runde 1',
-            'r_round_2'    => 'Runde 2',
-            'r_round_3'    => 'Runde 3',
-            'r_final_8'    => 'Viertelfinale',
-            'r_final_4'    => 'Halbfinale',
-            'r_final_2'    => 'Finale',
-        ];
+        static $roundLabels = null;
+
+        if ($roundLabels === null) {
+            $roundLabels = DB::table('m_activity_type_detail')
+                ->whereIn('code', [
+                    'r_test_round',
+                    'r_round_1',
+                    'r_round_2',
+                    'r_round_3',
+                    'r_round_4',
+                    'r_final_16',
+                    'r_final_8',
+                    'r_final_4',
+                    'r_final_2',
+                ])
+                ->pluck('name', 'code')
+                ->toArray();
+        }
 
         if ($code && isset($roundLabels[$code])) {
             return $roundLabels[$code];
