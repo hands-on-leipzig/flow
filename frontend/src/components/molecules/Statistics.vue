@@ -460,25 +460,27 @@ async function confirmModal() {
       </div>
 
       <!-- Table -->
-      <table class="min-w-full text-sm border border-gray-300 bg-white">
-        <thead class="bg-gray-100 text-left">
-          <tr>
-            <th class="px-3 py-2">RP</th>
-            <th class="px-3 py-2">Partner</th>
-            <th class="px-3 py-2">Event</th>
-            <th class="px-3 py-2">Name, Datum, Anmeldungen</th>
-            <th class="px-3 py-2">Plan</th>
-            <th class="px-3 py-2">Erstellt</th>
-            <th class="px-3 py-2">Letzte Änderung</th>
-            <th class="px-3 py-2">Generierungen</th>
-            <th class="px-3 py-2">Expert-Parameter</th>
-            <th class="px-3 py-2">Extra-Blöcke</th>
-            <th class="px-3 py-2">Publikations-Level</th>
-            <th class="px-3 py-2">Publiziert</th>
-            <th class="px-3 py-2">Letzte Änderung</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div class="border border-gray-300 bg-white rounded shadow-sm overflow-hidden">
+        <div class="max-h-[70vh] overflow-y-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-100 text-left sticky top-0 z-10">
+              <tr>
+                <th class="px-3 py-2">RP</th>
+                <th class="px-3 py-2">Partner</th>
+                <th class="px-3 py-2">Event</th>
+                <th class="px-3 py-2">Name, Datum, Anmeldungen</th>
+                <th class="px-3 py-2">Plan</th>
+                <th class="px-3 py-2">Erstellt</th>
+                <th class="px-3 py-2">Letzte Änderung</th>
+                <th class="px-3 py-2">Generierungen</th>
+                <th class="px-3 py-2">Expert-Parameter</th>
+                <th class="px-3 py-2">Extra-Blöcke</th>
+                <th class="px-3 py-2">Publikations-Level</th>
+                <th class="px-3 py-2">Publiziert</th>
+                <th class="px-3 py-2">Letzte Änderung</th>
+              </tr>
+            </thead>
+            <tbody>
         <tr
             v-for="(row, index) in flattenedRows"
           :key="`${row.partner_id}-${row.event_id}-${row.plan_id}`"
@@ -675,8 +677,10 @@ async function confirmModal() {
 
         </tr>
 
-      </tbody>
-      </table>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <div v-if="flattenedRows.length === 0" class="mt-4 text-gray-500 italic">
         Keine Pläne in dieser Saison.
