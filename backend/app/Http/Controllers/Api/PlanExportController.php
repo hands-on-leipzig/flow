@@ -488,7 +488,7 @@ class PlanExportController extends Controller
             return [
                 'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'   => Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'activity' => $this->formatActivityLabel($a),
                 'assign'   => $a->assign,
                 'room'     => $a->room_name ?? $a->room_type_name ?? '–',
                 'team_id'  => $a->team,
@@ -631,7 +631,7 @@ class PlanExportController extends Controller
             return [
                 'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'   => Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'activity' => $this->formatActivityLabel($a),
                 'assign'   => $a->assign, // Jury X
                 'room'     => $a->room_name ?? $a->room_type_name ?? '–',
                 'team'     => $teamLabel,
@@ -770,7 +770,7 @@ class PlanExportController extends Controller
             return [
                 'start_hm'  => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'    => Carbon::parse($a->end_time)->format('H:i'),
-                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'activity'  => $this->formatActivityLabel($a),
                 'teamLabel' => $teamLabel,
                 'assign'    => $a->assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
@@ -853,7 +853,7 @@ class PlanExportController extends Controller
             return [
                 'start_hm'  => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'    => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'activity'  => $this->formatActivityLabel($a),
                 'teamLabel' => $teamLabel ?? '–',
                 'assign'    => $assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
@@ -929,7 +929,7 @@ class PlanExportController extends Controller
             return [
                 'start_hm'  => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'    => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'activity'  => $this->formatActivityLabel($a),
                 'teamLabel' => $teamLabel ?? '–',
                 'assign'    => $assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
@@ -959,7 +959,7 @@ class PlanExportController extends Controller
                 $planId,
                 [6, 10, 14],   // Rollen: Publikum E, C und generisch
                 true,          // includeRooms
-                false,         // includeGroupMeta
+                true,          // includeGroupMeta
                 true,          // includeActivityMeta
                 true,          // includeTeamNames
                 true           // freeBlocks
@@ -1038,7 +1038,7 @@ class PlanExportController extends Controller
             return [
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+                'activity' => $this->formatActivityLabel($a),
                 'team'     => $teamDisplay,
                 // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
                 'is_explore'    => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
@@ -1131,8 +1131,6 @@ if ($prepRooms->isNotEmpty()) {
     }
 }
 
-
-
         // Jetzt EIN Layout drumherum bauen
         $layout = app(\App\Services\PdfLayoutService::class);
         $finalHtml = $layout->renderLayout($event, $html, 'FLOW Raumbeschilderung');
@@ -1161,7 +1159,7 @@ if ($prepRooms->isNotEmpty()) {
                 $planId,
                 [8],   // Explore-Teams
                 true,  // includeRooms
-                false, // includeGroupMeta
+                true,  // includeGroupMeta
                 true,  // includeActivityMeta (liefert activity_atd_name, activity_first_program_name, ...)
                 true,  // includeTeamNames (jury_team_name, table_*_team_name)
                 true   // freeBlocks
@@ -1173,7 +1171,7 @@ if ($prepRooms->isNotEmpty()) {
         if (in_array(3, $programIds)) {
             $challengeActs = collect($fetcher->fetchActivities(
                 $planId,
-                [3], true, false, true, true, true
+                [3], true, true, true, true, true
             ));
             $challengePages = $this->buildChallengeTeamPages($challengeActs);
         }
@@ -1246,7 +1244,7 @@ if ($prepRooms->isNotEmpty()) {
                 return [
                     'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                     'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                    'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+                    'activity' => $this->formatActivityLabel($a),
                     'room'     => $roomDisplay,
                     'start_date' => \Carbon\Carbon::parse($a->start_time), // Added for day grouping
                 ];
@@ -1559,7 +1557,7 @@ if ($prepRooms->isNotEmpty()) {
         // Fetch activities for all selected roles and tag them with their role_id
         $allActivities = collect();
         foreach ($roleIds as $roleId) {
-            $acts = $fetcher->fetchActivities($planId, [$roleId], true, false, true, true, true);
+            $acts = $fetcher->fetchActivities($planId, [$roleId], true, true, true, true, true);
             if ($acts->isNotEmpty()) {
                 // Add role_id to each activity for filtering
                 $acts = $acts->map(function($activity) use ($roleId) {
@@ -1702,7 +1700,7 @@ if ($prepRooms->isNotEmpty()) {
             $rows = $acts->map(fn($a) => [
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? $a->activity_name ?? '–',
+                'activity' => $this->formatActivityLabel($a),
                 'team' => (function () use ($a) {
                     // Helper für Formatierung
                     $fmtNameHot = function (?string $name, $hot) {
@@ -2597,4 +2595,25 @@ if ($prepRooms->isNotEmpty()) {
         return $csv;
     }
 
+    private function formatActivityLabel($activity): string
+    {
+        $base = $activity->activity_atd_name ?? ($activity->activity_name ?? '–');
+        $code = $activity->group_activity_type_code ?? $activity->activity_type_code ?? null;
+
+        $roundLabels = [
+            'r_test_round' => 'Testrunde',
+            'r_round_1'    => 'Runde 1',
+            'r_round_2'    => 'Runde 2',
+            'r_round_3'    => 'Runde 3',
+            'r_final_8'    => 'Viertelfinale',
+            'r_final_4'    => 'Halbfinale',
+            'r_final_2'    => 'Finale',
+        ];
+
+        if ($code && isset($roundLabels[$code])) {
+            return $roundLabels[$code];
+        }
+
+        return $base;
+    }
 }
