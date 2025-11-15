@@ -14,6 +14,7 @@ type FlattenedRow = {
   event_id: number | null
   event_name: string | null
   event_date: string | null
+  event_link: string | null
   event_explore: number | null
   event_challenge: number | null
   event_teams_explore: number
@@ -186,6 +187,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
         event_id: null,
         event_name: null,
         event_date: null,
+        event_link: null,
         event_explore: null,
         event_challenge: null,
         event_teams_explore: 0,
@@ -208,6 +210,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_id: event.event_id,
           event_name: event.event_name,
           event_date: event.event_date,
+          event_link: event.event_link ?? null,
           event_explore: event.event_explore,
           event_challenge: event.event_challenge,
           event_teams_explore: teamsExplore,
@@ -227,6 +230,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_id: event.event_id,
           event_name: event.event_name,
           event_date: event.event_date,
+          event_link: event.event_link ?? null,
           event_explore: event.event_explore,
           event_challenge: event.event_challenge,
           event_teams_explore: teamsExplore,
@@ -475,7 +479,7 @@ async function confirmModal() {
                 <th class="px-3 py-2">Generierungen</th>
                 <th class="px-3 py-2">Expert-Parameter</th>
                 <th class="px-3 py-2">Extra-Blöcke</th>
-                <th class="px-3 py-2">Publikations-Level</th>
+                <th class="px-3 py-2">Publikations-Level / -Link</th>
                 <th class="px-3 py-2">Publiziert</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
               </tr>
@@ -639,21 +643,41 @@ async function confirmModal() {
 
           <!-- Publication level -->
           <td class="px-3 py-2">
-            <span class="inline-flex items-center gap-1">
-              <!-- Icons -->
-              <span class="flex">
-                <span
-                  v-for="n in 4"
-                  :key="n"
-                  class="w-3 h-3 rounded-full mx-0.5"
-                  :class="n <= (row.publication_level || 0)
-                    ? 'bg-blue-600'
-                    : 'bg-gray-300'"
-                ></span>
+            <template v-if="(row.publication_level ?? 0) >= 1 && row.event_link">
+              <a
+                :href="row.event_link"
+                class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                target="_blank"
+                rel="noopener"
+              >
+                <span class="flex">
+                  <span
+                    v-for="n in 4"
+                    :key="n"
+                    class="w-3 h-3 rounded-full mx-0.5"
+                      :class="n <= (row.publication_level ?? 0)
+                      ? 'bg-blue-600'
+                      : 'bg-gray-300'"
+                  ></span>
+                </span>
+                <span>{{ row.publication_level ?? '–' }}</span>
+              </a>
+            </template>
+            <template v-else>
+              <span class="inline-flex items-center gap-1 text-gray-700">
+                <span class="flex">
+                  <span
+                    v-for="n in 4"
+                    :key="n"
+                    class="w-3 h-3 rounded-full mx-0.5"
+                    :class="n <= (row.publication_level ?? 0)
+                      ? 'bg-blue-600'
+                      : 'bg-gray-300'"
+                  ></span>
+                </span>
+                <span>{{ row.publication_level ?? '–' }}</span>
               </span>
-              <!-- Number -->
-              <span>{{ row.publication_level ?? '–' }}</span>
-            </span>
+            </template>
           </td>
 
           <!-- Publication date -->
