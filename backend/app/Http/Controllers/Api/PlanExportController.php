@@ -1341,7 +1341,7 @@ if ($prepRooms->isNotEmpty()) {
                 if ($roomId) {
                     $roomData = DB::table('room')
                         ->where('id', $roomId)
-                        ->select('name', 'navigation_instruction')
+                        ->select('name', 'navigation_instruction', 'is_accessible')
                         ->first();
 
                     if ($roomData && $roomData->name) {
@@ -1352,17 +1352,42 @@ if ($prepRooms->isNotEmpty()) {
             
             // Collect unique rooms with navigation for legend
             $roomsWithNav = [];
+            $rememberRoomHint = function ($name, $navigation, $isAccessible) use (&$roomsWithNav) {
+                $label = is_string($name) ? trim($name) : '';
+                if ($label === '') {
+                    return;
+                }
+
+                $navigationText = is_string($navigation) ? $navigation : '';
+                $hasNavigation = trim($navigationText) !== '';
+                $accessible = $isAccessible === null ? true : (bool)$isAccessible;
+
+                if (!$hasNavigation && $accessible) {
+                    return;
+                }
+
+                $roomsWithNav[$label] = [
+                    'navigation'    => $hasNavigation ? $navigationText : '',
+                    'is_accessible' => $accessible,
+                ];
+            };
             
-            // Add team's assigned room if it has navigation
-            if ($roomData && !empty($roomData->name) && !empty($roomData->navigation_instruction)) {
-                $roomsWithNav[$roomData->name] = $roomData->navigation_instruction;
+            // Add team's assigned room if it has information
+            if ($roomData) {
+                $rememberRoomHint(
+                    $roomData->name ?? null,
+                    $roomData->navigation_instruction ?? '',
+                    $roomData->is_accessible ?? true
+                );
             }
             
             // Add rooms from activities
             foreach ($acts as $a) {
-                if (!empty($a->room_name) && !empty($a->room_navigation)) {
-                    $roomsWithNav[$a->room_name] = $a->room_navigation;
-                }
+                $rememberRoomHint(
+                    $a->room_name ?? null,
+                    $a->room_navigation ?? '',
+                    $a->room_is_accessible ?? true
+                );
             }
 
             // ➕ Zusatzzeile "Teambereich"
@@ -1810,10 +1835,31 @@ if ($prepRooms->isNotEmpty()) {
 
             // Collect unique rooms with navigation for legend
             $roomsWithNav = [];
-            foreach ($acts as $a) {
-                if (!empty($a->room_name) && !empty($a->room_navigation)) {
-                    $roomsWithNav[$a->room_name] = $a->room_navigation;
+            $rememberRoomHint = function ($name, $navigation, $isAccessible) use (&$roomsWithNav) {
+                $label = is_string($name) ? trim($name) : '';
+                if ($label === '') {
+                    return;
                 }
+
+                $navigationText = is_string($navigation) ? $navigation : '';
+                $hasNavigation = trim($navigationText) !== '';
+                $accessible = $isAccessible === null ? true : (bool)$isAccessible;
+
+                if (!$hasNavigation && $accessible) {
+                    return;
+                }
+
+                $roomsWithNav[$label] = [
+                    'navigation'    => $hasNavigation ? $navigationText : '',
+                    'is_accessible' => $accessible,
+                ];
+            };
+            foreach ($acts as $a) {
+                $rememberRoomHint(
+                    $a->room_name ?? null,
+                    $a->room_navigation ?? '',
+                    $a->room_is_accessible ?? true
+                );
             }
             
             $rows = $acts->map(fn($a) => [
