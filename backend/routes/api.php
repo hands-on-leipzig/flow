@@ -278,6 +278,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('stats')->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
+        Route::delete('/orphans/{type}/cleanup', [StatisticController::class, 'cleanupOrphans']);
     });
 
     // Visibility controller

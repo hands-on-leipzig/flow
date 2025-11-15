@@ -113,6 +113,58 @@ const orphans = computed(() => ({
   acts: totals.value?.global_orphans?.activities?.orphans ?? 0,
 }))
 
+type CleanupTarget = 'events' | 'plans' | 'activity-groups' | 'activities'
+type ModalMode = 'plan-delete' | 'cleanup'
+
+const cleanupMeta: Record<
+  CleanupTarget,
+  { title: string; description: string; confirmLabel: string; orphanKey: 'events' | 'plans' | 'ags' | 'acts' }
+> = {
+  events: {
+    title: 'Events bereinigen?',
+    description: 'Alle Events ohne gültigen Regionalpartner werden dauerhaft gelöscht.',
+    confirmLabel: 'Bereinigen',
+    orphanKey: 'events',
+  },
+  plans: {
+    title: 'Pläne bereinigen?',
+    description: 'Alle Pläne ohne gültiges Event werden dauerhaft gelöscht.',
+    confirmLabel: 'Bereinigen',
+    orphanKey: 'plans',
+  },
+  'activity-groups': {
+    title: 'Activity Groups bereinigen?',
+    description: 'Alle Activity Groups ohne gültigen Plan werden dauerhaft gelöscht.',
+    confirmLabel: 'Bereinigen',
+    orphanKey: 'ags',
+  },
+  activities: {
+    title: 'Activities bereinigen?',
+    description: 'Alle Activities ohne gültige Activity Group werden dauerhaft gelöscht.',
+    confirmLabel: 'Bereinigen',
+    orphanKey: 'acts',
+  },
+}
+
+const modalState = ref<{
+  visible: boolean
+  mode: ModalMode | null
+  planId: number | null
+  cleanupType: CleanupTarget | null
+}>({
+  visible: false,
+  mode: null,
+  planId: null,
+  cleanupType: null,
+})
+
+const modalConfirmLabel = computed(() => {
+  if (modalState.value.mode === 'cleanup' && modalState.value.cleanupType) {
+    return cleanupMeta[modalState.value.cleanupType].confirmLabel
+  }
+  return 'Löschen'
+})
+
 const badgeClass = (n) =>
   n > 0
     ? 'bg-red-100 text-red-800 border border-red-300'
@@ -225,34 +277,66 @@ function formatNumber(num) {
 }
 
 
-const showDeleteModal = ref(false)
-const planToDelete = ref<{ id: number | null }>({ id: null })
-
-function askDeletePlan(planId: number) {
-  planToDelete.value = { id: planId }
-  showDeleteModal.value = true
+function openPlanDelete(planId: number) {
+  modalState.value = {
+    visible: true,
+    mode: 'plan-delete',
+    planId,
+    cleanupType: null,
+  }
 }
 
-function cancelDeletePlan() {
-  showDeleteModal.value = false
-  planToDelete.value = { id: null }
+function askCleanup(target: CleanupTarget) {
+  const meta = cleanupMeta[target]
+  const count = (orphans.value as Record<string, number>)[meta.orphanKey] ?? 0
+  if (count === 0) return
+
+  modalState.value = {
+    visible: true,
+    mode: 'cleanup',
+    planId: null,
+    cleanupType: target,
+  }
 }
 
-async function confirmDeletePlan() {
-  if (!planToDelete.value.id) return
+function closeModal() {
+  modalState.value = {
+    visible: false,
+    mode: null,
+    planId: null,
+    cleanupType: null,
+  }
+}
+
+async function reloadStats() {
+  const [plansRes, totalsRes] = await Promise.all([
+    axios.get('/stats/plans'),
+    axios.get('/stats/totals'),
+  ])
+  data.value = plansRes.data
+  totals.value = totalsRes.data
+}
+
+async function confirmModal() {
+  if (!modalState.value.mode) return
+
   try {
-    await axios.delete(`/plans/${planToDelete.value.id}`)
-    // Refresh the list after deletion
-    const [plansRes, totalsRes] = await Promise.all([
-      axios.get('/stats/plans'),
-      axios.get('/stats/totals'),
-    ])
-    data.value = plansRes.data
-    totals.value = totalsRes.data
+    if (modalState.value.mode === 'plan-delete' && modalState.value.planId) {
+      await axios.delete(`/plans/${modalState.value.planId}`)
+    } else if (modalState.value.mode === 'cleanup' && modalState.value.cleanupType) {
+      await axios.delete(`/stats/orphans/${modalState.value.cleanupType}/cleanup`)
+    } else {
+      return
+    }
+    await reloadStats()
   } catch (e) {
-    console.error("Fehler beim Löschen des Plans:", e)
+    if (modalState.value.mode === 'plan-delete') {
+      console.error('Fehler beim Löschen des Plans:', e)
+    } else {
+      console.error('Fehler bei der Orphan-Bereinigung:', e)
+    }
   } finally {
-    cancelDeletePlan()
+    closeModal()
   }
 }
 
@@ -266,18 +350,54 @@ async function confirmDeletePlan() {
     <div v-else>
       <!-- Global orphans -->
       <div class="mb-4 flex flex-wrap items-center gap-3">
-        <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.events)]">
+        <button
+          type="button"
+          :disabled="orphans.events === 0"
+          :class="[
+            'px-3 py-1 rounded-full text-sm font-semibold transition',
+            badgeClass(orphans.events),
+            orphans.events > 0 ? 'cursor-pointer hover:ring-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' : 'opacity-70 cursor-not-allowed',
+          ]"
+          @click="askCleanup('events')"
+        >
           Events (ohne/ungültiger RP): {{ orphans.events }}
-        </div>
-        <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.plans)]">
+        </button>
+        <button
+          type="button"
+          :disabled="orphans.plans === 0"
+          :class="[
+            'px-3 py-1 rounded-full text-sm font-semibold transition',
+            badgeClass(orphans.plans),
+            orphans.plans > 0 ? 'cursor-pointer hover:ring-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' : 'opacity-70 cursor-not-allowed',
+          ]"
+          @click="askCleanup('plans')"
+        >
           Pläne (ohne/ungültiges Event): {{ orphans.plans }}
-        </div>
-        <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.ags)]">
+        </button>
+        <button
+          type="button"
+          :disabled="orphans.ags === 0"
+          :class="[
+            'px-3 py-1 rounded-full text-sm font-semibold transition',
+            badgeClass(orphans.ags),
+            orphans.ags > 0 ? 'cursor-pointer hover:ring-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' : 'opacity-70 cursor-not-allowed',
+          ]"
+          @click="askCleanup('activity-groups')"
+        >
           ActGroups (ohne/ungültiger Plan): {{ orphans.ags }}
-        </div>
-        <div :class="['px-3 py-1 rounded-full text-sm font-semibold', badgeClass(orphans.acts)]">
+        </button>
+        <button
+          type="button"
+          :disabled="orphans.acts === 0"
+          :class="[
+            'px-3 py-1 rounded-full text-sm font-semibold transition',
+            badgeClass(orphans.acts),
+            orphans.acts > 0 ? 'cursor-pointer hover:ring-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' : 'opacity-70 cursor-not-allowed',
+          ]"
+          @click="askCleanup('activities')"
+        >
           Activities (ohne/ungültiger ActGroup): {{ orphans.acts }}
-        </div>
+        </button>
       </div>
         <!-- Season filter -->
         <div class="mb-6">
@@ -475,7 +595,7 @@ async function confirmDeletePlan() {
                 <button
                   class="text-red-600 hover:text-red-800"
                   title="Plan löschen"
-                  @click="askDeletePlan(row.plan_id)"
+                  @click="openPlanDelete(row.plan_id)"
                 >
                   🗑️
                 </button>
@@ -565,20 +685,32 @@ async function confirmDeletePlan() {
   </div>
 
 
-  <!-- Delete modal -->
+  <!-- Delete/Cleanup modal -->
   <teleport to="body">
-    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div v-if="modalState.visible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
-        <h3 class="text-lg font-bold mb-4">Plan löschen?</h3>
+        <h3 class="text-lg font-bold mb-4">
+          <template v-if="modalState.mode === 'plan-delete'">
+            Plan löschen?
+          </template>
+          <template v-else-if="modalState.mode === 'cleanup' && modalState.cleanupType">
+            {{ cleanupMeta[modalState.cleanupType].title }}
+          </template>
+        </h3>
         <p class="mb-6 text-sm text-gray-700">
-          Bist du sicher, dass du den Plan mit der ID 
-          <span class="font-semibold">{{ planToDelete?.id }}</span> 
-          löschen möchtest? Diese Aktion kann nicht rückgängig gemacht werden.
+          <template v-if="modalState.mode === 'plan-delete'">
+            Bist du sicher, dass du den Plan mit der ID
+            <span class="font-semibold">{{ modalState.planId }}</span>
+            löschen möchtest? Diese Aktion kann nicht rückgängig gemacht werden.
+          </template>
+          <template v-else-if="modalState.mode === 'cleanup' && modalState.cleanupType">
+            {{ cleanupMeta[modalState.cleanupType].description }}
+          </template>
         </p>
         <div class="flex justify-end gap-2">
-          <button class="px-4 py-2 text-gray-600 hover:text-black" @click="cancelDeletePlan">Abbrechen</button>
-          <button class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" @click="confirmDeletePlan">
-            Löschen
+          <button class="px-4 py-2 text-gray-600 hover:text-black" @click="closeModal">Abbrechen</button>
+          <button class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" @click="confirmModal">
+            {{ modalConfirmLabel }}
           </button>
         </div>
       </div>

@@ -430,4 +430,106 @@ class StatisticController extends Controller
             ],
         ]);
     }
+
+    public function cleanupOrphans(string $type): JsonResponse
+    {
+        $type = strtolower($type);
+        $deleted = match ($type) {
+            'events' => $this->deleteEventsWithoutPartner(),
+            'plans' => $this->deletePlansWithoutEvent(),
+            'activity-groups' => $this->deleteActivityGroupsWithoutPlan(),
+            'activities' => $this->deleteActivitiesWithoutGroup(),
+            default => null,
+        };
+
+        if ($deleted === null) {
+            return response()->json([
+                'message' => 'Unknown orphan type.',
+            ], 404);
+        }
+
+        return response()->json([
+            'deleted' => $deleted,
+        ]);
+    }
+
+    private function deleteEventsWithoutPartner(): int
+    {
+        $ids = DB::table('event')
+            ->leftJoin('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+            ->where(function ($q) {
+                $q->whereNull('event.regional_partner')
+                    ->orWhereNull('regional_partner.id');
+            })
+            ->pluck('event.id')
+            ->all();
+
+        if (empty($ids)) {
+            return 0;
+        }
+
+        return DB::table('event')
+            ->whereIn('id', $ids)
+            ->delete();
+    }
+
+    private function deletePlansWithoutEvent(): int
+    {
+        $ids = DB::table('plan')
+            ->leftJoin('event', 'event.id', '=', 'plan.event')
+            ->where(function ($q) {
+                $q->whereNull('plan.event')
+                    ->orWhereNull('event.id');
+            })
+            ->pluck('plan.id')
+            ->all();
+
+        if (empty($ids)) {
+            return 0;
+        }
+
+        return DB::table('plan')
+            ->whereIn('id', $ids)
+            ->delete();
+    }
+
+    private function deleteActivityGroupsWithoutPlan(): int
+    {
+        $ids = DB::table('activity_group')
+            ->leftJoin('plan', 'plan.id', '=', 'activity_group.plan')
+            ->where(function ($q) {
+                $q->whereNull('activity_group.plan')
+                    ->orWhereNull('plan.id');
+            })
+            ->pluck('activity_group.id')
+            ->all();
+
+        if (empty($ids)) {
+            return 0;
+        }
+
+        return DB::table('activity_group')
+            ->whereIn('id', $ids)
+            ->delete();
+    }
+
+    private function deleteActivitiesWithoutGroup(): int
+    {
+        $ids = DB::table('activity')
+            ->leftJoin('activity_group', 'activity_group.id', '=', 'activity.activity_group')
+            ->where(function ($q) {
+                $q->whereNull('activity.activity_group')
+                    ->orWhereNull('activity_group.id');
+            })
+            ->pluck('activity.id')
+            ->all();
+
+        if (empty($ids)) {
+            return 0;
+        }
+
+        return DB::table('activity')
+            ->whereIn('id', $ids)
+            ->delete();
+    }
 }
