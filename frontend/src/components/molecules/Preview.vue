@@ -247,10 +247,9 @@ function formatTeam(teamNum: number | null): string {
         >Robot-Game</button>
       </div>
 
-      <div class="inline-flex rounded-md overflow-hidden border">
+      <div v-if="isAdmin" class="inline-flex rounded-md overflow-hidden border">
         <!-- Aktivitäten und Plan-Qualität -->
         <button
-          v-if="isAdmin"
           class="px-3 py-1 text-sm"
           :class="view === 'activities' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
           @click="setView('activities')"
@@ -259,7 +258,7 @@ function formatTeam(teamNum: number | null): string {
           class="px-3 py-1 text-sm border-l"
           :class="view === 'quality' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
           @click="setView('quality')"
-        >Plan Qualität</button>
+        >Plan-Qualität</button>
       </div>
 
       <div class="ml-3 flex-1 flex items-center justify-end text-xs text-gray-500 min-w-0">
