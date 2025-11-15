@@ -51,13 +51,27 @@
             
             <table style="width:100%; border-collapse:collapse;">
                 <tbody>
-                    @foreach($roomsWithNav as $roomName => $navigation)
+                    @foreach($roomsWithNav as $roomName => $roomData)
+                        @php
+                            $navigationText = is_array($roomData) ? ($roomData['navigation'] ?? '') : $roomData;
+                            $navigationText = is_string($navigationText) ? $navigationText : '';
+                            $isAccessible = is_array($roomData)
+                                ? (!array_key_exists('is_accessible', $roomData) ? true : (bool)$roomData['is_accessible'])
+                                : true;
+                        @endphp
                         <tr>
                             <td style="padding:3px 8px 3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:nowrap;">
                                 {{ $roomName }}
+                                @if(!$isAccessible)
+                                    <img src="{{ public_path('flow/accessible_no.png') }}" alt="Nicht barrierefrei" style="height:12px; width:auto; margin-left:4px;">
+                                @endif
                             </td>
                             <td style="padding:3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif;">
-                                {{ $navigation }}
+                                @if(trim($navigationText) !== '')
+                                    {{ $navigationText }}
+                                @else
+                                    &nbsp;
+                                @endif
                             </td>
                         </tr>
                     @endforeach

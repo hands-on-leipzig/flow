@@ -67,10 +67,11 @@
                     <table style="width:100%; border-collapse:collapse; font-size:13px;">
                         <thead>
                             <tr style="background-color:#f5f5f5;">
-                                <th style="text-align:left; padding:6px 8px; width:10%;">Start</th>
-                                <th style="text-align:left; padding:6px 8px; width:10%;">Ende</th>
-                                <th style="text-align:left; padding:6px 8px; width:40%;">Aktivität</th>
-                                <th style="text-align:left; padding:6px 8px; width:40%;">Raum</th>
+                                <th style="text-align:center; padding:6px 4px; width:6%;"></th>
+                                <th style="text-align:left; padding:6px 8px; width:11%;">Start</th>
+                                <th style="text-align:left; padding:6px 8px; width:11%;">Ende</th>
+                                <th style="text-align:left; padding:6px 8px; width:36%;">Aktivität</th>
+                                <th style="text-align:left; padding:6px 8px; width:36%;">Raum</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -81,6 +82,11 @@
                                     $rowIndex++;
                                 @endphp
                                 <tr style="background-color:{{ $bgColor }};">
+                                    <td style="text-align:center; padding:4px;">
+                                        @if(!empty($row['is_free']))
+                                            <img src="{{ public_path('flow/hourglass.png') }}" alt="Free interval" style="height:16px; width:auto;">
+                                        @endif
+                                    </td>
                                     <td style="padding:5px 8px;">{{ $row['start'] }}</td>
                                     <td style="padding:5px 8px;">{{ $row['end'] }}</td>
                                     <td style="padding:5px 8px;">{{ $row['activity'] }}</td>
@@ -109,10 +115,11 @@
                 <table style="width:100%; border-collapse:collapse; font-size:13px;">
                     <thead>
                         <tr style="background-color:#f5f5f5;">
-                            <th style="text-align:left; padding:6px 8px; width:10%;">Start</th>
-                            <th style="text-align:left; padding:6px 8px; width:10%;">Ende</th>
-                            <th style="text-align:left; padding:6px 8px; width:40%;">Aktivität</th>
-                            <th style="text-align:left; padding:6px 8px; width:40%;">Raum</th>
+                            <th style="text-align:center; padding:6px 4px; width:6%;"></th>
+                            <th style="text-align:left; padding:6px 8px; width:11%;">Start</th>
+                            <th style="text-align:left; padding:6px 8px; width:11%;">Ende</th>
+                            <th style="text-align:left; padding:6px 8px; width:36%;">Aktivität</th>
+                            <th style="text-align:left; padding:6px 8px; width:36%;">Raum</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -123,6 +130,11 @@
                                 $rowIndex++;
                             @endphp
                             <tr style="background-color:{{ $bgColor }};">
+                                <td style="text-align:center; padding:4px;">
+                                    @if(!empty($row['is_free']))
+                                        <img src="{{ public_path('flow/hourglass.png') }}" alt="Free interval" style="height:16px; width:auto;">
+                                    @endif
+                                </td>
                                 <td style="padding:5px 8px;">{{ $row['start'] }}</td>
                                 <td style="padding:5px 8px;">{{ $row['end'] }}</td>
                                 <td style="padding:5px 8px;">{{ $row['activity'] }}</td>

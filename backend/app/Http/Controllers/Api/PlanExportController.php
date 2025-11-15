@@ -488,7 +488,8 @@ class PlanExportController extends Controller
             return [
                 'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'   => Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'activity' => $this->formatActivityLabel($a),
+                'is_free'  => $this->isFreeBlock($a),
                 'assign'   => $a->assign,
                 'room'     => $a->room_name ?? $a->room_type_name ?? '–',
                 'team_id'  => $a->team,
@@ -631,7 +632,7 @@ class PlanExportController extends Controller
             return [
                 'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'   => Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'activity' => $this->formatActivityLabel($a),
                 'assign'   => $a->assign, // Jury X
                 'room'     => $a->room_name ?? $a->room_type_name ?? '–',
                 'team'     => $teamLabel,
@@ -770,7 +771,8 @@ class PlanExportController extends Controller
             return [
                 'start_hm'  => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'    => Carbon::parse($a->end_time)->format('H:i'),
-                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'activity'  => $this->formatActivityLabel($a),
+                'is_free'   => $this->isFreeBlock($a),
                 'teamLabel' => $teamLabel,
                 'assign'    => $a->assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
@@ -853,7 +855,7 @@ class PlanExportController extends Controller
             return [
                 'start_hm'  => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'    => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'activity'  => $this->formatActivityLabel($a),
                 'teamLabel' => $teamLabel ?? '–',
                 'assign'    => $assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
@@ -929,7 +931,7 @@ class PlanExportController extends Controller
             return [
                 'start_hm'  => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'    => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity'  => $a->activity_atd_name ?? $a->activity_name ?? '—',
+                'activity'  => $this->formatActivityLabel($a),
                 'teamLabel' => $teamLabel ?? '–',
                 'assign'    => $assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
@@ -959,7 +961,7 @@ class PlanExportController extends Controller
                 $planId,
                 [6, 10, 14],   // Rollen: Publikum E, C und generisch
                 true,          // includeRooms
-                false,         // includeGroupMeta
+                true,          // includeGroupMeta
                 true,          // includeActivityMeta
                 true,          // includeTeamNames
                 true           // freeBlocks
@@ -969,7 +971,10 @@ class PlanExportController extends Controller
         $activities = collect($activities)->filter(fn($a) => !empty($a->room_name) || !empty($a->room_id));
 
         // Gruppieren nach Raum
-        $grouped = $activities->groupBy(fn($a) => $a->room_name ?? $a->room_id);
+        $grouped = $activities->groupBy(function ($a) {
+            $key = $a->room_id ?? $a->room_name;
+            return (string) $key;
+        });
 
         // Event laden
         $event = DB::table('event')
@@ -978,14 +983,77 @@ class PlanExportController extends Controller
             ->select('event.*')
             ->first();
 
+        // Räume nach room.sequence sortieren (Fallback: Name)
+        $roomIds = $activities
+            ->pluck('room_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $orderedRooms = DB::table('room')
+            ->whereIn('id', $roomIds)
+            ->select('id', 'name', 'sequence')
+            ->orderByRaw('COALESCE(sequence, 9999)')
+            ->orderBy('name')
+            ->get();
+
+        $roomEntries = collect();
+
+        foreach ($orderedRooms as $room) {
+            $roomEntries->push([
+                'key'   => (string) $room->id,
+                'label' => $room->name,
+            ]);
+        }
+
+        $roomEntryKeys = $roomEntries->pluck('key')->all();
+        $roomEntryLabels = $roomEntries
+            ->pluck('label')
+            ->map(fn($label) => mb_strtolower($label))
+            ->all();
+
+        $remainingEntries = $grouped->keys()
+            ->map(function ($key) use ($grouped) {
+                $first = optional($grouped->get($key))->first();
+                $label = $first->room_name ?? $key;
+
+                return [
+                    'key'   => $key,
+                    'label' => $label,
+                ];
+            })
+            ->filter(function ($entry) use ($roomEntryKeys, &$roomEntryLabels) {
+                if (in_array($entry['key'], $roomEntryKeys, true)) {
+                    return false;
+                }
+
+                $labelKey = mb_strtolower($entry['label']);
+                if (in_array($labelKey, $roomEntryLabels, true)) {
+                    return false;
+                }
+
+                $roomEntryLabels[] = $labelKey;
+                return true;
+            })
+            ->sortBy('label')
+            ->values();
+
+        $roomEntries = $roomEntries->concat($remainingEntries)->values();
 
         $html = '';
 
-        $roomKeys  = $grouped->keys()->values();
-        $lastIndex = $roomKeys->count() - 1;
+        $lastIndex = $roomEntries->count() - 1;
 
-        foreach ($roomKeys as $idx => $room) {
-            $acts = $grouped->get($room)->sortBy([
+        foreach ($roomEntries as $idx => $roomEntry) {
+            $roomKey = $roomEntry['key'];
+            $roomLabel = $roomEntry['label'];
+
+            $acts = $grouped->get($roomKey);
+            if (!$acts) {
+                continue;
+            }
+
+            $acts = $acts->sortBy([
                 ['start_time', 'asc'],
                 ['end_time', 'asc'],
             ]);
@@ -1038,7 +1106,8 @@ class PlanExportController extends Controller
             return [
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+                'is_free'  => $this->isFreeBlock($a),
+                'activity' => $this->formatActivityLabel($a),
                 'team'     => $teamDisplay,
                 // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
                 'is_explore'    => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
@@ -1054,7 +1123,7 @@ class PlanExportController extends Controller
 
             foreach ($chunks as $chunkIndex => $chunkRows) {
                 $html .= view('pdf.content.room_schedule', [
-                    'room'  => $room,
+                    'room'  => $roomLabel,
                     'rows'  => $chunkRows,
                     'event' => $event,
                 ])->render();
@@ -1081,7 +1150,8 @@ if ($prepRooms->isNotEmpty()) {
     // Raumdetails aus room-Tabelle
     $rooms = DB::table('room')
         ->whereIn('id', $prepRooms)
-        ->select('id', 'name')
+        ->select('id', 'name', 'sequence')
+        ->orderByRaw('COALESCE(sequence, 9999)')
         ->orderBy('name')
         ->get();
 
@@ -1109,7 +1179,13 @@ if ($prepRooms->isNotEmpty()) {
         $roomIndex++;
 
         // Zeilen für Tabelle aufbauen
-        $rows = $teams->map(function ($t) {
+        $rows = $teams
+            ->sortBy([
+                ['program', 'asc'],
+                ['team_name', 'asc'],
+            ])
+            ->values()
+            ->map(function ($t) {
             return [
                 'is_explore'   => in_array($t->program, [0, 2]),
                 'is_challenge' => in_array($t->program, [0, 3]),
@@ -1130,8 +1206,6 @@ if ($prepRooms->isNotEmpty()) {
         }
     }
 }
-
-
 
         // Jetzt EIN Layout drumherum bauen
         $layout = app(\App\Services\PdfLayoutService::class);
@@ -1161,7 +1235,7 @@ if ($prepRooms->isNotEmpty()) {
                 $planId,
                 [8],   // Explore-Teams
                 true,  // includeRooms
-                false, // includeGroupMeta
+                true,  // includeGroupMeta
                 true,  // includeActivityMeta (liefert activity_atd_name, activity_first_program_name, ...)
                 true,  // includeTeamNames (jury_team_name, table_*_team_name)
                 true   // freeBlocks
@@ -1173,7 +1247,7 @@ if ($prepRooms->isNotEmpty()) {
         if (in_array(3, $programIds)) {
             $challengeActs = collect($fetcher->fetchActivities(
                 $planId,
-                [3], true, false, true, true, true
+                [3], true, true, true, true, true
             ));
             $challengePages = $this->buildChallengeTeamPages($challengeActs);
         }
@@ -1246,7 +1320,8 @@ if ($prepRooms->isNotEmpty()) {
                 return [
                     'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                     'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                    'activity' => $a->activity_atd_name ?? ($a->activity_name ?? '–'),
+                    'activity' => $this->formatActivityLabel($a),
+                    'is_free'  => $this->isFreeBlock($a),
                     'room'     => $roomDisplay,
                     'start_date' => \Carbon\Carbon::parse($a->start_time), // Added for day grouping
                 ];
@@ -1266,7 +1341,7 @@ if ($prepRooms->isNotEmpty()) {
                 if ($roomId) {
                     $roomData = DB::table('room')
                         ->where('id', $roomId)
-                        ->select('name', 'navigation_instruction')
+                        ->select('name', 'navigation_instruction', 'is_accessible')
                         ->first();
 
                     if ($roomData && $roomData->name) {
@@ -1277,17 +1352,42 @@ if ($prepRooms->isNotEmpty()) {
             
             // Collect unique rooms with navigation for legend
             $roomsWithNav = [];
+            $rememberRoomHint = function ($name, $navigation, $isAccessible) use (&$roomsWithNav) {
+                $label = is_string($name) ? trim($name) : '';
+                if ($label === '') {
+                    return;
+                }
+
+                $navigationText = is_string($navigation) ? $navigation : '';
+                $hasNavigation = trim($navigationText) !== '';
+                $accessible = $isAccessible === null ? true : (bool)$isAccessible;
+
+                if (!$hasNavigation && $accessible) {
+                    return;
+                }
+
+                $roomsWithNav[$label] = [
+                    'navigation'    => $hasNavigation ? $navigationText : '',
+                    'is_accessible' => $accessible,
+                ];
+            };
             
-            // Add team's assigned room if it has navigation
-            if ($roomData && !empty($roomData->name) && !empty($roomData->navigation_instruction)) {
-                $roomsWithNav[$roomData->name] = $roomData->navigation_instruction;
+            // Add team's assigned room if it has information
+            if ($roomData) {
+                $rememberRoomHint(
+                    $roomData->name ?? null,
+                    $roomData->navigation_instruction ?? '',
+                    $roomData->is_accessible ?? true
+                );
             }
             
             // Add rooms from activities
             foreach ($acts as $a) {
-                if (!empty($a->room_name) && !empty($a->room_navigation)) {
-                    $roomsWithNav[$a->room_name] = $a->room_navigation;
-                }
+                $rememberRoomHint(
+                    $a->room_name ?? null,
+                    $a->room_navigation ?? '',
+                    $a->room_is_accessible ?? true
+                );
             }
 
             // ➕ Zusatzzeile "Teambereich"
@@ -1444,6 +1544,9 @@ if ($prepRooms->isNotEmpty()) {
             // Jury
             if (!is_null($a->team)) {
                 $n = (int)$a->team;
+                if ($n <= 0) {
+                    continue;
+                }
                 $teamSet[$n] = true;
                 if (!empty($a->jury_team_name) && empty($teamNames[$n])) {
                     $teamNames[$n] = $a->jury_team_name;
@@ -1459,6 +1562,9 @@ if ($prepRooms->isNotEmpty()) {
             // Table 1
             if (!is_null($a->table_1_team)) {
                 $n = (int)$a->table_1_team;
+                if ($n <= 0) {
+                    continue;
+                }
                 $teamSet[$n] = true;
                 if (!empty($a->table_1_team_name) && empty($teamNames[$n])) {
                     $teamNames[$n] = $a->table_1_team_name;
@@ -1474,6 +1580,9 @@ if ($prepRooms->isNotEmpty()) {
             // Table 2
             if (!is_null($a->table_2_team)) {
                 $n = (int)$a->table_2_team;
+                if ($n <= 0) {
+                    continue;
+                }
                 $teamSet[$n] = true;
                 if (!empty($a->table_2_team_name) && empty($teamNames[$n])) {
                     $teamNames[$n] = $a->table_2_team_name;
@@ -1512,6 +1621,9 @@ if ($prepRooms->isNotEmpty()) {
         sort($teamNums, SORT_NUMERIC);
 
         foreach ($teamNums as $num) {
+            if ($num <= 0) {
+                continue;
+            }
             // Alle Acts, die dieses Team betreffen (Jury ODER Table1 ODER Table2)
             $ownActs = $acts->filter(function ($a) use ($num) {
                 return (!is_null($a->team) && (int)$a->team === $num)
@@ -1559,7 +1671,7 @@ if ($prepRooms->isNotEmpty()) {
         // Fetch activities for all selected roles and tag them with their role_id
         $allActivities = collect();
         foreach ($roleIds as $roleId) {
-            $acts = $fetcher->fetchActivities($planId, [$roleId], true, false, true, true, true);
+            $acts = $fetcher->fetchActivities($planId, [$roleId], true, true, true, true, true);
             if ($acts->isNotEmpty()) {
                 // Add role_id to each activity for filtering
                 $acts = $acts->map(function($activity) use ($roleId) {
@@ -1577,6 +1689,12 @@ if ($prepRooms->isNotEmpty()) {
         $challengeRefActs = $allActivities->filter(fn($a) => $a->role_id == 5);
         $challengeCheckActs = $allActivities->filter(fn($a) => $a->role_id == 11);
         $liveChallengeActs = $allActivities->filter(fn($a) => $a->role_id == 16);
+
+        $roleMeta = DB::table('m_role')
+            ->whereIn('id', $allActivities->pluck('role_id')->filter()->unique()->values())
+            ->select('id', 'first_program', 'sequence')
+            ->get()
+            ->keyBy('id');
 
         // === Event laden ===
         $event = DB::table('event')
@@ -1672,37 +1790,83 @@ if ($prepRooms->isNotEmpty()) {
         $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table', 'FLL Challenge Robot-Check für ');
         $liveChallengeGrouped = $distributeGeneric($liveChallengeActs, 'lane', 'Live-Challenge Jury-Gruppe');
 
-        // === Zusammenführen, sortiert nach Program-Logik ===
-        $sections = collect()
-            ->merge($exploreGrouped->sortKeys())
-            ->merge($challengeJuryGrouped->sortKeys())
-            ->merge($challengeRefGrouped->sortKeys())
-           ->merge($challengeCheckGrouped->sortKeys())
-           ->merge($liveChallengeGrouped->sortKeys());
+        // === Zusammenführen mit Rollen-Metadaten ===
+        $sections = collect();
+        $appendSections = function ($grouped, $roleId) use (&$sections, $roleMeta) {
+            if ($grouped->isEmpty()) {
+                return;
+            }
+
+            $meta = $roleMeta->get($roleId);
+            $programOrder  = $meta->first_program ?? 999;
+            $sequenceOrder = $meta->sequence ?? 9999;
+
+            foreach ($grouped->sortKeys() as $label => $collection) {
+                $sections->push([
+                    'title'          => $label,
+                    'activities'     => $collection,
+                    'program_order'  => $programOrder,
+                    'sequence_order' => $sequenceOrder,
+                ]);
+            }
+        };
+
+        $appendSections($exploreGrouped, 9);
+        $appendSections($challengeJuryGrouped, 4);
+        $appendSections($challengeRefGrouped, 5);
+        $appendSections($challengeCheckGrouped, 11);
+        $appendSections($liveChallengeGrouped, 16);
+
+        $sections = $sections->sortBy([
+            ['program_order', 'asc'],
+            ['sequence_order', 'asc'],
+            ['title', 'asc'],
+        ])->values();
 
         // === Rendern aller Abschnitte ===
         $html = '';
-        $keys = $sections->keys()->values();
-        $last = $keys->count() - 1;
+        $last = $sections->count() - 1;
 
-        foreach ($keys as $i => $key) {
-            $acts = $sections[$key]->sortBy([
+        foreach ($sections as $i => $section) {
+            $acts = $section['activities']->sortBy([
                 ['start_time', 'asc'],
                 ['end_time', 'asc'],
             ]);
 
             // Collect unique rooms with navigation for legend
             $roomsWithNav = [];
-            foreach ($acts as $a) {
-                if (!empty($a->room_name) && !empty($a->room_navigation)) {
-                    $roomsWithNav[$a->room_name] = $a->room_navigation;
+            $rememberRoomHint = function ($name, $navigation, $isAccessible) use (&$roomsWithNav) {
+                $label = is_string($name) ? trim($name) : '';
+                if ($label === '') {
+                    return;
                 }
+
+                $navigationText = is_string($navigation) ? $navigation : '';
+                $hasNavigation = trim($navigationText) !== '';
+                $accessible = $isAccessible === null ? true : (bool)$isAccessible;
+
+                if (!$hasNavigation && $accessible) {
+                    return;
+                }
+
+                $roomsWithNav[$label] = [
+                    'navigation'    => $hasNavigation ? $navigationText : '',
+                    'is_accessible' => $accessible,
+                ];
+            };
+            foreach ($acts as $a) {
+                $rememberRoomHint(
+                    $a->room_name ?? null,
+                    $a->room_navigation ?? '',
+                    $a->room_is_accessible ?? true
+                );
             }
             
             $rows = $acts->map(fn($a) => [
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
-                'activity' => $a->activity_atd_name ?? $a->activity_name ?? '–',
+                'activity' => $this->formatActivityLabel($a),
+                'is_free'  => $this->isFreeBlock($a),
                 'team' => (function () use ($a) {
                     // Helper für Formatierung
                     $fmtNameHot = function (?string $name, $hot) {
@@ -1747,7 +1911,7 @@ if ($prepRooms->isNotEmpty()) {
 
             foreach ($chunks as $chunkIndex => $chunkRows) {
                 $html .= view('pdf.content.role_schedule', [
-                    'title' => $key,
+                    'title' => $section['title'],
                     'rows'  => $chunkRows,
                     'event' => $event,
                     'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
@@ -2597,4 +2761,54 @@ if ($prepRooms->isNotEmpty()) {
         return $csv;
     }
 
+    private function formatActivityLabel($activity): string
+    {
+        $base = $activity->activity_atd_name ?? ($activity->activity_name ?? '–');
+        $code = $activity->group_activity_type_code ?? $activity->activity_type_code ?? null;
+
+        static $roundLabels = null;
+
+        if ($roundLabels === null) {
+            $roundLabels = DB::table('m_activity_type_detail')
+                ->whereIn('code', [
+                    'r_test_round',
+                    'r_round_1',
+                    'r_round_2',
+                    'r_round_3',
+                    'r_round_4',
+                    'r_final_16',
+                    'r_final_8',
+                    'r_final_4',
+                    'r_final_2',
+                ])
+                ->pluck('name', 'code')
+                ->toArray();
+        }
+
+        if ($code && isset($roundLabels[$code])) {
+            return $roundLabels[$code];
+        }
+
+        return $base;
+    }
+
+    private function isFreeBlock($activity): bool
+    {
+        static $freeIds = null;
+
+        if ($freeIds === null) {
+            $freeIds = DB::table('m_activity_type_detail')
+                ->where('code', 'like', '%free%')
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+        }
+
+        if (empty($freeIds)) {
+            return false;
+        }
+
+        $detailId = (int)($activity->activity_type_detail_id ?? $activity->activity_type_group ?? 0);
+        return in_array($detailId, $freeIds, true);
+    }
 }
