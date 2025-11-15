@@ -971,7 +971,10 @@ class PlanExportController extends Controller
         $activities = collect($activities)->filter(fn($a) => !empty($a->room_name) || !empty($a->room_id));
 
         // Gruppieren nach Raum
-        $grouped = $activities->groupBy(fn($a) => $a->room_name ?? $a->room_id);
+        $grouped = $activities->groupBy(function ($a) {
+            $key = $a->room_id ?? $a->room_name;
+            return (string) $key;
+        });
 
         // Event laden
         $event = DB::table('event')
@@ -980,14 +983,77 @@ class PlanExportController extends Controller
             ->select('event.*')
             ->first();
 
+        // Räume nach room.sequence sortieren (Fallback: Name)
+        $roomIds = $activities
+            ->pluck('room_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $orderedRooms = DB::table('room')
+            ->whereIn('id', $roomIds)
+            ->select('id', 'name', 'sequence')
+            ->orderByRaw('COALESCE(sequence, 9999)')
+            ->orderBy('name')
+            ->get();
+
+        $roomEntries = collect();
+
+        foreach ($orderedRooms as $room) {
+            $roomEntries->push([
+                'key'   => (string) $room->id,
+                'label' => $room->name,
+            ]);
+        }
+
+        $roomEntryKeys = $roomEntries->pluck('key')->all();
+        $roomEntryLabels = $roomEntries
+            ->pluck('label')
+            ->map(fn($label) => mb_strtolower($label))
+            ->all();
+
+        $remainingEntries = $grouped->keys()
+            ->map(function ($key) use ($grouped) {
+                $first = optional($grouped->get($key))->first();
+                $label = $first->room_name ?? $key;
+
+                return [
+                    'key'   => $key,
+                    'label' => $label,
+                ];
+            })
+            ->filter(function ($entry) use ($roomEntryKeys, &$roomEntryLabels) {
+                if (in_array($entry['key'], $roomEntryKeys, true)) {
+                    return false;
+                }
+
+                $labelKey = mb_strtolower($entry['label']);
+                if (in_array($labelKey, $roomEntryLabels, true)) {
+                    return false;
+                }
+
+                $roomEntryLabels[] = $labelKey;
+                return true;
+            })
+            ->sortBy('label')
+            ->values();
+
+        $roomEntries = $roomEntries->concat($remainingEntries)->values();
 
         $html = '';
 
-        $roomKeys  = $grouped->keys()->values();
-        $lastIndex = $roomKeys->count() - 1;
+        $lastIndex = $roomEntries->count() - 1;
 
-        foreach ($roomKeys as $idx => $room) {
-            $acts = $grouped->get($room)->sortBy([
+        foreach ($roomEntries as $idx => $roomEntry) {
+            $roomKey = $roomEntry['key'];
+            $roomLabel = $roomEntry['label'];
+
+            $acts = $grouped->get($roomKey);
+            if (!$acts) {
+                continue;
+            }
+
+            $acts = $acts->sortBy([
                 ['start_time', 'asc'],
                 ['end_time', 'asc'],
             ]);
@@ -1057,7 +1123,7 @@ class PlanExportController extends Controller
 
             foreach ($chunks as $chunkIndex => $chunkRows) {
                 $html .= view('pdf.content.room_schedule', [
-                    'room'  => $room,
+                    'room'  => $roomLabel,
                     'rows'  => $chunkRows,
                     'event' => $event,
                 ])->render();
@@ -1084,7 +1150,8 @@ if ($prepRooms->isNotEmpty()) {
     // Raumdetails aus room-Tabelle
     $rooms = DB::table('room')
         ->whereIn('id', $prepRooms)
-        ->select('id', 'name')
+        ->select('id', 'name', 'sequence')
+        ->orderByRaw('COALESCE(sequence, 9999)')
         ->orderBy('name')
         ->get();
 
