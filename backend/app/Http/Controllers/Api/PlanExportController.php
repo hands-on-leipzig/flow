@@ -1653,6 +1653,12 @@ if ($prepRooms->isNotEmpty()) {
         $challengeCheckActs = $allActivities->filter(fn($a) => $a->role_id == 11);
         $liveChallengeActs = $allActivities->filter(fn($a) => $a->role_id == 16);
 
+        $roleMeta = DB::table('m_role')
+            ->whereIn('id', $allActivities->pluck('role_id')->filter()->unique()->values())
+            ->select('id', 'first_program', 'sequence')
+            ->get()
+            ->keyBy('id');
+
         // === Event laden ===
         $event = DB::table('event')
             ->join('plan', 'plan.event', '=', 'event.id')
@@ -1747,21 +1753,45 @@ if ($prepRooms->isNotEmpty()) {
         $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table', 'FLL Challenge Robot-Check für ');
         $liveChallengeGrouped = $distributeGeneric($liveChallengeActs, 'lane', 'Live-Challenge Jury-Gruppe');
 
-        // === Zusammenführen, sortiert nach Program-Logik ===
-        $sections = collect()
-            ->merge($exploreGrouped->sortKeys())
-            ->merge($challengeJuryGrouped->sortKeys())
-            ->merge($challengeRefGrouped->sortKeys())
-           ->merge($challengeCheckGrouped->sortKeys())
-           ->merge($liveChallengeGrouped->sortKeys());
+        // === Zusammenführen mit Rollen-Metadaten ===
+        $sections = collect();
+        $appendSections = function ($grouped, $roleId) use (&$sections, $roleMeta) {
+            if ($grouped->isEmpty()) {
+                return;
+            }
+
+            $meta = $roleMeta->get($roleId);
+            $programOrder  = $meta->first_program ?? 999;
+            $sequenceOrder = $meta->sequence ?? 9999;
+
+            foreach ($grouped->sortKeys() as $label => $collection) {
+                $sections->push([
+                    'title'          => $label,
+                    'activities'     => $collection,
+                    'program_order'  => $programOrder,
+                    'sequence_order' => $sequenceOrder,
+                ]);
+            }
+        };
+
+        $appendSections($exploreGrouped, 9);
+        $appendSections($challengeJuryGrouped, 4);
+        $appendSections($challengeRefGrouped, 5);
+        $appendSections($challengeCheckGrouped, 11);
+        $appendSections($liveChallengeGrouped, 16);
+
+        $sections = $sections->sortBy([
+            ['program_order', 'asc'],
+            ['sequence_order', 'asc'],
+            ['title', 'asc'],
+        ])->values();
 
         // === Rendern aller Abschnitte ===
         $html = '';
-        $keys = $sections->keys()->values();
-        $last = $keys->count() - 1;
+        $last = $sections->count() - 1;
 
-        foreach ($keys as $i => $key) {
-            $acts = $sections[$key]->sortBy([
+        foreach ($sections as $i => $section) {
+            $acts = $section['activities']->sortBy([
                 ['start_time', 'asc'],
                 ['end_time', 'asc'],
             ]);
@@ -1823,7 +1853,7 @@ if ($prepRooms->isNotEmpty()) {
 
             foreach ($chunks as $chunkIndex => $chunkRows) {
                 $html .= view('pdf.content.role_schedule', [
-                    'title' => $key,
+                    'title' => $section['title'],
                     'rows'  => $chunkRows,
                     'event' => $event,
                     'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
