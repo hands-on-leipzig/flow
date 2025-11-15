@@ -5,6 +5,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Enums\FirstProgram;
+use App\Models\Event;
+use App\Http\Controllers\Api\DrahtController;
 
 
 class StatisticController extends Controller
@@ -38,6 +41,7 @@ class StatisticController extends Controller
                 'event.id as event_id',
                 'event.name as event_name',
                 'event.date as event_date',
+                'event.link as event_link',
                 'event.season as event_season_id',
                 'event.event_explore as event_explore', 
                 'event.event_challenge as event_challenge',
@@ -62,6 +66,57 @@ class StatisticController extends Controller
 
         // Plan-IDs sammeln
         $planIds = $records->pluck('plan_id')->filter()->unique();
+
+        // Team-Zahlen pro Event abrufen
+        $teamCountsByEvent = DB::table('team')
+            ->select('event', 'first_program', DB::raw('COUNT(*) as count'))
+            ->groupBy('event', 'first_program')
+            ->get()
+            ->groupBy('event')
+            ->map(function ($items) {
+                $counts = [];
+                foreach ($items as $item) {
+                    $counts[(int)$item->first_program] = (int)$item->count;
+                }
+                return $counts;
+            });
+
+        // Fallback: Falls keine Teams in der lokalen DB vorliegen, aus DRAHT ziehen
+        $eventIds = $records->pluck('event_id')->filter()->unique();
+        $fallbackEventIds = $eventIds->filter(function ($id) use ($teamCountsByEvent) {
+            $counts = $teamCountsByEvent->get($id);
+            return empty($counts);
+        });
+
+        $drahtTeamCounts = [];
+        if ($fallbackEventIds->isNotEmpty()) {
+            $events = Event::whereIn('id', $fallbackEventIds)->get();
+            $drahtController = app(DrahtController::class);
+
+            foreach ($events as $event) {
+                try {
+                    $response = $drahtController->show($event);
+                    $payload = $response->getData(true);
+                    $drahtTeamCounts[$event->id] = [
+                        'explore' => isset($payload['teams_explore']) && is_array($payload['teams_explore'])
+                            ? count($payload['teams_explore'])
+                            : 0,
+                        'challenge' => isset($payload['teams_challenge']) && is_array($payload['teams_challenge'])
+                            ? count($payload['teams_challenge'])
+                            : 0,
+                    ];
+                } catch (\Throwable $e) {
+                    Log::warning('StatisticController: Failed to fetch DRAHT team counts', [
+                        'event_id' => $event->id,
+                        'message' => $e->getMessage(),
+                    ]);
+                    $drahtTeamCounts[$event->id] = [
+                        'explore' => 0,
+                        'challenge' => 0,
+                    ];
+                }
+            }
+        }
 
         // Generator-Stats abrufen
         $genStatsRaw = DB::table('s_generator')
@@ -142,12 +197,25 @@ class StatisticController extends Controller
 
             // Event anlegen
             if ($row->event_id && !isset($groupedSeasons[$seasonKey]['partners'][$partnerKey]['events'][$eventKey])) {
+                $counts = $teamCountsByEvent->get($row->event_id);
+                if (!empty($counts)) {
+                    $exploreCount = ($counts[FirstProgram::EXPLORE->value] ?? 0) + ($counts[FirstProgram::DISCOVER->value] ?? 0);
+                    $challengeCount = $counts[FirstProgram::CHALLENGE->value] ?? 0;
+                } else {
+                    $fallback = $drahtTeamCounts[$row->event_id] ?? ['explore' => 0, 'challenge' => 0];
+                    $exploreCount = $fallback['explore'];
+                    $challengeCount = $fallback['challenge'];
+                }
+
                 $groupedSeasons[$seasonKey]['partners'][$partnerKey]['events'][$eventKey] = [
                     'event_id' => $row->event_id,
                     'event_name' => $row->event_name,
                     'event_date' => $row->event_date,
+                    'event_link' => $row->event_link,
                     'event_explore' => $row->event_explore,
                     'event_challenge' => $row->event_challenge,
+                    'teams_explore' => $exploreCount,
+                    'teams_challenge' => $challengeCount,
                     'plans' => [],
                 ];
             }
@@ -348,6 +416,7 @@ class StatisticController extends Controller
 
         return response()->json([
             'seasons' => $resultSeasons,
+            'publication_totals' => $this->publicationTotals(),
             'global_orphans' => [
                 'events' => [
                     'orphans' => $eventsOrphans,
@@ -363,5 +432,128 @@ class StatisticController extends Controller
                 ],
             ],
         ]);
+    }
+
+    protected function publicationTotals(): array
+    {
+        $levels = DB::table('publication')
+            ->select('level', DB::raw('COUNT(*) as count'))
+            ->groupBy('level')
+            ->pluck('count', 'level');
+
+        $level1 = (int)($levels[1] ?? 0);
+        $level2 = (int)($levels[2] ?? 0);
+        $level3 = (int)($levels[3] ?? 0);
+        $level4 = (int)($levels[4] ?? 0);
+
+        return [
+            'total' => $level1 + $level2 + $level3 + $level4,
+            'level_1' => $level1,
+            'level_2' => $level2,
+            'level_3' => $level3,
+            'level_4' => $level4,
+        ];
+    }
+
+    public function cleanupOrphans(string $type): JsonResponse
+    {
+        $type = strtolower($type);
+        $deleted = match ($type) {
+            'events' => $this->deleteEventsWithoutPartner(),
+            'plans' => $this->deletePlansWithoutEvent(),
+            'activity-groups' => $this->deleteActivityGroupsWithoutPlan(),
+            'activities' => $this->deleteActivitiesWithoutGroup(),
+            default => null,
+        };
+
+        if ($deleted === null) {
+            return response()->json([
+                'message' => 'Unknown orphan type.',
+            ], 404);
+        }
+
+        return response()->json([
+            'deleted' => $deleted,
+        ]);
+    }
+
+    private function deleteEventsWithoutPartner(): int
+    {
+        $ids = DB::table('event')
+            ->leftJoin('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+            ->where(function ($q) {
+                $q->whereNull('event.regional_partner')
+                    ->orWhereNull('regional_partner.id');
+            })
+            ->pluck('event.id')
+            ->all();
+
+        if (empty($ids)) {
+            return 0;
+        }
+
+        return DB::table('event')
+            ->whereIn('id', $ids)
+            ->delete();
+    }
+
+    private function deletePlansWithoutEvent(): int
+    {
+        $ids = DB::table('plan')
+            ->leftJoin('event', 'event.id', '=', 'plan.event')
+            ->where(function ($q) {
+                $q->whereNull('plan.event')
+                    ->orWhereNull('event.id');
+            })
+            ->pluck('plan.id')
+            ->all();
+
+        if (empty($ids)) {
+            return 0;
+        }
+
+        return DB::table('plan')
+            ->whereIn('id', $ids)
+            ->delete();
+    }
+
+    private function deleteActivityGroupsWithoutPlan(): int
+    {
+        $ids = DB::table('activity_group')
+            ->leftJoin('plan', 'plan.id', '=', 'activity_group.plan')
+            ->where(function ($q) {
+                $q->whereNull('activity_group.plan')
+                    ->orWhereNull('plan.id');
+            })
+            ->pluck('activity_group.id')
+            ->all();
+
+        if (empty($ids)) {
+            return 0;
+        }
+
+        return DB::table('activity_group')
+            ->whereIn('id', $ids)
+            ->delete();
+    }
+
+    private function deleteActivitiesWithoutGroup(): int
+    {
+        $ids = DB::table('activity')
+            ->leftJoin('activity_group', 'activity_group.id', '=', 'activity.activity_group')
+            ->where(function ($q) {
+                $q->whereNull('activity.activity_group')
+                    ->orWhereNull('activity_group.id');
+            })
+            ->pluck('activity.id')
+            ->all();
+
+        if (empty($ids)) {
+            return 0;
+        }
+
+        return DB::table('activity')
+            ->whereIn('id', $ids)
+            ->delete();
     }
 }
