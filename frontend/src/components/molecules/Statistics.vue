@@ -461,7 +461,7 @@ async function confirmModal() {
 
       <!-- Table -->
       <div class="border border-gray-300 bg-white rounded shadow-sm overflow-hidden">
-        <div class="max-h-[70vh] overflow-y-auto">
+        <div class="max-h-[60vh] overflow-y-auto">
           <table class="min-w-full text-sm">
             <thead class="bg-gray-100 text-left sticky top-0 z-10">
               <tr>
