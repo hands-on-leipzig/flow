@@ -1112,7 +1112,13 @@ if ($prepRooms->isNotEmpty()) {
         $roomIndex++;
 
         // Zeilen für Tabelle aufbauen
-        $rows = $teams->map(function ($t) {
+        $rows = $teams
+            ->sortBy([
+                ['program', 'asc'],
+                ['team_name', 'asc'],
+            ])
+            ->values()
+            ->map(function ($t) {
             return [
                 'is_explore'   => in_array($t->program, [0, 2]),
                 'is_challenge' => in_array($t->program, [0, 3]),
