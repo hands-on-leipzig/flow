@@ -773,7 +773,6 @@ class PlanExportController extends Controller
                 'end_hm'    => Carbon::parse($a->end_time)->format('H:i'),
                 'activity'  => $this->formatActivityLabel($a),
                 'is_free'   => $this->isFreeBlock($a),
-                'is_free'   => $this->isFreeBlock($a),
                 'teamLabel' => $teamLabel,
                 'assign'    => $a->assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
@@ -1041,6 +1040,7 @@ class PlanExportController extends Controller
             return [
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
+                'is_free'  => $this->isFreeBlock($a),
                 'activity' => $this->formatActivityLabel($a),
                 'team'     => $teamDisplay,
                 // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
@@ -1705,6 +1705,7 @@ if ($prepRooms->isNotEmpty()) {
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                 'activity' => $this->formatActivityLabel($a),
+                'is_free'  => $this->isFreeBlock($a),
                 'team' => (function () use ($a) {
                     // Helper für Formatierung
                     $fmtNameHot = function (?string $name, $hot) {
