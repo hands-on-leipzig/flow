@@ -465,12 +465,14 @@ const lanesIndex = ref<LanesIndex | null>(null)
 const supportedPlanData = ref<any[] | null>(null)
 
 onMounted(async () => {
+  loading.value = true
   openGroup.value = "general"
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
   if (!selectedEvent.value) {
     console.error('No selected event could be loaded.')
+    loading.value = false
     return
   }
   await getOrCreatePlan()
@@ -481,6 +483,7 @@ onMounted(async () => {
   supportedPlanData.value = rows
 
   await fetchTableNames()
+  loading.value = false
 })
 
 const tableNames = ref(['', '', '', ''])
@@ -526,6 +529,11 @@ const updateTableName = async () => {
 
 <template>
   <div class="h-screen p-6 flex flex-col space-y-5">
+    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600">
+      <LoaderFlow/>
+      <LoaderText/>
+    </div>
+    <template v-else>
     <ScheduleToast
       ref="savingToast" 
       :is-generating="isGenerating"
@@ -797,6 +805,7 @@ const updateTableName = async () => {
           initial-view="overview"
       />
     </div>
+    </template>
 
   </div>
 </template>
