@@ -260,18 +260,20 @@ const teamsPerJuryHint = computed(() => {
 </script>
 
 <template>
-  <div class="p-4 border rounded shadow relative">
-    <div class="flex items-center gap-2 mb-4 justify-between">
-      <img
-          :alt="programLogoAlt('C')"
-          :src="programLogoSrc('C')"
-          class="w-10 h-10 flex-shrink-0"
-      />
-      <h3 class="text-lg font-semibold capitalize">
-        <span class="italic">FIRST</span> LEGO League Challenge
-      </h3>
+  <div class="p-4 border rounded shadow relative min-w-0">
+    <div class="flex items-center gap-2 mb-4 justify-between flex-wrap">
+      <div class="flex items-center gap-2 min-w-0 flex-1">
+        <img
+            :alt="programLogoAlt('C')"
+            :src="programLogoSrc('C')"
+            class="w-10 h-10 flex-shrink-0"
+        />
+        <h3 class="text-lg font-semibold capitalize break-words min-w-0">
+          <span class="italic">FIRST</span> LEGO League Challenge
+        </h3>
+      </div>
 
-      <label class="relative inline-flex items-center cursor-pointer">
+      <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
         <input
             :checked="showChallenge"
             class="sr-only peer"
@@ -300,8 +302,8 @@ const teamsPerJuryHint = computed(() => {
 
       <!-- Jury lanes -->
       <div class="mb-1">
-        <div class="flex items-center gap-2">
-          <RadioGroup v-model="jLanesProxy" class="flex gap-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <RadioGroup v-model="jLanesProxy" class="flex gap-1 flex-wrap">
             <RadioGroupOption
                 v-for="n in lanePalette"
                 :key="'j_lane_' + n"
@@ -319,7 +321,7 @@ const teamsPerJuryHint = computed(() => {
                      'after:-right-2 after:text-[10px] after:px-1.5 after:py-0.5 after:bg-emerald-100 ' +
                       'after:text-emerald-700 after/rounded after:content-[\'Empfohlen\']' : ''
                   ]"
-                  class="relative px-2 py-1 rounded-md border text-sm transition
+                  class="relative px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
                    focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                   type="button"
               >
@@ -328,9 +330,9 @@ const teamsPerJuryHint = computed(() => {
             </RadioGroupOption>
           </RadioGroup>
 
-          <span class="text-sm font-medium">Jurygruppe(n)</span>
+          <span class="text-sm font-medium whitespace-nowrap">Jurygruppe(n)</span>
           <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
-          <span class="text-xs text-gray-500 italic">
+          <span class="text-xs text-gray-500 italic break-words">
             {{ teamsPerJuryHint }}
           </span>
         </div>
@@ -344,8 +346,8 @@ const teamsPerJuryHint = computed(() => {
 
       <!-- Robot game tables -->
       <div class="mb-3">
-        <div class="flex items-center gap-2">
-          <RadioGroup v-model="rTablesProxy" class="flex gap-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <RadioGroup v-model="rTablesProxy" class="flex gap-1 flex-wrap">
             <RadioGroupOption
                 v-for="tb in [2,4]"
                 :key="'tables_' + tb"
@@ -359,7 +361,7 @@ const teamsPerJuryHint = computed(() => {
                     checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
                     disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                   ]"
-                  class="px-2 py-1 rounded-md border text-sm transition
+                  class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
                        focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                   type="button"
                   @click="!disabled && updateByName('r_tables', tb)"
@@ -368,7 +370,7 @@ const teamsPerJuryHint = computed(() => {
               </button>
             </RadioGroupOption>
           </RadioGroup>
-          <span class="text-sm font-medium">Robot-Game Tische</span>
+          <span class="text-sm font-medium whitespace-nowrap">Robot-Game Tische</span>
           <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
         </div>
       </div>

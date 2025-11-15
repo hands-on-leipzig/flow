@@ -4,6 +4,8 @@ import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import draggable from 'vuedraggable'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
+import LoaderText from "@/components/atoms/LoaderText.vue";
 
 // --- Stores & Refs ---
 const eventStore = useEventStore()
@@ -34,8 +36,12 @@ const getProgramColor = (item) => {
   }
 }
 
+// --- Loading state ---
+const loading = ref(true)
+
 // --- Lifecycle ---
 onMounted(async () => {
+  loading.value = true
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
 
   // Räume laden
@@ -163,6 +169,8 @@ onMounted(async () => {
   //   activities: Object.keys(result).filter(k => k.startsWith('activity-')).length,
   //   teams: Object.keys(result).filter(k => k.startsWith('team-')).length
   // })
+  
+  loading.value = false
 })
 
 // --- Raum bearbeiten ---
@@ -716,7 +724,11 @@ const hasWarning = (tab) => {
 </script>
 
 <template>
-  <div class="grid grid-cols-4 gap-6 p-6">
+  <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
+    <LoaderFlow/>
+    <LoaderText/>
+  </div>
+  <div v-else class="grid grid-cols-4 gap-6 p-6">
     <!-- 🟢 Räume: Erste 3 Spalten -->
     <div class="col-span-3">
       <h2 class="text-xl font-bold mb-4">Räume</h2>
