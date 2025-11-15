@@ -18,9 +18,9 @@ return new class extends Migration
 
         Schema::table('team_plan', function (Blueprint $table) {
             try {
-                $table->dropForeign(['plan']);
+                $table->dropForeign('team_plan_ibfk_1');
             } catch (\Throwable $e) {
-                // Foreign key might not exist; ignore
+                // Constraint might already be dropped; ignore
             }
         });
 
@@ -40,9 +40,9 @@ return new class extends Migration
 
         Schema::table('team_plan', function (Blueprint $table) {
             try {
-                $table->dropForeign(['plan']);
+                $table->dropForeign('team_plan_ibfk_1');
             } catch (\Throwable $e) {
-                // Foreign key might not exist; ignore
+                // Constraint might already be dropped; ignore
             }
         });
 
