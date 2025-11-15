@@ -557,7 +557,7 @@ const updateTableName = async () => {
       </button>
       <transition name="fade">
         <div v-if="openGroup === 'general'" class="p-4">
-          <div class="grid grid-cols-3 gap-4 mt-4">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
             <ExploreSettings
                 :parameters="parameters"
                 :show-explore="showExplore"
