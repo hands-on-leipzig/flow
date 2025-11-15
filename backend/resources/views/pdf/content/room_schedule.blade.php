@@ -37,17 +37,23 @@ $isMultiDay = count($activitiesByDay) > 1;
                 <table style="width:100%; border-collapse:collapse; font-size:13px;">
                 <thead>
                     <tr style="background-color:#f5f5f5;">
-                        <th style="text-align:left; padding:6px 8px; width:10%;">Start</th>
-                        <th style="text-align:left; padding:6px 8px; width:10%;">Ende</th>
+                        <th style="text-align:center; padding:6px 4px; width:6%;"></th>
+                        <th style="text-align:left; padding:6px 8px; width:9%;">Start</th>
+                        <th style="text-align:left; padding:6px 8px; width:9%;">Ende</th>
                         <th style="text-align:center; padding:6px 4px; width:5%;"></th>
                         <th style="text-align:center; padding:6px 4px; width:5%;"></th>
                         <th style="text-align:left; padding:6px 8px; width:25%;">Aktivität</th>
-                        <th style="text-align:left; padding:6px 8px; width:45%;">Team</th>
+                        <th style="text-align:left; padding:6px 8px; width:40%;">Team</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($dayData['rows'] as $i => $row)
                         <tr style="background-color:{{ $i % 2 === 0 ? '#ffffff' : '#f9f9f9' }};">
+                            <td style="text-align:center; padding:4px;">
+                                @if(!empty($row['is_free']))
+                                    <span style="font-size:12px;">!</span>
+                                @endif
+                            </td>
                             <td style="padding:5px 8px;">{{ $row['start'] }}</td>
                             <td style="padding:5px 8px;">{{ $row['end'] }}</td>
                             {{-- Explore Icon --}}

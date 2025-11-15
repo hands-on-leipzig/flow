@@ -489,6 +489,7 @@ class PlanExportController extends Controller
                 'start_hm' => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'   => Carbon::parse($a->end_time)->format('H:i'),
                 'activity' => $this->formatActivityLabel($a),
+                'is_free'  => $this->isFreeBlock($a),
                 'assign'   => $a->assign,
                 'room'     => $a->room_name ?? $a->room_type_name ?? '–',
                 'team_id'  => $a->team,
@@ -771,6 +772,8 @@ class PlanExportController extends Controller
                 'start_hm'  => Carbon::parse($a->start_time)->format('H:i'),
                 'end_hm'    => Carbon::parse($a->end_time)->format('H:i'),
                 'activity'  => $this->formatActivityLabel($a),
+                'is_free'   => $this->isFreeBlock($a),
+                'is_free'   => $this->isFreeBlock($a),
                 'teamLabel' => $teamLabel,
                 'assign'    => $a->assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
@@ -1245,6 +1248,7 @@ if ($prepRooms->isNotEmpty()) {
                     'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                     'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                     'activity' => $this->formatActivityLabel($a),
+                    'is_free'  => $this->isFreeBlock($a),
                     'room'     => $roomDisplay,
                     'start_date' => \Carbon\Carbon::parse($a->start_time), // Added for day grouping
                 ];
@@ -2624,5 +2628,25 @@ if ($prepRooms->isNotEmpty()) {
         }
 
         return $base;
+    }
+
+    private function isFreeBlock($activity): bool
+    {
+        static $freeIds = null;
+
+        if ($freeIds === null) {
+            $freeIds = DB::table('m_activity_type_detail')
+                ->where('code', 'like', '%free%')
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
+        }
+
+        if (empty($freeIds)) {
+            return false;
+        }
+
+        $detailId = (int)($activity->activity_type_detail_id ?? $activity->activity_type_group ?? 0);
+        return in_array($detailId, $freeIds, true);
     }
 }
