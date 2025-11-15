@@ -436,19 +436,10 @@ class StatisticController extends Controller
 
     protected function publicationTotals(): array
     {
-        $latest = DB::table('publication as p')
-            ->select('p.event', 'p.level')
-            ->join(DB::raw('(SELECT event, MAX(updated_at) as max_updated FROM publication GROUP BY event) latest'), function ($join) {
-                $join->on('p.event', '=', 'latest.event')
-                    ->on('p.updated_at', '=', 'latest.max_updated');
-            })
-            ->pluck('p.level');
-
-        $levels = $latest->groupBy(function ($level) {
-            return (int)$level;
-        })->map(function ($group) {
-            return $group->count();
-        });
+        $levels = DB::table('publication')
+            ->select('level', DB::raw('COUNT(*) as count'))
+            ->groupBy('level')
+            ->pluck('count', 'level');
 
         $level1 = (int)($levels[1] ?? 0);
         $level2 = (int)($levels[2] ?? 0);
