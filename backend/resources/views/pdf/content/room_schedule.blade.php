@@ -51,7 +51,7 @@ $isMultiDay = count($activitiesByDay) > 1;
                         <tr style="background-color:{{ $i % 2 === 0 ? '#ffffff' : '#f9f9f9' }};">
                             <td style="text-align:center; padding:4px;">
                                 @if(!empty($row['is_free']))
-                                    <span style="font-size:12px;">!</span>
+                                    <img src="{{ public_path('flow/hourglass.png') }}" alt="Free interval" style="height:16px; width:auto;">
                                 @endif
                             </td>
                             <td style="padding:5px 8px;">{{ $row['start'] }}</td>
