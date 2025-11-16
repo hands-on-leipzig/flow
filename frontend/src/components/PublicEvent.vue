@@ -122,9 +122,9 @@ const getExploreTimelineItems = () => {
   if (plan.briefing?.teams) {
     items.push({
       time: formatTimeOnly(plan.briefing.teams),
-      label: 'Coach-Briefing',
+      label: 'Coach:innen-Briefing',
       type: 'briefing',
-      description: 'Briefing für Coaches',
+      description: 'Briefing für Coach:innen',
       timestamp: new Date(plan.briefing.teams).getTime()
     })
   }
@@ -184,9 +184,9 @@ const getChallengeTimelineItems = () => {
   if (plan.briefing?.judges) {
     items.push({
       time: formatTimeOnly(plan.briefing.judges),
-      label: 'Gutachter:innen-Briefing',
+      label: 'Juror:innen-Briefing',
       type: 'briefing',
-      description: 'Briefing für Gutachter:innen',
+      description: 'Briefing für Juror:innen',
       timestamp: new Date(plan.briefing.judges).getTime()
     })
   }
@@ -574,21 +574,25 @@ onBeforeUnmount(() => {
     <div v-else-if="error" class="min-h-screen flex items-center justify-center p-4">
       <div class="text-center max-w-2xl mx-auto w-full">
         <!-- Colorful Header -->
-        <div class="bg-[#F78B1F] rounded-2xl md:rounded-3xl shadow-xl md:shadow-2xl p-6 md:p-8 mb-6 md:mb-8 transform hover:scale-[1.02] transition-transform">
+        <div
+            class="bg-[#F78B1F] rounded-2xl md:rounded-3xl shadow-xl md:shadow-2xl p-6 md:p-8 mb-6 md:mb-8 transform hover:scale-[1.02] transition-transform">
           <div class="text-white text-4xl md:text-6xl mb-3 md:mb-4">🔍</div>
           <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 md:mb-4 drop-shadow-lg px-2">
             {{ error === 'Plan nicht gefunden' ? 'Plan nicht gefunden' : 'Event nicht gefunden' }}
           </h1>
           <div class="flex justify-center items-center gap-3 md:gap-4 mt-4 md:mt-6">
             <div class="flex items-center gap-2 md:gap-3 bg-white/20 backdrop-blur-sm rounded-full px-4 md:px-6 py-2">
-              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-8 h-8 md:w-12 md:h-12 drop-shadow-lg"/>
-              <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="w-8 h-8 md:w-12 md:h-12 drop-shadow-lg"/>
+              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')"
+                   class="w-8 h-8 md:w-12 md:h-12 drop-shadow-lg"/>
+              <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')"
+                   class="w-8 h-8 md:w-12 md:h-12 drop-shadow-lg"/>
             </div>
           </div>
         </div>
 
         <!-- Friendly Message Card -->
-        <div class="bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl p-4 md:p-6 lg:p-8 border-2 border-[#F78B1F]/30">
+        <div
+            class="bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl p-4 md:p-6 lg:p-8 border-2 border-[#F78B1F]/30">
           <p class="text-base md:text-lg text-gray-700 mb-4 md:mb-6 leading-relaxed">
             Hey! 👋 Für die Adresse, die du aufgerufen hast, konnten wir leider
             {{ error === 'Plan nicht gefunden' ? 'keinen Plan' : 'kein Event' }} finden.
@@ -648,8 +652,10 @@ onBeforeUnmount(() => {
         <div
             class="bg-white rounded-2xl md:rounded-3xl shadow-xl md:shadow-2xl p-4 md:p-8 mb-4 md:mb-6 transform transition-transform">
           <div class="flex flex-col md:flex-row items-center gap-3 md:gap-6">
-            <img :src="imageUrl('/flow/hot+fll.png')" alt="FLOW Logo" class="h-10 md:h-16 w-auto drop-shadow-lg flex-shrink-0"/>
-            <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#F78B1F] drop-shadow-lg flex-1 text-center md:text-center">{{
+            <img :src="imageUrl('/flow/hot+fll.png')" alt="FLOW Logo"
+                 class="h-10 md:h-16 w-auto drop-shadow-lg flex-shrink-0"/>
+            <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#F78B1F] drop-shadow-lg flex-1 text-center md:text-center">
+              {{
                 event.name
               }}</h1>
           </div>
@@ -657,7 +663,8 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Level 2 & 3: Times on Timeline -->
-      <div class="mt-6 md:mt-8 bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border-2 border-[#F78B1F] p-4 md:p-8">
+      <div
+          class="mt-6 md:mt-8 bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border-2 border-[#F78B1F] p-4 md:p-8">
         <h2 class="text-xl md:text-2xl font-bold text-[#F78B1F] mb-4 md:mb-6 flex items-center gap-2">
           Zeitplan
         </h2>
@@ -1055,7 +1062,8 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div class="flex flex-col items-center gap-3 md:gap-4">
-          <div class="bg-white p-3 md:p-4 rounded-lg min-h-[200px] md:min-h-[256px] min-w-[200px] md:min-w-[256px] flex items-center justify-center">
+          <div
+              class="bg-white p-3 md:p-4 rounded-lg min-h-[200px] md:min-h-[256px] min-w-[200px] md:min-w-[256px] flex items-center justify-center">
             <canvas ref="qrCodeRef" class="max-w-full max-h-full"></canvas>
             <div v-if="!mapCoordinates" class="text-gray-400 text-xs md:text-sm absolute">Lade Standort...</div>
           </div>
@@ -1081,7 +1089,8 @@ onBeforeUnmount(() => {
     <div class="bg-[#F78B1F] py-6 md:py-8 mt-8 md:mt-12 shadow-2xl">
       <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         <!-- Event Logos -->
-        <div v-if="eventLogos.length > 0" class="flex flex-wrap items-center justify-center gap-4 md:gap-6 lg:gap-8 mb-6 md:mb-8">
+        <div v-if="eventLogos.length > 0"
+             class="flex flex-wrap items-center justify-center gap-4 md:gap-6 lg:gap-8 mb-6 md:mb-8">
           <a
               v-for="logo in eventLogos"
               :key="logo.id"
