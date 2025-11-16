@@ -182,7 +182,10 @@ class PlanExportController extends Controller
                 ->format('d.m.y')
             : '';
 
-        $maxRowsPerPage = 16; // Anzahl Zeilen pro Seite    
+        // Determine rows per page depending on multiday events
+        $eventDays = DB::table('event')->where('id', $eventId)->value('days');
+        $isMultidayEvent = (int)($eventDays ?? 1) > 1;
+        $maxRowsPerPage = $isMultidayEvent ? 14 : 16; // reduce when date bar is shown
 
         // PDF erzeugen
         $pdf = match ($type) {
@@ -982,6 +985,7 @@ class PlanExportController extends Controller
             ->where('plan.id', $planId)
             ->select('event.*')
             ->first();
+        $isMultidayEvent = (int)($event->days ?? 1) > 1;
 
         // Räume nach room.sequence sortieren (Fallback: Name)
         $roomIds = $activities
@@ -1126,6 +1130,8 @@ class PlanExportController extends Controller
                     'room'  => $roomLabel,
                     'rows'  => $chunkRows,
                     'event' => $event,
+                    'multi_day_event' => $isMultidayEvent,
+                    'page_date' => !empty($chunkRows) ? ($chunkRows[0]['start_date'] ?? null) : null,
                 ])->render();
 
                 // Seitenumbruch nach jedem Chunk (außer letzter)
@@ -1285,6 +1291,29 @@ if ($prepRooms->isNotEmpty()) {
                 ['end_time', 'asc'],
             ]);
 
+            // 🔹 Raumname aus team_plan → room
+            $teamRoomName = '!Platzhalter, weil das Team noch keinem Raum zugeordnet wurde!';
+            $roomData = null;
+
+            $teamId = $page['team_id'] ?? null; // muss von deinen build*Pages mitgegeben werden
+            if ($teamId) {
+                $roomId = DB::table('team_plan')
+                    ->where('plan', $planId)
+                    ->where('team', $teamId)
+                    ->value('room');
+
+                if ($roomId) {
+                    $roomData = DB::table('room')
+                        ->where('id', $roomId)
+                        ->select('name', 'navigation_instruction', 'is_accessible')
+                        ->first();
+
+                    if ($roomData && $roomData->name) {
+                        $teamRoomName = $roomData->name;
+                    }
+                }
+            }
+            
             // Get team number for table assignment lookup
             $teamNumber = $page['team_number'] ?? null;
 
@@ -1326,29 +1355,6 @@ if ($prepRooms->isNotEmpty()) {
                     'start_date' => \Carbon\Carbon::parse($a->start_time), // Added for day grouping
                 ];
             })->values()->all();
-
-            // 🔹 Raumname aus team_plan → room
-            $teamRoomName = '!Platzhalter, weil das Team noch keinem Raum zugeordnet wurde!';
-            $roomData = null;
-
-            $teamId = $page['team_id'] ?? null; // muss von deinen build*Pages mitgegeben werden
-            if ($teamId) {
-                $roomId = DB::table('team_plan')
-                    ->where('plan', $planId)
-                    ->where('team', $teamId)
-                    ->value('room');
-
-                if ($roomId) {
-                    $roomData = DB::table('room')
-                        ->where('id', $roomId)
-                        ->select('name', 'navigation_instruction', 'is_accessible')
-                        ->first();
-
-                    if ($roomData && $roomData->name) {
-                        $teamRoomName = $roomData->name;
-                    }
-                }
-            }
             
             // Collect unique rooms with navigation for legend
             $roomsWithNav = [];
@@ -1404,67 +1410,29 @@ if ($prepRooms->isNotEmpty()) {
                 'start_date' => $firstDate,
             ]);
             
-            // Check if team has multiple days
-            $uniqueDays = collect($rows)->pluck('start_date')->map(function($date) {
-                return $date->format('Y-m-d');
-            })->unique()->count();
-            
-            $hasMultipleDays = $uniqueDays > 1;
-            
-            if ($hasMultipleDays) {
-                // Multi-day team: split each day into chunks of maxRowsPerPage
-                $rowsByDay = collect($rows)->groupBy(function ($r) {
-                    return $r['start_date']->format('Y-m-d');
-                });
+            // Chunk rows uniformly (independent of day changes)
+            $chunks = array_chunk($rows, $maxRowsPerPage);
+            $chunkCount = count($chunks);
 
-                $dayIndex = 0;
-                $numDays = $rowsByDay->count();
+            foreach ($chunks as $chunkIndex => $chunkRows) {
+                $html .= view('pdf.content.team_schedule', [
+                    'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
+                    'rows'  => $chunkRows,
+                    'event' => $event,
+                    'multi_day_event' => isset($isMultidayEvent) ? $isMultidayEvent : false,
+                    'page_date' => !empty($chunkRows) ? ($chunkRows[0]['start_date'] ?? null) : null,
+                    // Provide roomsWithNav on every chunk to keep right column complete
+                    'roomsWithNav' => $roomsWithNav,
+                ])->render();
 
-                foreach ($rowsByDay as $dayKey => $dayRows) {
-                    $chunks = array_chunk($dayRows->values()->all(), $maxRowsPerPage);
-                    $chunkCount = count($chunks);
-
-                    foreach ($chunks as $chunkIndex => $chunkRows) {
-                        $html .= view('pdf.content.team_schedule', [
-                            'team'  => $page['label'],
-                            'rows'  => $chunkRows,
-                            'event' => $event,
-                            // Provide roomsWithNav on every chunk to keep right column complete
-                            'roomsWithNav' => $roomsWithNav,
-                        ])->render();
-
-                        // Page break after every chunk except the very last of the last day
-                        $isLastChunkOfLastDay = ($dayIndex === $numDays - 1) && ($chunkIndex === $chunkCount - 1);
-                        if (!$isLastChunkOfLastDay) {
-                            $html .= '<div style="page-break-before: always;"></div>';
-                        }
-                    }
-
-                    $dayIndex++;
-                }
-            } else {
-                // Single-day team: use existing chunking logic
-                $chunks = array_chunk($rows, $maxRowsPerPage);
-                $chunkCount = count($chunks);
-
-                foreach ($chunks as $chunkIndex => $chunkRows) {
-                    $html .= view('pdf.content.team_schedule', [
-                        'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
-                        'rows'  => $chunkRows,
-                        'event' => $event,
-                        'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
-                    ])->render();
-
-                    // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
-                    $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
-                    if (!$isLastChunk) {
-                        $html .= '<div style="page-break-before: always;"></div>';
-                    }
+                // Seitenumbruch nach jedem Chunk, außer dem letzten der letzten Seite
+                $isLastChunk = ($idx === $lastIndex) && ($chunkIndex === $chunkCount - 1);
+                if (!$isLastChunk) {
+                    $html .= '<div style="page-break-before: always;"></div>';
                 }
             }
             
-            // Note: page breaks are already inserted after each chunk,
-            // except for the very last chunk of the very last team.
+            // Do not add an extra page break here; the chunk loop already adds breaks between pages/teams.
         }
 
         $layout = app(\App\Services\PdfLayoutService::class);
@@ -1723,6 +1691,7 @@ if ($prepRooms->isNotEmpty()) {
             ->where('plan.id', $planId)
             ->select('event.*')
             ->first();
+        $isMultidayEvent = (int)($event->days ?? 1) > 1;
 
         /**
          * Hilfsfunktion: verteilt "allgemeine" Aktivitäten auf alle Gruppen
@@ -1935,6 +1904,8 @@ if ($prepRooms->isNotEmpty()) {
                     'title' => $section['title'],
                     'rows'  => $chunkRows,
                     'event' => $event,
+                    'multi_day_event' => isset($isMultidayEvent) ? $isMultidayEvent : false,
+                    'page_date' => !empty($chunkRows) ? ($chunkRows[0]['start_date'] ?? null) : null,
                     'roomsWithNav' => $chunkIndex === 0 ? $roomsWithNav : [], // Only on first chunk
                 ])->render();
 

@@ -17,9 +17,14 @@ foreach($rows as $row) {
 $isMultiDay = count($activitiesByDay) > 1;
 @endphp
 
-<h2 style="margin-bottom: 15px; font-size: 22px; font-weight: bold;">
+<h2 style="margin-bottom: 6px; font-size: 22px; font-weight: bold;">
     {{ $room }}
 </h2>
+@if(!empty($multi_day_event) && !empty($page_date))
+    <div style="background-color: #34495e; color: white; padding: 6px 10px; margin: 0 0 8px 0; font-size: 14px; border-radius: 3px;">
+        {{ $page_date->locale('de')->isoFormat('dddd, DD.MM.YYYY') }}
+    </div>
+@endif
 
 <table style="width:100%; border-collapse:collapse;">
     <tr valign="top">
