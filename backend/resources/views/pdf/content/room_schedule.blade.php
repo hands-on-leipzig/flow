@@ -1,9 +1,5 @@
 {{-- resources/views/pdf/content/room_schedule.blade.php --}}
 
-<h2 style="margin-bottom: 15px; font-size: 22px; font-weight: bold;">
-    {{ $room }}
-</h2>
-
 @php
 // Group rows by day
 $activitiesByDay = [];
@@ -20,6 +16,10 @@ foreach($rows as $row) {
 
 $isMultiDay = count($activitiesByDay) > 1;
 @endphp
+
+<h2 style="margin-bottom: 15px; font-size: 22px; font-weight: bold;">
+    {{ $room }}
+</h2>
 
 <table style="width:100%; border-collapse:collapse;">
     <tr valign="top">
@@ -81,6 +81,5 @@ $isMultiDay = count($activitiesByDay) > 1;
 
         {{-- Rechte Spalte: QR-Code --}}
         @include('pdf.content.right_qr', ['event' => $event])
-        
     </tr>
 </table>

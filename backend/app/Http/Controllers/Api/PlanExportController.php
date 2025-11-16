@@ -182,7 +182,7 @@ class PlanExportController extends Controller
                 ->format('d.m.y')
             : '';
 
-        $maxRowsPerPage = 18; // Anzahl Zeilen pro Seite    
+        $maxRowsPerPage = 16; // Anzahl Zeilen pro Seite    
 
         // PDF erzeugen
         $pdf = match ($type) {
@@ -954,7 +954,7 @@ class PlanExportController extends Controller
     }
 
 
-    public function roomSchedulePdf(int $planId, $maxRowsPerPage = 10)
+    public function roomSchedulePdf(int $planId, $maxRowsPerPage = 16)
     {
         $activities = app(\App\Services\ActivityFetcherService::class)
             ->fetchActivities(
@@ -1217,7 +1217,7 @@ if ($prepRooms->isNotEmpty()) {
         return $pdf;
     }
 
-    public function teamSchedulePdf(int $planId, array $programIds = [], $maxRowsPerPage = 10)
+    public function teamSchedulePdf(int $planId, array $programIds = [], $maxRowsPerPage = 16)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
 
@@ -1412,13 +1412,36 @@ if ($prepRooms->isNotEmpty()) {
             $hasMultipleDays = $uniqueDays > 1;
             
             if ($hasMultipleDays) {
-                // Multi-day team: don't chunk, let template handle day-based page breaks
-                $html .= view('pdf.content.team_schedule', [
-                    'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
-                    'rows'  => $rows,
-                    'event' => $event,
-                    'roomsWithNav' => $roomsWithNav,
-                ])->render();
+                // Multi-day team: split each day into chunks of maxRowsPerPage
+                $rowsByDay = collect($rows)->groupBy(function ($r) {
+                    return $r['start_date']->format('Y-m-d');
+                });
+
+                $dayIndex = 0;
+                $numDays = $rowsByDay->count();
+
+                foreach ($rowsByDay as $dayKey => $dayRows) {
+                    $chunks = array_chunk($dayRows->values()->all(), $maxRowsPerPage);
+                    $chunkCount = count($chunks);
+
+                    foreach ($chunks as $chunkIndex => $chunkRows) {
+                        $html .= view('pdf.content.team_schedule', [
+                            'team'  => $page['label'],
+                            'rows'  => $chunkRows,
+                            'event' => $event,
+                            // Provide roomsWithNav on every chunk to keep right column complete
+                            'roomsWithNav' => $roomsWithNav,
+                        ])->render();
+
+                        // Page break after every chunk except the very last of the last day
+                        $isLastChunkOfLastDay = ($dayIndex === $numDays - 1) && ($chunkIndex === $chunkCount - 1);
+                        if (!$isLastChunkOfLastDay) {
+                            $html .= '<div style="page-break-before: always;"></div>';
+                        }
+                    }
+
+                    $dayIndex++;
+                }
             } else {
                 // Single-day team: use existing chunking logic
                 $chunks = array_chunk($rows, $maxRowsPerPage);
@@ -1440,10 +1463,8 @@ if ($prepRooms->isNotEmpty()) {
                 }
             }
             
-            // Page break between teams (but not after the last team)
-            if ($idx !== $lastIndex) {
-                $html .= '<div style="page-break-before: always;"></div>';
-            }
+            // Note: page breaks are already inserted after each chunk,
+            // except for the very last chunk of the very last team.
         }
 
         $layout = app(\App\Services\PdfLayoutService::class);
@@ -1659,7 +1680,7 @@ if ($prepRooms->isNotEmpty()) {
 
 
 
-    public function roleSchedulePdf(int $planId, array $roleIds = [], $maxRowsPerPage = 10)
+    public function roleSchedulePdf(int $planId, array $roleIds = [], $maxRowsPerPage = 16)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
 
