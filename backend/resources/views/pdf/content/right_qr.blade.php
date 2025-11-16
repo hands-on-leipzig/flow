@@ -50,10 +50,6 @@
             </div>
             
             <table style="width:100%; border-collapse:collapse; border:1px solid #bbb;">
-                <colgroup>
-                    <col style="width:33%;">
-                    <col style="width:67%;">
-                </colgroup>
                 <tbody>
                     @foreach($roomsWithNav as $roomName => $roomData)
                         @php
@@ -64,13 +60,13 @@
                                 : true;
                         @endphp
                         <tr style="border-bottom:1px solid #ddd;">
-                            <td style="padding:3px 8px 3px 6px; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:normal; border-right:1px solid #ddd;">
+                            <td valign="top" style="width:33%; padding:4px 8px 4px 6px; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:normal; border-right:1px solid #ddd; line-height:1.2;">
                                 {{ $roomName }}
                                 @if(!$isAccessible)
                                     <img src="{{ public_path('flow/accessible_no.png') }}" alt="Nicht barrierefrei" style="height:12px; width:auto; margin-left:4px;">
                                 @endif
                             </td>
-                            <td style="padding:3px 6px; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:pre-line; word-break:break-word;">
+                            <td valign="top" style="width:67%; padding:4px 6px; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:normal; word-wrap:break-word; line-height:1.2;">
                                 @if(trim($navigationText) !== '')
                                     {{ $navigationText }}
                                 @else
