@@ -930,14 +930,15 @@ onBeforeUnmount(() => {
 
       <!-- Level 1: Teams -->
       <div
-          v-if="isContentVisible(1) && scheduleInfo && (scheduleInfo.teams.explore.list?.length || scheduleInfo.teams.challenge.list?.length)"
+          v-if="isContentVisible(1) && scheduleInfo && scheduleInfo.teams && ((scheduleInfo.teams.explore?.list?.length > 0 || scheduleInfo.teams.explore?.registered > 0) || (scheduleInfo.teams.challenge?.list?.length > 0 || scheduleInfo.teams.challenge?.registered > 0))"
           class="mt-6 md:mt-8 bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border-2 border-[#F78B1F] p-4 md:p-8">
         <h2 class="text-xl md:text-2xl font-bold text-[#F78B1F] mb-4 md:mb-8 flex items-center gap-2">
           Angemeldete Teams
         </h2>
 
-        <div v-if="scheduleInfo.teams.explore.list?.length" class="mb-6 md:mb-10">
+        <div v-if="scheduleInfo.teams?.explore?.registered > 0" class="mb-6 md:mb-10">
           <div
+              v-if="scheduleInfo.teams.explore.list?.length > 0"
               class="overflow-x-auto rounded-lg md:rounded-xl border-2 md:border-4 shadow-lg md:shadow-xl"
               :style="{
               borderColor: exploreColor,
@@ -955,7 +956,7 @@ onBeforeUnmount(() => {
               <tr>
                 <th colspan="4" class="px-2 md:px-4 py-2 md:py-4 text-right">
                   <div class="flex items-center justify-end">
-                    <img :alt="programLogoAlt('E')" :src="imageUrl('/flow/FLL-RGB_Explore-horiz-full-color.png')"
+                    <img :alt="programLogoAlt('E')" :src="imageUrl('/flow/fll_explore_h.png')"
                          class="h-12 md:h-20 w-auto object-contain"/>
                   </div>
                 </th>
@@ -986,10 +987,21 @@ onBeforeUnmount(() => {
               </tbody>
             </table>
           </div>
+          <div v-else
+               class="rounded-lg md:rounded-xl border-2 border-[#F78B1F]/20 p-4 md:p-6 bg-orange-50">
+            <div class="flex items-center gap-2 mb-2">
+              <img :alt="programLogoAlt('E')" :src="imageUrl('/flow/fll_explore_h.png')"
+                   class="h-8 md:h-12 w-auto object-contain"/>
+              <p class="text-sm md:text-base text-gray-700">
+                {{ scheduleInfo.teams.explore.registered }} Team(s) angemeldet
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div v-if="scheduleInfo.teams.challenge.list?.length">
+        <div v-if="scheduleInfo.teams?.challenge?.registered > 0">
           <div
+              v-if="scheduleInfo.teams.challenge.list?.length > 0"
               class="overflow-x-auto rounded-lg md:rounded-xl border-2 md:border-4 shadow-lg md:shadow-xl"
               :style="{
               borderColor: challengeColor,
@@ -1007,7 +1019,7 @@ onBeforeUnmount(() => {
               <tr>
                 <th colspan="4" class="px-2 md:px-4 py-2 md:py-4 text-right">
                   <div class="flex items-center justify-end">
-                    <img :alt="programLogoAlt('C')" :src="imageUrl('/flow/FLL-RGB_Challenge-horiz-full-color.png')"
+                    <img :alt="programLogoAlt('C')" :src="imageUrl('/flow/fll_challenge_h.png')"
                          class="h-12 md:h-20 w-auto object-contain"/>
                   </div>
                 </th>
@@ -1037,6 +1049,16 @@ onBeforeUnmount(() => {
               </tr>
               </tbody>
             </table>
+          </div>
+          <div v-else
+               class="rounded-lg md:rounded-xl border-2 border-red-300/20 p-4 md:p-6 bg-red-50">
+            <div class="flex items-center gap-2 mb-2">
+              <img :alt="programLogoAlt('C')" :src="imageUrl('/flow/fll_challenge_h.png')"
+                   class="h-8 md:h-12 w-auto object-contain"/>
+              <p class="text-sm md:text-base text-gray-700">
+                {{ scheduleInfo.teams.challenge.registered }} Team(s) angemeldet
+              </p>
+            </div>
           </div>
         </div>
       </div>
