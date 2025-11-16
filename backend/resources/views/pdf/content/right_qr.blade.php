@@ -21,7 +21,7 @@
         Alle Aktivitäten der Veranstaltung, sortiert nach Teams, Räumen und Rollen.
     </div>
 
-    <img src="data:image/png;base64,{{ $event->qrcode }}" style="width:180px; height:180px; margin-bottom:10px;" />
+    <img src="data:image/png;base64,{{ $event->qrcode }}" style="width:200px; height:200px; margin-bottom:10px;" />
 
     <div style="
         font-size:12px;
@@ -49,7 +49,7 @@
                 Hinweise&nbsp;zu&nbsp;den&nbsp;Räumen
             </div>
             
-            <table style="width:100%; border-collapse:collapse;">
+            <table style="width:100%; border-collapse:collapse; border:1px solid #bbb;">
                 <tbody>
                     @foreach($roomsWithNav as $roomName => $roomData)
                         @php
@@ -59,14 +59,14 @@
                                 ? (!array_key_exists('is_accessible', $roomData) ? true : (bool)$roomData['is_accessible'])
                                 : true;
                         @endphp
-                        <tr>
-                            <td style="padding:3px 8px 3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:nowrap;">
+                        <tr style="border-bottom:1px solid #ddd;">
+                            <td style="padding:3px 8px 3px 6px; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:nowrap; border-right:1px solid #ddd;">
                                 {{ $roomName }}
                                 @if(!$isAccessible)
                                     <img src="{{ public_path('flow/accessible_no.png') }}" alt="Nicht barrierefrei" style="height:12px; width:auto; margin-left:4px;">
                                 @endif
                             </td>
-                            <td style="padding:3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif;">
+                            <td style="padding:3px 6px; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif;">
                                 @if(trim($navigationText) !== '')
                                     {{ $navigationText }}
                                 @else
