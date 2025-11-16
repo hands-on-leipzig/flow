@@ -21,7 +21,7 @@
         Alle Aktivitäten der Veranstaltung, sortiert nach Teams, Räumen und Rollen.
     </div>
 
-    <img src="data:image/png;base64,{{ $event->qrcode }}" style="width:180px; height:180px; margin-bottom:10px;" />
+    <img src="data:image/png;base64,{{ $event->qrcode }}" style="width:100px; height:100px; margin-bottom:10px;" />
 
     <div style="
         font-size:12px;
@@ -60,13 +60,13 @@
                                 : true;
                         @endphp
                         <tr>
-                            <td style="padding:3px 8px 3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:nowrap;">
+                            <td valign="top" style="width:33%; padding:4px 8px 4px 6px; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:normal; line-height:1.2;">
                                 {{ $roomName }}
                                 @if(!$isAccessible)
                                     <img src="{{ public_path('flow/accessible_no.png') }}" alt="Nicht barrierefrei" style="height:12px; width:auto; margin-left:4px;">
                                 @endif
                             </td>
-                            <td style="padding:3px 0; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif;">
+                            <td valign="top" style="width:67%; padding:4px 6px; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:normal; word-wrap:break-word; line-height:1.2;">
                                 @if(trim($navigationText) !== '')
                                     {{ $navigationText }}
                                 @else
