@@ -63,7 +63,7 @@
         <table style="width:100%; border-collapse:collapse; margin-bottom: {{ !$loop->last ? '20px' : '0' }};">
             <tr valign="top">
                 {{-- Linke Spalte: Tabelle --}}
-                <td style="width:66%; padding-right:20px;">
+                <td style="width:83.333%; padding-right:20px;">
                     <table style="width:100%; border-collapse:collapse; font-size:13px;">
                         <thead>
                             <tr style="background-color:#f5f5f5;">
@@ -101,7 +101,7 @@
                 @if($loop->first)
                     @include('pdf.content.right_qr', ['event' => $event, 'roomsWithNav' => $roomsWithNav ?? []])
                 @else
-                    <td style="width:34%;"></td>
+                    <td style="width:16.667%;"></td>
                 @endif
             </tr>
         </table>
@@ -111,7 +111,7 @@
     <table style="width:100%; border-collapse:collapse;">
         <tr valign="top">
             {{-- Linke Spalte: Tabelle --}}
-            <td style="width:66%; padding-right:20px;">
+            <td style="width:83.333%; padding-right:20px;">
                 <table style="width:100%; border-collapse:collapse; font-size:13px;">
                     <thead>
                         <tr style="background-color:#f5f5f5;">

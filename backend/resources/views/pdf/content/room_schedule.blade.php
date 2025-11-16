@@ -23,8 +23,8 @@ $isMultiDay = count($activitiesByDay) > 1;
 
 <table style="width:100%; border-collapse:collapse;">
     <tr valign="top">
-        {{-- Linke Spalte: Tabelle --}}
-        <td style="width:66%; padding-right:20px;">
+        {{-- Linke Spalte: Tabelle (5:1 ratio) --}}
+        <td style="width:83.333%; padding-right:20px;">
 
             @foreach($activitiesByDay as $dayKey => $dayData)
                 {{-- Day header for multi-day events --}}
