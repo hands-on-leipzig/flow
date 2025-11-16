@@ -1264,6 +1264,12 @@ if ($prepRooms->isNotEmpty()) {
             ->where('plan.id', $planId)
             ->select('event.*')
             ->first();
+        // Multiday flag for per-page date bar and row limit adjustments
+        $isMultidayEvent = (int)($event->days ?? 1) > 1;
+        // If invoked from a caller that didn't reduce the page size already, do it here
+        if ($isMultidayEvent && (int)$maxRowsPerPage > 14) {
+            $maxRowsPerPage = 14;
+        }
 
         // Explore zuerst, dann Challenge
         $pages = array_merge($explorePages, $challengePages);
