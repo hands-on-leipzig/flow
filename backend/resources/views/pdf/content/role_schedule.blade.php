@@ -48,12 +48,12 @@
                 <table style="width:100%; border-collapse:collapse; font-size:13px;">
                     <thead>
                         <tr style="background-color:#f5f5f5;">
-                            <th style="text-align:center; padding:6px 4px; width:6%;"></th>
-                            <th style="text-align:left; padding:6px 8px; width:10%;">Start</th>
-                            <th style="text-align:left; padding:6px 8px; width:10%;">Ende</th>
-                            <th style="text-align:left; padding:6px 8px; width:28%;">Aktivität</th>
-                            <th style="text-align:left; padding:6px 8px; width:28%;">Team</th>
-                            <th style="text-align:left; padding:6px 8px; width:18%;">Raum</th>
+                            <th style="text-align:center; padding:6px 4px; width:4%;"></th>
+                            <th style="text-align:left; padding:6px 8px; width:8%;">Start</th>
+                            <th style="text-align:left; padding:6px 8px; width:8%;">Ende</th>
+                            <th style="text-align:left; padding:6px 8px; width:26%;">Aktivität</th>
+                            <th style="text-align:left; padding:6px 8px; width:33%;">Team</th>
+                            <th style="text-align:left; padding:6px 8px; width:21%;">Raum</th>
                         </tr>
                     </thead>
                     <tbody>

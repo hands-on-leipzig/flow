@@ -104,11 +104,11 @@
                 <table style="width:100%; border-collapse:collapse; font-size:13px;">
                     <thead>
                         <tr style="background-color:#f5f5f5;">
-                            <th style="text-align:center; padding:6px 4px; width:6%;"></th>
-                            <th style="text-align:left; padding:6px 8px; width:11%;">Start</th>
-                            <th style="text-align:left; padding:6px 8px; width:11%;">Ende</th>
-                            <th style="text-align:left; padding:6px 8px; width:36%;">Aktivität</th>
-                            <th style="text-align:left; padding:6px 8px; width:36%;">Raum</th>
+                            <th style="text-align:center; padding:6px 4px; width:4%;"></th>
+                            <th style="text-align:left; padding:6px 8px; width:8%;">Start</th>
+                            <th style="text-align:left; padding:6px 8px; width:8%;">Ende</th>
+                            <th style="text-align:left; padding:6px 8px; width:40%;">Aktivität</th>
+                            <th style="text-align:left; padding:6px 8px; width:40%;">Raum</th>
                         </tr>
                     </thead>
                     <tbody>
