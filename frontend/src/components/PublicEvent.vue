@@ -938,7 +938,7 @@ onBeforeUnmount(() => {
 
         <div v-if="scheduleInfo.teams?.explore?.registered > 0" class="mb-6 md:mb-10">
           <div
-              v-if="scheduleInfo.teams.explore.list?.length > 0"
+              v-if="scheduleInfo.teams.explore.list"
               class="overflow-x-auto rounded-lg md:rounded-xl border-2 md:border-4 shadow-lg md:shadow-xl"
               :style="{
               borderColor: exploreColor,
@@ -963,7 +963,8 @@ onBeforeUnmount(() => {
               </tr>
               </thead>
               <tbody class="bg-white">
-              <tr v-for="(team, index) in scheduleInfo.teams.explore.list" :key="team.team_number_hot || team.name"
+
+              <tr v-for="(team, index) in scheduleInfo.teams.explore.list" :key="team.team_number_hot"
                   :style="{ 
                     borderTop: index > 0 ? '1px solid ' + exploreColor + '30' : 'none',
                     '--hover-color': exploreColor + '15'
@@ -1001,7 +1002,7 @@ onBeforeUnmount(() => {
 
         <div v-if="scheduleInfo.teams?.challenge?.registered > 0">
           <div
-              v-if="scheduleInfo.teams.challenge.list?.length > 0"
+              v-if="scheduleInfo.teams.challenge.list"
               class="overflow-x-auto rounded-lg md:rounded-xl border-2 md:border-4 shadow-lg md:shadow-xl"
               :style="{
               borderColor: challengeColor,
