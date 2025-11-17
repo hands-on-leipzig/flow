@@ -60,11 +60,42 @@ class PlanController extends Controller
 
 
             if ($data) {
-                if (array_key_exists('capacity_explore', $data)) {
-                    $e_teams = (int)$data['capacity_explore'];
+                $enrolledExplore = 0;
+                if (array_key_exists('teams_explore_count', $data)) {
+                    $enrolledExplore = (int)$data['teams_explore_count'];
+                } elseif (isset($data['teams_explore'])) {
+                    if (is_array($data['teams_explore'])) {
+                        $enrolledExplore = count($data['teams_explore']);
+                    } elseif (is_numeric($data['teams_explore'])) {
+                        $enrolledExplore = (int)$data['teams_explore'];
+                    }
                 }
-                if (array_key_exists('capacity_challenge', $data)) {
-                    $c_teams = (int)$data['capacity_challenge'];
+
+                $plannedExplore = $data['capacity_explore'] ?? null;
+
+                if ($enrolledExplore > 0) {
+                    $e_teams = $enrolledExplore;
+                } elseif (!is_null($plannedExplore)) {
+                    $e_teams = (int)$plannedExplore;
+                }
+
+                $enrolledChallenge = 0;
+                if (array_key_exists('teams_challenge_count', $data)) {
+                    $enrolledChallenge = (int)$data['teams_challenge_count'];
+                } elseif (isset($data['teams_challenge'])) {
+                    if (is_array($data['teams_challenge'])) {
+                        $enrolledChallenge = count($data['teams_challenge']);
+                    } elseif (is_numeric($data['teams_challenge'])) {
+                        $enrolledChallenge = (int)$data['teams_challenge'];
+                    }
+                }
+
+                $plannedChallenge = $data['capacity_challenge'] ?? null;
+
+                if ($enrolledChallenge > 0) {
+                    $c_teams = $enrolledChallenge;
+                } elseif (!is_null($plannedChallenge)) {
+                    $c_teams = (int)$plannedChallenge;
                 }
             }
         }

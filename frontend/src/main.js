@@ -6,7 +6,7 @@ import './assets/main.css'
 import keycloak from "@/keycloak.js";
 import Schedule from "@/components/Schedule.vue";
 import Logos from "@/components/Logos.vue";
-import {createPinia} from "pinia";
+import {createPinia, setActivePinia} from "pinia";
 import SelectEvent from "@/components/SelectEvent.vue";
 import dayjs from "dayjs";
 import 'dayjs/locale/de';
@@ -23,6 +23,7 @@ import PresentationSettings from "@/components/molecules/PresentationSettings.vu
 import PublicEvent from "@/components/PublicEvent.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
 import ScoreViewer from "@/components/ScoreViewer.vue";
+import {useEventStore} from "@/stores/event";
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
@@ -67,56 +68,78 @@ const router = createRouter({
     routes,
 });
 
-router.beforeEach((to, from, next) => {
+// Create pinia instance early so it can be used in router guard
+const pinia = createPinia()
+setActivePinia(pinia)
+
+router.beforeEach(async (to, from, next) => {
+    // Allow public routes
     if (to.meta?.public) {
         next();
         return;
     }
-    if (keycloak.authenticated) {
-        next();
+    
+    // Handle authentication
+    if (!keycloak.authenticated) {
+        keycloak.init({onLoad: 'login-required'}).then(authenticated => {
+            if (!authenticated) {
+                window.location.reload()
+            }
+
+            // save token to use with axios
+            localStorage.setItem('kc_token', keycloak.token)
+
+            // refresh token periodically
+            setInterval(() => {
+                keycloak.updateToken(60).then(refreshed => {
+                    if (refreshed) {
+                        localStorage.setItem('kc_token', keycloak.token)
+                    }
+                })
+            }, 10000);
+            next();
+        });
         return;
     }
-    keycloak.init({onLoad: 'login-required'}).then(authenticated => {
-        if (!authenticated) {
-            window.location.reload()
+    
+    // Check if event is selected for non-public routes
+    // Skip check for the events selection page itself
+    if (to.path !== '/plan/events' && to.path !== '/events' && to.path.startsWith('/plan')) {
+        // Use the store - pinia is already active
+        const eventStore = useEventStore();
+        
+        // Try to fetch selected event if not already loaded
+        if (!eventStore.selectedEvent) {
+            await eventStore.fetchSelectedEvent();
         }
-
-        // save token to use with axios
-        localStorage.setItem('kc_token', keycloak.token)
-
-        // refresh token periodically
-        setInterval(() => {
-            keycloak.updateToken(60).then(refreshed => {
-                if (refreshed) {
-                    localStorage.setItem('kc_token', keycloak.token)
-                }
-            })
-        }, 10000);
-        next();
-    });
+        
+        // If still no event selected, redirect to event selection page
+        if (!eventStore.selectedEvent) {
+            next('/plan/events');
+            return;
+        }
+    }
+    
+    next();
 });
 
 const app = createApp(App)
-const pinia = createPinia()
-
-    axios.defaults.baseURL = '/api'
-    axios.defaults.withCredentials = true
-    
-    app.config.globalProperties.$axios = axios
-    axios.interceptors.request.use(config => {
-        // Only set Content-Type for JSON requests, not FormData
-        if (config.method === "post" && !(config.data instanceof FormData)) {
-            config.headers["Content-Type"] = "application/json"
-        }
-        const token = localStorage.getItem('kc_token')
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`
-        }
-        return config
-    })
 
 axios.defaults.baseURL = '/api'
 axios.defaults.withCredentials = true
+
+app.config.globalProperties.$axios = axios
+axios.interceptors.request.use(config => {
+    // Only set Content-Type for JSON requests, not FormData
+    if (config.method === "post" && !(config.data instanceof FormData)) {
+        config.headers["Content-Type"] = "application/json"
+    }
+    const token = localStorage.getItem('kc_token')
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+})
 
 dayjs.locale('de')
 

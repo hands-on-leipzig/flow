@@ -299,11 +299,6 @@ class PublishController extends Controller
         $drahtCtrl = app(\App\Http\Controllers\Api\DrahtController::class);
         $drahtData = $drahtCtrl->show($event)->getData(true);
 
-
-        // Ins Log schreiben
-        // Log::info('DrahtController::show() data', $drahtData);
-
-
         // Get color information from m_first_program table
         $exploreColor = DB::table('m_first_program')
             ->where('name', 'EXPLORE')
@@ -327,8 +322,9 @@ class PublishController extends Controller
                     'registered' => count($drahtData['teams_explore'] ?? []),
                     'color_hex' => $exploreColor,
                     'list' => $level >= 1 ? array_map(function ($team) {
+                        Log::info($team);
                         return [
-                            'team_number_hot' => $team['team_number_hot'] ?? null,
+                            'team_number_hot' => $team['ref'] ?? null,
                             'name' => $team['name'] ?? '',
                             'organization' => $team['organization'] ?? '',
                             'location' => $team['location'] ?? ''
@@ -341,7 +337,7 @@ class PublishController extends Controller
                     'color_hex' => $challengeColor,
                     'list' => $level >= 1 ? array_map(function ($team) {
                         return [
-                            'team_number_hot' => $team['team_number_hot'] ?? null,
+                            'team_number_hot' => $team['ref'] ?? null,
                             'name' => $team['name'] ?? '',
                             'organization' => $team['organization'] ?? '',
                             'location' => $team['location'] ?? ''

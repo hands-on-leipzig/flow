@@ -188,17 +188,19 @@ class ActivityFetcherService
                 r.id as room_id,
                 r.name as room_name,
                 r.navigation_instruction as room_navigation,
-                r.sequence as room_sequence
+                r.sequence as room_sequence,
+                r.is_accessible as room_is_accessible
             ';
         }
 
         // --- Activity-Meta: bei Extra-Block Name/Description aus peb.* ziehen
         if ($includeActivityMeta) {
             $select .= ',
-                CASE 
-                    WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.name, atd.name)
-                    ELSE atd.name
-                END                        as activity_atd_name,
+            CASE 
+                WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.name, atd.name)
+                ELSE atd.name
+            END                        as activity_atd_name,
+                atd.code                   as activity_type_code,
                 atd.first_program          as activity_first_program_id,
                 fp.name                    as activity_first_program_name,
                 CASE 
@@ -221,6 +223,7 @@ class ActivityFetcherService
                 ag_at.overview_plan_column as group_overview_plan_column,
                 ag_at.id                   as activity_type_id,
                 ag_at.name                 as activity_type_name,
+                ag_atd.code                as group_activity_type_code,
                 a.extra_block as is_extra_block,
                 ag.activity_type_detail as activity_type_detail,
                 CASE 

@@ -12,10 +12,10 @@ class  SeasonService
         $month = (int)date('n');
         $year = (int)date('Y');
         $effectiveYear = ($month <= 7) ? $year - 1 : $year;
-        $current_season_id = DB::table('m_season')->where('year', $effectiveYear)->id;
-        if (!$current_season_id) {
+        $current_season = DB::table('m_season')->where('year', $effectiveYear)->get();
+        if (!$current_season) {
             Log::error("Could not find current season");
         }
-        return $current_season_id;
+        return $current_season[0]->id;
     }
 }

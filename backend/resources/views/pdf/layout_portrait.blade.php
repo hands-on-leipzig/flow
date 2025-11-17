@@ -31,6 +31,7 @@
             left: 0;
             right: 0;
             height: 80px;
+            padding-bottom: 15px;
         }
 
         /* Content */
@@ -45,6 +46,35 @@
         }
 
         td { vertical-align: top; }
+
+        .footer-logo-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 auto;
+            margin-bottom: 5px;
+        }
+
+        .footer-logo-table td {
+            padding: 8px 12px;
+            text-align: center;
+            vertical-align: middle;
+            height: 70px;
+        }
+
+        .footer-logo-table img {
+            max-width: 70px;
+            max-height: 70px;
+            display: inline-block;
+        }
+
+        .footer-timestamp {
+            position: absolute;
+            right: 10px;
+            bottom: 5px;
+            font-size: 8px;
+            color: #999;
+            font-family: sans-serif;
+        }
     </style>
 </head>
 <body>
@@ -80,17 +110,17 @@
     {{-- FOOTER --}}
     <footer>
         @if(!empty($footerLogos))
-            <table>
+            <table class="footer-logo-table">
                 <tr>
                     @foreach($footerLogos as $src)
-                        <td style="text-align:center; vertical-align:middle; padding:10px;">
-                            <img src="{{ $src }}" style="height:60px; max-width:100%; object-fit:contain;" />
+                        <td>
+                            <img src="{{ $src }}" alt="Footer logo" />
                         </td>
                     @endforeach
                 </tr>
             </table>
         @endif
-        <div style="position:absolute; bottom:5px; right:10px; font-size:8px; color:#999; font-family:sans-serif;">
+        <div class="footer-timestamp">
             {{ now()->timezone('Europe/Berlin')->format('d.m.Y H:i') }}
         </div>
     </footer>

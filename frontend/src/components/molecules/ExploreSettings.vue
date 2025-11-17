@@ -564,18 +564,20 @@ const teamsPerJuryHint2 = computed(() => {
 </script>
 
 <template>
-  <div class="p-4 border rounded shadow relative">
-    <div class="flex items-center gap-2 mb-4 justify-between">
-      <img
-          :alt="programLogoAlt('E')"
-          :src="programLogoSrc('E')"
-          class="w-10 h-10 flex-shrink-0"
-      />
-      <h3 class="text-lg font-semibold capitalize">
-        <span class="italic">FIRST</span> LEGO League Explore
-      </h3>
+  <div class="p-4 border rounded shadow relative min-w-0">
+    <div class="flex items-center gap-2 mb-4 justify-between flex-wrap">
+      <div class="flex items-center gap-2 min-w-0 flex-1">
+        <img
+            :alt="programLogoAlt('E')"
+            :src="programLogoSrc('E')"
+            class="w-10 h-10 flex-shrink-0"
+        />
+        <h3 class="text-lg font-semibold capitalize break-words min-w-0">
+          <span class="italic">FIRST</span> LEGO League Explore
+        </h3>
+      </div>
 
-      <label class="relative inline-flex items-center cursor-pointer">
+      <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
         <input
             :checked="showExplore"
             class="sr-only peer"
@@ -622,9 +624,9 @@ const teamsPerJuryHint2 = computed(() => {
     <div v-if="hasExplore">
       <div class="space-y-4 mb-4">
         <!-- First row: Timing (Radio buttons) -->
-        <div class="flex items-center gap-2">
-          <span class="text-sm font-medium">Explore im</span>
-          <RadioGroup v-model="timingMode" class="flex gap-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm font-medium whitespace-nowrap">Explore im</span>
+          <RadioGroup v-model="timingMode" class="flex gap-1 flex-wrap">
             <RadioGroupOption
                 v-for="option in timingOptions"
                 :key="option.value"
@@ -633,7 +635,7 @@ const teamsPerJuryHint2 = computed(() => {
             >
               <button
                   :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-                  class="px-2 py-1 rounded-md border text-sm transition
+                  class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
                        focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                   type="button"
               >
@@ -645,9 +647,9 @@ const teamsPerJuryHint2 = computed(() => {
         </div>
 
         <!-- Second row: Integration (Simple Ja/Nein) - Only show if Challenge is enabled -->
-        <div v-if="isChallengeEnabled" class="flex items-center gap-2">
-          <span class="text-sm font-medium">Integration mit Challenge</span>
-          <RadioGroup v-model="integrationEnabled" class="flex gap-1">
+        <div v-if="isChallengeEnabled" class="flex flex-wrap items-center gap-2">
+          <span class="text-sm font-medium whitespace-nowrap">Integration mit Challenge</span>
+          <RadioGroup v-model="integrationEnabled" class="flex gap-1 flex-wrap">
             <RadioGroupOption
                 value="yes"
                 v-slot="{ checked }"
@@ -690,8 +692,8 @@ const teamsPerJuryHint2 = computed(() => {
 
     <!-- AM timing: Show AM lanes selection -->
     <div v-if="hasExplore && timingMode === 'morning'" class="mt-4">
-      <div class="flex items-start gap-2">
-        <RadioGroup v-model="eLanesAMProxy" class="flex gap-1">
+      <div class="flex flex-wrap items-start gap-2">
+        <RadioGroup v-model="eLanesAMProxy" class="flex gap-1 flex-wrap">
           <RadioGroupOption
               v-for="n in allLaneOptions"
               :key="'e_lane_am_' + n"
@@ -705,7 +707,7 @@ const teamsPerJuryHint2 = computed(() => {
                   checked ? getAlertLevelStyle(currentConfigAlertLevelAM) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
-                class="px-2 py-1 rounded-md border text-sm transition
+                class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                 type="button"
             >
@@ -713,17 +715,17 @@ const teamsPerJuryHint2 = computed(() => {
             </button>
           </RadioGroupOption>
         </RadioGroup>
-        <div class="flex flex-col">
-          <span class="text-sm font-medium">Gutachter:innen-Gruppen</span>
-          <span class="text-xs text-gray-500 italic">{{ teamsPerJuryHint1 }}</span>
+        <div class="flex flex-col min-w-0 flex-1">
+          <span class="text-sm font-medium break-words">Gutachter:innen-Gruppen</span>
+          <span class="text-xs text-gray-500 italic break-words">{{ teamsPerJuryHint1 }}</span>
         </div>
       </div>
     </div>
 
     <!-- PM timing: Show PM lanes selection -->
     <div v-if="hasExplore && timingMode === 'afternoon'" class="mt-4">
-      <div class="flex items-start gap-2">
-        <RadioGroup v-model="eLanesPMProxy" class="flex gap-1">
+      <div class="flex flex-wrap items-start gap-2">
+        <RadioGroup v-model="eLanesPMProxy" class="flex gap-1 flex-wrap">
           <RadioGroupOption
               v-for="n in allLaneOptions"
               :key="'e_lane_pm_' + n"
@@ -737,7 +739,7 @@ const teamsPerJuryHint2 = computed(() => {
                   checked ? getAlertLevelStyle(currentConfigAlertLevelPM) : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
-                class="px-2 py-1 rounded-md border text-sm transition
+                class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                 type="button"
             >
@@ -745,9 +747,9 @@ const teamsPerJuryHint2 = computed(() => {
             </button>
           </RadioGroupOption>
         </RadioGroup>
-        <div class="flex flex-col">
-          <span class="text-sm font-medium">Gutachter:innen-Gruppen</span>
-          <span class="text-xs text-gray-500 italic">{{ teamsPerJuryHint2 }}</span>
+        <div class="flex flex-col min-w-0 flex-1">
+          <span class="text-sm font-medium break-words">Gutachter:innen-Gruppen</span>
+          <span class="text-xs text-gray-500 italic break-words">{{ teamsPerJuryHint2 }}</span>
         </div>
       </div>
     </div>
@@ -767,7 +769,7 @@ const teamsPerJuryHint2 = computed(() => {
       </div>
 
       <!-- Two columns for AM and PM -->
-      <div class="mt-4 grid grid-cols-2 gap-8 text-gray-800">
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 text-gray-800">
         <!-- AM -->
         <div :class="(eMode === 4 || eMode === 7 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
           <div class="text-sm font-medium mb-1">
@@ -800,8 +802,8 @@ const teamsPerJuryHint2 = computed(() => {
             <!-- zweizeiliger Block unter den Buttons -->
             <div class="basis-full mt-1">
               <div class="flex flex-col">
-                <span class="text-sm font-medium">Gutacher:innen-Gruppen</span>
-                <span class="text-xs text-gray-500 italic">
+                <span class="text-sm font-medium break-words">Gutacher:innen-Gruppen</span>
+                <span class="text-xs text-gray-500 italic break-words">
                 {{ teamsPerJuryHint1 }}
               </span>
               </div>
@@ -843,8 +845,8 @@ const teamsPerJuryHint2 = computed(() => {
             <!-- zweizeiliger Block unter den Buttons -->
             <div class="basis-full mt-1">
               <div class="flex flex-col">
-                <span class="text-sm font-medium">Gutacher:innen-Gruppen</span>
-                <span class="text-xs text-gray-500 italic">
+                <span class="text-sm font-medium break-words">Gutacher:innen-Gruppen</span>
+                <span class="text-xs text-gray-500 italic break-words">
                 {{ teamsPerJuryHint2 }}
               </span>
               </div>

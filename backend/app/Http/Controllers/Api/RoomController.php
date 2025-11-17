@@ -91,7 +91,18 @@ class RoomController extends Controller
 
     public function destroy(Room $room)
     {
-        $room->delete();
+        DB::transaction(function () use ($room) {
+            DB::table('team_plan')
+                ->where('room', $room->id)
+                ->update(['room' => null]);
+
+            DB::table('extra_block')
+                ->where('room', $room->id)
+                ->update(['room' => null]);
+
+            $room->delete();
+        });
+
         return response()->json();
     }
 
