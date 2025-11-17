@@ -361,6 +361,11 @@ class MainDataSeeder extends Seeder
                     continue;
                 }
                 
+                // Skip created_at and updated_at if we'll add them as timestamps later
+                if ($hasTimestamps && ($columnName === 'created_at' || $columnName === 'updated_at')) {
+                    continue;
+                }
+                
                 // Infer column type from value
                 if (is_int($value)) {
                     // Check if it's a small integer (like sequence, year)
