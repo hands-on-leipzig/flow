@@ -18,7 +18,7 @@
         },
         {
             "id": 3,
-            "name": "Ausstellung",
+            "name": "Begutachtung",
             "sequence": 120,
             "description": "",
             "first_program": 2,
@@ -70,7 +70,7 @@
             "sequence": 255,
             "description": "",
             "first_program": null,
-            "overview_plan_column": null
+            "overview_plan_column": ""
         },
         {
             "id": 10,
@@ -110,7 +110,7 @@
             "sequence": 300,
             "description": null,
             "first_program": null,
-            "overview_plan_column": null
+            "overview_plan_column": ""
         },
         {
             "id": 15,
@@ -118,7 +118,7 @@
             "sequence": 0,
             "description": null,
             "first_program": 3,
-            "overview_plan_column": null
+            "overview_plan_column": ""
         },
         {
             "id": 16,
@@ -126,7 +126,15 @@
             "sequence": 0,
             "description": null,
             "first_program": 3,
-            "overview_plan_column": null
+            "overview_plan_column": "Allgemein"
+        },
+        {
+            "id": 17,
+            "name": "Ausstellung",
+            "sequence": 0,
+            "description": null,
+            "first_program": 2,
+            "overview_plan_column": "Allgemein"
         }
     ],
     "m_activity_type_detail": [
@@ -704,7 +712,7 @@
             "description": "Die Kindern stellen ihre Modelle und Poster aus und freuen sich \u00fcber Fragen dazu",
             "link": null,
             "link_text": null,
-            "activity_type": 3
+            "activity_type": 17
         }
     ],
     "m_first_program": [
@@ -829,28 +837,12 @@
     ],
     "m_news": [
         {
-            "id": 1,
-            "title": "Test News: System News Feature",
-            "text": "Wir haben eine neue Funktion eingef\u00fchrt! Ab sofort werden Sie \u00fcber System-News informiert, wenn Sie zwischen den Hauptbildschirmen navigieren.\n\nDiese Funktion erm\u00f6glicht es uns, Sie \u00fcber neue Features, Bugfixes und wichtige \u00c4nderungen zu informieren.",
-            "link": "https:\/\/github.com\/hands-on-leipzig\/flow",
-            "created_at": "2025-10-21 12:15:07",
-            "updated_at": "2025-10-21 12:15:07"
-        },
-        {
-            "id": 3,
-            "title": "Das ist die Implementierung von FLOW-893",
-            "text": "Eigentlich wollte ich ja nichts mehr machen, aber dann kam mir diese Idee.\nUnd die Implementierung hat keine 30 Minuten gedauert.",
-            "link": "https:\/\/hendrikmdy.atlassian.net\/browse\/FLOW-893",
-            "created_at": "2025-10-21 12:18:25",
-            "updated_at": "2025-10-21 12:18:25"
-        },
-        {
-            "id": 4,
-            "title": "Finale Generator ist da! \ud83c\udf89",
-            "text": "Hey du! Wir haben den ersten Finale Generator implementiert! Das ist ein gro\u00dfer Schritt f\u00fcr unser System.Was ist neu:\u2022 2-Tage Finale Events (Level 3)\u2022 Tag 1: Live Challenge + Test Runden\u2022 Tag 2: Hauptwettbewerb mit allen Features\u2022 Automatische Team-Zuordnung zwischen den TagenEs ist noch nicht perfekt, aber es funktioniert! Wir arbeiten weiter daran und verbessern es Schritt f\u00fcr Schritt.",
+            "id": 5,
+            "title": "Herzlich Willkommen zur Saison 2025\/2026 UNEARTHED",
+            "text": "FLOW wurde f\u00fcr diese Saison vollst\u00e4ndig \u00fcberarbeitet. Das System ist leistungsf\u00e4higer, \u00fcbersichtlicher und flexibler als im letzten Jahr.\n\nMit den Standard-Einstellungen entsteht sofort ein nutzbarer Plan \u2013 ideal f\u00fcr alle, die schnell starten wollen.\nWer tiefer einsteigen m\u00f6chte, findet jetzt noch mehr Optionen, um jeden Ablauf pr\u00e4zise anzupassen.\n\nViel Erfolg bei der Planung eurer Veranstaltung!",
             "link": null,
-            "created_at": "2025-10-22 09:02:42",
-            "updated_at": "2025-10-22 09:02:42"
+            "created_at": "2025-11-15 10:01:37",
+            "updated_at": "2025-11-15 10:01:37"
         }
     ],
     "m_parameter": [
@@ -1220,7 +1212,7 @@
             "context": "expert",
             "level": 1,
             "type": "integer",
-            "value": "30",
+            "value": "45",
             "min": "15",
             "max": "60",
             "step": "5",
@@ -2951,6 +2943,7 @@
             "teams": 8,
             "lanes": 2,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.",
             "alert_level": 2
@@ -2961,6 +2954,7 @@
             "teams": 8,
             "lanes": 2,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.",
             "alert_level": 2
@@ -2971,6 +2965,7 @@
             "teams": 9,
             "lanes": 2,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 9 Teams",
             "alert_level": 1
@@ -2981,6 +2976,7 @@
             "teams": 9,
             "lanes": 2,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -2991,6 +2987,7 @@
             "teams": 10,
             "lanes": 2,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 10 Teams",
             "alert_level": 1
@@ -3001,6 +2998,7 @@
             "teams": 10,
             "lanes": 2,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3011,6 +3009,7 @@
             "teams": 11,
             "lanes": 2,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 11 Teams",
             "alert_level": 1
@@ -3021,6 +3020,7 @@
             "teams": 11,
             "lanes": 2,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3031,6 +3031,7 @@
             "teams": 12,
             "lanes": 2,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 12 Teams",
             "alert_level": 1
@@ -3041,6 +3042,7 @@
             "teams": 12,
             "lanes": 2,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3051,6 +3053,7 @@
             "teams": 12,
             "lanes": 3,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3061,6 +3064,7 @@
             "teams": 12,
             "lanes": 3,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3071,6 +3075,7 @@
             "teams": 13,
             "lanes": 3,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 13 Teams",
             "alert_level": 1
@@ -3081,6 +3086,7 @@
             "teams": 14,
             "lanes": 3,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 14 Teams",
             "alert_level": 1
@@ -3091,6 +3097,7 @@
             "teams": 15,
             "lanes": 3,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 15 Teams",
             "alert_level": 1
@@ -3101,6 +3108,7 @@
             "teams": 16,
             "lanes": 3,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 16 Teams",
             "alert_level": 1
@@ -3111,6 +3119,7 @@
             "teams": 16,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3121,6 +3130,7 @@
             "teams": 17,
             "lanes": 3,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 17 Teams",
             "alert_level": 1
@@ -3131,6 +3141,7 @@
             "teams": 17,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3141,6 +3152,7 @@
             "teams": 18,
             "lanes": 3,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 18 Teams",
             "alert_level": 1
@@ -3151,6 +3163,7 @@
             "teams": 18,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3161,6 +3174,7 @@
             "teams": 19,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 19 Teams",
             "alert_level": 1
@@ -3171,6 +3185,7 @@
             "teams": 20,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 20 Teams",
             "alert_level": 1
@@ -3181,6 +3196,7 @@
             "teams": 21,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 21 Teams",
             "alert_level": 1
@@ -3191,6 +3207,7 @@
             "teams": 22,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 22 Teams",
             "alert_level": 1
@@ -3201,6 +3218,7 @@
             "teams": 23,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 23 Teams",
             "alert_level": 1
@@ -3211,6 +3229,7 @@
             "teams": 24,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 24 Teams",
             "alert_level": 1
@@ -3221,6 +3240,7 @@
             "teams": 1,
             "lanes": 1,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3231,6 +3251,7 @@
             "teams": 2,
             "lanes": 1,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3241,6 +3262,7 @@
             "teams": 3,
             "lanes": 1,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3251,6 +3273,7 @@
             "teams": 4,
             "lanes": 1,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3261,6 +3284,7 @@
             "teams": 5,
             "lanes": 1,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3271,6 +3295,7 @@
             "teams": 6,
             "lanes": 2,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3281,6 +3306,7 @@
             "teams": 7,
             "lanes": 2,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3291,6 +3317,7 @@
             "teams": 8,
             "lanes": 2,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3301,6 +3328,7 @@
             "teams": 9,
             "lanes": 2,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3311,6 +3339,7 @@
             "teams": 10,
             "lanes": 2,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3321,6 +3350,7 @@
             "teams": 11,
             "lanes": 3,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3331,6 +3361,7 @@
             "teams": 12,
             "lanes": 3,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3341,6 +3372,7 @@
             "teams": 13,
             "lanes": 3,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3351,6 +3383,7 @@
             "teams": 14,
             "lanes": 3,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3361,6 +3394,7 @@
             "teams": 15,
             "lanes": 3,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3371,6 +3405,7 @@
             "teams": 16,
             "lanes": 4,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3381,6 +3416,7 @@
             "teams": 17,
             "lanes": 4,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3391,6 +3427,7 @@
             "teams": 18,
             "lanes": 4,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3401,6 +3438,7 @@
             "teams": 19,
             "lanes": 4,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3411,6 +3449,7 @@
             "teams": 20,
             "lanes": 4,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3421,6 +3460,7 @@
             "teams": 21,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3431,6 +3471,7 @@
             "teams": 22,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3441,6 +3482,7 @@
             "teams": 23,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3451,6 +3493,7 @@
             "teams": 24,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3461,6 +3504,7 @@
             "teams": 25,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3471,6 +3515,7 @@
             "teams": 4,
             "lanes": 1,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 4 Teams",
             "alert_level": 1
@@ -3481,6 +3526,7 @@
             "teams": 5,
             "lanes": 1,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 5 Teams",
             "alert_level": 1
@@ -3491,6 +3537,7 @@
             "teams": 6,
             "lanes": 1,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 6 Teams",
             "alert_level": 1
@@ -3501,6 +3548,7 @@
             "teams": 7,
             "lanes": 2,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppen umgestellt werden.",
             "alert_level": 3
@@ -3511,6 +3559,7 @@
             "teams": 7,
             "lanes": 2,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppen umgestellt werden.",
             "alert_level": 3
@@ -3521,6 +3570,7 @@
             "teams": 11,
             "lanes": 3,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.",
             "alert_level": 2
@@ -3531,6 +3581,7 @@
             "teams": 11,
             "lanes": 3,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.",
             "alert_level": 2
@@ -3541,6 +3592,7 @@
             "teams": 9,
             "lanes": 3,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3551,6 +3603,7 @@
             "teams": 10,
             "lanes": 3,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3561,6 +3614,7 @@
             "teams": 12,
             "lanes": 4,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3571,6 +3625,7 @@
             "teams": 13,
             "lanes": 4,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3581,6 +3636,7 @@
             "teams": 14,
             "lanes": 4,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3591,6 +3647,7 @@
             "teams": 15,
             "lanes": 4,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3601,6 +3658,7 @@
             "teams": 15,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3611,6 +3669,7 @@
             "teams": 16,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3621,6 +3680,7 @@
             "teams": 17,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3631,6 +3691,7 @@
             "teams": 18,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3641,6 +3702,7 @@
             "teams": 19,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3651,6 +3713,7 @@
             "teams": 20,
             "lanes": 5,
             "tables": null,
+            "jury_rounds": 0,
             "calibration": null,
             "note": null,
             "alert_level": 0
@@ -3661,6 +3724,7 @@
             "teams": 15,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3671,6 +3735,7 @@
             "teams": 10,
             "lanes": 3,
             "tables": 2,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
             "alert_level": 3
@@ -3681,6 +3746,7 @@
             "teams": 10,
             "lanes": 3,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
             "alert_level": 3
@@ -3691,6 +3757,7 @@
             "teams": 13,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
             "alert_level": 3
@@ -3701,6 +3768,7 @@
             "teams": 14,
             "lanes": 4,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
             "alert_level": 2
@@ -3711,6 +3779,7 @@
             "teams": 16,
             "lanes": 5,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 4 Jurygruppen umgestellt werden.",
             "alert_level": 3
@@ -3721,6 +3790,7 @@
             "teams": 17,
             "lanes": 5,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 4 Jurygruppe umgestellt werden.",
             "alert_level": 2
@@ -3731,6 +3801,7 @@
             "teams": 18,
             "lanes": 5,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3741,6 +3812,7 @@
             "teams": 19,
             "lanes": 5,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3751,6 +3823,7 @@
             "teams": 20,
             "lanes": 5,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3761,6 +3834,7 @@
             "teams": 21,
             "lanes": 5,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3771,6 +3845,7 @@
             "teams": 22,
             "lanes": 5,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3781,6 +3856,7 @@
             "teams": 23,
             "lanes": 5,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3791,6 +3867,7 @@
             "teams": 24,
             "lanes": 5,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": null,
             "alert_level": 0
@@ -3801,6 +3878,7 @@
             "teams": 25,
             "lanes": 5,
             "tables": 4,
+            "jury_rounds": 0,
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 25 Teams",
             "alert_level": 1
@@ -6196,10 +6274,35 @@
             "id": 861,
             "activity_type_detail": 49,
             "role": 16
+        },
+        {
+            "id": 862,
+            "activity_type_detail": 62,
+            "role": 10
+        },
+        {
+            "id": 863,
+            "activity_type_detail": 62,
+            "role": 17
+        },
+        {
+            "id": 864,
+            "activity_type_detail": 62,
+            "role": 14
+        },
+        {
+            "id": 865,
+            "activity_type_detail": 62,
+            "role": 19
+        },
+        {
+            "id": 866,
+            "activity_type_detail": 62,
+            "role": 8
         }
     ],
     "_metadata": {
-        "exported_at": "2025-11-08T21:10:23.238827Z",
+        "exported_at": "2025-11-17T07:03:54.957142Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
