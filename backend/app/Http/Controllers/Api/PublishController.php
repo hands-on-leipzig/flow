@@ -280,9 +280,11 @@ class PublishController extends Controller
 
     public function scheduleInformation(int $eventId, Request $request): JsonResponse
     {
-        // Level aus Tabelle publication holen
+        // Level aus Tabelle publication holen (latest entry)
         $publication = DB::table('publication')
             ->where('event', $eventId)
+            ->orderBy('last_change', 'desc')
+            ->orderBy('id', 'desc')
             ->select('level')
             ->first();
 
@@ -364,8 +366,11 @@ class PublishController extends Controller
     // Aktuellen Level holen
     public function getPublicationLevel(int $eventId): JsonResponse
     {
+        // Get latest entry (by last_change DESC, then id DESC)
         $publication = DB::table('publication')
             ->where('event', $eventId)
+            ->orderBy('last_change', 'desc')
+            ->orderBy('id', 'desc')
             ->first();
 
         // Falls noch kein Eintrag vorhanden → neuen mit Level 1 anlegen
@@ -373,8 +378,7 @@ class PublishController extends Controller
             DB::table('publication')->insert([
                 'event' => $eventId,
                 'level' => 1,
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
+                'last_change' => Carbon::now(),
             ]);
 
             $level = 1;
@@ -393,11 +397,21 @@ class PublishController extends Controller
     {
         $level = (int)$request->input('level', 1);
 
-        DB::table('publication')
-            ->updateOrInsert(
-                ['event' => $eventId],
-                ['level' => $level, 'updated_at' => Carbon::now(),]
-            );
+        // Get current latest level
+        $latest = DB::table('publication')
+            ->where('event', $eventId)
+            ->orderBy('last_change', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        // Only insert if level actually changed (avoid duplicates)
+        if (!$latest || $latest->level !== $level) {
+            DB::table('publication')->insert([
+                'event' => $eventId,
+                'level' => $level,
+                'last_change' => Carbon::now(),
+            ]);
+        }
 
         return response()->json([
             'success' => true,

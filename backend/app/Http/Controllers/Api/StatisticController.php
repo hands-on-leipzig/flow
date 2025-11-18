@@ -20,14 +20,14 @@ class StatisticController extends Controller
             ->leftJoin('event', 'event.regional_partner', '=', 'regional_partner.id')
             ->leftJoin('plan', 'plan.event', '=', 'event.id')
             ->leftJoin(DB::raw('(
-                SELECT p.event, p.level, p.created_at, p.updated_at
+                SELECT p.event, p.level, p.last_change
                 FROM publication p
                 INNER JOIN (
-                    SELECT event, MAX(updated_at) as max_updated
+                    SELECT event, MAX(last_change) as max_last_change
                     FROM publication
                     GROUP BY event
                 ) latest
-                ON p.event = latest.event AND p.updated_at = latest.max_updated
+                ON p.event = latest.event AND p.last_change = latest.max_last_change
             ) as pub'), 'pub.event', '=', 'event.id')
             ->join('m_season', 'event.season', '=', 'm_season.id')
             ->where('regional_partner.name', 'not like', '%QPlan RP%')
@@ -59,8 +59,8 @@ class StatisticController extends Controller
 
                 // Publication
                 'pub.level as publication_level',
-                'pub.created_at as publication_date',
-                'pub.updated_at as publication_last_change',
+                'pub.last_change as publication_date',
+                'pub.last_change as publication_last_change',
             ])
             ->get();
 
@@ -436,10 +436,17 @@ class StatisticController extends Controller
 
     protected function publicationTotals(): array
     {
-        $levels = DB::table('publication')
-            ->select('level', DB::raw('COUNT(*) as count'))
-            ->groupBy('level')
-            ->pluck('count', 'level');
+        // Get latest publication per event, then count by level
+        $latestPublications = DB::table('publication as p1')
+            ->whereRaw('p1.last_change = (
+                SELECT MAX(p2.last_change)
+                FROM publication p2
+                WHERE p2.event = p1.event
+            )')
+            ->select('p1.level')
+            ->get();
+
+        $levels = $latestPublications->groupBy('level')->map->count();
 
         $level1 = (int)($levels[1] ?? 0);
         $level2 = (int)($levels[2] ?? 0);
@@ -595,8 +602,8 @@ class StatisticController extends Controller
             ->join('event', 'event.id', '=', 'publication.event')
             ->join('plan', 'plan.event', '=', 'event.id')
             ->where('plan.id', $planId)
-            ->select('publication.level', 'publication.created_at', 'publication.updated_at')
-            ->orderBy('publication.created_at')
+            ->select('publication.level', 'publication.last_change')
+            ->orderBy('publication.last_change')
             ->get();
 
         // Build daily data array
@@ -615,9 +622,9 @@ class StatisticController extends Controller
         // Build publication level intervals
         $publicationIntervals = [];
         foreach ($publications as $index => $pub) {
-            $intervalStart = \Carbon\Carbon::parse($pub->created_at)->startOfDay();
+            $intervalStart = \Carbon\Carbon::parse($pub->last_change)->startOfDay();
             $intervalEnd = isset($publications[$index + 1])
-                ? \Carbon\Carbon::parse($publications[$index + 1]->created_at)->startOfDay()
+                ? \Carbon\Carbon::parse($publications[$index + 1]->last_change)->startOfDay()
                 : $endDate->copy();
             
             // Ensure interval doesn't extend beyond event date
