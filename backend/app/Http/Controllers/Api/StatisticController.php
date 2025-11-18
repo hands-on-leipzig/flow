@@ -20,7 +20,11 @@ class StatisticController extends Controller
             ->leftJoin('event', 'event.regional_partner', '=', 'regional_partner.id')
             ->leftJoin('plan', 'plan.event', '=', 'event.id')
             ->leftJoin(DB::raw('(
-                SELECT p.event, p.level, p.last_change
+                SELECT 
+                    p.event, 
+                    p.level, 
+                    p.last_change,
+                    first_pub.last_change as first_publication_date
                 FROM publication p
                 INNER JOIN (
                     SELECT event, MAX(last_change) as max_last_change
@@ -28,6 +32,14 @@ class StatisticController extends Controller
                     GROUP BY event
                 ) latest
                 ON p.event = latest.event AND p.last_change = latest.max_last_change
+                INNER JOIN (
+                    SELECT event, MIN(last_change) as min_last_change
+                    FROM publication
+                    GROUP BY event
+                ) first
+                ON p.event = first.event
+                INNER JOIN publication first_pub
+                ON first_pub.event = first.event AND first_pub.last_change = first.min_last_change
             ) as pub'), 'pub.event', '=', 'event.id')
             ->join('m_season', 'event.season', '=', 'm_season.id')
             ->where('regional_partner.name', 'not like', '%QPlan RP%')
@@ -59,7 +71,7 @@ class StatisticController extends Controller
 
                 // Publication
                 'pub.level as publication_level',
-                'pub.last_change as publication_date',
+                'pub.first_publication_date as publication_date',
                 'pub.last_change as publication_last_change',
             ])
             ->get();
