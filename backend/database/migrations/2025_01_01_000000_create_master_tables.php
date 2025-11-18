@@ -292,7 +292,7 @@ return new class extends Migration {
                     $table->unsignedInteger('id')->autoIncrement();
                     $table->unsignedInteger('event');
                     $table->integer('level');
-                    $table->timestamps();
+                    $table->timestamp('last_change');
 
                     $table->foreign('event')->references('id')->on('event')->onDelete('cascade');
                 });

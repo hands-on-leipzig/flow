@@ -369,7 +369,7 @@ fetchConditions()
       </div>
 
       <div v-if="activeTab === 'system-news'">
-        <SystemNews />
+        <SystemNews :is-dev-environment="isDevEnvironment" />
       </div>
 
       <div v-if="activeTab === 'mparameter'">
