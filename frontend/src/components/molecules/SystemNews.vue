@@ -2,6 +2,15 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 
+const props = defineProps({
+  isDevEnvironment: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const { isDevEnvironment } = props
+
 const newsList = ref([])
 const loading = ref(false)
 const error = ref(null)
@@ -83,10 +92,16 @@ onMounted(() => {
       <h1 class="text-2xl font-bold text-gray-800">System News</h1>
       <button
         v-if="!showCreateForm"
-        @click="showCreateForm = true"
-        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+        @click="isDevEnvironment && (showCreateForm = true)"
+        :disabled="!isDevEnvironment"
+        :title="!isDevEnvironment ? 'Neue News erstellen ist nur auf Dev verfügbar' : ''"
+        class="font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+        :class="isDevEnvironment 
+          ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+          : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'"
       >
         ➕ Neue News erstellen
+        <span v-if="!isDevEnvironment" class="ml-2 text-xs">(nur Dev)</span>
       </button>
     </div>
 
