@@ -563,7 +563,7 @@ async function confirmModal() {
                 <th class="px-3 py-2">Plan</th>
                 <th class="px-3 py-2">Erstellt</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
-                <th class="px-3 py-2">Generierungen</th>
+                <th class="px-3 py-2">Generie-<br>rungen</th>
                 <th class="px-3 py-2">Expert-Parameter</th>
                 <th class="px-3 py-2">Extra-Blöcke</th>
                 <th class="px-3 py-2">Publikations-Level / -Link</th>
@@ -684,14 +684,6 @@ async function confirmModal() {
                 >
                   🧾
                 </button>
-                <button
-                  v-if="row.plan_id"
-                  class="text-blue-600 hover:text-blue-800"
-                  title="Timeline anzeigen"
-                  @click="openTimeline(row.plan_id)"
-                >
-                  📊
-                </button>
                 <!-- Delete -->
                 <button
                   class="text-red-600 hover:text-red-800"
@@ -715,7 +707,17 @@ async function confirmModal() {
           <!-- Generator stats -->
           <td class="px-3 py-2 text-right">
             <template v-if="row.plan_id && row.generator_stats !== null">
-              {{ row.generator_stats }}
+              <div class="flex flex-col items-end">
+                <span>{{ row.generator_stats }}</span>
+                <button
+                  v-if="row.plan_id"
+                  class="text-blue-600 hover:text-blue-800 mt-1"
+                  title="Timeline anzeigen"
+                  @click="openTimeline(row.plan_id)"
+                >
+                  📈
+                </button>
+              </div>
             </template>
             <template v-else>
               –
@@ -725,18 +727,19 @@ async function confirmModal() {
           <!-- Expert parameter changes -->
           <td class="px-3 py-2 text-right">
             <template v-if="row.plan_id">
-              <template v-if="(row.expert_param_changes ?? 0) > 0">
-                <a
-                  href="#"
-                  class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                  @click.prevent="openExpertParameters(row.plan_id)"
-                >
-                  {{ row.expert_param_changes }}
-                </a>
-              </template>
-              <template v-else>
-                {{ row.expert_param_changes }}
-              </template>
+              <div class="flex flex-col items-end">
+                <span>{{ row.expert_param_changes }}</span>
+                <template v-if="(row.expert_param_changes ?? 0) > 0">
+                  <a
+                    href="#"
+                    class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
+                    @click.prevent="openExpertParameters(row.plan_id)"
+                    title="Expert-Parameter anzeigen"
+                  >
+                    🔍
+                  </a>
+                </template>
+              </div>
             </template>
             <template v-else>–</template>
           </td>
@@ -751,41 +754,36 @@ async function confirmModal() {
 
           <!-- Publication level -->
           <td class="px-3 py-2">
-            <template v-if="(row.publication_level ?? 0) >= 1 && row.event_link">
-              <a
-                :href="row.event_link"
-                class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span class="flex">
-                  <span
-                    v-for="n in 4"
-                    :key="n"
-                    class="w-3 h-3 rounded-full mx-0.5"
-                    :class="n <= (row.publication_level ?? 0)
-                      ? 'bg-blue-600'
-                      : 'bg-gray-300'"
-                  ></span>
-                </span>
-                <span>{{ row.publication_level ?? '–' }}</span>
-              </a>
-            </template>
-            <template v-else>
-              <span class="inline-flex items-center gap-1 text-gray-700">
-                <span class="flex">
-                  <span
-                    v-for="n in 4"
-                    :key="n"
-                    class="w-3 h-3 rounded-full mx-0.5"
-                    :class="n <= (row.publication_level ?? 0)
-                      ? 'bg-blue-600'
-                      : 'bg-gray-300'"
-                  ></span>
-                </span>
-                <span>{{ row.publication_level ?? '–' }}</span>
+            <div class="flex flex-col items-start">
+              <span class="flex">
+                <span
+                  v-for="n in 4"
+                  :key="n"
+                  class="w-3 h-3 rounded-full mx-0.5"
+                  :class="n <= (row.publication_level ?? 0)
+                    ? 'bg-blue-600'
+                    : 'bg-gray-300'"
+                ></span>
               </span>
-            </template>
+              <template v-if="(row.publication_level ?? 0) >= 1">
+                <template v-if="row.event_link">
+                  <a
+                    :href="row.event_link"
+                    class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Event-Link öffnen"
+                  >
+                    🔗
+                  </a>
+                </template>
+                <template v-else>
+                  <span class="text-yellow-600 mt-1 text-xs" title="Kein Link verfügbar">
+                    ⚠️ fehlt
+                  </span>
+                </template>
+              </template>
+            </div>
           </td>
 
           <!-- Publication date -->
