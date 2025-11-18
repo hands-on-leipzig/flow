@@ -288,6 +288,29 @@ function formatNumber(num) {
   return Number(num).toLocaleString('de-DE')
 }
 
+function getHoursSince(timestamp: string | null): number | null {
+  if (!timestamp) return null
+  const date = new Date(timestamp)
+  if (isNaN(date.getTime())) return null
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  return Math.floor(diffMs / (1000 * 60 * 60))
+}
+
+function getLastChangeClass(timestamp: string | null): string {
+  const hours = getHoursSince(timestamp)
+  if (hours === null) return ''
+  
+  if (hours <= 24) {
+    return 'bg-blue-600 text-white' // Darkest blue - last 24 hours
+  } else if (hours <= 72) {
+    return 'bg-blue-400 text-white' // Medium blue - last 72 hours
+  } else if (hours <= 168) {
+    return 'bg-blue-200 text-gray-800' // Lightest blue - last 7 days
+  }
+  return '' // No highlight for older changes
+}
+
 
 function openPlanDelete(planId: number) {
   modalState.value = {
@@ -635,7 +658,9 @@ async function confirmModal() {
           <td class="px-3 py-2">{{ formatDateTime(row.plan_created) }}</td>
 
           <!-- Plan last change -->
-          <td class="px-3 py-2">{{ formatDateTime(row.plan_last_change) }}</td>
+          <td class="px-3 py-2" :class="getLastChangeClass(row.plan_last_change)">
+            {{ formatDateTime(row.plan_last_change) }}
+          </td>
   
           <!-- Generator stats -->
           <td class="px-3 py-2 text-right">
@@ -711,7 +736,7 @@ async function confirmModal() {
           </td>
 
           <!-- Publication last change -->
-          <td class="px-3 py-2">
+          <td class="px-3 py-2" :class="getLastChangeClass(row.publication_last_change ?? null)">
             <template v-if="row.plan_id && row.publication_last_change">
               {{ formatDateTime(row.publication_last_change) }}
             </template>
