@@ -161,7 +161,7 @@ function createChart() {
     })
 
     return {
-      label: `Publication Level ${interval.level}`,
+      label: `Level der Veröffentlichung ${interval.level}`,
       data: intervalData,
       borderColor: getLevelColor(interval.level),
       backgroundColor: getLevelColor(interval.level, 0.2),
@@ -190,7 +190,7 @@ function createChart() {
         labels,
         datasets: [
           {
-            label: 'Generator Runs',
+            label: 'Generierungen',
             data: generatorRunsData,
             backgroundColor: 'rgba(54, 162, 235, 0.6)',
             borderColor: 'rgba(54, 162, 235, 1)',
@@ -219,10 +219,10 @@ function createChart() {
             },
             label: (context) => {
               if (context.datasetIndex === 0) {
-                return `Generator Runs: ${context.parsed.y}`
+                return `Generierungen: ${context.parsed.y}`
               }
               const dataset = context.dataset
-              if (dataset.label?.includes('Publication Level')) {
+              if (dataset.label?.includes('Level der Veröffentlichung')) {
                 return `${dataset.label}: ${context.parsed.y ?? 'N/A'}`
               }
               return ''
@@ -234,8 +234,7 @@ function createChart() {
         x: {
           type: 'category',
           title: {
-            display: true,
-            text: 'Date',
+            display: false,
           },
         },
         y: {
@@ -243,22 +242,27 @@ function createChart() {
           position: 'left',
           title: {
             display: true,
-            text: 'Generator Runs',
+            text: 'Generierungen',
           },
           beginAtZero: true,
           max: maxGeneratorRuns > 0 ? Math.ceil(maxGeneratorRuns * 1.1) : 1,
+          ticks: {
+            stepSize: 1,
+            precision: 0,
+          },
         },
         y1: {
           type: 'linear',
           position: 'right',
           title: {
             display: true,
-            text: 'Publication Level',
+            text: 'Level der Veröffentlichung',
           },
           min: 0,
           max: 4,
           ticks: {
             stepSize: 1,
+            precision: 0,
           },
           grid: {
             drawOnChartArea: false,
