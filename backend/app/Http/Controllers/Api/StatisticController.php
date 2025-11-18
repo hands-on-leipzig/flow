@@ -556,4 +556,87 @@ class StatisticController extends Controller
             ->whereIn('id', $ids)
             ->delete();
     }
+
+    public function timeline(int $planId): JsonResponse
+    {
+        // Get plan and event data
+        $plan = DB::table('plan')
+            ->join('event', 'event.id', '=', 'plan.event')
+            ->where('plan.id', $planId)
+            ->select('plan.created as plan_created', 'event.date as event_date')
+            ->first();
+
+        if (!$plan) {
+            return response()->json(['error' => 'Plan not found'], 404);
+        }
+
+        $startDate = $plan->plan_created ? \Carbon\Carbon::parse($plan->plan_created)->startOfDay() : null;
+        $endDate = $plan->event_date ? \Carbon\Carbon::parse($plan->event_date)->startOfDay() : null;
+
+        if (!$startDate || !$endDate) {
+            return response()->json(['error' => 'Missing date information'], 400);
+        }
+
+        // Count generator runs per day
+        $generatorRuns = DB::table('s_generator')
+            ->where('plan', $planId)
+            ->whereNotNull('start')
+            ->select(
+                DB::raw('DATE(start) as date'),
+                DB::raw('COUNT(*) as count')
+            )
+            ->groupBy(DB::raw('DATE(start)'))
+            ->get()
+            ->keyBy('date')
+            ->map(fn($item) => (int)$item->count);
+
+        // Get publication level intervals
+        $publications = DB::table('publication')
+            ->join('event', 'event.id', '=', 'publication.event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->select('publication.level', 'publication.created_at', 'publication.updated_at')
+            ->orderBy('publication.created_at')
+            ->get();
+
+        // Build daily data array
+        $dailyData = [];
+        $currentDate = $startDate->copy();
+        
+        while ($currentDate->lte($endDate)) {
+            $dateKey = $currentDate->format('Y-m-d');
+            $dailyData[] = [
+                'date' => $dateKey,
+                'generator_runs' => $generatorRuns->get($dateKey, 0),
+            ];
+            $currentDate->addDay();
+        }
+
+        // Build publication level intervals
+        $publicationIntervals = [];
+        foreach ($publications as $index => $pub) {
+            $intervalStart = \Carbon\Carbon::parse($pub->created_at)->startOfDay();
+            $intervalEnd = isset($publications[$index + 1])
+                ? \Carbon\Carbon::parse($publications[$index + 1]->created_at)->startOfDay()
+                : $endDate->copy();
+            
+            // Ensure interval doesn't extend beyond event date
+            if ($intervalEnd->gt($endDate)) {
+                $intervalEnd = $endDate->copy();
+            }
+
+            $publicationIntervals[] = [
+                'level' => (int)$pub->level,
+                'start_date' => $intervalStart->format('Y-m-d'),
+                'end_date' => $intervalEnd->format('Y-m-d'),
+            ];
+        }
+
+        return response()->json([
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d'),
+            'daily_data' => $dailyData,
+            'publication_intervals' => $publicationIntervals,
+        ]);
+    }
 }

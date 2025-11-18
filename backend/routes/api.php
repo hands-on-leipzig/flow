@@ -280,6 +280,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
         Route::delete('/orphans/{type}/cleanup', [StatisticController::class, 'cleanupOrphans']);
+        Route::get('/timeline/{planId}', [StatisticController::class, 'timeline']);      // Timeline data for a plan
     });
 
     // Visibility controller

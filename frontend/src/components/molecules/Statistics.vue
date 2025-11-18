@@ -7,6 +7,7 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
+import TimelineChart from './TimelineChart.vue'
 
 type FlattenedRow = {
   partner_id: number | null
@@ -115,7 +116,7 @@ const orphans = computed(() => ({
 }))
 
 type CleanupTarget = 'events' | 'plans' | 'activity-groups' | 'activities'
-type ModalMode = 'plan-delete' | 'cleanup' | 'expert-parameters'
+type ModalMode = 'plan-delete' | 'cleanup' | 'expert-parameters' | 'timeline'
 
 const cleanupMeta: Record<
   CleanupTarget,
@@ -362,6 +363,15 @@ async function openExpertParameters(planId: number) {
     alert('Fehler beim Laden der Expert-Parameter')
   } finally {
     loadingExpertParams.value = false
+  }
+}
+
+function openTimeline(planId: number) {
+  modalState.value = {
+    visible: true,
+    mode: 'timeline',
+    planId,
+    cleanupType: null,
   }
 }
 
@@ -674,6 +684,14 @@ async function confirmModal() {
                 >
                   🧾
                 </button>
+                <button
+                  v-if="row.plan_id"
+                  class="text-blue-600 hover:text-blue-800"
+                  title="Timeline anzeigen"
+                  @click="openTimeline(row.plan_id)"
+                >
+                  📊
+                </button>
                 <!-- Delete -->
                 <button
                   class="text-red-600 hover:text-red-800"
@@ -850,8 +868,21 @@ async function confirmModal() {
         </div>
       </div>
       
+      <!-- Timeline Modal -->
+      <div v-if="modalState.mode === 'timeline' && modalState.planId" class="bg-white p-6 rounded-lg shadow-lg w-[90vw] max-w-6xl max-h-[90vh] overflow-auto">
+        <h3 class="text-lg font-bold mb-4">
+          Timeline für Plan {{ modalState.planId }}
+        </h3>
+        
+        <TimelineChart :plan-id="modalState.planId" />
+        
+        <div class="flex justify-end gap-2 mt-6">
+          <button class="px-4 py-2 text-gray-600 hover:text-black" @click="closeModal">Schließen</button>
+        </div>
+      </div>
+      
       <!-- Delete/Cleanup Modal -->
-      <div v-else class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
+      <div v-if="modalState.mode === 'plan-delete' || modalState.mode === 'cleanup'" class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
         <h3 class="text-lg font-bold mb-4">
           <template v-if="modalState.mode === 'plan-delete'">
             Plan löschen?
