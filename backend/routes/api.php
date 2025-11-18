@@ -129,6 +129,7 @@ Route::middleware(['keycloak'])->group(function () {
     // PlanParameter controller
     // Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
+    Route::get('/plans/{id}/expert-parameters', [PlanParameterController::class, 'getExpertParameters']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
 
 
