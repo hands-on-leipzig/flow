@@ -186,10 +186,18 @@ fetchConditions()
       </button>
 
       <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-          :class="{ 'bg-white font-semibold shadow': activeTab === 'volumetest' }"
-          @click="activeTab = 'quality'">
-        📈 Plan-Qualität
+          class="w-full text-left px-3 py-2 rounded"
+          :class="{ 
+            'bg-white font-semibold shadow': activeTab === 'quality',
+            'opacity-50 cursor-not-allowed bg-gray-100': !isDevEnvironment,
+            'hover:bg-gray-200': isDevEnvironment
+          }"
+          @click="isDevEnvironment && (activeTab = 'quality')"
+          :disabled="!isDevEnvironment"
+          :title="!isDevEnvironment ? 'Massentest ist nur auf Dev verfügbar' : ''"
+        >
+        🧪 Massentest
+        <span v-if="!isDevEnvironment" class="ml-2 text-xs text-gray-500">(nur Dev)</span>
       </button>
 
       <button
@@ -359,7 +367,7 @@ fetchConditions()
       </div>
 
       <div v-if="activeTab === 'quality'">
-        <h2 class="text-xl font-bold mb-4">Plan-Qualität</h2>
+        <h2 class="text-xl font-bold mb-4">Massentest</h2>
         <quality />
       </div>
 
