@@ -13,7 +13,8 @@ import 'dayjs/locale/de';
 import Rooms from "@/components/Rooms.vue";
 import EventOverview from "@/components/EventOverview.vue";
 import PublishControl from "@/components/PublishControl.vue";
-import Admin from "@/components/Admin.vue";
+// Admin is lazy-loaded - only loads when /admin route is accessed
+// This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
 import Preview from "@/components/molecules/Preview.vue";
 import Carousel from "@/components/Carousel.vue";
@@ -40,7 +41,9 @@ const routes = [
             {path: 'events', component: SelectEvent},
             {path: 'rooms', component: Rooms},
             {path: 'publish', component: PublishControl},
-            {path: 'admin', component: Admin},
+            // Lazy-load Admin component - only loads when route is accessed
+            // This significantly reduces initial bundle size since most users are not admins
+            {path: 'admin', component: () => import('@/components/Admin.vue')},
             {path: 'presentation', component: PresentationSettings},
             {path: 'preview/:planId', component: Preview, props: true},
             {path: 'editSlide/:slideId', component: EditSlide, props: true},

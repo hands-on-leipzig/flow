@@ -20,9 +20,9 @@ return new class extends Migration
                     $table->timestamp('start')->nullable();
                     $table->timestamp('end')->nullable();
                     $table->string('mode')->nullable(); // 'job' or 'direct'
-                    $table->timestamps();
+                    // Note: No timestamps - model uses $timestamps = false
                     
-                    // Foreign key constraint
+                    // Foreign key constraint (plan made nullable in later migration)
                     $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
                     
                     // Index for performance
