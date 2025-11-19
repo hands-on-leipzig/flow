@@ -142,6 +142,20 @@ function saveSlide() {
             />
           </div>
 
+          <!-- Text-Farbe -->
+          <div>
+            <label class="text-sm font-medium">Text-Farbe</label>
+            <InfoPopover text="Die Farbe, die für den Text in der Tabelle verwendet wird."/>
+          </div>
+          <div>
+            <input
+                class="mt-1 w-full border rounded px-2 py-1"
+                type="color"
+                :value="slide.content.textColor"
+                @input="updateByName('textColor', ($event.target as HTMLInputElement).value || '#222222')"
+            />
+          </div>
+
           <!-- Highlight-Farbe -->
           <div>
             <label class="text-sm font-medium">Highlight-Farbe</label>

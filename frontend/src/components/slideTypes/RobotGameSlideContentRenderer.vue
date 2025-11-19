@@ -164,8 +164,7 @@ function handleKeyDown(event: KeyboardEvent) {
   background-size: cover;
   background-position: center;
   padding: 5em;
-  /* TODO: use user-defined values from settings */
-  color: #222222;
+  color: v-bind('props.content.textColor');
 }
 
 .slide-title {
