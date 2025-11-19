@@ -21,7 +21,7 @@
             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
         ]"
       >
-        Tag des Events
+        Tag des Events{{ formattedEventDate ? ` (${formattedEventDate})` : '' }}
       </button>
     </div>
     
@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import axios from 'axios'
 
@@ -51,6 +51,16 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const chartData = ref<any>(null)
 const viewMode = ref<'timeline' | 'day'>('timeline')
+
+// Format event date as DD.MM.YYYY
+const formattedEventDate = computed(() => {
+  if (!chartData.value?.event_date) return ''
+  const date = new Date(chartData.value.event_date + 'T00:00:00')
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}.${month}.${year}`
+})
 
 async function loadAccessData() {
   if (!props.eventId) return
