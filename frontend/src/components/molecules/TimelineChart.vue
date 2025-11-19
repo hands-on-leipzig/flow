@@ -209,8 +209,7 @@ function createChart() {
       },
       plugins: {
         legend: {
-          display: true,
-          position: 'top' as const,
+          display: false,
         },
         tooltip: {
           callbacks: {
@@ -279,13 +278,8 @@ function createChart() {
 }
 
 function getLevelColor(level: number, alpha: number = 1): string {
-  const colors: Record<number, string> = {
-    1: `rgba(34, 197, 94, ${alpha})`,   // green
-    2: `rgba(234, 179, 8, ${alpha})`,   // yellow
-    3: `rgba(249, 115, 22, ${alpha})`,  // orange
-    4: `rgba(239, 68, 68, ${alpha})`,   // red
-  }
-  return colors[level] || `rgba(128, 128, 128, ${alpha})`
+  // Use blue for all publication levels
+  return `rgba(59, 130, 246, ${alpha})` // blue-500
 }
 
 // Watch for when canvas becomes available

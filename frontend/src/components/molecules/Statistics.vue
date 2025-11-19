@@ -21,6 +21,7 @@ type FlattenedRow = {
   event_teams_explore: number
   event_teams_challenge: number
   plan_id: number | null
+  plan_name: string | null
   plan_created: string | null
   plan_last_change: string | null
   generator_stats: number | null
@@ -198,25 +199,26 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
   const rows: FlattenedRow[] = []
 
   for (const partner of season.partners) {
-    if (!partner.events || partner.events.length === 0) {
-      rows.push({
-        partner_id: partner.partner_id,
-        partner_name: partner.partner_name,
-        event_id: null,
-        event_name: null,
-        event_date: null,
-        event_link: null,
-        event_explore: null,
-        event_challenge: null,
-        event_teams_explore: 0,
-        event_teams_challenge: 0,
-        plan_id: null,
-        plan_created: null,
-        plan_last_change: null,
-        generator_stats: null,
-      })
-      continue
-    }
+      if (!partner.events || partner.events.length === 0) {
+        rows.push({
+          partner_id: partner.partner_id,
+          partner_name: partner.partner_name,
+          event_id: null,
+          event_name: null,
+          event_date: null,
+          event_link: null,
+          event_explore: null,
+          event_challenge: null,
+          event_teams_explore: 0,
+          event_teams_challenge: 0,
+          plan_id: null,
+          plan_name: null,
+          plan_created: null,
+          plan_last_change: null,
+          generator_stats: null,
+        })
+        continue
+      }
 
     for (const event of partner.events) {
       const teamsExplore = Number(event.teams_explore ?? 0)
@@ -234,6 +236,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
           plan_id: null,
+          plan_name: null,
           plan_created: null,
           plan_last_change: null,
           generator_stats: null,
@@ -254,6 +257,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
           plan_id: plan.plan_id,
+          plan_name: plan.plan_name,
           plan_created: plan.plan_created,
           plan_last_change: plan.plan_last_change,
           generator_stats: plan.generator_stats ?? null,
@@ -374,6 +378,16 @@ function openTimeline(planId: number) {
     cleanupType: null,
   }
 }
+
+const timelineModalInfo = computed(() => {
+  if (!modalState.value.planId) return null
+  const row = flattenedRows.value.find(r => r.plan_id === modalState.value.planId)
+  if (!row) return null
+  return {
+    event_name: row.event_name,
+    plan_name: row.plan_name || `Plan ${modalState.value.planId}`,
+  }
+})
 
 function closeModal() {
   modalState.value = {
@@ -528,7 +542,7 @@ async function confirmModal() {
             <span class="font-semibold">{{ formatNumber(seasonTotals.plans_total) }}</span>
           </div>
           <div class="flex justify-between text-gray-700">
-            <span>Activity Groups | Activities</span>
+            <span>ActGroups | Activities</span>
             <span class="font-semibold">
               {{ formatNumber(seasonTotals.activity_groups_total) }} | {{ formatNumber(seasonTotals.activities_total) }}
             </span>
@@ -566,8 +580,8 @@ async function confirmModal() {
                 <th class="px-3 py-2">Generie-<br>rungen</th>
                 <th class="px-3 py-2">Expert-Parameter</th>
                 <th class="px-3 py-2">Extra-Blöcke</th>
-                <th class="px-3 py-2">Publikations-Level / -Link</th>
-                <th class="px-3 py-2">Publiziert</th>
+                <th class="px-3 py-2">Veröffentl.-Level / -Link</th>
+                <th class="px-3 py-2">Seit</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
               </tr>
             </thead>
@@ -868,8 +882,13 @@ async function confirmModal() {
       
       <!-- Timeline Modal -->
       <div v-if="modalState.mode === 'timeline' && modalState.planId" class="bg-white p-6 rounded-lg shadow-lg w-[90vw] max-w-6xl max-h-[90vh] overflow-auto">
-        <h3 class="text-lg font-bold mb-4">
-          Timeline für Plan {{ modalState.planId }}
+        <h3 class="text-lg font-bold mb-4 text-center">
+          <template v-if="timelineModalInfo">
+            Generierungen und Veröffentlichung (Event {{ timelineModalInfo.event_name }}, Plan {{ timelineModalInfo.plan_name }})
+          </template>
+          <template v-else>
+            Timeline für Plan {{ modalState.planId }}
+          </template>
         </h3>
         
         <TimelineChart :plan-id="modalState.planId" />

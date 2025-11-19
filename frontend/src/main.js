@@ -81,9 +81,11 @@ router.beforeEach(async (to, from, next) => {
     
     // Handle authentication
     if (!keycloak.authenticated) {
-        keycloak.init({onLoad: 'login-required'}).then(authenticated => {
+        try {
+            const authenticated = await keycloak.init({onLoad: 'login-required'});
             if (!authenticated) {
                 window.location.reload()
+                return;
             }
 
             // save token to use with axios
@@ -97,9 +99,17 @@ router.beforeEach(async (to, from, next) => {
                     }
                 })
             }, 10000);
-            next();
-        });
-        return;
+        } catch (error) {
+            console.error('Keycloak initialization failed:', error);
+            window.location.reload()
+            return;
+        }
+    }
+    
+    // Ensure token is in localStorage - even if already authenticated
+    // This is needed because the token might not be in localStorage from a previous session
+    if (keycloak.authenticated && keycloak.token) {
+        localStorage.setItem('kc_token', keycloak.token);
     }
     
     // Check if event is selected for non-public routes
