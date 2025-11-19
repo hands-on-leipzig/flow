@@ -4,7 +4,7 @@
       One-Link Zugriffe für Event {{ eventId }} "{{ eventName }}"
     </h3>
     
-    <OneLinkAccessChart :event-id="eventId" />
+    <AccessChart :event-id="eventId" />
     
     <div class="flex justify-end gap-2 mt-6">
       <button class="px-4 py-2 text-gray-600 hover:text-black" @click="$emit('close')">Schließen</button>
@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import OneLinkAccessChart from '../OneLinkAccessChart.vue'
+import AccessChart from './AccessChart.vue'
 
 const props = defineProps<{
   eventId: number

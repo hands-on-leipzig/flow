@@ -25,12 +25,12 @@
       </button>
     </div>
     
-    <div v-if="loading" class="text-gray-500 py-4">Loading access data...</div>
+    <div v-if="loading" class="text-gray-500 py-4">Lade Daten...</div>
     <div v-else-if="error" class="text-red-500 py-4">{{ error }}</div>
     <div v-else-if="chartData" class="chart-wrapper">
       <canvas ref="chartCanvas"></canvas>
     </div>
-    <div v-else class="text-gray-500 py-4">No data available</div>
+    <div v-else class="text-gray-500 py-4">Keine Daten verfügbar</div>
   </div>
 </template>
 

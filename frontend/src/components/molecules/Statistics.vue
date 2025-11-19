@@ -8,7 +8,7 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
 import StatisticsExpertParametersModal from './statistics/StatisticsExpertParametersModal.vue'
-import StatisticsTimelineModal from './statistics/StatisticsTimelineModal.vue'
+import StatisticsGeneratorChartModal from './statistics/StatisticsGeneratorChartModal.vue'
 import StatisticsAccessChartModal from './statistics/StatisticsAccessChartModal.vue'
 import StatisticsDeleteModal from './statistics/StatisticsDeleteModal.vue'
 
@@ -858,8 +858,8 @@ async function confirmModal() {
         @close="closeModal"
       />
       
-      <!-- Timeline Modal -->
-      <StatisticsTimelineModal
+      <!-- Generator Chart Modal -->
+      <StatisticsGeneratorChartModal
         v-if="modalState.mode === 'timeline' && modalState.planId"
         :plan-id="modalState.planId"
         :timeline-modal-info="timelineModalInfo"

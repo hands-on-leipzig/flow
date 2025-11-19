@@ -9,7 +9,7 @@
       </template>
     </h3>
     
-    <TimelineChart :plan-id="planId" />
+    <GeneratorChart :plan-id="planId" />
     
     <div class="flex justify-end gap-2 mt-6">
       <button class="px-4 py-2 text-gray-600 hover:text-black" @click="$emit('close')">Schließen</button>
@@ -19,7 +19,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import TimelineChart from '../TimelineChart.vue'
+import GeneratorChart from './GeneratorChart.vue'
 
 const props = defineProps<{
   planId: number
