@@ -1378,13 +1378,13 @@
             "level": 1,
             "type": "integer",
             "value": "3",
-            "min": "1",
+            "min": "0",
             "max": "5",
             "step": "1",
             "first_program": 3,
             "sequence": 90,
             "ui_label": "Pr\u00e4sentationen - Anzahl",
-            "ui_description": "Anzahl der Forschungspr\u00e4sentationen auf der B\u00fchne.\nEs m\u00fcssen nicht unbedingt die Teams pr\u00e4sentieren, die sp\u00e4ter als nominierte vorgestellt werden. Das steht zu diesem Zeitpunkt meist noch gar nicht fest. Statt dessen sollte jede Jury-Gruppe unabh\u00e4ngig von den anderen, Teams aussuchen, die \"sehenswerte\" Pr\u00e4sentationen haben.\nDie Pr\u00e4sentationen auf der B\u00fchne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte m\u00f6glich nicht darauf verzichtet werden."
+            "ui_description": "Anzahl der Forschungspr\u00e4sentationen auf der B\u00fchne.\nEs m\u00fcssen nicht unbedingt die Teams pr\u00e4sentieren, die sp\u00e4ter als nominierte vorgestellt werden. Das steht zu diesem Zeitpunkt meist noch gar nicht fest. Statt dessen sollte jede Jury-Gruppe unabh\u00e4ngig von den anderen, Teams aussuchen, die \"sehenswerte\" Pr\u00e4sentationen haben.\nDie Pr\u00e4sentationen auf der B\u00fchne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte m\u00f6glichst nicht darauf verzichtet werden."
         },
         {
             "id": 38,
@@ -2248,13 +2248,13 @@
             "level": 1,
             "type": "integer",
             "value": "1",
-            "min": "0",
+            "min": "1",
             "max": "4",
             "step": "1",
             "first_program": 3,
             "sequence": 91,
             "ui_label": "Pr\u00e4sentationen - Wann",
-            "ui_description": "\u00dcblicherweise finden die Pr\u00e4sentationen zwischen Robot-Game-Vorrunden und -Finalrunden statt. Wer m\u00f6chte, kann sie weiter nach hinten verschieben.\nDie Werte bedeuten\n0 = keine Pr\u00e4sentationen\n1 = nach den Vorrunden\n2 = nach dem Viertelfinale\n3 = nach dem Halbfinale\n4 = nach dem Finale"
+            "ui_description": "\u00dcblicherweise finden die Pr\u00e4sentationen zwischen Robot-Game-Vorrunden und -Finalrunden statt. Wer m\u00f6chte, kann sie weiter nach hinten verschieben.\nDie Werte bedeuten\n1 = nach den Vorrunden\n2 = nach dem Viertelfinale\n3 = nach dem Halbfinale\n4 = nach dem Finale"
         }
     ],
     "m_parameter_condition": [],
@@ -6302,7 +6302,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2025-11-17T07:03:54.957142Z",
+        "exported_at": "2025-11-19T17:56:02.337725Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
