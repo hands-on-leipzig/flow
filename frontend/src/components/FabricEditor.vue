@@ -52,11 +52,11 @@ const standardImages = [
   {title: 'First LEGO League', url: imageUrl('flow/first+fll_v.png')},
   {title: 'First', url: imageUrl('flow/first_h.png')},
   {title: 'First', url: imageUrl('flow/first_v.png')},
-  {title: 'FLl Challenge', url: imageUrl('flow/fll_challenge_h.png')},
-  {title: 'FLl Challenge', url: imageUrl('flow/fll_challenge_v.png')},
-  {title: 'FLl Explore', url: imageUrl('flow/fll_explore_h.png')},
-  {title: 'FLl Explore', url: imageUrl('flow/fll_explore_hs.png')},
-  {title: 'FLl Explore', url: imageUrl('flow/fll_explore_v.png')},
+  {title: 'FLL Challenge', url: imageUrl('flow/fll_challenge_h.png')},
+  {title: 'FLL Challenge', url: imageUrl('flow/fll_challenge_v.png')},
+  {title: 'FLL Explore', url: imageUrl('flow/fll_explore_h.png')},
+  {title: 'FLL Explore', url: imageUrl('flow/fll_explore_hs.png')},
+  {title: 'FLL Explore', url: imageUrl('flow/fll_explore_v.png')},
 ];
 const availableImages = ref(standardImages);
 const availableQrCodes = ref([]);
@@ -555,6 +555,7 @@ async function paste() {
             <img v-else :src="img.url" :alt="img.title"
                  class="w-24 h-24 object-contain rounded border"
                  @click="insertImageFromUrl(img.url)"/>
+            <div class="text-xs text-center mt-1 truncate w-24">{{ img.title }}</div>
           </div>
         </div>
         <div class="mt-6 px-4 py-2 grid grid-cols-2">
