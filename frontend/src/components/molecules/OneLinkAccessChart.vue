@@ -1,11 +1,27 @@
 <template>
   <div class="access-chart-container">
-    <div class="mb-4 flex justify-between items-center">
+    <div class="mb-4 flex justify-center gap-2 items-center">
       <button
-        @click="viewMode = viewMode === 'timeline' ? 'day' : 'timeline'"
-        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        @click="viewMode = 'timeline'"
+        :class="[
+          'px-4 py-2 rounded transition-colors',
+          viewMode === 'timeline' 
+            ? 'bg-blue-500 text-white hover:bg-blue-600' 
+            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+        ]"
       >
-        {{ viewMode === 'timeline' ? 'Tag des Events' : 'Vollständige Timeline' }}
+        Vollständige Timeline
+      </button>
+      <button
+        @click="viewMode = 'day'"
+        :class="[
+          'px-4 py-2 rounded transition-colors',
+          viewMode === 'day' 
+            ? 'bg-blue-500 text-white hover:bg-blue-600' 
+            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+        ]"
+      >
+        Tag des Events
       </button>
     </div>
     

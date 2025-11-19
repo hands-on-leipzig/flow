@@ -306,6 +306,12 @@ function shouldShowEvent(index) {
   )
 }
 
+function getEventName(eventId: number | null): string {
+  if (!eventId) return ''
+  const row = flattenedRows.value.find(r => r.event_id === eventId)
+  return row?.event_name || ''
+}
+
 const getPlanCount = (eventId) => {
   return flattenedRows.value.filter(r => r.event_id === eventId && r.plan_id !== null).length
 }
@@ -950,7 +956,7 @@ async function confirmModal() {
       <!-- Access Chart Modal -->
       <div v-if="modalState.mode === 'access-chart' && modalState.eventId" class="bg-white p-6 rounded-lg shadow-lg w-[90vw] max-w-6xl max-h-[90vh] overflow-auto">
         <h3 class="text-lg font-bold mb-4 text-center">
-          Zugriffe für Event {{ modalState.eventId }}
+          One-Link Zugriffe für Event {{ modalState.eventId }} "{{ getEventName(modalState.eventId) }}"
         </h3>
         
         <OneLinkAccessChart :event-id="modalState.eventId" />
