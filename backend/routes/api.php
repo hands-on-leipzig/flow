@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\NewsController;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,7 @@ Route::get('/publish/public-information/{eventId}', [PublishController::class, '
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
+Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']); // Public one-link access logging
 
 
 Route::prefix('contao')->group(function () {
@@ -69,7 +71,6 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/selected-event', function (Request $request) {
         $eventId = $request->user()?->selection_event;
-        Log::info($eventId);
         if (!$eventId) {
             return response()->json(['selected_event' => null]);
         }
@@ -129,6 +130,7 @@ Route::middleware(['keycloak'])->group(function () {
     // PlanParameter controller
     // Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
+    Route::get('/plans/{id}/expert-parameters', [PlanParameterController::class, 'getExpertParameters']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
 
 
@@ -275,10 +277,13 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     // Statistic controller
+    Route::get('/stats/one-link-access', [StatisticController::class, 'oneLinkAccess']);
+    Route::get('/stats/one-link-access/{eventId}', [StatisticController::class, 'oneLinkAccessChart']);
     Route::prefix('stats')->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
         Route::delete('/orphans/{type}/cleanup', [StatisticController::class, 'cleanupOrphans']);
+        Route::get('/timeline/{planId}', [StatisticController::class, 'timeline']);      // Timeline data for a plan
     });
 
     // Visibility controller

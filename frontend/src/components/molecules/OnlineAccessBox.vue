@@ -18,7 +18,7 @@ const saving = ref(null)
 
 // Detail-Level (3 levels, skipping backend level 2 "Nach Anmeldeschluss")
 const levels = ['Planung und Anmeldung', 'Überblick zum Ablauf', 'volle Details']
-const detailLevel = ref(0)
+const detailLevel = ref(undefined)
 
 // Map frontend level (0,1,2) to backend level (1,3,4) - skipping level 2
 function frontendToBackendLevel(frontendLevel: number): number {

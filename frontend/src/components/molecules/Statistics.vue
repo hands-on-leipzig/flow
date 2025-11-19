@@ -7,6 +7,11 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
+import StatisticsExpertParametersModal from './statistics/StatisticsExpertParametersModal.vue'
+import StatisticsGeneratorChartModal from './statistics/StatisticsGeneratorChartModal.vue'
+import StatisticsAccessChartModal from './statistics/StatisticsAccessChartModal.vue'
+import StatisticsDeleteModal from './statistics/StatisticsDeleteModal.vue'
+import ConfirmationModal from './ConfirmationModal.vue'
 
 type FlattenedRow = {
   partner_id: number | null
@@ -20,6 +25,7 @@ type FlattenedRow = {
   event_teams_explore: number
   event_teams_challenge: number
   plan_id: number | null
+  plan_name: string | null
   plan_created: string | null
   plan_last_change: string | null
   generator_stats: number | null
@@ -28,10 +34,12 @@ type FlattenedRow = {
   publication_level?: number | null
   publication_date?: string | null
   publication_last_change?: string | null
+  access_count?: number
 }
 
 const data = ref<any>(null)
 const totals = ref<any>(null)
+const accessStats = ref<Map<number, number>>(new Map())
 const loading = ref(true)
 const error = ref<string | null>(null)
 const selectedSeasonKey = ref<string | null>(null)
@@ -50,12 +58,22 @@ async function selectEvent(eventId, regionalPartnerId) {
 
 onMounted(async () => {
   try {
-    const [plansRes, totalsRes] = await Promise.all([
+    const [plansRes, totalsRes, accessRes] = await Promise.all([
       axios.get('/stats/plans'),
       axios.get('/stats/totals'),
+      axios.get('/stats/one-link-access').catch(() => ({ data: { accesses: [] } })),
     ])
     data.value = plansRes.data
     totals.value = totalsRes.data
+    
+    // Build access stats map
+    if (accessRes.data?.accesses) {
+      const map = new Map<number, number>()
+      for (const access of accessRes.data.accesses) {
+        map.set(access.event_id, access.total_count)
+      }
+      accessStats.value = map
+    }
 
     if (data.value?.seasons?.length > 0) {
       // Default: preselect the most recent season
@@ -115,7 +133,7 @@ const orphans = computed(() => ({
 }))
 
 type CleanupTarget = 'events' | 'plans' | 'activity-groups' | 'activities'
-type ModalMode = 'plan-delete' | 'cleanup'
+type ModalMode = 'plan-delete' | 'cleanup' | 'expert-parameters' | 'timeline' | 'access-chart'
 
 const cleanupMeta: Record<
   CleanupTarget,
@@ -151,20 +169,18 @@ const modalState = ref<{
   visible: boolean
   mode: ModalMode | null
   planId: number | null
+  planName: string | null
+  eventId: number | null
   cleanupType: CleanupTarget | null
 }>({
   visible: false,
   mode: null,
   planId: null,
+  planName: null,
+  eventId: null,
   cleanupType: null,
 })
 
-const modalConfirmLabel = computed(() => {
-  if (modalState.value.mode === 'cleanup' && modalState.value.cleanupType) {
-    return cleanupMeta[modalState.value.cleanupType].confirmLabel
-  }
-  return 'Löschen'
-})
 
 const badgeClass = (n) =>
   n > 0
@@ -188,25 +204,26 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
   const rows: FlattenedRow[] = []
 
   for (const partner of season.partners) {
-    if (!partner.events || partner.events.length === 0) {
-      rows.push({
-        partner_id: partner.partner_id,
-        partner_name: partner.partner_name,
-        event_id: null,
-        event_name: null,
-        event_date: null,
-        event_link: null,
-        event_explore: null,
-        event_challenge: null,
-        event_teams_explore: 0,
-        event_teams_challenge: 0,
-        plan_id: null,
-        plan_created: null,
-        plan_last_change: null,
-        generator_stats: null,
-      })
-      continue
-    }
+      if (!partner.events || partner.events.length === 0) {
+        rows.push({
+          partner_id: partner.partner_id,
+          partner_name: partner.partner_name,
+          event_id: null,
+          event_name: null,
+          event_date: null,
+          event_link: null,
+          event_explore: null,
+          event_challenge: null,
+          event_teams_explore: 0,
+          event_teams_challenge: 0,
+          plan_id: null,
+          plan_name: null,
+          plan_created: null,
+          plan_last_change: null,
+          generator_stats: null,
+        })
+        continue
+      }
 
     for (const event of partner.events) {
       const teamsExplore = Number(event.teams_explore ?? 0)
@@ -224,9 +241,11 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
           plan_id: null,
+          plan_name: null,
           plan_created: null,
           plan_last_change: null,
           generator_stats: null,
+          access_count: accessStats.value.get(event.event_id) ?? undefined,
         })
         continue
       }
@@ -244,6 +263,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
           plan_id: plan.plan_id,
+          plan_name: plan.plan_name,
           plan_created: plan.plan_created,
           plan_last_change: plan.plan_last_change,
           generator_stats: plan.generator_stats ?? null,
@@ -252,6 +272,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           publication_level: plan.publication_level ?? null,
           publication_date: plan.publication_date ?? null,
           publication_last_change: plan.publication_last_change ?? null,
+          access_count: accessStats.value.get(event.event_id) ?? undefined,
         })
       }
     }
@@ -275,6 +296,12 @@ function shouldShowEvent(index) {
   )
 }
 
+function getEventName(eventId: number | null): string {
+  if (!eventId) return ''
+  const row = flattenedRows.value.find(r => r.event_id === eventId)
+  return row?.event_name || ''
+}
+
 const getPlanCount = (eventId) => {
   return flattenedRows.value.filter(r => r.event_id === eventId && r.plan_id !== null).length
 }
@@ -288,12 +315,39 @@ function formatNumber(num) {
   return Number(num).toLocaleString('de-DE')
 }
 
+function getHoursSince(timestamp: string | null): number | null {
+  if (!timestamp) return null
+  const date = new Date(timestamp)
+  if (isNaN(date.getTime())) return null
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  return Math.floor(diffMs / (1000 * 60 * 60))
+}
+
+function getLastChangeClass(timestamp: string | null): string {
+  const hours = getHoursSince(timestamp)
+  if (hours === null) return ''
+  
+  if (hours <= 24) {
+    return 'bg-blue-600 text-white' // Darkest blue - last 24 hours
+  } else if (hours <= 72) {
+    return 'bg-blue-400 text-white' // Medium blue - last 72 hours
+  } else if (hours <= 168) {
+    return 'bg-blue-200 text-gray-800' // Lightest blue - last 7 days
+  }
+  return '' // No highlight for older changes
+}
+
 
 function openPlanDelete(planId: number) {
+  // Find plan name from flattened rows
+  const row = flattenedRows.value.find(r => r.plan_id === planId)
   modalState.value = {
     visible: true,
     mode: 'plan-delete',
     planId,
+    planName: row?.plan_name || null,
+    eventId: null,
     cleanupType: null,
   }
 }
@@ -307,18 +361,68 @@ function askCleanup(target: CleanupTarget) {
     visible: true,
     mode: 'cleanup',
     planId: null,
+    eventId: null,
     cleanupType: target,
   }
 }
+
+function openExpertParameters(planId: number) {
+  modalState.value = {
+    visible: true,
+    mode: 'expert-parameters',
+    planId,
+    eventId: null,
+    cleanupType: null,
+  }
+}
+
+function openTimeline(planId: number) {
+  modalState.value = {
+    visible: true,
+    mode: 'timeline',
+    planId,
+    eventId: null,
+    cleanupType: null,
+  }
+}
+
+function openAccessChart(eventId: number) {
+  modalState.value = {
+    visible: true,
+    mode: 'access-chart',
+    planId: null,
+    eventId,
+    cleanupType: null,
+  }
+}
+
+const timelineModalInfo = computed(() => {
+  if (!modalState.value.planId) return null
+  const row = flattenedRows.value.find(r => r.plan_id === modalState.value.planId)
+  if (!row) return null
+  return {
+    event_name: row.event_name,
+    event_id: row.event_id,
+    plan_id: modalState.value.planId,
+  }
+})
 
 function closeModal() {
   modalState.value = {
     visible: false,
     mode: null,
     planId: null,
+    planName: null,
+    eventId: null,
     cleanupType: null,
   }
 }
+
+const deletePlanMessage = computed(() => {
+  if (!modalState.value.planId) return ''
+  const planName = modalState.value.planName || modalState.value.planId || 'Unbekannt'
+  return `Plan "${planName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+})
 
 async function reloadStats() {
   const [plansRes, totalsRes] = await Promise.all([
@@ -463,7 +567,7 @@ async function confirmModal() {
             <span class="font-semibold">{{ formatNumber(seasonTotals.plans_total) }}</span>
           </div>
           <div class="flex justify-between text-gray-700">
-            <span>Activity Groups | Activities</span>
+            <span>ActGroups | Activities</span>
             <span class="font-semibold">
               {{ formatNumber(seasonTotals.activity_groups_total) }} | {{ formatNumber(seasonTotals.activities_total) }}
             </span>
@@ -496,14 +600,13 @@ async function confirmModal() {
                 <th class="px-3 py-2">Event</th>
                 <th class="px-3 py-2">Name, Datum, Anmeldungen</th>
                 <th class="px-3 py-2">Plan</th>
-                <th class="px-3 py-2">Erstellt</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
-                <th class="px-3 py-2">Generierungen</th>
-                <th class="px-3 py-2">Expert-Parameter</th>
+                <th class="px-3 py-2">Generie-<br>rungen</th>
+                <th class="px-3 py-2">Experten-Parameter</th>
                 <th class="px-3 py-2">Extra-Blöcke</th>
-                <th class="px-3 py-2">Publikations-Level / -Link</th>
-                <th class="px-3 py-2">Publiziert</th>
+                <th class="px-3 py-2">Veröffentl.-Level / -Link</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
+                <th class="px-3 py-2">Zugriffe</th>
               </tr>
             </thead>
             <tbody>
@@ -631,16 +734,25 @@ async function confirmModal() {
             </div>
           </td>
 
-          <!-- Plan created -->
-          <td class="px-3 py-2">{{ formatDateTime(row.plan_created) }}</td>
-
           <!-- Plan last change -->
-          <td class="px-3 py-2">{{ formatDateTime(row.plan_last_change) }}</td>
+          <td class="px-3 py-2" :class="getLastChangeClass(row.plan_last_change)">
+            {{ formatDateTime(row.plan_last_change) }}
+          </td>
   
           <!-- Generator stats -->
           <td class="px-3 py-2 text-right">
             <template v-if="row.plan_id && row.generator_stats !== null">
-              {{ row.generator_stats }}
+              <div class="flex flex-col items-end">
+                <span>{{ row.generator_stats }}</span>
+                <button
+                  v-if="row.plan_id"
+                  class="text-blue-600 hover:text-blue-800 mt-1"
+                  title="Timeline anzeigen"
+                  @click="openTimeline(row.plan_id)"
+                >
+                  📈
+                </button>
+              </div>
             </template>
             <template v-else>
               –
@@ -650,7 +762,19 @@ async function confirmModal() {
           <!-- Expert parameter changes -->
           <td class="px-3 py-2 text-right">
             <template v-if="row.plan_id">
-              {{ row.expert_param_changes }}
+              <div class="flex flex-col items-end">
+                <span>{{ row.expert_param_changes }}</span>
+                <template v-if="(row.expert_param_changes ?? 0) > 0">
+                  <a
+                    href="#"
+                    class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
+                    @click.prevent="openExpertParameters(row.plan_id)"
+                    title="Expert-Parameter anzeigen"
+                  >
+                    🔍
+                  </a>
+                </template>
+              </div>
             </template>
             <template v-else>–</template>
           </td>
@@ -665,61 +789,63 @@ async function confirmModal() {
 
           <!-- Publication level -->
           <td class="px-3 py-2">
-            <template v-if="(row.publication_level ?? 0) >= 1 && row.event_link">
-              <a
-                :href="row.event_link"
-                class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span class="flex">
-                  <span
-                    v-for="n in 4"
-                    :key="n"
-                    class="w-3 h-3 rounded-full mx-0.5"
-                    :class="n <= (row.publication_level ?? 0)
-                      ? 'bg-blue-600'
-                      : 'bg-gray-300'"
-                  ></span>
-                </span>
-                <span>{{ row.publication_level ?? '–' }}</span>
-              </a>
-            </template>
-            <template v-else>
-              <span class="inline-flex items-center gap-1 text-gray-700">
-                <span class="flex">
-                  <span
-                    v-for="n in 4"
-                    :key="n"
-                    class="w-3 h-3 rounded-full mx-0.5"
-                    :class="n <= (row.publication_level ?? 0)
-                      ? 'bg-blue-600'
-                      : 'bg-gray-300'"
-                  ></span>
-                </span>
-                <span>{{ row.publication_level ?? '–' }}</span>
+            <div class="flex flex-col items-start">
+              <span class="flex">
+                <span
+                  v-for="n in 4"
+                  :key="n"
+                  class="w-3 h-3 rounded-full mx-0.5"
+                  :class="n <= (row.publication_level ?? 0)
+                    ? 'bg-blue-600'
+                    : 'bg-gray-300'"
+                ></span>
               </span>
-            </template>
-          </td>
-
-          <!-- Publication date -->
-          <td class="px-3 py-2">
-            <template v-if="row.plan_id && row.publication_date">
-              {{ formatDateTime(row.publication_date) }}
-            </template>
-            <template v-else>–</template>
+              <template v-if="(row.publication_level ?? 0) >= 1">
+                <template v-if="row.event_link">
+                  <a
+                    :href="row.event_link"
+                    class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Event-Link öffnen"
+                  >
+                    🔗
+                  </a>
+                </template>
+                <template v-else>
+                  <span class="text-yellow-600 mt-1 text-xs" title="Kein Link verfügbar">
+                    ⚠️ fehlt
+                  </span>
+                </template>
+              </template>
+            </div>
           </td>
 
           <!-- Publication last change -->
-          <td class="px-3 py-2">
+          <td class="px-3 py-2" :class="getLastChangeClass(row.publication_last_change ?? null)">
             <template v-if="row.plan_id && row.publication_last_change">
               {{ formatDateTime(row.publication_last_change) }}
             </template>
             <template v-else>–</template>
           </td>
 
-
-
+          <!-- Access count -->
+          <td class="px-3 py-2">
+            <template v-if="row.event_id && row.access_count !== null && row.access_count !== undefined">
+              <div class="flex flex-col items-end">
+                <span>{{ row.access_count }}</span>
+                <button
+                  v-if="row.event_id"
+                  class="text-blue-600 hover:text-blue-800 mt-1"
+                  title="Zugriffe anzeigen"
+                  @click="openAccessChart(row.event_id)"
+                >
+                  📈
+                </button>
+              </div>
+            </template>
+            <template v-else>–</template>
+          </td>
 
         </tr>
 
@@ -735,35 +861,54 @@ async function confirmModal() {
   </div>
 
 
-  <!-- Delete/Cleanup modal -->
+  <!-- Modals -->
   <teleport to="body">
     <div v-if="modalState.visible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
-        <h3 class="text-lg font-bold mb-4">
-          <template v-if="modalState.mode === 'plan-delete'">
-            Plan löschen?
-          </template>
-          <template v-else-if="modalState.mode === 'cleanup' && modalState.cleanupType">
-            {{ cleanupMeta[modalState.cleanupType].title }}
-          </template>
-        </h3>
-        <p class="mb-6 text-sm text-gray-700">
-          <template v-if="modalState.mode === 'plan-delete'">
-            Bist du sicher, dass du den Plan mit der ID
-            <span class="font-semibold">{{ modalState.planId }}</span>
-            löschen möchtest? Diese Aktion kann nicht rückgängig gemacht werden.
-          </template>
-          <template v-else-if="modalState.mode === 'cleanup' && modalState.cleanupType">
-            {{ cleanupMeta[modalState.cleanupType].description }}
-          </template>
-        </p>
-        <div class="flex justify-end gap-2">
-          <button class="px-4 py-2 text-gray-600 hover:text-black" @click="closeModal">Abbrechen</button>
-          <button class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" @click="confirmModal">
-            {{ modalConfirmLabel }}
-          </button>
-        </div>
-      </div>
+      <!-- Expert Parameters Modal -->
+      <StatisticsExpertParametersModal
+        v-if="modalState.mode === 'expert-parameters' && modalState.planId"
+        :plan-id="modalState.planId"
+        @close="closeModal"
+      />
+      
+      <!-- Generator Chart Modal -->
+      <StatisticsGeneratorChartModal
+        v-if="modalState.mode === 'timeline' && modalState.planId"
+        :plan-id="modalState.planId"
+        :timeline-modal-info="timelineModalInfo"
+        @close="closeModal"
+      />
+      
+      <!-- Access Chart Modal -->
+      <StatisticsAccessChartModal
+        v-if="modalState.mode === 'access-chart' && modalState.eventId"
+        :event-id="modalState.eventId"
+        :event-name="getEventName(modalState.eventId)"
+        @close="closeModal"
+      />
+      
+      <!-- Plan Delete Modal -->
+      <ConfirmationModal
+        v-if="modalState.mode === 'plan-delete'"
+        :show="modalState.visible"
+        title="Plan löschen"
+        :message="deletePlanMessage"
+        type="danger"
+        confirm-text="Löschen"
+        cancel-text="Abbrechen"
+        @confirm="confirmModal"
+        @cancel="closeModal"
+      />
+      
+      <!-- Cleanup Modal -->
+      <StatisticsDeleteModal
+        v-if="modalState.mode === 'cleanup' && modalState.cleanupType !== null"
+        :mode="modalState.mode"
+        :plan-id="modalState.planId"
+        :cleanup-type="modalState.cleanupType"
+        @confirm="confirmModal"
+        @cancel="closeModal"
+      />
     </div>
   </teleport>
 

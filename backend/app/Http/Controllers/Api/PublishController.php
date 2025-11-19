@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\MActivityTypeDetail;
+use App\Models\OneLinkAccess;
 use App\Services\ActivityFetcherService;
 use App\Services\PdfLayoutService;
 
@@ -54,8 +55,10 @@ class PublishController extends Controller
 
         // Wenn bereits gesetzt → zurückgeben
         if (!empty($event->link) && !empty($event->qrcode) && !empty($event->slug)) {
+            // For existing QR codes, regenerate with ?source=qr if not already present
+            // But return the clean display link
             return response()->json([
-                'link' => $event->link,
+                'link' => $event->link,  // Clean display link
                 'qrcode' => 'data:image/png;base64,' . $event->qrcode,
             ]);
         }
@@ -104,12 +107,14 @@ class PublishController extends Controller
         $link = str_replace(array('ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß', '/', ' '), array('ae', 'oe', 'ue', 'AE', 'OE', 'UE', 'ss', '-', '-'), $link);
 
         $slug = $link;
-        $link = config('app.frontend_url', 'http://localhost:5173') . "/" . $link;
+        // Display link (stored in DB, shown to users) - clean without query params
+        $displayLink = config('app.frontend_url', 'http://localhost:5173') . "/" . $link;
+        // QR code link (includes source parameter for tracking)
+        $qrCodeLink = $displayLink . "?source=qr";
 
-
-        // QR-Code mit Endroid erzeugen
+        // QR-Code mit Endroid erzeugen (use QR code link with source parameter)
         $qrCode = new QrCode(
-            $link,
+            $qrCodeLink,
             new Encoding('UTF-8'),
             ErrorCorrectionLevel::High,
             300,
@@ -132,12 +137,12 @@ class PublishController extends Controller
         $result = $writer->write($qrCode, $logo);
         $qrcodeRaw = base64_encode($result->getString()); // nur Base64
 
-        // In DB speichern (ohne Prefix)
+        // In DB speichern (ohne Prefix) - store clean display link without ?source=qr
         DB::table('event')
             ->where('id', $event->id)
             ->update([
                 'slug' => $slug,
-                'link' => $link,
+                'link' => $displayLink,  // Clean link without ?source=qr
                 'qrcode' => $qrcodeRaw,
             ]);
 
@@ -280,9 +285,11 @@ class PublishController extends Controller
 
     public function scheduleInformation(int $eventId, Request $request): JsonResponse
     {
-        // Level aus Tabelle publication holen
+        // Level aus Tabelle publication holen (latest entry)
         $publication = DB::table('publication')
             ->where('event', $eventId)
+            ->orderBy('last_change', 'desc')
+            ->orderBy('id', 'desc')
             ->select('level')
             ->first();
 
@@ -364,8 +371,11 @@ class PublishController extends Controller
     // Aktuellen Level holen
     public function getPublicationLevel(int $eventId): JsonResponse
     {
+        // Get latest entry (by last_change DESC, then id DESC)
         $publication = DB::table('publication')
             ->where('event', $eventId)
+            ->orderBy('last_change', 'desc')
+            ->orderBy('id', 'desc')
             ->first();
 
         // Falls noch kein Eintrag vorhanden → neuen mit Level 1 anlegen
@@ -373,8 +383,7 @@ class PublishController extends Controller
             DB::table('publication')->insert([
                 'event' => $eventId,
                 'level' => 1,
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
+                'last_change' => Carbon::now(),
             ]);
 
             $level = 1;
@@ -393,11 +402,21 @@ class PublishController extends Controller
     {
         $level = (int)$request->input('level', 1);
 
-        DB::table('publication')
-            ->updateOrInsert(
-                ['event' => $eventId],
-                ['level' => $level, 'updated_at' => Carbon::now(),]
-            );
+        // Get current latest level
+        $latest = DB::table('publication')
+            ->where('event', $eventId)
+            ->orderBy('last_change', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        // Only insert if level actually changed (avoid duplicates)
+        if (!$latest || $latest->level !== $level) {
+            DB::table('publication')->insert([
+                'event' => $eventId,
+                'level' => $level,
+                'last_change' => Carbon::now(),
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -575,5 +594,79 @@ class PublishController extends Controller
             ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
+    }
+
+    /**
+     * Log one-link access (public event page access)
+     * No authentication required - public endpoint
+     */
+    public function logOneLinkAccess(Request $request): JsonResponse
+    {
+        try {
+            // Validate event_id exists
+            $eventId = $request->input('event_id');
+            if (!$eventId) {
+                return response()->json(['error' => 'event_id is required'], 400);
+            }
+
+            $event = Event::find($eventId);
+            if (!$event) {
+                return response()->json(['error' => 'Event not found'], 400);
+            }
+
+            // Extract server-side data from request
+            $userAgent = $request->userAgent();
+            $referrer = $request->header('referer');
+            $ip = $request->ip();
+            $ipHash = hash('sha256', $ip . config('app.key'));
+            $acceptLanguage = $request->header('accept-language');
+
+            // Extract client-side data from request body
+            $screenWidth = $request->input('screen_width');
+            $screenHeight = $request->input('screen_height');
+            $viewportWidth = $request->input('viewport_width');
+            $viewportHeight = $request->input('viewport_height');
+            $devicePixelRatio = $request->input('device_pixel_ratio');
+            $touchSupport = $request->input('touch_support');
+            $connectionType = $request->input('connection_type');
+
+            // Determine source
+            $source = $request->input('source', 'unknown');
+            if ($source === 'qr') {
+                $source = 'qr';
+            } elseif ($referrer) {
+                $source = 'referrer';
+            } else {
+                $source = 'direct';
+            }
+
+            // Insert record into database
+            OneLinkAccess::create([
+                'event' => $eventId,
+                'access_date' => Carbon::now()->toDateString(),
+                'access_time' => Carbon::now(),
+                'user_agent' => $userAgent,
+                'referrer' => $referrer,
+                'ip_hash' => $ipHash,
+                'accept_language' => $acceptLanguage ? substr($acceptLanguage, 0, 50) : null,
+                'screen_width' => $screenWidth,
+                'screen_height' => $screenHeight,
+                'viewport_width' => $viewportWidth,
+                'viewport_height' => $viewportHeight,
+                'device_pixel_ratio' => $devicePixelRatio,
+                'touch_support' => $touchSupport,
+                'connection_type' => $connectionType ? substr($connectionType, 0, 20) : null,
+                'source' => $source,
+            ]);
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            // Log error but don't fail - silent failure for user experience
+            Log::error('Failed to log one-link access', [
+                'error' => $e->getMessage(),
+                'event_id' => $request->input('event_id'),
+            ]);
+            return response()->json(['error' => 'Failed to log access'], 500);
+        }
     }
 }

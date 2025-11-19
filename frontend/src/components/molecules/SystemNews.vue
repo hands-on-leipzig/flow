@@ -1,10 +1,21 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import ConfirmationModal from './ConfirmationModal.vue'
+
+const props = defineProps({
+  isDevEnvironment: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const { isDevEnvironment } = props
 
 const newsList = ref([])
 const loading = ref(false)
 const error = ref(null)
+const newsToDelete = ref(null)
 
 // Form state
 const showCreateForm = ref(false)
@@ -53,17 +64,30 @@ const createNews = async () => {
   }
 }
 
-const deleteNews = async (id, title) => {
-  if (!confirm(`News "${title}" wirklich löschen?`)) {
-    return
-  }
+const confirmDeleteNews = (id, title) => {
+  newsToDelete.value = { id, title }
+}
+
+const cancelDeleteNews = () => {
+  newsToDelete.value = null
+}
+
+const deleteNewsMessage = computed(() => {
+  if (!newsToDelete.value) return ''
+  return `News "${newsToDelete.value.title || 'Unbekannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+})
+
+const deleteNews = async () => {
+  if (!newsToDelete.value) return
 
   try {
-    await axios.delete(`/admin/news/${id}`)
+    await axios.delete(`/admin/news/${newsToDelete.value.id}`)
     await loadNews()
+    newsToDelete.value = null
   } catch (err) {
     console.error('Error deleting news:', err)
     alert('Fehler beim Löschen der News')
+    newsToDelete.value = null
   }
 }
 
@@ -83,10 +107,16 @@ onMounted(() => {
       <h1 class="text-2xl font-bold text-gray-800">System News</h1>
       <button
         v-if="!showCreateForm"
-        @click="showCreateForm = true"
-        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+        @click="isDevEnvironment && (showCreateForm = true)"
+        :disabled="!isDevEnvironment"
+        :title="!isDevEnvironment ? 'Neue News erstellen ist nur auf Dev verfügbar' : ''"
+        class="font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+        :class="isDevEnvironment 
+          ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+          : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'"
       >
         ➕ Neue News erstellen
+        <span v-if="!isDevEnvironment" class="ml-2 text-xs">(nur Dev)</span>
       </button>
     </div>
 
@@ -186,7 +216,7 @@ onMounted(() => {
             </p>
           </div>
           <button
-            @click="deleteNews(news.id, news.title)"
+            @click="confirmDeleteNews(news.id, news.title)"
             class="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors duration-200"
             title="Löschen"
           >
@@ -231,6 +261,17 @@ onMounted(() => {
       </div>
     </div>
   </div>
+
+  <ConfirmationModal
+    :show="!!newsToDelete"
+    title="News löschen"
+    :message="deleteNewsMessage"
+    type="danger"
+    confirm-text="Löschen"
+    cancel-text="Abbrechen"
+    @confirm="deleteNews"
+    @cancel="cancelDeleteNews"
+  />
 </template>
 
 <style scoped>

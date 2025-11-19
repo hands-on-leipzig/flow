@@ -2,7 +2,7 @@
   <div class="main-tables-admin">
     <div class="mb-6">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-bold text-gray-900">Main Tables Management</h2>
+        <h2 class="text-2xl font-bold text-gray-900">m-Tabellen-Verwaltung</h2>
         
         <!-- Export Button -->
         <button
@@ -10,7 +10,7 @@
           :disabled="loading || creatingPR"
           class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
         >
-          {{ creatingPR ? 'Creating PR...' : 'Export m_ table data' }}
+          {{ creatingPR ? 'PR wird erstellt...' : 'm-Tabellen exportieren' }}
         </button>
       </div>
       
@@ -74,7 +74,7 @@
     <div v-if="selectedTable === 'm_parameter'" class="bg-white shadow overflow-hidden sm:rounded-md">
       <div class="px-4 py-5 sm:p-6">
         <h3 class="text-lg font-medium text-gray-900 mb-4">
-          {{ getTableDisplayName(selectedTable) }} - Advanced Editor
+          {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
         </h3>
         <MParameter />
       </div>
@@ -84,7 +84,7 @@
     <div v-else-if="selectedTable === 'm_visibility'" class="bg-white shadow overflow-hidden sm:rounded-md">
       <div class="px-4 py-5 sm:p-6">
         <h3 class="text-lg font-medium text-gray-900 mb-4">
-          {{ getTableDisplayName(selectedTable) }} - Advanced Editor
+          {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
         </h3>
         <Visibility />
       </div>
@@ -94,7 +94,7 @@
     <div v-else-if="selectedTable && tableData.length > 0" class="bg-white shadow overflow-hidden sm:rounded-md">
       <div class="px-4 py-5 sm:p-6">
         <h3 class="text-lg font-medium text-gray-900 mb-4">
-          {{ getTableDisplayName(selectedTable) }} - {{ tableData.length }} records
+          {{ getTableDisplayName(selectedTable) }} - {{ tableData.length }} Datensätze
         </h3>
 
         <!-- Add New Record Button -->
@@ -106,7 +106,7 @@
             <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
             </svg>
-            Add New Record
+            Neuen Datensatz hinzufügen
           </button>
         </div>
 
@@ -123,7 +123,7 @@
                   {{ column }}
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  Aktionen
                 </th>
               </tr>
             </thead>
@@ -148,13 +148,13 @@
                       @click="saveRecord(index)"
                       class="text-green-600 hover:text-green-900"
                     >
-                      Save
+                      Speichern
                     </button>
                     <button
                       @click="cancelEdit"
                       class="text-gray-600 hover:text-gray-900"
                     >
-                      Cancel
+                      Abbrechen
                     </button>
                   </div>
                   <div v-else class="flex space-x-2">
@@ -162,13 +162,13 @@
                       @click="editRecord(index)"
                       class="text-blue-600 hover:text-blue-900"
                     >
-                      Edit
+                      Bearbeiten
                     </button>
                     <button
-                      @click="deleteRecord(index)"
+                      @click="confirmDeleteRecord(index)"
                       class="text-red-600 hover:text-red-900"
                     >
-                      Delete
+                      Löschen
                     </button>
                   </div>
                 </td>
@@ -184,8 +184,8 @@
       <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
       </svg>
-      <h3 class="mt-2 text-sm font-medium text-gray-900">No records found</h3>
-      <p class="mt-1 text-sm text-gray-500">This table is empty.</p>
+      <h3 class="mt-2 text-sm font-medium text-gray-900">Keine Datensätze gefunden</h3>
+      <p class="mt-1 text-sm text-gray-500">Diese Tabelle ist leer.</p>
       <div class="mt-6">
         <button
           @click="addNewRecord"
@@ -194,7 +194,7 @@
           <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
           </svg>
-          Add First Record
+          Ersten Datensatz hinzufügen
         </button>
       </div>
     </div>
@@ -205,9 +205,20 @@
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
-      <p class="mt-2 text-sm text-gray-500">Loading table data...</p>
+      <p class="mt-2 text-sm text-gray-500">Tabellendaten werden geladen...</p>
     </div>
   </div>
+
+  <ConfirmationModal
+    :show="!!recordToDelete"
+    title="Datensatz löschen"
+    :message="deleteRecordMessage"
+    type="danger"
+    confirm-text="Löschen"
+    cancel-text="Abbrechen"
+    @confirm="deleteRecord"
+    @cancel="cancelDeleteRecord"
+  />
 </template>
 
 <script setup>
@@ -215,6 +226,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import MParameter from './MParameter.vue'
 import Visibility from './Visibility.vue'
+import ConfirmationModal from './ConfirmationModal.vue'
 
 // Reactive data
 const selectedTable = ref('')
@@ -224,6 +236,7 @@ const loading = ref(false)
 const editingRecord = ref(null)
 const editingData = ref({})
 const creatingPR = ref(false)
+const recordToDelete = ref(null)
 
 // Scroll functionality
 const tabContainer = ref(null)
@@ -422,22 +435,37 @@ const saveRecord = async (index) => {
     editingData.value = {}
   } catch (error) {
     console.error('Error saving record:', error)
-    alert('Error saving record: ' + (error.response?.data?.message || error.message))
+    alert('Fehler beim Speichern des Datensatzes: ' + (error.response?.data?.message || error.message))
   }
 }
 
-const deleteRecord = async (index) => {
-  if (!confirm('Are you sure you want to delete this record?')) return
+const confirmDeleteRecord = (index) => {
+  const record = tableData.value[index]
+  recordToDelete.value = { index, id: record.id || null }
+}
+
+const cancelDeleteRecord = () => {
+  recordToDelete.value = null
+}
+
+const deleteRecordMessage = computed(() => {
+  return 'Datensatz wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'
+})
+
+const deleteRecord = async () => {
+  if (!recordToDelete.value) return
   
   try {
-    const record = tableData.value[index]
-    if (record.id) {
-      await axios.delete(`/admin/main-tables/${selectedTable.value}/${record.id}`)
+    const { index, id } = recordToDelete.value
+    if (id) {
+      await axios.delete(`/admin/main-tables/${selectedTable.value}/${id}`)
     }
     tableData.value.splice(index, 1)
+    recordToDelete.value = null
   } catch (error) {
     console.error('Error deleting record:', error)
-    alert('Error deleting record: ' + (error.response?.data?.message || error.message))
+    alert('Fehler beim Löschen des Datensatzes: ' + (error.response?.data?.message || error.message))
+    recordToDelete.value = null
   }
 }
 
@@ -458,8 +486,8 @@ const createGitHubPR = async () => {
     
     // Show success message with PR details
     const message = response.data.success 
-      ? `GitHub PR creation initiated successfully!\n\n${response.data.message}`
-      : 'Failed to create GitHub PR'
+      ? `GitHub PR-Erstellung erfolgreich gestartet!\n\n${response.data.message}`
+      : 'Fehler beim Erstellen des GitHub PR'
     alert(message)
     
     // If there's output, show it
@@ -468,7 +496,7 @@ const createGitHubPR = async () => {
     }
   } catch (error) {
     console.error('Error creating GitHub PR:', error)
-    alert('Error creating GitHub PR: ' + (error.response?.data?.message || error.message))
+    alert('Fehler beim Erstellen des GitHub PR: ' + (error.response?.data?.message || error.message))
   } finally {
     creatingPR.value = false
   }

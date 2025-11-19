@@ -116,7 +116,10 @@ function handleKeyDown(event: KeyboardEvent) {
         ERGEBNISSE {{ round ? roundNames[round].toUpperCase() : '' }}: {{ scores?.name?.toUpperCase() }}
       </h1>
 
-      <div>
+      <div v-if="!round" class="scores flex items-center justify-center">
+        <span>Keine Ergebnisse verfügbar.</span>
+      </div>
+      <div v-if="round">
         <table class="scores">
           <thead>
           <tr>
@@ -161,12 +164,11 @@ function handleKeyDown(event: KeyboardEvent) {
   background-size: cover;
   background-position: center;
   padding: 5em;
-  /* TODO: use user-defined values from settings */
-  color: #222222;
+  color: v-bind('props.content.textColor');
 }
 
 .slide-title {
-  font-size: 3rem;
+  font-size: 2.5rem;
   font-weight: bold;
   padding: 0 1rem 3rem 1rem;
 }
@@ -175,7 +177,7 @@ function handleKeyDown(event: KeyboardEvent) {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 3rem;
+  font-size: 2.5rem;
 }
 
 th, td {
@@ -189,7 +191,7 @@ th, td {
 }
 
 .cell {
-  width: 8rem;
+  width: 9rem;
   text-align: center;
 }
 

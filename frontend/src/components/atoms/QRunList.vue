@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import QPlanList from './QPlanList.vue'
 import axios from 'axios'
+import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 
 import { formatDateTime } from '@/utils/dateTimeFormat'
 
@@ -13,6 +14,7 @@ const qruns = ref([])
 const loading = ref(true)
 const error = ref(null)
 const expandedQRunId = ref(null)
+const qrunToDelete = ref(null)
 let intervalId = null
 
 const toggleExpanded = (id) => {
@@ -50,15 +52,30 @@ onBeforeUnmount(() => {
   if (intervalId) clearInterval(intervalId)
 })
 
-async function handleDelete(qrunId) {
-  if (!confirm(`QRun ${qrunId} wirklich löschen?`)) return
+const confirmDeleteQRun = (qrunId) => {
+  qrunToDelete.value = qrunId
+}
+
+const cancelDeleteQRun = () => {
+  qrunToDelete.value = null
+}
+
+const deleteQRunMessage = computed(() => {
+  if (qrunToDelete.value === null) return ''
+  return `QRun ${qrunToDelete.value || 'Unbekannt'} wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+})
+
+async function handleDelete() {
+  if (!qrunToDelete.value) return
 
   try {
-    await axios.delete(`/quality/delete/${qrunId}`)
+    await axios.delete(`/quality/delete/${qrunToDelete.value}`)
     await loadQRuns()
+    qrunToDelete.value = null
   } catch (err) {
     console.error('Fehler beim Löschen des QRuns:', err)
     alert('Löschen fehlgeschlagen.')
+    qrunToDelete.value = null
   }
 }
 
@@ -130,7 +147,7 @@ async function handleDelete(qrunId) {
         <div class="basis-[10%] flex-shrink-0 flex items-center justify-center ml-4">
           <div class="flex flex-col items-center gap-2">
             <button
-              @click.stop="handleDelete(qrun.id)"
+              @click.stop="confirmDeleteQRun(qrun.id)"
               class="px-2 py-1 rounded hover:bg-red-50"
               title="QRun löschen (inkl. zugehöriger QPlans & Pläne)"
             >
@@ -154,4 +171,15 @@ async function handleDelete(qrunId) {
       </div>
     </div>
   </div>
+
+  <ConfirmationModal
+    :show="qrunToDelete !== null"
+    title="QRun löschen"
+    :message="deleteQRunMessage"
+    type="danger"
+    confirm-text="Löschen"
+    cancel-text="Abbrechen"
+    @confirm="handleDelete"
+    @cancel="cancelDeleteQRun"
+  />
 </template>
