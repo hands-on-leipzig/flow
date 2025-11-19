@@ -633,16 +633,24 @@ class StatisticController extends Controller
         }
 
         // Build publication level intervals
+        $today = \Carbon\Carbon::today()->startOfDay();
+        $maxEndDate = $endDate->lt($today) ? $endDate->copy() : $today->copy();
+        
         $publicationIntervals = [];
         foreach ($publications as $index => $pub) {
             $intervalStart = \Carbon\Carbon::parse($pub->last_change)->startOfDay();
             $intervalEnd = isset($publications[$index + 1])
                 ? \Carbon\Carbon::parse($publications[$index + 1]->last_change)->startOfDay()
-                : $endDate->copy();
+                : $maxEndDate->copy();
             
-            // Ensure interval doesn't extend beyond event date
-            if ($intervalEnd->gt($endDate)) {
-                $intervalEnd = $endDate->copy();
+            // Ensure interval doesn't extend beyond today or event date
+            if ($intervalEnd->gt($maxEndDate)) {
+                $intervalEnd = $maxEndDate->copy();
+            }
+            
+            // Ensure interval start doesn't extend beyond max end date
+            if ($intervalStart->gt($maxEndDate)) {
+                continue; // Skip intervals that start in the future
             }
 
             $publicationIntervals[] = [
@@ -742,15 +750,25 @@ class StatisticController extends Controller
             ->orderBy('last_change')
             ->get();
 
+        // Build publication level intervals - end at today (or event date if earlier)
+        $today = Carbon::today()->startOfDay();
+        $maxEndDate = $endDate->lt($today) ? $endDate->copy() : $today->copy();
+        
         $publicationIntervals = [];
         foreach ($publications as $index => $pub) {
             $intervalStart = Carbon::parse($pub->last_change)->startOfDay();
             $intervalEnd = isset($publications[$index + 1])
                 ? Carbon::parse($publications[$index + 1]->last_change)->startOfDay()
-                : $endDate->copy();
+                : $maxEndDate->copy();
             
-            if ($intervalEnd->gt($endDate)) {
-                $intervalEnd = $endDate->copy();
+            // Ensure interval doesn't extend beyond today or event date
+            if ($intervalEnd->gt($maxEndDate)) {
+                $intervalEnd = $maxEndDate->copy();
+            }
+            
+            // Ensure interval start doesn't extend beyond max end date
+            if ($intervalStart->gt($maxEndDate)) {
+                continue; // Skip intervals that start in the future
             }
 
             $publicationIntervals[] = [
