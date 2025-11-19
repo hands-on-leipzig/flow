@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\NewsController;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
@@ -69,7 +70,6 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/selected-event', function (Request $request) {
         $eventId = $request->user()?->selection_event;
-        Log::info($eventId);
         if (!$eventId) {
             return response()->json(['selected_event' => null]);
         }
