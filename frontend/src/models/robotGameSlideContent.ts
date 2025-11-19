@@ -6,6 +6,7 @@ export class RobotGameSlideContent extends SlideContent {
     public teamsPerPage: number = 8;
     public secondsPerPage: number = 15;
     public highlightColor: string = '#F78B1F';
+    public textColor: string = '#222222';
 
     constructor(data: object) {
         super();
@@ -19,6 +20,7 @@ export class RobotGameSlideContent extends SlideContent {
             teamsPerPage: this.teamsPerPage,
             secondsPerPage: this.secondsPerPage,
             highlightColor: this.highlightColor,
+            textColor: this.textColor,
             background: this.background
         };
     }
