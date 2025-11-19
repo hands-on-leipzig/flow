@@ -598,7 +598,7 @@ function handleEndTimeChange(block: ExtraBlock, time: string) {
 
 const deleteMessage = computed(() => {
   if (!blockToDelete.value) return ''
-  return `Möchtest du den Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen?`
+  return `Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
 </script>
 

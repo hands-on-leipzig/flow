@@ -6,6 +6,7 @@ import draggable from 'vuedraggable'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import LoaderText from "@/components/atoms/LoaderText.vue";
+import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
 
 // --- Stores & Refs ---
 const eventStore = useEventStore()
@@ -397,12 +398,10 @@ const handleRoomReorder = async () => {
 }
 
 // --- Raum löschen ---
-const showDeleteModal = ref(false)
 const roomToDelete = ref(null)
 
 const askDeleteRoom = (room) => {
   roomToDelete.value = room
-  showDeleteModal.value = true
 }
 
 const confirmDeleteRoom = async () => {
@@ -415,14 +414,17 @@ const confirmDeleteRoom = async () => {
     if (assignments.value[key] === deletedRoomId) assignments.value[key] = null
   })
 
-  showDeleteModal.value = false
   roomToDelete.value = null
 }
 
 const cancelDeleteRoom = () => {
-  showDeleteModal.value = false
   roomToDelete.value = null
 }
+
+const deleteRoomMessage = computed(() => {
+  if (!roomToDelete.value) return ''
+  return `Raum "${roomToDelete.value.name || 'Unbekannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+})
 
 // --- Klick außerhalb Eingabefelds ---
 const handleClickOutside = (event) => {
@@ -1064,33 +1066,14 @@ const hasWarning = (tab) => {
   </div>
 
   <!-- 🔴 Lösch-Modal -->
-  <teleport to="body">
-    <div
-      v-if="showDeleteModal"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-    >
-      <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
-        <h3 class="text-lg font-bold mb-4">Raum löschen?</h3>
-        <p class="mb-6 text-sm text-gray-700">
-          Bist du sicher, dass du den Raum
-          <span class="font-semibold">{{ roomToDelete?.name }}</span> löschen
-          möchtest? Diese Aktion kann nicht rückgängig gemacht werden.
-        </p>
-        <div class="flex justify-end gap-2">
-          <button
-            class="px-4 py-2 text-gray-600 hover:text-black"
-            @click="cancelDeleteRoom"
-          >
-            Abbrechen
-          </button>
-          <button
-            class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-            @click="confirmDeleteRoom"
-          >
-            Löschen
-          </button>
-        </div>
-      </div>
-    </div>
-  </teleport>
+  <ConfirmationModal
+    :show="!!roomToDelete"
+    title="Raum löschen"
+    :message="deleteRoomMessage"
+    type="danger"
+    confirm-text="Löschen"
+    cancel-text="Abbrechen"
+    @confirm="confirmDeleteRoom"
+    @cancel="cancelDeleteRoom"
+  />
 </template>

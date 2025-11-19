@@ -165,7 +165,7 @@
                       Edit
                     </button>
                     <button
-                      @click="deleteRecord(index)"
+                      @click="confirmDeleteRecord(index)"
                       class="text-red-600 hover:text-red-900"
                     >
                       Delete
@@ -208,6 +208,17 @@
       <p class="mt-2 text-sm text-gray-500">Loading table data...</p>
     </div>
   </div>
+
+  <ConfirmationModal
+    :show="!!recordToDelete"
+    title="Datensatz löschen"
+    :message="`Datensatz wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`"
+    type="danger"
+    confirm-text="Löschen"
+    cancel-text="Abbrechen"
+    @confirm="deleteRecord"
+    @cancel="cancelDeleteRecord"
+  />
 </template>
 
 <script setup>
@@ -215,6 +226,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import MParameter from './MParameter.vue'
 import Visibility from './Visibility.vue'
+import ConfirmationModal from './ConfirmationModal.vue'
 
 // Reactive data
 const selectedTable = ref('')
@@ -224,6 +236,7 @@ const loading = ref(false)
 const editingRecord = ref(null)
 const editingData = ref({})
 const creatingPR = ref(false)
+const recordToDelete = ref(null)
 
 // Scroll functionality
 const tabContainer = ref(null)
@@ -426,18 +439,29 @@ const saveRecord = async (index) => {
   }
 }
 
-const deleteRecord = async (index) => {
-  if (!confirm('Are you sure you want to delete this record?')) return
+const confirmDeleteRecord = (index) => {
+  const record = tableData.value[index]
+  recordToDelete.value = { index, id: record.id || null }
+}
+
+const cancelDeleteRecord = () => {
+  recordToDelete.value = null
+}
+
+const deleteRecord = async () => {
+  if (!recordToDelete.value) return
   
   try {
-    const record = tableData.value[index]
-    if (record.id) {
-      await axios.delete(`/admin/main-tables/${selectedTable.value}/${record.id}`)
+    const { index, id } = recordToDelete.value
+    if (id) {
+      await axios.delete(`/admin/main-tables/${selectedTable.value}/${id}`)
     }
     tableData.value.splice(index, 1)
+    recordToDelete.value = null
   } catch (error) {
     console.error('Error deleting record:', error)
     alert('Error deleting record: ' + (error.response?.data?.message || error.message))
+    recordToDelete.value = null
   }
 }
 
