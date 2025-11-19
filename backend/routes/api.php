@@ -50,6 +50,7 @@ Route::get('/publish/public-information/{eventId}', [PublishController::class, '
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
+Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']); // Public one-link access logging
 
 
 Route::prefix('contao')->group(function () {
@@ -276,6 +277,8 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     // Statistic controller
+    Route::get('/stats/one-link-access', [StatisticController::class, 'oneLinkAccess']);
+    Route::get('/stats/one-link-access/{eventId}', [StatisticController::class, 'oneLinkAccessChart']);
     Route::prefix('stats')->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen

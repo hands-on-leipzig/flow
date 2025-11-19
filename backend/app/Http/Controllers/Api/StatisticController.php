@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use App\Enums\FirstProgram;
 use App\Models\Event;
 use App\Http\Controllers\Api\DrahtController;
+use Carbon\Carbon;
 
 
 class StatisticController extends Controller
@@ -655,6 +656,167 @@ class StatisticController extends Controller
             'start_date' => $startDate->format('Y-m-d'),
             'end_date' => $endDate->format('Y-m-d'),
             'daily_data' => $dailyData,
+            'publication_intervals' => $publicationIntervals,
+        ]);
+    }
+
+    /**
+     * Get one-link access statistics (total counts per event)
+     */
+    public function oneLinkAccess(): JsonResponse
+    {
+        $accesses = DB::table('s_one_link_access as ola')
+            ->join('event', 'event.id', '=', 'ola.event')
+            ->select(
+                'event.id as event_id',
+                'event.slug',
+                'event.name as event_name',
+                DB::raw('COUNT(*) as total_count')
+            )
+            ->groupBy('event.id', 'event.slug', 'event.name')
+            ->orderBy('total_count', 'desc')
+            ->get();
+
+        return response()->json([
+            'accesses' => $accesses,
+        ]);
+    }
+
+    /**
+     * Get one-link access chart data for a specific event
+     */
+    public function oneLinkAccessChart(int $eventId): JsonResponse
+    {
+        // Get event and plan data
+        $event = DB::table('event')
+            ->leftJoin('plan', 'plan.event', '=', 'event.id')
+            ->where('event.id', $eventId)
+            ->select(
+                'event.id as event_id',
+                'event.date as event_date',
+                'event.days as event_days',
+                'plan.created as plan_created'
+            )
+            ->first();
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        // Determine date range
+        $startDate = $event->plan_created 
+            ? Carbon::parse($event->plan_created)->startOfDay() 
+            : Carbon::now()->startOfDay();
+        $endDate = $event->event_date 
+            ? Carbon::parse($event->event_date)->startOfDay() 
+            : Carbon::now()->startOfDay();
+
+        // Get daily aggregated access counts
+        $dailyAccesses = DB::table('s_one_link_access')
+            ->where('event', $eventId)
+            ->select(
+                DB::raw('DATE(access_date) as date'),
+                DB::raw('COUNT(*) as access_count')
+            )
+            ->groupBy(DB::raw('DATE(access_date)'))
+            ->get()
+            ->keyBy('date')
+            ->map(fn($item) => (int)$item->access_count);
+
+        // Build daily data array
+        $dailyData = [];
+        $currentDate = $startDate->copy();
+        while ($currentDate->lte($endDate)) {
+            $dateKey = $currentDate->format('Y-m-d');
+            $dailyData[] = [
+                'date' => $dateKey,
+                'access_count' => $dailyAccesses->get($dateKey, 0),
+            ];
+            $currentDate->addDay();
+        }
+
+        // Get publication level intervals (same as timeline chart)
+        $publications = DB::table('publication')
+            ->where('event', $eventId)
+            ->select('level', 'last_change')
+            ->orderBy('last_change')
+            ->get();
+
+        $publicationIntervals = [];
+        foreach ($publications as $index => $pub) {
+            $intervalStart = Carbon::parse($pub->last_change)->startOfDay();
+            $intervalEnd = isset($publications[$index + 1])
+                ? Carbon::parse($publications[$index + 1]->last_change)->startOfDay()
+                : $endDate->copy();
+            
+            if ($intervalEnd->gt($endDate)) {
+                $intervalEnd = $endDate->copy();
+            }
+
+            $publicationIntervals[] = [
+                'level' => (int)$pub->level,
+                'start_date' => $intervalStart->format('Y-m-d'),
+                'end_date' => $intervalEnd->format('Y-m-d'),
+            ];
+        }
+
+        // Calculate event day intervals (15-minute intervals)
+        $eventDayIntervals = [];
+        if ($event->event_date) {
+            $eventStart = Carbon::parse($event->event_date)->setTime(6, 0, 0);
+            $eventDays = (int)($event->event_days ?? 1);
+            $eventEnd = Carbon::parse($event->event_date)
+                ->addDays($eventDays - 1)
+                ->setTime(20, 55, 0);
+
+            // Get access counts for 15-minute intervals
+            // Round access_time to nearest 15-minute interval
+            $intervalAccesses = DB::table('s_one_link_access')
+                ->where('event', $eventId)
+                ->whereBetween('access_time', [$eventStart, $eventEnd])
+                ->select(
+                    DB::raw('DATE_FORMAT(
+                        DATE_ADD(
+                            access_time,
+                            INTERVAL (15 - MINUTE(access_time) % 15) MINUTE
+                        ),
+                        "%Y-%m-%d %H:%i"
+                    ) as interval_time'),
+                    DB::raw('COUNT(*) as access_count')
+                )
+                ->groupBy(DB::raw('DATE_FORMAT(
+                    DATE_ADD(
+                        access_time,
+                        INTERVAL (15 - MINUTE(access_time) % 15) MINUTE
+                    ),
+                    "%Y-%m-%d %H:%i"
+                )'))
+                ->get()
+                ->keyBy('interval_time')
+                ->map(fn($item) => (int)$item->access_count);
+
+            // Generate all 15-minute intervals
+            $currentInterval = $eventStart->copy();
+            while ($currentInterval->lte($eventEnd)) {
+                $intervalKey = $currentInterval->format('Y-m-d H:i');
+                
+                $eventDayIntervals[] = [
+                    'datetime' => $currentInterval->format('Y-m-d H:i:s'),
+                    'time' => $currentInterval->format('H:i'),
+                    'access_count' => $intervalAccesses->get($intervalKey, 0),
+                ];
+                
+                $currentInterval->addMinutes(15);
+            }
+        }
+
+        return response()->json([
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d'),
+            'event_date' => $event->event_date ? Carbon::parse($event->event_date)->format('Y-m-d') : null,
+            'event_days' => (int)($event->event_days ?? 1),
+            'daily_data' => $dailyData,
+            'event_day_intervals' => $eventDayIntervals,
             'publication_intervals' => $publicationIntervals,
         ]);
     }

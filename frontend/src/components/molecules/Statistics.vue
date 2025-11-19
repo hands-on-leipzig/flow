@@ -8,6 +8,7 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
 import TimelineChart from './TimelineChart.vue'
+import OneLinkAccessChart from './OneLinkAccessChart.vue'
 
 type FlattenedRow = {
   partner_id: number | null
@@ -30,10 +31,12 @@ type FlattenedRow = {
   publication_level?: number | null
   publication_date?: string | null
   publication_last_change?: string | null
+  access_count?: number
 }
 
 const data = ref<any>(null)
 const totals = ref<any>(null)
+const accessStats = ref<Map<number, number>>(new Map())
 const loading = ref(true)
 const error = ref<string | null>(null)
 const selectedSeasonKey = ref<string | null>(null)
@@ -52,12 +55,22 @@ async function selectEvent(eventId, regionalPartnerId) {
 
 onMounted(async () => {
   try {
-    const [plansRes, totalsRes] = await Promise.all([
+    const [plansRes, totalsRes, accessRes] = await Promise.all([
       axios.get('/stats/plans'),
       axios.get('/stats/totals'),
+      axios.get('/stats/one-link-access').catch(() => ({ data: { accesses: [] } })),
     ])
     data.value = plansRes.data
     totals.value = totalsRes.data
+    
+    // Build access stats map
+    if (accessRes.data?.accesses) {
+      const map = new Map<number, number>()
+      for (const access of accessRes.data.accesses) {
+        map.set(access.event_id, access.total_count)
+      }
+      accessStats.value = map
+    }
 
     if (data.value?.seasons?.length > 0) {
       // Default: preselect the most recent season
@@ -117,7 +130,7 @@ const orphans = computed(() => ({
 }))
 
 type CleanupTarget = 'events' | 'plans' | 'activity-groups' | 'activities'
-type ModalMode = 'plan-delete' | 'cleanup' | 'expert-parameters' | 'timeline'
+type ModalMode = 'plan-delete' | 'cleanup' | 'expert-parameters' | 'timeline' | 'access-chart'
 
 const cleanupMeta: Record<
   CleanupTarget,
@@ -153,11 +166,13 @@ const modalState = ref<{
   visible: boolean
   mode: ModalMode | null
   planId: number | null
+  eventId: number | null
   cleanupType: CleanupTarget | null
 }>({
   visible: false,
   mode: null,
   planId: null,
+  eventId: null,
   cleanupType: null,
 })
 
@@ -240,6 +255,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           plan_created: null,
           plan_last_change: null,
           generator_stats: null,
+          access_count: accessStats.value.get(event.event_id) ?? undefined,
         })
         continue
       }
@@ -266,6 +282,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           publication_level: plan.publication_level ?? null,
           publication_date: plan.publication_date ?? null,
           publication_last_change: plan.publication_last_change ?? null,
+          access_count: accessStats.value.get(event.event_id) ?? undefined,
         })
       }
     }
@@ -331,6 +348,7 @@ function openPlanDelete(planId: number) {
     visible: true,
     mode: 'plan-delete',
     planId,
+    eventId: null,
     cleanupType: null,
   }
 }
@@ -344,6 +362,7 @@ function askCleanup(target: CleanupTarget) {
     visible: true,
     mode: 'cleanup',
     planId: null,
+    eventId: null,
     cleanupType: target,
   }
 }
@@ -353,6 +372,7 @@ async function openExpertParameters(planId: number) {
     visible: true,
     mode: 'expert-parameters',
     planId,
+    eventId: null,
     cleanupType: null,
   }
   
@@ -375,6 +395,17 @@ function openTimeline(planId: number) {
     visible: true,
     mode: 'timeline',
     planId,
+    eventId: null,
+    cleanupType: null,
+  }
+}
+
+function openAccessChart(eventId: number) {
+  modalState.value = {
+    visible: true,
+    mode: 'access-chart',
+    planId: null,
+    eventId,
     cleanupType: null,
   }
 }
@@ -385,7 +416,8 @@ const timelineModalInfo = computed(() => {
   if (!row) return null
   return {
     event_name: row.event_name,
-    plan_name: row.plan_name || `Plan ${modalState.value.planId}`,
+    event_id: row.event_id,
+    plan_id: modalState.value.planId,
   }
 })
 
@@ -394,6 +426,7 @@ function closeModal() {
     visible: false,
     mode: null,
     planId: null,
+    eventId: null,
     cleanupType: null,
   }
   expertParameters.value = []
@@ -583,6 +616,7 @@ async function confirmModal() {
                 <th class="px-3 py-2">Veröffentl.-Level / -Link</th>
                 <th class="px-3 py-2">Seit</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
+                <th class="px-3 py-2">Zugriffe</th>
               </tr>
             </thead>
             <tbody>
@@ -816,8 +850,23 @@ async function confirmModal() {
             <template v-else>–</template>
           </td>
 
-
-
+          <!-- Access count -->
+          <td class="px-3 py-2">
+            <template v-if="row.event_id && row.access_count !== null && row.access_count !== undefined">
+              <div class="flex flex-col items-end">
+                <span>{{ row.access_count }}</span>
+                <button
+                  v-if="row.event_id"
+                  class="text-blue-600 hover:text-blue-800 mt-1"
+                  title="Zugriffe anzeigen"
+                  @click="openAccessChart(row.event_id)"
+                >
+                  📈
+                </button>
+              </div>
+            </template>
+            <template v-else>–</template>
+          </td>
 
         </tr>
 
@@ -884,7 +933,7 @@ async function confirmModal() {
       <div v-if="modalState.mode === 'timeline' && modalState.planId" class="bg-white p-6 rounded-lg shadow-lg w-[90vw] max-w-6xl max-h-[90vh] overflow-auto">
         <h3 class="text-lg font-bold mb-4 text-center">
           <template v-if="timelineModalInfo">
-            Generierungen und Veröffentlichung (Event {{ timelineModalInfo.event_name }}, Plan {{ timelineModalInfo.plan_name }})
+            Generierungen und Veröffentlichung Event {{ timelineModalInfo.event_id }} "{{ timelineModalInfo.event_name }}" - Plan {{ timelineModalInfo.plan_id }}
           </template>
           <template v-else>
             Timeline für Plan {{ modalState.planId }}
@@ -892,6 +941,19 @@ async function confirmModal() {
         </h3>
         
         <TimelineChart :plan-id="modalState.planId" />
+        
+        <div class="flex justify-end gap-2 mt-6">
+          <button class="px-4 py-2 text-gray-600 hover:text-black" @click="closeModal">Schließen</button>
+        </div>
+      </div>
+      
+      <!-- Access Chart Modal -->
+      <div v-if="modalState.mode === 'access-chart' && modalState.eventId" class="bg-white p-6 rounded-lg shadow-lg w-[90vw] max-w-6xl max-h-[90vh] overflow-auto">
+        <h3 class="text-lg font-bold mb-4 text-center">
+          Zugriffe für Event {{ modalState.eventId }}
+        </h3>
+        
+        <OneLinkAccessChart :event-id="modalState.eventId" />
         
         <div class="flex justify-end gap-2 mt-6">
           <button class="px-4 py-2 text-gray-600 hover:text-black" @click="closeModal">Schließen</button>

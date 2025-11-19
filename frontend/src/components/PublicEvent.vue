@@ -40,6 +40,45 @@ const loadEvent = async () => {
     const eventResponse = await axios.get(`/events/slug/${route.params.slug}`)
     event.value = eventResponse.data
 
+    // ✅ LOG ACCESS IMMEDIATELY AFTER EVENT IS LOADED
+    // This works for ALL levels (1-4), including level 4 with iframe
+    // Log before schedule info fetch so we capture access even if that fails
+    try {
+      // Determine source
+      let source = 'unknown';
+      if (route.query.source === 'qr') {
+        source = 'qr';
+      } else if (document.referrer) {
+        source = 'referrer';
+      } else {
+        source = 'direct';
+      }
+
+      // Collect client-side data
+      const clientData = {
+        event_id: event.value.id,
+        source: source,
+        screen_width: window.screen.width,
+        screen_height: window.screen.height,
+        viewport_width: window.innerWidth,
+        viewport_height: window.innerHeight,
+        device_pixel_ratio: window.devicePixelRatio || 1,
+        touch_support: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+        connection_type: navigator.connection?.effectiveType || 
+                         navigator.connection?.type || 
+                         null
+      };
+
+      // Log access (fire and forget - don't await)
+      axios.post('/one-link-access', clientData).catch(err => {
+        console.error('Failed to log access:', err);
+        // Silent failure - don't disrupt user experience
+      });
+    } catch (err) {
+      // Silent failure - don't prevent page from loading
+      console.error('Error preparing access log:', err);
+    }
+
     // Load schedule information with publication level
     const scheduleResponse = await axios.get(`/publish/public-information/${event.value.id}`)
     scheduleInfo.value = scheduleResponse.data
