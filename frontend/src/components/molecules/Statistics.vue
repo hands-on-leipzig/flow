@@ -614,13 +614,11 @@ async function confirmModal() {
                 <th class="px-3 py-2">Event</th>
                 <th class="px-3 py-2">Name, Datum, Anmeldungen</th>
                 <th class="px-3 py-2">Plan</th>
-                <th class="px-3 py-2">Erstellt</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
                 <th class="px-3 py-2">Generie-<br>rungen</th>
-                <th class="px-3 py-2">Expert-Parameter</th>
+                <th class="px-3 py-2">Experten-Parameter</th>
                 <th class="px-3 py-2">Extra-Blöcke</th>
                 <th class="px-3 py-2">Veröffentl.-Level / -Link</th>
-                <th class="px-3 py-2">Seit</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
                 <th class="px-3 py-2">Zugriffe</th>
               </tr>
@@ -750,9 +748,6 @@ async function confirmModal() {
             </div>
           </td>
 
-          <!-- Plan created -->
-          <td class="px-3 py-2">{{ formatDateTime(row.plan_created) }}</td>
-
           <!-- Plan last change -->
           <td class="px-3 py-2" :class="getLastChangeClass(row.plan_last_change)">
             {{ formatDateTime(row.plan_last_change) }}
@@ -838,14 +833,6 @@ async function confirmModal() {
                 </template>
               </template>
             </div>
-          </td>
-
-          <!-- Publication date -->
-          <td class="px-3 py-2">
-            <template v-if="row.plan_id && row.publication_date">
-              {{ formatDateTime(row.publication_date) }}
-            </template>
-            <template v-else>–</template>
           </td>
 
           <!-- Publication last change -->
