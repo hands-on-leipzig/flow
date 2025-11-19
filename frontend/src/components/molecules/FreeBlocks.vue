@@ -385,7 +385,7 @@ function combineDateTime(date: string, time: string): string | null {
 }
 
 // --- Actions ---
-function addCustom() {
+async function addCustom() {
   if (!props.planId) return
   const baseDate = props.eventDate ? new Date(props.eventDate) : new Date()
   // Format as YYYY-MM-DD
@@ -402,12 +402,31 @@ function addCustom() {
     end: combineDateTime(dateStr, '07:00') || `${dateStr} 07:00:00`
   }
   
-  // Optimistically add to UI at the top so it shows immediately
-  blocks.value.unshift(draft)
-  
-  // Schedule update - this will start the countdown timer
-  // User can now edit the block before it's saved and regenerated
-  scheduleUpdate('extra_block_add', draft)
+  try {
+    // Save immediately with default timing but empty content
+    // This gives the block an ID so it behaves like any other block
+    const response = await axios.post(`/plans/${props.planId}/extra-blocks`, {
+      ...draft,
+      skip_regeneration: true // Don't regenerate for empty block
+    })
+    
+    // Check for errors
+    if (response.data?.error) {
+      generatorError.value = response.data.error
+      errorDetails.value = response.data.details || null
+      return
+    }
+    
+    // Reload blocks to get the new block with its ID
+    await loadBlocks()
+    
+    // Emit changed event
+    emit('changed')
+  } catch (error: any) {
+    console.error('Failed to create block:', error)
+    generatorError.value = 'Fehler beim Erstellen des Blocks'
+    errorDetails.value = error.message || 'Unbekannter Fehler'
+  }
 }
 
 function confirmDeleteBlock(block: ExtraBlock) {
@@ -426,6 +445,13 @@ async function deleteBlock() {
 
 // Update local state and trigger debounce (no DB save until countdown)
 function saveBlock(block: ExtraBlock) {
+  // Only save blocks that already exist in the database (have an ID)
+  // New blocks are saved immediately on creation, so this should only be called for existing blocks
+  if (!block.id) {
+    console.warn('Attempted to save block without ID - this should not happen')
+    return
+  }
+  
   // Create a new object copy to avoid reference issues during countdown
   // This ensures each update captures the current state independently
   // Note: DB save will happen when countdown reaches 0 or is clicked
@@ -572,7 +598,7 @@ function handleEndTimeChange(block: ExtraBlock, time: string) {
 
 const deleteMessage = computed(() => {
   if (!blockToDelete.value) return ''
-  return `Möchtest du den Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen?`
+  return `Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
 </script>
 

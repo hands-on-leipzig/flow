@@ -11,6 +11,7 @@ import StatisticsExpertParametersModal from './statistics/StatisticsExpertParame
 import StatisticsGeneratorChartModal from './statistics/StatisticsGeneratorChartModal.vue'
 import StatisticsAccessChartModal from './statistics/StatisticsAccessChartModal.vue'
 import StatisticsDeleteModal from './statistics/StatisticsDeleteModal.vue'
+import ConfirmationModal from './ConfirmationModal.vue'
 
 type FlattenedRow = {
   partner_id: number | null
@@ -168,12 +169,14 @@ const modalState = ref<{
   visible: boolean
   mode: ModalMode | null
   planId: number | null
+  planName: string | null
   eventId: number | null
   cleanupType: CleanupTarget | null
 }>({
   visible: false,
   mode: null,
   planId: null,
+  planName: null,
   eventId: null,
   cleanupType: null,
 })
@@ -337,10 +340,13 @@ function getLastChangeClass(timestamp: string | null): string {
 
 
 function openPlanDelete(planId: number) {
+  // Find plan name from flattened rows
+  const row = flattenedRows.value.find(r => r.plan_id === planId)
   modalState.value = {
     visible: true,
     mode: 'plan-delete',
     planId,
+    planName: row?.plan_name || null,
     eventId: null,
     cleanupType: null,
   }
@@ -406,10 +412,17 @@ function closeModal() {
     visible: false,
     mode: null,
     planId: null,
+    planName: null,
     eventId: null,
     cleanupType: null,
   }
 }
+
+const deletePlanMessage = computed(() => {
+  if (!modalState.value.planId) return ''
+  const planName = modalState.value.planName || modalState.value.planId || 'Unbekannt'
+  return `Plan "${planName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+})
 
 async function reloadStats() {
   const [plansRes, totalsRes] = await Promise.all([
@@ -874,9 +887,22 @@ async function confirmModal() {
         @close="closeModal"
       />
       
-      <!-- Delete/Cleanup Modal -->
+      <!-- Plan Delete Modal -->
+      <ConfirmationModal
+        v-if="modalState.mode === 'plan-delete'"
+        :show="modalState.visible"
+        title="Plan löschen"
+        :message="deletePlanMessage"
+        type="danger"
+        confirm-text="Löschen"
+        cancel-text="Abbrechen"
+        @confirm="confirmModal"
+        @cancel="closeModal"
+      />
+      
+      <!-- Cleanup Modal -->
       <StatisticsDeleteModal
-        v-if="modalState.mode === 'plan-delete' || (modalState.mode === 'cleanup' && modalState.cleanupType !== null)"
+        v-if="modalState.mode === 'cleanup' && modalState.cleanupType !== null"
         :mode="modalState.mode"
         :plan-id="modalState.planId"
         :cleanup-type="modalState.cleanupType"

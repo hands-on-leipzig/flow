@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import ConfirmationModal from './ConfirmationModal.vue'
 
 const props = defineProps({
   isDevEnvironment: {
@@ -14,6 +15,7 @@ const { isDevEnvironment } = props
 const newsList = ref([])
 const loading = ref(false)
 const error = ref(null)
+const newsToDelete = ref(null)
 
 // Form state
 const showCreateForm = ref(false)
@@ -62,17 +64,30 @@ const createNews = async () => {
   }
 }
 
-const deleteNews = async (id, title) => {
-  if (!confirm(`News "${title}" wirklich löschen?`)) {
-    return
-  }
+const confirmDeleteNews = (id, title) => {
+  newsToDelete.value = { id, title }
+}
+
+const cancelDeleteNews = () => {
+  newsToDelete.value = null
+}
+
+const deleteNewsMessage = computed(() => {
+  if (!newsToDelete.value) return ''
+  return `News "${newsToDelete.value.title || 'Unbekannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+})
+
+const deleteNews = async () => {
+  if (!newsToDelete.value) return
 
   try {
-    await axios.delete(`/admin/news/${id}`)
+    await axios.delete(`/admin/news/${newsToDelete.value.id}`)
     await loadNews()
+    newsToDelete.value = null
   } catch (err) {
     console.error('Error deleting news:', err)
     alert('Fehler beim Löschen der News')
+    newsToDelete.value = null
   }
 }
 
@@ -201,7 +216,7 @@ onMounted(() => {
             </p>
           </div>
           <button
-            @click="deleteNews(news.id, news.title)"
+            @click="confirmDeleteNews(news.id, news.title)"
             class="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors duration-200"
             title="Löschen"
           >
@@ -246,6 +261,17 @@ onMounted(() => {
       </div>
     </div>
   </div>
+
+  <ConfirmationModal
+    :show="!!newsToDelete"
+    title="News löschen"
+    :message="deleteNewsMessage"
+    type="danger"
+    confirm-text="Löschen"
+    cancel-text="Abbrechen"
+    @confirm="deleteNews"
+    @cancel="cancelDeleteNews"
+  />
 </template>
 
 <style scoped>
