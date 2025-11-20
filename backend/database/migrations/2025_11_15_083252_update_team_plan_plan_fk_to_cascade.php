@@ -37,10 +37,22 @@ return new class extends Migration
             });
         }
 
-        // Create FK with CASCADE delete
-        Schema::table('team_plan', function (Blueprint $table) {
-            $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
-        });
+        // Create FK with CASCADE delete - wrap in try-catch to handle case where it already exists
+        try {
+            Schema::table('team_plan', function (Blueprint $table) {
+                $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
+            });
+        } catch (\Throwable $e) {
+            // Check if the error is because the constraint already exists
+            // If FK already exists with CASCADE, that's fine - we can ignore the error
+            $fkName = $this->getForeignKeyName('team_plan', 'plan');
+            if ($fkName && $this->hasCascadeDelete('team_plan', 'plan')) {
+                // Constraint already exists with CASCADE - that's what we want, so ignore error
+                return;
+            }
+            // Otherwise, re-throw the error as it's a real problem
+            throw $e;
+        }
     }
 
     /**
