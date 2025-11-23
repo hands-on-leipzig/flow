@@ -144,11 +144,25 @@ class StatisticController extends Controller
             ->get()
             ->keyBy('plan');
 
-        // Expert-Parameter-Stats abrufen (nur Abweichungen vom Default)
+        // Changed Parameter Stats abrufen (nur Abweichungen vom Default)
+        // Separate counts for 'input' and 'expert' contexts
+        // For 'input': only includes parameters with "duration" or "start" in the name
         $paramStatsRaw = DB::table('plan_param_value as ppv')
             ->join('m_parameter as mp', 'mp.id', '=', 'ppv.parameter')
             ->whereIn('ppv.plan', $planIds)
-            ->where('mp.context', 'expert')
+            ->where(function ($q) {
+                $q->where(function ($q2) {
+                    // Expert context: all parameters
+                    $q2->where('mp.context', 'expert');
+                })->orWhere(function ($q2) {
+                    // Input context: only "duration" or "start" in name
+                    $q2->where('mp.context', 'input')
+                       ->where(function ($q3) {
+                           $q3->where('mp.name', 'like', '%duration%')
+                              ->orWhere('mp.name', 'like', '%start%');
+                       });
+                });
+            })
             ->where(function ($q) {
                 $q->whereRaw('ppv.set_value <> mp.value')
                 ->orWhere(function ($q2) {
@@ -162,11 +176,20 @@ class StatisticController extends Controller
             })
             ->select(
                 'ppv.plan',
+                'mp.context',
                 DB::raw('COUNT(*) as count')
             )
-            ->groupBy('ppv.plan')
-            ->get()
-            ->keyBy('plan');
+            ->groupBy('ppv.plan', 'mp.context')
+            ->get();
+        
+        // Group by plan and context
+        $paramStats = [];
+        foreach ($paramStatsRaw as $stat) {
+            if (!isset($paramStats[$stat->plan])) {
+                $paramStats[$stat->plan] = ['input' => 0, 'expert' => 0];
+            }
+            $paramStats[$stat->plan][$stat->context] = $stat->count;
+        }
 
         // Extra-Block-Stats abrufen
         $extraBlockStatsRaw = DB::table('extra_block')
@@ -241,7 +264,7 @@ class StatisticController extends Controller
                     'plan_created' => $row->plan_created,
                     'plan_last_change' => $row->plan_last_change,
                     'generator_stats' => $genStatsRaw[$row->plan_id]->count ?? null,
-                    'expert_param_changes' => $paramStatsRaw[$row->plan_id]->count ?? 0, 
+                    'expert_param_changes' => $paramStats[$row->plan_id] ?? ['input' => 0, 'expert' => 0], 
                     'extra_blocks'         => $extraBlockStatsRaw[$row->plan_id]->count ?? 0, 
                     'publication_level' => $row->publication_level,
                     'publication_date' => $row->publication_date,

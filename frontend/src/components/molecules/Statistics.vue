@@ -29,7 +29,7 @@ type FlattenedRow = {
   plan_created: string | null
   plan_last_change: string | null
   generator_stats: number | null
-  expert_param_changes?: number
+  expert_param_changes?: { input: number; expert: number }
   extra_blocks?: number
   publication_level?: number | null
   publication_date?: string | null
@@ -133,7 +133,7 @@ const orphans = computed(() => ({
 }))
 
 type CleanupTarget = 'events' | 'plans' | 'activity-groups' | 'activities'
-type ModalMode = 'plan-delete' | 'cleanup' | 'expert-parameters' | 'timeline' | 'access-chart'
+type ModalMode = 'plan-delete' | 'cleanup' | 'non-default-parameters' | 'timeline' | 'access-chart'
 
 const cleanupMeta: Record<
   CleanupTarget,
@@ -267,7 +267,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           plan_created: plan.plan_created,
           plan_last_change: plan.plan_last_change,
           generator_stats: plan.generator_stats ?? null,
-          expert_param_changes: plan.expert_param_changes ?? 0,
+          expert_param_changes: plan.expert_param_changes ?? { input: 0, expert: 0 },
           extra_blocks: plan.extra_blocks ?? 0,
           publication_level: plan.publication_level ?? null,
           publication_date: plan.publication_date ?? null,
@@ -366,10 +366,10 @@ function askCleanup(target: CleanupTarget) {
   }
 }
 
-function openExpertParameters(planId: number) {
+function openNonDefaultParameters(planId: number) {
   modalState.value = {
     visible: true,
-    mode: 'expert-parameters',
+    mode: 'non-default-parameters',
     planId,
     eventId: null,
     cleanupType: null,
@@ -602,7 +602,7 @@ async function confirmModal() {
                 <th class="px-3 py-2">Plan</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
                 <th class="px-3 py-2">Generie-<br>rungen</th>
-                <th class="px-3 py-2">Experten-Parameter</th>
+                <th class="px-3 py-2">Veränderte Parameter</th>
                 <th class="px-3 py-2">Extra-Blöcke</th>
                 <th class="px-3 py-2">Veröffentl.-Level / -Link</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
@@ -759,17 +759,20 @@ async function confirmModal() {
             </template>
           </td>     
 
-          <!-- Expert parameter changes -->
-          <td class="px-3 py-2 text-right">
+          <!-- Changed parameter changes -->
+          <td class="px-3 py-2">
             <template v-if="row.plan_id">
-              <div class="flex flex-col items-end">
-                <span>{{ row.expert_param_changes }}</span>
-                <template v-if="(row.expert_param_changes ?? 0) > 0">
+              <div class="flex flex-col items-center">
+                <span v-if="row.expert_param_changes">
+                  {{ row.expert_param_changes.input }} + {{ row.expert_param_changes.expert }}
+                </span>
+                <span v-else>0 + 0</span>
+                <template v-if="row.expert_param_changes && (row.expert_param_changes.input > 0 || row.expert_param_changes.expert > 0)">
                   <a
                     href="#"
                     class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
-                    @click.prevent="openExpertParameters(row.plan_id)"
-                    title="Expert-Parameter anzeigen"
+                    @click.prevent="openNonDefaultParameters(row.plan_id)"
+                    title="Veränderte Parameter anzeigen"
                   >
                     🔍
                   </a>
@@ -866,7 +869,7 @@ async function confirmModal() {
     <div v-if="modalState.visible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <!-- Expert Parameters Modal -->
       <StatisticsExpertParametersModal
-        v-if="modalState.mode === 'expert-parameters' && modalState.planId"
+        v-if="modalState.mode === 'non-default-parameters' && modalState.planId"
         :plan-id="modalState.planId"
         @close="closeModal"
       />
