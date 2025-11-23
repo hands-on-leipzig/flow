@@ -560,18 +560,6 @@ return new class extends Migration {
         });
         }
 
-        // Create plan_extra_block table (only if it doesn't exist - preserve data)
-        if (!Schema::hasTable('plan_extra_block')) {
-        Schema::create('plan_extra_block', function (Blueprint $table) {
-            $table->unsignedInteger('id')->autoIncrement();
-            $table->unsignedInteger('plan');
-            $table->unsignedInteger('extra_block');
-
-            $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
-            $table->foreign('extra_block')->references('id')->on('extra_block');
-        });
-        }
-
         // Create activity_group table (only if it doesn't exist - preserve data)
         if (!Schema::hasTable('activity_group')) {
         Schema::create('activity_group', function (Blueprint $table) {
@@ -691,24 +679,6 @@ return new class extends Migration {
             }
         }
 
-        // Create q_plan_match table (only if it doesn't exist - preserve data)
-        // Note: If table exists, we skip it entirely to avoid foreign key conflicts
-        if (!Schema::hasTable('q_plan_match')) {
-            try {
-                Schema::create('q_plan_match', function (Blueprint $table) {
-                    $table->unsignedInteger('id')->autoIncrement();
-                    $table->unsignedInteger('q_plan');
-                    $table->unsignedInteger('team');
-
-                    $table->foreign('q_plan')->references('id')->on('q_plan');
-                    $table->foreign('team')->references('id')->on('team');
-                });
-            } catch (\Throwable $e) {
-                // Ignore errors if table was created by another process or FK fails
-                // This can happen in race conditions or if table structure differs
-            }
-        }
-
         // Create q_plan_team table (only if it doesn't exist - preserve data)
         // Note: If table exists, we skip it entirely to avoid foreign key conflicts
         if (!Schema::hasTable('q_plan_team')) {
@@ -779,14 +749,12 @@ return new class extends Migration {
         // Drop tables in reverse order to handle foreign key constraints
         Schema::dropIfExists('q_run');
         Schema::dropIfExists('q_plan_team');
-        Schema::dropIfExists('q_plan_match');
         Schema::dropIfExists('q_plan');
         Schema::dropIfExists('table_event');
         Schema::dropIfExists('event_logo');
         Schema::dropIfExists('logo');
         Schema::dropIfExists('activity_group');
         Schema::dropIfExists('activity');
-        Schema::dropIfExists('plan_extra_block');
         Schema::dropIfExists('extra_block');
         Schema::dropIfExists('match');
         Schema::dropIfExists('plan_param_value');

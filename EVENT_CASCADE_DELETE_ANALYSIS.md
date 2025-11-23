@@ -1,212 +1,214 @@
-# Event Cascade Delete Analysis
+# Event Cascade Delete Analysis (Master Migration Only)
 
-## Question: What happens when you delete an event?
+## Question: What happens when an event is deleted?
 
-When you delete a record from the `event` table, here's what happens to related data:
+Analysis based **ONLY** on `backend/database/migrations/2025_01_01_000000_create_master_tables.php`
 
----
-
-## ✅ CASCADE DELETE (Automatically Deleted)
-
-These tables have `onDelete('cascade')` and will be automatically deleted:
-
-### 1. **publication**
-- `publication.event` → `event.id` with CASCADE
-- **Result:** All publications for the event are deleted
-
----
-
-## ⚠️ RESTRICT (Delete Blocked if Data Exists)
-
-These tables reference `event` but **do NOT have CASCADE DELETE**. If any records exist, the event deletion will **FAIL**:
-
-### 2. **plan**
-- `plan.event` → `event.id` (NO cascade)
-- **Result:** ❌ Cannot delete event if plans exist
-- **Note:** Plans cascade to activity_group, which cascades to activity
-
-### 3. **team**
-- `team.event` → `event.id` (NO cascade)
-- **Result:** ❌ Cannot delete event if teams exist
-
-### 4. **room**
-- `room.event` → `event.id` (NO cascade)
-- **Result:** ❌ Cannot delete event if rooms exist
-- **Note:** Rooms cascade to room_type_room
-
-### 5. **slideshow**
-- `slideshow.event` → `event.id` (NO cascade)
-- **Result:** ❌ Cannot delete event if slideshows exist
-- **Note:** Slideshows cascade to slides
-
-### 6. **activity_group**
-- `activity_group.event` → `event.id` (NO cascade)
-- **Result:** ❌ Cannot delete event if activity groups exist
-- **Note:** This is nullable, so it might not block
-
-### 7. **activity**
-- `activity.event` → `event.id` (NO cascade)
-- **Result:** ❌ Cannot delete event if activities exist
-- **Note:** This is nullable, so it might not block
-
-### 8. **logo**
-- `logo.event` → `event.id` (NO cascade)
-- **Result:** ❌ Cannot delete event if logos exist
-- **Note:** This is nullable, so it might not block
-
-### 9. **event_logo**
-- `event_logo.event` → `event.id` (NO cascade)
-- **Result:** ❌ Cannot delete event if event_logo entries exist
-
-### 10. **table_event**
-- `table_event.event` → `event.id` (NO cascade)
-- **Result:** ❌ Cannot delete event if table_event entries exist
-
-### 11. **room_type_room**
-- `room_type_room.event` → `event.id` (NO cascade)
-- **Result:** ❌ Cannot delete event if room_type_room entries exist
-
----
-
-## 🔗 CASCADE CHAIN (If Event Could Be Deleted)
-
-If the event could be deleted (no blocking constraints), this would be the cascade chain:
+## Cascade Delete Dependency Graph
 
 ```
-event (deleted)
-├─> publication (CASCADE) ✓
-└─> [BLOCKED by these if they exist]
-    ├─> plan (NO CASCADE) ❌
-    │   └─> activity_group (CASCADE)
-    │       └─> activity (CASCADE)
-    │   └─> plan_extra_block (CASCADE)
-    │   └─> plan_param_value (CASCADE)
-    │   └─> team_plan (CASCADE)
-    │   └─> match (CASCADE)
-    ├─> team (NO CASCADE) ❌
-    ├─> room (NO CASCADE) ❌
-    │   └─> room_type_room (CASCADE)
-    ├─> slideshow (NO CASCADE) ❌
-    │   └─> slide (CASCADE)
-    ├─> table_event (NO CASCADE) ❌
-    ├─> event_logo (NO CASCADE) ❌
-    └─> logo (NO CASCADE) ❌
+event (DELETED)
+│
+├─► contao_public_rounds [CASCADE] ──► DELETED
+│   └─ Line 281: foreign('event_id')->onDelete('cascade')
+│
+├─► slideshow [CASCADE] ──► DELETED
+│   └─ Line 295: foreign('event')->onDelete('cascade')
+│   │
+│   └─► slide [CASCADE] ──► DELETED
+│       └─ Line 314: foreign('slideshow_id')->onDelete('cascade')
+│
+├─► publication [CASCADE] ──► DELETED
+│   └─ Line 328: foreign('event')->onDelete('cascade')
+│
+├─► user.selection_event [SET NULL] ──► (set to NULL, not deleted)
+│   └─ Line 351: foreign('selection_event')->onDelete('set null')
+│
+├─► room [CASCADE] ──► DELETED
+│   └─ Line 392: foreign('event')->onDelete('cascade')
+│   │
+│   └─► room_type_room.room [CASCADE] ──► DELETED
+│       └─ Line 409: foreign('room')->onDelete('cascade')
+│
+├─► room_type_room [CASCADE] ──► DELETED
+│   └─ Line 410: foreign('event')->onDelete('cascade')
+│
+├─► team [CASCADE] ──► DELETED
+│   └─ Line 425: foreign('event')->onDelete('cascade')
+│   │
+│   └─► team_plan.team [CASCADE] ──► DELETED
+│       └─ Line 503: foreign('team')->onDelete('cascade')
+│
+├─► plan [CASCADE] ──► DELETED
+│   └─ Line 440: foreign('event')->onDelete('cascade')
+│   │
+│   └─► (Full plan cascade chain - see PLAN_CASCADE_DELETE_ANALYSIS.md)
+│       ├─► s_generator
+│       ├─► team_plan
+│       ├─► plan_param_value
+│       ├─► match
+│       ├─► extra_block
+│       ├─► activity_group → activity
+│       └─► q_plan → q_plan_team
+│
+├─► s_one_link_access [CASCADE] ──► DELETED
+│   └─ Line 489: foreign('event')->onDelete('cascade')
+│
+├─► event_logo [CASCADE] ──► DELETED
+│   └─ Line 621: foreign('event')->onDelete('cascade')
+│
+└─► table_event [CASCADE] ──► DELETED
+    └─ Line 634: foreign('event')->onDelete('cascade')
 ```
 
----
+## Detailed Analysis
 
-## 🎯 Practical Answer
+### Level 1: Direct Dependencies (FK to event.id)
 
-### **Can you delete an event?**
+| Table | Column | Line | Delete Rule | Status |
+|-------|--------|------|-------------|--------|
+| `contao_public_rounds` | `event_id` | 281 | CASCADE ✅ | ✅ Will be deleted |
+| `slideshow` | `event` | 295 | CASCADE ✅ | ✅ Will be deleted |
+| `publication` | `event` | 328 | CASCADE ✅ | ✅ Will be deleted |
+| `user` | `selection_event` | 351 | SET NULL ✅ | ✅ Set to NULL (doesn't block) |
+| `room` | `event` | 392 | CASCADE ✅ | ✅ Will be deleted |
+| `room_type_room` | `event` | 410 | CASCADE ✅ | ✅ Will be deleted |
+| `team` | `event` | 425 | CASCADE ✅ | ✅ Will be deleted |
+| `plan` | `event` | 440 | CASCADE ✅ | ✅ Will be deleted |
+| `s_one_link_access` | `event` | 489 | CASCADE ✅ | ✅ Will be deleted |
+| `event_logo` | `event` | 621 | CASCADE ✅ | ✅ Will be deleted |
+| `table_event` | `event` | 634 | CASCADE ✅ | ✅ Will be deleted |
 
-**NO, in most cases** - because events almost always have:
-- Plans (every real event)
-- Teams (every real event)
-- Rooms (most events)
+### Level 2: Dependencies of Level 1 Tables
 
-**YES, only if** the event is completely empty:
-- No plans
-- No teams
-- No rooms
-- No slideshows
-- No table_event entries
-- No event_logo entries
-- No room_type_room entries
+#### From `slideshow`:
+| Table | Column | Line | Delete Rule | Status |
+|-------|--------|------|-------------|--------|
+| `slide` | `slideshow_id` | 314 | CASCADE ✅ | ✅ Will be deleted |
 
-### **Special Case: Quality Test Events**
+#### From `room`:
+| Table | Column | Line | Delete Rule | Status |
+|-------|--------|------|-------------|--------|
+| `room_type_room` | `room` | 409 | CASCADE ✅ | ✅ Will be deleted |
 
-The quality test event `!!! QPlan Event - nur für den Qualitätstest verwendet !!!` has:
-- ✅ Many plans (200+ per qRun)
-- ❌ Cannot be deleted directly
+#### From `team`:
+| Table | Column | Line | Delete Rule | Status |
+|-------|--------|------|-------------|--------|
+| `team_plan` | `team` | 503 | CASCADE ✅ | ✅ Will be deleted |
 
----
+#### From `plan`:
+| Table | Column | Line | Delete Rule | Status |
+|-------|--------|------|-------------|--------|
+| (See PLAN_CASCADE_DELETE_ANALYSIS.md for full chain) | | | | |
+| `s_generator` | `plan` | 454 | CASCADE ✅ | ✅ Will be deleted |
+| `team_plan` | `plan` | 504 | CASCADE ✅ | ✅ Will be deleted |
+| `plan_param_value` | `plan` | 518 | CASCADE ✅ | ✅ Will be deleted |
+| `match` | `plan` | 535 | CASCADE ✅ | ✅ Will be deleted |
+| `extra_block` | `plan` | 557 | CASCADE ✅ | ✅ Will be deleted |
+| `activity_group` | `plan` | 571 | CASCADE ✅ | ✅ Will be deleted |
+| `q_plan` | `plan` | 673 | CASCADE ✅ | ✅ Will be deleted |
 
-## 💡 How to Delete an Event (If Needed)
+### Level 3: Dependencies of Level 2 Tables
 
-### Option 1: Manual Cascade (Recommended)
-```php
-DB::transaction(function() use ($eventId) {
-    // Delete in order to respect foreign keys
-    
-    // 1. Delete activities (via activity_group cascade)
-    $planIds = DB::table('plan')->where('event', $eventId)->pluck('id');
-    DB::table('activity_group')->whereIn('plan', $planIds)->delete(); // Cascades to activity
-    
-    // 2. Delete plan-related data
-    DB::table('plan_param_value')->whereIn('plan', $planIds)->delete();
-    DB::table('team_plan')->whereIn('plan', $planIds)->delete();
-    DB::table('match')->whereIn('plan', $planIds)->delete();
-    DB::table('plan_extra_block')->whereIn('plan', $planIds)->delete();
-    
-    // 3. Delete plans
-    DB::table('plan')->where('event', $eventId)->delete();
-    
-    // 4. Delete teams
-    DB::table('team')->where('event', $eventId)->delete();
-    
-    // 5. Delete rooms (cascades to room_type_room)
-    DB::table('room')->where('event', $eventId)->delete();
-    
-    // 6. Delete slideshows (cascades to slides)
-    DB::table('slideshow')->where('event', $eventId)->delete();
-    
-    // 7. Delete other event data
-    DB::table('table_event')->where('event', $eventId)->delete();
-    DB::table('event_logo')->where('event', $eventId)->delete();
-    DB::table('logo')->where('event', $eventId)->delete();
-    DB::table('room_type_room')->where('event', $eventId)->delete();
-    
-    // 8. Finally delete the event (publication will cascade)
-    DB::table('event')->where('id', $eventId)->delete();
-});
-```
+#### From `activity_group`:
+| Table | Column | Line | Delete Rule | Status |
+|-------|--------|------|-------------|--------|
+| `activity` | `activity_group` | 592 | CASCADE ✅ | ✅ Will be deleted |
 
-### Option 2: Database CASCADE (Requires Migration)
+#### From `q_plan`:
+| Table | Column | Line | Delete Rule | Status |
+|-------|--------|------|-------------|--------|
+| `q_plan_team` | `q_plan` | 705 | CASCADE ✅ | ✅ Will be deleted |
 
-Add CASCADE DELETE to all event foreign keys:
-```php
-// Migration to add CASCADE DELETE
-Schema::table('plan', function (Blueprint $table) {
-    $table->dropForeign(['event']);
-    $table->foreign('event')->references('id')->on('event')->onDelete('cascade');
-});
+## Complete Cascade Chain Verification
 
-// Repeat for: team, room, slideshow, table_event, event_logo, room_type_room, etc.
-```
+### ✅ Verified Cascade Paths:
 
-**Risk:** Accidental event deletion would cascade to ALL related data!
+1. **event → contao_public_rounds** ✅
+   - Direct CASCADE (line 281)
 
----
+2. **event → slideshow → slide** ✅
+   - event → slideshow: CASCADE (line 295)
+   - slideshow → slide: CASCADE (line 314)
 
-## 🔍 Current Behavior Summary
+3. **event → publication** ✅
+   - Direct CASCADE (line 328)
 
-**Deleting an event:**
-- ✅ **WILL delete:** publication (only this has CASCADE)
-- ❌ **WILL FAIL if exists:** plan, team, room, slideshow, table_event, event_logo, room_type_room
-- ⚠️ **Safe by design:** Prevents accidental data loss
+4. **event → user.selection_event** ✅
+   - Direct SET NULL (line 351) - doesn't block deletion
 
-**To delete a real event with data:**
-- Must manually delete all related records first
-- Or create a migration to add CASCADE DELETE (risky)
-- Or use a dedicated service method with transaction
+5. **event → room → room_type_room** ✅
+   - event → room: CASCADE (line 392)
+   - room → room_type_room: CASCADE (line 409)
+   - event → room_type_room: CASCADE (line 410) - also direct
 
----
+6. **event → team → team_plan** ✅
+   - event → team: CASCADE (line 425)
+   - team → team_plan: CASCADE (line 503)
 
-## 💬 Recommendation
+7. **event → plan → (full plan cascade chain)** ✅
+   - event → plan: CASCADE (line 440)
+   - plan → s_generator: CASCADE (line 454)
+   - plan → team_plan: CASCADE (line 504)
+   - plan → plan_param_value: CASCADE (line 518)
+   - plan → match: CASCADE (line 535)
+   - plan → extra_block: CASCADE (line 557)
+   - plan → activity_group: CASCADE (line 571)
+   - plan → q_plan: CASCADE (line 673)
+   - activity_group → activity: CASCADE (line 592)
+   - q_plan → q_plan_team: CASCADE (line 705)
 
-**Keep current design (RESTRICT):**
-- ✅ Prevents accidental data loss
-- ✅ Forces intentional deletion
-- ✅ Makes you think about what you're deleting
+8. **event → s_one_link_access** ✅
+   - Direct CASCADE (line 489)
 
-**If you need to delete events regularly:**
-- Create a service method: `EventService::deleteWithRelatedData($eventId)`
-- Use transactions for safety
-- Log what's being deleted
-- Require confirmation/authorization
+9. **event → event_logo** ✅
+   - Direct CASCADE (line 621)
 
-**For quality test events:**
-- Already have delete/compress functionality in QualityController
-- Don't need event-level deletion
-- Just delete qRun (which handles qPlans appropriately)
+10. **event → table_event** ✅
+    - Direct CASCADE (line 634)
 
+## Summary
+
+### ✅ What WILL be deleted when event is deleted:
+
+**Level 1 (Direct):**
+- ✅ `contao_public_rounds` (line 281)
+- ✅ `slideshow` (line 295)
+- ✅ `publication` (line 328)
+- ✅ `room` (line 392)
+- ✅ `room_type_room` (line 410)
+- ✅ `team` (line 425)
+- ✅ `plan` (line 440)
+- ✅ `s_one_link_access` (line 489)
+- ✅ `event_logo` (line 621)
+- ✅ `table_event` (line 634)
+
+**Level 2 (Via CASCADE):**
+- ✅ `slide` (via slideshow CASCADE, line 314)
+- ✅ `team_plan` (via team CASCADE, line 503)
+- ✅ All plan-related tables (via plan CASCADE - see plan analysis)
+
+**Level 3 (Via CASCADE):**
+- ✅ `activity` (via activity_group CASCADE, line 592)
+- ✅ `q_plan_team` (via q_plan CASCADE, line 705)
+
+**Level 1 (Via SET NULL):**
+- ✅ `user.selection_event` (set to NULL, line 351) - doesn't block deletion
+
+### Total Tables Affected:
+- **10 direct deletions** (CASCADE)
+- **1 field set to NULL** (SET NULL, doesn't block)
+- **Multiple cascaded deletions** through plan chain (7+ tables)
+- **Additional cascaded deletions** through slideshow, room, team chains
+
+## Conclusion
+
+**Overall**: ✅ **Cascade deletion works perfectly!**
+
+**Status**: All foreign keys have proper delete rules:
+- ✅ All direct dependencies on `event` have CASCADE (except `user.selection_event` which uses SET NULL appropriately)
+- ✅ All multi-level dependencies have CASCADE
+- ✅ The only SET NULL relationship (`user.selection_event`) doesn't block deletion
+- ✅ No blocking issues found
+
+**Result**: When an event is deleted, all related data is properly cascaded through all levels, including the entire plan cascade chain. No fixes needed! 🎉
