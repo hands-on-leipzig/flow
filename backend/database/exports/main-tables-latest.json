@@ -2654,7 +2654,7 @@
         },
         {
             "id": 19,
-            "code": "c_lunch",
+            "code": "c_lunch_break",
             "name": "Mittagspause",
             "sequence": 150,
             "room_type_group": 3,
@@ -6302,7 +6302,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2025-11-19T17:56:02.337725Z",
+        "exported_at": "2025-11-24T17:07:00.120804Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
