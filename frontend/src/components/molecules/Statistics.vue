@@ -324,6 +324,29 @@ function getHoursSince(timestamp: string | null): number | null {
   return Math.floor(diffMs / (1000 * 60 * 60))
 }
 
+function getEventDateClass(eventDate: string | null): string {
+  if (!eventDate) return ''
+  
+  try {
+    const eventDateObj = new Date(eventDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    eventDateObj.setHours(0, 0, 0, 0)
+    
+    const diffTime = eventDateObj.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    // If event date is within 14 days from today (0 to 14 days)
+    if (diffDays >= 0 && diffDays <= 14) {
+      return 'bg-orange-200'
+    }
+  } catch (e) {
+    // Invalid date, return empty string
+  }
+  
+  return ''
+}
+
 function getLastChangeClass(timestamp: string | null): string {
   const hours = getHoursSince(timestamp)
   if (hours === null) return ''
@@ -646,7 +669,7 @@ async function confirmModal() {
           </td>
 
           <!-- Event name + date -->
-          <td class="px-3 py-2">
+          <td class="px-3 py-2" :class="getEventDateClass(row.event_date)">
             <template v-if="shouldShowEvent(index)">
               <span class="mr-2">
                 <template v-if="row.plan_id === null">
