@@ -9,6 +9,7 @@ import NowAndNext from '@/components/molecules/NowAndNext.vue'
 import UserRegionalPartnerRelations from '@/components/molecules/UserRegionalPartnerRelations.vue'
 import MainTablesAdmin from '@/components/molecules/MainTablesAdmin.vue'
 import SystemNews from '@/components/molecules/SystemNews.vue'
+import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import '@vueform/multiselect/themes/default.css'
 
 const activeTab = ref('statistics')
@@ -223,6 +224,14 @@ fetchConditions()
         🔁 Draht Sync
       </button>
 
+      <button
+          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+          :class="{ 'bg-white font-semibold shadow': activeTab === 'external-api' }"
+          @click="activeTab = 'external-api'"
+      >
+        🔑 External API
+      </button>
+
 
 
 
@@ -393,6 +402,10 @@ fetchConditions()
       <div v-if="activeTab === 'statistics'">
         <h2 class="text-xl font-bold mb-4">Statistiken</h2>
         <statistics />
+      </div>
+
+      <div v-if="activeTab === 'external-api'">
+        <ExternalApiManagement />
       </div>
 
     </div>
