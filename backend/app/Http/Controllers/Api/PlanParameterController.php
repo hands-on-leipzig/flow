@@ -137,37 +137,56 @@ class PlanParameterController extends Controller
     }
 
     /**
-     * Get expert parameters for a plan (only those that differ from default)
-     * Returns: name, ui_label, set_value, value (default), sorted by sequence
+     * Get non-default parameters for a plan (only those that differ from default)
+     * Returns: two lists - one for 'input' context and one for 'expert' context
+     * For 'input': only includes parameters with "duration" or "start" in the name
+     * Each list contains: name, ui_label, set_value, value (default), sorted by sequence
      */
-    public function getExpertParameters($planId): JsonResponse
+    public function getNonDefaultParameter($planId): JsonResponse
     {
-        $parameters = DB::table('plan_param_value as ppv')
-            ->join('m_parameter as mp', 'mp.id', '=', 'ppv.parameter')
-            ->where('ppv.plan', $planId)
-            ->where('mp.context', 'expert')
-            ->where(function ($q) {
-                $q->whereRaw('ppv.set_value <> mp.value')
-                ->orWhere(function ($q2) {
-                    $q2->whereNull('ppv.set_value')
-                        ->whereNotNull('mp.value');
-                })
-                ->orWhere(function ($q2) {
-                    $q2->whereNotNull('ppv.set_value')
-                        ->whereNull('mp.value');
+        $baseQuery = function ($context, $filterInput = false) use ($planId) {
+            $query = DB::table('plan_param_value as ppv')
+                ->join('m_parameter as mp', 'mp.id', '=', 'ppv.parameter')
+                ->where('ppv.plan', $planId)
+                ->where('mp.context', $context)
+                ->where(function ($q) {
+                    $q->whereRaw('ppv.set_value <> mp.value')
+                    ->orWhere(function ($q2) {
+                        $q2->whereNull('ppv.set_value')
+                            ->whereNotNull('mp.value');
+                    })
+                    ->orWhere(function ($q2) {
+                        $q2->whereNotNull('ppv.set_value')
+                            ->whereNull('mp.value');
+                    });
                 });
-            })
-            ->select(
-                'mp.name',
-                'mp.ui_label',
-                'ppv.set_value',
-                'mp.value as default_value',
-                'mp.sequence'
-            )
-            ->orderBy('mp.sequence')
-            ->get();
+            
+            // For input context, only include parameters with "duration" or "start" in the name
+            if ($filterInput && $context === 'input') {
+                $query->where(function ($q) {
+                    $q->where('mp.name', 'like', '%duration%')
+                      ->orWhere('mp.name', 'like', '%start%');
+                });
+            }
+            
+            return $query->select(
+                    'mp.name',
+                    'mp.ui_label',
+                    'ppv.set_value',
+                    'mp.value as default_value',
+                    'mp.sequence'
+                )
+                ->orderBy('mp.sequence')
+                ->get();
+        };
 
-        return response()->json($parameters);
+        $inputParameters = $baseQuery('input', true);
+        $expertParameters = $baseQuery('expert', false);
+
+        return response()->json([
+            'input' => $inputParameters,
+            'expert' => $expertParameters
+        ]);
     }
 
     
