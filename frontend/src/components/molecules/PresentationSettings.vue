@@ -28,6 +28,9 @@ const planId = ref<number | null>(null);
 const slideshows = ref<Slideshow[]>([]);
 const savingToast = ref(null);
 
+const showingNewSlideModal = ref(false);
+const modalSlideShowId = ref<number | null>(null);
+
 const robotGameRounds = ref<RobotGamePublicRounds | null>(null);
 
 const carouselLink = computed(() => {
@@ -35,13 +38,33 @@ const carouselLink = computed(() => {
 });
 const slidesKey = ref(1);
 
-const slideType = ref("");
+// TODO: Previews auf dem Server (?) erstellen und laden
+// TODO: Mehr Ideen als Presets
+const commonBackground = `{"version":"6.7.1","backgroundImage":{"type":"Image","version":"6.7.1","left":0,"top":-3.3333,"width":1920,"height":1096,"scaleX":0.4167,"scaleY":0.4167,"src":"\/background.png"}}`;
 const slideTypes = [
-  {value: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse'},
-  {value: 'PublicPlanSlideContent', label: 'Öffentlicher Zeitplan'},
-  {value: 'UrlSlideContent', label: 'Externer Inhalt (URL)'},
-  {value: 'FabricSlideContent', label: 'Eigener Inhalt'},
+  {
+    value: 'RobotGameSlideContent',
+    label: 'Robot-Game Ergebnisse',
+    previewSlide: () => createPreviewSlide('RobotGameSlideContent')
+  },
+  {
+    value: 'PublicPlanSlideContent',
+    label: 'Öffentlicher Zeitplan',
+    previewSlide: () => {
+      const slide = createPreviewSlide('PublicPlanSlideContent');
+      slide.content.planId = planId.value;
+      return slide;
+    }
+  },
+  {value: 'UrlSlideContent', label: 'Externer Inhalt (URL)', previewSlide: () => createPreviewSlide('UrlSlideContent')},
+  {value: 'FabricSlideContent', label: 'Eigener Inhalt', previewSlide: () => createPreviewSlide('FabricSlideContent')},
 ];
+
+function createPreviewSlide(type: string) {
+  const slide = Slide.createNewSlide(type);
+  slide.content.background = commonBackground;
+  return slide;
+}
 
 onMounted(loadSlideshows);
 onMounted(getPublicRobotGameRounds);
@@ -110,32 +133,43 @@ async function updateTransitionTime(slideshow: Slideshow) {
   }
 }
 
-async function addSlide(slideshow: Slideshow) {
-  if (slideType.value) {
-    let newSlide = Slide.createNewSlide(slideType.value);
+function openNewSlideModal(slideshowId: number) {
+  modalSlideShowId.value = slideshowId;
+  showingNewSlideModal.value = true;
+}
 
-    // TODO
-    if (slideType.value === 'PublicPlanSlideContent') {
-      newSlide.name = 'Öffentlicher Zeitplan';
-      newSlide.content.planId = planId.value;
-    } else if (slideType.value === 'RobotGameSlideContent') {
-      newSlide.name = 'Robot-Game-Ergebnisse';
-    } else if (slideType.value === 'UrlSlideContent') {
-      newSlide.name = 'Externer Inhalt';
-    } else if (slideType.value === 'FabricSlideContent') {
-      newSlide.name = 'Eigener Inhalt';
-    }
+function closeNewSlideModal() {
+  showingNewSlideModal.value = false;
+  modalSlideShowId.value = null;
+}
 
-    const content = JSON.stringify(newSlide.content.toJSON());
-    newSlide = {...newSlide, content, order: slideshow.slides.length + 1};
+async function addSlide(type: string) {
+  const slideshow = slideshows.value.find(s => s.id === modalSlideShowId.value);
+  closeNewSlideModal();
+  if (!slideshow) return;
 
-    try {
-      const response = await axios.put(`slideshow/${slideshow.id}/add`, newSlide);
-      console.log(response.data.slide);
-      slideshow.slides.push(response.data.slide);
-    } catch (e) {
-      console.error(e);
-    }
+  let newSlide = Slide.createNewSlide(type);
+
+  if (type === 'PublicPlanSlideContent') {
+    newSlide.name = 'Öffentlicher Zeitplan';
+    newSlide.content.planId = planId.value;
+  } else if (type === 'RobotGameSlideContent') {
+    newSlide.name = 'Robot-Game Ergebnisse';
+  } else if (type === 'UrlSlideContent') {
+    newSlide.name = 'Externer Inhalt';
+  } else if (type === 'FabricSlideContent') {
+    newSlide.name = 'Eigener Inhalt';
+  }
+
+  const content = JSON.stringify(newSlide.content.toJSON());
+  newSlide = {...newSlide, content, order: slideshow.slides.length + 1};
+
+  try {
+    const response = await axios.put(`slideshow/${slideshow.id}/add`, newSlide);
+    console.log(response.data.slide);
+    slideshow.slides.push(response.data.slide);
+  } catch (e) {
+    console.error(e);
   }
 }
 
@@ -266,12 +300,10 @@ function copyUrl(url) {
             <span class="text-sm text-gray-600">{{ slideshow.transition_time }}s</span>
           </div>
 
-          <select v-model="slideType" class="ml-10 mr-1">
-            <option v-for="type of slideTypes" :id="type.value" v-text="type.label" :value="type.value"></option>
-          </select>
+          <!-- Add Slide -->
           <button
               class="my-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
-              @click="addSlide(slideshow)">
+              @click="openNewSlideModal(slideshow.id)">
             + Folie hinzufügen
           </button>
         </div>
@@ -290,6 +322,28 @@ function copyUrl(url) {
           </template>
         </draggable>
       </details>
+    </div>
+  </div>
+
+  <!-- New Slide Modal -->
+  <div v-if="showingNewSlideModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-lg w-1/2 p-4">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">Folie hinzufügen</h3>
+        <button class="text-gray-600" @click="closeNewSlideModal">Schließen</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div v-for="type in slideTypes" :key="type.value"
+             class="border rounded p-3 flex flex-col justify-between cursor-pointer" @click="addSlide(type.value)">
+          <div>
+            <div class="font-semibold mb-1">{{ type.label }}</div>
+            <div class="text-sm text-gray-600 mb-2">
+              <SlideThumb :slide="type.previewSlide()" :show-controls="false"></SlideThumb>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
