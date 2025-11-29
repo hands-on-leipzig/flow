@@ -102,6 +102,7 @@ class StatisticController extends Controller
         });
 
         $drahtTeamCounts = [];
+        $drahtIssues = []; // Track DRAHT issues per event
         if ($fallbackEventIds->isNotEmpty()) {
             $events = Event::whereIn('id', $fallbackEventIds)->get();
             $drahtController = app(DrahtController::class);
@@ -127,9 +128,13 @@ class StatisticController extends Controller
                         'explore' => 0,
                         'challenge' => 0,
                     ];
+                    $drahtIssues[$event->id] = true;
                 }
             }
         }
+
+        // DRAHT checks are now done asynchronously via separate endpoint
+        // No DRAHT checks during initial load to avoid timeout
 
         // Generator-Stats abrufen
         $genStatsRaw = DB::table('s_generator')
@@ -252,6 +257,7 @@ class StatisticController extends Controller
                     'event_challenge' => $row->event_challenge,
                     'teams_explore' => $exploreCount,
                     'teams_challenge' => $challengeCount,
+                    'draht_issue' => false, // Will be checked asynchronously
                     'plans' => [],
                 ];
             }
@@ -860,5 +866,73 @@ class StatisticController extends Controller
             'event_day_intervals' => $eventDayIntervals,
             'publication_intervals' => $publicationIntervals,
         ]);
+    }
+
+    /**
+     * Check if a single event has DRAHT issues (scheduledata endpoint fails)
+     * Called asynchronously from frontend
+     */
+    public function checkDrahtIssue(int $eventId): JsonResponse
+    {
+        $event = Event::find($eventId);
+        
+        if (!$event) {
+            return response()->json([
+                'event_id' => $eventId,
+                'has_issue' => false,
+                'error' => 'Event not found'
+            ], 404);
+        }
+
+        // Only check if event has DRAHT IDs
+        if (!$event->event_explore && !$event->event_challenge) {
+            return response()->json([
+                'event_id' => $eventId,
+                'has_issue' => false,
+                'message' => 'No DRAHT IDs'
+            ]);
+        }
+
+        try {
+            $drahtController = app(DrahtController::class);
+            $response = $drahtController->show($event);
+            $payload = $response->getData(true);
+
+            // Check if scheduledata endpoint returned data successfully
+            $hasExploreIssue = false;
+            $hasChallengeIssue = false;
+
+            if ($event->event_explore) {
+                // If explore ID exists but no data returned, it's an issue
+                if (!isset($payload['event_explore']) || $payload['event_explore'] === null) {
+                    $hasExploreIssue = true;
+                }
+            }
+
+            if ($event->event_challenge) {
+                // If challenge ID exists but no data returned, it's an issue
+                if (!isset($payload['event_challenge']) || $payload['event_challenge'] === null) {
+                    $hasChallengeIssue = true;
+                }
+            }
+
+            $hasIssue = $hasExploreIssue || $hasChallengeIssue;
+
+            return response()->json([
+                'event_id' => $eventId,
+                'has_issue' => $hasIssue,
+            ]);
+        } catch (\Throwable $e) {
+            // If exception occurs, there's definitely an issue
+            Log::warning('StatisticController: DRAHT check failed', [
+                'event_id' => $eventId,
+                'message' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'event_id' => $eventId,
+                'has_issue' => true,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }
