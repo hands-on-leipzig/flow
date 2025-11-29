@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import axios from 'axios'
 
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
@@ -92,8 +92,7 @@ onMounted(async () => {
       selectedSeasonKey.value = `${last.season_year}-${last.season_name}`
     }
     
-    // Start DRAHT checks after data is loaded
-    startDrahtChecks()
+    // Don't start DRAHT checks automatically - user must click button
   } catch (e) {
     error.value = 'Fehler beim Laden der Statistiken.'
     console.error(e)
@@ -102,9 +101,11 @@ onMounted(async () => {
   }
 })
 
-// Watch for season changes and restart DRAHT checks
+// Watch for season changes - reset state but don't auto-start
 watch(selectedSeasonKey, () => {
   if (data.value && selectedSeasonKey.value) {
+    // Stop any running checks
+    drahtCheckState.value.isRunning = false
     drahtIssues.value.clear()
     drahtCheckState.value = {
       isRunning: false,
@@ -113,8 +114,12 @@ watch(selectedSeasonKey, () => {
       problems: 0,
       completed: false
     }
-    startDrahtChecks()
   }
+})
+
+// Cleanup on unmount - stop any running checks
+onUnmounted(() => {
+  drahtCheckState.value.isRunning = false
 })
 
 async function startDrahtChecks() {
@@ -146,8 +151,13 @@ async function startDrahtChecks() {
     completed: false
   }
 
-  // Check events one by one
+  // Check events one by one - only proceed if still running
   for (const eventId of eventsToCheck) {
+    // Stop if user left the screen or manually stopped
+    if (!drahtCheckState.value.isRunning) {
+      break
+    }
+    
     try {
       const response = await axios.get(`/stats/draht-check/${eventId}`)
       const hasIssue = response.data.has_issue === true
@@ -167,12 +177,33 @@ async function startDrahtChecks() {
     
     drahtCheckState.value.checked++
     
+    // Only proceed to next event if still running
+    if (!drahtCheckState.value.isRunning) {
+      break
+    }
+    
     // Small delay to avoid overwhelming the server
     await new Promise(resolve => setTimeout(resolve, 100))
   }
 
-  drahtCheckState.value.isRunning = false
-  drahtCheckState.value.completed = true
+  // Only mark as completed if we finished all checks (not stopped)
+  if (drahtCheckState.value.isRunning) {
+    drahtCheckState.value.isRunning = false
+    drahtCheckState.value.completed = true
+  }
+}
+
+function startDrahtCheck() {
+  // Reset state and start checking
+  drahtIssues.value.clear()
+  drahtCheckState.value = {
+    isRunning: true,
+    checked: 0,
+    total: 0,
+    problems: 0,
+    completed: false
+  }
+  startDrahtChecks()
 }
 
 // Map for quick access to totals per "year-name"
@@ -526,7 +557,7 @@ async function reloadStats() {
   data.value = plansRes.data
   totals.value = totalsRes.data
   
-  // Reset and restart DRAHT checks
+  // Reset DRAHT check state (don't auto-start)
   drahtIssues.value.clear()
   drahtCheckState.value = {
     isRunning: false,
@@ -535,7 +566,6 @@ async function reloadStats() {
     problems: 0,
     completed: false
   }
-  startDrahtChecks()
 }
 
 async function confirmModal() {
@@ -663,7 +693,7 @@ function exportToCSV() {
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
       <!-- Global orphans -->
-      <div class="mb-4 flex flex-wrap items-center gap-3">
+      <div class="mb-2 flex flex-wrap items-center gap-2">
         <button
           type="button"
           :disabled="orphans.events === 0"
@@ -714,8 +744,8 @@ function exportToCSV() {
         </button>
       </div>
         <!-- Season filter -->
-        <div class="mb-6">
-          <div class="flex flex-wrap gap-4">
+        <div class="mb-3">
+          <div class="flex flex-wrap gap-2">
             <label
               v-for="season in data.seasons"
               :key="`${season.season_year}-${season.season_name}`"
@@ -733,9 +763,9 @@ function exportToCSV() {
         </div>
 
         <!-- Season totals (3 boxes) -->
-        <div class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           <!-- Box 1: regional partners -->
-          <div class="bg-white border rounded shadow-sm p-4 space-y-1">
+          <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
               <span>Regionalpartner</span>
               <span class="font-semibold">{{ seasonTotals.rp_total }}</span>
@@ -747,7 +777,7 @@ function exportToCSV() {
           </div>
 
           <!-- Box 2: events -->
-          <div class="bg-white border rounded shadow-sm p-4 space-y-1">
+          <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
               <span>Events</span>
               <span class="font-semibold">{{ seasonTotals.events_total }}</span>
@@ -759,7 +789,7 @@ function exportToCSV() {
           </div>
 
         <!-- Box 3: plans & activities -->
-        <div class="bg-white border rounded shadow-sm p-4 space-y-1">
+        <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
           <div class="flex justify-between text-gray-700">
             <span>Pläne</span>
             <span class="font-semibold">{{ formatNumber(seasonTotals.plans_total) }}</span>
@@ -773,7 +803,7 @@ function exportToCSV() {
         </div>
 
         <!-- Box 4: Publications -->
-        <div class="bg-white border rounded shadow-sm p-4 space-y-1">
+        <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
           <div class="flex justify-between text-gray-700">
             <span>Veröffentlichte Pläne</span>
             <span class="font-semibold">{{ formatNumber(publicationTotals.total) }}</span>
@@ -788,31 +818,50 @@ function exportToCSV() {
       </div>
 
       <!-- DRAHT Check Banner -->
-      <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="mb-4 p-3 rounded border" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'bg-red-50 border-red-300' : drahtCheckState.completed ? 'bg-green-50 border-green-300' : 'bg-blue-50 border-blue-300'">
-        <div class="text-sm font-medium" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'text-red-800' : drahtCheckState.completed ? 'text-green-800' : 'text-blue-800'">
-          <template v-if="drahtCheckState.isRunning">
-            Überprüfung von DRAHT-Daten läuft. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
-          </template>
-          <template v-else-if="drahtCheckState.completed">
-            DRAHT-Daten: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
-          </template>
+      <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="mb-2 p-2 rounded border" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'bg-red-50 border-red-300' : drahtCheckState.completed ? 'bg-green-50 border-green-300' : 'bg-blue-50 border-blue-300'">
+        <div class="flex justify-between items-center">
+          <div class="text-sm font-medium" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'text-red-800' : drahtCheckState.completed ? 'text-green-800' : 'text-blue-800'">
+            <template v-if="drahtCheckState.isRunning">
+              Überprüfung von DRAHT-Daten läuft. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
+            </template>
+            <template v-else-if="drahtCheckState.completed">
+              DRAHT-Daten: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
+            </template>
+          </div>
+          <button
+            v-if="!drahtCheckState.isRunning"
+            @click="startDrahtCheck"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+          >
+            DRAHT-Daten prüfen
+          </button>
         </div>
+      </div>
+      
+      <!-- DRAHT Check Button (when not running and not completed) -->
+      <div v-if="!drahtCheckState.isRunning && !drahtCheckState.completed" class="mb-2 p-2 rounded border bg-blue-50 border-blue-300">
+        <button
+          @click="startDrahtCheck"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+        >
+          DRAHT-Daten prüfen
+        </button>
       </div>
 
       <!-- Table -->
       <div class="border border-gray-300 bg-white rounded shadow-sm overflow-hidden">
-        <div class="flex justify-between items-center p-3 bg-gray-50 border-b">
-          <div class="text-sm text-gray-600">
-            <span class="mr-4">🔴 = DRAHT Issue</span>
-            <span class="mr-4">⬜️ = No Plan</span>
-            <span class="mr-4">✅ = One Plan</span>
-            <span>⚠️ = Multiple Plans</span>
+        <div class="flex justify-between items-center p-2 bg-gray-50 border-b">
+          <div class="text-xs text-gray-600">
+            <span class="mr-4">🔴 = Problem mit DRAHT Daten</span>
+            <span class="mr-4">⬜️ = Kein Plan</span>
+            <span class="mr-4">✅ = Genau ein Plan</span>
+            <span>⚠️ = Mehrere Pläne</span>
           </div>
           <button
             @click="exportToCSV"
-            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+            class="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium"
           >
-            📥 Export to CSV
+            Export als CSV
           </button>
         </div>
         <div class="max-h-[60vh] overflow-y-auto">
