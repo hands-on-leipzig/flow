@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
@@ -24,6 +24,7 @@ type FlattenedRow = {
   event_challenge: number | null
   event_teams_explore: number
   event_teams_challenge: number
+  draht_issue?: boolean
   plan_id: number | null
   plan_name: string | null
   plan_created: string | null
@@ -43,6 +44,16 @@ const accessStats = ref<Map<number, number>>(new Map())
 const loading = ref(true)
 const error = ref<string | null>(null)
 const selectedSeasonKey = ref<string | null>(null)
+
+// DRAHT check state
+const drahtCheckState = ref({
+  isRunning: false,
+  checked: 0,
+  total: 0,
+  problems: 0,
+  completed: false
+})
+const drahtIssues = ref<Map<number, boolean>>(new Map())
 
 const router = useRouter()
 const eventStore = useEventStore()
@@ -80,6 +91,9 @@ onMounted(async () => {
       const last = data.value.seasons[data.value.seasons.length - 1]
       selectedSeasonKey.value = `${last.season_year}-${last.season_name}`
     }
+    
+    // Start DRAHT checks after data is loaded
+    startDrahtChecks()
   } catch (e) {
     error.value = 'Fehler beim Laden der Statistiken.'
     console.error(e)
@@ -87,6 +101,79 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+// Watch for season changes and restart DRAHT checks
+watch(selectedSeasonKey, () => {
+  if (data.value && selectedSeasonKey.value) {
+    drahtIssues.value.clear()
+    drahtCheckState.value = {
+      isRunning: false,
+      checked: 0,
+      total: 0,
+      problems: 0,
+      completed: false
+    }
+    startDrahtChecks()
+  }
+})
+
+async function startDrahtChecks() {
+  // Get all events with DRAHT IDs from current season
+  const season = data.value?.seasons.find(
+    s => `${s.season_year}-${s.season_name}` === selectedSeasonKey.value
+  )
+  if (!season) return
+
+  const eventsToCheck: number[] = []
+  for (const partner of season.partners) {
+    for (const event of partner.events || []) {
+      if (event.event_id && (event.event_explore || event.event_challenge)) {
+        eventsToCheck.push(event.event_id)
+      }
+    }
+  }
+
+  if (eventsToCheck.length === 0) {
+    drahtCheckState.value.completed = true
+    return
+  }
+
+  drahtCheckState.value = {
+    isRunning: true,
+    checked: 0,
+    total: eventsToCheck.length,
+    problems: 0,
+    completed: false
+  }
+
+  // Check events one by one
+  for (const eventId of eventsToCheck) {
+    try {
+      const response = await axios.get(`/stats/draht-check/${eventId}`)
+      const hasIssue = response.data.has_issue === true
+      
+      if (hasIssue) {
+        drahtIssues.value.set(eventId, true)
+        drahtCheckState.value.problems++
+      } else {
+        drahtIssues.value.set(eventId, false)
+      }
+    } catch (e) {
+      // On error, mark as having issue
+      drahtIssues.value.set(eventId, true)
+      drahtCheckState.value.problems++
+      console.error(`DRAHT check failed for event ${eventId}:`, e)
+    }
+    
+    drahtCheckState.value.checked++
+    
+    // Small delay to avoid overwhelming the server
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+
+  drahtCheckState.value.isRunning = false
+  drahtCheckState.value.completed = true
+}
 
 // Map for quick access to totals per "year-name"
 const totalsByKey = computed(() => {
@@ -216,6 +303,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_challenge: null,
           event_teams_explore: 0,
           event_teams_challenge: 0,
+          draht_issue: false,
           plan_id: null,
           plan_name: null,
           plan_created: null,
@@ -240,6 +328,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_challenge: event.event_challenge,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
+          draht_issue: drahtIssues.value.get(event.event_id) ?? false,
           plan_id: null,
           plan_name: null,
           plan_created: null,
@@ -262,6 +351,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_challenge: event.event_challenge,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
+          draht_issue: drahtIssues.value.get(event.event_id) ?? false,
           plan_id: plan.plan_id,
           plan_name: plan.plan_name,
           plan_created: plan.plan_created,
@@ -361,6 +451,7 @@ function askCleanup(target: CleanupTarget) {
     visible: true,
     mode: 'cleanup',
     planId: null,
+    planName: null,
     eventId: null,
     cleanupType: target,
   }
@@ -371,6 +462,7 @@ function openExpertParameters(planId: number) {
     visible: true,
     mode: 'expert-parameters',
     planId,
+    planName: null,
     eventId: null,
     cleanupType: null,
   }
@@ -381,6 +473,7 @@ function openTimeline(planId: number) {
     visible: true,
     mode: 'timeline',
     planId,
+    planName: null,
     eventId: null,
     cleanupType: null,
   }
@@ -391,6 +484,7 @@ function openAccessChart(eventId: number) {
     visible: true,
     mode: 'access-chart',
     planId: null,
+    planName: null,
     eventId,
     cleanupType: null,
   }
@@ -431,6 +525,17 @@ async function reloadStats() {
   ])
   data.value = plansRes.data
   totals.value = totalsRes.data
+  
+  // Reset and restart DRAHT checks
+  drahtIssues.value.clear()
+  drahtCheckState.value = {
+    isRunning: false,
+    checked: 0,
+    total: 0,
+    problems: 0,
+    completed: false
+  }
+  startDrahtChecks()
 }
 
 async function confirmModal() {
@@ -454,6 +559,99 @@ async function confirmModal() {
   } finally {
     closeModal()
   }
+}
+
+function exportToCSV() {
+  if (!flattenedRows.value || flattenedRows.value.length === 0) {
+    alert('Keine Daten zum Exportieren verfügbar.')
+    return
+  }
+
+  // Define CSV headers
+  const headers = [
+    'RP ID',
+    'Partner',
+    'Event ID',
+    'Event Name',
+    'Datum',
+    'Event Link',
+    'Event Explore',
+    'Event Challenge',
+    'Teams Explore',
+    'Teams Challenge',
+    'DRAHT Issue',
+    'Plan ID',
+    'Plan Name',
+    'Plan Created',
+    'Plan Last Change',
+    'Generator Stats',
+    'Expert Parameter Changes',
+    'Extra Blocks',
+    'Publication Level',
+    'Publication Date',
+    'Publication Last Change',
+    'Access Count'
+  ]
+
+  // Convert rows to CSV format
+  const csvRows = [
+    headers.join(','),
+    ...flattenedRows.value.map(row => {
+      const escapeCSV = (value: any) => {
+        if (value === null || value === undefined) return ''
+        const str = String(value)
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`
+        }
+        return str
+      }
+
+      return [
+        escapeCSV(row.partner_id),
+        escapeCSV(row.partner_name),
+        escapeCSV(row.event_id),
+        escapeCSV(row.event_name),
+        escapeCSV(row.event_date ? formatDateOnly(row.event_date) : ''),
+        escapeCSV(row.event_link),
+        escapeCSV(row.event_explore),
+        escapeCSV(row.event_challenge),
+        escapeCSV(row.event_teams_explore),
+        escapeCSV(row.event_teams_challenge),
+        escapeCSV(row.draht_issue ? 'Yes' : 'No'),
+        escapeCSV(row.plan_id),
+        escapeCSV(row.plan_name),
+        escapeCSV(row.plan_created ? formatDateTime(row.plan_created) : ''),
+        escapeCSV(row.plan_last_change ? formatDateTime(row.plan_last_change) : ''),
+        escapeCSV(row.generator_stats),
+        escapeCSV(row.expert_param_changes ?? 0),
+        escapeCSV(row.extra_blocks ?? 0),
+        escapeCSV(row.publication_level ?? ''),
+        escapeCSV(row.publication_date ? formatDateTime(row.publication_date) : ''),
+        escapeCSV(row.publication_last_change ? formatDateTime(row.publication_last_change) : ''),
+        escapeCSV(row.access_count ?? '')
+      ].join(',')
+    })
+  ]
+
+  // Create CSV content
+  const csvContent = csvRows.join('\n')
+
+  // Create blob and download
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' }) // BOM for Excel UTF-8 support
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  link.setAttribute('href', url)
+  
+  // Generate filename with current date
+  const now = new Date()
+  const dateStr = now.toISOString().split('T')[0]
+  link.setAttribute('download', `statistics_${dateStr}.csv`)
+  
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
 
@@ -589,8 +787,34 @@ async function confirmModal() {
         </div>
       </div>
 
+      <!-- DRAHT Check Banner -->
+      <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="mb-4 p-3 rounded border" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'bg-red-50 border-red-300' : drahtCheckState.completed ? 'bg-green-50 border-green-300' : 'bg-blue-50 border-blue-300'">
+        <div class="text-sm font-medium" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'text-red-800' : drahtCheckState.completed ? 'text-green-800' : 'text-blue-800'">
+          <template v-if="drahtCheckState.isRunning">
+            Überprüfung von DRAHT-Daten läuft. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
+          </template>
+          <template v-else-if="drahtCheckState.completed">
+            DRAHT-Daten: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
+          </template>
+        </div>
+      </div>
+
       <!-- Table -->
       <div class="border border-gray-300 bg-white rounded shadow-sm overflow-hidden">
+        <div class="flex justify-between items-center p-3 bg-gray-50 border-b">
+          <div class="text-sm text-gray-600">
+            <span class="mr-4">🔴 = DRAHT Issue</span>
+            <span class="mr-4">⬜️ = No Plan</span>
+            <span class="mr-4">✅ = One Plan</span>
+            <span>⚠️ = Multiple Plans</span>
+          </div>
+          <button
+            @click="exportToCSV"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+          >
+            📥 Export to CSV
+          </button>
+        </div>
         <div class="max-h-[60vh] overflow-y-auto">
           <table class="min-w-full text-sm">
             <thead class="bg-gray-100 text-left sticky top-0 z-10">
@@ -649,7 +873,11 @@ async function confirmModal() {
           <td class="px-3 py-2">
             <template v-if="shouldShowEvent(index)">
               <span class="mr-2">
-                <template v-if="row.plan_id === null">
+                <template v-if="row.draht_issue">
+                  <!-- 🔴 DRAHT issue (critical) -->
+                  🔴
+                </template>
+                <template v-else-if="row.plan_id === null">
                   <!-- ⬜️  No plan -->
                   ⬜️ 
                 </template>
