@@ -130,7 +130,7 @@ Route::middleware(['keycloak'])->group(function () {
     // PlanParameter controller
     // Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
-    Route::get('/plans/{id}/expert-parameters', [PlanParameterController::class, 'getExpertParameters']);
+    Route::get('/plans/{id}/non-default-parameters', [PlanParameterController::class, 'getNonDefaultParameter']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
 
 
@@ -282,6 +282,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('stats')->group(function () {
         Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
         Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
+        Route::get('/draht-check/{eventId}', [StatisticController::class, 'checkDrahtIssue']); // Check DRAHT for single event
         Route::delete('/orphans/{type}/cleanup', [StatisticController::class, 'cleanupOrphans']);
         Route::get('/timeline/{planId}', [StatisticController::class, 'timeline']);      // Timeline data for a plan
     });
@@ -308,5 +309,19 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/', [NewsController::class, 'store']);
         Route::delete('/{id}', [NewsController::class, 'destroy']);
         Route::get('/{id}/stats', [NewsController::class, 'stats']);
+    });
+
+    // Admin external API routes (applications and API keys)
+    Route::prefix('admin/applications')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\ApplicationController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\ApplicationController::class, 'store']);
+        Route::get('/{id}', [\App\Http\Controllers\Api\ApplicationController::class, 'show']);
+        Route::put('/{id}', [\App\Http\Controllers\Api\ApplicationController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\Api\ApplicationController::class, 'destroy']);
+        
+        // API key management
+        Route::post('/{applicationId}/api-keys', [\App\Http\Controllers\Api\ApplicationController::class, 'createApiKey']);
+        Route::put('/{applicationId}/api-keys/{apiKeyId}', [\App\Http\Controllers\Api\ApplicationController::class, 'updateApiKey']);
+        Route::delete('/{applicationId}/api-keys/{apiKeyId}', [\App\Http\Controllers\Api\ApplicationController::class, 'deleteApiKey']);
     });
 });
