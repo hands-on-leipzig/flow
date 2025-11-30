@@ -23,7 +23,9 @@ function compareSchemaToMaster($environment = null)
     echo "=====================================\n\n";
     
     // Load helper functions
-    include base_path('database/scripts/generate_sync_migration_simple.php');
+    if (!function_exists('parseDevSchemaSimple')) {
+        include_once base_path('database/scripts/generate_sync_migration_simple.php');
+    }
     
     // Read current schema
     $schemaPath = dirname(base_path()) . "/{$env}_schema.md";

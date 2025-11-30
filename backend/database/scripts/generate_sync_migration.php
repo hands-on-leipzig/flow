@@ -24,7 +24,9 @@ function generateSyncMigration($environment = null)
     echo "=====================================\n\n";
     
     // Load helper functions
-    include base_path('database/scripts/generate_sync_migration_simple.php');
+    if (!function_exists('parseDevSchemaSimple')) {
+        include_once base_path('database/scripts/generate_sync_migration_simple.php');
+    }
     
     // Step 1: Export current schema (if not exists)
     $schemaPath = dirname(base_path()) . "/{$env}_schema.md";
@@ -37,9 +39,11 @@ function generateSyncMigration($environment = null)
         echo "Step 1: Using existing schema export: {$schemaPath}\n\n";
     }
     
-    // Step 2: Compare schemas
+    // Step 2: Compare schemas (reuse comparison logic without re-including)
     echo "Step 2: Comparing schemas...\n";
-    include base_path('database/scripts/compare_schema_to_master.php');
+    if (!function_exists('compareSchemaToMaster')) {
+        include_once base_path('database/scripts/compare_schema_to_master.php');
+    }
     $differences = compareSchemaToMaster($env);
     
     $totalIssues = count($differences['missing_tables']) +

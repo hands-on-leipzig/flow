@@ -218,20 +218,34 @@ function parseTableDefinitionSimple($tableDef, $tableName)
     
     // Extract foreign keys
     // Pattern: $table->foreign('col')->references('ref_col')->on('ref_table')->onDelete('rule')
+    // Also handle: ->nullOnDelete() which is SET NULL
     // Use 's' flag to match across newlines
     preg_match_all(
-        "/\\\$table->foreign\s*\(\s*['\"]([^'\"]+)['\"]\s*\)\s*->references\s*\(\s*['\"]([^'\"]+)['\"]\s*\)\s*->on\s*\(\s*['\"]([^'\"]+)['\"]\s*\)\s*(?:->onDelete\s*\(\s*['\"]([^'\"]+)['\"]\s*\))?/s",
+        "/\\\$table->foreign\s*\(\s*['\"]([^'\"]+)['\"]\s*\)\s*->references\s*\(\s*['\"]([^'\"]+)['\"]\s*\)\s*->on\s*\(\s*['\"]([^'\"]+)['\"]\s*\)\s*(?:->(?:onDelete\s*\(\s*['\"]([^'\"]+)['\"]\s*\)|nullOnDelete\s*\(\s*\)))?/s",
         $tableDef,
         $fkMatches,
         PREG_SET_ORDER
     );
     
     foreach ($fkMatches as $fk) {
+        // Check if nullOnDelete() was used (no capture group for it, but we can check if onDelete is empty and nullOnDelete exists)
+        $hasNullOnDelete = preg_match(
+            "/\\\$table->foreign\s*\(\s*['\"]" . preg_quote($fk[1], '/') . "['\"]\s*\)\s*->references\s*\(\s*['\"]" . preg_quote($fk[2], '/') . "['\"]\s*\)\s*->on\s*\(\s*['\"]" . preg_quote($fk[3], '/') . "['\"]\s*\)\s*->nullOnDelete\s*\(\s*\)/s",
+            $tableDef
+        );
+        
+        $onDelete = 'RESTRICT'; // Default
+        if ($hasNullOnDelete) {
+            $onDelete = 'SET NULL';
+        } elseif (isset($fk[4]) && $fk[4] !== '') {
+            $onDelete = strtoupper($fk[4]);
+        }
+        
         $table['foreign_keys'][] = [
             'column' => $fk[1],
             'references_table' => $fk[3],
             'references_column' => $fk[2],
-            'on_delete' => strtoupper(isset($fk[4]) && $fk[4] !== '' ? $fk[4] : 'RESTRICT'),
+            'on_delete' => $onDelete,
         ];
     }
     
