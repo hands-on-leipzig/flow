@@ -1,34 +1,41 @@
 <?php
 
 /**
- * Export Dev Database Schema for Review
+ * Export Current Database Schema
  * 
- * This script exports the complete schema structure from the Dev database
- * to help compare with the master migration.
+ * Exports the complete schema structure from the currently connected database
+ * to a Markdown file in the project root.
  * 
  * Usage: php artisan tinker
- * >>> include 'database/scripts/export_dev_schema.php';
- * >>> exportDevSchema();
+ * >>> include 'database/scripts/export_schema.php';
+ * >>> exportSchema('dev');  // or 'test', 'prod'
+ * 
+ * The schema will be saved to: {environment}_schema.md in project root
  */
 
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
-function exportDevSchema()
+function exportSchema($environment = null)
 {
-    echo "🔍 Exporting Dev Database Schema...\n";
+    $dbName = DB::connection()->getDatabaseName();
+    $env = $environment ?: (str_contains($dbName, 'test') ? 'test' : (str_contains($dbName, 'prod') ? 'prod' : 'dev'));
+    
+    echo "🔍 Exporting Database Schema...\n";
+    echo "Database: {$dbName}\n";
+    echo "Environment: {$env}\n";
     echo "=====================================\n\n";
     
     $output = [];
-    $output[] = "# Dev Database Schema Export";
+    $output[] = "# Database Schema Export";
     $output[] = "Generated: " . date('Y-m-d H:i:s');
-    $output[] = "Database: " . DB::connection()->getDatabaseName();
+    $output[] = "Database: {$dbName}";
+    $output[] = "Environment: {$env}";
     $output[] = "";
     
     // Get all tables
     $tables = DB::select("SHOW TABLES");
-    $databaseName = DB::connection()->getDatabaseName();
-    $tableKey = "Tables_in_{$databaseName}";
+    $tableKey = "Tables_in_{$dbName}";
     
     $tableNames = [];
     foreach ($tables as $table) {
@@ -80,7 +87,7 @@ function exportDevSchema()
         
         foreach ($indexes as $index) {
             $keyName = $index->Key_name;
-            if ($keyName === 'PRIMARY') continue; // Skip primary key
+            if ($keyName === 'PRIMARY') continue;
             
             if (!isset($indexGroups[$keyName])) {
                 $indexGroups[$keyName] = [
@@ -123,7 +130,7 @@ function exportDevSchema()
             WHERE kcu.TABLE_SCHEMA = ?
             AND kcu.TABLE_NAME = ?
             AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
-        ", [$databaseName, $tableName]);
+        ", [$dbName, $tableName]);
         
         if (!empty($foreignKeys)) {
             $output[] = "### Foreign Keys";
@@ -148,17 +155,12 @@ function exportDevSchema()
         $output[] = "";
     }
     
-    // Write to file
-    $outputPath = storage_path('app/dev_schema_export_' . date('Y-m-d_His') . '.md');
+    // Write to project root
+    $outputPath = dirname(base_path()) . "/{$env}_schema.md";
     file_put_contents($outputPath, implode("\n", $output));
     
     echo "\n✅ Schema exported successfully!\n";
     echo "📁 File: {$outputPath}\n";
-    echo "\n";
-    echo "Next steps:\n";
-    echo "1. Review DATA_TYPE_STANDARDS.md and discuss data types\n";
-    echo "2. Review exported schema table by table\n";
-    echo "3. Compare with master migration\n";
     
     return $outputPath;
 }

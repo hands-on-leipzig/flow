@@ -731,6 +731,66 @@ return new class extends Migration {
                 // This can happen in race conditions or if table structure differs
             }
         }
+
+        // Create External API tables (only if they don't exist - preserve data)
+        if (!Schema::hasTable('applications')) {
+        Schema::create('applications', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->string('name', 100);
+            $table->text('description')->nullable();
+            $table->string('contact_email', 255);
+            $table->string('webhook_url', 500)->nullable();
+            $table->json('allowed_ips')->nullable();
+            $table->unsignedInteger('rate_limit')->default(1000);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+            
+            $table->index('is_active');
+        });
+        }
+
+        if (!Schema::hasTable('api_keys')) {
+        Schema::create('api_keys', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->string('name', 100);
+            $table->string('key_hash', 64)->unique();
+            $table->unsignedInteger('application_id');
+            $table->json('scopes')->nullable();
+            $table->timestamp('last_used_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+            
+            $table->foreign('application_id')->references('id')->on('applications')->onDelete('cascade');
+            $table->index(['application_id', 'is_active']);
+            $table->index('key_hash');
+        });
+        }
+
+        if (!Schema::hasTable('api_request_logs')) {
+        Schema::create('api_request_logs', function (Blueprint $table) {
+            $table->unsignedBigInteger('id')->autoIncrement();
+            $table->unsignedInteger('application_id');
+            $table->unsignedInteger('api_key_id')->nullable();
+            $table->string('method', 10);
+            $table->string('path', 500);
+            $table->integer('status_code');
+            $table->integer('response_time_ms');
+            $table->string('ip_address', 45);
+            $table->text('user_agent')->nullable();
+            $table->json('request_headers')->nullable();
+            $table->json('response_headers')->nullable();
+            $table->timestamp('created_at');
+            
+            $table->index(['application_id', 'created_at']);
+            $table->index(['api_key_id', 'created_at']);
+            $table->index('status_code');
+            $table->index('created_at');
+            
+            $table->foreign('application_id')->references('id')->on('applications')->onDelete('cascade');
+            $table->foreign('api_key_id')->references('id')->on('api_keys')->onDelete('set null');
+        });
+        }
         } finally {
             // Re-enable foreign key checks
             if ($driver === 'mysql' || $driver === 'mariadb') {
@@ -785,5 +845,10 @@ return new class extends Migration {
         Schema::dropIfExists('m_room_type_group');
         Schema::dropIfExists('m_level');
         Schema::dropIfExists('m_season');
+        
+        // External API tables
+        Schema::dropIfExists('api_request_logs');
+        Schema::dropIfExists('api_keys');
+        Schema::dropIfExists('applications');
     }
 };
