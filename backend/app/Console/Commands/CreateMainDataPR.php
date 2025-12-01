@@ -185,13 +185,14 @@ This PR contains an updated `main-tables-latest.json` file with the latest main 
 ### 📋 What's included:
 - Updated JSON export file with current database state
 - All `m_` table data preserved in JSON format
-- The `MainDataSeeder.php` is dynamic and reads from this JSON file during deployment
+- The JSON file is used by `update_m_tables_from_json.php` during deployment
 
 ### 🚀 Deployment:
 Once this PR is merged, the updated JSON file will be used during:
 - Test environment deployment (`test` branch)
 - Production environment deployment (`production` branch)
-- The `MainDataSeeder` will automatically read from `backend/database/exports/main-tables-latest.json`
+- The `update_m_tables_from_json.php` script will automatically read from `backend/database/exports/main-tables-latest.json`
+- This script handles INSERT, UPDATE, DELETE operations with FK integrity checks enabled
 
 ### 📝 Generated on:
 " . now()->format('Y-m-d H:i:s') . "

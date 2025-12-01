@@ -248,7 +248,7 @@ class MainTablesController extends Controller
             $filename = 'main-tables-export-' . now()->format('Y-m-d-H-i-s') . '.json';
             Storage::put("exports/{$filename}", json_encode($exportData, JSON_PRETTY_PRINT));
 
-            // Also save to database/exports/ for repo (used by MainDataSeeder during deployment)
+            // Also save to database/exports/ for repo (used by update_m_tables_from_json.php during deployment)
             // Use database_path() which should now work correctly with APP_BASE_PATH set in .env
             $repoPath = database_path('exports');
             if (!file_exists($repoPath)) {
@@ -256,9 +256,6 @@ class MainTablesController extends Controller
             }
             $filePath = database_path('exports/main-tables-latest.json');
             file_put_contents($filePath, json_encode($exportData, JSON_PRETTY_PRINT));
-
-            // Generate MainDataSeeder.php for local use
-            \Artisan::call('main-data:generate-seeder');
 
             // Verify export data structure
             $exportedTableCount = count(array_filter($exportData, fn($key) => $key !== '_metadata', ARRAY_FILTER_USE_KEY));
@@ -362,7 +359,7 @@ class MainTablesController extends Controller
                 'version' => '1.0'
             ];
 
-            // Save to database/exports/ for repo (used by MainDataSeeder during deployment)
+            // Save to database/exports/ for repo (used by update_m_tables_from_json.php during deployment)
             // Use database_path() which should now work correctly with APP_BASE_PATH set in .env
             $repoPath = database_path('exports');
             if (!file_exists($repoPath)) {
