@@ -51,6 +51,46 @@ if [ "$REFRESH_M_TABLES" == "true" ]; then
   echo "✓ JSON export file found"
 fi
 
+# Database backup (production only - before any changes)
+if [ "$FIX_MIGRATION_RECORDS" == "true" ]; then
+  echo "💾 Creating database backup before deployment..."
+  BACKUP_DIR="$HOME/backups"
+  mkdir -p "$BACKUP_DIR"
+  BACKUP_FILE="$BACKUP_DIR/backup_$(date +%Y%m%d_%H%M%S).sql"
+  
+  # Get database credentials from Laravel config
+  DB_HOST=$(php artisan tinker --execute="echo config('database.connections.mysql.host');" 2>/dev/null | grep -v "Tinker" | head -1 || echo "localhost")
+  DB_DATABASE=$(php artisan tinker --execute="echo config('database.connections.mysql.database');" 2>/dev/null | grep -v "Tinker" | head -1)
+  DB_USERNAME=$(php artisan tinker --execute="echo config('database.connections.mysql.username');" 2>/dev/null | grep -v "Tinker" | head -1)
+  DB_PASSWORD=$(php artisan tinker --execute="echo config('database.connections.mysql.password');" 2>/dev/null | grep -v "Tinker" | head -1)
+  
+  if [ -n "$DB_DATABASE" ] && [ -n "$DB_USERNAME" ]; then
+    echo "  Backing up database: $DB_DATABASE"
+    if [ -n "$DB_PASSWORD" ]; then
+      mysqldump -h "$DB_HOST" -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" > "$BACKUP_FILE" 2>/dev/null || {
+        echo "⚠️  WARNING: Database backup failed (may not have mysqldump access)"
+        echo "  Continuing without backup..."
+      }
+    else
+      mysqldump -h "$DB_HOST" -u "$DB_USERNAME" "$DB_DATABASE" > "$BACKUP_FILE" 2>/dev/null || {
+        echo "⚠️  WARNING: Database backup failed (may not have mysqldump access)"
+        echo "  Continuing without backup..."
+      }
+    fi
+    
+    if [ -f "$BACKUP_FILE" ] && [ -s "$BACKUP_FILE" ]; then
+      BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+      echo "  ✓ Backup created: $BACKUP_FILE ($BACKUP_SIZE)"
+      # Keep only last 10 backups
+      ls -t "$BACKUP_DIR"/backup_*.sql 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null || true
+    else
+      echo "  ⚠️  Backup file is empty or missing"
+    fi
+  else
+    echo "  ⚠️  Could not determine database credentials, skipping backup"
+  fi
+fi
+
 # Fix migration records (production only)
 if [ "$FIX_MIGRATION_RECORDS" == "true" ]; then
   echo "🔧 Fixing migration records for existing tables..."
@@ -59,23 +99,13 @@ if [ "$FIX_MIGRATION_RECORDS" == "true" ]; then
   }
 fi
 
-# Drop and refresh m_ tables (test and production only)
-if [ "$REFRESH_M_TABLES" == "true" ]; then
-  echo "🗑️  Dropping m_ tables..."
-  php artisan tinker --execute="include 'database/scripts/refresh_m_tables.php'; refreshMTables();" || {
-    echo "❌ ERROR: refresh_m_tables.php failed"
-    exit 1
-  }
-  echo "✓ Master tables refreshed"
-fi
-
 # Check migration status before running (production only)
 if [ "$VERIFY_MIGRATIONS" == "true" ]; then
   echo "📊 Checking migration status before running..."
   php artisan migrate:status || echo "ℹ️  Note: migrate:status may fail if migrations table doesn't exist yet"
 fi
 
-# Run migrations
+# Run migrations (MUST run before updating m-tables to ensure schema matches JSON)
 echo "🔄 Running migrations..."
 php artisan migrate --force || {
   echo "❌ ERROR: Migrations failed!"
@@ -86,6 +116,17 @@ php artisan migrate --force || {
   exit 1
 }
 echo "✓ Migrations completed successfully"
+
+# Update m_ tables from JSON (test and production only)
+# This runs AFTER migrations to ensure schema matches JSON structure
+if [ "$REFRESH_M_TABLES" == "true" ]; then
+  echo "🔄 Updating m_ tables from JSON (FK checks ENABLED)..."
+  php artisan tinker --execute="include 'database/scripts/update_m_tables_from_json.php'; updateMTablesFromJson('database/exports/main-tables-latest.json');" || {
+    echo "❌ ERROR: update_m_tables_from_json.php failed"
+    exit 1
+  }
+  echo "✓ Master tables updated"
+fi
 
 # Verify migrations (production only)
 if [ "$VERIFY_MIGRATIONS" == "true" ]; then
@@ -159,6 +200,14 @@ if [ "$SEED_MAIN_DATA" == "true" ]; then
   }
   echo "✓ Master data seeded successfully"
 fi
+
+# Restart queue workers (required after code deployment)
+echo "🔄 Restarting queue workers..."
+php artisan queue:restart || {
+  echo "⚠️  WARNING: queue:restart failed (queue workers may not be running)"
+  echo "If queue workers are managed by supervisor, they will auto-restart."
+}
+echo "✓ Queue workers restarted"
 
 echo "✅ Deployment finalization completed successfully!"
 

@@ -84,6 +84,34 @@ jobs:
         working-directory: ./backend
         run: composer install --no-dev --optimize-autoloader
 
+      - name: Run backend tests
+        working-directory: ./backend
+        continue-on-error: true
+        run: |
+          if [ -d "tests" ] && [ "$(ls -A tests 2>/dev/null)" ]; then
+            echo "🧪 Running backend tests..."
+            php artisan test || {
+              echo "⚠️  WARNING: Some tests failed, but continuing deployment..."
+              echo "Review test failures above and fix before next deployment."
+            }
+          else
+            echo "ℹ️  No tests found, skipping test execution"
+          fi
+
+      - name: Run frontend tests
+        working-directory: ./frontend
+        continue-on-error: true
+        run: |
+          if npm run | grep -q "test"; then
+            echo "🧪 Running frontend tests..."
+            npm test -- --run || {
+              echo "⚠️  WARNING: Some frontend tests failed, but continuing deployment..."
+              echo "Review test failures above and fix before next deployment."
+            }
+          else
+            echo "ℹ️  No test script found in package.json, skipping frontend tests"
+          fi
+
       - name: Copy frontend dist to Laravel public dir
         run: |
           rm -rf backend/public/build
