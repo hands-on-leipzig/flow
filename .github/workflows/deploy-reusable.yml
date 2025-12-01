@@ -143,6 +143,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: 222
           script: |
+            cd ~/${{ inputs.temp_dir }}
             chmod +x scripts/deploy-finalize.sh
             ./scripts/deploy-finalize.sh \
               "${{ inputs.temp_dir }}" \
