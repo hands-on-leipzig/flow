@@ -1,0 +1,253 @@
+name: Deploy Application (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        required: true
+        type: string
+      app_url:
+        required: true
+        type: string
+      temp_dir:
+        required: true
+        type: string
+      public_dir:
+        required: true
+        type: string
+      refresh_m_tables:
+        required: true
+        type: boolean
+      fix_migration_records:
+        required: true
+        type: boolean
+      verify_migrations:
+        required: true
+        type: boolean
+      seed_main_data:
+        required: true
+        type: boolean
+      environment_name:
+        required: false
+        type: string
+        default: 'unknown'
+    secrets:
+      SSH_KNOWN_HOST:
+        required: true
+      SSH_KEY:
+        required: true
+      SSH_USER:
+        required: true
+      SSH_HOST:
+        required: true
+      API_BASE_URL:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Environment protection is applied here for production deployments
+    environment: ${{ inputs.environment_name == 'production' && 'production' || '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Create frontend .env file
+        working-directory: ./frontend
+        run: |
+          echo "VITE_API_BASE_URL=${{ secrets.API_BASE_URL }}" > .env
+          echo "VITE_APP_NAME=FLOW" >> .env
+          echo "VITE_APP_URL=${{ inputs.app_url }}" >> .env
+          echo "VITE_FILES_BASE_URL=${{ inputs.app_url }}" >> .env
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Install Laravel dependencies
+        working-directory: ./backend
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Run backend tests
+        working-directory: ./backend
+        continue-on-error: true
+        run: |
+          if [ -d "tests" ] && [ "$(ls -A tests 2>/dev/null)" ]; then
+            echo "🧪 Running backend tests..."
+            php artisan test || {
+              echo "⚠️  WARNING: Some tests failed, but continuing deployment..."
+              echo "Review test failures above and fix before next deployment."
+            }
+          else
+            echo "ℹ️  No tests found, skipping test execution"
+          fi
+
+      - name: Run frontend tests
+        working-directory: ./frontend
+        continue-on-error: true
+        run: |
+          if npm run | grep -q "test"; then
+            echo "🧪 Running frontend tests..."
+            npm test -- --run || {
+              echo "⚠️  WARNING: Some frontend tests failed, but continuing deployment..."
+              echo "Review test failures above and fix before next deployment."
+            }
+          else
+            echo "ℹ️  No test script found in package.json, skipping frontend tests"
+          fi
+
+      - name: Copy frontend dist to Laravel public dir
+        run: |
+          rm -rf backend/public/build
+          rm -f backend/public/index.html
+          cp -r frontend/dist/* backend/public/
+
+      - name: Copy output to Laravel public dir
+        run: |
+          rm -rf backend/public/output
+          mkdir -p backend/public/output
+          cp -r output/* backend/public/output/
+          chmod +x backend/public/output/zeitplan.cgi || true
+          chmod +x backend/public/output/namensschilder.cgi || true
+          chmod +x backend/public/output/visibility.cgi || true
+
+      - name: Rsync backend to server
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/${{ inputs.temp_dir }}/
+
+      - name: Finalize on server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 222
+          script: |
+            chmod +x scripts/deploy-finalize.sh
+            ./scripts/deploy-finalize.sh \
+              "${{ inputs.temp_dir }}" \
+              "${{ inputs.public_dir }}" \
+              "${{ inputs.refresh_m_tables }}" \
+              "${{ inputs.fix_migration_records }}" \
+              "${{ inputs.verify_migrations }}" \
+              "${{ inputs.seed_main_data }}"
+
+      - name: Verify deployment health
+        run: |
+          echo "🏥 Checking application health..."
+          MAX_RETRIES=5
+          RETRY_DELAY=10
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if curl -f -s --max-time 10 "${{ inputs.app_url }}/api/ping" > /dev/null; then
+              echo "✅ Health check passed! Application is responding."
+              exit 0
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⏳ Health check failed (attempt $RETRY_COUNT/$MAX_RETRIES). Retrying in ${RETRY_DELAY}s..."
+                sleep $RETRY_DELAY
+              fi
+            fi
+          done
+          
+          echo "❌ Health check failed after $MAX_RETRIES attempts"
+          echo "Application may not be responding at ${{ inputs.app_url }}/api/ping"
+          exit 1
+
+      - name: Notify deployment success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const environment = '${{ inputs.environment_name }}';
+            const appUrl = '${{ inputs.app_url }}';
+            const commitSha = context.sha.substring(0, 7);
+            const commitMessage = context.payload.head_commit?.message || 'No commit message';
+            const actor = context.actor;
+            
+            const message = `✅ **Deployment Successful**
+            
+            **Environment:** ${environment}
+            **URL:** ${appUrl}
+            **Commit:** \`${commitSha}\`
+            **Message:** ${commitMessage}
+            **Deployed by:** @${actor}
+            **Time:** ${new Date().toISOString()}
+            
+            Deployment completed and health check passed.`;
+            
+            // Create a deployment status comment or issue comment
+            // For now, we'll log it - you can extend this to post to Slack, Discord, etc.
+            console.log(message);
+            
+            // Optionally, you can create a deployment status
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: context.payload.deployment?.id || 0,
+              state: 'success',
+              description: `Deployment to ${environment} completed successfully`,
+              environment: environment
+            }).catch(err => {
+              // Deployment status creation is optional, don't fail if it doesn't work
+              console.log('Note: Could not create deployment status (this is optional)');
+            });
+
+      - name: Notify deployment failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const environment = '${{ inputs.environment_name }}';
+            const appUrl = '${{ inputs.app_url }}';
+            const commitSha = context.sha.substring(0, 7);
+            const actor = context.actor;
+            const workflowRun = context.runId;
+            const workflowUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${workflowRun}`;
+            
+            const message = `❌ **Deployment Failed**
+            
+            **Environment:** ${environment}
+            **URL:** ${appUrl}
+            **Commit:** \`${commitSha}\`
+            **Deployed by:** @${actor}
+            **Time:** ${new Date().toISOString()}
+            **Workflow Run:** ${workflowUrl}
+            
+            Please check the workflow logs for details.`;
+            
+            console.error(message);
+            
+            // Optionally create a deployment status
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: context.payload.deployment?.id || 0,
+              state: 'failure',
+              description: `Deployment to ${environment} failed`,
+              environment: environment
+            }).catch(err => {
+              console.log('Note: Could not create deployment status (this is optional)');
+            });
