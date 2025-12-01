@@ -44,7 +44,7 @@ jobs:
       refresh_m_tables: true
       fix_migration_records: false
       verify_migrations: false
-      seed_main_data: true
+      seed_main_data: false
       environment_name: test
     secrets:
       SSH_KNOWN_HOST: ${{ secrets.SSH_KNOWN_HOST }}
@@ -64,7 +64,7 @@ jobs:
       refresh_m_tables: true
       fix_migration_records: true
       verify_migrations: true
-      seed_main_data: true
+      seed_main_data: false
       environment_name: production
     secrets:
       SSH_KNOWN_HOST: ${{ secrets.SSH_KNOWN_HOST }}
