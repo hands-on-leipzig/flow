@@ -23,6 +23,14 @@ function generateSyncMigration($environment = null)
     echo "Environment: {$env}\n";
     echo "=====================================\n\n";
     
+    // Step 0: Check for extra tables first
+    if (!function_exists('checkExtraTables')) {
+        include_once base_path('database/scripts/check_extra_tables.php');
+    }
+    echo "Step 0: Checking for extra tables...\n";
+    $extraTables = checkExtraTables($env);
+    echo "\n";
+    
     // Load helper functions
     if (!function_exists('parseDevSchemaSimple')) {
         include_once base_path('database/scripts/generate_sync_migration_simple.php');
