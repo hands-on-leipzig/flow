@@ -1,5 +1,9 @@
 name: Deploy Vue + Laravel App
 
+# Note: Some linters may show false positives for reusable workflows.
+# The syntax below is correct according to GitHub Actions documentation.
+# When using 'uses:' to call a reusable workflow, jobs don't need 'runs-on'.
+
 on:
   push:
     branches:
@@ -11,353 +15,60 @@ on:
 jobs:
   deploy-dev:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      # Build Vue frontend
-      - name: Set up Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-      - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: npm ci
-      - name: Create frontend .env file
-        working-directory: ./frontend
-        run: |
-          echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_DEV }}" > .env
-          echo "VITE_APP_NAME=FLOW" >> .env
-          echo "VITE_APP_URL=https://dev.flow.hands-on-technology.org" >> .env
-          echo "VITE_FILES_BASE_URL=https://dev.flow.hands-on-technology.org" >> .env
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
-      # Set up PHP & Composer
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-      - name: Install Laravel dependencies
-        working-directory: ./backend
-        run: composer install --no-dev --optimize-autoloader
-      - name: Copy frontend dist to Laravel public dir
-        run: |
-          rm -rf backend/public/build
-          rm -f backend/public/index.html
-          cp -r frontend/dist/* backend/public/
-      - name: Copy output to Laravel public dir
-        run: |
-          rm -rf backend/public/output
-          mkdir -p backend/public/output
-          cp -r output/* backend/public/output/
-          chmod +x backend/public/output/zeitplan.cgi || true
-          chmod +x backend/public/output/namensschilder.cgi || true
-          chmod +x backend/public/output/visibility.cgi || true
-      - name: Rsync backend to server
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-flow-dev-temp/
-      - name: Finalize on server (move to public dir)
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 222
-          script: |
-            rsync -av --delete \
-            --exclude='.env' \
-            --exclude='.htaccess' \
-            --exclude='storage/' \
-            ~/deploy-flow-dev-temp/ ~/public_html/flow-dev/
-            cd ~/public_html/flow-dev
-            # Ensure storage directories exist (mkdir -p is idempotent - safe if already exists)
-            mkdir -p storage/framework/cache/data
-            mkdir -p storage/framework/sessions
-            mkdir -p storage/framework/views
-            mkdir -p storage/app/public
-            # Set permissions only if needed (preserves existing files)
-            find storage/framework -type d -exec chmod 775 {} \; 2>/dev/null || true
-            find storage/app -type d -exec chmod 775 {} \; 2>/dev/null || true
-            php artisan config:clear
-            php artisan route:clear
-            php artisan view:clear
-            php artisan migrate --force
-            php artisan storage:link
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      checkout_ref: ${{ github.ref }}
+      app_url: https://dev.flow.hands-on-technology.org
+      temp_dir: deploy-flow-dev-temp
+      public_dir: flow-dev
+      refresh_m_tables: false
+      fix_migration_records: false
+      verify_migrations: false
+      seed_main_data: false
+      environment_name: development
+    secrets:
+      SSH_KNOWN_HOST: ${{ secrets.SSH_KNOWN_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      API_BASE_URL: ${{ secrets.VITE_API_BASE_URL_DEV }}
 
   deploy-test:
     if: github.ref == 'refs/heads/test'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      # Build Vue frontend
-      - name: Set up Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-      - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: npm ci
-      - name: Create frontend .env file
-        working-directory: ./frontend
-        run: |
-          echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_TEST }}" > .env
-          echo "VITE_APP_NAME=FLOW" >> .env
-          echo "VITE_APP_URL=https://test.flow.hands-on-technology.org" >> .env
-          echo "VITE_FILES_BASE_URL=https://test.flow.hands-on-technology.org" >> .env
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
-      # Set up PHP & Composer
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-      - name: Install Laravel dependencies
-        working-directory: ./backend
-        run: composer install --no-dev --optimize-autoloader
-      - name: Copy frontend dist to Laravel public dir
-        run: |
-          rm -rf backend/public/build
-          rm -f backend/public/index.html
-          cp -r frontend/dist/* backend/public/
-      - name: Copy output to Laravel public dir
-        run: |
-          rm -rf backend/public/output
-          mkdir -p backend/public/output
-          cp -r output/* backend/public/output/
-          chmod +x backend/public/output/zeitplan.cgi || true
-          chmod +x backend/public/output/namensschilder.cgi || true
-          chmod +x backend/public/output/visibility.cgi || true
-      - name: Rsync backend to server
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-flow-test-temp/
-      - name: Finalize on server (move to public dir)
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 222
-          script: |
-            rsync -av --delete \
-            --exclude='.env' \
-            --exclude='.htaccess' \
-            --exclude='storage/' \
-            ~/deploy-flow-test-temp/ ~/public_html/flow-test/
-            cd ~/public_html/flow-test
-            # Ensure storage directories exist (mkdir -p is idempotent - safe if already exists)
-            mkdir -p storage/framework/cache/data
-            mkdir -p storage/framework/sessions
-            mkdir -p storage/framework/views
-            mkdir -p storage/app/public
-            # Set permissions only if needed (preserves existing files)
-            find storage/framework -type d -exec chmod 775 {} \; 2>/dev/null || true
-            find storage/app -type d -exec chmod 775 {} \; 2>/dev/null || true
-            php artisan config:clear
-            php artisan route:clear
-            php artisan view:clear
-            # Verify JSON export file exists before migration
-            if [ ! -f "database/exports/main-tables-latest.json" ]; then
-              echo "ERROR: main-tables-latest.json not found in database/exports/"
-              echo "Listing database/exports/ contents:"
-              ls -la database/exports/ || echo "database/exports/ directory does not exist"
-              exit 1
-            fi
-            # Drop only m_ tables (master tables), preserve other data
-            echo "Dropping m_ tables..."
-            php artisan tinker --execute="include 'database/scripts/refresh_m_tables.php'; refreshMTables();"
-            # Run migrations to recreate m_ tables and update other tables
-            php artisan migrate --force
-            php artisan storage:link
-            # Populate master data (m_ tables) from seeder file
-            echo "Running MainDataSeeder..."
-            php artisan db:seed --class=MainDataSeeder --force || {
-              echo "ERROR: MainDataSeeder failed"
-              echo "Checking if JSON file exists:"
-              ls -la database/exports/main-tables-latest.json
-              echo "Checking JSON file content (first 100 chars):"
-              head -c 100 database/exports/main-tables-latest.json
-              exit 1
-            }
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      checkout_ref: ${{ github.ref }}
+      app_url: https://test.flow.hands-on-technology.org
+      temp_dir: deploy-flow-test-temp
+      public_dir: flow-test
+      refresh_m_tables: true
+      fix_migration_records: false
+      verify_migrations: false
+      seed_main_data: false
+      environment_name: test
+    secrets:
+      SSH_KNOWN_HOST: ${{ secrets.SSH_KNOWN_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      API_BASE_URL: ${{ secrets.VITE_API_BASE_URL_TEST }}
 
   deploy-production:
     if: github.event_name == 'release'
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.release.tag_name }}
-      # Build Vue frontend
-      - name: Set up Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-      - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: npm ci
-      - name: Create frontend .env file
-        working-directory: ./frontend
-        run: |
-          echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL_PROD }}" > .env
-          echo "VITE_APP_NAME=FLOW" >> .env
-          echo "VITE_APP_URL=https://flow.hands-on-technology.org" >> .env
-          echo "VITE_FILES_BASE_URL=https://flow.hands-on-technology.org" >> .env
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
-      # Set up PHP & Composer
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-      - name: Install Laravel dependencies
-        working-directory: ./backend
-        run: composer install --no-dev --optimize-autoloader
-      - name: Copy frontend dist to Laravel public dir
-        run: |
-          rm -rf backend/public/build
-          rm -f backend/public/index.html
-          cp -r frontend/dist/* backend/public/
-      - name: Copy output to Laravel public dir
-        run: |
-          rm -rf backend/public/output
-          mkdir -p backend/public/output
-          cp -r output/* backend/public/output/
-          chmod +x backend/public/output/zeitplan.cgi || true
-          chmod +x backend/public/output/namensschilder.cgi || true
-          chmod +x backend/public/output/visibility.cgi || true
-      - name: Rsync backend to server
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KNOWN_HOST }}" > ~/.ssh/known_hosts
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=yes -p 222" --delete ./backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/deploy-flow-prod-temp/
-      - name: Finalize on server (move to public dir)
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 222
-          script: |
-            rsync -av --delete \
-            --exclude='.env' \
-            --exclude='.htaccess' \
-            --exclude='storage/' \
-            ~/deploy-flow-prod-temp/ ~/public_html/flow-prod/
-            cd ~/public_html/flow-prod
-            # Ensure storage directories exist (mkdir -p is idempotent - safe if already exists)
-            mkdir -p storage/framework/cache/data
-            mkdir -p storage/framework/sessions
-            mkdir -p storage/framework/views
-            mkdir -p storage/app/public
-            # Set permissions only if needed (preserves existing files)
-            find storage/framework -type d -exec chmod 775 {} \; 2>/dev/null || true
-            find storage/app -type d -exec chmod 775 {} \; 2>/dev/null || true
-            php artisan config:clear
-            php artisan route:clear
-            php artisan view:clear
-            # Verify JSON export file exists before migration
-            if [ ! -f "database/exports/main-tables-latest.json" ]; then
-              echo "ERROR: main-tables-latest.json not found in database/exports/"
-              echo "Listing database/exports/ contents:"
-              ls -la database/exports/ || echo "database/exports/ directory does not exist"
-              exit 1
-            fi
-            # Fix migration records for existing tables (before running migrations)
-            echo "Fixing migration records for existing tables..."
-            php artisan tinker --execute="include 'database/scripts/fix_migration_records.php'; fixMigrationRecords();" || {
-              echo "WARNING: fix_migration_records.php failed, but continuing..."
-            }
-            # Drop only m_ tables (master tables), preserve other data
-            echo "Dropping m_ tables..."
-            php artisan tinker --execute="include 'database/scripts/refresh_m_tables.php'; refreshMTables();" || {
-              echo "ERROR: refresh_m_tables.php failed"
-              exit 1
-            }
-            # Check migration status before running
-            echo "Checking migration status before running..."
-            php artisan migrate:status || echo "Note: migrate:status may fail if migrations table doesn't exist yet"
-            # Run migrations to recreate m_ tables and update other tables
-            echo "Running migrations..."
-            php artisan migrate --force || {
-              echo "ERROR: Migrations failed!"
-              echo "Checking migration status after failure..."
-              php artisan migrate:status || true
-              exit 1
-            }
-            # Verify migrations ran successfully
-            echo "Verifying migrations..."
-            echo "Checking migration status..."
-            php artisan migrate:status || echo "Note: migrate:status command output above"
-            echo ""
-            echo "Counting migration records in database..."
-            php artisan tinker --execute="
-              use Illuminate\Support\Facades\DB;
-              use Illuminate\Support\Facades\Schema;
-              if (Schema::hasTable('migrations')) {
-                \$count = DB::table('migrations')->count();
-                echo 'Migration records in database: ' . \$count . PHP_EOL;
-                if (\$count > 0) {
-                  echo 'Sample migration records:' . PHP_EOL;
-                  DB::table('migrations')->orderBy('id', 'desc')->limit(5)->get()->each(function(\$m) {
-                    echo '  - ' . \$m->migration . ' (batch: ' . \$m->batch . ')' . PHP_EOL;
-                  });
-                } else {
-                  echo 'WARNING: Migrations table is empty!' . PHP_EOL;
-                }
-              } else {
-                echo 'ERROR: migrations table does NOT exist!' . PHP_EOL;
-              }
-            " || {
-              echo "ERROR: Failed to check migration records"
-              exit 1
-            }
-            # Verify table count matches dev/test
-            echo ""
-            echo "Verifying table count..."
-            TABLE_COUNT=$(php artisan tinker --execute="
-              \$tables = DB::select('SHOW TABLES');
-              \$tableKey = 'Tables_in_' . DB::connection()->getDatabaseName();
-              echo count(\$tables);
-            " 2>/dev/null | grep -E '^[0-9]+$' || echo "0")
-            echo "Current table count: $TABLE_COUNT"
-            echo "Expected: ~45 tables (dev/test have 45)"
-            if [ "$TABLE_COUNT" -lt "40" ]; then
-              echo "ERROR: Table count is too low! Only $TABLE_COUNT tables found, expected ~45."
-              echo "This indicates migrations did not run successfully."
-              echo "Listing all tables:"
-              php artisan tinker --execute="
-                \$tables = DB::select('SHOW TABLES');
-                \$tableKey = 'Tables_in_' . DB::connection()->getDatabaseName();
-                foreach (\$tables as \$table) {
-                  echo '  - ' . \$table->\$tableKey . PHP_EOL;
-                }
-              " || true
-              exit 1
-            else
-              echo "✓ Table count verification passed ($TABLE_COUNT tables)"
-            fi
-            php artisan storage:link
-            # Populate master data (m_ tables) from seeder file
-            php artisan db:seed --class=MainDataSeeder --force || {
-              echo "ERROR: MainDataSeeder failed"
-              echo "Checking if JSON file exists:"
-              ls -la database/exports/main-tables-latest.json
-              echo "Checking JSON file content (first 100 chars):"
-              head -c 100 database/exports/main-tables-latest.json
-              exit 1
-            }
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      checkout_ref: ${{ github.event.release.tag_name }}
+      app_url: https://flow.hands-on-technology.org
+      temp_dir: deploy-flow-prod-temp
+      public_dir: flow-prod
+      refresh_m_tables: true
+      fix_migration_records: true
+      verify_migrations: true
+      seed_main_data: false
+      environment_name: production
+    secrets:
+      SSH_KNOWN_HOST: ${{ secrets.SSH_KNOWN_HOST }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      API_BASE_URL: ${{ secrets.VITE_API_BASE_URL_PROD }}

@@ -22,6 +22,7 @@ use Endroid\QrCode\Encoding\Encoding;
 
 class EventController extends Controller
 {
+    // Test deployment: verifying new deployment workflow with real content change
     public function getEvent($id)
     {
         $event = Event::with(['seasonRel', 'levelRel', 'tableNames'])->findOrFail($id);

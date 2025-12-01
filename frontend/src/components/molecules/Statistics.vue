@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import axios from 'axios'
 
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
@@ -24,12 +24,13 @@ type FlattenedRow = {
   event_challenge: number | null
   event_teams_explore: number
   event_teams_challenge: number
+  draht_issue?: boolean
   plan_id: number | null
   plan_name: string | null
   plan_created: string | null
   plan_last_change: string | null
   generator_stats: number | null
-  expert_param_changes?: number
+  expert_param_changes?: { input: number; expert: number }
   extra_blocks?: number
   publication_level?: number | null
   publication_date?: string | null
@@ -43,6 +44,16 @@ const accessStats = ref<Map<number, number>>(new Map())
 const loading = ref(true)
 const error = ref<string | null>(null)
 const selectedSeasonKey = ref<string | null>(null)
+
+// DRAHT check state
+const drahtCheckState = ref({
+  isRunning: false,
+  checked: 0,
+  total: 0,
+  problems: 0,
+  completed: false
+})
+const drahtIssues = ref<Map<number, boolean>>(new Map())
 
 const router = useRouter()
 const eventStore = useEventStore()
@@ -80,6 +91,8 @@ onMounted(async () => {
       const last = data.value.seasons[data.value.seasons.length - 1]
       selectedSeasonKey.value = `${last.season_year}-${last.season_name}`
     }
+    
+    // Don't start DRAHT checks automatically - user must click button
   } catch (e) {
     error.value = 'Fehler beim Laden der Statistiken.'
     console.error(e)
@@ -87,6 +100,111 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+// Watch for season changes - reset state but don't auto-start
+watch(selectedSeasonKey, () => {
+  if (data.value && selectedSeasonKey.value) {
+    // Stop any running checks
+    drahtCheckState.value.isRunning = false
+    drahtIssues.value.clear()
+    drahtCheckState.value = {
+      isRunning: false,
+      checked: 0,
+      total: 0,
+      problems: 0,
+      completed: false
+    }
+  }
+})
+
+// Cleanup on unmount - stop any running checks
+onUnmounted(() => {
+  drahtCheckState.value.isRunning = false
+})
+
+async function startDrahtChecks() {
+  // Get all events with DRAHT IDs from current season
+  const season = data.value?.seasons.find(
+    s => `${s.season_year}-${s.season_name}` === selectedSeasonKey.value
+  )
+  if (!season) return
+
+  const eventsToCheck: number[] = []
+  for (const partner of season.partners) {
+    for (const event of partner.events || []) {
+      if (event.event_id && (event.event_explore || event.event_challenge)) {
+        eventsToCheck.push(event.event_id)
+      }
+    }
+  }
+
+  if (eventsToCheck.length === 0) {
+    drahtCheckState.value.completed = true
+    return
+  }
+
+  drahtCheckState.value = {
+    isRunning: true,
+    checked: 0,
+    total: eventsToCheck.length,
+    problems: 0,
+    completed: false
+  }
+
+  // Check events one by one - only proceed if still running
+  for (const eventId of eventsToCheck) {
+    // Stop if user left the screen or manually stopped
+    if (!drahtCheckState.value.isRunning) {
+      break
+    }
+    
+    try {
+      const response = await axios.get(`/stats/draht-check/${eventId}`)
+      const hasIssue = response.data.has_issue === true
+      
+      if (hasIssue) {
+        drahtIssues.value.set(eventId, true)
+        drahtCheckState.value.problems++
+      } else {
+        drahtIssues.value.set(eventId, false)
+      }
+    } catch (e) {
+      // On error, mark as having issue
+      drahtIssues.value.set(eventId, true)
+      drahtCheckState.value.problems++
+      console.error(`DRAHT check failed for event ${eventId}:`, e)
+    }
+    
+    drahtCheckState.value.checked++
+    
+    // Only proceed to next event if still running
+    if (!drahtCheckState.value.isRunning) {
+      break
+    }
+    
+    // Small delay to avoid overwhelming the server
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+
+  // Only mark as completed if we finished all checks (not stopped)
+  if (drahtCheckState.value.isRunning) {
+    drahtCheckState.value.isRunning = false
+    drahtCheckState.value.completed = true
+  }
+}
+
+function startDrahtCheck() {
+  // Reset state and start checking
+  drahtIssues.value.clear()
+  drahtCheckState.value = {
+    isRunning: true,
+    checked: 0,
+    total: 0,
+    problems: 0,
+    completed: false
+  }
+  startDrahtChecks()
+}
 
 // Map for quick access to totals per "year-name"
 const totalsByKey = computed(() => {
@@ -133,7 +251,7 @@ const orphans = computed(() => ({
 }))
 
 type CleanupTarget = 'events' | 'plans' | 'activity-groups' | 'activities'
-type ModalMode = 'plan-delete' | 'cleanup' | 'expert-parameters' | 'timeline' | 'access-chart'
+type ModalMode = 'plan-delete' | 'cleanup' | 'non-default-parameters' | 'timeline' | 'access-chart'
 
 const cleanupMeta: Record<
   CleanupTarget,
@@ -216,6 +334,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_challenge: null,
           event_teams_explore: 0,
           event_teams_challenge: 0,
+          draht_issue: false,
           plan_id: null,
           plan_name: null,
           plan_created: null,
@@ -240,6 +359,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_challenge: event.event_challenge,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
+          draht_issue: drahtIssues.value.get(event.event_id) ?? false,
           plan_id: null,
           plan_name: null,
           plan_created: null,
@@ -262,12 +382,13 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_challenge: event.event_challenge,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
+          draht_issue: drahtIssues.value.get(event.event_id) ?? false,
           plan_id: plan.plan_id,
           plan_name: plan.plan_name,
           plan_created: plan.plan_created,
           plan_last_change: plan.plan_last_change,
           generator_stats: plan.generator_stats ?? null,
-          expert_param_changes: plan.expert_param_changes ?? 0,
+          expert_param_changes: plan.expert_param_changes ?? { input: 0, expert: 0 },
           extra_blocks: plan.extra_blocks ?? 0,
           publication_level: plan.publication_level ?? null,
           publication_date: plan.publication_date ?? null,
@@ -324,6 +445,29 @@ function getHoursSince(timestamp: string | null): number | null {
   return Math.floor(diffMs / (1000 * 60 * 60))
 }
 
+function getEventDateClass(eventDate: string | null): string {
+  if (!eventDate) return ''
+  
+  try {
+    const eventDateObj = new Date(eventDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    eventDateObj.setHours(0, 0, 0, 0)
+    
+    const diffTime = eventDateObj.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    // If event date is within 14 days from today (0 to 14 days)
+    if (diffDays >= 0 && diffDays <= 14) {
+      return 'bg-orange-200'
+    }
+  } catch (e) {
+    // Invalid date, return empty string
+  }
+  
+  return ''
+}
+
 function getLastChangeClass(timestamp: string | null): string {
   const hours = getHoursSince(timestamp)
   if (hours === null) return ''
@@ -361,16 +505,18 @@ function askCleanup(target: CleanupTarget) {
     visible: true,
     mode: 'cleanup',
     planId: null,
+    planName: null,
     eventId: null,
     cleanupType: target,
   }
 }
 
-function openExpertParameters(planId: number) {
+function openNonDefaultParameters(planId: number) {
   modalState.value = {
     visible: true,
-    mode: 'expert-parameters',
+    mode: 'non-default-parameters',
     planId,
+    planName: null,
     eventId: null,
     cleanupType: null,
   }
@@ -381,6 +527,7 @@ function openTimeline(planId: number) {
     visible: true,
     mode: 'timeline',
     planId,
+    planName: null,
     eventId: null,
     cleanupType: null,
   }
@@ -391,6 +538,7 @@ function openAccessChart(eventId: number) {
     visible: true,
     mode: 'access-chart',
     planId: null,
+    planName: null,
     eventId,
     cleanupType: null,
   }
@@ -431,6 +579,16 @@ async function reloadStats() {
   ])
   data.value = plansRes.data
   totals.value = totalsRes.data
+  
+  // Reset DRAHT check state (don't auto-start)
+  drahtIssues.value.clear()
+  drahtCheckState.value = {
+    isRunning: false,
+    checked: 0,
+    total: 0,
+    problems: 0,
+    completed: false
+  }
 }
 
 async function confirmModal() {
@@ -456,6 +614,99 @@ async function confirmModal() {
   }
 }
 
+function exportToCSV() {
+  if (!flattenedRows.value || flattenedRows.value.length === 0) {
+    alert('Keine Daten zum Exportieren verfügbar.')
+    return
+  }
+
+  // Define CSV headers
+  const headers = [
+    'RP ID',
+    'Partner',
+    'Event ID',
+    'Event Name',
+    'Datum',
+    'Event Link',
+    'Event Explore',
+    'Event Challenge',
+    'Teams Explore',
+    'Teams Challenge',
+    'DRAHT Issue',
+    'Plan ID',
+    'Plan Name',
+    'Plan Created',
+    'Plan Last Change',
+    'Generator Stats',
+    'Expert Parameter Changes',
+    'Extra Blocks',
+    'Publication Level',
+    'Publication Date',
+    'Publication Last Change',
+    'Access Count'
+  ]
+
+  // Convert rows to CSV format
+  const csvRows = [
+    headers.join(','),
+    ...flattenedRows.value.map(row => {
+      const escapeCSV = (value: any) => {
+        if (value === null || value === undefined) return ''
+        const str = String(value)
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`
+        }
+        return str
+      }
+
+      return [
+        escapeCSV(row.partner_id),
+        escapeCSV(row.partner_name),
+        escapeCSV(row.event_id),
+        escapeCSV(row.event_name),
+        escapeCSV(row.event_date ? formatDateOnly(row.event_date) : ''),
+        escapeCSV(row.event_link),
+        escapeCSV(row.event_explore),
+        escapeCSV(row.event_challenge),
+        escapeCSV(row.event_teams_explore),
+        escapeCSV(row.event_teams_challenge),
+        escapeCSV(row.draht_issue ? 'Yes' : 'No'),
+        escapeCSV(row.plan_id),
+        escapeCSV(row.plan_name),
+        escapeCSV(row.plan_created ? formatDateTime(row.plan_created) : ''),
+        escapeCSV(row.plan_last_change ? formatDateTime(row.plan_last_change) : ''),
+        escapeCSV(row.generator_stats),
+        escapeCSV(row.expert_param_changes ?? 0),
+        escapeCSV(row.extra_blocks ?? 0),
+        escapeCSV(row.publication_level ?? ''),
+        escapeCSV(row.publication_date ? formatDateTime(row.publication_date) : ''),
+        escapeCSV(row.publication_last_change ? formatDateTime(row.publication_last_change) : ''),
+        escapeCSV(row.access_count ?? '')
+      ].join(',')
+    })
+  ]
+
+  // Create CSV content
+  const csvContent = csvRows.join('\n')
+
+  // Create blob and download
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' }) // BOM for Excel UTF-8 support
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  link.setAttribute('href', url)
+  
+  // Generate filename with current date
+  const now = new Date()
+  const dateStr = now.toISOString().split('T')[0]
+  link.setAttribute('download', `statistics_${dateStr}.csv`)
+  
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 
 </script>
 
@@ -465,7 +716,7 @@ async function confirmModal() {
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
       <!-- Global orphans -->
-      <div class="mb-4 flex flex-wrap items-center gap-3">
+      <div class="mb-2 flex flex-wrap items-center gap-2">
         <button
           type="button"
           :disabled="orphans.events === 0"
@@ -516,8 +767,8 @@ async function confirmModal() {
         </button>
       </div>
         <!-- Season filter -->
-        <div class="mb-6">
-          <div class="flex flex-wrap gap-4">
+        <div class="mb-3">
+          <div class="flex flex-wrap gap-2">
             <label
               v-for="season in data.seasons"
               :key="`${season.season_year}-${season.season_name}`"
@@ -535,9 +786,9 @@ async function confirmModal() {
         </div>
 
         <!-- Season totals (3 boxes) -->
-        <div class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
           <!-- Box 1: regional partners -->
-          <div class="bg-white border rounded shadow-sm p-4 space-y-1">
+          <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
               <span>Regionalpartner</span>
               <span class="font-semibold">{{ seasonTotals.rp_total }}</span>
@@ -549,7 +800,7 @@ async function confirmModal() {
           </div>
 
           <!-- Box 2: events -->
-          <div class="bg-white border rounded shadow-sm p-4 space-y-1">
+          <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
               <span>Events</span>
               <span class="font-semibold">{{ seasonTotals.events_total }}</span>
@@ -561,7 +812,7 @@ async function confirmModal() {
           </div>
 
         <!-- Box 3: plans & activities -->
-        <div class="bg-white border rounded shadow-sm p-4 space-y-1">
+        <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
           <div class="flex justify-between text-gray-700">
             <span>Pläne</span>
             <span class="font-semibold">{{ formatNumber(seasonTotals.plans_total) }}</span>
@@ -575,7 +826,7 @@ async function confirmModal() {
         </div>
 
         <!-- Box 4: Publications -->
-        <div class="bg-white border rounded shadow-sm p-4 space-y-1">
+        <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
           <div class="flex justify-between text-gray-700">
             <span>Veröffentlichte Pläne</span>
             <span class="font-semibold">{{ formatNumber(publicationTotals.total) }}</span>
@@ -589,8 +840,53 @@ async function confirmModal() {
         </div>
       </div>
 
+      <!-- DRAHT Check Banner -->
+      <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="mb-2 p-2 rounded border" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'bg-red-50 border-red-300' : drahtCheckState.completed ? 'bg-green-50 border-green-300' : 'bg-blue-50 border-blue-300'">
+        <div class="flex justify-between items-center">
+          <div class="text-sm font-medium" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'text-red-800' : drahtCheckState.completed ? 'text-green-800' : 'text-blue-800'">
+            <template v-if="drahtCheckState.isRunning">
+              Überprüfung von DRAHT-Daten läuft. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
+            </template>
+            <template v-else-if="drahtCheckState.completed">
+              DRAHT-Daten: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
+            </template>
+          </div>
+          <button
+            v-if="!drahtCheckState.isRunning"
+            @click="startDrahtCheck"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+          >
+            DRAHT-Daten prüfen
+          </button>
+        </div>
+      </div>
+      
+      <!-- DRAHT Check Button (when not running and not completed) -->
+      <div v-if="!drahtCheckState.isRunning && !drahtCheckState.completed" class="mb-2 p-2 rounded border bg-blue-50 border-blue-300">
+        <button
+          @click="startDrahtCheck"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+        >
+          DRAHT-Daten prüfen
+        </button>
+      </div>
+
       <!-- Table -->
       <div class="border border-gray-300 bg-white rounded shadow-sm overflow-hidden">
+        <div class="flex justify-between items-center p-2 bg-gray-50 border-b">
+          <div class="text-xs text-gray-600">
+            <span class="mr-4">🔴 = Problem mit DRAHT Daten</span>
+            <span class="mr-4">⬜️ = Kein Plan</span>
+            <span class="mr-4">✅ = Genau ein Plan</span>
+            <span>⚠️ = Mehrere Pläne</span>
+          </div>
+          <button
+            @click="exportToCSV"
+            class="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium"
+          >
+            Export als CSV
+          </button>
+        </div>
         <div class="max-h-[60vh] overflow-y-auto">
           <table class="min-w-full text-sm">
             <thead class="bg-gray-100 text-left sticky top-0 z-10">
@@ -602,7 +898,7 @@ async function confirmModal() {
                 <th class="px-3 py-2">Plan</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
                 <th class="px-3 py-2">Generie-<br>rungen</th>
-                <th class="px-3 py-2">Experten-Parameter</th>
+                <th class="px-3 py-2">Veränderte Parameter</th>
                 <th class="px-3 py-2">Extra-Blöcke</th>
                 <th class="px-3 py-2">Veröffentl.-Level / -Link</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
@@ -646,10 +942,14 @@ async function confirmModal() {
           </td>
 
           <!-- Event name + date -->
-          <td class="px-3 py-2">
+          <td class="px-3 py-2" :class="getEventDateClass(row.event_date)">
             <template v-if="shouldShowEvent(index)">
               <span class="mr-2">
-                <template v-if="row.plan_id === null">
+                <template v-if="row.draht_issue">
+                  <!-- 🔴 DRAHT issue (critical) -->
+                  🔴
+                </template>
+                <template v-else-if="row.plan_id === null">
                   <!-- ⬜️  No plan -->
                   ⬜️ 
                 </template>
@@ -759,17 +1059,20 @@ async function confirmModal() {
             </template>
           </td>     
 
-          <!-- Expert parameter changes -->
-          <td class="px-3 py-2 text-right">
+          <!-- Changed parameter changes -->
+          <td class="px-3 py-2">
             <template v-if="row.plan_id">
-              <div class="flex flex-col items-end">
-                <span>{{ row.expert_param_changes }}</span>
-                <template v-if="(row.expert_param_changes ?? 0) > 0">
+              <div class="flex flex-col items-center">
+                <span v-if="row.expert_param_changes">
+                  {{ row.expert_param_changes.input }} + {{ row.expert_param_changes.expert }}
+                </span>
+                <span v-else>0 + 0</span>
+                <template v-if="row.expert_param_changes && (row.expert_param_changes.input > 0 || row.expert_param_changes.expert > 0)">
                   <a
                     href="#"
                     class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
-                    @click.prevent="openExpertParameters(row.plan_id)"
-                    title="Expert-Parameter anzeigen"
+                    @click.prevent="openNonDefaultParameters(row.plan_id)"
+                    title="Veränderte Parameter anzeigen"
                   >
                     🔍
                   </a>
@@ -866,7 +1169,7 @@ async function confirmModal() {
     <div v-if="modalState.visible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <!-- Expert Parameters Modal -->
       <StatisticsExpertParametersModal
-        v-if="modalState.mode === 'expert-parameters' && modalState.planId"
+        v-if="modalState.mode === 'non-default-parameters' && modalState.planId"
         :plan-id="modalState.planId"
         @close="closeModal"
       />

@@ -415,7 +415,7 @@ class PlanController extends Controller
             'first_program' => FirstProgram::JOINT->value,
             'name' => 'Awareness',
             'description' => 'Awareness bedeutet, achtsam miteinander umzugehen, Grenzen zu respektieren und eine Umgebung frei von Diskriminierung, Mobbing oder unangemessenem Verhalten zu schaffen. Das Konzept bietet Anregungen zu Schutzmaßnahmen, inklusivem Miteinander und einer Kultur der Achtsamkeit, damit alle Kinder und Jugendlichen unsere Veranstaltungen als positive und sichere Erfahrung erleben.',
-            'link' => 'https://youtube.com/shorts/vYOn38IBYX8?si=OMRuh3gsRYwle1kw',
+            'link' => 'https://www.first-lego-league.org/de/community/awareness',
             'start' => $start,
             'end' => $end,
             'room' => null,

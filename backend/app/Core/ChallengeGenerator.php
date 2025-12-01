@@ -315,9 +315,10 @@ class ChallengeGenerator
                 } else {
                     // matches START alternating with respective delay between STARTs
                     if ($rMB % 2 === 0) {
-                        $rT2M = ($rMB / 2 - 1) * $rDuration + $this->pp('r_duration_next_start');
+                        $rT2M = $rMB       / 2 * $rDuration;
+
                     } else {
-                        $rT2M = (($rMB - 1) / 2) * $rDuration;
+                        $rT2M = ($rMB - 1) / 2 * $rDuration + $this->pp('r_duration_next_start');
                     }
                 }
 
