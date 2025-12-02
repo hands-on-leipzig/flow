@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Skip if table already exists (may have been created manually or in a previous migration)
+        if (Schema::hasTable('s_one_link_access')) {
+            return;
+        }
+
         Schema::create('s_one_link_access', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('event');
