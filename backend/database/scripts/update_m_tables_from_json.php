@@ -148,7 +148,9 @@ function ensureAutoIncrement(string $table, array $jsonRecords): void {
     $maxJsonId = max($jsonIds);
     
     // Get current AUTO_INCREMENT value
-    $tableStatus = DB::select("SHOW TABLE STATUS LIKE ?", [$table]);
+    // Use escaped table name directly since SHOW TABLE STATUS doesn't support parameterized queries well
+    $escapedTable = DB::getPdo()->quote($table);
+    $tableStatus = DB::select("SHOW TABLE STATUS WHERE Name = {$escapedTable}");
     if (empty($tableStatus)) {
         return;
     }
