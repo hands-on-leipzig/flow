@@ -24,11 +24,30 @@ return new class extends Migration
         }
 
         // Copy data from updated_at to last_change (fallback to created_at if updated_at is null)
-        DB::statement('
-            UPDATE publication 
-            SET last_change = COALESCE(updated_at, created_at, NOW())
-            WHERE last_change IS NULL
-        ');
+        // Build COALESCE expression based on which columns exist
+        $hasUpdatedAt = Schema::hasColumn('publication', 'updated_at');
+        $hasCreatedAt = Schema::hasColumn('publication', 'created_at');
+        
+        if ($hasUpdatedAt && $hasCreatedAt) {
+            DB::statement('
+                UPDATE publication 
+                SET last_change = COALESCE(updated_at, created_at, NOW())
+                WHERE last_change IS NULL
+            ');
+        } elseif ($hasCreatedAt) {
+            DB::statement('
+                UPDATE publication 
+                SET last_change = COALESCE(created_at, NOW())
+                WHERE last_change IS NULL
+            ');
+        } else {
+            // Neither column exists, just set to NOW()
+            DB::statement('
+                UPDATE publication 
+                SET last_change = NOW()
+                WHERE last_change IS NULL
+            ');
+        }
 
         // Make last_change not nullable
         Schema::table('publication', function (Blueprint $table) {
