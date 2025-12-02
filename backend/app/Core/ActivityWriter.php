@@ -192,8 +192,6 @@ class ActivityWriter
 
         $map = [
             // Exceptional cases where code != room type
-            'r_briefing'       => 'r_match',
-            'r_debriefing'     => 'r_match',
             'g_party_teams'    => 'g_party_teams',
             'g_party_volunteers' => 'g_party_volunteers',
         ];
