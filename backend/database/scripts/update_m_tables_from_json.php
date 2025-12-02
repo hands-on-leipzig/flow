@@ -148,7 +148,9 @@ function ensureAutoIncrement(string $table, array $jsonRecords): void {
     $maxJsonId = max($jsonIds);
     
     // Get current AUTO_INCREMENT value
-    $tableStatus = DB::select("SHOW TABLE STATUS LIKE ?", [$table]);
+    // Use escaped table name directly since SHOW TABLE STATUS doesn't support parameterized queries well
+    $escapedTable = DB::getPdo()->quote($table);
+    $tableStatus = DB::select("SHOW TABLE STATUS WHERE Name = {$escapedTable}");
     if (empty($tableStatus)) {
         return;
     }
@@ -219,9 +221,7 @@ function updateMTable(string $table, array $jsonRecords): array {
         'table' => $table,
         'updated' => 0,
         'inserted' => 0,
-        'deleted' => 0,
-        'skipped' => [],
-        'errors' => []
+        'deleted' => 0
     ];
     
     if (empty($jsonRecords)) {
@@ -240,30 +240,25 @@ function updateMTable(string $table, array $jsonRecords): array {
     
     // Process updates and inserts
     foreach ($jsonRecords as $jsonRecord) {
-        try {
-            $id = $jsonRecord['id'] ?? null;
-            
-            if ($id === null) {
-                $report['errors'][] = "Record missing 'id' field";
-                continue;
-            }
-            
-            // Filter to only include columns that exist in table
-            $filteredRecord = array_intersect_key($jsonRecord, array_flip($tableColumns));
-            
-            if (isset($dbRecords[$id])) {
-                // Update existing record
-                DB::table($table)
-                    ->where('id', $id)
-                    ->update($filteredRecord);
-                $report['updated']++;
-            } else {
-                // Insert new record (with explicit ID)
-                DB::table($table)->insert($filteredRecord);
-                $report['inserted']++;
-            }
-        } catch (\Exception $e) {
-            $report['errors'][] = "Error processing record id={$id}: " . $e->getMessage();
+        $id = $jsonRecord['id'] ?? null;
+        
+        if ($id === null) {
+            throw new \Exception("Record missing 'id' field in table {$table}. All records must have an ID.");
+        }
+        
+        // Filter to only include columns that exist in table
+        $filteredRecord = array_intersect_key($jsonRecord, array_flip($tableColumns));
+        
+        if (isset($dbRecords[$id])) {
+            // Update existing record
+            DB::table($table)
+                ->where('id', $id)
+                ->update($filteredRecord);
+            $report['updated']++;
+        } else {
+            // Insert new record (with explicit ID)
+            DB::table($table)->insert($filteredRecord);
+            $report['inserted']++;
         }
     }
     
@@ -296,10 +291,8 @@ function updateMTable(string $table, array $jsonRecords): array {
                     );
                 }
             } catch (\Exception $e) {
-                if (str_contains($e->getMessage(), 'Cannot delete')) {
-                    throw $e; // Re-throw our custom error
-                }
-                $report['errors'][] = "Error deleting record id={$id}: " . $e->getMessage();
+                // Always re-throw - we cannot continue if deletes fail
+                throw $e;
             }
         }
     }
@@ -362,32 +355,19 @@ function updateMTablesFromJson(string $jsonPath): array {
     $totalUpdated = 0;
     $totalInserted = 0;
     $totalDeleted = 0;
-    $totalErrors = 0;
     
     foreach ($overallReport as $table => $report) {
         $totalUpdated += $report['updated'];
         $totalInserted += $report['inserted'];
         $totalDeleted += $report['deleted'];
-        $totalErrors += count($report['errors']);
     }
     
     echo "  ✓ Updated: {$totalUpdated} records\n";
     echo "  ✓ Inserted: {$totalInserted} records\n";
     echo "  ✓ Deleted: {$totalDeleted} records\n";
     
-    if ($totalErrors > 0) {
-        echo "  ❌ Errors: {$totalErrors}\n";
-        foreach ($overallReport as $table => $report) {
-            if (!empty($report['errors'])) {
-                echo "    {$table}:\n";
-                foreach ($report['errors'] as $error) {
-                    echo "      - {$error}\n";
-                }
-            }
-        }
-        throw new \Exception("Update completed with {$totalErrors} error(s)");
-    }
-    
+    // Note: Errors are no longer accumulated - script fails fast on any error
+    // If we reach here, the update was successful
     echo "\n✅ All m-tables updated successfully!\n";
     
     return $overallReport;
