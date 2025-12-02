@@ -11,7 +11,8 @@ return new class extends Migration {
     public function up(): void
     {
         // Applications table - represents external applications that use the API
-        Schema::create('applications', function (Blueprint $table) {
+        if (!Schema::hasTable('applications')) {
+            Schema::create('applications', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
             $table->text('description')->nullable();
@@ -23,10 +24,12 @@ return new class extends Migration {
             $table->timestamps();
             
             $table->index('is_active');
-        });
+            });
+        }
 
         // API keys table - stores API keys for authentication
-        Schema::create('api_keys', function (Blueprint $table) {
+        if (!Schema::hasTable('api_keys')) {
+            Schema::create('api_keys', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100); // Human-readable identifier
             $table->string('key_hash', 64)->unique(); // SHA256 hash of the API key
@@ -40,10 +43,12 @@ return new class extends Migration {
             $table->foreign('application_id')->references('id')->on('applications')->onDelete('cascade');
             $table->index(['application_id', 'is_active']);
             $table->index('key_hash');
-        });
+            });
+        }
 
         // API request logs - for monitoring and analytics
-        Schema::create('api_request_logs', function (Blueprint $table) {
+        if (!Schema::hasTable('api_request_logs')) {
+            Schema::create('api_request_logs', function (Blueprint $table) {
             $table->unsignedBigInteger('id')->autoIncrement();
             $table->unsignedInteger('application_id');
             $table->unsignedInteger('api_key_id')->nullable();
@@ -64,7 +69,8 @@ return new class extends Migration {
             
             $table->foreign('application_id')->references('id')->on('applications')->onDelete('cascade');
             $table->foreign('api_key_id')->references('id')->on('api_keys')->onDelete('set null');
-        });
+            });
+        }
     }
 
     /**
