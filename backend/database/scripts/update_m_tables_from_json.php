@@ -27,10 +27,10 @@ function discoverDependencyOrder(array $tables): array {
     // Get all FK relationships for m-tables
     $foreignKeys = DB::select("
         SELECT 
-            TABLE_NAME,
-            REFERENCED_TABLE_NAME,
-            CONSTRAINT_NAME,
-            DELETE_RULE
+            kcu.TABLE_NAME,
+            kcu.REFERENCED_TABLE_NAME,
+            kcu.CONSTRAINT_NAME,
+            rc.DELETE_RULE
         FROM information_schema.KEY_COLUMN_USAGE kcu
         JOIN information_schema.REFERENTIAL_CONSTRAINTS rc 
             ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
