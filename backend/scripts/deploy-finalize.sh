@@ -10,7 +10,7 @@ PUBLIC_DIR="$2"
 REFRESH_M_TABLES="$3"
 FIX_MIGRATION_RECORDS="$4"
 VERIFY_MIGRATIONS="$5"
-SEED_MAIN_DATA="$6"
+# Note: SEED_MAIN_DATA parameter removed - no longer used (replaced by update_m_tables_from_json.php)
 
 echo "🚀 Starting deployment finalization..."
 echo "  Temp directory: ~/$TEMP_DIR"
@@ -186,20 +186,6 @@ fi
 echo "🔗 Creating storage symlink..."
 php artisan storage:link
 echo "✓ Storage symlink created"
-
-# Populate master data (test and production only)
-if [ "$SEED_MAIN_DATA" == "true" ]; then
-  echo "🌱 Running MainDataSeeder..."
-  php artisan db:seed --class=MainDataSeeder --force || {
-    echo "❌ ERROR: MainDataSeeder failed"
-    echo "Checking if JSON file exists:"
-    ls -la database/exports/main-tables-latest.json
-    echo "Checking JSON file content (first 100 chars):"
-    head -c 100 database/exports/main-tables-latest.json
-    exit 1
-  }
-  echo "✓ Master data seeded successfully"
-fi
 
 # Restart queue workers (required after code deployment)
 echo "🔄 Restarting queue workers..."
