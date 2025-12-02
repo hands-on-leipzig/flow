@@ -2509,6 +2509,15 @@
     ],
     "m_room_type": [
         {
+            "id": 0,
+            "code": "r_debriefing",
+            "name": "Schiedsrichter:Innen Debriefing",
+            "sequence": 441,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 3
+        },
+        {
             "id": 1,
             "code": "r_match",
             "name": "Robot-Game-Bereich",
@@ -2785,7 +2794,7 @@
             "sequence": 440,
             "room_type_group": 1,
             "level": 1,
-            "first_program": 0
+            "first_program": 3
         },
         {
             "id": 44,
@@ -6216,7 +6225,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2025-12-01T09:00:01.876964Z",
+        "exported_at": "2025-12-02T18:31:14.990558Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
