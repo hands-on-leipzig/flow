@@ -103,7 +103,7 @@ class ContaoController extends Controller
 
         } catch (Exception $e) {
             Log::error('Contao getScore error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to retrieve scores from Contao'], 500);
+            return response()->json(['error' => 'Failed to retrieve scores from Contao' . $e->getMessage()], 500);
         }
     }
 
