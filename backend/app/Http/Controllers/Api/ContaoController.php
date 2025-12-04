@@ -213,10 +213,10 @@ class ContaoController extends Controller
     private string $completedVrSql = <<<'SQL'
         WITH vr_assess AS (
         SELECT a.team, count(a.team) as c, r.matches * 2 / 3 as matches
-        FROM hot_round r
-            JOIN hot_tournament t ON r.tournament = t.id
-            JOIN hot_match m ON m.round = r.id
-            JOIN hot_assessment a ON a.matchx = m.id
+        FROM tl_hot_round r
+            JOIN tl_hot_tournament t ON r.tournament = t.id
+            JOIN tl_hot_match m ON m.round = r.id
+            JOIN tl_hot_assessment a ON a.matchx = m.id
         WHERE t.region = :region
             AND r.type = 'VR'
             AND a.confirmed_team = TRUE
@@ -233,10 +233,10 @@ class ContaoController extends Controller
 
     private string $completedFinalsSql = <<<'SQL'
         SELECT r.matches, r.type, count(a.id) / 2 as assessments_count
-        FROM hot_round r
-            JOIN hot_tournament as t ON r.tournament = t.id
-            JOIN hot_match as m ON m.round = r.id
-            JOIN hot_assessment as a ON a.matchx = m.id
+        FROM tl_hot_round r
+            JOIN tl_hot_tournament as t ON r.tournament = t.id
+            JOIN tl_hot_match as m ON m.round = r.id
+            JOIN tl_hot_assessment as a ON a.matchx = m.id
         WHERE t.region = :region
             AND a.confirmed_team = TRUE
             AND a.confirmed_referee = TRUE
