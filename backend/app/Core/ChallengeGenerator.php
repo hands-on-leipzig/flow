@@ -111,8 +111,19 @@ class ChallengeGenerator
             }
 
             // 3) Pause / Lunch nach Runde
-            if (($this->pp('j_rounds') == 4 && $cBlock == 2) ||
-                ($this->pp('j_rounds') > 4 && $cBlock == 3)) {
+            // Determine lunch round based on c_lunch_break_early parameter
+            $isLunchRound = false;
+            if ($this->pp('c_lunch_break_early')) {
+                // Early lunch: after block 1 (4 rounds) or block 2 (5+ rounds)
+                $isLunchRound = (($this->pp('j_rounds') == 4 && $cBlock == 1) ||
+                                ($this->pp('j_rounds') > 4 && $cBlock == 2));
+            } else {
+                // Normal lunch: after block 2 (4 rounds) or block 3 (5+ rounds)
+                $isLunchRound = (($this->pp('j_rounds') == 4 && $cBlock == 2) ||
+                                ($this->pp('j_rounds') > 4 && $cBlock == 3));
+            }
+            
+            if ($isLunchRound) {
                 if ($this->pp('c_duration_lunch_break') == 0) {
                     $jTime->addMinutes($this->pp('j_duration_lunch'));
                 }
@@ -454,11 +465,19 @@ class ChallengeGenerator
                 // -----------------------------------------------------------------------------------
                 // If a hard lunch break is set, do it here
                 // -----------------------------------------------------------------------------------
-                if (
-                    (($this->pp('j_rounds') == 4 && $cBlock == 2) ||
-                    ($this->pp('j_rounds') > 4 && $cBlock == 3)) &&
-                    $this->pp('c_duration_lunch_break') > 0
-                ) {
+                // Determine lunch round based on c_lunch_break_early parameter
+                $isLunchRound = false;
+                if ($this->pp('c_lunch_break_early') && !$this->pp('g_finale')) {
+                    // Early lunch: after block 1 (4 rounds) or block 2 (5+ rounds) - not applicable for finale
+                    $isLunchRound = (($this->pp('j_rounds') == 4 && $cBlock == 1) ||
+                                    ($this->pp('j_rounds') > 4 && $cBlock == 2));
+                } else {
+                    // Normal lunch: after block 2 (4 rounds) or block 3 (5+ rounds)
+                    $isLunchRound = (($this->pp('j_rounds') == 4 && $cBlock == 2) ||
+                                    ($this->pp('j_rounds') > 4 && $cBlock == 3));
+                }
+                
+                if ($isLunchRound && $this->pp('c_duration_lunch_break') > 0) {
                     // Align both timelines
                     if ($this->rTime->current() < $this->jTime->current()) {
                         $this->rTime->set($this->jTime->current());
