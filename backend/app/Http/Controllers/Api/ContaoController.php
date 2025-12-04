@@ -169,7 +169,7 @@ class ContaoController extends Controller
         // 2) Überprüfen, welche Runden automatisch veröffentlicht werden können
         $completed = null;
         if ($tournamentId) {
-            // $completed = $this->getCompletedRounds($tournamentId);
+            $completed = $this->getCompletedRounds($tournamentId);
         }
 
         // Fehler beim Berechnen der abgeschlossenen Runden -> manuelle Werte nutzen
