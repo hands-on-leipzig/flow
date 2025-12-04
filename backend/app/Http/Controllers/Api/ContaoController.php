@@ -103,7 +103,7 @@ class ContaoController extends Controller
 
         } catch (Exception $e) {
             Log::error('Contao getScore error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to retrieve scores from Contao' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Failed to retrieve scores from Contao. ' . $e->getMessage() . ', L:' . $e->getLine()], 500);
         }
     }
 
@@ -423,9 +423,25 @@ class ContaoController extends Controller
             return response()->json(['error' => 'hot_round does not exist. ' . $e->getMessage()], 500);
         }
 
+        try {
+            DB::connection('contao')
+                ->table('hot_assessment as a')
+                ->select('a.id');
+        } catch (Exception $e) {
+            return response()->json(['error' => 'hot_assessment does not exist. ' . $e->getMessage()], 500);
+        }
+
+        try {
+            DB::connection('contao')
+                ->table('hot_teams as te')
+                ->select('te.id');
+        } catch (Exception $e) {
+            return response()->json(['error' => 'hot_teams does not exist. ' . $e->getMessage()], 500);
+        }
+
         return response()->json([
             'status' => 'success',
-            'message' => 'Contao database connection is working',
+            'message' => 'Contao database connection is working and has all tables',
         ]);
     }
 }
