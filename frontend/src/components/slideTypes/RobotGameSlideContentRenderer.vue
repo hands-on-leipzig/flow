@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {RobotGameSlideContent} from '../../models/robotGameSlideContent.js';
-import {onMounted, onUnmounted, ref, computed, toRef} from "vue";
+import {onMounted, onUnmounted, ref, computed, toRef, watch} from "vue";
 import { useScores, expectedScores, roundNames, createTeams } from '@/services/useScores';
 import type {Team, TeamResponse, RoundResponse} from "@/models/robotGameScores";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
@@ -17,9 +17,19 @@ const currentIndex = ref(0);
 const isPaused = ref(false);
 const teamsPerPage = toRef(props.content, 'teamsPerPage') || ref(8);
 const round = ref<string | undefined>(undefined);
-const teams = computed(() => {
-  const category = getRoundToShow(scores.value?.rounds);
-  return createTeams(category, round.value) || [];
+const teams = ref([]);
+
+watch(() => scores.value, (newScores) => {
+  if (newScores) {
+    const category = getRoundToShow(newScores.rounds);
+    if (!category) {
+      round.value = undefined;
+    }
+    teams.value = createTeams(category, round.value) || [];
+  } else {
+    teams.value = [];
+    round.value = undefined;
+  }
 });
 const paginatedTeams = computed(() => {
   return teams.value.slice(currentIndex.value, currentIndex.value + teamsPerPage.value);
@@ -185,8 +195,8 @@ th, td {
 }
 
 .teamName {
-  border-right: 1px solid white;
-  border-top: 1px solid white;
+  border-right: 1px solid black;
+  border-top: 1px solid black;
   width: auto;
 }
 
@@ -196,12 +206,12 @@ th, td {
 }
 
 td {
-  border-top: 1px solid white;
+  border-top: 1px solid black;
 }
 
 tr > td:not(:last-child),
 tr > th:not(:last-child) {
-  border-right: 1px solid white;
+  border-right: 1px solid black;
 }
 
 .highlight {
