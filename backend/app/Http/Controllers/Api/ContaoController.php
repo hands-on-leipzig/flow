@@ -384,11 +384,11 @@ class ContaoController extends Controller
     {
         try {
             $result = DB::connection('contao')->select('SELECT 1 as test');
-            return response()->json([
+            /*return response()->json([
                 'status' => 'success',
                 'message' => 'Contao database connection is working',
                 'test_result' => $result[0]->test ?? null
-            ]);
+            ]);*/
         } catch (Exception $e) {
             Log::error('Contao connection test failed: ' . $e->getMessage());
             return response()->json([
@@ -397,5 +397,35 @@ class ContaoController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+
+        // Exist hot_tournament table?
+        try {
+            DB::connection('contao')
+                ->table('hot_tournament as t')
+                ->select('t.id');
+        } catch (Exception $e) {
+            return response()->json(['error' => 'hot_tournament does not exist. ' . $e->getMessage()], 500);
+        }
+
+        try {
+            DB::connection('contao')
+                ->table('hot_match as m')
+                ->select('m.id');
+        } catch (Exception $e) {
+            return response()->json(['error' => 'hot_match does not exist. ' . $e->getMessage()], 500);
+        }
+
+        try {
+            DB::connection('contao')
+                ->table('hot_round as r')
+                ->select('r.id');
+        } catch (Exception $e) {
+            return response()->json(['error' => 'hot_round does not exist. ' . $e->getMessage()], 500);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Contao database connection is working',
+        ]);
     }
 }
