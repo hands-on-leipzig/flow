@@ -31,19 +31,19 @@ class ContaoController extends Controller
 
             // Test: does the contao tournament exist?
             $tournamentExists = DB::connection('contao')
-                ->table('tl_hot_tournament')
+                ->table('hot_tournament')
                 ->where('region', $tournamentId)
                 ->exists();
 
             if (!$tournamentExists) {
                 // does the tournament exist by id?
                 $tournamentIdExists = DB::connection('contao')
-                    ->table('tl_hot_tournament')
+                    ->table('hot_tournament')
                     ->where('id', $tournamentId)
                     ->exists();
 
                 if ($tournamentIdExists) {
-                    $t = DB::connection('contao')->table('tl_hot_tournament')
+                    $t = DB::connection('contao')->table('hot_tournament')
                         ->where('id', $tournamentId)
                         ->first();
                     $tournamentId = $t->id;
@@ -57,7 +57,7 @@ class ContaoController extends Controller
 
             // Get tournament data
             $tournament = DB::connection('contao')
-                ->table('tl_hot_tournament')
+                ->table('hot_tournament')
                 ->where('region', $tournamentId)
                 ->first();
 
@@ -116,11 +116,11 @@ class ContaoController extends Controller
     private function getScoresForRound(string $round, int $tournamentId, array &$results): void
     {
         $scores = DB::connection('contao')
-            ->table('tl_hot_round as r')
-            ->join('tl_hot_tournament as t', 'r.tournament', '=', 't.id')
-            ->join('tl_hot_match as m', 'm.round', '=', 'r.id')
-            ->join('tl_hot_assessment as a', 'a.matchx', '=', 'm.id')
-            ->join('tl_hot_teams as te', 'a.team', '=', 'te.id')
+            ->table('hot_round as r')
+            ->join('hot_tournament as t', 'r.tournament', '=', 't.id')
+            ->join('hot_match as m', 'm.round', '=', 'r.id')
+            ->join('hot_assessment as a', 'a.matchx', '=', 'm.id')
+            ->join('hot_teams as te', 'a.team', '=', 'te.id')
             ->where('t.region', $tournamentId)
             ->where('r.type', $round)
             ->where('a.confirmed_team', '1')
@@ -213,10 +213,10 @@ class ContaoController extends Controller
     private string $completedVrSql = <<<'SQL'
         WITH vr_assess AS (
         SELECT a.team, count(a.team) as c, r.matches * 2 / 3 as matches
-        FROM tl_hot_round r
-            JOIN tl_hot_tournament t ON r.tournament = t.id
-            JOIN tl_hot_match m ON m.round = r.id
-            JOIN tl_hot_assessment a ON a.matchx = m.id
+        FROM hot_round r
+            JOIN hot_tournament t ON r.tournament = t.id
+            JOIN hot_match m ON m.round = r.id
+            JOIN hot_assessment a ON a.matchx = m.id
         WHERE t.region = :region
             AND r.type = 'VR'
             AND a.confirmed_team = TRUE
@@ -233,10 +233,10 @@ class ContaoController extends Controller
 
     private string $completedFinalsSql = <<<'SQL'
         SELECT r.matches, r.type, count(a.id) / 2 as assessments_count
-        FROM tl_hot_round r
-            JOIN tl_hot_tournament as t ON r.tournament = t.id
-            JOIN tl_hot_match as m ON m.round = r.id
-            JOIN tl_hot_assessment as a ON a.matchx = m.id
+        FROM hot_round r
+            JOIN hot_tournament as t ON r.tournament = t.id
+            JOIN hot_match as m ON m.round = r.id
+            JOIN hot_assessment as a ON a.matchx = m.id
         WHERE t.region = :region
             AND a.confirmed_team = TRUE
             AND a.confirmed_referee = TRUE
