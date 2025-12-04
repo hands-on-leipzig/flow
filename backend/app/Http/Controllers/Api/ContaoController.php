@@ -29,6 +29,30 @@ class ContaoController extends Controller
                 return response()->json(['error' => "No Contao ID found for event {$eventId}. Please set contao_id_challenge or contao_id_explore."], 404);
             }
 
+            // Test: does the contao tournament exist?
+            $tournamentExists = DB::connection('contao')
+                ->table('tl_hot_tournament')
+                ->where('region', $tournamentId)
+                ->exists();
+
+            if (!$tournamentExists) {
+                // does the tournament exist by id?
+                $tournamentIdExists = DB::connection('contao')
+                    ->table('tl_hot_tournament')
+                    ->where('id', $tournamentId)
+                    ->exists();
+
+                if ($tournamentIdExists) {
+                    $t = DB::connection('contao')->table('tl_hot_tournament')
+                        ->where('id', $tournamentId)
+                        ->first();
+                    $tournamentId = $t->id;
+                    Log::warning("Contao tournament with id {$tournamentId} exists, but no region matches for event {$eventId}. Possible misconfiguration.");
+                } else {
+                    return response()->json(['error' => "No tournament found for region {$tournamentId} for event {$eventId} in Contao database"], 404);
+                }
+            }
+
             $roundShowSetting = $this->getRoundsToShow($eventId, $tournamentId);
 
             // Get tournament data
