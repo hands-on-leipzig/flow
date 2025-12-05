@@ -35,34 +35,46 @@ return new class extends Migration
         // Read master migration
         $masterPath = base_path('database/migrations/2025_01_01_000000_create_master_tables.php');
         if (!file_exists($masterPath)) {
-            \Log::error("Master migration not found: {$masterPath}");
-            return;
+            $errorMsg = "Master migration not found: {$masterPath}. Cannot proceed with FK fix.";
+            \Log::error($errorMsg);
+            throw new \RuntimeException($errorMsg);
         }
         
         $masterContent = file_get_contents($masterPath);
+        if ($masterContent === false) {
+            $errorMsg = "Failed to read master migration file: {$masterPath}";
+            \Log::error($errorMsg);
+            throw new \RuntimeException($errorMsg);
+        }
         
-        // Get all expected tables from master migration
-        $expectedTables = [
-            'm_season', 'm_level', 'm_news', 'm_room_type_group', 'm_room_type',
-            'm_first_program', 'm_parameter', 'm_parameter_condition', 'm_activity_type',
-            'm_activity_type_detail', 'm_insert_point', 'm_role', 'm_visibility', 'm_supported_plan',
-            'regional_partner', 'event', 'contao_public_rounds', 'slideshow', 'slide',
-            'publication', 'user', 'news_user', 'user_regional_partner', 'room',
-            'room_type_room', 'team', 'plan', 's_generator', 's_one_link_access',
-            'team_plan', 'plan_param_value', 'match', 'extra_block', 'activity_group',
-            'activity', 'logo', 'event_logo', 'table_event', 'q_plan', 'q_plan_team', 'q_run',
-            'applications', 'api_keys', 'api_request_logs'
-        ];
+        // Dynamically discover all tables from database that might have foreign keys
+        // This makes the migration work across all environments regardless of which tables exist
+        $allTables = DB::select("
+            SELECT TABLE_NAME 
+            FROM information_schema.TABLES 
+            WHERE TABLE_SCHEMA = ? 
+            AND TABLE_TYPE = 'BASE TABLE'
+            ORDER BY TABLE_NAME
+        ", [$dbName]);
         
-        // Extract all foreign keys from master migration
+        $expectedTables = array_map(function($table) {
+            return $table->TABLE_NAME;
+        }, $allTables);
+        
+        \Log::info("Discovered " . count($expectedTables) . " tables to check for foreign keys");
+        
+        // Extract all foreign keys from master migration for tables that exist in database
         $masterFKs = [];
         foreach ($expectedTables as $tableName) {
+            // Only check tables that exist in database
             if (!Schema::hasTable($tableName)) {
-                continue; // Skip if table doesn't exist
+                continue; // Skip if table doesn't exist (shouldn't happen, but safety check)
             }
             
+            // Try to extract FK definition from master migration
             $tableDef = extractTableDefinitionFromMaster($masterContent, $tableName);
             
+            // If table is in master migration and has foreign keys, add them
             if ($tableDef && isset($tableDef['foreign_keys']) && !empty($tableDef['foreign_keys'])) {
                 foreach ($tableDef['foreign_keys'] as $fk) {
                     $key = "{$tableName}.{$fk['column']}";
@@ -75,7 +87,11 @@ return new class extends Migration
                     ];
                 }
             }
+            // Note: If table exists in DB but not in master migration, it will be skipped
+            // This is intentional - we only fix FKs defined in master migration
         }
+        
+        \Log::info("Found " . count($masterFKs) . " foreign keys defined in master migration");
         
         // Get all existing foreign keys from database
         $existingFKs = [];
