@@ -554,7 +554,14 @@ class RobotGameGenerator
         // 7) Inserted blocks / breaks for NEXT round
         switch ($round) {
             case 0:
-                $this->writer->insertPoint('c_after_tr', $this->pp("r_duration_break"), $this->rTime);
+                // Test round: Handle early lunch break if enabled
+                if ($this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') == 0) {
+                    // Early lunch: use lunch duration instead of regular break
+                    $this->writer->insertPoint('c_after_tr', $this->pp("r_duration_lunch"), $this->rTime);
+                } else {
+                    // Normal: regular break after test round
+                    $this->writer->insertPoint('c_after_tr', $this->pp("r_duration_break"), $this->rTime);
+                }
                 break;
 
             case 1:
@@ -578,7 +585,8 @@ class RobotGameGenerator
                         // Log::debug("RobotGameGenerator: rTime after advance: {$this->rTime->format('H:i')}");
                         
                     } else {
-                        if ($this->pp('c_duration_lunch_break') === 0) {
+                        // Skip lunch insert point if early lunch is enabled (lunch already handled at test round)
+                        if (!$this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') === 0) {
                             $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_lunch"), $this->rTime);
                         }
                     }
@@ -594,12 +602,13 @@ class RobotGameGenerator
                         $this->integratedExplore->startTime = $this->rTime->format('H:i');
                         $this->rTime->addMinutes($this->integratedExplore->duration);
                     } else {
-                        if ($this->pp('c_duration_lunch_break') === 0) {
+                        // Skip lunch insert point if early lunch is enabled (lunch already handled at test round)
+                        if (!$this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') === 0) {
                             $this->writer->insertPoint('c_after_rg_2', $this->pp("r_duration_lunch"), $this->rTime);
                         }
                     }
                 } else {
-                    // Normal events: Regular break after RG2
+                    // Normal events: Regular break after RG2 (lunch was already handled at test round if early)
                     $this->writer->insertPoint('c_after_rg_2', $this->pp("r_duration_break"), $this->rTime);
                 }
                 break;
