@@ -31,6 +31,16 @@ const apiKeyForm = ref({
 const newApiKey = ref(null) // Store the plain key when created
 const showApiKeyModal = ref(false)
 
+// API key edit form
+const showEditApiKeyForm = ref(false)
+const editingApiKey = ref(null)
+const editApiKeyForm = ref({
+  name: '',
+  scopes: [],
+  expires_at: '',
+  is_active: true
+})
+
 // Available scopes
 const availableScopes = [
   {value: 'events:read', label: 'Events: Read'},
@@ -160,6 +170,41 @@ const openApiKeyForm = (applicationId) => {
   showApiKeyForm.value = true
 }
 
+const openEditApiKeyForm = (applicationId, apiKey) => {
+  selectedApplicationId.value = applicationId
+  editingApiKey.value = apiKey
+  // Convert expires_at to datetime-local format (YYYY-MM-DDTHH:mm)
+  let expiresAtFormatted = ''
+  if (apiKey.expires_at) {
+    const date = new Date(apiKey.expires_at)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    expiresAtFormatted = `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+  editApiKeyForm.value = {
+    name: apiKey.name,
+    scopes: apiKey.scopes ? [...apiKey.scopes] : [],
+    expires_at: expiresAtFormatted,
+    is_active: apiKey.is_active
+  }
+  showEditApiKeyForm.value = true
+}
+
+const closeEditApiKeyForm = () => {
+  showEditApiKeyForm.value = false
+  selectedApplicationId.value = null
+  editingApiKey.value = null
+  editApiKeyForm.value = {
+    name: '',
+    scopes: [],
+    expires_at: '',
+    is_active: true
+  }
+}
+
 const closeApiKeyForm = () => {
   showApiKeyForm.value = false
   selectedApplicationId.value = null
@@ -191,6 +236,38 @@ const createApiKey = async () => {
       error.value += ': ' + JSON.stringify(err.response.data.errors)
     }
     console.error('Error creating API key:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const updateApiKey = async () => {
+  if (!editApiKeyForm.value.name) {
+    error.value = 'Please enter a name for the API key'
+    return
+  }
+
+  loading.value = true
+  error.value = null
+
+  try {
+    // Prepare data - convert empty expires_at to null
+    const updateData = {
+      name: editApiKeyForm.value.name,
+      scopes: editApiKeyForm.value.scopes,
+      expires_at: editApiKeyForm.value.expires_at || null,
+      is_active: editApiKeyForm.value.is_active
+    }
+    
+    await axios.put(`/admin/applications/${selectedApplicationId.value}/api-keys/${editingApiKey.value.id}`, updateData)
+    closeEditApiKeyForm()
+    await fetchApplications()
+  } catch (err) {
+    error.value = err.response?.data?.error || 'Failed to update API key'
+    if (err.response?.data?.errors) {
+      error.value += ': ' + JSON.stringify(err.response.data.errors)
+    }
+    console.error('Error updating API key:', err)
   } finally {
     loading.value = false
   }
@@ -357,6 +434,12 @@ onMounted(() => {
                 </div>
               </div>
               <div class="flex gap-2">
+                <button
+                  @click="openEditApiKeyForm(application.id, apiKey)"
+                  class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                >
+                  Edit
+                </button>
                 <button
                   @click="toggleApiKeyActive(application.id, apiKey)"
                   class="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
@@ -564,6 +647,83 @@ onMounted(() => {
             :disabled="loading"
           >
             Create
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit API Key Form Modal -->
+    <div
+      v-if="showEditApiKeyForm"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="closeEditApiKeyForm"
+    >
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-xl font-bold mb-4">Edit API Key</h3>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Name *</label>
+            <input
+              v-model="editApiKeyForm.name"
+              type="text"
+              class="w-full border rounded px-3 py-2"
+              placeholder="e.g., Production Key"
+              required
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Scopes</label>
+            <div class="space-y-2 max-h-40 overflow-y-auto border rounded p-2">
+              <label
+                v-for="scope in availableScopes"
+                :key="scope.value"
+                class="flex items-center"
+              >
+                <input
+                  v-model="editApiKeyForm.scopes"
+                  type="checkbox"
+                  :value="scope.value"
+                  class="mr-2"
+                />
+                <span class="text-sm">{{ scope.label }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Expires At (optional)</label>
+            <input
+              v-model="editApiKeyForm.expires_at"
+              type="datetime-local"
+              class="w-full border rounded px-3 py-2"
+            />
+          </div>
+
+          <div class="flex items-center">
+            <input
+              v-model="editApiKeyForm.is_active"
+              type="checkbox"
+              class="mr-2"
+            />
+            <label class="text-sm font-medium">Active</label>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6">
+          <button
+            @click="closeEditApiKeyForm"
+            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+          <button
+            @click="updateApiKey"
+            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            :disabled="loading"
+          >
+            Update
           </button>
         </div>
       </div>

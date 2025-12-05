@@ -29,6 +29,7 @@ Route::prefix('external')->middleware([
         Route::get('/', [EventController::class, 'index']);
         Route::get('/{id}', [EventController::class, 'show']);
         Route::get('/slug/{slug}', [EventController::class, 'showBySlug']);
+        Route::put('/draht/{drahtId}', [EventController::class, 'updateByDrahtId']);
     });
     
     // Plans endpoints (read-only for external)
