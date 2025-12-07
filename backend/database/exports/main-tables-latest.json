@@ -6237,10 +6237,45 @@
             "id": 866,
             "activity_type_detail": 62,
             "role": 8
+        },
+        {
+            "id": 868,
+            "activity_type_detail": 20,
+            "role": 6
+        },
+        {
+            "id": 869,
+            "activity_type_detail": 20,
+            "role": 3
+        },
+        {
+            "id": 870,
+            "activity_type_detail": 17,
+            "role": 1
+        },
+        {
+            "id": 871,
+            "activity_type_detail": 1,
+            "role": 7
+        },
+        {
+            "id": 872,
+            "activity_type_detail": 2,
+            "role": 7
+        },
+        {
+            "id": 873,
+            "activity_type_detail": 42,
+            "role": 1
+        },
+        {
+            "id": 874,
+            "activity_type_detail": 43,
+            "role": 1
         }
     ],
     "_metadata": {
-        "exported_at": "2025-12-05T10:01:23.278531Z",
+        "exported_at": "2025-12-07T16:32:47.416493Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
