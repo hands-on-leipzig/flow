@@ -201,13 +201,16 @@ class PlanGeneratorCore
                 $this->integratedExplore
             );
             
-            // include morning part of DECOUPLED_BOTH
-            $this->explore->openingsAndBriefings(1);
-            $this->explore->judgingAndDeliberations(1);
-            $this->explore->awards(1);
+            // Handle different Explore modes
+            if ($eMode == ExploreMode::DECOUPLED_MORNING->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
+                // Morning session (group 1)
+                $this->explore->openingsAndBriefings(1);
+                $this->explore->judgingAndDeliberations(1);
+                $this->explore->awards(1);
+            }
             
-            // For DECOUPLED_BOTH, run the same sequence again for the second session (afternoon)
-            if ($eMode == ExploreMode::DECOUPLED_BOTH->value) {
+            if ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
+                // Afternoon session (group 2)
                 $this->explore->openingsAndBriefings(2);
                 $this->explore->judgingAndDeliberations(2);
                 $this->explore->awards(2);
