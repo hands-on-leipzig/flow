@@ -11,11 +11,13 @@ import StatisticsExpertParametersModal from './statistics/StatisticsExpertParame
 import StatisticsGeneratorChartModal from './statistics/StatisticsGeneratorChartModal.vue'
 import StatisticsAccessChartModal from './statistics/StatisticsAccessChartModal.vue'
 import StatisticsDeleteModal from './statistics/StatisticsDeleteModal.vue'
+import StatisticsExtraBlocksModal from './statistics/StatisticsExtraBlocksModal.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
 
 type FlattenedRow = {
   partner_id: number | null
   partner_name: string | null
+  contact_email: string | null
   event_id: number | null
   event_name: string | null
   event_date: string | null
@@ -31,7 +33,7 @@ type FlattenedRow = {
   plan_last_change: string | null
   generator_stats: number | null
   expert_param_changes?: { input: number; expert: number }
-  extra_blocks?: number
+  extra_blocks?: { free: number; inserted: number }
   publication_level?: number | null
   publication_date?: string | null
   publication_last_change?: string | null
@@ -54,6 +56,7 @@ const drahtCheckState = ref({
   completed: false
 })
 const drahtIssues = ref<Map<number, boolean>>(new Map())
+const contactEmails = ref<Record<number, string>>({})
 
 const router = useRouter()
 const eventStore = useEventStore()
@@ -107,6 +110,7 @@ watch(selectedSeasonKey, () => {
     // Stop any running checks
     drahtCheckState.value.isRunning = false
     drahtIssues.value.clear()
+    contactEmails.value = {}
     drahtCheckState.value = {
       isRunning: false,
       checked: 0,
@@ -161,12 +165,18 @@ async function startDrahtChecks() {
     try {
       const response = await axios.get(`/stats/draht-check/${eventId}`)
       const hasIssue = response.data.has_issue === true
+      const contactEmail = response.data.contact_email && response.data.contact_email.trim() ? response.data.contact_email.trim() : null
       
       if (hasIssue) {
         drahtIssues.value.set(eventId, true)
         drahtCheckState.value.problems++
       } else {
         drahtIssues.value.set(eventId, false)
+      }
+      
+      // Store contact email if available
+      if (contactEmail) {
+        contactEmails.value[eventId] = contactEmail
       }
     } catch (e) {
       // On error, mark as having issue
@@ -196,6 +206,7 @@ async function startDrahtChecks() {
 function startDrahtCheck() {
   // Reset state and start checking
   drahtIssues.value.clear()
+  contactEmails.value = {}
   drahtCheckState.value = {
     isRunning: true,
     checked: 0,
@@ -251,7 +262,7 @@ const orphans = computed(() => ({
 }))
 
 type CleanupTarget = 'events' | 'plans' | 'activity-groups' | 'activities'
-type ModalMode = 'plan-delete' | 'cleanup' | 'non-default-parameters' | 'timeline' | 'access-chart'
+type ModalMode = 'plan-delete' | 'cleanup' | 'non-default-parameters' | 'timeline' | 'access-chart' | 'extra-blocks'
 
 const cleanupMeta: Record<
   CleanupTarget,
@@ -326,6 +337,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
         rows.push({
           partner_id: partner.partner_id,
           partner_name: partner.partner_name,
+          contact_email: null,
           event_id: null,
           event_name: null,
           event_date: null,
@@ -351,6 +363,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
         rows.push({
           partner_id: partner.partner_id,
           partner_name: partner.partner_name,
+          contact_email: contactEmails.value[event.event_id] ?? null,
           event_id: event.event_id,
           event_name: event.event_name,
           event_date: event.event_date,
@@ -374,6 +387,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
         rows.push({
           partner_id: partner.partner_id,
           partner_name: partner.partner_name,
+          contact_email: contactEmails.value[event.event_id] ?? null,
           event_id: event.event_id,
           event_name: event.event_name,
           event_date: event.event_date,
@@ -389,7 +403,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           plan_last_change: plan.plan_last_change,
           generator_stats: plan.generator_stats ?? null,
           expert_param_changes: plan.expert_param_changes ?? { input: 0, expert: 0 },
-          extra_blocks: plan.extra_blocks ?? 0,
+          extra_blocks: plan.extra_blocks ?? { free: 0, inserted: 0 },
           publication_level: plan.publication_level ?? null,
           publication_date: plan.publication_date ?? null,
           publication_last_change: plan.publication_last_change ?? null,
@@ -544,6 +558,17 @@ function openAccessChart(eventId: number) {
   }
 }
 
+function openExtraBlocks(planId: number) {
+  modalState.value = {
+    visible: true,
+    mode: 'extra-blocks',
+    planId,
+    planName: null,
+    eventId: null,
+    cleanupType: null,
+  }
+}
+
 const timelineModalInfo = computed(() => {
   if (!modalState.value.planId) return null
   const row = flattenedRows.value.find(r => r.plan_id === modalState.value.planId)
@@ -582,6 +607,7 @@ async function reloadStats() {
   
   // Reset DRAHT check state (don't auto-start)
   drahtIssues.value.clear()
+  contactEmails.value = {}
   drahtCheckState.value = {
     isRunning: false,
     checked: 0,
@@ -624,6 +650,7 @@ function exportToCSV() {
   const headers = [
     'RP ID',
     'Partner',
+    'Contact Email',
     'Event ID',
     'Event Name',
     'Datum',
@@ -638,8 +665,10 @@ function exportToCSV() {
     'Plan Created',
     'Plan Last Change',
     'Generator Stats',
-    'Expert Parameter Changes',
-    'Extra Blocks',
+    'Expert Parameter Changes (Input)',
+    'Expert Parameter Changes (Expert)',
+    'Extra Blocks (Free)',
+    'Extra Blocks (Inserted)',
     'Publication Level',
     'Publication Date',
     'Publication Last Change',
@@ -663,6 +692,7 @@ function exportToCSV() {
       return [
         escapeCSV(row.partner_id),
         escapeCSV(row.partner_name),
+        escapeCSV(row.contact_email ?? ''),
         escapeCSV(row.event_id),
         escapeCSV(row.event_name),
         escapeCSV(row.event_date ? formatDateOnly(row.event_date) : ''),
@@ -677,8 +707,10 @@ function exportToCSV() {
         escapeCSV(row.plan_created ? formatDateTime(row.plan_created) : ''),
         escapeCSV(row.plan_last_change ? formatDateTime(row.plan_last_change) : ''),
         escapeCSV(row.generator_stats),
-        escapeCSV(row.expert_param_changes ?? 0),
-        escapeCSV(row.extra_blocks ?? 0),
+        escapeCSV(row.expert_param_changes?.input ?? 0),
+        escapeCSV(row.expert_param_changes?.expert ?? 0),
+        escapeCSV(row.extra_blocks?.free ?? 0),
+        escapeCSV(row.extra_blocks?.inserted ?? 0),
         escapeCSV(row.publication_level ?? ''),
         escapeCSV(row.publication_date ? formatDateTime(row.publication_date) : ''),
         escapeCSV(row.publication_last_change ? formatDateTime(row.publication_last_change) : ''),
@@ -696,10 +728,13 @@ function exportToCSV() {
   const url = URL.createObjectURL(blob)
   link.setAttribute('href', url)
   
-  // Generate filename with current date
+  // Generate filename with current date in yymmdd format
   const now = new Date()
-  const dateStr = now.toISOString().split('T')[0]
-  link.setAttribute('download', `statistics_${dateStr}.csv`)
+  const year = now.getFullYear().toString().slice(-2)
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const dateStr = `${year}${month}${day}`
+  link.setAttribute('download', `${dateStr} FLOW Statistics.csv`)
   
   link.style.visibility = 'hidden'
   document.body.appendChild(link)
@@ -845,10 +880,10 @@ function exportToCSV() {
         <div class="flex justify-between items-center">
           <div class="text-sm font-medium" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'text-red-800' : drahtCheckState.completed ? 'text-green-800' : 'text-blue-800'">
             <template v-if="drahtCheckState.isRunning">
-              Überprüfung von DRAHT-Daten läuft. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
+              DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
             </template>
             <template v-else-if="drahtCheckState.completed">
-              DRAHT-Daten: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
+              DRAHT-Daten geladen: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
             </template>
           </div>
           <button
@@ -856,7 +891,7 @@ function exportToCSV() {
             @click="startDrahtCheck"
             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
           >
-            DRAHT-Daten prüfen
+            DRAHT-Daten holen
           </button>
         </div>
       </div>
@@ -867,7 +902,7 @@ function exportToCSV() {
           @click="startDrahtCheck"
           class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
         >
-          DRAHT-Daten prüfen
+          DRAHT-Daten holen
         </button>
       </div>
 
@@ -924,7 +959,17 @@ function exportToCSV() {
           <!-- RP name -->
           <td class="px-3 py-2">
             <template v-if="shouldShowPartner(index)">
-              {{ row.partner_name }}
+              <span class="flex items-center gap-1">
+                {{ row.partner_name }}
+                <a
+                  v-if="row.contact_email"
+                  :href="`mailto:${row.contact_email}?subject=FLOW`"
+                  class="text-blue-600 hover:text-blue-800"
+                  title="E-Mail senden"
+                >
+                  ✉️
+                </a>
+              </span>
             </template>
             <template v-else>
               &nbsp;
@@ -1083,9 +1128,24 @@ function exportToCSV() {
           </td>
 
           <!-- Extra blocks -->
-          <td class="px-3 py-2 text-right">
+          <td class="px-3 py-2">
             <template v-if="row.plan_id">
-              {{ row.extra_blocks }}
+              <div class="flex flex-col items-center">
+                <span v-if="row.extra_blocks">
+                  {{ row.extra_blocks.free }} + {{ row.extra_blocks.inserted }}
+                </span>
+                <span v-else>0 + 0</span>
+                <template v-if="row.extra_blocks && (row.extra_blocks.free > 0 || row.extra_blocks.inserted > 0)">
+                  <a
+                    href="#"
+                    class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
+                    @click.prevent="openExtraBlocks(row.plan_id)"
+                    title="Extra-Blöcke anzeigen"
+                  >
+                    🔍
+                  </a>
+                </template>
+              </div>
             </template>
             <template v-else>–</template>
           </td>
@@ -1187,6 +1247,13 @@ function exportToCSV() {
         v-if="modalState.mode === 'access-chart' && modalState.eventId"
         :event-id="modalState.eventId"
         :event-name="getEventName(modalState.eventId)"
+        @close="closeModal"
+      />
+      
+      <!-- Extra Blocks Modal -->
+      <StatisticsExtraBlocksModal
+        v-if="modalState.mode === 'extra-blocks' && modalState.planId"
+        :plan-id="modalState.planId"
         @close="closeModal"
       />
       

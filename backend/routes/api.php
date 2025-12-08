@@ -285,6 +285,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/draht-check/{eventId}', [StatisticController::class, 'checkDrahtIssue']); // Check DRAHT for single event
         Route::delete('/orphans/{type}/cleanup', [StatisticController::class, 'cleanupOrphans']);
         Route::get('/timeline/{planId}', [StatisticController::class, 'timeline']);      // Timeline data for a plan
+        Route::get('/extra-blocks/{planId}', [StatisticController::class, 'getExtraBlocksDetails']); // Extra blocks details for a plan
     });
 
     // Visibility controller
