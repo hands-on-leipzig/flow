@@ -133,8 +133,8 @@ class StatisticController extends Controller
             }
         }
 
-        // DRAHT checks are now done asynchronously via separate endpoint
-        // No DRAHT checks during initial load to avoid timeout
+        // DRAHT checks and contact emails are now done asynchronously via separate endpoint
+        // No DRAHT calls during initial load to avoid timeout
 
         // Generator-Stats abrufen
         $genStatsRaw = DB::table('s_generator')
@@ -196,10 +196,27 @@ class StatisticController extends Controller
             $paramStats[$stat->plan][$stat->context] = $stat->count;
         }
 
-        // Extra-Block-Stats abrufen
-        $extraBlockStatsRaw = DB::table('extra_block')
+        // Extra-Block-Stats abrufen (separate free and inserted blocks)
+        // Free blocks: have start/end times, no insert_point
+        $freeBlockStatsRaw = DB::table('extra_block')
             ->whereIn('plan', $planIds)
             ->where('active', 1)
+            ->whereNotNull('start')
+            ->whereNotNull('end')
+            ->whereNull('insert_point')
+            ->select(
+                'plan',
+                DB::raw('COUNT(*) as count')
+            )
+            ->groupBy('plan')
+            ->get()
+            ->keyBy('plan');
+
+        // Inserted blocks: have insert_point, no start/end times
+        $insertedBlockStatsRaw = DB::table('extra_block')
+            ->whereIn('plan', $planIds)
+            ->where('active', 1)
+            ->whereNotNull('insert_point')
             ->select(
                 'plan',
                 DB::raw('COUNT(*) as count')
@@ -257,6 +274,7 @@ class StatisticController extends Controller
                     'event_challenge' => $row->event_challenge,
                     'teams_explore' => $exploreCount,
                     'teams_challenge' => $challengeCount,
+                    'contact_email' => null, // Will be fetched asynchronously
                     'draht_issue' => false, // Will be checked asynchronously
                     'plans' => [],
                 ];
@@ -271,7 +289,10 @@ class StatisticController extends Controller
                     'plan_last_change' => $row->plan_last_change,
                     'generator_stats' => $genStatsRaw[$row->plan_id]->count ?? null,
                     'expert_param_changes' => $paramStats[$row->plan_id] ?? ['input' => 0, 'expert' => 0], 
-                    'extra_blocks'         => $extraBlockStatsRaw[$row->plan_id]->count ?? 0, 
+                    'extra_blocks' => [
+                        'free' => $freeBlockStatsRaw[$row->plan_id]->count ?? 0,
+                        'inserted' => $insertedBlockStatsRaw[$row->plan_id]->count ?? 0,
+                    ], 
                     'publication_level' => $row->publication_level,
                     'publication_date' => $row->publication_date,
                     'publication_last_change' => $row->publication_last_change,
@@ -869,7 +890,7 @@ class StatisticController extends Controller
     }
 
     /**
-     * Check if a single event has DRAHT issues (scheduledata endpoint fails)
+     * Check if a single event has DRAHT issues and fetch contact email
      * Called asynchronously from frontend
      */
     public function checkDrahtIssue(int $eventId): JsonResponse
@@ -880,6 +901,7 @@ class StatisticController extends Controller
             return response()->json([
                 'event_id' => $eventId,
                 'has_issue' => false,
+                'contact_email' => null,
                 'error' => 'Event not found'
             ], 404);
         }
@@ -889,6 +911,7 @@ class StatisticController extends Controller
             return response()->json([
                 'event_id' => $eventId,
                 'has_issue' => false,
+                'contact_email' => null,
                 'message' => 'No DRAHT IDs'
             ]);
         }
@@ -918,9 +941,38 @@ class StatisticController extends Controller
 
             $hasIssue = $hasExploreIssue || $hasChallengeIssue;
 
+            // Extract email from contact data (first contact only)
+            $contact = $payload['contact'] ?? null;
+            $email = null;
+            
+            if (is_array($contact) && !empty($contact)) {
+                // Check if it's an array of contacts (indexed array) or a single contact (associative array)
+                if (isset($contact[0]) && is_array($contact[0])) {
+                    // Array of contacts - take first one
+                    $firstContact = $contact[0];
+                    $email = $firstContact['contact_email'] ?? $firstContact['email'] ?? $firstContact['mail'] ?? null;
+                } elseif (isset($contact['contact_email'])) {
+                    // Single contact object with 'contact_email' key
+                    $email = $contact['contact_email'];
+                } elseif (isset($contact['email'])) {
+                    // Single contact object with 'email' key
+                    $email = $contact['email'];
+                } elseif (isset($contact['mail'])) {
+                    // Single contact object with 'mail' key (alternative)
+                    $email = $contact['mail'];
+                } else {
+                    // Try to find email in first element if it's numeric-indexed
+                    $firstValue = reset($contact);
+                    if (is_array($firstValue)) {
+                        $email = $firstValue['contact_email'] ?? $firstValue['email'] ?? $firstValue['mail'] ?? null;
+                    }
+                }
+            }
+
             return response()->json([
                 'event_id' => $eventId,
                 'has_issue' => $hasIssue,
+                'contact_email' => $email,
             ]);
         } catch (\Throwable $e) {
             // If exception occurs, there's definitely an issue
@@ -931,8 +983,82 @@ class StatisticController extends Controller
             return response()->json([
                 'event_id' => $eventId,
                 'has_issue' => true,
+                'contact_email' => null,
                 'error' => $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Get detailed extra blocks data for a plan (for statistics modal)
+     * Returns free blocks and inserted blocks separately
+     */
+    public function getExtraBlocksDetails(int $planId): JsonResponse
+    {
+        // Get event information for the plan
+        $eventInfo = DB::table('plan')
+            ->join('event', 'event.id', '=', 'plan.event')
+            ->where('plan.id', $planId)
+            ->select(
+                'event.id as event_id',
+                'event.name as event_name',
+                'event.date as event_date'
+            )
+            ->first();
+
+        // Free blocks: have start/end times, no insert_point
+        $freeBlocks = DB::table('extra_block')
+            ->where('plan', $planId)
+            ->where('active', 1)
+            ->whereNotNull('start')
+            ->whereNotNull('end')
+            ->whereNull('insert_point')
+            ->select(
+                'id',
+                'name',
+                'start',
+                'end'
+            )
+            ->orderBy('start')
+            ->get()
+            ->map(function ($block) {
+                return [
+                    'id' => $block->id,
+                    'name' => $block->name,
+                    'date' => $block->start ? \Carbon\Carbon::parse($block->start)->format('d.m.Y') : null,
+                    'start' => $block->start ? \Carbon\Carbon::parse($block->start)->format('H:i') : null,
+                    'end' => $block->end ? \Carbon\Carbon::parse($block->end)->format('H:i') : null,
+                ];
+            });
+
+        // Inserted blocks: have insert_point, no start/end times
+        $insertedBlocks = DB::table('extra_block as eb')
+            ->join('m_insert_point as mip', 'eb.insert_point', '=', 'mip.id')
+            ->where('eb.plan', $planId)
+            ->where('eb.active', 1)
+            ->whereNotNull('eb.insert_point')
+            ->select(
+                'eb.id',
+                'eb.name',
+                'mip.ui_label as insert_point_name'
+            )
+            ->orderBy('mip.sequence')
+            ->orderBy('eb.name')
+            ->get()
+            ->map(function ($block) {
+                return [
+                    'id' => $block->id,
+                    'name' => $block->name,
+                    'insert_point_name' => $block->insert_point_name,
+                ];
+            });
+
+        return response()->json([
+            'event_id' => $eventInfo->event_id ?? null,
+            'event_name' => $eventInfo->event_name ?? null,
+            'event_date' => $eventInfo->event_date ? \Carbon\Carbon::parse($eventInfo->event_date)->format('d.m.Y') : null,
+            'free_blocks' => $freeBlocks,
+            'inserted_blocks' => $insertedBlocks,
+        ]);
     }
 }

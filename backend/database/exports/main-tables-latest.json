@@ -3820,6 +3820,46 @@
             "calibration": 0,
             "note": "Empfohlene Konfiguration f\u00fcr 25 Teams",
             "alert_level": 1
+        },
+        {
+            "id": 107,
+            "first_program": 3,
+            "teams": 14,
+            "lanes": 3,
+            "tables": 2,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 108,
+            "first_program": 3,
+            "teams": 14,
+            "lanes": 4,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
+            "alert_level": 2
+        },
+        {
+            "id": 109,
+            "first_program": 3,
+            "teams": 13,
+            "lanes": 3,
+            "tables": 2,
+            "calibration": 0,
+            "note": null,
+            "alert_level": 0
+        },
+        {
+            "id": 110,
+            "first_program": 3,
+            "teams": 13,
+            "lanes": 4,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
+            "alert_level": 3
         }
     ],
     "m_visibility": [
@@ -6275,7 +6315,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2025-12-07T16:32:47.416493Z",
+        "exported_at": "2025-12-08T13:31:27.685411Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
