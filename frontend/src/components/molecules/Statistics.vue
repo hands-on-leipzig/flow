@@ -11,6 +11,7 @@ import StatisticsExpertParametersModal from './statistics/StatisticsExpertParame
 import StatisticsGeneratorChartModal from './statistics/StatisticsGeneratorChartModal.vue'
 import StatisticsAccessChartModal from './statistics/StatisticsAccessChartModal.vue'
 import StatisticsDeleteModal from './statistics/StatisticsDeleteModal.vue'
+import StatisticsExtraBlocksModal from './statistics/StatisticsExtraBlocksModal.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
 
 type FlattenedRow = {
@@ -31,7 +32,7 @@ type FlattenedRow = {
   plan_last_change: string | null
   generator_stats: number | null
   expert_param_changes?: { input: number; expert: number }
-  extra_blocks?: number
+  extra_blocks?: { free: number; inserted: number }
   publication_level?: number | null
   publication_date?: string | null
   publication_last_change?: string | null
@@ -251,7 +252,7 @@ const orphans = computed(() => ({
 }))
 
 type CleanupTarget = 'events' | 'plans' | 'activity-groups' | 'activities'
-type ModalMode = 'plan-delete' | 'cleanup' | 'non-default-parameters' | 'timeline' | 'access-chart'
+type ModalMode = 'plan-delete' | 'cleanup' | 'non-default-parameters' | 'timeline' | 'access-chart' | 'extra-blocks'
 
 const cleanupMeta: Record<
   CleanupTarget,
@@ -389,7 +390,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           plan_last_change: plan.plan_last_change,
           generator_stats: plan.generator_stats ?? null,
           expert_param_changes: plan.expert_param_changes ?? { input: 0, expert: 0 },
-          extra_blocks: plan.extra_blocks ?? 0,
+          extra_blocks: plan.extra_blocks ?? { free: 0, inserted: 0 },
           publication_level: plan.publication_level ?? null,
           publication_date: plan.publication_date ?? null,
           publication_last_change: plan.publication_last_change ?? null,
@@ -544,6 +545,17 @@ function openAccessChart(eventId: number) {
   }
 }
 
+function openExtraBlocks(planId: number) {
+  modalState.value = {
+    visible: true,
+    mode: 'extra-blocks',
+    planId,
+    planName: null,
+    eventId: null,
+    cleanupType: null,
+  }
+}
+
 const timelineModalInfo = computed(() => {
   if (!modalState.value.planId) return null
   const row = flattenedRows.value.find(r => r.plan_id === modalState.value.planId)
@@ -638,8 +650,10 @@ function exportToCSV() {
     'Plan Created',
     'Plan Last Change',
     'Generator Stats',
-    'Expert Parameter Changes',
-    'Extra Blocks',
+    'Expert Parameter Changes (Input)',
+    'Expert Parameter Changes (Expert)',
+    'Extra Blocks (Free)',
+    'Extra Blocks (Inserted)',
     'Publication Level',
     'Publication Date',
     'Publication Last Change',
@@ -677,8 +691,10 @@ function exportToCSV() {
         escapeCSV(row.plan_created ? formatDateTime(row.plan_created) : ''),
         escapeCSV(row.plan_last_change ? formatDateTime(row.plan_last_change) : ''),
         escapeCSV(row.generator_stats),
-        escapeCSV(row.expert_param_changes ?? 0),
-        escapeCSV(row.extra_blocks ?? 0),
+        escapeCSV(row.expert_param_changes?.input ?? 0),
+        escapeCSV(row.expert_param_changes?.expert ?? 0),
+        escapeCSV(row.extra_blocks?.free ?? 0),
+        escapeCSV(row.extra_blocks?.inserted ?? 0),
         escapeCSV(row.publication_level ?? ''),
         escapeCSV(row.publication_date ? formatDateTime(row.publication_date) : ''),
         escapeCSV(row.publication_last_change ? formatDateTime(row.publication_last_change) : ''),
@@ -696,10 +712,13 @@ function exportToCSV() {
   const url = URL.createObjectURL(blob)
   link.setAttribute('href', url)
   
-  // Generate filename with current date
+  // Generate filename with current date in yymmdd format
   const now = new Date()
-  const dateStr = now.toISOString().split('T')[0]
-  link.setAttribute('download', `statistics_${dateStr}.csv`)
+  const year = now.getFullYear().toString().slice(-2)
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const dateStr = `${year}${month}${day}`
+  link.setAttribute('download', `${dateStr} FLOW Statistics.csv`)
   
   link.style.visibility = 'hidden'
   document.body.appendChild(link)
@@ -1083,9 +1102,24 @@ function exportToCSV() {
           </td>
 
           <!-- Extra blocks -->
-          <td class="px-3 py-2 text-right">
+          <td class="px-3 py-2">
             <template v-if="row.plan_id">
-              {{ row.extra_blocks }}
+              <div class="flex flex-col items-center">
+                <span v-if="row.extra_blocks">
+                  {{ row.extra_blocks.free }} + {{ row.extra_blocks.inserted }}
+                </span>
+                <span v-else>0 + 0</span>
+                <template v-if="row.extra_blocks && (row.extra_blocks.free > 0 || row.extra_blocks.inserted > 0)">
+                  <a
+                    href="#"
+                    class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
+                    @click.prevent="openExtraBlocks(row.plan_id)"
+                    title="Extra-Blöcke anzeigen"
+                  >
+                    🔍
+                  </a>
+                </template>
+              </div>
             </template>
             <template v-else>–</template>
           </td>
@@ -1187,6 +1221,13 @@ function exportToCSV() {
         v-if="modalState.mode === 'access-chart' && modalState.eventId"
         :event-id="modalState.eventId"
         :event-name="getEventName(modalState.eventId)"
+        @close="closeModal"
+      />
+      
+      <!-- Extra Blocks Modal -->
+      <StatisticsExtraBlocksModal
+        v-if="modalState.mode === 'extra-blocks' && modalState.planId"
+        :plan-id="modalState.planId"
         @close="closeModal"
       />
       
