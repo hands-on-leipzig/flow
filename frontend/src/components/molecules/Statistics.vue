@@ -17,6 +17,7 @@ import ConfirmationModal from './ConfirmationModal.vue'
 type FlattenedRow = {
   partner_id: number | null
   partner_name: string | null
+  contact_email: string | null
   event_id: number | null
   event_name: string | null
   event_date: string | null
@@ -55,6 +56,7 @@ const drahtCheckState = ref({
   completed: false
 })
 const drahtIssues = ref<Map<number, boolean>>(new Map())
+const contactEmails = ref<Record<number, string>>({})
 
 const router = useRouter()
 const eventStore = useEventStore()
@@ -108,6 +110,7 @@ watch(selectedSeasonKey, () => {
     // Stop any running checks
     drahtCheckState.value.isRunning = false
     drahtIssues.value.clear()
+    contactEmails.value = {}
     drahtCheckState.value = {
       isRunning: false,
       checked: 0,
@@ -162,12 +165,18 @@ async function startDrahtChecks() {
     try {
       const response = await axios.get(`/stats/draht-check/${eventId}`)
       const hasIssue = response.data.has_issue === true
+      const contactEmail = response.data.contact_email && response.data.contact_email.trim() ? response.data.contact_email.trim() : null
       
       if (hasIssue) {
         drahtIssues.value.set(eventId, true)
         drahtCheckState.value.problems++
       } else {
         drahtIssues.value.set(eventId, false)
+      }
+      
+      // Store contact email if available
+      if (contactEmail) {
+        contactEmails.value[eventId] = contactEmail
       }
     } catch (e) {
       // On error, mark as having issue
@@ -197,6 +206,7 @@ async function startDrahtChecks() {
 function startDrahtCheck() {
   // Reset state and start checking
   drahtIssues.value.clear()
+  contactEmails.value = {}
   drahtCheckState.value = {
     isRunning: true,
     checked: 0,
@@ -327,6 +337,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
         rows.push({
           partner_id: partner.partner_id,
           partner_name: partner.partner_name,
+          contact_email: null,
           event_id: null,
           event_name: null,
           event_date: null,
@@ -352,6 +363,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
         rows.push({
           partner_id: partner.partner_id,
           partner_name: partner.partner_name,
+          contact_email: contactEmails.value[event.event_id] ?? null,
           event_id: event.event_id,
           event_name: event.event_name,
           event_date: event.event_date,
@@ -375,6 +387,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
         rows.push({
           partner_id: partner.partner_id,
           partner_name: partner.partner_name,
+          contact_email: contactEmails.value[event.event_id] ?? null,
           event_id: event.event_id,
           event_name: event.event_name,
           event_date: event.event_date,
@@ -594,6 +607,7 @@ async function reloadStats() {
   
   // Reset DRAHT check state (don't auto-start)
   drahtIssues.value.clear()
+  contactEmails.value = {}
   drahtCheckState.value = {
     isRunning: false,
     checked: 0,
@@ -636,6 +650,7 @@ function exportToCSV() {
   const headers = [
     'RP ID',
     'Partner',
+    'Contact Email',
     'Event ID',
     'Event Name',
     'Datum',
@@ -677,6 +692,7 @@ function exportToCSV() {
       return [
         escapeCSV(row.partner_id),
         escapeCSV(row.partner_name),
+        escapeCSV(row.contact_email ?? ''),
         escapeCSV(row.event_id),
         escapeCSV(row.event_name),
         escapeCSV(row.event_date ? formatDateOnly(row.event_date) : ''),
@@ -864,10 +880,10 @@ function exportToCSV() {
         <div class="flex justify-between items-center">
           <div class="text-sm font-medium" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'text-red-800' : drahtCheckState.completed ? 'text-green-800' : 'text-blue-800'">
             <template v-if="drahtCheckState.isRunning">
-              Überprüfung von DRAHT-Daten läuft. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
+              DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
             </template>
             <template v-else-if="drahtCheckState.completed">
-              DRAHT-Daten: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
+              DRAHT-Daten geladen: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
             </template>
           </div>
           <button
@@ -875,7 +891,7 @@ function exportToCSV() {
             @click="startDrahtCheck"
             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
           >
-            DRAHT-Daten prüfen
+            DRAHT-Daten holen
           </button>
         </div>
       </div>
@@ -886,7 +902,7 @@ function exportToCSV() {
           @click="startDrahtCheck"
           class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
         >
-          DRAHT-Daten prüfen
+          DRAHT-Daten holen
         </button>
       </div>
 
@@ -943,7 +959,17 @@ function exportToCSV() {
           <!-- RP name -->
           <td class="px-3 py-2">
             <template v-if="shouldShowPartner(index)">
-              {{ row.partner_name }}
+              <span class="flex items-center gap-1">
+                {{ row.partner_name }}
+                <a
+                  v-if="row.contact_email"
+                  :href="`mailto:${row.contact_email}?subject=FLOW`"
+                  class="text-blue-600 hover:text-blue-800"
+                  title="E-Mail senden"
+                >
+                  ✉️
+                </a>
+              </span>
             </template>
             <template v-else>
               &nbsp;

@@ -133,8 +133,8 @@ class StatisticController extends Controller
             }
         }
 
-        // DRAHT checks are now done asynchronously via separate endpoint
-        // No DRAHT checks during initial load to avoid timeout
+        // DRAHT checks and contact emails are now done asynchronously via separate endpoint
+        // No DRAHT calls during initial load to avoid timeout
 
         // Generator-Stats abrufen
         $genStatsRaw = DB::table('s_generator')
@@ -274,6 +274,7 @@ class StatisticController extends Controller
                     'event_challenge' => $row->event_challenge,
                     'teams_explore' => $exploreCount,
                     'teams_challenge' => $challengeCount,
+                    'contact_email' => null, // Will be fetched asynchronously
                     'draht_issue' => false, // Will be checked asynchronously
                     'plans' => [],
                 ];
@@ -889,7 +890,7 @@ class StatisticController extends Controller
     }
 
     /**
-     * Check if a single event has DRAHT issues (scheduledata endpoint fails)
+     * Check if a single event has DRAHT issues and fetch contact email
      * Called asynchronously from frontend
      */
     public function checkDrahtIssue(int $eventId): JsonResponse
@@ -900,6 +901,7 @@ class StatisticController extends Controller
             return response()->json([
                 'event_id' => $eventId,
                 'has_issue' => false,
+                'contact_email' => null,
                 'error' => 'Event not found'
             ], 404);
         }
@@ -909,6 +911,7 @@ class StatisticController extends Controller
             return response()->json([
                 'event_id' => $eventId,
                 'has_issue' => false,
+                'contact_email' => null,
                 'message' => 'No DRAHT IDs'
             ]);
         }
@@ -938,9 +941,38 @@ class StatisticController extends Controller
 
             $hasIssue = $hasExploreIssue || $hasChallengeIssue;
 
+            // Extract email from contact data (first contact only)
+            $contact = $payload['contact'] ?? null;
+            $email = null;
+            
+            if (is_array($contact) && !empty($contact)) {
+                // Check if it's an array of contacts (indexed array) or a single contact (associative array)
+                if (isset($contact[0]) && is_array($contact[0])) {
+                    // Array of contacts - take first one
+                    $firstContact = $contact[0];
+                    $email = $firstContact['contact_email'] ?? $firstContact['email'] ?? $firstContact['mail'] ?? null;
+                } elseif (isset($contact['contact_email'])) {
+                    // Single contact object with 'contact_email' key
+                    $email = $contact['contact_email'];
+                } elseif (isset($contact['email'])) {
+                    // Single contact object with 'email' key
+                    $email = $contact['email'];
+                } elseif (isset($contact['mail'])) {
+                    // Single contact object with 'mail' key (alternative)
+                    $email = $contact['mail'];
+                } else {
+                    // Try to find email in first element if it's numeric-indexed
+                    $firstValue = reset($contact);
+                    if (is_array($firstValue)) {
+                        $email = $firstValue['contact_email'] ?? $firstValue['email'] ?? $firstValue['mail'] ?? null;
+                    }
+                }
+            }
+
             return response()->json([
                 'event_id' => $eventId,
                 'has_issue' => $hasIssue,
+                'contact_email' => $email,
             ]);
         } catch (\Throwable $e) {
             // If exception occurs, there's definitely an issue
@@ -951,6 +983,7 @@ class StatisticController extends Controller
             return response()->json([
                 'event_id' => $eventId,
                 'has_issue' => true,
+                'contact_email' => null,
                 'error' => $e->getMessage()
             ]);
         }
