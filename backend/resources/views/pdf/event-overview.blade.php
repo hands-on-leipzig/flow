@@ -229,13 +229,18 @@ foreach($eventsByDay as $dayKey => $dayData) {
     $occupiedCells = [];
     
     // Generate 10-minute rows
+    $totalRows = count($timeSlots);
     foreach ($timeSlots as $index => $slot) {
+        $isLastRow = ($index === $totalRows - 1);
         $isFullHour = $slot->minute == 0;
         $timeLabel = $isFullHour ? $slot->format('H:i') : '';
         $slotTime = $slot->format('H:i');
         
-        // Conditional horizontal border based on showGridlines
+        // Conditional horizontal border based on showGridlines, always add bottom border on last row
         $rowBorderStyle = $showGridlines ? 'border-top: 1px solid #ddd;' : '';
+        if ($isLastRow) {
+            $rowBorderStyle .= ($rowBorderStyle ? ' ' : '') . 'border-bottom: 1px solid #ddd;';
+        }
         
         $contentHtml .= '
                 <tr style="' . $rowBorderStyle . '">';
@@ -243,6 +248,10 @@ foreach($eventsByDay as $dayKey => $dayData) {
         // Time column with rowspan for full hours (6 × 10min = 60min)
         if ($isFullHour) {
             $timeBorderStyle = $showGridlines ? 'border: 1px solid #ddd;' : 'border-left: 1px solid #ddd; border-right: 1px solid #ddd;';
+            // Add bottom border on last row
+            if ($isLastRow && !$showGridlines) {
+                $timeBorderStyle .= ' border-bottom: 1px solid #ddd;';
+            }
             $contentHtml .= '
                     <td rowspan="6" style="padding: 1px; ' . $timeBorderStyle . ' font-size: 8px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
         }
@@ -303,6 +312,10 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $endTime = $event['latest_end']->format('H:i');
                 
                 $eventBorderStyle = $showGridlines ? 'border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; ' : '';
+                // Add bottom border on last row
+                if ($isLastRow && !$showGridlines) {
+                    $eventBorderStyle .= 'border-bottom: 1px solid #ddd; ';
+                }
                 $contentHtml .= '
                     <td rowspan="' . $rowspan . '" style="background-color: ' . $colors['bg'] . '; border-left: 3px solid ' . $colors['border'] . '; ' . $eventBorderStyle . 'padding: 1px 2px; font-size: 8px; font-weight: bold; vertical-align: middle;">
                         ' . htmlspecialchars($event['group_name']) . '<br>
@@ -310,6 +323,10 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     </td>';
             } else {
                 $emptyBorderStyle = $showGridlines ? 'border: 1px solid #ddd;' : 'border-left: 1px solid #ddd; border-right: 1px solid #ddd;';
+                // Add bottom border on last row
+                if ($isLastRow && !$showGridlines) {
+                    $emptyBorderStyle .= ' border-bottom: 1px solid #ddd;';
+                }
                 $contentHtml .= '
                     <td style="padding: 0; ' . $emptyBorderStyle . ' height: 8px;"></td>';
             }
