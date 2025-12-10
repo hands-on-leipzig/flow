@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\MNews;
+use App\Models\News;
 use App\Models\NewsUser;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -17,7 +17,7 @@ class NewsController extends Controller
      */
     public function index()
     {
-        $news = MNews::orderBy('created_at', 'desc')->get();
+        $news = News::orderBy('created_at', 'desc')->get();
         
         $totalUsers = User::count();
         
@@ -46,10 +46,10 @@ class NewsController extends Controller
         $userId = $request->user()->id;
 
         // Find oldest news that this user hasn't read
-        $unreadNews = MNews::whereNotExists(function ($query) use ($userId) {
+        $unreadNews = News::whereNotExists(function ($query) use ($userId) {
             $query->select(DB::raw(1))
                 ->from('news_user')
-                ->whereColumn('news_user.news_id', 'm_news.id')
+                ->whereColumn('news_user.news_id', 'news.id')
                 ->where('news_user.user_id', $userId);
         })
         ->orderBy('created_at', 'asc')
@@ -79,7 +79,7 @@ class NewsController extends Controller
             'link' => 'nullable|string|max:500',
         ]);
 
-        $news = MNews::create($validated);
+        $news = News::create($validated);
 
         return response()->json($news, 201);
     }
@@ -92,7 +92,7 @@ class NewsController extends Controller
         $userId = $request->user()->id;
 
         // Check if news exists
-        $news = MNews::find($id);
+        $news = News::find($id);
         if (!$news) {
             return response()->json(['error' => 'News not found'], 404);
         }
@@ -111,7 +111,7 @@ class NewsController extends Controller
      */
     public function destroy(int $id)
     {
-        $news = MNews::find($id);
+        $news = News::find($id);
         
         if (!$news) {
             return response()->json(['error' => 'News not found'], 404);
@@ -127,7 +127,7 @@ class NewsController extends Controller
      */
     public function stats(int $id)
     {
-        $news = MNews::find($id);
+        $news = News::find($id);
         
         if (!$news) {
             return response()->json(['error' => 'News not found'], 404);

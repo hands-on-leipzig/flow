@@ -25,7 +25,7 @@ class NewsUser extends Model
      */
     public function news()
     {
-        return $this->belongsTo(MNews::class, 'news_id');
+        return $this->belongsTo(News::class, 'news_id');
     }
 
     /**

@@ -87,7 +87,7 @@ function checkMigrations(): void
     echo "4. Checking for missing tables...\n";
     $requiredTables = [
         's_generator',
-        'm_news',
+        'news',  // Changed from m_news - now a regular table, not master table
         'news_user',
         'match',
         'contao_public_rounds',
