@@ -160,6 +160,12 @@ function createTimelineChart() {
   }
 
   const labels = daily_data.map((d: any) => d.date)
+  
+  // Get today's date in Y-m-d format
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]
+  const todayIndex = labels.indexOf(todayStr)
+  
   const accessData = daily_data.map((d: any) => d.access_count)
   const maxAccess = Math.max(...accessData, 1)
 
@@ -191,6 +197,44 @@ function createTimelineChart() {
     }
   })
 
+  // Register custom plugin for today line (only if today is in range)
+  const todayLinePlugin = todayIndex >= 0 ? {
+    id: 'todayLine',
+    afterDraw: (chart: any) => {
+      const ctx = chart.ctx
+      const xScale = chart.scales.x
+      const yScale = chart.scales.y
+      
+      if (!xScale || !yScale) return
+      
+      // Get the x position of today
+      const todayX = xScale.getPixelForValue(todayStr)
+      
+      if (isNaN(todayX)) return
+      
+      // Draw vertical line
+      ctx.save()
+      ctx.strokeStyle = 'rgba(239, 68, 68, 1)' // red-500
+      ctx.lineWidth = 2
+      ctx.setLineDash([5, 5])
+      ctx.beginPath()
+      ctx.moveTo(todayX, yScale.top)
+      ctx.lineTo(todayX, yScale.bottom)
+      ctx.stroke()
+      ctx.restore()
+      
+      // Draw label
+      ctx.save()
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.8)'
+      ctx.font = 'bold 12px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      const labelY = yScale.top + 5
+      ctx.fillText('Heute', todayX, labelY)
+      ctx.restore()
+    }
+  } : null
+
   try {
     chart.value = new Chart(chartCanvas.value, {
       type: 'bar',
@@ -208,6 +252,7 @@ function createTimelineChart() {
           ...publicationDatasets,
         ],
       },
+      plugins: todayLinePlugin ? [todayLinePlugin] : [],
       options: {
         responsive: true,
         maintainAspectRatio: false,

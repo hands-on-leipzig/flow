@@ -402,7 +402,7 @@ async function addCustom() {
   
   const draft: ExtraBlock = {
     plan: props.planId!,
-    first_program: 3,
+    first_program: 0, // Start with both icons on (joint)
     name: '',
     description: '',
     link: null,
@@ -475,16 +475,38 @@ function toggleActive(block: ExtraBlock, active: boolean) {
 }
 
 function toggleProgram(block: ExtraBlock, program: 2 | 3) {
+  // Logic: 0 = joint (both), 2 = Explore only, 3 = Challenge only
+  // At least one icon must always be on
   if (program === 2) {
-    if (block.first_program === 2) block.first_program = null
-    else if (block.first_program === 3) block.first_program = 0
-    else if (block.first_program === 0) block.first_program = 3
-    else block.first_program = 2
+    // Clicking Explore icon
+    if (block.first_program === 2) {
+      // Explore only -> switch to Challenge only
+      block.first_program = 3
+    } else if (block.first_program === 3) {
+      // Challenge only -> switch to both (joint)
+      block.first_program = 0
+    } else if (block.first_program === 0) {
+      // Both on -> switch to Challenge only (other icon off)
+      block.first_program = 3
+    } else {
+      // null or other -> default to Explore only
+      block.first_program = 2
+    }
   } else {
-    if (block.first_program === 3) block.first_program = null
-    else if (block.first_program === 2) block.first_program = 0
-    else if (block.first_program === 0) block.first_program = 2
-    else block.first_program = 3
+    // Clicking Challenge icon (program === 3)
+    if (block.first_program === 3) {
+      // Challenge only -> switch to Explore only
+      block.first_program = 2
+    } else if (block.first_program === 2) {
+      // Explore only -> switch to both (joint)
+      block.first_program = 0
+    } else if (block.first_program === 0) {
+      // Both on -> switch to Explore only (other icon off)
+      block.first_program = 2
+    } else {
+      // null or other -> default to Challenge only
+      block.first_program = 3
+    }
   }
   saveBlock(block)
 }
