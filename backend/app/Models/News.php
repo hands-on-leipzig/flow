@@ -4,10 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class MNews extends Model
+class News extends Model
 {
-    protected $table = 'm_news';
-
+    protected $table = 'news';
+    
+    public $timestamps = true; // Only created_at, updated_at column removed from schema
+    
+    const UPDATED_AT = null; // Explicitly disable updated_at since column doesn't exist
+    
     protected $fillable = [
         'title',
         'text',
@@ -16,7 +20,7 @@ class MNews extends Model
 
     protected $casts = [
         'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        // No updated_at cast
     ];
 
     /**
@@ -29,3 +33,4 @@ class MNews extends Model
             ->withTimestamps();
     }
 }
+

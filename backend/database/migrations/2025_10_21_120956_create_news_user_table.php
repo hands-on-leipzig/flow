@@ -36,7 +36,7 @@ return new class extends Migration
                 
                 try {
                     Schema::table('news_user', function (Blueprint $table) {
-                        $table->foreign('news_id')->references('id')->on('m_news')->onDelete('cascade');
+                        $table->foreign('news_id')->references('id')->on('news')->onDelete('cascade');
                     });
                 } catch (\Throwable $e) {
                     // Ignore if foreign key can't be added (type mismatch)
@@ -45,7 +45,7 @@ return new class extends Migration
                 // Ignore errors if table was created by another process or structure differs
             }
         } else {
-            // Table exists - update news_id column type to match m_news.id (int instead of bigint)
+            // Table exists - update news_id column type to match news.id (int instead of bigint)
             if (Schema::hasColumn('news_user', 'news_id')) {
                 try {
                     // Drop foreign key first if it exists
@@ -54,7 +54,7 @@ return new class extends Migration
                         FROM information_schema.KEY_COLUMN_USAGE 
                         WHERE TABLE_SCHEMA = ? 
                         AND TABLE_NAME = 'news_user' 
-                        AND REFERENCED_TABLE_NAME = 'm_news'
+                        AND REFERENCED_TABLE_NAME = 'news'
                     ", [DB::connection()->getDatabaseName()]);
                     
                     foreach ($foreignKeys as $fk) {
@@ -66,7 +66,7 @@ return new class extends Migration
                     
                     // Re-add foreign key
                     Schema::table('news_user', function (Blueprint $table) {
-                        $table->foreign('news_id')->references('id')->on('m_news')->onDelete('cascade');
+                        $table->foreign('news_id')->references('id')->on('news')->onDelete('cascade');
                     });
                 } catch (\Throwable $e) {
                     // Ignore if column can't be modified or foreign key can't be added

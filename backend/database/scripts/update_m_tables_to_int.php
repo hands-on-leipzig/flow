@@ -37,7 +37,7 @@ function updateMTablesToInt(): void
             'm_role',
             'm_visibility',
             'm_supported_plan',
-            'm_news',
+            // m_news removed - now 'news' table (not a master table)
         ];
         
         // Step 1: Update all foreign key columns first (before m_ tables are recreated)
@@ -260,7 +260,7 @@ function updateMTablesToInt(): void
         if (Schema::hasTable('news_user')) {
             try {
                 // Drop foreign key
-                $fks = DB::select("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'news_user' AND REFERENCED_TABLE_NAME = 'm_news'");
+                $fks = DB::select("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'news_user' AND REFERENCED_TABLE_NAME = 'news'");
                 foreach ($fks as $fk) {
                     try {
                         DB::statement("ALTER TABLE `news_user` DROP FOREIGN KEY `{$fk->CONSTRAINT_NAME}`");
@@ -353,7 +353,7 @@ function updateMTablesToInt(): void
             '2025_01_01_000000_create_master_tables',
             '2025_08_05_151326_add_disable_option_to_visibility_enum',
             '2025_10_14_124139_modify_m_insert_point_table',
-            '2025_10_21_120706_create_m_news_table',
+            // '2025_10_21_120706_create_m_news_table', // Deprecated - news table now in master migration
             '2025_11_08_230638_update_m_activity_type_overview_plan_column_not_null',
             '2025_11_08_230644_add_jury_rounds_to_m_supported_plan',
         ];
