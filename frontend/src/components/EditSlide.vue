@@ -50,21 +50,31 @@ function saveSlide() {
   });
 }
 
-const tableBgHex = computed({
+const tableBgHex = computed<string | undefined>({
   get: () => {
-    return parseRgbaString(slide.value?.content.tableBackgroundColor || '#ffffff').hex;
+    if (slide.value?.content?.tableBackgroundColor) {
+      return parseRgbaString(slide.value?.content.tableBackgroundColor || '#ffffff').hex;
+    }
+    return undefined;
   },
-  set: (value: string) => {
-    setTableBackgroundFromHexAndOpacity(value, tableBgOpacity.value);
+  set: (value: string | undefined) => {
+    if (value) {
+      setTableBackgroundFromHexAndOpacity(value, tableBgOpacity.value);
+    }
   }
 });
 
-const tableBgOpacity = computed({
+const tableBgOpacity = computed<number | undefined>({
   get: () => {
-    return parseRgbaString(slide.value?.content.tableBackgroundColor || '#ffffff').alphaPercent;
+    if (slide.value?.content.tableBackgroundColor) {
+      return parseRgbaString(slide.value?.content.tableBackgroundColor || '#ffffff').alphaPercent;
+    }
+    return undefined;
   },
-  set: (value: number) => {
-    setTableBackgroundFromHexAndOpacity(tableBgHex.value, value);
+  set: (value: number | undefined) => {
+    if (value !== undefined) {
+      setTableBackgroundFromHexAndOpacity(tableBgHex.value, value);
+    }
   }
 });
 
@@ -79,8 +89,11 @@ function hexToRgb(hex: string): { r: number, g: number, b: number } {
   return {r, g, b};
 }
 
+function toHex(n: number): string {
+  return n.toString(16).padStart(2, '0');
+}
+
 function rgbToHex(r: number, g: number, b: number): string {
-  const toHex = (n: number) => n.toString(16).padStart(2, '0');
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
@@ -229,7 +242,7 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
 
           <!-- Tabellen-Hintergrundfarbe -->
           <div>
-            <label class="text-sm font-medium">Tabellen Hintergrund</label>
+            <label class="text-sm font-medium">Tabellen-Hintergrundfarbe</label>
             <InfoPopover text="Hintergrundfarbe der Tabelle; Transparenz in Prozent einstellen."/>
           </div>
           <div class="flex items-center gap-2">
@@ -239,19 +252,24 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
                 v-model="tableBgHex"
                 @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
             />
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 px-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2.69L6 10.5c-3 4 1 11.5 6 11.5s9-7.5 6-11.5L12 2.69z"/>
+            </svg>
             <input
                 type="number"
                 min="0"
                 max="100"
-                class="w-20 mt-1 border rounded px-2 py-1"
+                class="w-16 mt-1 border rounded px-2 py-1"
                 v-model.number="tableBgOpacity"
                 @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
+                aria-label="Transparenz in Prozent"
             />
+            %
           </div>
 
           <!-- Tabellen Rahmenfarbe -->
           <div>
-            <label class="text-sm font-medium">Tabellen Rahmenfarbe</label>
+            <label class="text-sm font-medium">Tabellen-Rahmenfarbe</label>
             <InfoPopover text="Farbe der Tabellenränder."/>
           </div>
           <div>

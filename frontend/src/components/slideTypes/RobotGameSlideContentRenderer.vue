@@ -196,8 +196,8 @@ th, td {
 }
 
 .teamName {
-  border-right: 1px solid black;
-  border-top: 1px solid black;
+  border-right: 1px solid v-bind('props.content.tableBorderColor');
+  border-top: 1px solid v-bind('props.content.tableBorderColor');
   width: auto;
 }
 
@@ -207,7 +207,7 @@ th, td {
 }
 
 td {
-  border-top: 1px solid black;
+  border-top: 1px solid v-bind('props.content.tableBorderColor');
 }
 
 tr > td:not(:last-child),
