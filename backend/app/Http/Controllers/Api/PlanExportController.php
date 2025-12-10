@@ -299,7 +299,7 @@ class PlanExportController extends Controller
                 plan: $planId,
                 roles: [$role->id],
                 includeRooms: true,
-                includeGroupMeta: false,
+                includeGroupMeta: true,
                 includeActivityMeta: true,
                 includeTeamNames: true,
                 freeBlocks: true
@@ -331,7 +331,7 @@ class PlanExportController extends Controller
                 plan: $planId,
                 roles: [$role->id],
                 includeRooms: true,
-                includeGroupMeta: false,
+                includeGroupMeta: true,
                 includeActivityMeta: true,
                 includeTeamNames: true,
                 freeBlocks: true
