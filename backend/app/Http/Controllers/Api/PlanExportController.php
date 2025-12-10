@@ -2083,14 +2083,21 @@ if ($prepRooms->isNotEmpty()) {
             return $a['earliest_start']->timestamp - $b['earliest_start']->timestamp;
         });
 
-        // Manual assignment of free blocks to program-specific Allgemein columns
+        // Manual assignment of free blocks to program-specific columns
+        // Logic: 0 = joint (Allgemein), 2 = Explore, 3 = Challenge
         foreach ($eventOverview as &$event) {
             if (($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null) && $event['group_first_program_id'] !== null) {
-                // This is a free block - assign to program-specific Allgemein column
-                if ($event['group_first_program_id'] == 2) {
-                    $event['group_overview_plan_column'] = 'Allgemein-2'; // Explore
-                } elseif ($event['group_first_program_id'] == 3) {
-                    $event['group_overview_plan_column'] = 'Allgemein-3'; // Challenge
+                // This is a free block - assign to appropriate column based on first_program
+                $programId = (int)$event['group_first_program_id'];
+                if ($programId === 0) {
+                    // Joint: keep as plain "Allgemein" (general column)
+                    $event['group_overview_plan_column'] = 'Allgemein';
+                } elseif ($programId === 2) {
+                    // Explore: assign to Explore column
+                    $event['group_overview_plan_column'] = 'Allgemein-2';
+                } elseif ($programId === 3) {
+                    // Challenge: assign to Challenge column
+                    $event['group_overview_plan_column'] = 'Allgemein-3';
                 }
             }
         }
@@ -2106,11 +2113,14 @@ if ($prepRooms->isNotEmpty()) {
             }
             
             // For Allgemein columns, include first_program to make them unique
+            // BUT exclude first_program = 0 (joint) - it stays as plain "Allgemein"
             if ($event['assigned_column'] === 'Allgemein') {
-                $program = $event['group_first_program_id'];
-                if ($program === null) {
+                $program = (int)($event['group_first_program_id'] ?? 0);
+                if ($program === null || $program === 0) {
+                    // Joint or null: keep as plain "Allgemein"
                     $event['assigned_column'] = 'Allgemein';
                 } else {
+                    // Other programs: add program suffix
                     $event['assigned_column'] = 'Allgemein-' . $program;
                 }
             }
