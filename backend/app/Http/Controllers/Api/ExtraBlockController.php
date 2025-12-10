@@ -149,12 +149,58 @@ class ExtraBlockController extends Controller
     public function delete(int $id)
     {
         $block = ExtraBlock::findOrFail($id);
+        $planId = $block->plan; // Store plan ID before deletion
 
         DB::table('activity')
             ->where('extra_block', $block->id)
             ->update(['extra_block' => null]);
 
         $block->delete();
+
+        // Trigger regeneration after deletion (deleting a block affects the plan)
+        try {
+            $generator = app(PlanGeneratorController::class);
+            $response = $generator->generateLite($planId);
+            
+            // Check if the response indicates an error
+            if ($response->getStatusCode() !== 200) {
+                $responseData = $response->getData(true);
+                Log::error("Fehler bei der Lite-Regeneration des Plans {$planId} nach Block-Löschung", [
+                    'status' => $response->getStatusCode(),
+                    'error' => $responseData['error'] ?? 'Unknown error',
+                    'details' => $responseData['details'] ?? null,
+                ]);
+                // Return error response to frontend
+                return response()->json([
+                    'message' => 'Extra block deleted',
+                    'error' => $responseData['error'] ?? 'Fehler bei der Lite-Generierung',
+                    'details' => $responseData['details'] ?? $responseData['message'] ?? null,
+                ], $response->getStatusCode());
+            }
+        } catch (\Throwable $e) {
+            Log::error("Fehler bei der Regeneration des Plans {$planId} nach Block-Löschung: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            // Extract meaningful error message
+            $errorMessage = 'Fehler bei der Lite-Generierung';
+            $details = $e->getMessage();
+            
+            if (str_contains($e->getMessage(), "Parameter '")) {
+                $errorMessage = 'Ungültiger Parameterwert';
+            } elseif (str_contains($e->getMessage(), "not found") || str_contains($e->getMessage(), "existiert nicht")) {
+                $errorMessage = 'Fehlende Daten';
+            } elseif (str_contains($e->getMessage(), "FreeBlockGenerator") || str_contains($e->getMessage(), "freien Aktivitäten")) {
+                $errorMessage = 'Fehler beim Einfügen der freien Blöcke';
+            }
+            
+            // Return error response to frontend
+            return response()->json([
+                'message' => 'Extra block deleted',
+                'error' => $errorMessage,
+                'details' => $details,
+            ], 500);
+        }
 
         return response()->json(['message' => 'Extra block deleted']);
     }

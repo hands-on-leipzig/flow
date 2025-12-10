@@ -247,7 +247,16 @@ async function flushUpdates(updates: Record<string, any>) {
         }
       }
       if (name === 'extra_block_delete' && value?.id) {
-        await axios.delete(`/extra-blocks/${value.id}`)
+        const deleteResponse = await axios.delete(`/extra-blocks/${value.id}`)
+        
+        // Check if response contains error from generateLite
+        if (deleteResponse.data?.error) {
+          generatorError.value = deleteResponse.data.error
+          errorDetails.value = deleteResponse.data.details || null
+          isGenerating.value = false
+          await loadBlocks() // Still reload blocks even on error
+          return // Stop processing further updates
+        }
       }
       if (name === 'extra_block_add' && value) {
         const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
@@ -685,7 +694,7 @@ const deleteMessage = computed(() => {
                             ? 'opacity-100 cursor-pointer hover:scale-110'
                             : 'opacity-30 grayscale cursor-pointer hover:scale-110')
                      ]"
-                     @click="b.active !== false && toggleProgram(b, 2)" title="Explore"/>
+                     @click="b.active !== false && toggleProgram(b, 2)" title="FIRST LEGO League Explore"/>
                 <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
                      :class="[
                        'w-8 h-8 transition-all duration-200',
@@ -695,7 +704,7 @@ const deleteMessage = computed(() => {
                             ? 'opacity-100 cursor-pointer hover:scale-110'
                             : 'opacity-30 grayscale cursor-pointer hover:scale-110')
                      ]"
-                     @click="b.active !== false && toggleProgram(b, 3)" title="Challenge"/>
+                     @click="b.active !== false && toggleProgram(b, 3)" title="FIRST LEGO League Challenge"/>
               </div>
             </td>
 

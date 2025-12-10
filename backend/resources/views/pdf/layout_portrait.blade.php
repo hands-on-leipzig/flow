@@ -92,7 +92,12 @@
                 </td>
                 <td style="width:34%; text-align:center;">
                     <div style="font-size:14px; margin-bottom:4px;">
-                        {{ $header['centerTitleTop'] ?? '' }}
+                        @php
+                            $titleTop = $header['centerTitleTop'] ?? '';
+                            // Make FIRST italic and add line break after League
+                            $titleTop = preg_replace('/FIRST LEGO League/', '<i>FIRST</i> LEGO League<br>', $titleTop);
+                        @endphp
+                        {!! $titleTop !!}
                     </div>
                     <div style="font-size:18px; font-weight:bold;">
                         {{ $header['centerTitleMain'] ?? '' }}

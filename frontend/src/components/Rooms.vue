@@ -37,6 +37,21 @@ const getProgramColor = (item) => {
   }
 }
 
+// --- Format program name with italic FIRST ---
+// Handles both normalized names (FIRST LEGO League) and DB names (FLL Explore/Challenge)
+const formatProgramName = (name) => {
+  if (!name) return ''
+  
+  // First, expand FLL to FIRST LEGO League if present
+  let normalized = name
+    .replace(/^FLL Explore$/i, 'FIRST LEGO League Explore')
+    .replace(/^FLL Challenge$/i, 'FIRST LEGO League Challenge')
+    .replace(/FLL /g, 'FIRST LEGO League ')
+  
+  // Then apply italic styling to FIRST
+  return normalized.replace(/FIRST/g, '<span class="italic">FIRST</span>')
+}
+
 // --- Loading state ---
 const loading = ref(true)
 
@@ -129,8 +144,8 @@ onMounted(async () => {
       id: 'teams',
       type: 'team',
       groups: [
-        { id: 'explore', name: 'FLL Explore', items: exploreTeams.value },
-        { id: 'challenge', name: 'FLL Challenge', items: challengeTeams.value }
+        { id: 'explore', name: 'FIRST LEGO League Explore', items: exploreTeams.value },
+        { id: 'challenge', name: 'FIRST LEGO League Challenge', items: challengeTeams.value }
       ]
     }
   ]
@@ -673,7 +688,7 @@ const getItemsInRoom = (roomId) => {
             all.push({
               key: proxyKey,
               type: 'team-proxy',
-              name: isExplore ? 'Alle FLL Explore Teams' : 'Alle FLL Challenge Teams',
+              name: isExplore ? 'Alle FIRST LEGO League Explore Teams' : 'Alle FIRST LEGO League Challenge Teams',
               first_program: isExplore ? 2 : 3,
               program: isExplore ? 'explore' : 'challenge'
             })
@@ -961,8 +976,20 @@ const hasWarning = (tab) => {
           :key="group.id"
           class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
         >
-          <div class="text-lg font-semibold text-black mb-3">
-            {{ group.name }}
+          <div class="text-lg font-semibold text-black mb-3 flex items-center gap-2">
+            <img
+                v-if="group.id === 'explore' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
+                :src="programLogoSrc('E')"
+                :alt="programLogoAlt('E')"
+                class="w-6 h-6 flex-shrink-0"
+            />
+            <img
+                v-if="group.id === 'challenge' || /FLL Challenge|FIRST LEGO League Challenge/i.test(group.name)"
+                :src="programLogoSrc('C')"
+                :alt="programLogoAlt('C')"
+                class="w-6 h-6 flex-shrink-0"
+            />
+            <span v-html="formatProgramName(group.name)"></span>
           </div>
           
           <!-- Bulk mode checkbox for teams -->
