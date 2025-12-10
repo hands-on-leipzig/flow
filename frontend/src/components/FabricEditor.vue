@@ -50,8 +50,8 @@ const standardImages = [
   {title: 'Unearthed', url: imageUrl('flow/season_unearthed_wordmark.png')},
   {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_h.png')},
   {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_v.png')},
-  {title: 'First', url: imageUrl('flow/first_h.png')},
-  {title: 'First', url: imageUrl('flow/first_v.png')},
+  {title: 'FIRST', url: imageUrl('flow/first_h.png')},
+  {title: 'FIRST', url: imageUrl('flow/first_v.png')},
   {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_h.png')},
   {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_v.png')},
   {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_h.png')},
@@ -550,23 +550,25 @@ async function paste() {
 
     <!-- Image Auswahl Overlay -->
     <div v-if="showImageModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div class="bg-white rounded shadow-lg p-6 w-96">
+      <div class="bg-white rounded shadow-lg p-6 w-1/3">
         <h2 class="text-lg font-bold mb-4">Bild auswählen</h2>
         <div class="grid grid-cols-3 gap-4 overflow-y-auto max-h-96">
           <div v-for="img in imageModalContent" :key="img" class="cursor-pointer">
             <img v-if="!!img.content" :src="img.content" :alt="img.title"
-                 class="w-24 h-24 object-contain rounded border"
+                 class="w-28 h-28 object-contain rounded border"
                  @click="addQRCode(img.content)"/>
             <img v-else :src="img.url" :alt="img.title"
-                 class="w-24 h-24 object-contain rounded border"
+                 class="w-28 h-28 object-contain rounded border"
                  @click="insertImageFromUrl(img.url)"/>
-            <div class="text-xs text-center mt-1 truncate w-24" v-html="formatProgramTitle(img.title)"></div>
+            <div class="text-xs text-center mt-1 w-28"
+                 style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"
+                 v-html="formatProgramTitle(img.title)"></div>
           </div>
         </div>
         <div class="mt-6 px-4 py-2 grid grid-cols-2">
           <div>
-            <router-link to="/logos">
-              <button class="rounded bg-gray-300 hover:bg-gray-400 py-1 px-2">Logos verwalten</button>
+            <router-link to="/logos" class="block px-2">
+              <button class="rounded bg-gray-300 hover:bg-gray-400 w-full py-1">Logos verwalten</button>
             </router-link>
           </div>
           <div>
