@@ -3,14 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import ConfirmationModal from './ConfirmationModal.vue'
 
-const props = defineProps({
-  isDevEnvironment: {
-    type: Boolean,
-    default: false
-  }
-})
-
-const { isDevEnvironment } = props
+// Removed isDevEnvironment prop - news can now be created in any environment
 
 const newsList = ref([])
 const loading = ref(false)
@@ -107,16 +100,10 @@ onMounted(() => {
       <h1 class="text-2xl font-bold text-gray-800">System News</h1>
       <button
         v-if="!showCreateForm"
-        @click="isDevEnvironment && (showCreateForm = true)"
-        :disabled="!isDevEnvironment"
-        :title="!isDevEnvironment ? 'Neue News erstellen ist nur auf Dev verfügbar' : ''"
-        class="font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
-        :class="isDevEnvironment 
-          ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-          : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'"
+        @click="showCreateForm = true"
+        class="font-semibold py-2 px-4 rounded-lg transition-colors duration-200 bg-blue-600 hover:bg-blue-700 text-white"
       >
         ➕ Neue News erstellen
-        <span v-if="!isDevEnvironment" class="ml-2 text-xs">(nur Dev)</span>
       </button>
     </div>
 

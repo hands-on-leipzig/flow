@@ -28,7 +28,7 @@ function fixMigrationRecords(): void
     $tableToMigration = [
         // Other migrations (NOT create_master_tables - that's handled by refresh_m_tables.php)
         's_generator' => '2025_09_10_061841_create_s_generator_table',
-        // m_news is handled by refresh_m_tables.php, don't mark it here
+        // news table (was m_news) is now a regular table, not a master table
         'news_user' => '2025_10_21_120956_create_news_user_table',
         'match' => '2025_10_14_042537_create_match_table',
         'contao_public_rounds' => '2025_10_26_100550_contao_round_publish_flags',

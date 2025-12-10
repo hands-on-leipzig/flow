@@ -81,7 +81,7 @@ function refreshMTables(): void
         '2025_01_01_000000_create_master_tables', // Main master tables migration (creates 13 m_ tables)
         '2025_08_05_151326_add_disable_option_to_visibility_enum', // Modifies m_parameter_condition
         '2025_10_14_124139_modify_m_insert_point_table', // Modifies m_insert_point
-        '2025_10_21_120706_create_m_news_table', // m_news table migration
+        // Note: m_news table migration removed - news is now a regular table, not a master table
         '2025_11_08_230638_update_m_activity_type_overview_plan_column_not_null', // Modifies m_activity_type
         '2025_11_08_230644_add_jury_rounds_to_m_supported_plan', // Modifies m_supported_plan
         // Add any other m_ table migrations here as needed
@@ -124,25 +124,8 @@ function refreshMTables(): void
         // This prevents type mismatch errors when recreating m_ tables with different column types
         echo "\n🔗 Dropping foreign keys that reference m_ tables...\n";
         
-        // Drop foreign key from news_user to m_news if it exists
-        if (Schema::hasTable('news_user')) {
-            try {
-                $foreignKeys = DB::select("
-                    SELECT CONSTRAINT_NAME 
-                    FROM information_schema.KEY_COLUMN_USAGE 
-                    WHERE TABLE_SCHEMA = ? 
-                    AND TABLE_NAME = 'news_user' 
-                    AND REFERENCED_TABLE_NAME = 'm_news'
-                ", [DB::connection()->getDatabaseName()]);
-                
-                foreach ($foreignKeys as $fk) {
-                    DB::statement("ALTER TABLE `news_user` DROP FOREIGN KEY `{$fk->CONSTRAINT_NAME}`");
-                    echo "  ✓ Dropped foreign key {$fk->CONSTRAINT_NAME} from news_user\n";
-                }
-            } catch (\Throwable $e) {
-                // Ignore if foreign key doesn't exist or can't be dropped
-            }
-        }
+        // Note: news_user foreign key to news is NOT dropped here because news is not a master table
+        // News table persists across master table refreshes
         
         // Drop all m_ tables
         echo "\n🗑️  Dropping m_ tables...\n";

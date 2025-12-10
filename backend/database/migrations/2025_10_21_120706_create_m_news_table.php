@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * @deprecated This migration is deprecated.
+ * The m_news table has been renamed to 'news' and is now created in 
+ * the master migration (2025_01_01_000000_create_master_tables.php).
+ * This migration is kept for historical reference only.
+ */
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

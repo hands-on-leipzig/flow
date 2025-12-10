@@ -39,18 +39,16 @@ return new class extends Migration {
             $table->string('name', 50);
         });
 
-        // Create m_news table (always recreate m_ tables)
-        if (Schema::hasTable('m_news')) {
-            Schema::dropIfExists('m_news');
+        // Create news table (only if it doesn't exist - preserve data, NOT a master table)
+        if (!Schema::hasTable('news')) {
+            Schema::create('news', function (Blueprint $table) {
+                $table->unsignedInteger('id')->autoIncrement();
+                $table->string('title', 255);
+                $table->text('text');
+                $table->string('link', 500)->nullable();
+                $table->timestamp('created_at')->useCurrent();
+            });
         }
-        Schema::create('m_news', function (Blueprint $table) {
-            $table->unsignedInteger('id')->autoIncrement();
-            $table->string('title', 255);
-            $table->text('text');
-            $table->string('link', 500)->nullable();
-            $table->timestamp('created_at')->useCurrent();
-            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
-        });
 
         // Create m_room_type_group table (always recreate m_ tables)
         if (Schema::hasTable('m_room_type_group')) {
@@ -362,7 +360,7 @@ return new class extends Migration {
 
             $table->unique(['user_id', 'news_id'], 'news_user_user_id_news_id_unique');
             $table->foreign('user_id')->references('id')->on('user')->onDelete('cascade');
-            $table->foreign('news_id')->references('id')->on('m_news')->onDelete('cascade');
+            $table->foreign('news_id')->references('id')->on('news')->onDelete('cascade');
         });
         }
 
