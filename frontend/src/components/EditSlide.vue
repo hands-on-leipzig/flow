@@ -50,6 +50,63 @@ function saveSlide() {
   });
 }
 
+const tableBgHex = computed({
+  get: () => {
+    return parseRgbaString(slide.value?.content.tableBackgroundColor || '#ffffff').hex;
+  },
+  set: (value: string) => {
+    setTableBackgroundFromHexAndOpacity(value, tableBgOpacity.value);
+  }
+});
+
+const tableBgOpacity = computed({
+  get: () => {
+    return parseRgbaString(slide.value?.content.tableBackgroundColor || '#ffffff').alphaPercent;
+  },
+  set: (value: number) => {
+    setTableBackgroundFromHexAndOpacity(tableBgHex.value, value);
+  }
+});
+
+function hexToRgb(hex: string): { r: number, g: number, b: number } {
+  let h = hex.replace('#', '').trim();
+  if (h.length === 3) {
+    h = h.split('').map(c => c + c).join('');
+  }
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return {r, g, b};
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function parseRgbaString(value: string): { hex: string, alphaPercent: number } {
+  if (!value) return {hex: '#ffffff', alphaPercent: 100};
+  const rgbaMatch = value.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\s*\)/i);
+  if (rgbaMatch) {
+    const r = parseInt(rgbaMatch[1], 10);
+    const g = parseInt(rgbaMatch[2], 10);
+    const b = parseInt(rgbaMatch[3], 10);
+    const a = rgbaMatch[4] !== undefined ? parseFloat(rgbaMatch[4]) : 1;
+    return {hex: rgbToHex(r, g, b), alphaPercent: Math.round(a * 100)};
+  }
+  if (value.startsWith('#')) {
+    return {hex: value, alphaPercent: 100};
+  }
+  return {hex: '#ffffff', alphaPercent: 100};
+}
+
+function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number) {
+  const {r, g, b} = hexToRgb(hex);
+  const a = Math.max(0, Math.min(100, Number(opacityPercent))) / 100;
+  const rgba = `rgba(${r}, ${g}, ${b}, ${a})`;
+  updateByName('tableBackgroundColor', rgba);
+}
+
 </script>
 
 <template>
@@ -167,6 +224,42 @@ function saveSlide() {
                 type="color"
                 :value="slide.content.highlightColor"
                 @input="updateByName('highlightColor', ($event.target as HTMLInputElement).value || '#FFD700')"
+            />
+          </div>
+
+          <!-- Tabellen-Hintergrundfarbe -->
+          <div>
+            <label class="text-sm font-medium">Tabellen Hintergrund</label>
+            <InfoPopover text="Hintergrundfarbe der Tabelle; Transparenz in Prozent einstellen."/>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+                type="color"
+                class="mt-1 border rounded px-2 py-1"
+                v-model="tableBgHex"
+                @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
+            />
+            <input
+                type="number"
+                min="0"
+                max="100"
+                class="w-20 mt-1 border rounded px-2 py-1"
+                v-model.number="tableBgOpacity"
+                @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
+            />
+          </div>
+
+          <!-- Tabellen Rahmenfarbe -->
+          <div>
+            <label class="text-sm font-medium">Tabellen Rahmenfarbe</label>
+            <InfoPopover text="Farbe der Tabellenränder."/>
+          </div>
+          <div>
+            <input
+                type="color"
+                class="mt-1 w-full border rounded px-2 py-1"
+                :value="slide.content.tableBorderColor"
+                @input="updateByName('tableBorderColor', ($event.target as HTMLInputElement).value || '#000000')"
             />
           </div>
         </div>
