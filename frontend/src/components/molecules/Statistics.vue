@@ -233,7 +233,11 @@ const seasonTotals = computed(() => {
     rp_total: 0,
     rp_with_events: 0,
     events_total: 0,
+    events_past: 0,
+    events_future: 0,
     events_with_plan: 0,
+    events_with_plan_past: 0,
+    events_with_plan_future: 0,
     plans_total: 0,
     activity_groups_total: 0,
     activities_total: 0,
@@ -247,7 +251,11 @@ const seasonTotals = computed(() => {
     rp_total: s.rp?.total ?? 0,
     rp_with_events: s.rp?.with_events ?? 0,
     events_total: s.events?.total ?? 0,
-    events_with_plan: s.events?.with_plan ?? 0,   // uses the new field
+    events_past: s.events?.past ?? 0,
+    events_future: s.events?.future ?? 0,
+    events_with_plan: s.events?.with_plan ?? 0,
+    events_with_plan_past: s.events?.with_plan_past ?? 0,
+    events_with_plan_future: s.events?.with_plan_future ?? 0,
     plans_total: s.plans?.total ?? 0,
     activity_groups_total: s.activity_groups?.total ?? 0,
     activities_total: s.activities?.total ?? 0,
@@ -837,12 +845,12 @@ function exportToCSV() {
           <!-- Box 2: events -->
           <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
-              <span>Events</span>
-              <span class="font-semibold">{{ seasonTotals.events_total }}</span>
+              <span>Events: Vergangenheit | Zukunft</span>
+              <span class="font-semibold">{{ seasonTotals.events_past }} | {{ seasonTotals.events_future }}</span>
             </div>
             <div class="flex justify-between text-gray-700">
               <span>mit Plan</span>
-              <span class="font-semibold">{{ seasonTotals.events_with_plan }}</span>
+              <span class="font-semibold">{{ seasonTotals.events_with_plan_past }} | {{ seasonTotals.events_with_plan_future }}</span>
             </div>
           </div>
 
