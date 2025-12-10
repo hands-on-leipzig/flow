@@ -38,8 +38,18 @@ const getProgramColor = (item) => {
 }
 
 // --- Format program name with italic FIRST ---
+// Handles both normalized names (FIRST LEGO League) and DB names (FLL Explore/Challenge)
 const formatProgramName = (name) => {
-  return name.replace(/FIRST/g, '<span class="italic">FIRST</span>')
+  if (!name) return ''
+  
+  // First, expand FLL to FIRST LEGO League if present
+  let normalized = name
+    .replace(/^FLL Explore$/i, 'FIRST LEGO League Explore')
+    .replace(/^FLL Challenge$/i, 'FIRST LEGO League Challenge')
+    .replace(/FLL /g, 'FIRST LEGO League ')
+  
+  // Then apply italic styling to FIRST
+  return normalized.replace(/FIRST/g, '<span class="italic">FIRST</span>')
 }
 
 // --- Loading state ---
@@ -968,13 +978,13 @@ const hasWarning = (tab) => {
         >
           <div class="text-lg font-semibold text-black mb-3 flex items-center gap-2">
             <img
-                v-if="group.id === 'explore'"
+                v-if="group.id === 'explore' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
                 :src="programLogoSrc('E')"
                 :alt="programLogoAlt('E')"
                 class="w-6 h-6 flex-shrink-0"
             />
             <img
-                v-if="group.id === 'challenge'"
+                v-if="group.id === 'challenge' || /FLL Challenge|FIRST LEGO League Challenge/i.test(group.name)"
                 :src="programLogoSrc('C')"
                 :alt="programLogoAlt('C')"
                 class="w-6 h-6 flex-shrink-0"
