@@ -684,8 +684,8 @@ const teamsPerJuryHint2 = computed(() => {
 
     <!-- Message when explore is disabled -->
     <div v-else class="text-center py-8 text-gray-500">
-      <div class="text-lg font-medium mb-2">Explore ist deaktiviert</div>
-      <div class="text-sm">Aktiviere den Schalter oben rechts, um Explore-Einstellungen zu konfigurieren.</div>
+      <div class="text-lg font-medium mb-2"><span class="italic">FIRST</span> LEGO League Explore ist deaktiviert</div>
+      <div class="text-sm">Aktiviere den Schalter oben rechts, um <span class="italic">FIRST</span> LEGO League Explore-Einstellungen zu konfigurieren.</div>
     </div>
 
     <!-- Gutachter:innen-Gruppen selection - Based on timing mode only -->

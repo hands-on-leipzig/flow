@@ -685,7 +685,7 @@ const deleteMessage = computed(() => {
                             ? 'opacity-100 cursor-pointer hover:scale-110'
                             : 'opacity-30 grayscale cursor-pointer hover:scale-110')
                      ]"
-                     @click="b.active !== false && toggleProgram(b, 2)" title="Explore"/>
+                     @click="b.active !== false && toggleProgram(b, 2)" title="FIRST LEGO League Explore"/>
                 <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
                      :class="[
                        'w-8 h-8 transition-all duration-200',
@@ -695,7 +695,7 @@ const deleteMessage = computed(() => {
                             ? 'opacity-100 cursor-pointer hover:scale-110'
                             : 'opacity-30 grayscale cursor-pointer hover:scale-110')
                      ]"
-                     @click="b.active !== false && toggleProgram(b, 3)" title="Challenge"/>
+                     @click="b.active !== false && toggleProgram(b, 3)" title="FIRST LEGO League Challenge"/>
               </div>
             </td>
 

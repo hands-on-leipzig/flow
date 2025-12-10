@@ -133,13 +133,13 @@ onMounted(() => {
                 <img
                     v-if="g.group_meta?.first_program_id === 2"
                     src="@/assets/FLL_Explore.png"
-                    alt="Explore"
+                    alt="FIRST LEGO League Explore Logo"
                     class="w-10 h-10 flex-shrink-0"
                 />
                 <img
                     v-else-if="g.group_meta?.first_program_id === 3"
                     src="@/assets/FLL_Challenge.png"
-                    alt="Challenge"
+                    alt="FIRST LEGO League Challenge Logo"
                     class="w-10 h-10 flex-shrink-0"
                 />
 

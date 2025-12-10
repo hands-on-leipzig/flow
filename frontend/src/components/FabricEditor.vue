@@ -48,18 +48,23 @@ const standardImages = [
   {title: 'Unearthed', url: imageUrl('flow/season_unearthed+fll_h.png')},
   {title: 'Unearthed', url: imageUrl('flow/season_unearthed_v.png')},
   {title: 'Unearthed', url: imageUrl('flow/season_unearthed_wordmark.png')},
-  {title: 'First LEGO League', url: imageUrl('flow/first+fll_h.png')},
-  {title: 'First LEGO League', url: imageUrl('flow/first+fll_v.png')},
+  {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_h.png')},
+  {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_v.png')},
   {title: 'First', url: imageUrl('flow/first_h.png')},
   {title: 'First', url: imageUrl('flow/first_v.png')},
-  {title: 'FLL Challenge', url: imageUrl('flow/fll_challenge_h.png')},
-  {title: 'FLL Challenge', url: imageUrl('flow/fll_challenge_v.png')},
-  {title: 'FLL Explore', url: imageUrl('flow/fll_explore_h.png')},
-  {title: 'FLL Explore', url: imageUrl('flow/fll_explore_hs.png')},
-  {title: 'FLL Explore', url: imageUrl('flow/fll_explore_v.png')},
+  {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_h.png')},
+  {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_v.png')},
+  {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_h.png')},
+  {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_hs.png')},
+  {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_v.png')},
 ];
 const availableImages = ref(standardImages);
 const availableQrCodes = ref([]);
+
+// Format program name with italic FIRST
+const formatProgramTitle = (title: string) => {
+  return title.replace(/FIRST/g, '<span class="italic">FIRST</span>')
+}
 
 const defaultObjectProperties = {
   transparentCorners: true,
@@ -555,7 +560,7 @@ async function paste() {
             <img v-else :src="img.url" :alt="img.title"
                  class="w-24 h-24 object-contain rounded border"
                  @click="insertImageFromUrl(img.url)"/>
-            <div class="text-xs text-center mt-1 truncate w-24">{{ img.title }}</div>
+            <div class="text-xs text-center mt-1 truncate w-24" v-html="formatProgramTitle(img.title)"></div>
           </div>
         </div>
         <div class="mt-6 px-4 py-2 grid grid-cols-2">

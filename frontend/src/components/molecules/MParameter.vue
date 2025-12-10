@@ -20,6 +20,12 @@ const filterContexts = ref<string[]>(['input','expert'])
 const filterPrograms = ref<number[]>([0,2,3])   // 0=gemeinsam, 2=Explore, 3=Challenge
 const filterLevels   = ref<number[]>([1])
 
+// Format program label with italic FIRST
+const formatProgramLabel = (label: string) => {
+  if (label === 'gemeinsam') return label
+  return label.replace(/FIRST/g, '<span class="italic">FIRST</span>')
+}
+
 // Hilfs-Optionen
 const contexts = ['protected', 'input', 'expert']
 const types    = ['integer', 'decimal', 'time', 'date', 'boolean']
@@ -184,11 +190,12 @@ const contextBarClass = (ctx: string | null | undefined) => {
     <div class="inline-flex items-center gap-3 px-3 py-2 border border-gray-300 rounded-md bg-white shadow-sm whitespace-nowrap">
         <div class="text-sm font-medium text-gray-700">Programm:</div>
         <div class="flex items-center gap-3">
-        <label v-for="prog in [{value:0,label:'gemeinsam'},{value:2,label:'Explore'},{value:3,label:'Challenge'}]"
+        <label v-for="prog in [{value:0,label:'gemeinsam',icon:null},{value:2,label:'FIRST LEGO League Explore',icon:'E'},{value:3,label:'FIRST LEGO League Challenge',icon:'C'}]"
                 :key="prog.value"
                 class="flex items-center gap-1 text-sm text-gray-600">
             <input type="checkbox" v-model="filterPrograms" :value="prog.value" class="accent-gray-600" />
-            {{ prog.label }}
+            <img v-if="prog.icon" :src="programLogoSrc(prog.icon)" :alt="programLogoAlt(prog.icon)" class="w-4 h-4 flex-shrink-0" />
+            <span v-html="formatProgramLabel(prog.label)"></span>
         </label>
         </div>
     </div>
@@ -311,8 +318,8 @@ const contextBarClass = (ctx: string | null | undefined) => {
                                 <label class="block text-xs text-gray-500 mb-1">Program</label>
                                 <select v-model="draftById[item.id].first_program" class="w-full border rounded px-2 py-1 bg-white text-sm text-gray-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                     <option :value="null">(gemeinsam)</option>
-                                    <option :value="2">Explore</option>
-                                    <option :value="3">Challenge</option>
+                                    <option :value="2">FIRST LEGO League Explore</option>
+                                    <option :value="3">FIRST LEGO League Challenge</option>
                                 </select>
                                 </div>
 

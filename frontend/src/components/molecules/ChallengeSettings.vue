@@ -391,8 +391,8 @@ const teamsPerJuryHint = computed(() => {
 
     <!-- Message when challenge is disabled -->
     <div v-else class="text-center py-8 text-gray-500">
-      <div class="text-lg font-medium mb-2">Challenge ist deaktiviert</div>
-      <div class="text-sm">Aktiviere den Schalter oben rechts, um Challenge-Einstellungen zu konfigurieren.</div>
+      <div class="text-lg font-medium mb-2"><span class="italic">FIRST</span> LEGO League Challenge ist deaktiviert</div>
+      <div class="text-sm">Aktiviere den Schalter oben rechts, um <span class="italic">FIRST</span> LEGO League Challenge-Einstellungen zu konfigurieren.</div>
     </div>
   </div>
 </template>
