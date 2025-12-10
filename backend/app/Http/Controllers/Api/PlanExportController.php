@@ -2311,9 +2311,12 @@ if ($prepRooms->isNotEmpty()) {
     /**
      * Generate event overview PDF - chronological list of activity groups
      */
-    public function eventOverviewPdf(int $planId)
+    public function eventOverviewPdf(int $planId, \Illuminate\Http\Request $request)
     {
         try {
+            // Get optional showGridlines parameter from query string (default: false)
+            $showGridlines = $request->boolean('showGridlines', false);
+            
             // Get event overview data using shared method
             $data = $this->getEventOverviewData($planId);
             $eventsByDay = $data['eventsByDay'];
@@ -2334,7 +2337,8 @@ if ($prepRooms->isNotEmpty()) {
             $contentHtml = view('pdf.event-overview', [
                 'eventsByDay' => $eventsByDay,
                 'columnNames' => $columnNames,
-                'planId' => $planId
+                'planId' => $planId,
+                'showGridlines' => $showGridlines
             ])->render();
 
             // Use portrait layout specifically for overview PDF

@@ -1,4 +1,7 @@
 @php
+// Get showGridlines parameter (default: false)
+$showGridlines = $showGridlines ?? false;
+
 $contentHtml = '
 <div style="font-family: sans-serif; line-height: 1.6; color: #333;">';
 
@@ -231,13 +234,17 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $timeLabel = $isFullHour ? $slot->format('H:i') : '';
         $slotTime = $slot->format('H:i');
         
+        // Conditional horizontal border based on showGridlines
+        $rowBorderStyle = $showGridlines ? 'border-top: 1px solid #ddd;' : '';
+        
         $contentHtml .= '
-                <tr>';
+                <tr style="' . $rowBorderStyle . '">';
         
         // Time column with rowspan for full hours (6 × 10min = 60min)
         if ($isFullHour) {
+            $timeBorderStyle = $showGridlines ? 'border: 1px solid #ddd;' : 'border-left: 1px solid #ddd; border-right: 1px solid #ddd;';
             $contentHtml .= '
-                    <td rowspan="6" style="padding: 1px; border: 1px solid #ddd; font-size: 8px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
+                    <td rowspan="6" style="padding: 1px; ' . $timeBorderStyle . ' font-size: 8px; font-weight: bold; background-color: #f8f9fa; text-align: center; vertical-align: middle;">' . $timeLabel . '</td>';
         }
         
         // Dynamic column generation
@@ -295,14 +302,16 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $startTime = $event['earliest_start']->format('H:i');
                 $endTime = $event['latest_end']->format('H:i');
                 
+                $eventBorderStyle = $showGridlines ? 'border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; ' : '';
                 $contentHtml .= '
-                    <td rowspan="' . $rowspan . '" style="background-color: ' . $colors['bg'] . '; border-left: 3px solid ' . $colors['border'] . '; padding: 1px 2px; font-size: 8px; font-weight: bold; vertical-align: middle;">
+                    <td rowspan="' . $rowspan . '" style="background-color: ' . $colors['bg'] . '; border-left: 3px solid ' . $colors['border'] . '; ' . $eventBorderStyle . 'padding: 1px 2px; font-size: 8px; font-weight: bold; vertical-align: middle;">
                         ' . htmlspecialchars($event['group_name']) . '<br>
                         <span style="font-weight: normal; font-size: 7px;">' . $startTime . ' - ' . $endTime . '</span>
                     </td>';
             } else {
+                $emptyBorderStyle = $showGridlines ? 'border: 1px solid #ddd;' : 'border-left: 1px solid #ddd; border-right: 1px solid #ddd;';
                 $contentHtml .= '
-                    <td style="padding: 0; border: 1px solid #ddd; height: 8px;"></td>';
+                    <td style="padding: 0; ' . $emptyBorderStyle . ' height: 8px;"></td>';
             }
         }
         
