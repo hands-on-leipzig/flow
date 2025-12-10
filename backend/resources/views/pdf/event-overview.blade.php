@@ -248,7 +248,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
             }
             // Find events for this column
             $columnEvents = collect($eventsWithRowspan)->filter(function($item) use ($slotTime, $columnName) {
-                $eventColumn = $item['event']['group_overview_plan_column'] ?? 'Allgemein';
+                // Use assigned_column for matching, as this is what columnNames is based on
+                $eventColumn = $item['event']['assigned_column'] ?? $item['event']['group_overview_plan_column'] ?? 'Allgemein';
                 $eventProgram = $item['event']['group_first_program_id'];
                 
                 

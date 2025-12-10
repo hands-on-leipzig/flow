@@ -2085,10 +2085,18 @@ if ($prepRooms->isNotEmpty()) {
 
         // Manual assignment of free blocks to program-specific columns
         // Logic: 0 = joint (Allgemein), 2 = Explore, 3 = Challenge
+        // Detect free blocks by checking if any activity in the group has extra_block_id and no insert_point
         foreach ($eventOverview as &$event) {
-            if (($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null) && $event['group_first_program_id'] !== null) {
+            // Check if this group contains free blocks (extra_block_id not null and insert_point is null)
+            $hasFreeBlock = $activities->where('activity_group_id', $event['group_id'])
+                ->contains(function($a) {
+                    return isset($a->extra_block_id) && $a->extra_block_id !== null && 
+                           (!isset($a->extra_block_insert_point) || $a->extra_block_insert_point === null);
+                });
+            
+            if ($hasFreeBlock && ($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null)) {
                 // This is a free block - assign to appropriate column based on first_program
-                $programId = (int)$event['group_first_program_id'];
+                $programId = (int)($event['group_first_program_id'] ?? 0);
                 if ($programId === 0) {
                     // Joint: keep as plain "Allgemein" (general column)
                     $event['group_overview_plan_column'] = 'Allgemein';

@@ -218,7 +218,10 @@ class ActivityFetcherService
                     WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.name, ag_atd.name)
                     ELSE ag_atd.name
                 END                        as group_atd_name,
-                ag_atd.first_program       as group_first_program_id,
+                CASE 
+                    WHEN a.extra_block IS NOT NULL THEN peb.first_program
+                    ELSE ag_atd.first_program
+                END                        as group_first_program_id,
                 ag_fp.name                 as group_first_program_name,
                 ag_at.overview_plan_column as group_overview_plan_column,
                 ag_at.id                   as activity_type_id,
