@@ -77,14 +77,33 @@ class PreviewMatrixService
             }
         }
 
+        // --- LC-Erkennung: nur Spalten zeigen, wenn mindestens eine LC-Activity existiert
+        $lcAtdIds = MActivityTypeDetail::where('code', 'like', 'lc_%')
+            ->pluck('id')
+            ->all();
+        $hasLcActivitiesByProg = ['E' => false, 'C' => false];
+
+        foreach ($activities as $a) {
+            if (!in_array((int)$a->activity_type_detail_id, $lcAtdIds)) continue;
+            $p = strtoupper((string)$a->program_name) === 'EXPLORE' ? 'E' : 'C';
+            $hasLcActivitiesByProg[$p] = true;
+        }
+
         // --- 1) Lane/Judging-Spalten (E links, C rechts), je Programm 1..laneMax
         foreach ($laneRoles as [$progLetter, $role, $shortKey]) {
             $titleBase = (string)($role->name_short ?: $role->name);
             $laneMax   = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
 
+            // LC: Nur anzeigen, wenn mindestens eine LC-Activity existiert
+            if ($shortKey === 'LC') {
+                if (!$hasLcActivitiesByProg[$progLetter]) {
+                    continue; // Keine LC-Activities für dieses Programm → Spalten überspringen
+                }
+            }
+
             for ($i = 1; $i <= $laneMax; $i++) {
                 $addHeader([
-                    'key'   => strtolower($progLetter) . '_' . $shortKey . $i, // e.g. e_JU1
+                    'key'   => strtolower($progLetter) . '_' . $shortKey . $i, // e.g. e_JU1, c_LC1
                     'title' => "{$titleBase}{$i}",
                 ]);
             }

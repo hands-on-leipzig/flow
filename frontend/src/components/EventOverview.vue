@@ -35,6 +35,42 @@ const showChallenge = computed(() => {
   return true
 })
 
+// Determine competition type text dynamically (same logic as PdfLayoutService)
+const competitionType = computed(() => {
+  if (!event.value) return 'Wettbewerb'
+  
+  const hasExplore = !!(exploreData.value || event.value.event_explore)
+  const hasChallenge = !!(challengeData.value || event.value.event_challenge)
+  const level = event.value.level ?? 0
+
+  // Both Explore and Challenge Regio (level 1)
+  if (hasExplore && hasChallenge && level === 1) {
+    return 'Ausstellung und Regionalwettbewerb'
+  }
+
+  // Only Explore
+  if (hasExplore && !hasChallenge) {
+    return 'Ausstellung'
+  }
+
+  // Only Challenge - check level
+  if (hasChallenge && !hasExplore) {
+    switch (level) {
+      case 1:
+        return 'Regionalwettbewerb'
+      case 2:
+        return 'Qualifikationswettbewerb'
+      case 3:
+        return 'Finale'
+      default:
+        return 'Wettbewerb'
+    }
+  }
+
+  // Fallback
+  return 'Wettbewerb'
+})
+
 async function fetchPlanId() {
   if (!event.value?.id) return
   try {
@@ -74,7 +110,7 @@ onMounted(async () => {
 <template>
   <div class="p-6 space-y-6">
     <div>
-      <h1 class="text-2xl font-bold">Veranstaltung {{ event?.name }}</h1>
+      <h1 class="text-2xl font-bold"><em>FIRST</em> LEGO League {{ competitionType }} <span class="text-blue-600">{{ event?.name }}</span></h1>
 
       <div class="grid grid-cols-3 gap-4 mt-4">
         <!-- LINKE SPALTE -->

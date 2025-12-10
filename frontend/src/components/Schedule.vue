@@ -637,8 +637,8 @@ const updateTableName = async () => {
                 </template>
               </div>
               <div v-else class="text-center py-8 text-gray-500">
-                <div class="text-sm font-medium mb-1">Explore ist deaktiviert</div>
-                <div class="text-xs">Aktiviere Explore, um Expertenparameter zu konfigurieren.</div>
+                <div class="text-sm font-medium mb-1"><span class="italic">FIRST</span> LEGO League Explore ist deaktiviert</div>
+                <div class="text-xs">Aktiviere <span class="italic">FIRST</span> LEGO League Explore, um Expertenparameter zu konfigurieren.</div>
               </div>
             </div>
 
@@ -693,8 +693,8 @@ const updateTableName = async () => {
 
               </div>
               <div v-else class="text-center py-8 text-gray-500">
-                <div class="text-sm font-medium mb-1">Challenge ist deaktiviert</div>
-                <div class="text-xs">Aktiviere Challenge, um Expertenparameter zu konfigurieren.</div>
+                <div class="text-sm font-medium mb-1"><span class="italic">FIRST</span> LEGO League Challenge ist deaktiviert</div>
+                <div class="text-xs">Aktiviere <span class="italic">FIRST</span> LEGO League Challenge, um Expertenparameter zu konfigurieren.</div>
               </div>
 
             </div>

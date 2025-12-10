@@ -269,7 +269,7 @@ async function createEvent() {
               />
               <label for="explore_enabled" class="text-sm text-gray-700 flex items-center">
                 <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5 mr-2" />
-                Explore
+                <span><span class="italic">FIRST</span> LEGO League Explore</span>
               </label>
             </div>
 
@@ -282,7 +282,7 @@ async function createEvent() {
               />
               <label for="challenge_enabled" class="text-sm text-gray-700 flex items-center">
                 <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5 mr-2" />
-                Challenge
+                <span><span class="italic">FIRST</span> LEGO League Challenge</span>
               </label>
             </div>
           </div>

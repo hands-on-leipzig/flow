@@ -24,7 +24,7 @@ export function programLogoSrc(first_program: string | number) {
 export function programLogoAlt(first_program: string | number) {
   const key = String(first_program || '').toLowerCase()
 
-  if (['2', 'e', 'explore'].includes(key)) return 'Logo Explore'
-  if (['3', 'c', 'challenge'].includes(key)) return 'Logo Challenge'
+  if (['2', 'e', 'explore'].includes(key)) return 'FIRST LEGO League Explore Logo'
+  if (['3', 'c', 'challenge'].includes(key)) return 'FIRST LEGO League Challenge Logo'
   return 'Logo unbekannt'
 }
