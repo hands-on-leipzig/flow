@@ -58,7 +58,7 @@
         },
         {
             "id": 8,
-            "name": "Live-Challenge",
+            "name": "Live Challenge",
             "sequence": 255,
             "description": "",
             "first_program": 3,
@@ -145,7 +145,7 @@
             "name_preview": "Mit Team",
             "sequence": 30,
             "first_program": 2,
-            "description": "Die Gutachter:innen sprechen mit den Kindern",
+            "description": "Die Gutachter:innen sprechen mit dem Team",
             "link": null,
             "link_text": null,
             "activity_type": 3
@@ -181,7 +181,7 @@
             "name_preview": "Begutachtung",
             "sequence": 20,
             "first_program": 2,
-            "description": "Die Kinder erkl\u00e4ren den Gutachter:innen ihre Modelle",
+            "description": "Das Team erkl\u00e4rt den Gutachter:innen sein Modell und sein Poster",
             "link": "",
             "link_text": null,
             "activity_type": 3
@@ -193,7 +193,7 @@
             "name_preview": "Er\u00f6ffnung E",
             "sequence": 10,
             "first_program": 2,
-            "description": "Der FIRST LEGO League Explore-Wettbewerb wird er\u00f6ffnet",
+            "description": "Die Explore Ausstellung wird er\u00f6ffnet",
             "link": "",
             "link_text": null,
             "activity_type": 10
@@ -205,7 +205,7 @@
             "name_preview": "Er\u00f6ffnung C",
             "sequence": 10,
             "first_program": 3,
-            "description": "Der FIRST LEGO League Challenge Wettbewerb wird er\u00f6ffnet",
+            "description": "Der Challenge Wettbewerb wird er\u00f6ffnet",
             "link": "",
             "link_text": null,
             "activity_type": 5
@@ -217,7 +217,7 @@
             "name_preview": "Er\u00f6ffnung",
             "sequence": 10,
             "first_program": null,
-            "description": "Die FIRST LEGO League Explore und Challenge Wettbewerbe werden er\u00f6ffnet",
+            "description": "Die Explore Ausstellung und der Challenge Wettbewerbe werden er\u00f6ffnet",
             "link": "",
             "link_text": null,
             "activity_type": 12
@@ -229,7 +229,7 @@
             "name_preview": "Test",
             "sequence": 41,
             "first_program": 3,
-            "description": "Die Teams haben die M\u00f6glichkeit die Robot-Game-Tische zu testen und Fragen mit den Schiedsrichter:innen zur kl\u00e4ren",
+            "description": "Die Teams testen den Robot-Game-Tisch und kl\u00e4ren Fragen mit den Schiedsrichter:innen",
             "link": "",
             "link_text": null,
             "activity_type": 1
@@ -241,7 +241,7 @@
             "name_preview": "Runde 1",
             "sequence": 42,
             "first_program": 3,
-            "description": "Die erste von drei Robot-Game-Runden",
+            "description": "Die erste von drei Robot-Game Runden",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
@@ -253,7 +253,7 @@
             "name_preview": "Runde 2",
             "sequence": 43,
             "first_program": 3,
-            "description": "Die zweite von drei Robot-Game-Runden",
+            "description": "Die zweite von drei Robot-Game Runden",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
@@ -265,7 +265,7 @@
             "name_preview": "Runde 3",
             "sequence": 44,
             "first_program": 3,
-            "description": "Die dritte von drei Robot-Game-Runden",
+            "description": "Die dritte von drei Robot-Game Runden",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
@@ -313,7 +313,7 @@
             "name_preview": "Match",
             "sequence": 40,
             "first_program": 3,
-            "description": "In einem Match stehen sich zwei Teams gegen\u00fcber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:inner Punkte pro gel\u00f6ster Aufgabe",
+            "description": "In einem Match stehen sich zwei Teams gegen\u00fcber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:innen Punkte pro gel\u00f6ster Aufgabe",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
@@ -337,7 +337,7 @@
             "name_preview": "Mit Team",
             "sequence": 32,
             "first_program": 3,
-            "description": "Die Teams pr\u00e4sentieren ihr Forschungprojekt und ihr Vorgehen beim Roboter-Design. Zu beiden gibt es Fragen von den Juror:innen",
+            "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Zu beiden stellen die Juror:innen Fragen",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
@@ -349,7 +349,7 @@
             "name_preview": "Ohne Team",
             "sequence": 33,
             "first_program": 3,
-            "description": "Nachdem die Teams den Raum verlassen haben, vergeben die Juror:innen Punkte",
+            "description": "Nachdem das Team den Raum verlassen hat, f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
@@ -361,7 +361,7 @@
             "name_preview": "Beratung",
             "sequence": 34,
             "first_program": 3,
-            "description": "Alle Juror:innen beraten gemeinsam, welche Teams f\u00fcr Pokale nominiert werden und wer die Pokale bekommt",
+            "description": "Alle Juror:innen beraten gemeinsam, welche Teams Nominierungen und Pokale erhalten ",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
@@ -373,7 +373,7 @@
             "name_preview": "Runde",
             "sequence": 31,
             "first_program": 3,
-            "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboter-Design. Anschlie\u00dfend vergeben die Juror:innen Punkte",
+            "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Anschlie\u00dfend f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
@@ -397,7 +397,7 @@
             "name_preview": "Preise C",
             "sequence": 75,
             "first_program": 3,
-            "description": "Pokale f\u00fcr die FIRST LEGO League Challenge Teams",
+            "description": "Medaillen, Urkunden und Pokale f\u00fcr die Challenge Teams",
             "link": "",
             "link_text": null,
             "activity_type": 6
@@ -409,7 +409,7 @@
             "name_preview": "Forschung",
             "sequence": 70,
             "first_program": 3,
-            "description": "Von den Juror:innen ausgew\u00e4hlte Forschungspr\u00e4sentationen werden noch einmal \u00f6ffentlich gezeigt. Eine Fragerunde gibt es dazu allerdings nicht",
+            "description": "Von den Juror:innen ausgew\u00e4hlte Forschungen werden noch einmal \u00f6ffentlich pr\u00e4sentiert. Eine Fragerunde gibt es nicht",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
             "link_text": null,
             "activity_type": 16
@@ -421,79 +421,79 @@
             "name_preview": "Preise",
             "sequence": 20,
             "first_program": null,
-            "description": "Auszeichnungen f\u00fcr die FIRST LEGO League Explore Teams und Pokale f\u00fcr die FIRST LEGO League Challenge Teams",
+            "description": "Medaillen und Urkunden f\u00fcr die Explore Teams und Medaillen, Urkunden und Pokale f\u00fcr die Challenge Teams",
             "link": "",
             "link_text": null,
             "activity_type": 13
         },
         {
             "id": 35,
-            "name": "Coach Briefing",
+            "name": "Coaches-Briefing",
             "code": "c_briefing",
             "name_preview": "Briefing",
             "sequence": 11,
             "first_program": 3,
-            "description": "Im Coach Briefing wird der Ablauf des Tages besprochen und offene Fragen beantwortet",
+            "description": "Beim Coaches-Briefing wird der Ablauf des Tages besprochen und offene Fragen beantwortet",
             "link": "",
             "link_text": null,
             "activity_type": 7
         },
         {
             "id": 36,
-            "name": "Jury Briefing",
+            "name": "Jury-Briefing",
             "code": "j_briefing",
             "name_preview": "Briefing",
             "sequence": 30,
             "first_program": 3,
-            "description": "Das Briefing f\u00fcr Juror:innen sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
+            "description": "Das Jury-Briefing sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
         },
         {
             "id": 37,
-            "name": "Schiedsrichter:innen Briefing",
+            "name": "Schiedsrichter:innen-Briefing",
             "code": "r_briefing",
             "name_preview": "Briefing",
             "sequence": 38,
             "first_program": 3,
-            "description": "Im Schiedsrichter:innen Briefing werden aktuelle Regel\u00e4nderungen besprochen und offene Fragen beantwortet",
+            "description": "Im Schiedsrichter:innen-Briefing werden aktuelle Regel\u00e4nderungen besprochen und offene Fragen beantwortet",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
         },
         {
             "id": 38,
-            "name": "Coach Briefing",
+            "name": "Coaches-Briefing",
             "code": "e_briefing_coach",
             "name_preview": "Briefing",
             "sequence": 15,
             "first_program": 2,
-            "description": "Im Coach Briefing wir der Ablauf des Tages besprochen und offene Fragen beantwortet",
+            "description": "Im Coaches-Briefing wir der Ablauf des Tages besprochen und offene Fragen beantwortet",
             "link": "",
             "link_text": null,
             "activity_type": 7
         },
         {
             "id": 39,
-            "name": "Gutachter:innen Briefing",
+            "name": "Gutachter:innen-Briefing",
             "code": "e_briefing_judge",
             "name_preview": "Briefing",
             "sequence": 21,
             "first_program": 2,
-            "description": "Das Briefing f\u00fcr Gutachter:innen sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
+            "description": "Das Gutachter:innen-Briefing sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
             "link": "",
             "link_text": null,
             "activity_type": 3
         },
         {
             "id": 40,
-            "name": "Live Challenge Jury Briefing",
+            "name": "Live Challenge Jury-Briefing",
             "code": "lc_briefing",
             "name_preview": "Briefing",
             "sequence": 90,
             "first_program": 3,
-            "description": "Im Briefing lernen die Live Challenge Juror:innen die Aufgabe und den zeitlichen Ablauf kennen",
+            "description": "Im Live Challenge Jury-Briefing lernen die Juror:innen die Aufgabe und den zeitlichen Ablauf kennen",
             "link": "",
             "link_text": null,
             "activity_type": 8
@@ -517,7 +517,7 @@
             "name_preview": "Mit Team",
             "sequence": 92,
             "first_program": 3,
-            "description": "Die Juror:innen erkl\u00e4ren die Aufgaben, Regeln und wie viel Zeit zur Verf\u00fcgung steht. Dann l\u00f6sen die Teams m\u00f6glichst viele Aufgaben der Live-Challenge",
+            "description": "Die Juror:innen erkl\u00e4ren die Aufgaben, Regeln und wie viel Zeit zur Verf\u00fcgung steht. Dann l\u00f6sen die Teams m\u00f6glichst viele Aufgaben der Live Challenge",
             "link": "",
             "link_text": null,
             "activity_type": 8
@@ -529,7 +529,7 @@
             "name_preview": "Ohne Team",
             "sequence": 93,
             "first_program": 3,
-            "description": "Nachdem die Teams den Raum verlassen haben, notieren die Juror:innen das Ergebnis",
+            "description": "Nachdem das Team den Raum verlassen hat, notieren die Juror:innen das Ergebnis",
             "link": "",
             "link_text": null,
             "activity_type": 8
@@ -560,12 +560,12 @@
         },
         {
             "id": 46,
-            "name": "Schiedsrichter:innen Debriefing",
+            "name": "Schiedsrichter:innen-Debriefing",
             "code": "r_debriefing",
             "name_preview": "Debrief",
             "sequence": 49,
             "first_program": 3,
-            "description": "Im Schiedsrichter:innen Debriefing besprechen die Schiedsrichter:innen die besonderen Erlebnisse des Tages und besprechen m\u00f6glicherweise Anpassungen f\u00fcr den n\u00e4chsten Tag",
+            "description": "Im Schiedsrichter:innen-Debriefing besprechen die Schiedsrichter:innen besondere Erlebnisse des Tages und besprechen m\u00f6gliche Anpassungen f\u00fcr den n\u00e4chsten Tag",
             "link": null,
             "link_text": null,
             "activity_type": 1
@@ -649,7 +649,7 @@
             "name_preview": "Er\u00f6ffnung Tag 1",
             "sequence": 97,
             "first_program": 3,
-            "description": "Kleine Er\u00f6ffnung vor Live-Challenge und Robot-Game-Testrunden",
+            "description": "Kleine Er\u00f6ffnung vor Live Challenge und Robot-Game Testrunden",
             "link": null,
             "link_text": null,
             "activity_type": 5
@@ -661,7 +661,7 @@
             "name_preview": "Briefing",
             "sequence": 98,
             "first_program": 3,
-            "description": "Das Briefing (an Tag 1) f\u00fcr Juror:innen sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
+            "description": "Das Jury-Briefing (an Tag 1) sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
@@ -673,7 +673,7 @@
             "name_preview": "Preise E",
             "sequence": 70,
             "first_program": 2,
-            "description": "Auszeichnungen f\u00fcr die FIRST LEGO League Explore Teams",
+            "description": "Medaillen und Urkunden f\u00fcr die Explore Teams",
             "link": null,
             "link_text": null,
             "activity_type": 11
@@ -685,7 +685,7 @@
             "name_preview": "Party T",
             "sequence": 100,
             "first_program": 3,
-            "description": "Musik und Tanz und Essen",
+            "description": "Musik, Tanz und Essen",
             "link": null,
             "link_text": null,
             "activity_type": 14
@@ -835,16 +835,6 @@
             "name": "Finale"
         }
     ],
-    "m_news": [
-        {
-            "id": 5,
-            "title": "Herzlich Willkommen zur Saison 2025\/2026 UNEARTHED",
-            "text": "FLOW wurde f\u00fcr diese Saison vollst\u00e4ndig \u00fcberarbeitet. Das System ist leistungsf\u00e4higer, \u00fcbersichtlicher und flexibler als im letzten Jahr.\n\nMit den Standard-Einstellungen entsteht sofort ein nutzbarer Plan \u2013 ideal f\u00fcr alle, die schnell starten wollen.\nWer tiefer einsteigen m\u00f6chte, findet jetzt noch mehr Optionen, um jeden Ablauf pr\u00e4zise anzupassen.\n\nViel Erfolg bei der Planung eurer Veranstaltung!",
-            "link": null,
-            "created_at": "2025-11-15 10:01:37",
-            "updated_at": "2025-11-15 10:01:37"
-        }
-    ],
     "m_parameter": [
         {
             "id": 2,
@@ -859,7 +849,7 @@
             "first_program": null,
             "sequence": 29,
             "ui_label": "Start gemeinsame Er\u00f6ffnung",
-            "ui_description": "Startzeit der gemeinsamen Er\u00f6ffnung f\u00fcr FLL Explore und FLL Challenge zusammen."
+            "ui_description": "Startzeit der gemeinsamen Er\u00f6ffnung f\u00fcr Explore und Challenge zusammen."
         },
         {
             "id": 3,
@@ -904,7 +894,7 @@
             "first_program": 2,
             "sequence": 35,
             "ui_label": "Start Er\u00f6ffnung (Explore - Gruppe 2)",
-            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr FLL Explore im Nachmittag"
+            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Explore im Nachmittag"
         },
         {
             "id": 6,
@@ -918,8 +908,8 @@
             "step": "1",
             "first_program": 2,
             "sequence": 16,
-            "ui_label": "FLL Explore Teams",
-            "ui_description": "Anzahl FLL Explore Teams"
+            "ui_label": "Explore Teams",
+            "ui_description": "Anzahl Explore Teams"
         },
         {
             "id": 7,
@@ -933,8 +923,8 @@
             "step": "1",
             "first_program": 2,
             "sequence": 17,
-            "ui_label": "FLL Explore Modus",
-            "ui_description": "Wenn FLL Explore zusammen mit FLL Challenge am selben Tag stattfindet, gibt es mehrere Varianten, wie das im Ablauf integriert wird."
+            "ui_label": "Explore Modus",
+            "ui_description": "Wenn Explore zusammen mit Challenge am selben Tag stattfindet, gibt es mehrere Varianten, wie das im Ablauf integriert wird."
         },
         {
             "id": 8,
@@ -1084,7 +1074,7 @@
             "first_program": 2,
             "sequence": 58,
             "ui_label": "Dauer Gutachter:innen-Beratung (Vormittag)",
-            "ui_description": "Dauer der FLL Explore Gutachter:innen-Beratung"
+            "ui_description": "Dauer der Explore Gutachter:innen-Beratung"
         },
         {
             "id": 18,
@@ -1114,7 +1104,7 @@
             "first_program": 2,
             "sequence": 34,
             "ui_label": "Dauer Preisverleihung (Explore - Gruppe 1)",
-            "ui_description": "Dauer der FLL Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. F\u00fcr die Kinder ist k\u00fcrzer besser."
+            "ui_description": "Dauer der Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. F\u00fcr die Kinder ist k\u00fcrzer besser."
         },
         {
             "id": 20,
@@ -1158,8 +1148,8 @@
             "step": "1",
             "first_program": 3,
             "sequence": 23,
-            "ui_label": "FLL Challenge Teams",
-            "ui_description": "Anzahl FLL Challenge Teams"
+            "ui_label": "Challenge Teams",
+            "ui_description": "Anzahl Challenge Teams"
         },
         {
             "id": 23,
@@ -1189,7 +1179,7 @@
             "first_program": 3,
             "sequence": 25,
             "ui_label": "Robot-Game-Tische",
-            "ui_description": "Anzahl Tische im Robot-Game. Die Auswahl wird passend zur Anzahl Team und Jury-Spuren angeboten. Vier Tische f\u00fcr zu k\u00fcrzen Robot-Game-Runden. Das kann gut sein, aber auch zu Leerlauf f\u00fcr Teams und Besucher f\u00fchren. Ausserdem brauchen vier Tische mehr Platz, Material und Schiedsrichter."
+            "ui_description": "Anzahl Tische im Robot-Game. Die Auswahl wird passend zur Anzahl Team und Jury-Spuren angeboten. Vier Tische f\u00fchren zu k\u00fcrzeren Robot-Game-Runden. Das kann gut sein, aber auch zu Leerlauf f\u00fcr Teams und Besucher f\u00fchren. Ausserdem brauchen vier Tische mehr Platz, Material und Schiedsrichter:innen."
         },
         {
             "id": 25,
@@ -1233,8 +1223,8 @@
             "step": "5",
             "first_program": 3,
             "sequence": 65,
-            "ui_label": "Dauer SR-Briefing",
-            "ui_description": "Das Briefing findet vor dem ersten Robot-Game statt. Darin sollen aktuelle Regel-\u00c4nderungen, die Einteilung zu den Robot-Game-Tischen und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker zu diesem Briefing dazu."
+            "ui_label": "Dauer Schiedsrichter:innen-Briefing",
+            "ui_description": "Das Briefing findet vor dem ersten Robot-Game statt. Darin sollen aktuelle Regel-\u00c4nderungen, die Einteilung zu den Robot-Game-Tischen und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker:innen zu diesem Briefing dazu."
         },
         {
             "id": 28,
@@ -1309,7 +1299,7 @@
             "first_program": 3,
             "sequence": 73,
             "ui_label": "Dauer Mittagspause Juror:innen",
-            "ui_description": "Dauer der Mittagspause f\u00fcr FLL Challenge Juror:innen"
+            "ui_description": "Dauer der Mittagspause f\u00fcr Challenge Juror:innen"
         },
         {
             "id": 33,
@@ -1369,7 +1359,7 @@
             "first_program": 3,
             "sequence": 75,
             "ui_label": "Dauer Juror:innen Beratung",
-            "ui_description": "Dauer der FLL Challenge Juror:innen-Beratung"
+            "ui_description": "Dauer der Challenge Jury-Beratung"
         },
         {
             "id": 37,
@@ -1444,7 +1434,7 @@
             "first_program": 3,
             "sequence": 28,
             "ui_label": "Dauer Preisverleihung (Challenge)",
-            "ui_description": "Dauer der FLL Challenge Preisverleihung. 45 Minuten sind sicher ausreichend f\u00fcr bis zu 12 Teams. F\u00fcr mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe l\u00e4nger dauert. Au\u00dferdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Ablauf l\u00e4nger dauert."
+            "ui_description": "Dauer der Challenge Preisverleihung. 45 Minuten sind sicher ausreichend f\u00fcr bis zu 12 Teams. F\u00fcr mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe l\u00e4nger dauert. Au\u00dferdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Ablauf l\u00e4nger dauert."
         },
         {
             "id": 42,
@@ -1609,7 +1599,7 @@
             "first_program": 3,
             "sequence": 45,
             "ui_label": "Dauer Schiedsrichter:innen-Debrief Tag 1",
-            "ui_description": "Dauer des Debrief der Schiedsrichter nach dem letzten Robotgames des Tages"
+            "ui_description": "Dauer des Debrief der Schiedsrichter:innen nach dem letzten Robot-Games des Tages"
         },
         {
             "id": 85,
@@ -1623,8 +1613,8 @@
             "step": "5",
             "first_program": 3,
             "sequence": 40,
-            "ui_label": "LC Dauer Juror:innen-Briefing ",
-            "ui_description": "Dauer des LC-Briefings"
+            "ui_label": "Live Challenge Dauer Juror:innen-Briefing ",
+            "ui_description": "Dauer des Live Challenge-Briefings"
         },
         {
             "id": 86,
@@ -1653,7 +1643,7 @@
             "step": null,
             "first_program": 3,
             "sequence": 13,
-            "ui_label": "LC Dauer mit Team",
+            "ui_label": "Live Challenge Dauer mit Team",
             "ui_description": "Dauer pro Team"
         },
         {
@@ -1668,7 +1658,7 @@
             "step": null,
             "first_program": 3,
             "sequence": 14,
-            "ui_label": "LC Dauer ohne Team",
+            "ui_label": "Live Challenge Dauer ohne Team",
             "ui_description": "Dauer Besprechung nachdem das Team den Raum verlassen hat"
         },
         {
@@ -1683,7 +1673,7 @@
             "step": "5",
             "first_program": 3,
             "sequence": 15,
-            "ui_label": "LC Dauer kleine Pause Juror:innen",
+            "ui_label": "Live Challenge Dauer kleine Pause Juror:innen",
             "ui_description": "Dauer Pause zwischen zwei Teams"
         },
         {
@@ -1698,7 +1688,7 @@
             "step": "5",
             "first_program": 3,
             "sequence": 43,
-            "ui_label": "LC Wechsel zur Auswertung",
+            "ui_label": "Live Challenge Wechsel zur Auswertung",
             "ui_description": "Dauer des Wechsel von letztem Team zur Auswertung"
         },
         {
@@ -1713,7 +1703,7 @@
             "step": "5",
             "first_program": 3,
             "sequence": 44,
-            "ui_label": "LC Dauer Auswertung",
+            "ui_label": "Live Challenge Dauer Auswertung",
             "ui_description": "Dauer der LC-Auswertung"
         },
         {
@@ -1743,8 +1733,8 @@
             "step": "5",
             "first_program": 2,
             "sequence": 32,
-            "ui_label": "Start Er\u00f6ffnung (Explore - Gruppe 1)",
-            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr FLL Explore im Vormittag."
+            "ui_label": "Start Er\u00f6ffnung (Explore-Gruppe 1)",
+            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Explore im Vormittag."
         },
         {
             "id": 95,
@@ -1774,7 +1764,7 @@
             "first_program": 3,
             "sequence": 26,
             "ui_label": "Start Er\u00f6ffnung (Challenge)",
-            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr FLL Challenge."
+            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Challenge."
         },
         {
             "id": 97,
@@ -1789,7 +1779,7 @@
             "first_program": null,
             "sequence": 31,
             "ui_label": "Dauer gemeinsame Preisverleihung",
-            "ui_description": "Dauer der gemeinsamen Preisverleihung f\u00fcr FLL Explore und FLL Challenge zusammen."
+            "ui_description": "Dauer der gemeinsamen Preisverleihung f\u00fcr Explore und Challenge."
         },
         {
             "id": 99,
@@ -1863,7 +1853,7 @@
             "step": "5",
             "first_program": 3,
             "sequence": 70,
-            "ui_label": "Wechsel zum Juror:innen-Briefing",
+            "ui_label": "Wechsel zum Jury-Briefing",
             "ui_description": "Zeit um nach der Er\u00f6ffnung zum Jury-Briefung zu kommen."
         },
         {
@@ -1893,7 +1883,7 @@
             "step": null,
             "first_program": 3,
             "sequence": 69,
-            "ui_label": "Juror:innen-Briefing nach Er\u00f6ffnung",
+            "ui_label": "Jury-Briefing nach Er\u00f6ffnung",
             "ui_description": "Soll das Jury-Briefing erst nach der Er\u00f6ffnung stattfinden?"
         },
         {
@@ -1909,7 +1899,7 @@
             "first_program": 2,
             "sequence": 53,
             "ui_label": "Gutachter:innen-Briefing nach Er\u00f6ffnung",
-            "ui_description": "Soll das Guracher:innen-Briefing erst nach der Er\u00f6ffnung stattfinden?"
+            "ui_description": "Soll das Gutachter:innen-Briefing erst nach der Er\u00f6ffnung stattfinden?"
         },
         {
             "id": 108,
@@ -1953,8 +1943,8 @@
             "step": "5",
             "first_program": 2,
             "sequence": 37,
-            "ui_label": "Dauer Preisverleihung (Explore - Gruppe 2)",
-            "ui_description": "Dauer der FLL Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. F\u00fcr die Kinder ist k\u00fcrzer besser."
+            "ui_label": "Dauer Preisverleihung (Explore-Gruppe 2)",
+            "ui_description": "Dauer der Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. F\u00fcr die Kinder ist k\u00fcrzer besser."
         },
         {
             "id": 111,
@@ -1968,8 +1958,8 @@
             "step": "1",
             "first_program": 2,
             "sequence": 18,
-            "ui_label": "FLL Expore Teams - Gruppe 1",
-            "ui_description": "Anzahl FLL Explore Teams im Vormittag"
+            "ui_label": "Explore Teams-Gruppe 1",
+            "ui_description": "Anzahl Explore Teams im Vormittag"
         },
         {
             "id": 112,
@@ -1983,8 +1973,8 @@
             "step": "1",
             "first_program": 2,
             "sequence": 20,
-            "ui_label": "FLL Explore Teams - Gruppe 2",
-            "ui_description": "Anzahl FLL Explore Teams im Nachmittag"
+            "ui_label": "Explore Teams-Gruppe 2",
+            "ui_description": "Anzahl Explore Teams im Nachmittag"
         },
         {
             "id": 113,
@@ -2029,7 +2019,7 @@
             "first_program": 2,
             "sequence": 59,
             "ui_label": "Dauer Gutachter:innen-Beratung (Nachmittag)",
-            "ui_description": "Dauer der FLL Explore Gutachter:innen-Beratung"
+            "ui_description": "Dauer der Explore Gutachter:innen-Beratung"
         },
         {
             "id": 116,
@@ -2133,8 +2123,8 @@
             "step": "1",
             "first_program": 3,
             "sequence": 22,
-            "ui_label": "FLL Explore Modus",
-            "ui_description": "Findet FLL Challenge statt oder nicht?"
+            "ui_label": "Challenge Modus",
+            "ui_description": "Findet Challenge statt oder nicht?"
         },
         {
             "id": 123,
@@ -2280,7 +2270,7 @@
             "name_short": null,
             "sequence": 8,
             "first_program": 3,
-            "description": "K\u00fcmmert sich um alles, was FLL Challenge ist :-)",
+            "description": "K\u00fcmmert sich um alles, was Challenge ist",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -2293,7 +2283,7 @@
             "name_short": null,
             "sequence": 2,
             "first_program": null,
-            "description": "Moderator f\u00fcr Er\u00f6ffnung, Robot-Game und Preisverleihung",
+            "description": "Moderiert f\u00fcr Explore und Challenge",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -2306,7 +2296,7 @@
             "name_short": "C T",
             "sequence": 2,
             "first_program": 3,
-            "description": "Nehmen als FLL Challenge Team teil",
+            "description": "Nimmt als Challenge Team teil",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"c_teams\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "team",
@@ -2315,11 +2305,11 @@
         },
         {
             "id": 4,
-            "name": "Jury",
+            "name": "Juror:in",
             "name_short": "C J",
             "sequence": 3,
             "first_program": 3,
-            "description": "Bewerten die FLL Challenge Teams",
+            "description": "Bewertet die Challenge Teams",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"j_lanes\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "lane",
@@ -2332,7 +2322,7 @@
             "name_short": "RG T",
             "sequence": 5,
             "first_program": 3,
-            "description": "K\u00fcmmern sich um das Robot-Game der FLL Challenge Teams",
+            "description": "K\u00fcmmert sich um das Robot-Game der Challenge Teams",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
@@ -2345,7 +2335,7 @@
             "name_short": null,
             "sequence": 1,
             "first_program": 3,
-            "description": "Interessiert sich f\u00fcr FLL Challenge, macht aber nicht selber mit",
+            "description": "Interessiert sich f\u00fcr Challenge, macht aber nicht selber mit",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -2358,7 +2348,7 @@
             "name_short": null,
             "sequence": 5,
             "first_program": 2,
-            "description": "K\u00fcmmert sich um alles, was FLL Explore ist :-)",
+            "description": "K\u00fcmmert sich um alles, was Explore ist",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -2371,7 +2361,7 @@
             "name_short": "E T",
             "sequence": 2,
             "first_program": 2,
-            "description": "Nehmen als FLL Explore Team teil",
+            "description": "Nimmt als Explore Team teil",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"e_teams\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "team",
@@ -2384,7 +2374,7 @@
             "name_short": "E G",
             "sequence": 3,
             "first_program": 2,
-            "description": "Begutachten die FLL ExploreTeams",
+            "description": "Begutachtet und bewertet die Explore Teams",
             "differentiation_type": "number",
             "differentiation_source": "select sum(set_value) from plan_param_value as ppv join m_parameter on ppv.parameter=m_parameter.id where (m_parameter.name=\"e1_lanes\" or m_parameter.name=\"e2_lanes\") and ppv.plan=[plan]",
             "differentiation_parameter": "lane",
@@ -2397,7 +2387,7 @@
             "name_short": null,
             "sequence": 1,
             "first_program": 2,
-            "description": "Interessiert sich f\u00fcr FLL Explore, macht aber nicht selber mit",
+            "description": "Interessiert sich f\u00fcr Explore, macht aber nicht selber mit",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -2410,7 +2400,7 @@
             "name_short": "RC T",
             "sequence": 4,
             "first_program": 3,
-            "description": "Schaut genau hin",
+            "description": "\u00dcberpr\u00fcft die Roboter und stellt sicher, dass sie regelkonform sind",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
@@ -2449,7 +2439,7 @@
             "name_short": null,
             "sequence": 1,
             "first_program": null,
-            "description": "Besucher f\u00fcr alle Programme",
+            "description": "Besucher f\u00fcr alle Angebote",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -2471,11 +2461,11 @@
         },
         {
             "id": 16,
-            "name": "Live-Challenge-Jury",
+            "name": "Live Challenge-Juror:in",
             "name_short": "LC J",
             "sequence": 6,
             "first_program": 3,
-            "description": "Leiten die Live-Challenge",
+            "description": "Leitet die Live Challenge",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"j_lanes\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "lane",
@@ -2634,7 +2624,7 @@
         {
             "id": 15,
             "code": "j_briefing",
-            "name": "Jury Briefing",
+            "name": "Jury-Briefing",
             "sequence": 410,
             "room_type_group": 1,
             "level": 1,
@@ -2643,7 +2633,7 @@
         {
             "id": 16,
             "code": "e_briefing_judge",
-            "name": "Gutachter:innen Briefing",
+            "name": "Gutachter:innen-Briefing",
             "sequence": 310,
             "room_type_group": 1,
             "level": 1,
@@ -2652,7 +2642,7 @@
         {
             "id": 17,
             "code": "c_briefing",
-            "name": "Challenge Coach Briefing",
+            "name": "Challenge Coaches-Briefing",
             "sequence": 409,
             "room_type_group": 1,
             "level": 1,
@@ -2661,7 +2651,7 @@
         {
             "id": 18,
             "code": "e_briefing_coach",
-            "name": "Explore Coach Briefing",
+            "name": "Explore Coaches-Briefing",
             "sequence": 309,
             "room_type_group": 1,
             "level": 1,
@@ -2751,7 +2741,7 @@
         {
             "id": 31,
             "code": "lc_briefing",
-            "name": "LC Briefing",
+            "name": "Live Challenge Jury-Briefing",
             "sequence": 210,
             "room_type_group": 1,
             "level": 3,
@@ -2769,7 +2759,7 @@
         {
             "id": 34,
             "code": "j_briefing_day_1",
-            "name": "Jury Briefing Tag 1",
+            "name": "Jury-Briefing Tag 1",
             "sequence": 409,
             "room_type_group": 1,
             "level": 3,
@@ -2778,7 +2768,7 @@
         {
             "id": 35,
             "code": "j_deliberations",
-            "name": "Jury Beratung",
+            "name": "Jury-Beratung",
             "sequence": 420,
             "room_type_group": 1,
             "level": 1,
@@ -2787,7 +2777,7 @@
         {
             "id": 36,
             "code": "e_deliberations",
-            "name": "Gutachter:innen Beratung",
+            "name": "Gutachter:innen-Beratung",
             "sequence": 320,
             "room_type_group": 1,
             "level": 1,
@@ -2796,7 +2786,7 @@
         {
             "id": 37,
             "code": "r_briefing",
-            "name": "Schiedsrichter:Innen Briefing",
+            "name": "Schiedsrichter:innen-Briefing",
             "sequence": 440,
             "room_type_group": 1,
             "level": 1,
@@ -2850,7 +2840,7 @@
         {
             "id": 49,
             "code": "lc_deliberations",
-            "name": "LC Beratung",
+            "name": "Live Challenge-Auswertung",
             "sequence": 220,
             "room_type_group": 1,
             "level": 3,
@@ -2926,11 +2916,6 @@
             "id": 3,
             "name": "FLL Challenge",
             "sequence": 3
-        },
-        {
-            "id": 4,
-            "name": "X",
-            "sequence": null
         },
         {
             "id": 5,
@@ -6315,14 +6300,13 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2025-12-08T13:31:27.685411Z",
+        "exported_at": "2025-12-10T09:18:15.514184Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
             "m_first_program",
             "m_insert_point",
             "m_level",
-            "m_news",
             "m_parameter",
             "m_parameter_condition",
             "m_role",
