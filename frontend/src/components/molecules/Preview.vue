@@ -255,6 +255,7 @@ function formatTeam(teamNum: number | null): string {
           @click="setView('activities')"
         >Aktivitäten</button>
         <button
+          v-if="hasChallenge"
           class="px-3 py-1 text-sm border-l"
           :class="view === 'quality' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
           @click="setView('quality')"

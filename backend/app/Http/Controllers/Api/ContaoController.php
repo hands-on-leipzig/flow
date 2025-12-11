@@ -36,21 +36,7 @@ class ContaoController extends Controller
                 ->exists();
 
             if (!$tournamentExists) {
-                // does the tournament exist by id?
-                $tournamentIdExists = DB::connection('contao')
-                    ->table('hot_tournament')
-                    ->where('id', $tournamentId)
-                    ->exists();
-
-                if ($tournamentIdExists) {
-                    $t = DB::connection('contao')->table('hot_tournament')
-                        ->where('id', $tournamentId)
-                        ->first();
-                    $tournamentId = $t->id;
-                    Log::warning("Contao tournament with id {$tournamentId} exists, but no region matches for event {$eventId}. Possible misconfiguration.");
-                } else {
-                    return response()->json(['error' => "No tournament found for region {$tournamentId} for event {$eventId} in Contao database"], 404);
-                }
+                return response()->json(['error' => "No tournament found for region {$tournamentId} for event {$eventId} in Contao database"], 404);
             }
 
             $roundShowSetting = $this->getRoundsToShow($eventId, $tournamentId);
@@ -103,7 +89,7 @@ class ContaoController extends Controller
 
         } catch (Exception $e) {
             Log::error('Contao getScore error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to retrieve scores from Contao. ' . $e->getMessage() . ', L:' . $e->getLine()], 500);
+            return response()->json(['error' => 'Failed to retrieve scores from Contao.'], 500);
         }
     }
 

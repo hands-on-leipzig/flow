@@ -360,26 +360,54 @@ class StatisticController extends Controller
                 ->count('event.regional_partner');
 
             // --- Events: total & Plan-Verteilung & ungültige RP-Refs ---
-            $eventsTotal = DB::table('event')
+            $today = Carbon::today()->format('Y-m-d');
+            
+            // Events total - split by past (including today) and future
+            $eventsPast = DB::table('event')
                 ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
                 ->where('event.season', $sid)
                 ->where('regional_partner.name', 'not like', '%QPlan RP%')
+                ->where('event.date', '<=', $today)
                 ->count('event.id');
+            
+            $eventsFuture = DB::table('event')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+                ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
+                ->where('event.date', '>', $today)
+                ->count('event.id');
+            
+            $eventsTotal = $eventsPast + $eventsFuture;
 
-            // Events je Plan-Anzahl (0/1/mehr)
-            $eventPlanCounts = DB::table('event')
+            // Events je Plan-Anzahl (0/1/mehr) - split by past and future
+            $eventPlanCountsPast = DB::table('event')
                 ->leftJoin('plan', 'plan.event', '=', 'event.id')
                 ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
                 ->where('event.season', $sid)
                 ->where('regional_partner.name', 'not like', '%QPlan RP%')
+                ->where('event.date', '<=', $today)
+                ->groupBy('event.id')
+                ->selectRaw('event.id, COUNT(plan.id) as plan_count')
+                ->pluck('plan_count');
+            
+            $eventPlanCountsFuture = DB::table('event')
+                ->leftJoin('plan', 'plan.event', '=', 'event.id')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+                ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
+                ->where('event.date', '>', $today)
                 ->groupBy('event.id')
                 ->selectRaw('event.id, COUNT(plan.id) as plan_count')
                 ->pluck('plan_count');
 
-            $withZeroPlans      = $eventPlanCounts->filter(fn ($c) => $c == 0)->count();
-            $withOnePlan        = $eventPlanCounts->filter(fn ($c) => $c == 1)->count();
-            $withMultiplePlans  = $eventPlanCounts->filter(fn ($c) => $c > 1)->count();
+            $withZeroPlans      = $eventPlanCountsPast->filter(fn ($c) => $c == 0)->count() + $eventPlanCountsFuture->filter(fn ($c) => $c == 0)->count();
+            $withOnePlan        = $eventPlanCountsPast->filter(fn ($c) => $c == 1)->count() + $eventPlanCountsFuture->filter(fn ($c) => $c == 1)->count();
+            $withMultiplePlans  = $eventPlanCountsPast->filter(fn ($c) => $c > 1)->count() + $eventPlanCountsFuture->filter(fn ($c) => $c > 1)->count();
             $withPlan = $withOnePlan + $withMultiplePlans;
+            
+            // Events with plan - split by past and future
+            $withPlanPast = $eventPlanCountsPast->filter(fn ($c) => $c > 0)->count();
+            $withPlanFuture = $eventPlanCountsFuture->filter(fn ($c) => $c > 0)->count();
 
             // Events mit ungültigem RP (Left Join → RP fehlt)
             $invalidEventRp = DB::table('event')
@@ -425,10 +453,14 @@ class StatisticController extends Controller
                 ],
                 'events' => [
                     'total'                => $eventsTotal,
+                    'past'                  => $eventsPast,
+                    'future'                => $eventsFuture,
                     'with_zero_plans'      => $withZeroPlans,
                     'with_one_plan'        => $withOnePlan,
                     'with_multiple_plans'  => $withMultiplePlans,
                     'with_plan'            => $withPlan,
+                    'with_plan_past'       => $withPlanPast,
+                    'with_plan_future'     => $withPlanFuture,
                     'invalid_partner_refs' => $invalidEventRp,
                 ],
                 'plans' => [
