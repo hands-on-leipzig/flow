@@ -69,6 +69,15 @@ Route::middleware(['keycloak'])->group(function () {
     });
     
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
+    Route::get('/user/regional-partners', function (Request $request) {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['regional_partners' => []]);
+        }
+        
+        $regionalPartners = $user->regionalPartners()->get(['id', 'name', 'region']);
+        return response()->json(['regional_partners' => $regionalPartners]);
+    });
     Route::get('/user/selected-event', function (Request $request) {
         $eventId = $request->user()?->selection_event;
         if (!$eventId) {
