@@ -21,6 +21,8 @@ const copySuccessMessage = ref('')
 const qrCodeRef = ref(null)
 const mapMenuButton = ref(null)
 const menuPosition = ref({top: '0px', left: '0px'})
+const usedAddress = ref(null) // Track which address format was used for the map
+const fullAddress = ref(null) // Store the full address
 
 // Check if device is Apple (iOS/macOS)
 const isAppleDevice = ref(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent))
@@ -288,6 +290,58 @@ const goHome = () => {
   router.push('/')
 }
 
+// Extract German address format (street + PLZ + city)
+// German addresses typically have format: Street, PLZ City
+const extractGermanAddress = (address) => {
+  if (!address) return null
+  
+  // Split by newlines
+  const lines = address.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+  
+  if (lines.length === 0) return null
+  
+  // Try to find street and PLZ+City
+  // PLZ is typically 5 digits, followed by city name
+  const plzPattern = /\b\d{5}\b/
+  
+  let street = null
+  let plzCity = null
+  
+  // Look for PLZ pattern in each line
+  for (let i = 0; i < lines.length; i++) {
+    if (plzPattern.test(lines[i])) {
+      plzCity = lines[i]
+      // Street is usually the line before PLZ+City, or the first line
+      if (i > 0) {
+        street = lines[i - 1]
+      } else if (lines.length > 1) {
+        street = lines[0]
+      }
+      break
+    }
+  }
+  
+  // If we found both, combine them
+  if (street && plzCity) {
+    return `${street}, ${plzCity}`
+  }
+  
+  // Fallback: try to extract from last two lines (common format)
+  if (lines.length >= 2) {
+    const lastLine = lines[lines.length - 1]
+    if (plzPattern.test(lastLine)) {
+      return `${lines[lines.length - 2]}, ${lastLine}`
+    }
+  }
+  
+  // Last resort: return last line if it has PLZ
+  if (lines.length > 0 && plzPattern.test(lines[lines.length - 1])) {
+    return lines[lines.length - 1]
+  }
+  
+  return null
+}
+
 // Geocode address using backend API (proxies to OpenStreetMap Nominatim API)
 const geocodeAddress = async (address) => {
   if (!address) return null
@@ -344,10 +398,32 @@ const initializeMap = async (address) => {
 const createMap = async (address) => {
   if (!window.L) return
 
-  // Geocode address
-  const coords = await geocodeAddress(address)
-  if (!coords) return
+  // Store full address
+  fullAddress.value = address
 
+  // Try geocoding with full address first
+  let coords = await geocodeAddress(address)
+  let addressUsed = address
+
+  // If full address fails, try with stripped German address
+  if (!coords) {
+    const strippedAddress = extractGermanAddress(address)
+    if (strippedAddress && strippedAddress !== address) {
+      console.log('Full address failed, trying stripped address:', strippedAddress)
+      coords = await geocodeAddress(strippedAddress)
+      if (coords) {
+        addressUsed = strippedAddress
+      }
+    }
+  }
+
+  if (!coords) {
+    console.error('Failed to geocode address after retries')
+    return
+  }
+
+  // Track which address was used
+  usedAddress.value = addressUsed
   mapCoordinates.value = coords
 
   // Wait for DOM to be ready
@@ -367,10 +443,10 @@ const createMap = async (address) => {
     maxZoom: 19
   }).addTo(map)
 
-  // Add marker
+  // Add marker with the address that was actually used
   window.L.marker([coords.lat, coords.lon])
       .addTo(map)
-      .bindPopup(address)
+      .bindPopup(fullAddress.value) // Show full address in popup
       .openPopup()
 }
 
@@ -807,7 +883,13 @@ onBeforeUnmount(() => {
               Datum & Ort
             </h3>
             <p class="text-gray-800 font-medium text-base md:text-lg">{{ formatDateOnly(scheduleInfo.date) }}</p>
-            <div v-if="!mapCoordinates && scheduleInfo.address"
+            <!-- Show full address above map if using stripped address -->
+            <div v-if="mapCoordinates && usedAddress && fullAddress && usedAddress !== fullAddress"
+                 class="mt-3 text-sm text-gray-700 whitespace-pre-line bg-white rounded-lg p-3 border border-[#F78B1F]/20">
+              {{ fullAddress }}
+            </div>
+            <!-- Show address while loading or if map failed -->
+            <div v-else-if="!mapCoordinates && scheduleInfo.address"
                  class="mt-3 text-sm text-gray-700 whitespace-pre-line bg-white rounded-lg p-3 border border-[#F78B1F]/20">
               {{ scheduleInfo.address }}
             </div>
