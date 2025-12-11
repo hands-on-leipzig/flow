@@ -8,6 +8,7 @@ import axios from 'axios'
 import dayjs from 'dayjs'
 import { imageUrl } from '@/utils/images'
 import keycloak from '@/keycloak.js'
+import HelpModal from '@/components/atoms/HelpModal.vue'
 
 const eventStore = useEventStore()
 const { isAdmin, initializeUserRoles } = useAuth()
@@ -103,6 +104,17 @@ function hasWarning(tabPath: string): boolean {
   }
 }
 
+// --- Help Modal State ---
+const showHelpModal = ref(false)
+
+function openHelpModal() {
+  showHelpModal.value = true
+}
+
+function closeHelpModal() {
+  showHelpModal.value = false
+}
+
 // --- UI Navigation ---
 const selectedTab = ref('Schedule')
 
@@ -174,6 +186,14 @@ function logout() {
         <div class="py-1">
           <MenuItem>
             <button
+                @click="openHelpModal"
+                class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left whitespace-nowrap w-full"
+            >
+              Hilfe
+            </button>
+          </MenuItem>
+          <MenuItem>
+            <button
                 @click="router.push({ path: '/events' })"
                 class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left whitespace-nowrap"
             >
@@ -191,6 +211,8 @@ function logout() {
         </div>
       </MenuItems>
     </Menu>
+    <!-- Help Modal -->
+    <HelpModal :show="showHelpModal" @close="closeHelpModal" />
   </div>
 </template>
 
