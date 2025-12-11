@@ -872,7 +872,7 @@ onBeforeUnmount(() => {
 
       <!-- Level 1: Basic Event Information -->
       <div v-if="isContentVisible(1) && scheduleInfo"
-           class="mt-6 md:mt-8 bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border-2 border-[#F78B1F] p-4 md:p-8 transform hover:shadow-2xl transition-shadow">
+           class="mt-6 md:mt-8 bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border-2 border-[#F78B1F] p-4 md:p-8">
         <h2 class="text-xl md:text-2xl font-bold text-[#F78B1F] mb-4 md:mb-6 flex items-center gap-2">
           Allgemeine Infos
         </h2>
