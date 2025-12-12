@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import { useAuth } from '@/composables/useAuth'
-import { imageUrl } from '@/utils/images'
+import { imageUrl, programLogoSrc, programLogoAlt } from '@/utils/images'
 import { formatTimeOnly, formatDateOnly } from '@/utils/dateTimeFormat'
 import SavingToast from "@/components/atoms/SavingToast.vue";
 
@@ -286,29 +286,39 @@ async function regenerateLinkAndQR() {
                     <div class="font-semibold mb-1">Angemeldete Teams</div>
                     <div v-if="scheduleInfo.teams" class="text-xs">
                       <div v-if="scheduleInfo.teams.explore" class="mb-4">
-                        <div class="font-medium mb-2 text-sm">
-                          FIRST LEGO League Explore
-                          <span class="text-gray-600 text-xs font-normal ml-2">
-                            {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet
-                          </span>
+                        <div class="font-medium mb-1 text-sm flex items-center gap-2">
+                          <img
+                            :src="programLogoSrc('E')"
+                            :alt="programLogoAlt('E')"
+                            class="w-5 h-5 flex-shrink-0"
+                          />
+                          <span class="italic">FIRST</span> LEGO League Explore
+                        </div>
+                        <div class="text-gray-600 text-xs font-normal mb-2 pl-7">
+                          {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet
                         </div>
                         <div v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0" class="text-gray-600 pl-2 text-xs">
-                          <div v-for="(team, teamIdx) in scheduleInfo.teams.explore.list" :key="teamIdx" class="mb-0.5">
-                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span>
-                          </div>
+                          <span v-for="(team, teamIdx) in scheduleInfo.teams.explore.list" :key="teamIdx">
+                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span><span v-if="teamIdx < scheduleInfo.teams.explore.list.length - 1">, </span>
+                          </span>
                         </div>
                       </div>
                       <div v-if="scheduleInfo.teams.challenge">
-                        <div class="font-medium mb-2 text-sm">
-                          FIRST LEGO League Challenge
-                          <span class="text-gray-600 text-xs font-normal ml-2">
-                            {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet
-                          </span>
+                        <div class="font-medium mb-1 text-sm flex items-center gap-2">
+                          <img
+                            :src="programLogoSrc('C')"
+                            :alt="programLogoAlt('C')"
+                            class="w-5 h-5 flex-shrink-0"
+                          />
+                          <span class="italic">FIRST</span> LEGO League Challenge
+                        </div>
+                        <div class="text-gray-600 text-xs font-normal mb-2 pl-7">
+                          {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet
                         </div>
                         <div v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0" class="text-gray-600 pl-2 text-xs">
-                          <div v-for="(team, teamIdx) in scheduleInfo.teams.challenge.list" :key="teamIdx" class="mb-0.5">
-                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span>
-                          </div>
+                          <span v-for="(team, teamIdx) in scheduleInfo.teams.challenge.list" :key="teamIdx">
+                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span><span v-if="teamIdx < scheduleInfo.teams.challenge.list.length - 1">, </span>
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -323,7 +333,14 @@ async function regenerateLinkAndQR() {
                 
                 <!-- Explore Section - Loop through times array from backend -->
                 <div v-if="scheduleInfo.plan?.explore && Array.isArray(scheduleInfo.plan.explore) && scheduleInfo.plan.explore.length > 0" class="mb-4">
-                  <div class="font-medium mb-2">FIRST LEGO League Explore</div>
+                  <div class="font-medium mb-2 flex items-center gap-2">
+                    <img
+                      :src="programLogoSrc('E')"
+                      :alt="programLogoAlt('E')"
+                      class="w-5 h-5 flex-shrink-0"
+                    />
+                    <span class="italic">FIRST</span> LEGO League Explore
+                  </div>
                   <div class="space-y-1 text-xs">
                     <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore" :key="timeIdx" class="flex justify-between">
                       <span class="text-gray-600">{{ timeEntry.label }}</span>
@@ -334,7 +351,14 @@ async function regenerateLinkAndQR() {
 
                 <!-- Challenge Section - Loop through times array from backend -->
                 <div v-if="scheduleInfo.plan?.challenge && Array.isArray(scheduleInfo.plan.challenge) && scheduleInfo.plan.challenge.length > 0">
-                  <div class="font-medium mb-2">FIRST LEGO League Challenge</div>
+                  <div class="font-medium mb-2 flex items-center gap-2">
+                    <img
+                      :src="programLogoSrc('C')"
+                      :alt="programLogoAlt('C')"
+                      class="w-5 h-5 flex-shrink-0"
+                    />
+                    <span class="italic">FIRST</span> LEGO League Challenge
+                  </div>
                   <div class="space-y-1 text-xs">
                     <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.challenge" :key="timeIdx" class="flex justify-between">
                       <span class="text-gray-600">{{ timeEntry.label }}</span>

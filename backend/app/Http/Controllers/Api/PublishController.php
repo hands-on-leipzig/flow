@@ -329,14 +329,13 @@ class PublishController extends Controller
                     'registered' => count($drahtData['teams_explore'] ?? []),
                     'color_hex' => $exploreColor,
                     'list' => $level >= 1 ? array_map(function ($team) {
-                        Log::info($team);
                         return [
                             'team_number_hot' => $team['ref'] ?? null,
                             'name' => $team['name'] ?? '',
                             'organization' => $team['organization'] ?? '',
                             'location' => $team['location'] ?? ''
                         ];
-                    }, $drahtData['teams_explore'] ?? []) : [],
+                    }, array_values($drahtData['teams_explore'] ?? [])) : [],
                 ],
                 'challenge' => [
                     'capacity' => $drahtData['capacity_challenge'] ?? 0,
@@ -349,7 +348,7 @@ class PublishController extends Controller
                             'organization' => $team['organization'] ?? '',
                             'location' => $team['location'] ?? ''
                         ];
-                    }, $drahtData['teams_challenge'] ?? []) : [],
+                    }, array_values($drahtData['teams_challenge'] ?? [])) : [],
                 ],
             ],
         ];
