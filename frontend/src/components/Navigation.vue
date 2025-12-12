@@ -174,8 +174,7 @@ function logout() {
     </div>
     <div>
       {{ getEventTitleShort(eventStore.selectedEvent) }}
-      am
-      {{ dayjs(eventStore.selectedEvent?.date).format('dddd, DD.MM.YYYY') }}
+      ({{ dayjs(eventStore.selectedEvent?.date).format('dd DD.MM.YYYY') }})
     </div>
     <Menu as="div" class="relative inline-block text-left">
       <MenuButton
