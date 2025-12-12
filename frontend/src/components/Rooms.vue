@@ -68,7 +68,9 @@ onMounted(async () => {
   // Plan-ID holen
   const { data: planData } = await axios.get(`/plans/event/${eventId.value}`)
   if (!planData?.id) {
-    console.warn('Kein Plan für Event gefunden')
+    if (import.meta.env.DEV) {
+      console.debug('Kein Plan für Event gefunden')
+    }
     return
   }
 
@@ -116,7 +118,9 @@ onMounted(async () => {
       group: { id: 'challenge', name: 'Challenge' }
     }))
   } catch (err) {
-    console.error('Fehler beim Laden der Teams:', err)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Laden der Teams:', err)
+    }
     exploreTeams.value = []
     challengeTeams.value = []
   }
@@ -387,7 +391,9 @@ const handleDrop = async (event, room) => {
     const key = `${item.type}-${item.id}`
     await assignItemToRoom(key, room.id)
   } else {
-    console.warn('Ungültiges Item beim Drop:', item)
+    if (import.meta.env.DEV) {
+      console.debug('Ungültiges Item beim Drop:', item)
+    }
   }
   dragOverRoomId.value = null
   isDragging.value = false
@@ -406,7 +412,9 @@ const handleRoomReorder = async () => {
       event_id: eventId.value
     })
   } catch (error) {
-    console.error('Error updating room sequence:', error)
+    if (import.meta.env.DEV) {
+      console.error('Error updating room sequence:', error)
+    }
     // Optionally reload rooms to restore original order
     const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
     rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
@@ -487,7 +495,9 @@ const loadBulkModePreferences = () => {
       })
     }
   } catch (e) {
-    console.warn('Failed to load bulk mode preferences', e)
+    if (import.meta.env.DEV) {
+      console.debug('Failed to load bulk mode preferences', e)
+    }
   }
 }
 
@@ -534,7 +544,9 @@ watch([bulkModeExplore, bulkModeChallenge], ([explore, challenge]) => {
   try {
     localStorage.setItem(key, JSON.stringify({ explore, challenge }))
   } catch (e) {
-    console.warn('Failed to save bulk mode preferences', e)
+    if (import.meta.env.DEV) {
+      console.debug('Failed to save bulk mode preferences', e)
+    }
   }
 })
 
@@ -753,11 +765,12 @@ const showChallengeTeams = computed(() => {
 </script>
 
 <template>
-  <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
-    <LoaderFlow/>
-    <LoaderText/>
-  </div>
-  <div v-else class="grid grid-cols-4 gap-6 p-6">
+  <div>
+    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
+      <LoaderFlow/>
+      <LoaderText/>
+    </div>
+    <div v-else class="grid grid-cols-4 gap-6 p-6">
     <!-- 🟢 Räume: Erste 3 Spalten -->
     <div class="col-span-3">
       <h2 class="text-xl font-bold mb-4">Räume</h2>
@@ -1106,17 +1119,18 @@ const showChallengeTeams = computed(() => {
         </template>
       </div>
     </div>
-  </div>
+    </div>
 
-  <!-- 🔴 Lösch-Modal -->
-  <ConfirmationModal
-    :show="!!roomToDelete"
-    title="Raum löschen"
-    :message="deleteRoomMessage"
-    type="danger"
-    confirm-text="Löschen"
-    cancel-text="Abbrechen"
-    @confirm="confirmDeleteRoom"
-    @cancel="cancelDeleteRoom"
-  />
+    <!-- 🔴 Lösch-Modal -->
+    <ConfirmationModal
+      :show="!!roomToDelete"
+      title="Raum löschen"
+      :message="deleteRoomMessage"
+      type="danger"
+      confirm-text="Löschen"
+      cancel-text="Abbrechen"
+      @confirm="confirmDeleteRoom"
+      @cancel="cancelDeleteRoom"
+    />
+  </div>
 </template>

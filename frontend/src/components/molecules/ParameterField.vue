@@ -45,7 +45,6 @@ watch(() => props.param.value, val => {
 })
 
 const showDefaultValue = (param) => {
-  console.log('Parameter:', param.name, 'current:', param.value, 'default:', param.default_value)
   switch (param.type) {
     case 'boolean':
       return normalizeBoolean(param.default_value) ? 'an' : 'aus'
@@ -243,7 +242,7 @@ const isDefaultValue = computed(() => {
             type="number"
             :min="param.min"
             :max="param.max"
-            :step="param.step"
+            :step="Number(param.step) || undefined"
             v-model="localValue"
             @change="emitChange"
             @input="validateValue(localValue, param)"
@@ -354,7 +353,7 @@ const isDefaultValue = computed(() => {
               :disabled="disabled"
               :min="param.min || undefined"
               :max="param.max || undefined"
-              :step="param.step || 5"
+              :step="Number(param.step) || 5"
           />
         </div>
         <span v-if="showDefaultValue(param) && !validationError"
