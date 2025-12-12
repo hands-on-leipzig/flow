@@ -48,9 +48,15 @@ class ActivityFetcherService
             });
         }
 
-        // Filter: exclude past activities (default)
+        // Filter: exclude activities outside event date range (default)
         if (!$include_past) {
+            // Lower bound: activities must start on or after event start date
             $q->whereColumn('a.start', '>=', 'e.date');
+            
+            // Upper bound: activities must start on or before event end date
+            // Event end date = e.date + (e.days - 1) days
+            // Use DATE() to compare only the date part, ignoring time
+            $q->whereRaw('DATE(a.start) <= DATE(e.date) + INTERVAL (COALESCE(e.days, 1) - 1) DAY');
         }
 
         // Group-Meta (optional)

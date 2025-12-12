@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import axios from 'axios'
+import dayjs from 'dayjs'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
@@ -28,6 +29,7 @@ const props = defineProps<{
   showExplore?: boolean
   showChallenge?: boolean
   eventDate?: string
+  eventDays?: number
 }>()
 
 const emit = defineEmits<{
@@ -631,6 +633,27 @@ const deleteMessage = computed(() => {
   if (!blockToDelete.value) return ''
   return `Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
+
+// Check if a block is outside the event date range
+function isBlockOutsideEventDates(block: ExtraBlock): boolean {
+  if (!props.eventDate) return false
+  if (!props.eventDays || props.eventDays < 1) return false
+  
+  const blockDateStr = extractDate(block.start || block.end || '')
+  if (!blockDateStr) return false
+  
+  const eventStartDate = dayjs(props.eventDate)
+  const eventEndDate = eventStartDate.add(props.eventDays - 1, 'day')
+  const blockDate = dayjs(blockDateStr)
+  
+  // Check if block date is before event start or after event end
+  return blockDate.isBefore(eventStartDate, 'day') || blockDate.isAfter(eventEndDate, 'day')
+}
+
+// Check if any blocks are outside event dates (for showing explanation)
+const hasBlocksOutsideEventDates = computed(() => {
+  return visibleCustomBlocks.value.some(block => isBlockOutsideEventDates(block))
+})
 </script>
 
 <template>
@@ -670,6 +693,11 @@ const deleteMessage = computed(() => {
         </button>
       </div>
 
+      <!-- Warning for blocks outside event dates -->
+      <div v-if="hasBlocksOutsideEventDates" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
+        Freie Blöcke an Tagen außerhalb der Veranstaltung werden in den Plänen nicht angezeigt.
+      </div>
+
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead>
@@ -685,7 +713,8 @@ const deleteMessage = computed(() => {
               class="border-b transition-all duration-200"
               :class="{
                 'opacity-60 bg-gray-50': b.active === false,
-                'hover:bg-gray-50': b.active !== false
+                'bg-yellow-100 hover:bg-yellow-200': b.active !== false && isBlockOutsideEventDates(b),
+                'hover:bg-gray-50': b.active !== false && !isBlockOutsideEventDates(b)
               }">
             <td class="px-2 py-2">
               <div class="flex flex-col items-center space-y-2">
