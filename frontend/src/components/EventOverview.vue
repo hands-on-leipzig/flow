@@ -204,6 +204,7 @@ onMounted(async () => {
           <h2 class="text-lg font-semibold mb-2">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
           <FreeBlocks
             :event-date="event?.date"
+            :event-days="event?.days"
             :plan-id="planId"
             :show-challenge="showChallenge"
             :show-explore="showExplore"
