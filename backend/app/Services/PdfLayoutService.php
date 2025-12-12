@@ -8,6 +8,12 @@ use Illuminate\Support\Facades\View;
 
 class PdfLayoutService
 {
+    private EventTitleService $eventTitleService;
+
+    public function __construct(EventTitleService $eventTitleService)
+    {
+        $this->eventTitleService = $eventTitleService;
+    }
     /**
      * Baut das vollständige HTML-Dokument mit Header, Content (Mittelteil) und Footer.
      */
@@ -56,48 +62,16 @@ class PdfLayoutService
 
         $rightLogo = $this->toDataUri(public_path('flow/hot.png'));
 
-        // Determine competition type text dynamically
-        $competitionType = $this->getCompetitionTypeText($event);
+        // Use EventTitleService for consistent title formatting
+        $competitionType = $this->eventTitleService->getCompetitionTypeText($event);
+        $cleanedEventName = $this->eventTitleService->cleanEventName($event);
 
         return [
             'leftLogos'       => $leftLogos,
             'centerTitleTop'  => 'FIRST LEGO League ' . $competitionType,
-            'centerTitleMain' => trim(($event->name ?? '') . ' ' . $formattedDate),
+            'centerTitleMain' => trim($cleanedEventName . ' ' . $formattedDate),
             'rightLogo'       => $rightLogo,
         ];
-    }
-
-    /**
-     * Determine the competition type text based on event configuration
-     */
-    private function getCompetitionTypeText(object $event): string
-    {
-        $hasExplore = !empty($event->event_explore);
-        $hasChallenge = !empty($event->event_challenge);
-        $level = (int)($event->level ?? 0);
-
-        // Both Explore and Challenge Regio (level 1)
-        if ($hasExplore && $hasChallenge && $level === 1) {
-            return 'Ausstellung und Regionalwettbewerb';
-        }
-
-        // Only Explore
-        if ($hasExplore && !$hasChallenge) {
-            return 'Ausstellung';
-        }
-
-        // Only Challenge - check level
-        if ($hasChallenge && !$hasExplore) {
-            return match ($level) {
-                1 => 'Regionalwettbewerb',
-                2 => 'Qualifikationswettbewerb',
-                3 => 'Finale',
-                default => 'Wettbewerb',
-            };
-        }
-
-        // Fallback
-        return 'Wettbewerb';
     }
 
     private function buildFooterLogos(int $eventId): array

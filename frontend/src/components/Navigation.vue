@@ -9,6 +9,7 @@ import dayjs from 'dayjs'
 import { imageUrl } from '@/utils/images'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
+import { getEventTitleShort } from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
 const { isAdmin, initializeUserRoles } = useAuth()
@@ -172,8 +173,7 @@ function logout() {
       </TabGroup>
     </div>
     <div>
-      {{ eventStore.selectedEvent?.level_rel?.name }}
-      {{ eventStore.selectedEvent?.name }}
+      {{ getEventTitleShort(eventStore.selectedEvent) }}
       am
       {{ dayjs(eventStore.selectedEvent?.date).format('dddd, DD.MM.YYYY') }}
     </div>

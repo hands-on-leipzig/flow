@@ -5,6 +5,7 @@ import { useEventStore } from '@/stores/event'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import { getEventTitleLong, getCompetitionType } from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -35,40 +36,27 @@ const showChallenge = computed(() => {
   return true
 })
 
-// Determine competition type text dynamically (same logic as PdfLayoutService)
-const competitionType = computed(() => {
-  if (!event.value) return 'Wettbewerb'
+// Use normalized event title utilities
+const eventTitleLong = computed(() => getEventTitleLong(event.value))
+const competitionType = computed(() => getCompetitionType(event.value))
+
+// Format title with italic FIRST and blue event name for display
+const formattedEventTitle = computed(() => {
+  if (!eventTitleLong.value) return ''
   
-  const hasExplore = !!(exploreData.value || event.value.event_explore)
-  const hasChallenge = !!(challengeData.value || event.value.event_challenge)
-  const level = event.value.level ?? 0
-
-  // Both Explore and Challenge Regio (level 1)
-  if (hasExplore && hasChallenge && level === 1) {
-    return 'Ausstellung und Regionalwettbewerb'
+  const title = eventTitleLong.value
+  const eventName = event.value?.name || ''
+  
+  if (!eventName) {
+    // Just format FIRST in italics
+    return title.replace('FIRST', '<em>FIRST</em>')
   }
-
-  // Only Explore
-  if (hasExplore && !hasChallenge) {
-    return 'Ausstellung'
-  }
-
-  // Only Challenge - check level
-  if (hasChallenge && !hasExplore) {
-    switch (level) {
-      case 1:
-        return 'Regionalwettbewerb'
-      case 2:
-        return 'Qualifikationswettbewerb'
-      case 3:
-        return 'Finale'
-      default:
-        return 'Wettbewerb'
-    }
-  }
-
-  // Fallback
-  return 'Wettbewerb'
+  
+  // Split title: "FIRST LEGO League [competitionType] [eventName]"
+  // We want: <em>FIRST</em> LEGO League [competitionType] <br> <span class="text-blue-600">[eventName]</span>
+  const withoutEventName = title.replace(new RegExp(` ${eventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '')
+  const formatted = withoutEventName.replace('FIRST', '<em>FIRST</em>')
+  return `${formatted}<br><span class="text-blue-600">${eventName}</span>`
 })
 
 async function fetchPlanId() {
@@ -110,7 +98,7 @@ onMounted(async () => {
 <template>
   <div class="p-6 space-y-6">
     <div>
-      <h1 class="text-2xl font-bold"><em>FIRST</em> LEGO League {{ competitionType }} <span class="text-blue-600">{{ event?.name }}</span></h1>
+      <h1 class="text-2xl font-bold" v-html="formattedEventTitle"></h1>
 
       <div class="grid grid-cols-3 gap-4 mt-4">
         <!-- LINKE SPALTE -->
