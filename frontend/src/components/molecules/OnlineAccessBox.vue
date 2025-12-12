@@ -321,63 +321,24 @@ async function regenerateLinkAndQR() {
               <template v-else-if="idx === 1 && scheduleInfo && scheduleInfo.plan">
                 <div class="font-semibold mb-3">Wichtige Zeiten</div>
                 
-                <!-- Explore Section - Only show if there are Explore times -->
-                <div v-if="scheduleInfo.plan?.explore && (
-                    scheduleInfo.plan.explore.briefing?.teams ||
-                    scheduleInfo.plan.explore.briefing?.judges ||
-                    scheduleInfo.plan.explore.opening ||
-                    scheduleInfo.plan.explore.end
-                  )" class="mb-4">
+                <!-- Explore Section - Loop through times array from backend -->
+                <div v-if="scheduleInfo.plan?.explore && Array.isArray(scheduleInfo.plan.explore) && scheduleInfo.plan.explore.length > 0" class="mb-4">
                   <div class="font-medium mb-2">FIRST LEGO League Explore</div>
                   <div class="space-y-1 text-xs">
-                    <div v-if="scheduleInfo.plan.explore.briefing?.teams" class="flex justify-between">
-                      <span class="text-gray-600">Coach-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.teams, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.explore.briefing?.judges" class="flex justify-between">
-                      <span class="text-gray-600">Gutachter:innen-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.judges, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.explore.opening" class="flex justify-between">
-                      <span class="text-gray-600">Eröffnung:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.opening, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.explore.end" class="flex justify-between">
-                      <span class="text-gray-600">Ende:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.end, true) }}</span>
+                    <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore" :key="timeIdx" class="flex justify-between">
+                      <span class="text-gray-600">{{ timeEntry.label }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(timeEntry.value, true) }}</span>
                     </div>
                   </div>
                 </div>
 
-                <!-- Challenge Section - Only show if there are Challenge times -->
-                <div v-if="scheduleInfo.plan?.challenge && (
-                    scheduleInfo.plan.challenge.briefing?.teams ||
-                    scheduleInfo.plan.challenge.briefing?.judges ||
-                    scheduleInfo.plan.challenge.briefing?.referees ||
-                    scheduleInfo.plan.challenge.opening ||
-                    scheduleInfo.plan.challenge.end
-                  )">
+                <!-- Challenge Section - Loop through times array from backend -->
+                <div v-if="scheduleInfo.plan?.challenge && Array.isArray(scheduleInfo.plan.challenge) && scheduleInfo.plan.challenge.length > 0">
                   <div class="font-medium mb-2">FIRST LEGO League Challenge</div>
                   <div class="space-y-1 text-xs">
-                    <div v-if="scheduleInfo.plan.challenge.briefing?.teams" class="flex justify-between">
-                      <span class="text-gray-600">Coach-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.teams, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.challenge.briefing?.judges" class="flex justify-between">
-                      <span class="text-gray-600">Jury-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.judges, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.challenge.briefing?.referees" class="flex justify-between">
-                      <span class="text-gray-600">Schiedsrichter:innen-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.referees, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.challenge.opening" class="flex justify-between">
-                      <span class="text-gray-600">Eröffnung:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.opening, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.challenge.end" class="flex justify-between">
-                      <span class="text-gray-600">Ende:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.end, true) }}</span>
+                    <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.challenge" :key="timeIdx" class="flex justify-between">
+                      <span class="text-gray-600">{{ timeEntry.label }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(timeEntry.value, true) }}</span>
                     </div>
                   </div>
                 </div>
