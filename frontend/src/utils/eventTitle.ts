@@ -19,27 +19,25 @@ function getCompetitionTypeText(event: EventForTitle | null): string {
   const hasChallenge = !!(event.event_challenge)
   const level = event.level ?? 0
 
-  // Both Explore and Challenge Regio (level 1)
-  if (hasExplore && hasChallenge && level === 1) {
-    return 'Ausstellung und Regionalwettbewerb'
+  // First check level - level 2 and 3 take precedence regardless of E/C
+  if (level === 2) {
+    return 'Qualifikationswettbewerb'
   }
 
-  // Only Explore
-  if (hasExplore && !hasChallenge) {
-    return 'Ausstellung'
+  if (level === 3) {
+    return 'Finale'
   }
 
-  // Only Challenge - check level
-  if (hasChallenge && !hasExplore) {
-    switch (level) {
-      case 1:
-        return 'Regionalwettbewerb'
-      case 2:
-        return 'Qualifikationswettbewerb'
-      case 3:
-        return 'Finale'
-      default:
-        return 'Wettbewerb'
+  // For level 1, check E/C combinations
+  if (level === 1) {
+    if (hasExplore && hasChallenge) {
+      return 'Ausstellung und Regionalwettbewerb'
+    }
+    if (hasExplore && !hasChallenge) {
+      return 'Ausstellung'
+    }
+    if (hasChallenge && !hasExplore) {
+      return 'Regionalwettbewerb'
     }
   }
 
@@ -65,7 +63,7 @@ function abbreviateCompetitionType(competitionType: string): string {
  * Clean event name by removing redundant prefixes based on level
  * Removes "Qualifikation " for level 2, "Finale " for level 3
  */
-function cleanEventName(event: EventForTitle | null): string {
+export function cleanEventName(event: EventForTitle | null): string {
   if (!event || !event.name) return ''
   
   let eventName = event.name

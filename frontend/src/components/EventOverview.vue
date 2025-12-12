@@ -5,7 +5,7 @@ import { useEventStore } from '@/stores/event'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
-import { getEventTitleLong, getCompetitionType } from '@/utils/eventTitle'
+import { getEventTitleLong, getCompetitionType, cleanEventName } from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -45,18 +45,19 @@ const formattedEventTitle = computed(() => {
   if (!eventTitleLong.value) return ''
   
   const title = eventTitleLong.value
-  const eventName = event.value?.name || ''
+  // Use cleaned event name to match what's actually in the title
+  const cleanedEventName = cleanEventName(event.value)
   
-  if (!eventName) {
+  if (!cleanedEventName) {
     // Just format FIRST in italics
     return title.replace('FIRST', '<em>FIRST</em>')
   }
   
-  // Split title: "FIRST LEGO League [competitionType] [eventName]"
-  // We want: <em>FIRST</em> LEGO League [competitionType] <br> <span class="text-blue-600">[eventName]</span>
-  const withoutEventName = title.replace(new RegExp(` ${eventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '')
+  // Split title: "FIRST LEGO League [competitionType] [cleanedEventName]"
+  // We want: <em>FIRST</em> LEGO League [competitionType] <br> <span class="text-blue-600">[cleanedEventName]</span>
+  const withoutEventName = title.replace(new RegExp(` ${cleanedEventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '')
   const formatted = withoutEventName.replace('FIRST', '<em>FIRST</em>')
-  return `${formatted}<br><span class="text-blue-600">${eventName}</span>`
+  return `${formatted}<br><span class="text-blue-600">${cleanedEventName}</span>`
 })
 
 async function fetchPlanId() {

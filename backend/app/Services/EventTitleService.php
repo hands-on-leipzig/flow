@@ -48,24 +48,26 @@ class EventTitleService
         $hasChallenge = !empty($event->event_challenge);
         $level = (int)($event->level ?? 0);
 
-        // Both Explore and Challenge Regio (level 1)
-        if ($hasExplore && $hasChallenge && $level === 1) {
-            return 'Ausstellung und Regionalwettbewerb';
+        // First check level - level 2 and 3 take precedence regardless of E/C
+        if ($level === 2) {
+            return 'Qualifikationswettbewerb';
         }
 
-        // Only Explore
-        if ($hasExplore && !$hasChallenge) {
-            return 'Ausstellung';
+        if ($level === 3) {
+            return 'Finale';
         }
 
-        // Only Challenge - check level
-        if ($hasChallenge && !$hasExplore) {
-            return match ($level) {
-                1 => 'Regionalwettbewerb',
-                2 => 'Qualifikationswettbewerb',
-                3 => 'Finale',
-                default => 'Wettbewerb',
-            };
+        // For level 1, check E/C combinations
+        if ($level === 1) {
+            if ($hasExplore && $hasChallenge) {
+                return 'Ausstellung und Regionalwettbewerb';
+            }
+            if ($hasExplore && !$hasChallenge) {
+                return 'Ausstellung';
+            }
+            if ($hasChallenge && !$hasExplore) {
+                return 'Regionalwettbewerb';
+            }
         }
 
         // Fallback
