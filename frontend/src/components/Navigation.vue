@@ -9,6 +9,7 @@ import dayjs from 'dayjs'
 import { imageUrl, programLogoSrc, programLogoAlt } from '@/utils/images'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
+import { getEventTitleShort } from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
 const { isAdmin, initializeUserRoles } = useAuth()
@@ -270,10 +271,8 @@ function logout() {
         class="group inline-flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 bg-gradient-to-r from-white to-gray-50/50 backdrop-blur-sm rounded-lg hover:from-white hover:to-white hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 min-w-[320px]"
       >
         <span v-if="eventStore.selectedEvent" class="text-left flex-1 truncate">
-          {{ eventStore.selectedEvent?.level_rel?.name }}
-          {{ eventStore.selectedEvent?.name }}
-          am
-          {{ dayjs(eventStore.selectedEvent?.date).format('dddd, DD.MM.YYYY') }}
+          {{ getEventTitleShort(eventStore.selectedEvent) }}
+          ({{ dayjs(eventStore.selectedEvent?.date).format('dd DD.MM.YYYY') }})
         </span>
         <span v-else class="text-gray-500 italic text-left flex-1">
           Veranstaltung auswählen...
