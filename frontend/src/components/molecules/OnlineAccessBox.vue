@@ -43,7 +43,9 @@ async function fetchPublicationLevel() {
     const backendLevel = data.level ?? 1
     detailLevel.value = backendToFrontendLevel(backendLevel)
   } catch (e) {
-    console.error('Fehler beim Laden des Publication Levels:', e)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Laden des Publication Levels:', e)
+    }
     detailLevel.value = 0
   }
 }
@@ -62,9 +64,13 @@ async function updatePublicationLevel(level: number) {
     })
     
     const backendLevel = frontendToBackendLevel(level)
-    console.log('Updating publication level to:', backendLevel, '(frontend level:', level, ') for event:', event.value?.id)
+    if (import.meta.env.DEV) {
+      console.debug('Updating publication level to:', backendLevel, '(frontend level:', level, ') for event:', event.value?.id)
+    }
     await axios.post(`/publish/level/${event.value?.id}`, { level: backendLevel })
-    console.log('Publication level updated successfully')
+    if (import.meta.env.DEV) {
+      console.debug('Publication level updated successfully')
+    }
     
     // Small delay to show the banner
     await new Promise(resolve => setTimeout(resolve, 500))
@@ -74,7 +80,9 @@ async function updatePublicationLevel(level: number) {
       window.scrollTo(scrollLeft, scrollTop)
     })
   } catch (e) {
-    console.error('Fehler beim Setzen des Publication Levels:', e)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Setzen des Publication Levels:', e)
+    }
   } finally {
     saving.value?.hide();
   }
@@ -85,7 +93,9 @@ async function fetchScheduleInformation() {
     const { data } = await axios.post(`/publish/information/${event.value?.id}`, { level: 4 })
     scheduleInfo.value = data
   } catch (e) {
-    console.error('Fehler beim Laden von Schedule Information:', e)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Laden von Schedule Information:', e)
+    }
     scheduleInfo.value = null
   }
 }
@@ -95,8 +105,8 @@ watch(
   async (id) => {
     if (!id) return
     await Promise.all([
-      fetchPublicationLevel()
-^     fetchScheduleInformation()
+      fetchPublicationLevel(),
+      fetchScheduleInformation()
     ])
   },
   { immediate: true }
@@ -127,7 +137,7 @@ function isCardActive(card: number, level: number) {
   return false
 }
 
-function previewOlinePlan() {
+function previewOnlinePlan() {
   const url = `${import.meta.env.VITE_APP_URL}/output/zeitplan.cgi?plan=${scheduleInfo.value?.plan.plan_id}`
   window.open(url, '_blank')
 }
@@ -145,9 +155,13 @@ async function regenerateLinkAndQR() {
       eventStore.selectedEvent.qrcode = data.qrcode.replace('data:image/png;base64,', '')
     }
     
-    console.log('Link and QR code regenerated successfully')
+    if (import.meta.env.DEV) {
+      console.debug('Link and QR code regenerated successfully')
+    }
   } catch (error) {
-    console.error('Error regenerating link and QR code:', error)
+    if (import.meta.env.DEV) {
+      console.error('Error regenerating link and QR code:', error)
+    }
     alert('Fehler beim Regenerieren des Links und QR-Codes')
   } finally {
     regenerating.value = false
@@ -381,7 +395,7 @@ async function regenerateLinkAndQR() {
                     />
                   </div>
                   <div class="mt-4 flex justify-center">
-                    <button class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="previewOlinePlan">
+                    <button class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="previewOnlinePlan">
                       Vorschau
                     </button>
                   </div>
