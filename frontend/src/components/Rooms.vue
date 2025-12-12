@@ -10,6 +10,7 @@ import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
 
 // --- Stores & Refs ---
 const eventStore = useEventStore()
+const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => eventStore.selectedEvent?.id)
 const rooms = ref([])
 const assignments = ref({})
@@ -738,6 +739,17 @@ const hasWarning = (tab) => {
   return false
 }
 
+// --- Visibility based on capacity ---
+const showExploreTeams = computed(() => {
+  const capacity = Number(event.value?.drahtCapacityExplore || 0)
+  return capacity > 0
+})
+
+const showChallengeTeams = computed(() => {
+  const capacity = Number(event.value?.drahtCapacityChallenge || 0)
+  return capacity > 0
+})
+
 </script>
 
 <template>
@@ -971,11 +983,14 @@ const hasWarning = (tab) => {
 
       <!-- Dynamisch alle Gruppen aus der gemeinsamen Struktur -->
       <div v-for="category in assignables" :key="category.id" v-show="activeTab === category.id">
-        <div
+        <template
           v-for="group in category.groups"
           :key="group.id"
-          class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
         >
+          <div
+            v-if="category.type !== 'team' || (group.id === 'explore' && showExploreTeams) || (group.id === 'challenge' && showChallengeTeams)"
+            class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
+          >
           <div class="text-lg font-semibold text-black mb-3 flex items-center gap-2">
             <img
                 v-if="group.id === 'explore' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
@@ -1088,6 +1103,7 @@ const hasWarning = (tab) => {
 
           </draggable>
         </div>
+        </template>
       </div>
     </div>
   </div>
