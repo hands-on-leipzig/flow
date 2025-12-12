@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import { getEventTitleLong, getCompetitionType, cleanEventName } from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -35,40 +36,28 @@ const showChallenge = computed(() => {
   return true
 })
 
-// Determine competition type text dynamically (same logic as PdfLayoutService)
-const competitionType = computed(() => {
-  if (!event.value) return 'Wettbewerb'
+// Use normalized event title utilities
+const eventTitleLong = computed(() => getEventTitleLong(event.value))
+const competitionType = computed(() => getCompetitionType(event.value))
+
+// Format title with italic FIRST and blue event name for display
+const formattedEventTitle = computed(() => {
+  if (!eventTitleLong.value) return ''
   
-  const hasExplore = !!(exploreData.value || event.value.event_explore)
-  const hasChallenge = !!(challengeData.value || event.value.event_challenge)
-  const level = event.value.level ?? 0
-
-  // Both Explore and Challenge Regio (level 1)
-  if (hasExplore && hasChallenge && level === 1) {
-    return 'Ausstellung und Regionalwettbewerb'
+  const title = eventTitleLong.value
+  // Use cleaned event name to match what's actually in the title
+  const cleanedEventName = cleanEventName(event.value)
+  
+  if (!cleanedEventName) {
+    // Just format FIRST in italics
+    return title.replace('FIRST', '<em>FIRST</em>')
   }
-
-  // Only Explore
-  if (hasExplore && !hasChallenge) {
-    return 'Ausstellung'
-  }
-
-  // Only Challenge - check level
-  if (hasChallenge && !hasExplore) {
-    switch (level) {
-      case 1:
-        return 'Regionalwettbewerb'
-      case 2:
-        return 'Qualifikationswettbewerb'
-      case 3:
-        return 'Finale'
-      default:
-        return 'Wettbewerb'
-    }
-  }
-
-  // Fallback
-  return 'Wettbewerb'
+  
+  // Split title: "FIRST LEGO League [competitionType] [cleanedEventName]"
+  // We want: <em>FIRST</em> LEGO League [competitionType] <br> <span class="text-blue-600">[cleanedEventName]</span>
+  const withoutEventName = title.replace(new RegExp(` ${cleanedEventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '')
+  const formatted = withoutEventName.replace('FIRST', '<em>FIRST</em>')
+  return `${formatted}<br><span class="text-blue-600">${cleanedEventName}</span>`
 })
 
 async function fetchPlanId() {
@@ -77,13 +66,18 @@ async function fetchPlanId() {
     const response = await axios.get(`/plans/event/${event.value.id}`)
     planId.value = response.data.id
   } catch (error) {
-    console.error('Error fetching plan ID:', error)
+    // Silently handle missing plan - plan generation might be in progress
+    // Only log in development mode
+    if (import.meta.env.DEV) {
+      console.debug('Plan not found for event:', event.value?.id)
+    }
   }
 }
 
-onMounted(async () => {
-  if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
-  const drahtData = await axios.get(`/events/${event.value?.id}/draht-data`)
+async function loadEventData() {
+  if (!event.value?.id) return
+  
+  const drahtData = await axios.get(`/events/${event.value.id}/draht-data`)
 
   exploreData.value = drahtData.data.event_explore
   challengeData.value = drahtData.data.event_challenge
@@ -104,13 +98,28 @@ onMounted(async () => {
   }
 
   await fetchPlanId()
+}
+
+onMounted(async () => {
+  if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
+  await loadEventData()
 })
+
+// Watch for event changes and reload data
+watch(
+  () => event.value?.id,
+  async (newEventId, oldEventId) => {
+    if (newEventId && newEventId !== oldEventId) {
+      await loadEventData()
+    }
+  }
+)
 </script>
 
 <template>
   <div class="p-6 space-y-6">
     <div>
-      <h1 class="text-2xl font-bold"><em>FIRST</em> LEGO League {{ competitionType }} <span class="text-blue-600">{{ event?.name }}</span></h1>
+      <h1 class="text-2xl font-bold" v-html="formattedEventTitle"></h1>
 
       <div class="grid grid-cols-3 gap-4 mt-4">
         <!-- LINKE SPALTE -->
@@ -204,6 +213,7 @@ onMounted(async () => {
           <h2 class="text-lg font-semibold mb-2">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
           <FreeBlocks
             :event-date="event?.date"
+            :event-days="event?.days"
             :plan-id="planId"
             :show-challenge="showChallenge"
             :show-explore="showExplore"

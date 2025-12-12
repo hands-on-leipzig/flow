@@ -10,6 +10,7 @@ import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
 
 // --- Stores & Refs ---
 const eventStore = useEventStore()
+const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => eventStore.selectedEvent?.id)
 const rooms = ref([])
 const assignments = ref({})
@@ -67,7 +68,9 @@ onMounted(async () => {
   // Plan-ID holen
   const { data: planData } = await axios.get(`/plans/event/${eventId.value}`)
   if (!planData?.id) {
-    console.warn('Kein Plan für Event gefunden')
+    if (import.meta.env.DEV) {
+      console.debug('Kein Plan für Event gefunden')
+    }
     return
   }
 
@@ -115,7 +118,9 @@ onMounted(async () => {
       group: { id: 'challenge', name: 'Challenge' }
     }))
   } catch (err) {
-    console.error('Fehler beim Laden der Teams:', err)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Laden der Teams:', err)
+    }
     exploreTeams.value = []
     challengeTeams.value = []
   }
@@ -386,7 +391,9 @@ const handleDrop = async (event, room) => {
     const key = `${item.type}-${item.id}`
     await assignItemToRoom(key, room.id)
   } else {
-    console.warn('Ungültiges Item beim Drop:', item)
+    if (import.meta.env.DEV) {
+      console.debug('Ungültiges Item beim Drop:', item)
+    }
   }
   dragOverRoomId.value = null
   isDragging.value = false
@@ -405,7 +412,9 @@ const handleRoomReorder = async () => {
       event_id: eventId.value
     })
   } catch (error) {
-    console.error('Error updating room sequence:', error)
+    if (import.meta.env.DEV) {
+      console.error('Error updating room sequence:', error)
+    }
     // Optionally reload rooms to restore original order
     const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
     rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
@@ -486,7 +495,9 @@ const loadBulkModePreferences = () => {
       })
     }
   } catch (e) {
-    console.warn('Failed to load bulk mode preferences', e)
+    if (import.meta.env.DEV) {
+      console.debug('Failed to load bulk mode preferences', e)
+    }
   }
 }
 
@@ -533,7 +544,9 @@ watch([bulkModeExplore, bulkModeChallenge], ([explore, challenge]) => {
   try {
     localStorage.setItem(key, JSON.stringify({ explore, challenge }))
   } catch (e) {
-    console.warn('Failed to save bulk mode preferences', e)
+    if (import.meta.env.DEV) {
+      console.debug('Failed to save bulk mode preferences', e)
+    }
   }
 })
 
@@ -738,14 +751,26 @@ const hasWarning = (tab) => {
   return false
 }
 
+// --- Visibility based on capacity ---
+const showExploreTeams = computed(() => {
+  const capacity = Number(event.value?.drahtCapacityExplore || 0)
+  return capacity > 0
+})
+
+const showChallengeTeams = computed(() => {
+  const capacity = Number(event.value?.drahtCapacityChallenge || 0)
+  return capacity > 0
+})
+
 </script>
 
 <template>
-  <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
-    <LoaderFlow/>
-    <LoaderText/>
-  </div>
-  <div v-else class="grid grid-cols-4 gap-6 p-6">
+  <div>
+    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
+      <LoaderFlow/>
+      <LoaderText/>
+    </div>
+    <div v-else class="grid grid-cols-4 gap-6 p-6">
     <!-- 🟢 Räume: Erste 3 Spalten -->
     <div class="col-span-3">
       <h2 class="text-xl font-bold mb-4">Räume</h2>
@@ -971,11 +996,14 @@ const hasWarning = (tab) => {
 
       <!-- Dynamisch alle Gruppen aus der gemeinsamen Struktur -->
       <div v-for="category in assignables" :key="category.id" v-show="activeTab === category.id">
-        <div
+        <template
           v-for="group in category.groups"
           :key="group.id"
-          class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
         >
+          <div
+            v-if="category.type !== 'team' || (group.id === 'explore' && showExploreTeams) || (group.id === 'challenge' && showChallengeTeams)"
+            class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
+          >
           <div class="text-lg font-semibold text-black mb-3 flex items-center gap-2">
             <img
                 v-if="group.id === 'explore' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
@@ -1088,19 +1116,21 @@ const hasWarning = (tab) => {
 
           </draggable>
         </div>
+        </template>
       </div>
     </div>
-  </div>
+    </div>
 
-  <!-- 🔴 Lösch-Modal -->
-  <ConfirmationModal
-    :show="!!roomToDelete"
-    title="Raum löschen"
-    :message="deleteRoomMessage"
-    type="danger"
-    confirm-text="Löschen"
-    cancel-text="Abbrechen"
-    @confirm="confirmDeleteRoom"
-    @cancel="cancelDeleteRoom"
-  />
+    <!-- 🔴 Lösch-Modal -->
+    <ConfirmationModal
+      :show="!!roomToDelete"
+      title="Raum löschen"
+      :message="deleteRoomMessage"
+      type="danger"
+      confirm-text="Löschen"
+      cancel-text="Abbrechen"
+      @confirm="confirmDeleteRoom"
+      @cancel="cancelDeleteRoom"
+    />
+  </div>
 </template>

@@ -6,14 +6,20 @@ import { useEventStore } from '@/stores/event'
 import { useAuth } from '@/composables/useAuth'
 import axios from 'axios'
 import dayjs from 'dayjs'
-import { imageUrl } from '@/utils/images'
+import { imageUrl, programLogoSrc, programLogoAlt } from '@/utils/images'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
+import { getEventTitleShort } from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
 const { isAdmin, initializeUserRoles } = useAuth()
 const router = useRouter()
 const route = useRoute()
+
+// Event dropdown state
+const selectableEvents = ref<any[]>([])
+const loadingEvents = ref(false)
+const userRegionalPartners = ref<number[]>([]) // Store user's regional partner IDs for admin filtering
 
 // --- Readiness State ---
 const readiness = ref({
@@ -55,6 +61,92 @@ const tabs = computed(() => {
   return allTabs.filter(tab => tab.path !== '/admin' || isAdmin.value)
 })
 
+// --- Fetch selectable events for dropdown ---
+async function fetchSelectableEvents() {
+  loadingEvents.value = true
+  try {
+    const response = await axios.get('/events/selectable')
+    selectableEvents.value = response.data
+    
+    // For admins, get their regional partners to filter events to show only their own
+    if (isAdmin.value) {
+      try {
+        const rpResponse = await axios.get('/user/regional-partners')
+        if (rpResponse.data?.regional_partners) {
+          userRegionalPartners.value = rpResponse.data.regional_partners.map((rp: any) => rp.id)
+        }
+      } catch (err) {
+        // Silently handle error - fallback to showing all events
+        // Only log in development mode
+        if (import.meta.env.DEV) {
+          console.debug('Failed to fetch user regional partners, showing all events:', err)
+        }
+        // If we can't get user's regional partners, show all events (fallback)
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch selectable events:', error)
+  } finally {
+    loadingEvents.value = false
+  }
+}
+
+// --- Filter events for dropdown ---
+const dropdownEvents = computed(() => {
+  if (!selectableEvents.value.length) return []
+  
+  if (isAdmin.value) {
+    // For admins: show only events from their own regional partners
+    const filtered = selectableEvents.value
+      .filter((rp: any) => {
+        // If we have user regional partners, filter by them
+        if (userRegionalPartners.value.length > 0) {
+          return userRegionalPartners.value.includes(rp.regional_partner.id)
+        }
+        // If we can't determine user's regional partners, show all (fallback)
+        return true
+      })
+      .flatMap((rp: any) => 
+        rp.events.map((event: any) => ({
+          ...event,
+          regional_partner_id: rp.regional_partner.id,
+          regional_partner_name: rp.regional_partner.name
+        }))
+      )
+    
+    return filtered
+  } else {
+    // For non-admins: show all their events (already filtered by API)
+    return selectableEvents.value.flatMap((rp: any) => 
+      rp.events.map((event: any) => ({
+        ...event,
+        regional_partner_id: rp.regional_partner.id,
+        regional_partner_name: rp.regional_partner.name
+      }))
+    )
+  }
+})
+
+// --- Select event from dropdown ---
+async function selectEventFromDropdown(event: any, regionalPartnerId: number) {
+  try {
+    await axios.post('/user/select-event', {
+      event: event.id,
+      regional_partner: regionalPartnerId
+    })
+    await eventStore.fetchSelectedEvent()
+    // Navigate to event overview - use replace to force reload if already there
+    if (route.path.includes('/event')) {
+      // Force reload by navigating away and back, or use router.replace with force
+      await router.replace('/event')
+    } else {
+      router.push('/event')
+    }
+  } catch (error) {
+    console.error('Failed to select event:', error)
+  }
+}
+
 // --- Lifecycle ---
 onMounted(async () => {
   initializeUserRoles()
@@ -62,6 +154,7 @@ onMounted(async () => {
     await eventStore.fetchSelectedEvent()
   }
   await checkDataReadiness()
+  await fetchSelectableEvents()
 })
 
 // 👇 Watch: Wenn der Store-Readiness-State sich ändert → Navigation aktualisieren
@@ -85,6 +178,14 @@ watch(
     if (eventStore.selectedEvent?.id) {
       await checkDataReadiness()
     }
+  }
+)
+
+// 👇 Watcher: Refresh events when selected event changes
+watch(
+  () => eventStore.selectedEvent?.id,
+  async () => {
+    await fetchSelectableEvents()
   }
 )
 
@@ -171,12 +272,122 @@ function logout() {
         </TabList>
       </TabGroup>
     </div>
-    <div>
-      {{ eventStore.selectedEvent?.level_rel?.name }}
-      {{ eventStore.selectedEvent?.name }}
-      am
-      {{ dayjs(eventStore.selectedEvent?.date).format('dddd, DD.MM.YYYY') }}
-    </div>
+    <!-- Event Selection Dropdown -->
+    <Menu as="div" class="relative inline-block text-left">
+      <MenuButton
+        class="group inline-flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 bg-gradient-to-r from-white to-gray-50/50 backdrop-blur-sm rounded-lg hover:from-white hover:to-white hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 min-w-[320px]"
+      >
+        <span v-if="eventStore.selectedEvent" class="text-left flex-1 truncate">
+          {{ getEventTitleShort(eventStore.selectedEvent) }}
+          ({{ dayjs(eventStore.selectedEvent?.date).format('dd DD.MM.YYYY') }})
+        </span>
+        <span v-else class="text-gray-500 italic text-left flex-1">
+          Veranstaltung auswählen...
+        </span>
+        <svg
+          class="w-5 h-5 ml-2 -mr-1 text-gray-400 group-hover:text-gray-600 transition-transform duration-200 group-hover:rotate-180 flex-shrink-0"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </MenuButton>
+      <MenuItems
+        class="absolute right-0 z-50 mt-3 origin-top-right rounded-2xl bg-white/95 backdrop-blur-md shadow-2xl ring-1 ring-gray-200/50 focus:outline-none w-[420px] max-w-[calc(100vw-2rem)] max-h-[600px] overflow-y-auto overflow-x-hidden"
+      >
+        <div class="py-2">
+          <div v-if="loadingEvents" class="px-4 py-8 text-center">
+            <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <p class="mt-2 text-sm text-gray-500">Lade Veranstaltungen...</p>
+          </div>
+          <div v-else-if="dropdownEvents.length === 0" class="px-4 py-8 text-center">
+            <p class="text-sm text-gray-500">Keine Veranstaltungen verfügbar</p>
+          </div>
+          <template v-else>
+            <MenuItem
+              v-for="event in dropdownEvents"
+              :key="event.id"
+              v-slot="{ active, focus }"
+            >
+              <button
+                @click="selectEventFromDropdown(event, event.regional_partner_id)"
+                :class="[
+                  'w-full text-left px-4 py-3 transition-all duration-200 min-w-0',
+                  active || focus ? 'bg-gradient-to-r from-blue-50 to-blue-50/50' : '',
+                  eventStore.selectedEvent?.id === event.id 
+                    ? 'bg-gradient-to-r from-blue-50 via-blue-50/80 to-transparent border-l-4 border-blue-500 shadow-sm' 
+                    : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent'
+                ]"
+              >
+                <div class="flex justify-between items-start gap-3 min-w-0">
+                  <div class="flex-1 min-w-0 overflow-hidden">
+                    <div class="font-medium text-gray-900 mb-1 truncate">
+                      {{ event.name }}
+                    </div>
+                    <div class="text-xs text-gray-500 mb-1 truncate">
+                      {{ dayjs(event.date).format('dddd, DD.MM.YYYY') }}
+                    </div>
+                    <div class="text-xs text-gray-500 truncate">
+                      {{ event.level?.name }} • {{ event.regional_partner_name }}
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 ml-2 flex-shrink-0">
+                    <div class="flex items-center gap-1.5">
+                      <img
+                        v-if="event.event_explore"
+                        :src="programLogoSrc('E')"
+                        :alt="programLogoAlt('E')"
+                        class="w-6 h-6 opacity-90 hover:opacity-100 transition-opacity"
+                        title="FIRST LEGO League Explore"
+                      />
+                      <img
+                        v-if="event.event_challenge"
+                        :src="programLogoSrc('C')"
+                        :alt="programLogoAlt('C')"
+                        class="w-6 h-6 opacity-90 hover:opacity-100 transition-opacity"
+                        title="FIRST LEGO League Challenge"
+                      />
+                    </div>
+                    <div 
+                      v-if="eventStore.selectedEvent?.id === event.id" 
+                      class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold"
+                    >
+                      ✓
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </MenuItem>
+            
+            <!-- "More" option for admins -->
+            <MenuItem v-if="isAdmin" v-slot="{ active }">
+              <div class="border-t border-gray-200 mt-2 pt-2">
+                <button
+                  @click="router.push({ path: '/events' })"
+                  :class="[
+                    'w-full text-left px-4 py-3 rounded-lg mx-2 transition-all duration-150',
+                    active ? 'bg-blue-50 text-blue-700' : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700',
+                    'font-medium text-sm'
+                  ]"
+                >
+                  <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Mehr Veranstaltungen...
+                  </div>
+                </button>
+              </div>
+            </MenuItem>
+          </template>
+        </div>
+      </MenuItems>
+    </Menu>
     <Menu as="div" class="relative inline-block text-left">
       <MenuButton
       class="inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
