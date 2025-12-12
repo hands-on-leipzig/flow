@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import dayjs from 'dayjs'
@@ -66,13 +66,18 @@ async function fetchPlanId() {
     const response = await axios.get(`/plans/event/${event.value.id}`)
     planId.value = response.data.id
   } catch (error) {
-    console.error('Error fetching plan ID:', error)
+    // Silently handle missing plan - plan generation might be in progress
+    // Only log in development mode
+    if (import.meta.env.DEV) {
+      console.debug('Plan not found for event:', event.value?.id)
+    }
   }
 }
 
-onMounted(async () => {
-  if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
-  const drahtData = await axios.get(`/events/${event.value?.id}/draht-data`)
+async function loadEventData() {
+  if (!event.value?.id) return
+  
+  const drahtData = await axios.get(`/events/${event.value.id}/draht-data`)
 
   exploreData.value = drahtData.data.event_explore
   challengeData.value = drahtData.data.event_challenge
@@ -93,7 +98,22 @@ onMounted(async () => {
   }
 
   await fetchPlanId()
+}
+
+onMounted(async () => {
+  if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
+  await loadEventData()
 })
+
+// Watch for event changes and reload data
+watch(
+  () => event.value?.id,
+  async (newEventId, oldEventId) => {
+    if (newEventId && newEventId !== oldEventId) {
+      await loadEventData()
+    }
+  }
+)
 </script>
 
 <template>

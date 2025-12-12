@@ -116,8 +116,7 @@ const fetchParams = async (planId: number) => {
     showExplore.value = Number(paramMapByName.value['e_mode']?.value || 0) > 0
     showChallenge.value = Number(paramMapByName.value['c_mode']?.value || 0) > 0
 
-    console.log('Fetched parameters:', parameters.value.length)
-    console.log('Expert parameters:', parameters.value.filter(p => p.context === 'expert').length)
+    // Parameters loaded successfully
   } catch (err) {
     console.error("Failed to fetch params or conditions:", err)
     parameters.value = []
@@ -228,7 +227,9 @@ const { scheduleUpdate, flush, immediateFlush, setOriginal, setOriginals, freeze
 function handleParamUpdate(param: { name: string, value: any }) {
   const p = paramMapByName.value[param.name]
   if (!p) {
-    console.warn('Parameter not found:', param.name)
+    if (import.meta.env.DEV) {
+      console.debug('Parameter not found:', param.name)
+    }
     return
   }
 
@@ -244,7 +245,6 @@ const insertBlocksRef = ref<InstanceType<typeof InsertBlocks> | null>(null)
 
 // Handle block updates from InsertBlocks component
 function handleBlockUpdates(updates: Array<{ name: string, value: any, triggerGenerator?: boolean }>) {
-  console.log('Received block updates:', updates)
 
   // Add all block updates using composable (triggers debounce)
   updates.forEach(update => {
@@ -309,7 +309,9 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
       needsRegeneration = true
     }
   } catch (error) {
-    console.error('Error saving parameters:', error)
+    if (import.meta.env.DEV) {
+      console.error('Error saving parameters:', error)
+    }
     loading.value = false
     return
   }
@@ -342,7 +344,9 @@ async function runGeneratorOnce() {
     await axios.post(`/plans/${selectedPlanId.value}/generate`)
     await pollUntilReady(selectedPlanId.value)
   } catch (error: any) {
-    console.error("Error during initial generation:", error)
+    if (import.meta.env.DEV) {
+      console.error("Error during initial generation:", error)
+    }
     
     // Extract error message from response
     let errorMessage = 'Unbekannter Fehler bei der Plan-Generierung'
@@ -413,7 +417,9 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
 
 // Legacy function - kept for backward compatibility but not used in new batch system
 const updateParam = async (param: Parameter) => {
-  console.warn('updateParam called directly - this should not happen in new batch system')
+  if (import.meta.env.DEV) {
+    console.debug('updateParam called directly - this should not happen in new batch system')
+  }
   // This function is kept for backward compatibility but should not be used
   // All updates should go through handleParamUpdate for batching
 }
@@ -443,7 +449,6 @@ async function getOrCreatePlan() {
 
   // Generator nur starten, wenn Plan neu ist
   if (planData.existing === false) {
-    console.log("New plan detected → run generator once")
     await runGeneratorOnce()
   }
 }
@@ -471,7 +476,9 @@ onMounted(async () => {
     await eventStore.fetchSelectedEvent()
   }
   if (!selectedEvent.value) {
-    console.error('No selected event could be loaded.')
+    if (import.meta.env.DEV) {
+      console.error('No selected event could be loaded.')
+    }
     loading.value = false
     return
   }
@@ -502,7 +509,9 @@ const fetchTableNames = async () => {
     })
     tableNames.value = names
   } catch (e) {
-    console.error('Fehler beim Laden der Tischbezeichnungen:', e)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Laden der Tischbezeichnungen:', e)
+    }
     tableNames.value = Array(4).fill('')
   }
 }
@@ -520,7 +529,9 @@ const updateTableName = async () => {
 
     await axios.put(`/table-names/${selectedEvent.value.id}`, payload)
   } catch (e) {
-    console.error('Fehler beim Speichern der Tischnamen:', e)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Speichern der Tischnamen:', e)
+    }
   }
 }
 

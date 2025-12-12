@@ -44,7 +44,9 @@ const onSort = async () => {
     // Refresh discrepancy status after team reordering
     await eventStore.updateTeamDiscrepancyStatus()
   } catch (e) {
-    console.error('Order update failed', e)
+    if (import.meta.env.DEV) {
+      console.error('Order update failed', e)
+    }
   }
 }
 
@@ -59,7 +61,9 @@ const updateTeamName = async (team) => {
     // Refresh discrepancy status after team update
     await eventStore.updateTeamDiscrepancyStatus()
   } catch (e) {
-    console.error(`Failed to update team name for ${team.id}`, e)
+    if (import.meta.env.DEV) {
+      console.error(`Failed to update team name for ${team.id}`, e)
+    }
   }
 }
 
@@ -73,7 +77,9 @@ const updateTeamNoshow = async (team) => {
     // Refresh discrepancy status after team update
     await eventStore.updateTeamDiscrepancyStatus()
   } catch (e) {
-    console.error(`Failed to update team noshow for ${team.id}`, e)
+    if (import.meta.env.DEV) {
+      console.error(`Failed to update team noshow for ${team.id}`, e)
+    }
   }
 }
 
@@ -202,7 +208,9 @@ const statusLabels = {
 
 const applyDrahtTeam = async (team) => {
   if (!team.draht) {
-    console.error('Cannot apply team: draht data is missing', team)
+    if (import.meta.env.DEV) {
+      console.error('Cannot apply team: draht data is missing', team)
+    }
     return
   }
 
@@ -245,7 +253,9 @@ const applyDrahtTeam = async (team) => {
       showDiffModal.value = false
     }
   } catch (e) {
-    console.error(`Fehler beim Übernehmen von Team ${team.number || team.draht.name}`, e)
+    if (import.meta.env.DEV) {
+      console.error(`Fehler beim Übernehmen von Team ${team.number || team.draht.name}`, e)
+    }
     alert('Fehler beim Übernehmen des Teams: ' + (e.response?.data?.message || e.message))
   }
 }
@@ -274,29 +284,20 @@ onMounted(async () => {
     }))
     teamList.value = [...localTeams.value]
 
-    // Debug: Log team numbers for comparison
-    console.log(`[${props.program}] Local teams:`, localTeams.value.map(t => ({
-      id: t.id,
-      name: t.name,
-      team_number_hot: t.team_number_hot,
-      noshow: t.noshow
-    })))
-    console.log(`[${props.program}] DRAHT teams:`, props.remoteTeams.map(t => ({
-      id: t.id,
-      name: t.name,
-      number: t.number
-    })))
+    // Teams loaded successfully
 
     teamList.value = [...localTeams.value]
     teamsDiffer.value = JSON.stringify(localTeams.value) !== JSON.stringify(props.remoteTeams)
   } catch (err) {
-    console.error('Failed to fetch teams', err)
+    if (import.meta.env.DEV) {
+      console.error('Failed to fetch teams', err)
+    }
   }
 })
 </script>
 
 <template>
-  <SavingToast ref="savingToast"/>
+  <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
 
   <div class="overflow-y-auto max-h-[80vh] lg:max-h-none mx-4">
     <div class="p-4 border rounded shadow">
