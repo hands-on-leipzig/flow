@@ -75,7 +75,12 @@ Route::middleware(['keycloak'])->group(function () {
             return response()->json(['regional_partners' => []]);
         }
         
-        $regionalPartners = $user->regionalPartners()->get(['id', 'name', 'region']);
+        // Use fully qualified column names to avoid ambiguity with pivot table's 'id' column
+        // The pivot table 'user_regional_partner' also has an 'id' column, so we need to specify the table
+        $regionalPartners = $user->regionalPartners()
+            ->select('regional_partner.id', 'regional_partner.name', 'regional_partner.region')
+            ->get();
+        
         return response()->json(['regional_partners' => $regionalPartners]);
     });
     Route::get('/user/selected-event', function (Request $request) {

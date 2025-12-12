@@ -76,7 +76,11 @@ async function fetchSelectableEvents() {
           userRegionalPartners.value = rpResponse.data.regional_partners.map((rp: any) => rp.id)
         }
       } catch (err) {
-        console.error('Failed to fetch user regional partners:', err)
+        // Silently handle error - fallback to showing all events
+        // Only log in development mode
+        if (import.meta.env.DEV) {
+          console.debug('Failed to fetch user regional partners, showing all events:', err)
+        }
         // If we can't get user's regional partners, show all events (fallback)
       }
     }
@@ -131,8 +135,11 @@ async function selectEventFromDropdown(event: any, regionalPartnerId: number) {
       regional_partner: regionalPartnerId
     })
     await eventStore.fetchSelectedEvent()
-    // Navigate to event overview if not already there
-    if (!route.path.includes('/event')) {
+    // Navigate to event overview - use replace to force reload if already there
+    if (route.path.includes('/event')) {
+      // Force reload by navigating away and back, or use router.replace with force
+      await router.replace('/event')
+    } else {
       router.push('/event')
     }
   } catch (error) {
