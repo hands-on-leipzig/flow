@@ -329,14 +329,13 @@ class PublishController extends Controller
                     'registered' => count($drahtData['teams_explore'] ?? []),
                     'color_hex' => $exploreColor,
                     'list' => $level >= 1 ? array_map(function ($team) {
-                        Log::info($team);
                         return [
                             'team_number_hot' => $team['ref'] ?? null,
                             'name' => $team['name'] ?? '',
                             'organization' => $team['organization'] ?? '',
                             'location' => $team['location'] ?? ''
                         ];
-                    }, $drahtData['teams_explore'] ?? []) : [],
+                    }, array_values($drahtData['teams_explore'] ?? [])) : [],
                 ],
                 'challenge' => [
                     'capacity' => $drahtData['capacity_challenge'] ?? 0,
@@ -349,7 +348,7 @@ class PublishController extends Controller
                             'organization' => $team['organization'] ?? '',
                             'location' => $team['location'] ?? ''
                         ];
-                    }, $drahtData['teams_challenge'] ?? []) : [],
+                    }, array_values($drahtData['teams_challenge'] ?? [])) : [],
                 ],
             ],
         ];
@@ -443,8 +442,8 @@ class PublishController extends Controller
         // Activities laden
         $activities = $this->fetcher->fetchActivities($plan->id);
 
-        // Activity Type Detail IDs by code (cached lookup)
-        $atdIds = MActivityTypeDetail::whereIn('code', [
+        // Activity Type Details by code (cached lookup with name and sequence)
+        $atdDetails = MActivityTypeDetail::whereIn('code', [
             'e_briefing_coach',
             'e_briefing_judge',
             'e_opening',
@@ -456,42 +455,122 @@ class PublishController extends Controller
             'r_briefing',
             'c_opening',
             'c_awards',
-        ])->pluck('id', 'code');
+        ])->get()->keyBy('code');
 
-        // Hilfsfunktion: Erste Startzeit für gegebene codes finden
-        $findStart = function ($codes) use ($activities, $atdIds) {
-            $ids = collect((array)$codes)->map(fn($code) => $atdIds[$code] ?? null)->filter();
+        // Helper map: code -> id for quick lookup
+        $atdIds = $atdDetails->pluck('id', 'code')->all();
+
+        // Hilfsfunktion: Erste Startzeit und Activity Type Detail für gegebene codes finden
+        // Prefer program-specific codes over general codes when multiple are provided
+        $findStart = function ($codes) use ($activities, $atdIds, $atdDetails) {
+            $codeArray = (array)$codes;
+            // Sort codes to prefer program-specific (e_/c_/j_/r_) over general (g_) codes
+            usort($codeArray, function($a, $b) {
+                $aPref = str_starts_with($a, 'g_') ? 1 : 0;
+                $bPref = str_starts_with($b, 'g_') ? 1 : 0;
+                return $aPref <=> $bPref;
+            });
+            
+            $ids = collect($codeArray)->map(fn($code) => $atdIds[$code] ?? null)->filter();
             $act = $activities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
-            return $act ? $act->start_time : null;
+            if (!$act) {
+                return null;
+            }
+            // Find which code matched this activity (use first matching code, which will be program-specific if available)
+            $matchedCode = collect($codeArray)->first(fn($code) => ($atdIds[$code] ?? null) === $act->activity_type_detail_id);
+            $atd = $matchedCode ? $atdDetails[$matchedCode] : null;
+            return [
+                'value' => $act->start_time,
+                'label' => $atd->name ?? null,
+                'sequence' => $atd->sequence ?? 0,
+            ];
         };
 
-        // Hilfsfunktion: Ende der Aktivität (end_time) für gegebene codes
-        $findEnd = function ($codes) use ($activities, $atdIds) {
-            $ids = collect((array)$codes)->map(fn($code) => $atdIds[$code] ?? null)->filter();
+        // Hilfsfunktion: Ende der Aktivität (end_time) und Activity Type Detail für gegebene codes
+        // Prefer program-specific codes over general codes when multiple are provided
+        $findEnd = function ($codes) use ($activities, $atdIds, $atdDetails) {
+            $codeArray = (array)$codes;
+            // Sort codes to prefer program-specific (e_/c_/j_/r_) over general (g_) codes
+            usort($codeArray, function($a, $b) {
+                $aPref = str_starts_with($a, 'g_') ? 1 : 0;
+                $bPref = str_starts_with($b, 'g_') ? 1 : 0;
+                return $aPref <=> $bPref;
+            });
+            
+            $ids = collect($codeArray)->map(fn($code) => $atdIds[$code] ?? null)->filter();
             $act = $activities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
-            return $act ? $act->end_time : null;
+            if (!$act) {
+                return null;
+            }
+            // Find which code matched this activity (use first matching code, which will be program-specific if available)
+            $matchedCode = collect($codeArray)->first(fn($code) => ($atdIds[$code] ?? null) === $act->activity_type_detail_id);
+            $atd = $matchedCode ? $atdDetails[$matchedCode] : null;
+            return [
+                'value' => $act->end_time,
+                'label' => $atd->name ?? null,
+                'sequence' => $atd->sequence ?? 0,
+            ];
         };
+
+        // Define time entries with labels and sequence for Explore
+        $exploreTimes = [];
+        $teamsBriefing = $findStart('e_briefing_coach');
+        if ($teamsBriefing && $teamsBriefing['value']) {
+            $exploreTimes[] = $teamsBriefing;
+        }
+        $judgesBriefing = $findStart('e_briefing_judge');
+        if ($judgesBriefing && $judgesBriefing['value']) {
+            $exploreTimes[] = $judgesBriefing;
+        }
+        $opening = $findStart(['e_opening', 'g_opening']);
+        if ($opening && $opening['value']) {
+            $exploreTimes[] = $opening;
+        }
+        $end = $findEnd(['e_awards', 'g_awards']);
+        if ($end && $end['value']) {
+            // Override label for the last entry (end time)
+            $end['label'] = 'Ende ca.';
+            $exploreTimes[] = $end;
+        }
+
+        // Define time entries with labels and sequence for Challenge
+        $challengeTimes = [];
+        $teamsBriefing = $findStart('c_briefing');
+        if ($teamsBriefing && $teamsBriefing['value']) {
+            $challengeTimes[] = $teamsBriefing;
+        }
+        $judgesBriefing = $findStart('j_briefing');
+        if ($judgesBriefing && $judgesBriefing['value']) {
+            $challengeTimes[] = $judgesBriefing;
+        }
+        $refereesBriefing = $findStart('r_briefing');
+        if ($refereesBriefing && $refereesBriefing['value']) {
+            $challengeTimes[] = $refereesBriefing;
+        }
+        $opening = $findStart(['c_opening', 'g_opening']);
+        if ($opening && $opening['value']) {
+            $challengeTimes[] = $opening;
+        }
+        $end = $findEnd(['c_awards', 'g_awards']);
+        if ($end && $end['value']) {
+            // Override label for the last entry (end time)
+            $end['label'] = 'Ende ca.';
+            $challengeTimes[] = $end;
+        }
+
+        // Sort chronologically by time value (not by sequence)
+        usort($exploreTimes, function($a, $b) {
+            return strtotime($a['value']) <=> strtotime($b['value']);
+        });
+        usort($challengeTimes, function($a, $b) {
+            return strtotime($a['value']) <=> strtotime($b['value']);
+        });
 
         $data = [
             'plan_id' => $plan->id,
             'last_change' => $plan->last_change,
-            'explore' => [
-                'briefing' => [
-                    'teams' => $findStart('e_briefing_coach'),
-                    'judges' => $findStart('e_briefing_judge'),
-                ],
-                'opening' => $findStart(['e_opening', 'g_opening']), // spezifisch oder gemeinsam
-                'end' => $findEnd(['e_awards', 'g_awards']),     // spezifisch oder gemeinsam
-            ],
-            'challenge' => [
-                'briefing' => [
-                    'teams' => $findStart('c_briefing'),
-                    'judges' => $findStart('j_briefing'),
-                    'referees' => $findStart('r_briefing'),
-                ],
-                'opening' => $findStart(['c_opening', 'g_opening']), // spezifisch oder gemeinsam
-                'end' => $findEnd(['c_awards', 'g_awards']),     // spezifisch oder gemeinsam
-            ],
+            'explore' => $exploreTimes,
+            'challenge' => $challengeTimes,
         ];
 
         return response()->json($data);

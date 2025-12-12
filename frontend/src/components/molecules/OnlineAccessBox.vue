@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import { useAuth } from '@/composables/useAuth'
-import { imageUrl } from '@/utils/images'
+import { imageUrl, programLogoSrc, programLogoAlt } from '@/utils/images'
 import { formatTimeOnly, formatDateOnly } from '@/utils/dateTimeFormat'
 import SavingToast from "@/components/atoms/SavingToast.vue";
 
@@ -43,7 +43,9 @@ async function fetchPublicationLevel() {
     const backendLevel = data.level ?? 1
     detailLevel.value = backendToFrontendLevel(backendLevel)
   } catch (e) {
-    console.error('Fehler beim Laden des Publication Levels:', e)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Laden des Publication Levels:', e)
+    }
     detailLevel.value = 0
   }
 }
@@ -62,9 +64,13 @@ async function updatePublicationLevel(level: number) {
     })
     
     const backendLevel = frontendToBackendLevel(level)
-    console.log('Updating publication level to:', backendLevel, '(frontend level:', level, ') for event:', event.value?.id)
+    if (import.meta.env.DEV) {
+      console.debug('Updating publication level to:', backendLevel, '(frontend level:', level, ') for event:', event.value?.id)
+    }
     await axios.post(`/publish/level/${event.value?.id}`, { level: backendLevel })
-    console.log('Publication level updated successfully')
+    if (import.meta.env.DEV) {
+      console.debug('Publication level updated successfully')
+    }
     
     // Small delay to show the banner
     await new Promise(resolve => setTimeout(resolve, 500))
@@ -74,7 +80,9 @@ async function updatePublicationLevel(level: number) {
       window.scrollTo(scrollLeft, scrollTop)
     })
   } catch (e) {
-    console.error('Fehler beim Setzen des Publication Levels:', e)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Setzen des Publication Levels:', e)
+    }
   } finally {
     saving.value?.hide();
   }
@@ -85,7 +93,9 @@ async function fetchScheduleInformation() {
     const { data } = await axios.post(`/publish/information/${event.value?.id}`, { level: 4 })
     scheduleInfo.value = data
   } catch (e) {
-    console.error('Fehler beim Laden von Schedule Information:', e)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Laden von Schedule Information:', e)
+    }
     scheduleInfo.value = null
   }
 }
@@ -95,8 +105,8 @@ watch(
   async (id) => {
     if (!id) return
     await Promise.all([
-      fetchPublicationLevel()
-^     fetchScheduleInformation()
+      fetchPublicationLevel(),
+      fetchScheduleInformation()
     ])
   },
   { immediate: true }
@@ -127,7 +137,7 @@ function isCardActive(card: number, level: number) {
   return false
 }
 
-function previewOlinePlan() {
+function previewOnlinePlan() {
   const url = `${import.meta.env.VITE_APP_URL}/output/zeitplan.cgi?plan=${scheduleInfo.value?.plan.plan_id}`
   window.open(url, '_blank')
 }
@@ -145,9 +155,13 @@ async function regenerateLinkAndQR() {
       eventStore.selectedEvent.qrcode = data.qrcode.replace('data:image/png;base64,', '')
     }
     
-    console.log('Link and QR code regenerated successfully')
+    if (import.meta.env.DEV) {
+      console.debug('Link and QR code regenerated successfully')
+    }
   } catch (error) {
-    console.error('Error regenerating link and QR code:', error)
+    if (import.meta.env.DEV) {
+      console.error('Error regenerating link and QR code:', error)
+    }
     alert('Fehler beim Regenerieren des Links und QR-Codes')
   } finally {
     regenerating.value = false
@@ -272,29 +286,39 @@ async function regenerateLinkAndQR() {
                     <div class="font-semibold mb-1">Angemeldete Teams</div>
                     <div v-if="scheduleInfo.teams" class="text-xs">
                       <div v-if="scheduleInfo.teams.explore" class="mb-4">
-                        <div class="font-medium mb-2 text-sm">
-                          FIRST LEGO League Explore
-                          <span class="text-gray-600 text-xs font-normal ml-2">
-                            {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet
-                          </span>
+                        <div class="font-medium mb-1 text-sm flex items-center gap-2">
+                          <img
+                            :src="programLogoSrc('E')"
+                            :alt="programLogoAlt('E')"
+                            class="w-5 h-5 flex-shrink-0"
+                          />
+                          <span class="italic">FIRST</span> LEGO League Explore
+                        </div>
+                        <div class="text-gray-600 text-xs font-normal mb-2 pl-7">
+                          {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet
                         </div>
                         <div v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0" class="text-gray-600 pl-2 text-xs">
-                          <div v-for="(team, teamIdx) in scheduleInfo.teams.explore.list" :key="teamIdx" class="mb-0.5">
-                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span>
-                          </div>
+                          <span v-for="(team, teamIdx) in scheduleInfo.teams.explore.list" :key="teamIdx">
+                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span><span v-if="teamIdx < scheduleInfo.teams.explore.list.length - 1">, </span>
+                          </span>
                         </div>
                       </div>
                       <div v-if="scheduleInfo.teams.challenge">
-                        <div class="font-medium mb-2 text-sm">
-                          FIRST LEGO League Challenge
-                          <span class="text-gray-600 text-xs font-normal ml-2">
-                            {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet
-                          </span>
+                        <div class="font-medium mb-1 text-sm flex items-center gap-2">
+                          <img
+                            :src="programLogoSrc('C')"
+                            :alt="programLogoAlt('C')"
+                            class="w-5 h-5 flex-shrink-0"
+                          />
+                          <span class="italic">FIRST</span> LEGO League Challenge
+                        </div>
+                        <div class="text-gray-600 text-xs font-normal mb-2 pl-7">
+                          {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet
                         </div>
                         <div v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0" class="text-gray-600 pl-2 text-xs">
-                          <div v-for="(team, teamIdx) in scheduleInfo.teams.challenge.list" :key="teamIdx" class="mb-0.5">
-                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span>
-                          </div>
+                          <span v-for="(team, teamIdx) in scheduleInfo.teams.challenge.list" :key="teamIdx">
+                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span><span v-if="teamIdx < scheduleInfo.teams.challenge.list.length - 1">, </span>
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -307,63 +331,38 @@ async function regenerateLinkAndQR() {
               <template v-else-if="idx === 1 && scheduleInfo && scheduleInfo.plan">
                 <div class="font-semibold mb-3">Wichtige Zeiten</div>
                 
-                <!-- Explore Section - Only show if there are Explore times -->
-                <div v-if="scheduleInfo.plan?.explore && (
-                    scheduleInfo.plan.explore.briefing?.teams ||
-                    scheduleInfo.plan.explore.briefing?.judges ||
-                    scheduleInfo.plan.explore.opening ||
-                    scheduleInfo.plan.explore.end
-                  )" class="mb-4">
-                  <div class="font-medium mb-2">FIRST LEGO League Explore</div>
+                <!-- Explore Section - Loop through times array from backend -->
+                <div v-if="scheduleInfo.plan?.explore && Array.isArray(scheduleInfo.plan.explore) && scheduleInfo.plan.explore.length > 0" class="mb-4">
+                  <div class="font-medium mb-2 flex items-center gap-2">
+                    <img
+                      :src="programLogoSrc('E')"
+                      :alt="programLogoAlt('E')"
+                      class="w-5 h-5 flex-shrink-0"
+                    />
+                    <span class="italic">FIRST</span> LEGO League Explore
+                  </div>
                   <div class="space-y-1 text-xs">
-                    <div v-if="scheduleInfo.plan.explore.briefing?.teams" class="flex justify-between">
-                      <span class="text-gray-600">Coach-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.teams, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.explore.briefing?.judges" class="flex justify-between">
-                      <span class="text-gray-600">Gutachter:innen-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.briefing.judges, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.explore.opening" class="flex justify-between">
-                      <span class="text-gray-600">Eröffnung:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.opening, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.explore.end" class="flex justify-between">
-                      <span class="text-gray-600">Ende:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.explore.end, true) }}</span>
+                    <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore" :key="timeIdx" class="flex justify-between">
+                      <span class="text-gray-600">{{ timeEntry.label }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(timeEntry.value, true) }}</span>
                     </div>
                   </div>
                 </div>
 
-                <!-- Challenge Section - Only show if there are Challenge times -->
-                <div v-if="scheduleInfo.plan?.challenge && (
-                    scheduleInfo.plan.challenge.briefing?.teams ||
-                    scheduleInfo.plan.challenge.briefing?.judges ||
-                    scheduleInfo.plan.challenge.briefing?.referees ||
-                    scheduleInfo.plan.challenge.opening ||
-                    scheduleInfo.plan.challenge.end
-                  )">
-                  <div class="font-medium mb-2">FIRST LEGO League Challenge</div>
+                <!-- Challenge Section - Loop through times array from backend -->
+                <div v-if="scheduleInfo.plan?.challenge && Array.isArray(scheduleInfo.plan.challenge) && scheduleInfo.plan.challenge.length > 0">
+                  <div class="font-medium mb-2 flex items-center gap-2">
+                    <img
+                      :src="programLogoSrc('C')"
+                      :alt="programLogoAlt('C')"
+                      class="w-5 h-5 flex-shrink-0"
+                    />
+                    <span class="italic">FIRST</span> LEGO League Challenge
+                  </div>
                   <div class="space-y-1 text-xs">
-                    <div v-if="scheduleInfo.plan.challenge.briefing?.teams" class="flex justify-between">
-                      <span class="text-gray-600">Coach-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.teams, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.challenge.briefing?.judges" class="flex justify-between">
-                      <span class="text-gray-600">Jury-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.judges, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.challenge.briefing?.referees" class="flex justify-between">
-                      <span class="text-gray-600">Schiedsrichter:innen-Briefing:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.briefing.referees, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.challenge.opening" class="flex justify-between">
-                      <span class="text-gray-600">Eröffnung:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.opening, true) }}</span>
-                    </div>
-                    <div v-if="scheduleInfo.plan.challenge.end" class="flex justify-between">
-                      <span class="text-gray-600">Ende:</span>
-                      <span class="font-medium">{{ formatTimeOnly(scheduleInfo.plan.challenge.end, true) }}</span>
+                    <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.challenge" :key="timeIdx" class="flex justify-between">
+                      <span class="text-gray-600">{{ timeEntry.label }}</span>
+                      <span class="font-medium">{{ formatTimeOnly(timeEntry.value, true) }}</span>
                     </div>
                   </div>
                 </div>
@@ -381,7 +380,7 @@ async function regenerateLinkAndQR() {
                     />
                   </div>
                   <div class="mt-4 flex justify-center">
-                    <button class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="previewOlinePlan">
+                    <button class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="previewOnlinePlan">
                       Vorschau
                     </button>
                   </div>
