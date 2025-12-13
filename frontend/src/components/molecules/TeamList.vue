@@ -260,6 +260,48 @@ const applyDrahtTeam = async (team) => {
   }
 }
 
+const deleteTeam = async (team) => {
+  if (!team.local?.id) {
+    if (import.meta.env.DEV) {
+      console.error('Cannot delete team: team ID is missing', team)
+    }
+    return
+  }
+
+  if (!confirm(`Möchtest du das Team "${team.local.name}" wirklich löschen?`)) {
+    return
+  }
+
+  try {
+    savingToast?.value?.show()
+    await axios.delete(`/teams/${team.local.id}`)
+
+    // Refresh teams from server
+    const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
+    // Normalize noshow values to boolean (handle null, 0, 1, true, false)
+    localTeams.value = dbRes.data.map(team => ({
+      ...team,
+      noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1'
+    }))
+    teamList.value = [...localTeams.value]
+
+    // Refresh discrepancy status
+    await eventStore.updateTeamDiscrepancyStatus()
+
+    const hasRemainingDiffs = mergedTeams.value.some(t => t.status !== 'match' && t.status !== 'ignored')
+    if (!hasRemainingDiffs) {
+      showDiffModal.value = false
+    }
+  } catch (e) {
+    if (import.meta.env.DEV) {
+      console.error(`Fehler beim Löschen von Team ${team.local.name}`, e)
+    }
+    alert('Fehler beim Löschen des Teams: ' + (e.response?.data?.message || e.message))
+  } finally {
+    savingToast?.value?.hide()
+  }
+}
+
 const ignoreDiff = (team) => {
   // Mark as resolved but not updated
   ignoredTeamNumbers.value.add(team.number)
@@ -435,6 +477,14 @@ onMounted(async () => {
 
             <div class="flex justify-end gap-2 mt-4">
               <button
+                  v-if="team.status === 'missing'"
+                  class="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-700"
+                  @click="deleteTeam(team)"
+              >
+                Löschen
+              </button>
+              <button
+                  v-else
                   class="px-3 py-1 text-sm rounded"
                   :class="{
                     'bg-blue-600 text-white hover:bg-blue-700': team.draht?.number || team.number,

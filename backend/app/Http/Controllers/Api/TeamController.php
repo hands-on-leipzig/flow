@@ -188,4 +188,18 @@ class TeamController extends Controller
 
         return response()->json(['message' => 'Team order updated successfully']);
     }
+
+    public function destroy(Team $team)
+    {
+        try {
+            $team->delete();
+            return response()->json(['message' => 'Team deleted successfully']);
+        } catch (\Exception $e) {
+            Log::error('Error deleting team', [
+                'team_id' => $team->id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'Failed to delete team'], 500);
+        }
+    }
 }
