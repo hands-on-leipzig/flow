@@ -149,10 +149,15 @@ async function regenerateLinkAndQR() {
     regenerating.value = true
     const { data } = await axios.post(`/publish/regenerate/${event.value.id}`)
     
+    // Backend returns only the slug, so we need to construct the full URL
+    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin
+    const fullLink = `${baseUrl}/${data.link}`
+    
     // Update the event in the store with new link and QR code
     if (eventStore.selectedEvent) {
-      eventStore.selectedEvent.link = data.link
+      eventStore.selectedEvent.link = fullLink
       eventStore.selectedEvent.qrcode = data.qrcode.replace('data:image/png;base64,', '')
+      eventStore.selectedEvent.slug = data.link // Also update the slug
     }
     
     if (import.meta.env.DEV) {
