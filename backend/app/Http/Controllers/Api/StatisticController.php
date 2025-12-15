@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 use App\Enums\FirstProgram;
 use App\Models\Event;
 use App\Http\Controllers\Api\DrahtController;
+use App\Http\Controllers\Api\PlanRoomTypeController;
+use App\Http\Controllers\Api\TeamController;
 use Carbon\Carbon;
 
 
@@ -296,6 +298,7 @@ class StatisticController extends Controller
                     'publication_level' => $row->publication_level,
                     'publication_date' => $row->publication_date,
                     'publication_last_change' => $row->publication_last_change,
+                    'has_warning' => false, // Will be set by DRAHT check
                 ];
             }
         }
@@ -961,8 +964,18 @@ class StatisticController extends Controller
                 'event_id' => $eventId,
                 'has_issue' => false,
                 'contact_email' => null,
+                'plan_warnings' => [],
                 'error' => 'Event not found'
             ], 404);
+        }
+
+        // Calculate readiness/warnings for all plans in this event
+        $planWarnings = [];
+        $plans = DB::table('plan')->where('event', $eventId)->get();
+        
+        foreach ($plans as $plan) {
+            $hasWarning = $this->calculatePlanWarning($event, $plan->id);
+            $planWarnings[$plan->id] = $hasWarning;
         }
 
         // Only check if event has DRAHT IDs
@@ -971,6 +984,7 @@ class StatisticController extends Controller
                 'event_id' => $eventId,
                 'has_issue' => false,
                 'contact_email' => null,
+                'plan_warnings' => $planWarnings,
                 'message' => 'No DRAHT IDs'
             ]);
         }
@@ -1032,6 +1046,7 @@ class StatisticController extends Controller
                 'event_id' => $eventId,
                 'has_issue' => $hasIssue,
                 'contact_email' => $email,
+                'plan_warnings' => $planWarnings,
             ]);
         } catch (\Throwable $e) {
             // If exception occurs, there's definitely an issue
@@ -1043,9 +1058,93 @@ class StatisticController extends Controller
                 'event_id' => $eventId,
                 'has_issue' => true,
                 'contact_email' => null,
+                'plan_warnings' => $planWarnings,
                 'error' => $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Calculate if a plan has warnings (red dot conditions)
+     * Returns true if any of: team discrepancy, missing teams, or room mapping issues
+     */
+    private function calculatePlanWarning(Event $event, int $planId): bool
+    {
+        $plan = DB::table('plan')->where('id', $planId)->first();
+        if (!$plan) {
+            return true; // No plan = warning
+        }
+
+        // Get planned team counts
+        $paramIds = DB::table('m_parameter')
+            ->whereIn('name', ['c_teams', 'e_teams'])
+            ->pluck('id', 'name');
+
+        $values = DB::table('plan_param_value')
+            ->where('plan', $planId)
+            ->whereIn('parameter', $paramIds->values())
+            ->pluck('set_value', 'parameter')
+            ->map(fn($v) => (int)$v);
+
+        $plannedChallengeTeams = $values[$paramIds['c_teams']] ?? 0;
+        $plannedExploreTeams = $values[$paramIds['e_teams']] ?? 0;
+
+        // Get registered team counts from local DB
+        $teamCounts = DB::table('team')
+            ->select('first_program', DB::raw('COUNT(*) as count'))
+            ->where('event', $event->id)
+            ->groupBy('first_program')
+            ->get()
+            ->keyBy('first_program');
+
+        $registeredChallengeTeams = (int)($teamCounts[FirstProgram::CHALLENGE->value]->count ?? 0);
+        $registeredExploreTeams = (int)(($teamCounts[FirstProgram::EXPLORE->value]->count ?? 0) + ($teamCounts[FirstProgram::DISCOVER->value]->count ?? 0));
+
+        // Check team discrepancy
+        $hasTeamDiscrepancy = ($plannedChallengeTeams !== $registeredChallengeTeams) || 
+                             ($plannedExploreTeams !== $registeredExploreTeams);
+
+        $exploreTeamsOk = ($plannedExploreTeams === $registeredExploreTeams);
+        $challengeTeamsOk = ($plannedChallengeTeams === $registeredChallengeTeams);
+
+        // Check room mapping
+        $planRoomTypeController = app(PlanRoomTypeController::class);
+        $unmappedResponse = $planRoomTypeController->unmappedRoomTypes($planId);
+        $unmappedList = $unmappedResponse->getData(true);
+        $hasUnmappedRooms = !empty($unmappedList);
+
+        // Check if all teams have rooms assigned
+        $teamController = app(TeamController::class);
+        $allTeamsHaveRooms = true;
+        
+        try {
+            $requestExplore = new \Illuminate\Http\Request();
+            $requestExplore->query->set('program', 'explore');
+            $exploreResponse = $teamController->index($requestExplore, $event);
+            $exploreTeams = collect($exploreResponse->getData(true));
+            
+            $requestChallenge = new \Illuminate\Http\Request();
+            $requestChallenge->query->set('program', 'challenge');
+            $challengeResponse = $teamController->index($requestChallenge, $event);
+            $challengeTeams = collect($challengeResponse->getData(true));
+            
+            $exploreWithoutRoom = $exploreTeams->whereNull('room')->count();
+            $challengeWithoutRoom = $challengeTeams->whereNull('room')->count();
+            
+            $allExploreRoomsOk = $exploreTeams->isEmpty() || $exploreWithoutRoom === 0;
+            $allChallengeRoomsOk = $challengeTeams->isEmpty() || $challengeWithoutRoom === 0;
+            $allTeamsHaveRooms = $allExploreRoomsOk && $allChallengeRoomsOk;
+        } catch (\Exception $e) {
+            $allTeamsHaveRooms = false;
+        }
+        
+        $roomMappingOk = !$hasUnmappedRooms && $allTeamsHaveRooms;
+
+        // Red dot shows if:
+        // - hasTeamDiscrepancy (teams tab)
+        // - !explore_teams_ok || !challenge_teams_ok (schedule tab)
+        // - !room_mapping_ok (rooms tab)
+        return $hasTeamDiscrepancy || !$exploreTeamsOk || !$challengeTeamsOk || !$roomMappingOk;
     }
 
     /**
