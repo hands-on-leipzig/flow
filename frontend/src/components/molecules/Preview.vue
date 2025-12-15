@@ -94,6 +94,7 @@ type ActivityRow = {
 type ActivityGroup = {
   activity_group_id: number|null
   activity_group_name?: string
+  explore_group?: number|null
   activities: ActivityRow[]
 }
 const activities = ref<ActivityGroup[]>([])
@@ -197,6 +198,19 @@ function formatTeam(teamNum: number | null): string {
   if (teamNum === null) return ''
   if (teamNum === 0) return '–'
   return String(teamNum)
+}
+
+// Check if any activity group has explore_group filled
+const hasExploreGroups = computed(() => {
+  return activities.value.some(group => group.explore_group !== null && group.explore_group !== undefined)
+})
+
+// Format explore group display
+function formatExploreGroup(exploreGroup: number | null | undefined): string {
+  if (exploreGroup === null || exploreGroup === undefined) return ''
+  if (exploreGroup === 1) return 'Gruppe 1'
+  if (exploreGroup === 2) return 'Gruppe 2'
+  return ''
 }
 </script>
 
@@ -462,6 +476,7 @@ function formatTeam(teamNum: number | null): string {
                   <th class="px-2 py-1 text-left">Table 1</th>
                   <th class="px-2 py-1 text-left">Table 2</th>
                   <th class="px-2 py-1 text-left">Room Type</th>
+                  <th v-if="hasExploreGroups" class="px-2 py-1 text-left">Gruppe</th>
                 </tr>
               </thead>
               <tbody>
@@ -478,6 +493,7 @@ function formatTeam(teamNum: number | null): string {
                   <td class="px-2 py-1">{{ a.table_1 ?? '' }}</td>
                   <td class="px-2 py-1">{{ a.table_2 ?? '' }}</td>
                   <td class="px-2 py-1">{{ a.room_type_name || '' }}</td>
+                  <td v-if="hasExploreGroups" class="px-2 py-1">{{ formatExploreGroup(group.explore_group) }}</td>
                 </tr>
               </tbody>
             </table>

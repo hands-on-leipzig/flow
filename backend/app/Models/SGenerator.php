@@ -13,6 +13,7 @@ class SGenerator extends Model
 
     protected $fillable = [
         'plan',
+        'user',
         'start',
         'end',
         'mode',
@@ -23,5 +24,10 @@ class SGenerator extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class, 'plan');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user');
     }
 }

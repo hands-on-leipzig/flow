@@ -71,8 +71,34 @@ class TeamController extends Controller
 
         $teams = $query->get();
 
-        // Log::info('Fetched teams', $teams->toArray());      
+        // If Explore teams, include e1_teams and e_mode for frontend to determine morning/afternoon split
+        if ($programName === 'explore') {
+            $plan = Plan::where('event', $event->id)->first();
+            if ($plan) {
+                $e1Teams = DB::table('plan_param_value')
+                    ->join('m_parameter', 'plan_param_value.parameter', '=', 'm_parameter.id')
+                    ->where('plan_param_value.plan', $plan->id)
+                    ->where('m_parameter.name', 'e1_teams')
+                    ->value('plan_param_value.set_value');
+                
+                $eMode = DB::table('plan_param_value')
+                    ->join('m_parameter', 'plan_param_value.parameter', '=', 'm_parameter.id')
+                    ->where('plan_param_value.plan', $plan->id)
+                    ->where('m_parameter.name', 'e_mode')
+                    ->value('plan_param_value.set_value');
+                
+                // Return object with teams and metadata for Explore
+                return response()->json([
+                    'teams' => $teams,
+                    'metadata' => [
+                        'e1_teams' => $e1Teams ? (int) $e1Teams : 0,
+                        'e_mode' => $eMode ? (int) $eMode : 0
+                    ]
+                ]);
+            }
+        }
 
+        // For Challenge or if no plan found, return teams array directly (backward compatible)
         return response()->json($teams);
     }
 
@@ -187,5 +213,19 @@ class TeamController extends Controller
         });
 
         return response()->json(['message' => 'Team order updated successfully']);
+    }
+
+    public function destroy(Team $team)
+    {
+        try {
+            $team->delete();
+            return response()->json(['message' => 'Team deleted successfully']);
+        } catch (\Exception $e) {
+            Log::error('Error deleting team', [
+                'team_id' => $team->id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'Failed to delete team'], 500);
+        }
     }
 }

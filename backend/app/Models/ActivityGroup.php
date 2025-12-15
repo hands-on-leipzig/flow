@@ -12,6 +12,7 @@ class ActivityGroup extends Model
     protected $fillable = [
         'activity_type_detail',
         'plan',
+        'explore_group',
     ];
 
     // Define relationship to Plan

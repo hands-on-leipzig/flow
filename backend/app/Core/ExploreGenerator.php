@@ -113,7 +113,7 @@ class ExploreGenerator
 
                 $this->writer->withGroup('e_opening', function () use ($group) {
                     $this->writer->insertActivity('e_opening', $this->eTime, $this->pp("e{$group}_duration_opening"));
-                });
+                }, $group);
 
                 $this->eTime->addMinutes($this->pp("e{$group}_duration_opening"));
 
@@ -138,7 +138,7 @@ class ExploreGenerator
                 $cursor = new TimeCursor($t);
                 $cursor->subMinutes($this->pp("e{$group}_duration_briefing_t") + $this->pp("e_ready_opening"));
                 $this->writer->insertActivity('e_briefing_coach', $cursor, $this->pp("e{$group}_duration_briefing_t"));
-            });
+            }, $group);
 
             $this->writer->withGroup('e_briefing_judge', function () use ($t, $group) {
                 if (!$this->pp("e_briefing_after_opening_j")) {
@@ -151,7 +151,7 @@ class ExploreGenerator
                     $this->writer->insertActivity('e_briefing_judge', $cursor, $this->pp("e{$group}_duration_briefing_j"));
                     $this->eTime->addMinutes($this->pp("e_ready_briefing") + $this->pp("e{$group}_duration_briefing_j"));
                 }
-            });
+            }, $group);
 
             $this->eTime->addMinutes($this->pp("e_ready_action"));
 
@@ -204,7 +204,7 @@ class ExploreGenerator
                         $this->eTime->addMinutes($this->pp("e_duration_break"));
                     }
                 }
-            });
+            }, $group);
 
             // Buffer before all judges meet for deliberations
             $this->eTime->addMinutes($this->pp('e_ready_deliberations'));
@@ -212,7 +212,7 @@ class ExploreGenerator
             // Deliberations
             $this->writer->withGroup('e_deliberations', function () use ($group) {
                 $this->writer->insertActivity('e_deliberations', $this->eTime, $this->pp("e{$group}_duration_deliberations"));
-            });
+            }, $group);
 
             $this->eTime->addMinutes($this->pp("e{$group}_duration_deliberations"));
             
@@ -220,10 +220,10 @@ class ExploreGenerator
             $exhibitionEnd = clone $this->eTime;
             
             // Create exhibition activity group spanning from start of judging to end of deliberations
-            $this->writer->withGroup('e_exhibition', function () use ($exhibitionStart, $exhibitionEnd) {
+            $this->writer->withGroup('e_exhibition', function () use ($exhibitionStart, $exhibitionEnd, $group) {
                 $duration = $exhibitionEnd->diffInMinutes($exhibitionStart);
                 $this->writer->insertActivity('e_exhibition', $exhibitionStart, $duration);
-            });
+            }, $group);
             
             Log::info('ExploreGenerator: Exhibition activity created', [
                 'group' => $group,
@@ -249,7 +249,7 @@ class ExploreGenerator
             $this->eTime->addMinutes($this->pp("e_ready_awards"));
             $this->writer->withGroup('e_awards', function () use ($group) {
                 $this->writer->insertActivity('e_awards', $this->eTime, $this->pp("e{$group}_duration_awards"));
-            });
+            }, $group);
             $this->eTime->addMinutes($this->pp("e{$group}_duration_awards"));        
 
         } catch (\Throwable $e) {

@@ -22,6 +22,7 @@ class Activity extends Model
         'table_2_team',
         'activity_type_detail',
         'extra_block',
+        'explore_group',
     ];
 
     // Define relationship to ActivityGroup

@@ -182,6 +182,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);
     Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
+    Route::delete('/teams/{team}', [TeamController::class, 'destroy']);
 
     Route::prefix('logos')->group(function () {
         Route::get('/', [LogoController::class, 'index']);
@@ -272,6 +273,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/ready/{eventId}', [PlanExportController::class, 'dataReadiness']);
         Route::get('/available-roles/{eventId}', [PlanExportController::class, 'availableRoles']);
         Route::get('/available-team-programs/{eventId}', [PlanExportController::class, 'availableTeamPrograms']);
+        Route::get('/match-teams/{planId}/{round}', [PlanExportController::class, 'matchTeams']);
         Route::get('/event-overview/{planId}', [PlanExportController::class, 'eventOverviewPdf']);
         Route::get('/worker-shifts/{eventId}', [PlanExportController::class, 'workerShifts']);
         Route::get('/csv/room-utilization/{eventId}', [PlanExportController::class, 'roomUtilizationCsv']);

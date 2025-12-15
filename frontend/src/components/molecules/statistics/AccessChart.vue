@@ -159,19 +159,30 @@ function createTimelineChart() {
     return
   }
 
-  const labels = daily_data.map((d: any) => d.date)
+  // Format date labels to dd.mm.yyyy
+  const formatDateLabel = (dateStr: string): string => {
+    const date = new Date(dateStr + 'T00:00:00')
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}.${month}.${year}`
+  }
   
-  // Get today's date in Y-m-d format
+  const labels = daily_data.map((d: any) => formatDateLabel(d.date))
+  
+  // Get today's date in Y-m-d format for comparison
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
-  const todayIndex = labels.indexOf(todayStr)
+  const todayFormatted = formatDateLabel(todayStr)
+  const todayIndex = labels.indexOf(todayFormatted)
   
   const accessData = daily_data.map((d: any) => d.access_count)
   const maxAccess = Math.max(...accessData, 1)
 
   const publicationDatasets = (publication_intervals || []).map((interval: any) => {
-    const intervalData = labels.map((label: string) => {
-      const labelDate = new Date(label + 'T00:00:00')
+    // Map formatted labels back to original dates for comparison
+    const intervalData = daily_data.map((d: any) => {
+      const labelDate = new Date(d.date + 'T00:00:00')
       const startDate = new Date(interval.start_date + 'T00:00:00')
       const endDate = new Date(interval.end_date + 'T00:00:00')
       
@@ -207,8 +218,8 @@ function createTimelineChart() {
       
       if (!xScale || !yScale) return
       
-      // Get the x position of today
-      const todayX = xScale.getPixelForValue(todayStr)
+      // Get the x position of today (using formatted label)
+      const todayX = xScale.getPixelForValue(todayFormatted)
       
       if (isNaN(todayX)) return
       

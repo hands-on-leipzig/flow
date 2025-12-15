@@ -2634,7 +2634,7 @@
             "id": 16,
             "code": "e_briefing_judge",
             "name": "Gutachter:innen-Briefing",
-            "sequence": 310,
+            "sequence": 300,
             "room_type_group": 1,
             "level": 1,
             "first_program": 2
@@ -2652,7 +2652,7 @@
             "id": 18,
             "code": "e_briefing_coach",
             "name": "Explore Coaches-Briefing",
-            "sequence": 309,
+            "sequence": 290,
             "room_type_group": 1,
             "level": 1,
             "first_program": 2
@@ -2899,6 +2899,114 @@
             "room_type_group": 1,
             "level": 1,
             "first_program": 3
+        },
+        {
+            "id": 56,
+            "code": "e1_opening",
+            "name": "Er\u00f6ffnung Explore (Vormittag)",
+            "sequence": 131,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 57,
+            "code": "e1_exhibition",
+            "name": "Explore Ausstellung (Vormittag)",
+            "sequence": 201,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 58,
+            "code": "e1_briefing_coach",
+            "name": "Explore Coaches-Briefing (Vormittag)",
+            "sequence": 291,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 59,
+            "code": "e1_briefing_judge",
+            "name": "Gutachter:innen-Briefing (Vormittag)",
+            "sequence": 301,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 60,
+            "code": "e1_deliberations",
+            "name": "Gutachter:innen-Beratung (Vormittag)",
+            "sequence": 321,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 61,
+            "code": "e1_awards",
+            "name": "Preisverleihung Explore  (Vormittag)",
+            "sequence": 531,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 62,
+            "code": "e2_opening",
+            "name": "Er\u00f6ffnung Explore (Nachmittag)",
+            "sequence": 132,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 63,
+            "code": "e2_exhibition",
+            "name": "Explore Ausstellung (Nachmittag)",
+            "sequence": 202,
+            "room_type_group": 2,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 64,
+            "code": "e2_briefing_coach",
+            "name": "Explore Coaches-Briefing (Nachmittag)",
+            "sequence": 292,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 65,
+            "code": "e2_briefing_judge",
+            "name": "Gutachter:innen-Briefing (Nachmittag)",
+            "sequence": 302,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 66,
+            "code": "e2_deliberations",
+            "name": "Gutachter:innen-Beratung (Nachmittag)",
+            "sequence": 322,
+            "room_type_group": 1,
+            "level": 1,
+            "first_program": 2
+        },
+        {
+            "id": 67,
+            "code": "e2_awards",
+            "name": "Preisverleihung Explore  (Nachmittag)",
+            "sequence": 532,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 2
         }
     ],
     "m_room_type_group": [
@@ -6300,7 +6408,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2025-12-10T09:18:15.514184Z",
+        "exported_at": "2025-12-15T18:59:31.866127Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",

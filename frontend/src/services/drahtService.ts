@@ -55,7 +55,9 @@ export class DrahtService {
   static async fetchLocalTeams(eventId: number, program: 'explore' | 'challenge'): Promise<Array<{id: number, team_number_hot: number, name: string}>> {
     try {
       const response = await axios.get(`/events/${eventId}/teams?program=${program}`)
-      return response.data
+      // Handle both array format and object format (for Explore teams with metadata)
+      const teamsArray = Array.isArray(response.data) ? response.data : (response.data.teams || [])
+      return teamsArray
     } catch (error) {
       console.error(`Failed to fetch local ${program} teams:`, error)
       return []

@@ -38,6 +38,8 @@ type FlattenedRow = {
   publication_date?: string | null
   publication_last_change?: string | null
   access_count?: number
+  has_warning?: boolean
+  has_table_names?: boolean
 }
 
 const data = ref<any>(null)
@@ -57,6 +59,7 @@ const drahtCheckState = ref({
 })
 const drahtIssues = ref<Map<number, boolean>>(new Map())
 const contactEmails = ref<Record<number, string>>({})
+const planWarnings = ref<Map<number, boolean>>(new Map()) // plan_id => has_warning
 
 const router = useRouter()
 const eventStore = useEventStore()
@@ -166,6 +169,7 @@ async function startDrahtChecks() {
       const response = await axios.get(`/stats/draht-check/${eventId}`)
       const hasIssue = response.data.has_issue === true
       const contactEmail = response.data.contact_email && response.data.contact_email.trim() ? response.data.contact_email.trim() : null
+      const planWarningsData = response.data.plan_warnings || {}
       
       if (hasIssue) {
         drahtIssues.value.set(eventId, true)
@@ -177,6 +181,11 @@ async function startDrahtChecks() {
       // Store contact email if available
       if (contactEmail) {
         contactEmails.value[eventId] = contactEmail
+      }
+      
+      // Store plan warnings
+      for (const [planId, hasWarning] of Object.entries(planWarningsData)) {
+        planWarnings.value.set(Number(planId), hasWarning === true)
       }
     } catch (e) {
       // On error, mark as having issue
@@ -207,6 +216,7 @@ function startDrahtCheck() {
   // Reset state and start checking
   drahtIssues.value.clear()
   contactEmails.value = {}
+  planWarnings.value.clear()
   drahtCheckState.value = {
     isRunning: true,
     checked: 0,
@@ -238,6 +248,8 @@ const seasonTotals = computed(() => {
     events_with_plan: 0,
     events_with_plan_past: 0,
     events_with_plan_future: 0,
+    events_with_plan_with_generator_past: 0,
+    events_with_plan_with_generator_future: 0,
     plans_total: 0,
     activity_groups_total: 0,
     activities_total: 0,
@@ -256,6 +268,8 @@ const seasonTotals = computed(() => {
     events_with_plan: s.events?.with_plan ?? 0,
     events_with_plan_past: s.events?.with_plan_past ?? 0,
     events_with_plan_future: s.events?.with_plan_future ?? 0,
+    events_with_plan_with_generator_past: s.events?.with_plan_with_generator_past ?? 0,
+    events_with_plan_with_generator_future: s.events?.with_plan_with_generator_future ?? 0,
     plans_total: s.plans?.total ?? 0,
     activity_groups_total: s.activity_groups?.total ?? 0,
     activities_total: s.activities?.total ?? 0,
@@ -416,6 +430,8 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           publication_date: plan.publication_date ?? null,
           publication_last_change: plan.publication_last_change ?? null,
           access_count: accessStats.value.get(event.event_id) ?? undefined,
+          has_warning: planWarnings.value.get(plan.plan_id) ?? false,
+          has_table_names: plan.has_table_names ?? false,
         })
       }
     }
@@ -828,8 +844,8 @@ function exportToCSV() {
           </div>
         </div>
 
-        <!-- Season totals (3 boxes) -->
-        <div class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+        <!-- Season totals (5 boxes) -->
+        <div class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
           <!-- Box 1: regional partners -->
           <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
@@ -842,19 +858,31 @@ function exportToCSV() {
             </div>
           </div>
 
-          <!-- Box 2: events -->
+          <!-- Box 2: past events -->
           <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
-              <span>Events: Vergangenheit | Zukunft</span>
-              <span class="font-semibold">{{ seasonTotals.events_past }} | {{ seasonTotals.events_future }}</span>
+              <span>Events: Vergangenheit</span>
+              <span class="font-semibold">{{ seasonTotals.events_past }}</span>
             </div>
             <div class="flex justify-between text-gray-700">
-              <span>mit Plan</span>
-              <span class="font-semibold">{{ seasonTotals.events_with_plan_past }} | {{ seasonTotals.events_with_plan_future }}</span>
+              <span>mit generiertem Plan</span>
+              <span class="font-semibold">{{ seasonTotals.events_with_plan_with_generator_past }}</span>
             </div>
           </div>
 
-        <!-- Box 3: plans & activities -->
+          <!-- Box 3: future events -->
+          <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
+            <div class="flex justify-between text-gray-700">
+              <span>Events: Zukunft</span>
+              <span class="font-semibold">{{ seasonTotals.events_future }}</span>
+            </div>
+            <div class="flex justify-between text-gray-700">
+              <span>mit generiertem Plan</span>
+              <span class="font-semibold">{{ seasonTotals.events_with_plan_with_generator_future }}</span>
+            </div>
+          </div>
+
+        <!-- Box 4: plans & activities -->
         <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
           <div class="flex justify-between text-gray-700">
             <span>Pläne</span>
@@ -868,7 +896,7 @@ function exportToCSV() {
           </div>
         </div>
 
-        <!-- Box 4: Publications -->
+        <!-- Box 5: Publications -->
         <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
           <div class="flex justify-between text-gray-700">
             <span>Veröffentlichte Pläne</span>
@@ -1065,7 +1093,14 @@ function exportToCSV() {
           <!-- Plan ID + buttons -->
           <td class="px-3 py-2 text-gray-400">
             <div class="flex flex-col items-start">
-              <span>{{ row.plan_id }}</span>
+              <div class="flex items-center gap-1">
+                <span>{{ row.plan_id }}</span>
+                <div
+                  v-if="row.has_warning"
+                  class="w-2 h-2 bg-red-500 rounded-full"
+                  title="Achtung: Es gibt offene Punkte in diesem Bereich"
+                ></div>
+              </div>
               <div v-if="row.plan_id" class="flex gap-2 mt-1">
                 <!-- Preview -->
                 <button
@@ -1117,10 +1152,12 @@ function exportToCSV() {
             <template v-if="row.plan_id">
               <div class="flex flex-col items-center">
                 <span v-if="row.expert_param_changes">
-                  {{ row.expert_param_changes.input }} + {{ row.expert_param_changes.expert }}
+                  {{ row.expert_param_changes.input }} + {{ row.expert_param_changes.expert }}<template v-if="row.has_table_names"> + T</template>
                 </span>
-                <span v-else>0 + 0</span>
-                <template v-if="row.expert_param_changes && (row.expert_param_changes.input > 0 || row.expert_param_changes.expert > 0)">
+                <span v-else>
+                  0 + 0<template v-if="row.has_table_names"> + T</template>
+                </span>
+                <template v-if="(row.expert_param_changes && (row.expert_param_changes.input > 0 || row.expert_param_changes.expert > 0)) || row.has_table_names">
                   <a
                     href="#"
                     class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
