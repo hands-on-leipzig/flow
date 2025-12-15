@@ -186,20 +186,20 @@ onMounted(async () => {
   if (hasTwoExploreGroups.value) {
     // Two Explore groups: Vormittag and Nachmittag
     teamGroups.push(
-      { id: 'explore-morning', name: 'FIRST LEGO League Explore Vormittag', items: exploreTeamsMorning.value },
-      { id: 'explore-afternoon', name: 'FIRST LEGO League Explore Nachmittag', items: exploreTeamsAfternoon.value }
+      { id: 'explore-morning', name: 'Explore Vormittag', items: exploreTeamsMorning.value },
+      { id: 'explore-afternoon', name: 'Explore Nachmittag', items: exploreTeamsAfternoon.value }
     )
   } else {
     // Single Explore group
     teamGroups.push(
-      { id: 'explore', name: 'FIRST LEGO League Explore', items: exploreTeams.value }
+      { id: 'explore', name: 'Explore', items: exploreTeams.value }
     )
   }
   
   // Add Challenge group
   if (showChallengeTeams.value) {
     teamGroups.push(
-      { id: 'challenge', name: 'FIRST LEGO League Challenge', items: challengeTeams.value }
+      { id: 'challenge', name: 'Challenge', items: challengeTeams.value }
     )
   }
 
@@ -870,19 +870,19 @@ const getItemsInRoom = (roomId) => {
         if (group.id === 'explore-morning') {
           bulkMode = bulkModeExploreMorning.value
           proxyKey = PROXY_EXPLORE_MORNING_KEY
-          proxyName = 'Alle FIRST LEGO League Explore Vormittag Teams'
+          proxyName = 'Alle Explore Vormittag Teams'
         } else if (group.id === 'explore-afternoon') {
           bulkMode = bulkModeExploreAfternoon.value
           proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-          proxyName = 'Alle FIRST LEGO League Explore Nachmittag Teams'
+          proxyName = 'Alle Explore Nachmittag Teams'
         } else if (group.id === 'explore') {
           bulkMode = bulkModeExplore.value
           proxyKey = PROXY_EXPLORE_KEY
-          proxyName = 'Alle FIRST LEGO League Explore Teams'
+          proxyName = 'Alle Explore Teams'
         } else if (group.id === 'challenge') {
           bulkMode = bulkModeChallenge.value
           proxyKey = PROXY_CHALLENGE_KEY
-          proxyName = 'Alle FIRST LEGO League Challenge Teams'
+          proxyName = 'Alle Challenge Teams'
         }
         
         if (bulkMode && proxyKey) {
@@ -1241,19 +1241,19 @@ const showChallengeTeams = computed(() => {
                   let proxyKey, proxyName, firstProgram
                   if (group.id === 'explore-morning') {
                     proxyKey = PROXY_EXPLORE_MORNING_KEY
-                    proxyName = 'Alle FLL Explore Vormittag Teams'
+                    proxyName = 'Alle Explore Vormittag Teams'
                     firstProgram = 2
                   } else if (group.id === 'explore-afternoon') {
                     proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-                    proxyName = 'Alle FLL Explore Nachmittag Teams'
+                    proxyName = 'Alle Explore Nachmittag Teams'
                     firstProgram = 2
                   } else if (group.id === 'explore') {
                     proxyKey = PROXY_EXPLORE_KEY
-                    proxyName = 'Alle FLL Explore Teams'
+                    proxyName = 'Alle Explore Teams'
                     firstProgram = 2
                   } else {
                     proxyKey = PROXY_CHALLENGE_KEY
-                    proxyName = 'Alle FLL Challenge Teams'
+                    proxyName = 'Alle Challenge Teams'
                     firstProgram = 3
                   }
                   return [{
