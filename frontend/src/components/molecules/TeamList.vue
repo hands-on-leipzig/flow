@@ -518,13 +518,14 @@ onMounted(async () => {
                 (teamsBeyondCapacity && index >= planCapacity)
                   ? 'border border-yellow-300'
                   : '',
-                hasTwoExploreGroups && getTeamGroup(team) === 'morning' 
+                // Only apply colored border if team is NOT beyond capacity
+                !(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'morning' 
                   ? 'border-l-[6px]' 
-                  : (hasTwoExploreGroups && getTeamGroup(team) === 'afternoon' 
+                  : (!(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'afternoon' 
                       ? 'border-l-[6px]' 
                       : '')
               ]"
-              :style="getTeamBorderStyle(team)"
+              :style="(teamsBeyondCapacity && index >= planCapacity) ? '' : getTeamBorderStyle(team)"
           >
             <!-- Drag-Handle -->
             <span class="drag-handle cursor-move text-gray-500"><IconDraggable/></span>
