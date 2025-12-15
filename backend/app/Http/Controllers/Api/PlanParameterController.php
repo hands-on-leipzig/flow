@@ -183,9 +183,29 @@ class PlanParameterController extends Controller
         $inputParameters = $baseQuery('input', true);
         $expertParameters = $baseQuery('expert', false);
 
+        // Get overwritten table names for this plan's event
+        $plan = DB::table('plan')->where('id', $planId)->first();
+        $tableNames = [];
+        if ($plan && $plan->event) {
+            $tableNames = DB::table('table_event')
+                ->where('event', $plan->event)
+                ->whereNotNull('table_name')
+                ->where('table_name', '!=', '')
+                ->orderBy('table_number')
+                ->get(['table_number', 'table_name'])
+                ->map(function ($row) {
+                    return [
+                        'table_number' => $row->table_number,
+                        'table_name' => $row->table_name,
+                    ];
+                })
+                ->toArray();
+        }
+
         return response()->json([
             'input' => $inputParameters,
-            'expert' => $expertParameters
+            'expert' => $expertParameters,
+            'table_names' => $tableNames,
         ]);
     }
 

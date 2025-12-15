@@ -8,7 +8,7 @@
       Lade Parameter...
     </div>
     
-    <div v-else-if="inputParameters.length === 0 && expertParameters.length === 0" class="text-gray-500 py-4">
+    <div v-else-if="inputParameters.length === 0 && expertParameters.length === 0 && tableNames.length === 0" class="text-gray-500 py-4">
       Keine veränderten Parameter gefunden.
     </div>
     
@@ -70,6 +70,31 @@
           </table>
         </div>
       </div>
+      
+      <!-- Table Names Table -->
+      <div v-if="tableNames.length > 0">
+        <h4 class="text-md font-semibold mb-2">Tischnamen (überschrieben)</h4>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm border-collapse">
+            <thead class="bg-gray-100 text-left">
+              <tr>
+                <th class="px-3 py-2 border border-gray-300">Tisch Nummer</th>
+                <th class="px-3 py-2 border border-gray-300">Tischname</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="table in tableNames"
+                :key="table.table_number"
+                class="hover:bg-gray-50"
+              >
+                <td class="px-3 py-2 border border-gray-300">{{ table.table_number }}</td>
+                <td class="px-3 py-2 border border-gray-300">{{ table.table_name }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
     
     <div class="flex justify-end gap-2 mt-6">
@@ -104,6 +129,10 @@ const expertParameters = ref<Array<{
   default_value: string | null
   sequence: number
 }>>([])
+const tableNames = ref<Array<{
+  table_number: number
+  table_name: string
+}>>([])
 const loading = ref(false)
 
 async function loadNonDefaultParameters() {
@@ -112,11 +141,13 @@ async function loadNonDefaultParameters() {
   loading.value = true
   inputParameters.value = []
   expertParameters.value = []
+  tableNames.value = []
   
   try {
     const response = await axios.get(`/plans/${props.planId}/non-default-parameters`)
     inputParameters.value = response.data.input || []
     expertParameters.value = response.data.expert || []
+    tableNames.value = response.data.table_names || []
   } catch (err) {
     console.error('Error loading changed parameters:', err)
     alert('Fehler beim Laden der veränderten Parameter')

@@ -39,6 +39,7 @@ type FlattenedRow = {
   publication_last_change?: string | null
   access_count?: number
   has_warning?: boolean
+  has_table_names?: boolean
 }
 
 const data = ref<any>(null)
@@ -430,6 +431,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           publication_last_change: plan.publication_last_change ?? null,
           access_count: accessStats.value.get(event.event_id) ?? undefined,
           has_warning: planWarnings.value.get(plan.plan_id) ?? false,
+          has_table_names: plan.has_table_names ?? false,
         })
       }
     }
@@ -1150,10 +1152,12 @@ function exportToCSV() {
             <template v-if="row.plan_id">
               <div class="flex flex-col items-center">
                 <span v-if="row.expert_param_changes">
-                  {{ row.expert_param_changes.input }} + {{ row.expert_param_changes.expert }}
+                  {{ row.expert_param_changes.input }} + {{ row.expert_param_changes.expert }}<template v-if="row.has_table_names"> + T</template>
                 </span>
-                <span v-else>0 + 0</span>
-                <template v-if="row.expert_param_changes && (row.expert_param_changes.input > 0 || row.expert_param_changes.expert > 0)">
+                <span v-else>
+                  0 + 0<template v-if="row.has_table_names"> + T</template>
+                </span>
+                <template v-if="(row.expert_param_changes && (row.expert_param_changes.input > 0 || row.expert_param_changes.expert > 0)) || row.has_table_names">
                   <a
                     href="#"
                     class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"

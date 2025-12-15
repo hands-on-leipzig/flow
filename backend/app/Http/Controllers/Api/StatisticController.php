@@ -227,6 +227,29 @@ class StatisticController extends Controller
             ->get()
             ->keyBy('plan');
 
+        // Check for overwritten table names per event
+        // Get event IDs for all plans
+        $planEventMap = DB::table('plan')
+            ->whereIn('id', $planIds)
+            ->pluck('event', 'id');
+        
+        $eventIds = $planEventMap->values()->unique()->filter();
+        
+        // Check which events have overwritten table names (non-empty table_name)
+        $eventsWithTableNames = DB::table('table_event')
+            ->whereIn('event', $eventIds)
+            ->whereNotNull('table_name')
+            ->where('table_name', '!=', '')
+            ->distinct()
+            ->pluck('event')
+            ->toArray();
+        
+        // Map: plan_id => has_overwritten_table_names
+        $planTableNamesOverwritten = [];
+        foreach ($planEventMap as $planId => $eventId) {
+            $planTableNamesOverwritten[$planId] = in_array($eventId, $eventsWithTableNames);
+        }
+
         // Gruppieren
         $groupedSeasons = [];
 
@@ -299,6 +322,7 @@ class StatisticController extends Controller
                     'publication_date' => $row->publication_date,
                     'publication_last_change' => $row->publication_last_change,
                     'has_warning' => false, // Will be set by DRAHT check
+                    'has_table_names' => $planTableNamesOverwritten[$row->plan_id] ?? false,
                 ];
             }
         }
