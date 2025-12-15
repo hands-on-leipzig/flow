@@ -38,11 +38,13 @@ class PlanGeneratorController extends Controller
                 ], 422);
             }
 
-            // Vorbereitung
-            $this->generator->prepare($planId);
+            // Vorbereitung mit korrektem Mode und User
+            $mode = $async ? 'job' : 'direct';
+            $userId = $request->user()?->id;
+            $this->generator->prepare($planId, $mode, $userId);
 
             if ($async) {
-                $this->generator->dispatchJob($planId);
+                $this->generator->dispatchJob($planId, false, $userId);
                 Log::info('Generation dispatched', ['plan_id' => $planId]);
                 return response()->json(['message' => 'Generation dispatched'], 202);
             }
