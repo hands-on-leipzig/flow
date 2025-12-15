@@ -35,7 +35,9 @@ watch(() => props.teams, (newVal) => {
 })
 
 const onSort = async () => {
-  const payload = teamList.value.map((team, index) => ({
+  // Only sort real teams (not placeholders)
+  const realTeams = teamList.value.filter(t => !t.isPlaceholder && !t.beyondCapacity)
+  const payload = realTeams.map((team, index) => ({
     team_id: team.id,
     order: index + 1
   }))
@@ -326,6 +328,42 @@ const showSyncPrompt = computed(() =>
     mergedTeams.value.some(t => t.status !== 'match' && t.status !== 'ignored')
 )
 
+// Computed: Get plan capacity for current program
+const planCapacity = computed(() => {
+  return props.program === 'explore' ? planParams.value.e_teams : planParams.value.c_teams
+})
+
+// Computed: Get enrolled count for current program
+const enrolledCount = computed(() => {
+  return props.program === 'explore' 
+    ? (event.value?.drahtTeamsExplore || 0) 
+    : (event.value?.drahtTeamsChallenge || 0)
+})
+
+// Computed: Get placeholder rows if plan > enrolled
+const placeholderRows = computed(() => {
+  const capacity = planCapacity.value
+  const enrolled = enrolledCount.value
+  const currentTeams = teamList.value.length
+  
+  // If plan has more teams than enrolled, add empty rows to fill up to plan capacity
+  if (capacity > enrolled) {
+    const count = Math.max(0, capacity - currentTeams)
+    return Array(count).fill(null).map((_, idx) => ({
+      id: `empty-${currentTeams + idx}`,
+      index: currentTeams + idx + 1 // 1-based index for display
+    }))
+  }
+  return []
+})
+
+// Computed: Check if any teams are beyond capacity
+const teamsBeyondCapacity = computed(() => {
+  const capacity = planCapacity.value
+  const currentTeams = teamList.value.length
+  return currentTeams > capacity
+})
+
 onMounted(async () => {
   try {
     // Fetch plan parameters
@@ -385,7 +423,7 @@ onMounted(async () => {
           </h3>
           <div class="text-sm text-gray-500">
             <span>
-              Plan für: {{ program === 'explore' ? planParams.e_teams : planParams.c_teams }}, Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}, Kapazität: {{
+              <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded' : ''">Plan für: {{ program === 'explore' ? planParams.e_teams : planParams.c_teams }}</span>, <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded' : ''">Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}</span>, Kapazität: {{
                 program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0
               }}
             </span>
@@ -412,18 +450,22 @@ onMounted(async () => {
         <template #item="{element: team, index}">
           <li
               :class="[
-                'bg-gray-50 rounded px-3 py-2 mb-1 flex justify-between items-center gap-2 transition-opacity',
+                'rounded px-3 py-2 mb-1 flex justify-between items-center gap-2 transition-opacity',
+                (teamsBeyondCapacity && index >= planCapacity) 
+                  ? 'bg-yellow-100 border border-yellow-300' 
+                  : 'bg-gray-50',
                 team.noshow ? 'opacity-50' : 'opacity-100'
               ]"
           >
             <!-- Drag-Handle -->
             <span class="drag-handle cursor-move text-gray-500"><IconDraggable/></span>
 
-            <!-- Neue Positionsspalte -->
-            <span class="w-8 text-right text-sm text-black">T{{ String(index + 1).padStart(2, '0') }}</span>
+            <!-- Neue Positionsspalte (Txx) - empty if beyond capacity -->
+            <span v-if="!teamsBeyondCapacity || index < planCapacity" class="w-8 text-right text-sm text-black">T{{ String(index + 1).padStart(2, '0') }}</span>
+            <span v-else class="w-8 text-right text-sm text-gray-400">–</span>
 
             <!-- Teamnummer (grau) -->
-            <span class="text-sm w-12 text-gray-500">{{ team.team_number_hot }}</span>
+            <span class="text-sm w-12 text-gray-500">{{ team.team_number_hot || '–' }}</span>
 
             <!-- Eingabefeld -->
             <input
@@ -446,6 +488,28 @@ onMounted(async () => {
           </li>
         </template>
       </draggable>
+      
+      <!-- Placeholder rows for plan > enrolled -->
+      <template v-for="placeholder in placeholderRows" :key="placeholder.id">
+        <li
+            class="bg-yellow-100 border border-yellow-300 rounded px-3 py-2 mb-1 flex justify-between items-center gap-2"
+        >
+          <!-- Empty space for drag handle -->
+          <span class="w-6"></span>
+          
+          <!-- Empty Txx column (no Txx shown as per requirements) -->
+          <span class="w-8"></span>
+          
+          <!-- Empty team number -->
+          <span class="text-sm w-12 text-gray-400">–</span>
+          
+          <!-- Placeholder text -->
+          <span class="flex-1 text-sm text-gray-400 italic">Fehlendes Team</span>
+          
+          <!-- Empty space for checkbox -->
+          <span class="w-16"></span>
+        </li>
+      </template>
     </div>
     <div
         v-if="showDiffModal"
