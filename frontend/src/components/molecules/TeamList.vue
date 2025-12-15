@@ -24,6 +24,12 @@ const savingToast = ref(null)
 
 const ignoredTeamNumbers = ref(new Set())
 
+// Plan parameter values for display
+const planParams = ref({
+  c_teams: 0,
+  e_teams: 0
+})
+
 watch(() => props.teams, (newVal) => {
   teamList.value = [...newVal]
 })
@@ -322,6 +328,24 @@ const showSyncPrompt = computed(() =>
 
 onMounted(async () => {
   try {
+    // Fetch plan parameters
+    try {
+      const planRes = await axios.get(`/plans/public/${event.value?.id}`)
+      const planId = planRes.data?.id
+      if (planId) {
+        const paramsRes = await axios.get(`/plans/${planId}/parameters`)
+        const params = Array.isArray(paramsRes.data) ? paramsRes.data : []
+        planParams.value = {
+          c_teams: Number(params.find(p => p.name === 'c_teams')?.value || 0),
+          e_teams: Number(params.find(p => p.name === 'e_teams')?.value || 0)
+        }
+      }
+    } catch (paramErr) {
+      if (import.meta.env.DEV) {
+        console.debug('Failed to fetch plan parameters', paramErr)
+      }
+    }
+
     const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
     // Handle both array format and object format (for Explore teams with metadata)
     const teamsArray = Array.isArray(dbRes.data) ? dbRes.data : (dbRes.data.teams || [])
@@ -359,14 +383,11 @@ onMounted(async () => {
           <h3 class="text-lg font-semibold capitalize">
             <span class="italic">FIRST</span> LEGO League {{ program }}
           </h3>
-          <div class="flex space-x-6 text-sm text-gray-500">
+          <div class="text-sm text-gray-500">
             <span>
-              Kapazität: {{
+              Plan für: {{ program === 'explore' ? planParams.e_teams : planParams.c_teams }}, Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}, Kapazität: {{
                 program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0
               }}
-            </span>
-            <span>
-              Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}
             </span>
           </div>
         </div>
