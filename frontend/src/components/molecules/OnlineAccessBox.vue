@@ -290,7 +290,7 @@ async function regenerateLinkAndQR() {
                   <div>
                     <div class="font-semibold mb-1">Angemeldete Teams</div>
                     <div v-if="scheduleInfo.teams" class="text-xs">
-                      <div v-if="scheduleInfo.teams.explore" class="mb-4">
+                      <div v-if="scheduleInfo.teams.explore && scheduleInfo.teams.explore.capacity > 0" class="mb-4">
                         <div class="font-medium mb-1 text-sm flex items-center gap-2">
                           <img
                             :src="programLogoSrc('E')"
@@ -308,7 +308,7 @@ async function regenerateLinkAndQR() {
                           </span>
                         </div>
                       </div>
-                      <div v-if="scheduleInfo.teams.challenge">
+                      <div v-if="scheduleInfo.teams.challenge && scheduleInfo.teams.challenge.capacity > 0">
                         <div class="font-medium mb-1 text-sm flex items-center gap-2">
                           <img
                             :src="programLogoSrc('C')"
