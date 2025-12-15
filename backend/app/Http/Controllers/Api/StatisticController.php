@@ -405,9 +405,34 @@ class StatisticController extends Controller
             $withMultiplePlans  = $eventPlanCountsPast->filter(fn ($c) => $c > 1)->count() + $eventPlanCountsFuture->filter(fn ($c) => $c > 1)->count();
             $withPlan = $withOnePlan + $withMultiplePlans;
             
-            // Events with plan - split by past and future
+            // Events with plan - split by past and future (old calculation, kept for compatibility)
             $withPlanPast = $eventPlanCountsPast->filter(fn ($c) => $c > 0)->count();
             $withPlanFuture = $eventPlanCountsFuture->filter(fn ($c) => $c > 0)->count();
+            
+            // Events with plan that has at least one generator run - split by past and future
+            $withPlanWithGeneratorPast = DB::table('event')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+                ->join('plan', 'plan.event', '=', 'event.id')
+                ->join('s_generator', 's_generator.plan', '=', 'plan.id')
+                ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
+                ->where('event.date', '<=', $today)
+                ->whereNotNull('s_generator.start')
+                ->whereNotNull('s_generator.end')
+                ->distinct()
+                ->count('event.id');
+            
+            $withPlanWithGeneratorFuture = DB::table('event')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+                ->join('plan', 'plan.event', '=', 'event.id')
+                ->join('s_generator', 's_generator.plan', '=', 'plan.id')
+                ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
+                ->where('event.date', '>', $today)
+                ->whereNotNull('s_generator.start')
+                ->whereNotNull('s_generator.end')
+                ->distinct()
+                ->count('event.id');
 
             // Events mit ungültigem RP (Left Join → RP fehlt)
             $invalidEventRp = DB::table('event')
@@ -461,6 +486,8 @@ class StatisticController extends Controller
                     'with_plan'            => $withPlan,
                     'with_plan_past'       => $withPlanPast,
                     'with_plan_future'     => $withPlanFuture,
+                    'with_plan_with_generator_past'   => $withPlanWithGeneratorPast,
+                    'with_plan_with_generator_future' => $withPlanWithGeneratorFuture,
                     'invalid_partner_refs' => $invalidEventRp,
                 ],
                 'plans' => [

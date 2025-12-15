@@ -238,6 +238,8 @@ const seasonTotals = computed(() => {
     events_with_plan: 0,
     events_with_plan_past: 0,
     events_with_plan_future: 0,
+    events_with_plan_with_generator_past: 0,
+    events_with_plan_with_generator_future: 0,
     plans_total: 0,
     activity_groups_total: 0,
     activities_total: 0,
@@ -256,6 +258,8 @@ const seasonTotals = computed(() => {
     events_with_plan: s.events?.with_plan ?? 0,
     events_with_plan_past: s.events?.with_plan_past ?? 0,
     events_with_plan_future: s.events?.with_plan_future ?? 0,
+    events_with_plan_with_generator_past: s.events?.with_plan_with_generator_past ?? 0,
+    events_with_plan_with_generator_future: s.events?.with_plan_with_generator_future ?? 0,
     plans_total: s.plans?.total ?? 0,
     activity_groups_total: s.activity_groups?.total ?? 0,
     activities_total: s.activities?.total ?? 0,
@@ -828,8 +832,8 @@ function exportToCSV() {
           </div>
         </div>
 
-        <!-- Season totals (3 boxes) -->
-        <div class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+        <!-- Season totals (5 boxes) -->
+        <div class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
           <!-- Box 1: regional partners -->
           <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
@@ -842,19 +846,31 @@ function exportToCSV() {
             </div>
           </div>
 
-          <!-- Box 2: events -->
+          <!-- Box 2: past events -->
           <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
-              <span>Events: Vergangenheit | Zukunft</span>
-              <span class="font-semibold">{{ seasonTotals.events_past }} | {{ seasonTotals.events_future }}</span>
+              <span>Events: Vergangenheit</span>
+              <span class="font-semibold">{{ seasonTotals.events_past }}</span>
             </div>
             <div class="flex justify-between text-gray-700">
-              <span>mit Plan</span>
-              <span class="font-semibold">{{ seasonTotals.events_with_plan_past }} | {{ seasonTotals.events_with_plan_future }}</span>
+              <span>mit generiertem Plan</span>
+              <span class="font-semibold">{{ seasonTotals.events_with_plan_with_generator_past }}</span>
             </div>
           </div>
 
-        <!-- Box 3: plans & activities -->
+          <!-- Box 3: future events -->
+          <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
+            <div class="flex justify-between text-gray-700">
+              <span>Events: Zukunft</span>
+              <span class="font-semibold">{{ seasonTotals.events_future }}</span>
+            </div>
+            <div class="flex justify-between text-gray-700">
+              <span>mit generiertem Plan</span>
+              <span class="font-semibold">{{ seasonTotals.events_with_plan_with_generator_future }}</span>
+            </div>
+          </div>
+
+        <!-- Box 4: plans & activities -->
         <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
           <div class="flex justify-between text-gray-700">
             <span>Pläne</span>
@@ -868,7 +884,7 @@ function exportToCSV() {
           </div>
         </div>
 
-        <!-- Box 4: Publications -->
+        <!-- Box 5: Publications -->
         <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
           <div class="flex justify-between text-gray-700">
             <span>Veröffentlichte Pläne</span>
