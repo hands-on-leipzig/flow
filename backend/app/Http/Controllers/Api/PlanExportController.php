@@ -69,6 +69,72 @@ class PlanExportController extends Controller
     }
 
     /**
+     * Get match teams for a specific plan and round
+     * Returns matches with team information for displaying in match plan modal
+     */
+    public function matchTeams(int $planId, int $round)
+    {
+        // Validate round (0 = Testrunde, 1-3 = Vorrunde 1-3)
+        if ($round < 0 || $round > 3) {
+            return response()->json(['error' => 'Ungültige Runde'], 400);
+        }
+
+        // Get matches for this plan and round, ordered by match_no
+        $matches = DB::table('match')
+            ->where('match.plan', $planId)
+            ->where('match.round', $round)
+            ->orderBy('match.match_no')
+            ->get();
+
+        // Get team_plan entries for Challenge teams (first_program = 3) to map team_number_plan to team IDs
+        $teamPlanMap = DB::table('team_plan')
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team_plan.plan', $planId)
+            ->where('team.first_program', 3) // Challenge only
+            ->select(
+                'team_plan.team_number_plan',
+                'team.id as team_id',
+                'team.name as team_name',
+                'team.team_number_hot'
+            )
+            ->get()
+            ->keyBy('team_number_plan');
+
+        // Build match data with team information
+        $matchData = [];
+        foreach ($matches as $match) {
+            $team1 = null;
+            $team2 = null;
+
+            // Get team 1 info
+            if ($match->table_1_team > 0 && isset($teamPlanMap[$match->table_1_team])) {
+                $t1 = $teamPlanMap[$match->table_1_team];
+                $team1 = [
+                    'name' => $t1->team_name,
+                    'hot_number' => $t1->team_number_hot,
+                ];
+            }
+
+            // Get team 2 info
+            if ($match->table_2_team > 0 && isset($teamPlanMap[$match->table_2_team])) {
+                $t2 = $teamPlanMap[$match->table_2_team];
+                $team2 = [
+                    'name' => $t2->team_name,
+                    'hot_number' => $t2->team_number_hot,
+                ];
+            }
+
+            $matchData[] = [
+                'match_no' => $match->match_no,
+                'team_1' => $team1,
+                'team_2' => $team2,
+            ];
+        }
+
+        return response()->json(['matches' => $matchData]);
+    }
+
+    /**
      * Helper: Get programs that have activities in a plan
      * @return array Array of program info with id and name
      */
