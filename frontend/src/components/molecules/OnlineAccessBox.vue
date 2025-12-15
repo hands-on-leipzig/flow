@@ -336,8 +336,46 @@ async function regenerateLinkAndQR() {
               <template v-else-if="idx === 1 && scheduleInfo && scheduleInfo.plan">
                 <div class="font-semibold mb-3">Wichtige Zeiten</div>
                 
-                <!-- Explore Section - Loop through times array from backend -->
-                <div v-if="scheduleInfo.plan?.explore && Array.isArray(scheduleInfo.plan.explore) && scheduleInfo.plan.explore.length > 0" class="mb-4">
+                <!-- Explore Section - Single group or 2x groups -->
+                <template v-if="scheduleInfo.plan?.explore_morning || scheduleInfo.plan?.explore_afternoon">
+                  <!-- 2x Explore: Morning and Afternoon sections -->
+                  <div v-if="scheduleInfo.plan?.explore_morning && Array.isArray(scheduleInfo.plan.explore_morning) && scheduleInfo.plan.explore_morning.length > 0" class="mb-4">
+                    <div class="font-medium mb-2 flex items-center gap-2">
+                      <img
+                        :src="programLogoSrc('E')"
+                        :alt="programLogoAlt('E')"
+                        class="w-5 h-5 flex-shrink-0"
+                      />
+                      <span class="italic">FIRST</span> LEGO League Explore <span style="color: #1e40af;">Vormittag</span>
+                    </div>
+                    <div class="space-y-1 text-xs">
+                      <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore_morning" :key="timeIdx" class="flex justify-between">
+                        <span class="text-gray-600">{{ timeEntry.label }}</span>
+                        <span class="font-medium">{{ formatTimeOnly(timeEntry.value, true) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div v-if="scheduleInfo.plan?.explore_afternoon && Array.isArray(scheduleInfo.plan.explore_afternoon) && scheduleInfo.plan.explore_afternoon.length > 0" class="mb-4">
+                    <div class="font-medium mb-2 flex items-center gap-2">
+                      <img
+                        :src="programLogoSrc('E')"
+                        :alt="programLogoAlt('E')"
+                        class="w-5 h-5 flex-shrink-0"
+                      />
+                      <span class="italic">FIRST</span> LEGO League Explore <span style="color: #93c5fd;">Nachmittag</span>
+                    </div>
+                    <div class="space-y-1 text-xs">
+                      <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore_afternoon" :key="timeIdx" class="flex justify-between">
+                        <span class="text-gray-600">{{ timeEntry.label }}</span>
+                        <span class="font-medium">{{ formatTimeOnly(timeEntry.value, true) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+                
+                <!-- Single Explore Section -->
+                <div v-else-if="scheduleInfo.plan?.explore && Array.isArray(scheduleInfo.plan.explore) && scheduleInfo.plan.explore.length > 0" class="mb-4">
                   <div class="font-medium mb-2 flex items-center gap-2">
                     <img
                       :src="programLogoSrc('E')"
