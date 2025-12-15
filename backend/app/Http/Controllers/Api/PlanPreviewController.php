@@ -242,6 +242,7 @@ class PlanPreviewController extends Controller
                 $groups[$groupId] = [
                     'activity_group_id' => $groupId,
                     'activity_group_name' => $activity->group_atd_name ?? 'Unknown Group',
+                    'explore_group' => $activity->group_explore_group ?? null,
                     'activities' => []
                 ];
             }

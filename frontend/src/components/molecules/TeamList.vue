@@ -1,6 +1,6 @@
 <script setup>
 import draggable from 'vuedraggable'
-import {computed, toRef, ref, watch, onMounted} from "vue";
+import {computed, toRef, ref, watch, onMounted, nextTick} from "vue";
 import axios from "axios";
 import {useEventStore} from "@/stores/event";
 import IconDraggable from "@/components/icons/IconDraggable.vue";
@@ -24,11 +24,25 @@ const savingToast = ref(null)
 
 const ignoredTeamNumbers = ref(new Set())
 
+// Plan parameter values for display
+const planParams = ref({
+  c_teams: 0,
+  e_teams: 0,
+  e1_teams: 0,
+  e_mode: 0
+})
+
 watch(() => props.teams, (newVal) => {
   teamList.value = [...newVal]
 })
 
 const onSort = async () => {
+  // Update team_number_plan immediately based on new positions for instant border color refresh
+  teamList.value = teamList.value.map((team, index) => ({
+    ...team,
+    team_number_plan: index + 1
+  }))
+
   const payload = teamList.value.map((team, index) => ({
     team_id: team.id,
     order: index + 1
@@ -43,6 +57,14 @@ const onSort = async () => {
     })
     // Refresh discrepancy status after team reordering
     await eventStore.updateTeamDiscrepancyStatus()
+    
+    // Reload teams to sync with backend (backend may have additional logic for team_number_plan)
+    const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
+    const teamsArray = Array.isArray(dbRes.data) ? dbRes.data : (dbRes.data.teams || [])
+    teamList.value = teamsArray.map(team => ({
+      ...team,
+      noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1'
+    }))
   } catch (e) {
     if (import.meta.env.DEV) {
       console.error('Order update failed', e)
@@ -236,8 +258,10 @@ const applyDrahtTeam = async (team) => {
 
     // Refresh teams from server to get the updated/created team with correct ID
     const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
+    // Handle both array format and object format (for Explore teams with metadata)
+    const teamsArray = Array.isArray(dbRes.data) ? dbRes.data : (dbRes.data.teams || [])
     // Normalize noshow values to boolean (handle null, 0, 1, true, false)
-    localTeams.value = dbRes.data.map(team => ({
+    localTeams.value = teamsArray.map(team => ({
       ...team,
       noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1'
     }))
@@ -278,8 +302,10 @@ const deleteTeam = async (team) => {
 
     // Refresh teams from server
     const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
+    // Handle both array format and object format (for Explore teams with metadata)
+    const teamsArray = Array.isArray(dbRes.data) ? dbRes.data : (dbRes.data.teams || [])
     // Normalize noshow values to boolean (handle null, 0, 1, true, false)
-    localTeams.value = dbRes.data.map(team => ({
+    localTeams.value = teamsArray.map(team => ({
       ...team,
       noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1'
     }))
@@ -316,11 +342,108 @@ const showSyncPrompt = computed(() =>
     mergedTeams.value.some(t => t.status !== 'match' && t.status !== 'ignored')
 )
 
+// Computed: Get plan capacity for current program
+const planCapacity = computed(() => {
+  return props.program === 'explore' ? planParams.value.e_teams : planParams.value.c_teams
+})
+
+// Computed: Get enrolled count for current program
+const enrolledCount = computed(() => {
+  return props.program === 'explore' 
+    ? (event.value?.drahtTeamsExplore || 0) 
+    : (event.value?.drahtTeamsChallenge || 0)
+})
+
+// Computed: Get placeholder rows if plan > enrolled
+const placeholderRows = computed(() => {
+  const capacity = planCapacity.value
+  const enrolled = enrolledCount.value
+  const currentTeams = teamList.value.length
+  
+  // If plan has more teams than enrolled, add empty rows to fill up to plan capacity
+  if (capacity > enrolled) {
+    const count = Math.max(0, capacity - currentTeams)
+    return Array(count).fill(null).map((_, idx) => ({
+      id: `empty-${currentTeams + idx}`,
+      index: currentTeams + idx + 1 // 1-based index for display
+    }))
+  }
+  return []
+})
+
+// Computed: Check if any teams are beyond capacity
+const teamsBeyondCapacity = computed(() => {
+  const capacity = planCapacity.value
+  const currentTeams = teamList.value.length
+  return currentTeams > capacity
+})
+
+// Computed: Check if we have 2x Explore groups (e_mode = 5 DECOUPLED_BOTH or 8 HYBRID_BOTH)
+const hasTwoExploreGroups = computed(() => {
+  return props.program === 'explore' && (planParams.value.e_mode === 5 || planParams.value.e_mode === 8)
+})
+
+// Function: Determine if a team belongs to morning or afternoon group
+const getTeamGroup = (team) => {
+  if (!hasTwoExploreGroups.value || planParams.value.e1_teams <= 0) {
+    return null
+  }
+  const teamNumberPlan = team?.team_number_plan || 0
+  return teamNumberPlan <= planParams.value.e1_teams ? 'morning' : 'afternoon'
+}
+
+// Function: Get border style for a team based on its group
+const getTeamBorderStyle = (team) => {
+  const group = getTeamGroup(team)
+  if (group === 'morning') {
+    return 'border-left-color: #1e40af;'
+  } else if (group === 'afternoon') {
+    return 'border-left-color: #93c5fd;'
+  }
+  return ''
+}
+
+// Computed: Find the index where afternoon section starts (for divider label)
+const afternoonStartIndex = computed(() => {
+  if (!hasTwoExploreGroups.value || planParams.value.e1_teams <= 0) {
+    return -1
+  }
+  const e1Teams = planParams.value.e1_teams
+  for (let i = 0; i < teamList.value.length; i++) {
+    if ((teamList.value[i].team_number_plan || 0) > e1Teams) {
+      return i
+    }
+  }
+  return -1
+})
+
 onMounted(async () => {
   try {
+    // Fetch plan parameters
+    try {
+      const planRes = await axios.get(`/plans/public/${event.value?.id}`)
+      const planId = planRes.data?.id
+      if (planId) {
+        const paramsRes = await axios.get(`/plans/${planId}/parameters`)
+        const params = Array.isArray(paramsRes.data) ? paramsRes.data : []
+        planParams.value = {
+          c_teams: Number(params.find(p => p.name === 'c_teams')?.value || 0),
+          e_teams: Number(params.find(p => p.name === 'e_teams')?.value || 0),
+          e1_teams: Number(params.find(p => p.name === 'e1_teams')?.value || 0),
+          e_mode: Number(params.find(p => p.name === 'e_mode')?.value || 0)
+        }
+      }
+    } catch (paramErr) {
+      if (import.meta.env.DEV) {
+        console.debug('Failed to fetch plan parameters', paramErr)
+      }
+    }
+
     const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
+    // Handle both array format and object format (for Explore teams with metadata)
+    const teamsArray = Array.isArray(dbRes.data) ? dbRes.data : (dbRes.data.teams || [])
     // Normalize noshow values to boolean (handle null, 0, 1, true, false)
-    localTeams.value = dbRes.data.map(team => ({
+    localTeams.value = teamsArray.map(team => ({
       ...team,
       noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1'
     }))
@@ -353,21 +476,29 @@ onMounted(async () => {
           <h3 class="text-lg font-semibold capitalize">
             <span class="italic">FIRST</span> LEGO League {{ program }}
           </h3>
-          <div class="flex space-x-6 text-sm text-gray-500">
+          <div class="text-sm text-gray-500 flex items-center gap-3">
             <span>
-              Kapazität: {{
+              <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Plan für: {{ program === 'explore' ? planParams.e_teams : planParams.c_teams }}</span>, <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}</span>, Kapazität: {{
                 program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0
               }}
             </span>
-            <span>
-              Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}
-            </span>
+            <!-- Color code indicators for 2x Explore -->
+            <template v-if="hasTwoExploreGroups">
+              <span class="flex items-center gap-1">
+                <span class="w-6 h-4 rounded" style="background-color: #1e40af;"></span>
+                <span style="color: #1e40af;">Vormittag</span>
+              </span>
+              <span class="flex items-center gap-1">
+                <span class="w-6 h-4 rounded" style="background-color: #93c5fd;"></span>
+                <span style="color: #93c5fd;">Nachmittag</span>
+              </span>
+            </template>
           </div>
         </div>
       </div>
-      <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
+      <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-red-800 rounded">
         Die Daten in FLOW weichen von denen der Anmeldung ab.
-        <button class="text-sm text-yellow-600" @click="showDiffModal = !showDiffModal">
+        <button class="text-sm text-red-700" @click="showDiffModal = !showDiffModal">
           Unterschiede anzeigen
           ({{ mergedTeams.filter(t => !['match', 'ignored'].includes(t.status)).length }})
         </button>
@@ -385,29 +516,46 @@ onMounted(async () => {
         <template #item="{element: team, index}">
           <li
               :class="[
-                'bg-gray-50 rounded px-3 py-2 mb-1 flex justify-between items-center gap-2 transition-opacity',
-                team.noshow ? 'opacity-50' : 'opacity-100'
+                'rounded px-3 py-2 mb-1 flex justify-between items-center gap-2 transition-opacity',
+                (teamsBeyondCapacity && index >= planCapacity) 
+                  ? 'bg-yellow-100 text-red-800' 
+                  : 'bg-gray-50',
+                team.noshow ? 'opacity-50' : 'opacity-100',
+                (teamsBeyondCapacity && index >= planCapacity)
+                  ? 'border border-yellow-300'
+                  : '',
+                // Only apply colored border if team is NOT beyond capacity
+                !(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'morning' 
+                  ? 'border-l-[6px]' 
+                  : (!(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'afternoon' 
+                      ? 'border-l-[6px]' 
+                      : '')
               ]"
+              :style="(teamsBeyondCapacity && index >= planCapacity) ? '' : getTeamBorderStyle(team)"
           >
             <!-- Drag-Handle -->
             <span class="drag-handle cursor-move text-gray-500"><IconDraggable/></span>
 
-            <!-- Neue Positionsspalte -->
-            <span class="w-8 text-right text-sm text-black">T{{ String(index + 1).padStart(2, '0') }}</span>
+            <!-- Neue Positionsspalte (Txx) - empty if beyond capacity -->
+            <span v-if="!teamsBeyondCapacity || index < planCapacity" class="w-8 text-right text-sm" :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-black'">T{{ String(index + 1).padStart(2, '0') }}</span>
+            <span v-else class="w-8 text-right text-sm text-red-800">–</span>
 
             <!-- Teamnummer (grau) -->
-            <span class="text-sm w-12 text-gray-500">{{ team.team_number_hot }}</span>
+            <span class="text-sm w-12" :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-gray-500'">{{ team.team_number_hot || '–' }}</span>
 
             <!-- Eingabefeld -->
             <input
                 v-model="team.name"
                 @blur="updateTeamName(team)"
-                class="editable-input flex-1 text-sm px-2 py-1 border border-transparent rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors cursor-pointer"
+                :class="[
+                  'editable-input flex-1 text-sm px-2 py-1 border border-transparent rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors cursor-pointer',
+                  (teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : ''
+                ]"
                 placeholder="Click to edit team name"
             />
 
-            <!-- No-Show Checkbox -->
-            <label class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
+            <!-- No-Show Checkbox (hidden for teams beyond capacity) -->
+            <label v-if="!(teamsBeyondCapacity && index >= planCapacity)" class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
               <input
                   type="checkbox"
                   v-model="team.noshow"
@@ -416,9 +564,37 @@ onMounted(async () => {
               />
               <span class="text-xs">No-Show</span>
             </label>
+            <span v-else class="w-16"></span>
           </li>
         </template>
       </draggable>
+      
+      <!-- Placeholder rows for plan > enrolled -->
+      <template v-for="placeholder in placeholderRows" :key="placeholder.id">
+        <li
+            class="bg-yellow-100 border border-yellow-300 text-red-800 rounded px-3 py-2 mb-1 flex justify-between items-center gap-2"
+        >
+          <!-- Empty space for drag handle -->
+          <span class="w-6"></span>
+          
+          <!-- Empty Txx column (no Txx shown as per requirements) -->
+          <span class="w-8"></span>
+          
+          <!-- Empty team number -->
+          <span class="text-sm w-12 text-red-800">–</span>
+          
+          <!-- Placeholder text -->
+          <span class="flex-1 text-sm text-red-800 italic">Fehlendes Team</span>
+          
+          <!-- Empty space for checkbox -->
+          <span class="w-16"></span>
+        </li>
+      </template>
+      
+      <!-- Note about no-show teams -->
+      <div class="mt-4 text-xs text-gray-600 italic">
+        "No-show" Teams bleiben im Plan, werden aber in allen Ausgaben "durchgestrichen" dargestellt.
+      </div>
     </div>
     <div
         v-if="showDiffModal"

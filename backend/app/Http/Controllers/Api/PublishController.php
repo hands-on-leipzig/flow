@@ -8,6 +8,8 @@ use App\Models\MActivityTypeDetail;
 use App\Models\OneLinkAccess;
 use App\Services\ActivityFetcherService;
 use App\Services\PdfLayoutService;
+use App\Support\PlanParameter;
+use App\Enums\ExploreMode;
 
 use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
@@ -441,9 +443,26 @@ class PublishController extends Controller
 
         // Activities laden
         $activities = $this->fetcher->fetchActivities($plan->id);
+        
+        // Add explore_group from activity table to each activity
+        $activityIds = $activities->pluck('activity_id')->toArray();
+        $activityExploreGroups = DB::table('activity')
+            ->whereIn('id', $activityIds)
+            ->pluck('explore_group', 'id')
+            ->toArray();
+        
+        $activities = $activities->map(function($activity) use ($activityExploreGroups) {
+            $activity->explore_group = $activityExploreGroups[$activity->activity_id] ?? null;
+            return $activity;
+        });
+
+        // Check if there are 2x Explore groups
+        $planParams = new PlanParameter($plan->id);
+        $eMode = (int) $planParams->get('e_mode');
+        $hasTwoExploreGroups = ($eMode === ExploreMode::HYBRID_BOTH->value || $eMode === ExploreMode::DECOUPLED_BOTH->value);
 
         // Activity Type Details by code (cached lookup with name and sequence)
-        $atdDetails = MActivityTypeDetail::whereIn('code', [
+        $atdCodes = [
             'e_briefing_coach',
             'e_briefing_judge',
             'e_opening',
@@ -455,14 +474,16 @@ class PublishController extends Controller
             'r_briefing',
             'c_opening',
             'c_awards',
-        ])->get()->keyBy('code');
+        ];
+        $atdDetails = MActivityTypeDetail::whereIn('code', $atdCodes)->get()->keyBy('code');
 
         // Helper map: code -> id for quick lookup
         $atdIds = $atdDetails->pluck('id', 'code')->all();
 
         // Hilfsfunktion: Erste Startzeit und Activity Type Detail für gegebene codes finden
         // Prefer program-specific codes over general codes when multiple are provided
-        $findStart = function ($codes) use ($activities, $atdIds, $atdDetails) {
+        // Optional filter by explore_group if provided
+        $findStart = function ($codes, ?int $exploreGroup = null) use ($activities, $atdIds, $atdDetails) {
             $codeArray = (array)$codes;
             // Sort codes to prefer program-specific (e_/c_/j_/r_) over general (g_) codes
             usort($codeArray, function($a, $b) {
@@ -472,7 +493,16 @@ class PublishController extends Controller
             });
             
             $ids = collect($codeArray)->map(fn($code) => $atdIds[$code] ?? null)->filter();
-            $act = $activities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
+            
+            // Filter activities by explore_group if provided
+            $filteredActivities = $activities;
+            if ($exploreGroup !== null) {
+                $filteredActivities = $activities->filter(fn($a) => 
+                    ($a->explore_group ?? null) === $exploreGroup
+                );
+            }
+            
+            $act = $filteredActivities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
             if (!$act) {
                 return null;
             }
@@ -488,7 +518,8 @@ class PublishController extends Controller
 
         // Hilfsfunktion: Ende der Aktivität (end_time) und Activity Type Detail für gegebene codes
         // Prefer program-specific codes over general codes when multiple are provided
-        $findEnd = function ($codes) use ($activities, $atdIds, $atdDetails) {
+        // Optional filter by explore_group if provided
+        $findEnd = function ($codes, ?int $exploreGroup = null) use ($activities, $atdIds, $atdDetails) {
             $codeArray = (array)$codes;
             // Sort codes to prefer program-specific (e_/c_/j_/r_) over general (g_) codes
             usort($codeArray, function($a, $b) {
@@ -498,7 +529,16 @@ class PublishController extends Controller
             });
             
             $ids = collect($codeArray)->map(fn($code) => $atdIds[$code] ?? null)->filter();
-            $act = $activities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
+            
+            // Filter activities by explore_group if provided
+            $filteredActivities = $activities;
+            if ($exploreGroup !== null) {
+                $filteredActivities = $activities->filter(fn($a) => 
+                    ($a->explore_group ?? null) === $exploreGroup
+                );
+            }
+            
+            $act = $filteredActivities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
             if (!$act) {
                 return null;
             }
@@ -513,24 +553,106 @@ class PublishController extends Controller
         };
 
         // Define time entries with labels and sequence for Explore
-        $exploreTimes = [];
-        $teamsBriefing = $findStart('e_briefing_coach');
-        if ($teamsBriefing && $teamsBriefing['value']) {
-            $exploreTimes[] = $teamsBriefing;
-        }
-        $judgesBriefing = $findStart('e_briefing_judge');
-        if ($judgesBriefing && $judgesBriefing['value']) {
-            $exploreTimes[] = $judgesBriefing;
-        }
-        $opening = $findStart(['e_opening', 'g_opening']);
-        if ($opening && $opening['value']) {
-            $exploreTimes[] = $opening;
-        }
-        $end = $findEnd(['e_awards', 'g_awards']);
-        if ($end && $end['value']) {
-            // Override label for the last entry (end time)
-            $end['label'] = 'Ende ca.';
-            $exploreTimes[] = $end;
+        if ($hasTwoExploreGroups) {
+            // Handle 2x Explore: separate morning (explore_group = 1) and afternoon (explore_group = 2)
+            $exploreMorningTimes = [];
+            $teamsBriefingMorning = $findStart('e_briefing_coach', 1);
+            if ($teamsBriefingMorning && $teamsBriefingMorning['value']) {
+                $exploreMorningTimes[] = $teamsBriefingMorning;
+            }
+            $judgesBriefingMorning = $findStart('e_briefing_judge', 1);
+            if ($judgesBriefingMorning && $judgesBriefingMorning['value']) {
+                $exploreMorningTimes[] = $judgesBriefingMorning;
+            }
+            $openingMorning = $findStart(['e_opening', 'g_opening'], 1);
+            if ($openingMorning && $openingMorning['value']) {
+                $exploreMorningTimes[] = $openingMorning;
+            }
+            
+            // For morning group, calculate end time from awards start + e1_duration_awards parameter
+            $awardsStartMorning = $findStart(['e_awards', 'g_awards'], 1);
+            $endTimeAdded = false;
+            if ($awardsStartMorning && $awardsStartMorning['value']) {
+                try {
+                    $e1DurationAwards = $planParams->get('e1_duration_awards');
+                    if ($e1DurationAwards !== null && $e1DurationAwards !== '' && (int)$e1DurationAwards > 0) {
+                        $awardsStartTime = new \DateTime($awardsStartMorning['value']);
+                        $awardsStartTime->modify("+" . (int)$e1DurationAwards . " minutes");
+                        $exploreMorningTimes[] = [
+                            'value' => $awardsStartTime->format('Y-m-d H:i:s'),
+                            'label' => 'Ende ca.',
+                            'sequence' => 0,
+                        ];
+                        $endTimeAdded = true;
+                    }
+                } catch (\RuntimeException $e) {
+                    // Parameter doesn't exist, will fall through to use end_time fallback
+                } catch (\Exception $e) {
+                    // Other exception (e.g., date parsing), will fall through to use end_time fallback
+                }
+            }
+            
+            // Fallback: use awards end_time if we didn't add calculated end time
+            if (!$endTimeAdded) {
+                $endMorning = $findEnd(['e_awards', 'g_awards'], 1);
+                if ($endMorning && $endMorning['value']) {
+                    $endMorning['label'] = 'Ende ca.';
+                    $exploreMorningTimes[] = $endMorning;
+                }
+            }
+
+            $exploreAfternoonTimes = [];
+            $teamsBriefingAfternoon = $findStart('e_briefing_coach', 2);
+            if ($teamsBriefingAfternoon && $teamsBriefingAfternoon['value']) {
+                $exploreAfternoonTimes[] = $teamsBriefingAfternoon;
+            }
+            $judgesBriefingAfternoon = $findStart('e_briefing_judge', 2);
+            if ($judgesBriefingAfternoon && $judgesBriefingAfternoon['value']) {
+                $exploreAfternoonTimes[] = $judgesBriefingAfternoon;
+            }
+            $openingAfternoon = $findStart(['e_opening', 'g_opening'], 2);
+            if ($openingAfternoon && $openingAfternoon['value']) {
+                $exploreAfternoonTimes[] = $openingAfternoon;
+            }
+            $endAfternoon = $findEnd(['e_awards', 'g_awards'], 2);
+            if ($endAfternoon && $endAfternoon['value']) {
+                $endAfternoon['label'] = 'Ende ca.';
+                $exploreAfternoonTimes[] = $endAfternoon;
+            }
+
+            // Sort chronologically
+            usort($exploreMorningTimes, function($a, $b) {
+                return strtotime($a['value']) <=> strtotime($b['value']);
+            });
+            usort($exploreAfternoonTimes, function($a, $b) {
+                return strtotime($a['value']) <=> strtotime($b['value']);
+            });
+        } else {
+            // Single Explore group (explore_group is NULL or not relevant)
+            $exploreTimes = [];
+            $teamsBriefing = $findStart('e_briefing_coach');
+            if ($teamsBriefing && $teamsBriefing['value']) {
+                $exploreTimes[] = $teamsBriefing;
+            }
+            $judgesBriefing = $findStart('e_briefing_judge');
+            if ($judgesBriefing && $judgesBriefing['value']) {
+                $exploreTimes[] = $judgesBriefing;
+            }
+            $opening = $findStart(['e_opening', 'g_opening']);
+            if ($opening && $opening['value']) {
+                $exploreTimes[] = $opening;
+            }
+            $end = $findEnd(['e_awards', 'g_awards']);
+            if ($end && $end['value']) {
+                // Override label for the last entry (end time)
+                $end['label'] = 'Ende ca.';
+                $exploreTimes[] = $end;
+            }
+
+            // Sort chronologically by time value (not by sequence)
+            usort($exploreTimes, function($a, $b) {
+                return strtotime($a['value']) <=> strtotime($b['value']);
+            });
         }
 
         // Define time entries with labels and sequence for Challenge
@@ -558,10 +680,7 @@ class PublishController extends Controller
             $challengeTimes[] = $end;
         }
 
-        // Sort chronologically by time value (not by sequence)
-        usort($exploreTimes, function($a, $b) {
-            return strtotime($a['value']) <=> strtotime($b['value']);
-        });
+        // Sort challenge times chronologically
         usort($challengeTimes, function($a, $b) {
             return strtotime($a['value']) <=> strtotime($b['value']);
         });
@@ -569,9 +688,16 @@ class PublishController extends Controller
         $data = [
             'plan_id' => $plan->id,
             'last_change' => $plan->last_change,
-            'explore' => $exploreTimes,
             'challenge' => $challengeTimes,
         ];
+
+        // Add explore times based on whether there are 2 groups
+        if ($hasTwoExploreGroups) {
+            $data['explore_morning'] = $exploreMorningTimes;
+            $data['explore_afternoon'] = $exploreAfternoonTimes;
+        } else {
+            $data['explore'] = $exploreTimes;
+        }
 
         return response()->json($data);
     }
