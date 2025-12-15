@@ -37,6 +37,12 @@ watch(() => props.teams, (newVal) => {
 })
 
 const onSort = async () => {
+  // Update team_number_plan immediately based on new positions for instant border color refresh
+  teamList.value = teamList.value.map((team, index) => ({
+    ...team,
+    team_number_plan: index + 1
+  }))
+
   const payload = teamList.value.map((team, index) => ({
     team_id: team.id,
     order: index + 1
@@ -52,7 +58,7 @@ const onSort = async () => {
     // Refresh discrepancy status after team reordering
     await eventStore.updateTeamDiscrepancyStatus()
     
-    // Reload teams to get updated team_number_plan values for correct border colors
+    // Reload teams to sync with backend (backend may have additional logic for team_number_plan)
     const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
     const teamsArray = Array.isArray(dbRes.data) ? dbRes.data : (dbRes.data.teams || [])
     teamList.value = teamsArray.map(team => ({
@@ -548,8 +554,8 @@ onMounted(async () => {
                 placeholder="Click to edit team name"
             />
 
-            <!-- No-Show Checkbox -->
-            <label class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
+            <!-- No-Show Checkbox (hidden for teams beyond capacity) -->
+            <label v-if="!(teamsBeyondCapacity && index >= planCapacity)" class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
               <input
                   type="checkbox"
                   v-model="team.noshow"
@@ -558,6 +564,7 @@ onMounted(async () => {
               />
               <span class="text-xs">No-Show</span>
             </label>
+            <span v-else class="w-16"></span>
           </li>
         </template>
       </draggable>
@@ -583,6 +590,11 @@ onMounted(async () => {
           <span class="w-16"></span>
         </li>
       </template>
+      
+      <!-- Note about no-show teams -->
+      <div class="mt-4 text-xs text-gray-600 italic">
+        "No-show" Teams bleiben im Plan, werden aber in allen Ausgaben "durchgestrichen" dargestellt.
+      </div>
     </div>
     <div
         v-if="showDiffModal"
