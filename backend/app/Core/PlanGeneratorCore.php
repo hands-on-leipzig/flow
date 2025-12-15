@@ -30,7 +30,7 @@ class PlanGeneratorCore
 
     public function __construct(int $planId, PlanParameter $params)
     {
-        $this->writer = new ActivityWriter($planId);
+        $this->writer = new ActivityWriter($planId, $params);
         $this->params = $params;
         $this->integratedExplore = new IntegratedExploreState();
     }

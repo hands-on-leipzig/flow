@@ -9,6 +9,9 @@ use App\Models\MRoomType;
 use App\Models\ExtraBlock;
 use App\Models\MInsertPoint;
 use App\Enums\FirstProgram;
+use App\Enums\ExploreMode;
+use App\Support\PlanParameter;
+use App\Support\UsesPlanParameter;
 
 use App\Core\TimeCursor;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +19,8 @@ use Illuminate\Support\Facades\DB;
 
 class ActivityWriter
 {
+    use UsesPlanParameter;
+
     private int $planId;
     private ?ActivityGroup $currentGroup = null;
 
@@ -25,9 +30,17 @@ class ActivityWriter
     /** @var array<string,int> */
     private array $roomTypeMap = [];
 
-    public function __construct(int $planId)
+    /** @var array<int,int> Cache for activity_type_detail id to first_program mapping */
+    private array $activityTypeDetailFirstProgramMap = [];
+
+    public function __construct(int $planId, ?PlanParameter $params = null)
     {
         $this->planId = $planId;
+        
+        // Set params if provided (for accessing plan parameters via pp())
+        if ($params !== null) {
+            $this->params = $params;
+        }
 
         $this->activityTypeDetailMap = MActivityTypeDetail::all()
             ->pluck('id', 'code')
@@ -37,6 +50,12 @@ class ActivityWriter
         $this->roomTypeMap = MRoomType::all()
             ->pluck('id', 'code')
             ->mapWithKeys(fn($id, $code) => [strtolower($code) => (int) $id])
+            ->toArray();
+
+        // Cache activity_type_detail id to first_program mapping
+        $this->activityTypeDetailFirstProgramMap = MActivityTypeDetail::all()
+            ->pluck('first_program', 'id')
+            ->map(fn($fp) => $fp ? (int) $fp : null)
             ->toArray();
     }
 
@@ -80,10 +99,11 @@ class ActivityWriter
         $end = $endCursor->current()->format('Y-m-d H:i:s');
 
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeCode);
-        $roomType = $this->resolveRoomType($activityTypeDetailId, $juryLane);
-
+        
         // Inherit explore_group from current group if not explicitly provided
         $exploreGroupValue = $exploreGroup ?? $this->currentGroup->explore_group;
+        
+        $roomType = $this->resolveRoomType($activityTypeDetailId, $juryLane, $exploreGroupValue);
 
         $activity = Activity::create([
             'activity_group'       => $this->currentGroup->id,
@@ -136,10 +156,11 @@ class ActivityWriter
         $data = [];
         foreach ($activities as $act) {
             $activityTypeDetailId = $this->activityTypeDetailIdFromCode($act['activityTypeCode']);
-            $roomType = $this->resolveRoomType($activityTypeDetailId, $act['juryLane'] ?? null);
-
+            
             // Inherit explore_group from current group if not explicitly provided
             $exploreGroupValue = $act['exploreGroup'] ?? $this->currentGroup->explore_group;
+            
+            $roomType = $this->resolveRoomType($activityTypeDetailId, $act['juryLane'] ?? null, $exploreGroupValue);
 
             $data[] = [
                 'activity_group'       => $this->currentGroup->id,
@@ -180,7 +201,7 @@ class ActivityWriter
         return $cache[$key];
     }
 
-    private function resolveRoomType(int $activityTypeDetailId, ?int $juryLane): ?int
+    private function resolveRoomType(int $activityTypeDetailId, ?int $juryLane, ?int $exploreGroup = null): ?int
     {
         $code = array_search($activityTypeDetailId, $this->activityTypeDetailMap, true);
         if (!$code) {
@@ -201,6 +222,18 @@ class ActivityWriter
             }
         }
 
+        // Check if this is an Explore activity and if there are two Explore groups
+        $firstProgram = $this->activityTypeDetailFirstProgramMap[$activityTypeDetailId] ?? null;
+        $isExploreActivity = ($firstProgram === FirstProgram::EXPLORE->value);
+        $hasTwoExploreGroups = $this->hasTwoExploreGroups();
+
+        // For Explore activities without lanes, insert group number after "e" if there are two Explore groups
+        // Example: e_opening -> e1_opening or e2_opening
+        if ($isExploreActivity && $hasTwoExploreGroups && $exploreGroup !== null && ($juryLane === null || $juryLane === 0)) {
+            // Replace "e_" with "e{group}_"
+            $code = str_replace('e_', 'e' . $exploreGroup . '_', $code);
+        }
+
         $map = [
             // Exceptional cases where code != room type
             'g_party_teams'    => 'g_party_teams',
@@ -211,6 +244,18 @@ class ActivityWriter
         $roomTypeCode = $map[$code] ?? $code;
         
         return $this->roomTypeMap[$roomTypeCode] ?? null;
+    }
+
+    /**
+     * Check if this plan has two Explore groups (HYBRID_BOTH or DECOUPLED_BOTH mode)
+     */
+    private function hasTwoExploreGroups(): bool
+    {
+        $eMode = (int) $this->pp('e_mode');
+
+        // Check if e_mode indicates two Explore groups
+        return ($eMode === ExploreMode::HYBRID_BOTH->value || 
+                $eMode === ExploreMode::DECOUPLED_BOTH->value);
     }
 
 
