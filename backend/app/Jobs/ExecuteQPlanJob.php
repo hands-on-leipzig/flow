@@ -60,7 +60,7 @@ class ExecuteQPlanJob implements ShouldQueue
 
         // Plan erzeugen über den Service
         $generator = new PlanGeneratorService();
-        $generator->prepare($planId);
+        $generator->prepare($planId, 'job');
         $generator->dispatchJob($planId, true);
 
         // Warten

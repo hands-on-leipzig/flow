@@ -136,7 +136,7 @@ class PlanGeneratorService
         return $q->exists();
     }
 
-    public function prepare(int $planId): void
+    public function prepare(int $planId, string $mode = 'job'): void
     {
         // Alte Activities löschen
         DB::table('activity_group')->where('plan', $planId)->delete();
@@ -145,7 +145,7 @@ class PlanGeneratorService
         DB::table('s_generator')->insert([
             'plan'  => $planId,
             'start' => Carbon::now(),
-            'mode'  => 'job',
+            'mode'  => $mode,
         ]);
 
         // Plan-Status aktualisieren

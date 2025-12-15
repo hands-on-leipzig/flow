@@ -38,8 +38,9 @@ class PlanGeneratorController extends Controller
                 ], 422);
             }
 
-            // Vorbereitung
-            $this->generator->prepare($planId);
+            // Vorbereitung mit korrektem Mode
+            $mode = $async ? 'job' : 'direct';
+            $this->generator->prepare($planId, $mode);
 
             if ($async) {
                 $this->generator->dispatchJob($planId);
