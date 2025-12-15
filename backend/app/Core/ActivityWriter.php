@@ -41,7 +41,7 @@ class ActivityWriter
     }
 
 
-    public function insertActivityGroup(string $activityTypeDetailCode): int
+    public function insertActivityGroup(string $activityTypeDetailCode, ?int $exploreGroup = null): int
     {
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeDetailCode);
 
@@ -52,6 +52,7 @@ class ActivityWriter
         $group = ActivityGroup::create([
             'plan' => $this->planId,
             'activity_type_detail' => $activityTypeDetailId,
+            'explore_group' => $exploreGroup,
         ]);
 
         $this->currentGroup = $group;
@@ -65,7 +66,8 @@ class ActivityWriter
         ?int $juryLane = null, ?int $juryTeam = null,
         ?int $table1 = null, ?int $table1Team = null,
         ?int $table2 = null, ?int $table2Team = null,
-        ?int $extraBlockId = null
+        ?int $extraBlockId = null,
+        ?int $exploreGroup = null
     ): int {
         if (!$this->currentGroup) {
             throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Einfügen der Aktivität '{$activityTypeCode}'. Bitte setze zunächst eine Aktivitätsgruppe mit setGroup().");
@@ -80,6 +82,9 @@ class ActivityWriter
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeCode);
         $roomType = $this->resolveRoomType($activityTypeDetailId, $juryLane);
 
+        // Inherit explore_group from current group if not explicitly provided
+        $exploreGroupValue = $exploreGroup ?? $this->currentGroup->explore_group;
+
         $activity = Activity::create([
             'activity_group'       => $this->currentGroup->id,
             'activity_type_detail' => $activityTypeDetailId,
@@ -93,6 +98,7 @@ class ActivityWriter
             'table_2'              => $table2,
             'table_2_team'         => $table2Team,
             'extra_block'          => $extraBlockId,
+            'explore_group'        => $exploreGroupValue,
         ]);
 
         return $activity->id;
@@ -112,7 +118,8 @@ class ActivityWriter
      *   table1Team?: ?int,
      *   table2?: ?int,
      *   table2Team?: ?int,
-     *   extraBlockId?: ?int
+     *   extraBlockId?: ?int,
+     *   exploreGroup?: ?int
      * }> $activities Array of activity data
      * @return void
      */
@@ -131,6 +138,9 @@ class ActivityWriter
             $activityTypeDetailId = $this->activityTypeDetailIdFromCode($act['activityTypeCode']);
             $roomType = $this->resolveRoomType($activityTypeDetailId, $act['juryLane'] ?? null);
 
+            // Inherit explore_group from current group if not explicitly provided
+            $exploreGroupValue = $act['exploreGroup'] ?? $this->currentGroup->explore_group;
+
             $data[] = [
                 'activity_group'       => $this->currentGroup->id,
                 'activity_type_detail' => $activityTypeDetailId,
@@ -144,15 +154,16 @@ class ActivityWriter
                 'table_2'              => $act['table2'] ?? null,
                 'table_2_team'         => $act['table2Team'] ?? null,
                 'extra_block'          => $act['extraBlockId'] ?? null,
+                'explore_group'        => $exploreGroupValue,
             ];
         }
 
         Activity::insert($data);
     }
 
-    public function withGroup(string $activityTypeDetailCode, \Closure $callback): void
+    public function withGroup(string $activityTypeDetailCode, \Closure $callback, ?int $exploreGroup = null): void
     {
-        $this->insertActivityGroup($activityTypeDetailCode);
+        $this->insertActivityGroup($activityTypeDetailCode, $exploreGroup);
         $callback();
         $this->currentGroup = null;
     }
