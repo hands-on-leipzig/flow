@@ -423,16 +423,16 @@ onMounted(async () => {
           </h3>
           <div class="text-sm text-gray-500">
             <span>
-              <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded' : ''">Plan für: {{ program === 'explore' ? planParams.e_teams : planParams.c_teams }}</span>, <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded' : ''">Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}</span>, Kapazität: {{
+              <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Plan für: {{ program === 'explore' ? planParams.e_teams : planParams.c_teams }}</span>, <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}</span>, Kapazität: {{
                 program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0
               }}
             </span>
           </div>
         </div>
       </div>
-      <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
+      <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-red-800 rounded">
         Die Daten in FLOW weichen von denen der Anmeldung ab.
-        <button class="text-sm text-yellow-600" @click="showDiffModal = !showDiffModal">
+        <button class="text-sm text-red-700" @click="showDiffModal = !showDiffModal">
           Unterschiede anzeigen
           ({{ mergedTeams.filter(t => !['match', 'ignored'].includes(t.status)).length }})
         </button>
@@ -452,7 +452,7 @@ onMounted(async () => {
               :class="[
                 'rounded px-3 py-2 mb-1 flex justify-between items-center gap-2 transition-opacity',
                 (teamsBeyondCapacity && index >= planCapacity) 
-                  ? 'bg-yellow-100 border border-yellow-300' 
+                  ? 'bg-yellow-100 border border-yellow-300 text-red-800' 
                   : 'bg-gray-50',
                 team.noshow ? 'opacity-50' : 'opacity-100'
               ]"
@@ -461,17 +461,20 @@ onMounted(async () => {
             <span class="drag-handle cursor-move text-gray-500"><IconDraggable/></span>
 
             <!-- Neue Positionsspalte (Txx) - empty if beyond capacity -->
-            <span v-if="!teamsBeyondCapacity || index < planCapacity" class="w-8 text-right text-sm text-black">T{{ String(index + 1).padStart(2, '0') }}</span>
-            <span v-else class="w-8 text-right text-sm text-gray-400">–</span>
+            <span v-if="!teamsBeyondCapacity || index < planCapacity" class="w-8 text-right text-sm" :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-black'">T{{ String(index + 1).padStart(2, '0') }}</span>
+            <span v-else class="w-8 text-right text-sm text-red-800">–</span>
 
             <!-- Teamnummer (grau) -->
-            <span class="text-sm w-12 text-gray-500">{{ team.team_number_hot || '–' }}</span>
+            <span class="text-sm w-12" :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-gray-500'">{{ team.team_number_hot || '–' }}</span>
 
             <!-- Eingabefeld -->
             <input
                 v-model="team.name"
                 @blur="updateTeamName(team)"
-                class="editable-input flex-1 text-sm px-2 py-1 border border-transparent rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors cursor-pointer"
+                :class="[
+                  'editable-input flex-1 text-sm px-2 py-1 border border-transparent rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors cursor-pointer',
+                  (teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : ''
+                ]"
                 placeholder="Click to edit team name"
             />
 
@@ -492,7 +495,7 @@ onMounted(async () => {
       <!-- Placeholder rows for plan > enrolled -->
       <template v-for="placeholder in placeholderRows" :key="placeholder.id">
         <li
-            class="bg-yellow-100 border border-yellow-300 rounded px-3 py-2 mb-1 flex justify-between items-center gap-2"
+            class="bg-yellow-100 border border-yellow-300 text-red-800 rounded px-3 py-2 mb-1 flex justify-between items-center gap-2"
         >
           <!-- Empty space for drag handle -->
           <span class="w-6"></span>
@@ -501,10 +504,10 @@ onMounted(async () => {
           <span class="w-8"></span>
           
           <!-- Empty team number -->
-          <span class="text-sm w-12 text-gray-400">–</span>
+          <span class="text-sm w-12 text-red-800">–</span>
           
           <!-- Placeholder text -->
-          <span class="flex-1 text-sm text-gray-400 italic">Fehlendes Team</span>
+          <span class="flex-1 text-sm text-red-800 italic">Fehlendes Team</span>
           
           <!-- Empty space for checkbox -->
           <span class="w-16"></span>
