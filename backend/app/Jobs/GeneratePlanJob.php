@@ -15,14 +15,16 @@ class GeneratePlanJob implements ShouldQueue
 
     private int $planId;
     private bool $withQualityEvaluation;
+    private ?int $userId;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(int $planId, bool $withQualityEvaluation = false)
+    public function __construct(int $planId, bool $withQualityEvaluation = false, ?int $userId = null)
     {
         $this->planId = $planId;
         $this->withQualityEvaluation = $withQualityEvaluation;
+        $this->userId = $userId;
     }
 
     /**

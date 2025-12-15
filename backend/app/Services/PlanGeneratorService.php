@@ -136,7 +136,7 @@ class PlanGeneratorService
         return $q->exists();
     }
 
-    public function prepare(int $planId, string $mode = 'job'): void
+    public function prepare(int $planId, string $mode = 'job', ?int $userId = null): void
     {
         // Alte Activities löschen
         DB::table('activity_group')->where('plan', $planId)->delete();
@@ -144,6 +144,7 @@ class PlanGeneratorService
         // Generator-Lauf in s_generator eintragen
         DB::table('s_generator')->insert([
             'plan'  => $planId,
+            'user'  => $userId,
             'start' => Carbon::now(),
             'mode'  => $mode,
         ]);
@@ -154,9 +155,9 @@ class PlanGeneratorService
         ]);
     }
 
-    public function dispatchJob(int $planId, bool $withQualityEvaluation = false): void
+    public function dispatchJob(int $planId, bool $withQualityEvaluation = false, ?int $userId = null): void
     {
-        GeneratePlanJob::dispatch($planId, $withQualityEvaluation);
+        GeneratePlanJob::dispatch($planId, $withQualityEvaluation, $userId);
     }
 
     public function run(int $planId, bool $withQualityEvaluation = false): void
