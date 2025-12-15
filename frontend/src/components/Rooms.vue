@@ -22,7 +22,11 @@ const assignables = ref([]) // ← gemeinsame Ebene 1 (type = 'activity' | 'team
 const roomTypes = ref([])
 const typeGroups = ref([])
 const exploreTeams = ref([])
+const exploreTeamsMorning = ref([]) // Explore Vormittag teams
+const exploreTeamsAfternoon = ref([]) // Explore Nachmittag teams
 const challengeTeams = ref([])
+const e1Teams = ref(0) // Threshold for morning vs afternoon split
+const hasTwoExploreGroups = ref(false) // Whether there are 2 Explore groups
 
 const dragOverRoomId = ref(null)
 const isDragging = ref(false)
@@ -96,16 +100,64 @@ onMounted(async () => {
       axios.get(`/events/${eventId.value}/teams`, { params: { program: 'challenge', sort: 'name' } })
     ])
 
-    exploreTeams.value = exploreResponse.data.map(t => ({
-      id: t.id,
-      key: `team-${t.id}`,
-      number: t.team_number_hot,
-      name: t.name ?? 'Unbenannt',
-      type: 'team',
-      first_program: 2,
-      room: t.room ?? null,                 // 👈 WICHTIG
-      group: { id: 'explore', name: 'Explore' }
-    }))
+    // Handle Explore teams - response may be object with metadata or array (backward compatible)
+    const exploreData = exploreResponse.data
+    let exploreTeamsArray = Array.isArray(exploreData) ? exploreData : exploreData.teams || []
+    const exploreMetadata = exploreData.metadata || {}
+    
+    // Check if there are 2 Explore groups (e_mode = 8 for HYBRID_BOTH or 5 for DECOUPLED_BOTH)
+    const eMode = exploreMetadata.e_mode || 0
+    hasTwoExploreGroups.value = (eMode === 8 || eMode === 5)
+    e1Teams.value = exploreMetadata.e1_teams || 0
+
+    // Split Explore teams into morning and afternoon based on team_number_plan
+    if (hasTwoExploreGroups.value && e1Teams.value > 0) {
+      exploreTeamsMorning.value = exploreTeamsArray
+        .filter(t => (t.team_number_plan || 0) <= e1Teams.value)
+        .map(t => ({
+          id: t.id,
+          key: `team-${t.id}`,
+          number: t.team_number_hot,
+          name: t.name ?? 'Unbenannt',
+          type: 'team',
+          first_program: 2,
+          room: t.room ?? null,
+          team_number_plan: t.team_number_plan,
+          group: { id: 'explore-morning', name: 'Explore Vormittag' }
+        }))
+      
+      exploreTeamsAfternoon.value = exploreTeamsArray
+        .filter(t => (t.team_number_plan || 0) > e1Teams.value)
+        .map(t => ({
+          id: t.id,
+          key: `team-${t.id}`,
+          number: t.team_number_hot,
+          name: t.name ?? 'Unbenannt',
+          type: 'team',
+          first_program: 2,
+          room: t.room ?? null,
+          team_number_plan: t.team_number_plan,
+          group: { id: 'explore-afternoon', name: 'Explore Nachmittag' }
+        }))
+      
+      // Keep exploreTeams for backward compatibility (all teams combined)
+      exploreTeams.value = [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
+    } else {
+      // Single Explore group - use existing logic
+      exploreTeams.value = exploreTeamsArray.map(t => ({
+        id: t.id,
+        key: `team-${t.id}`,
+        number: t.team_number_hot,
+        name: t.name ?? 'Unbenannt',
+        type: 'team',
+        first_program: 2,
+        room: t.room ?? null,
+        team_number_plan: t.team_number_plan,
+        group: { id: 'explore', name: 'Explore' }
+      }))
+      exploreTeamsMorning.value = []
+      exploreTeamsAfternoon.value = []
+    }
 
     challengeTeams.value = challengeResponse.data.map(t => ({
       id: t.id,
@@ -114,7 +166,7 @@ onMounted(async () => {
       name: t.name ?? 'Unbenannt',
       type: 'team',
       first_program: 3,
-      room: t.room ?? null,                 // 👈 WICHTIG
+      room: t.room ?? null,
       group: { id: 'challenge', name: 'Challenge' }
     }))
   } catch (err) {
@@ -122,10 +174,35 @@ onMounted(async () => {
       console.error('Fehler beim Laden der Teams:', err)
     }
     exploreTeams.value = []
+    exploreTeamsMorning.value = []
+    exploreTeamsAfternoon.value = []
     challengeTeams.value = []
   }
   
   // --- Zusammenführen in gemeinsame Struktur ---
+  // Build team groups based on whether there are 2 Explore groups
+  const teamGroups = []
+  
+  if (hasTwoExploreGroups.value) {
+    // Two Explore groups: Vormittag and Nachmittag
+    teamGroups.push(
+      { id: 'explore-morning', name: 'FIRST LEGO League Explore Vormittag', items: exploreTeamsMorning.value },
+      { id: 'explore-afternoon', name: 'FIRST LEGO League Explore Nachmittag', items: exploreTeamsAfternoon.value }
+    )
+  } else {
+    // Single Explore group
+    teamGroups.push(
+      { id: 'explore', name: 'FIRST LEGO League Explore', items: exploreTeams.value }
+    )
+  }
+  
+  // Add Challenge group
+  if (showChallengeTeams.value) {
+    teamGroups.push(
+      { id: 'challenge', name: 'FIRST LEGO League Challenge', items: challengeTeams.value }
+    )
+  }
+
   assignables.value = [
     {
       id: 'activities',
@@ -148,10 +225,7 @@ onMounted(async () => {
     {
       id: 'teams',
       type: 'team',
-      groups: [
-        { id: 'explore', name: 'FIRST LEGO League Explore', items: exploreTeams.value },
-        { id: 'challenge', name: 'FIRST LEGO League Challenge', items: challengeTeams.value }
-      ]
+      groups: teamGroups
     }
   ]
 
@@ -172,7 +246,11 @@ onMounted(async () => {
   })
 
   // 2) Teams (Explore + Challenge) – nur wenn backend room mitliefert
-  ;[...exploreTeams.value, ...challengeTeams.value].forEach(team => {
+  // Use split teams if available, otherwise use combined exploreTeams
+  const exploreTeamsForAssignment = hasTwoExploreGroups.value 
+    ? [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
+    : exploreTeams.value
+  ;[...exploreTeamsForAssignment, ...challengeTeams.value].forEach(team => {
     if (team.room !== null && team.room !== undefined) {
       result[`team-${team.id}`] = team.room
     }
@@ -212,7 +290,8 @@ const toggleAccessibility = async (room) => {
 // --- Gemeinsame Zuordnung Raum <-> Item ---
 const assignItemToRoom = async (itemKey, roomId) => {
   // Handle proxy items
-  if (itemKey === 'proxy-explore' || itemKey === 'proxy-challenge') {
+  if (itemKey === PROXY_EXPLORE_KEY || itemKey === PROXY_EXPLORE_MORNING_KEY || 
+      itemKey === PROXY_EXPLORE_AFTERNOON_KEY || itemKey === PROXY_CHALLENGE_KEY) {
     await handleProxyAssignment(itemKey, roomId)
     return
   }
@@ -312,7 +391,8 @@ const findItemById = (idOrKey) => {
 // --- Unassign ---
 const unassignItemFromRoom = async (itemKey) => {
   // Handle proxy items
-  if (itemKey === 'proxy-explore' || itemKey === 'proxy-challenge') {
+  if (itemKey === PROXY_EXPLORE_KEY || itemKey === PROXY_EXPLORE_MORNING_KEY || 
+      itemKey === PROXY_EXPLORE_AFTERNOON_KEY || itemKey === PROXY_CHALLENGE_KEY) {
     await handleProxyAssignment(itemKey, null)
     return
   }
@@ -464,10 +544,14 @@ const activeTab = ref('activities')
 
 // --- Bulk Team Assignment Feature ---
 const bulkModeExplore = ref(false)
+const bulkModeExploreMorning = ref(false) // Bulk mode for Explore Vormittag
+const bulkModeExploreAfternoon = ref(false) // Bulk mode for Explore Nachmittag
 const bulkModeChallenge = ref(false)
 
 // Proxy keys for bulk assignment (constants for internal use)
 const PROXY_EXPLORE_KEY = 'proxy-explore'
+const PROXY_EXPLORE_MORNING_KEY = 'proxy-explore-morning'
+const PROXY_EXPLORE_AFTERNOON_KEY = 'proxy-explore-afternoon'
 const PROXY_CHALLENGE_KEY = 'proxy-challenge'
 
 // --- Persistence: localStorage with event scope ---
@@ -484,9 +568,15 @@ const loadBulkModePreferences = () => {
   try {
     const saved = localStorage.getItem(key)
     if (saved) {
-      const { explore, challenge } = JSON.parse(saved)
-      bulkModeExplore.value = explore ?? false
-      bulkModeChallenge.value = challenge ?? false
+      const prefs = JSON.parse(saved)
+      // Handle old format (backward compatible)
+      if (prefs.explore !== undefined) {
+        bulkModeExplore.value = prefs.explore ?? false
+      }
+      // Handle new format with separate morning/afternoon
+      bulkModeExploreMorning.value = prefs.exploreMorning ?? false
+      bulkModeExploreAfternoon.value = prefs.exploreAfternoon ?? false
+      bulkModeChallenge.value = prefs.challenge ?? false
       
       // Restore proxy assignments if bulk mode is enabled and teams are assigned
       // We need to check after assignments are loaded, so we'll call restoreProxyAssignments separately
@@ -503,17 +593,43 @@ const loadBulkModePreferences = () => {
 
 // Restore proxy assignments based on actual team assignments
 const restoreProxyAssignments = () => {
-  // Check Explore teams
-  if (bulkModeExplore.value && exploreTeams.value.length > 0) {
+  // Check Explore Morning teams
+  if (bulkModeExploreMorning.value && exploreTeamsMorning.value.length > 0) {
+    const teamsWithAssignments = exploreTeamsMorning.value
+      .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
+      .filter(t => t.room !== null && t.room !== undefined)
+    
+    if (teamsWithAssignments.length === exploreTeamsMorning.value.length) {
+      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
+      if (roomIds.length === 1) {
+        assignments.value[PROXY_EXPLORE_MORNING_KEY] = roomIds[0]
+      }
+    }
+  }
+  
+  // Check Explore Afternoon teams
+  if (bulkModeExploreAfternoon.value && exploreTeamsAfternoon.value.length > 0) {
+    const teamsWithAssignments = exploreTeamsAfternoon.value
+      .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
+      .filter(t => t.room !== null && t.room !== undefined)
+    
+    if (teamsWithAssignments.length === exploreTeamsAfternoon.value.length) {
+      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
+      if (roomIds.length === 1) {
+        assignments.value[PROXY_EXPLORE_AFTERNOON_KEY] = roomIds[0]
+      }
+    }
+  }
+  
+  // Check single Explore group (backward compatibility)
+  if (bulkModeExplore.value && !hasTwoExploreGroups.value && exploreTeams.value.length > 0) {
     const teamsWithAssignments = exploreTeams.value
       .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
       .filter(t => t.room !== null && t.room !== undefined)
     
     if (teamsWithAssignments.length === exploreTeams.value.length) {
-      // All teams assigned - check if they're in the same room
       const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
       if (roomIds.length === 1) {
-        // All teams in the same room - restore proxy assignment
         assignments.value[PROXY_EXPLORE_KEY] = roomIds[0]
       }
     }
@@ -526,10 +642,8 @@ const restoreProxyAssignments = () => {
       .filter(t => t.room !== null && t.room !== undefined)
     
     if (teamsWithAssignments.length === challengeTeams.value.length) {
-      // All teams assigned - check if they're in the same room
       const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
       if (roomIds.length === 1) {
-        // All teams in the same room - restore proxy assignment
         assignments.value[PROXY_CHALLENGE_KEY] = roomIds[0]
       }
     }
@@ -537,18 +651,25 @@ const restoreProxyAssignments = () => {
 }
 
 // Save bulk mode preferences when they change
-watch([bulkModeExplore, bulkModeChallenge], ([explore, challenge]) => {
-  const key = getStorageKey()
-  if (!key) return
-  
-  try {
-    localStorage.setItem(key, JSON.stringify({ explore, challenge }))
-  } catch (e) {
-    if (import.meta.env.DEV) {
-      console.debug('Failed to save bulk mode preferences', e)
+watch([bulkModeExplore, bulkModeExploreMorning, bulkModeExploreAfternoon, bulkModeChallenge], 
+  ([explore, exploreMorning, exploreAfternoon, challenge]) => {
+    const key = getStorageKey()
+    if (!key) return
+    
+    try {
+      localStorage.setItem(key, JSON.stringify({ 
+        explore, 
+        exploreMorning, 
+        exploreAfternoon, 
+        challenge 
+      }))
+    } catch (e) {
+      if (import.meta.env.DEV) {
+        console.debug('Failed to save bulk mode preferences', e)
+      }
     }
   }
-})
+)
 
 // Reload preferences when event changes
 watch(eventId, () => {
@@ -560,21 +681,46 @@ const getProxyRoomId = (proxyKey) => {
   return assignments.value[proxyKey] || null
 }
 
-// Get all teams for a program
-const getTeamsForProgram = (program) => {
-  if (program === 'explore') return exploreTeams.value
-  if (program === 'challenge') return challengeTeams.value
+// Get all teams for a program/group
+const getTeamsForProgram = (programOrGroupId) => {
+  if (programOrGroupId === 'explore') return exploreTeams.value
+  if (programOrGroupId === 'explore-morning') return exploreTeamsMorning.value
+  if (programOrGroupId === 'explore-afternoon') return exploreTeamsAfternoon.value
+  if (programOrGroupId === 'challenge') return challengeTeams.value
   return []
 }
 
 // Checkbox toggle handler - unassign all teams when enabling bulk mode
-const toggleBulkMode = async (program) => {
-  const isExplore = program === 'explore'
-  const currentMode = isExplore ? bulkModeExplore.value : bulkModeChallenge.value
+const toggleBulkMode = async (groupId) => {
+  // Determine which bulk mode to toggle based on group ID
+  let currentMode
+  let setBulkMode
+  let proxyKey
+  
+  if (groupId === 'explore-morning') {
+    currentMode = bulkModeExploreMorning.value
+    setBulkMode = (val) => { bulkModeExploreMorning.value = val }
+    proxyKey = PROXY_EXPLORE_MORNING_KEY
+  } else if (groupId === 'explore-afternoon') {
+    currentMode = bulkModeExploreAfternoon.value
+    setBulkMode = (val) => { bulkModeExploreAfternoon.value = val }
+    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
+  } else if (groupId === 'explore') {
+    // Single Explore group (backward compatibility)
+    currentMode = bulkModeExplore.value
+    setBulkMode = (val) => { bulkModeExplore.value = val }
+    proxyKey = PROXY_EXPLORE_KEY
+  } else if (groupId === 'challenge') {
+    currentMode = bulkModeChallenge.value
+    setBulkMode = (val) => { bulkModeChallenge.value = val }
+    proxyKey = PROXY_CHALLENGE_KEY
+  } else {
+    return
+  }
   
   if (!currentMode) {
-    // Enabling bulk mode: unassign all teams of this program
-    const teams = getTeamsForProgram(program)
+    // Enabling bulk mode: unassign all teams of this group
+    const teams = getTeamsForProgram(groupId)
     for (const team of teams) {
       const key = `team-${team.id}`
       if (assignments.value[key]) {
@@ -582,19 +728,14 @@ const toggleBulkMode = async (program) => {
       }
     }
     // Set bulk mode after unassigning
-    if (isExplore) {
-      bulkModeExplore.value = true
-    } else {
-      bulkModeChallenge.value = true
-    }
+    setBulkMode(true)
   } else {
     // Disabling bulk mode: if proxy is assigned, keep assignments, otherwise clear
-    const proxyKey = isExplore ? 'proxy-explore' : 'proxy-challenge'
     const proxyRoomId = getProxyRoomId(proxyKey)
     
     if (proxyRoomId) {
       // Proxy is assigned: all teams should appear individually in that room
-      const teams = getTeamsForProgram(program)
+      const teams = getTeamsForProgram(groupId)
       // First, assign all teams to backend
       for (const team of teams) {
         const key = `team-${team.id}`
@@ -609,11 +750,7 @@ const toggleBulkMode = async (program) => {
       assignments.value[proxyKey] = null
     }
     
-    if (isExplore) {
-      bulkModeExplore.value = false
-    } else {
-      bulkModeChallenge.value = false
-    }
+    setBulkMode(false)
   }
   
   // Refresh readiness after mode change
@@ -622,9 +759,9 @@ const toggleBulkMode = async (program) => {
   }
 }
 
-// Bulk assign all teams of a program to a room
-const bulkAssignTeams = async (program, roomId) => {
-  const teams = getTeamsForProgram(program)
+// Bulk assign all teams of a group to a room
+const bulkAssignTeams = async (groupId, roomId) => {
+  const teams = getTeamsForProgram(groupId)
   
   // Assign all teams to the room
   for (const team of teams) {
@@ -638,14 +775,26 @@ const bulkAssignTeams = async (program, roomId) => {
     })
   }
   
-  // Also set proxy assignment
-  const proxyKey = program === 'explore' ? 'proxy-explore' : 'proxy-challenge'
-  assignments.value[proxyKey] = roomId
+  // Also set proxy assignment based on group ID
+  let proxyKey
+  if (groupId === 'explore-morning') {
+    proxyKey = PROXY_EXPLORE_MORNING_KEY
+  } else if (groupId === 'explore-afternoon') {
+    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
+  } else if (groupId === 'explore') {
+    proxyKey = PROXY_EXPLORE_KEY
+  } else if (groupId === 'challenge') {
+    proxyKey = PROXY_CHALLENGE_KEY
+  }
+  
+  if (proxyKey) {
+    assignments.value[proxyKey] = roomId
+  }
 }
 
-// Bulk unassign all teams of a program
-const bulkUnassignTeams = async (program) => {
-  const teams = getTeamsForProgram(program)
+// Bulk unassign all teams of a group
+const bulkUnassignTeams = async (groupId) => {
+  const teams = getTeamsForProgram(groupId)
   
   // Unassign all teams
   for (const team of teams) {
@@ -660,19 +809,43 @@ const bulkUnassignTeams = async (program) => {
     }
   }
   
-  // Remove proxy assignment
-  const proxyKey = program === 'explore' ? 'proxy-explore' : 'proxy-challenge'
-  assignments.value[proxyKey] = null
+  // Remove proxy assignment based on group ID
+  let proxyKey
+  if (groupId === 'explore-morning') {
+    proxyKey = PROXY_EXPLORE_MORNING_KEY
+  } else if (groupId === 'explore-afternoon') {
+    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
+  } else if (groupId === 'explore') {
+    proxyKey = PROXY_EXPLORE_KEY
+  } else if (groupId === 'challenge') {
+    proxyKey = PROXY_CHALLENGE_KEY
+  }
+  
+  if (proxyKey) {
+    assignments.value[proxyKey] = null
+  }
 }
 
 // Handle proxy item assignment/unassignment
 const handleProxyAssignment = async (proxyKey, roomId) => {
-  const program = proxyKey === 'proxy-explore' ? 'explore' : 'challenge'
+  // Determine group ID from proxy key
+  let groupId
+  if (proxyKey === PROXY_EXPLORE_MORNING_KEY) {
+    groupId = 'explore-morning'
+  } else if (proxyKey === PROXY_EXPLORE_AFTERNOON_KEY) {
+    groupId = 'explore-afternoon'
+  } else if (proxyKey === PROXY_EXPLORE_KEY) {
+    groupId = 'explore'
+  } else if (proxyKey === PROXY_CHALLENGE_KEY) {
+    groupId = 'challenge'
+  } else {
+    return
+  }
   
   if (roomId) {
-    await bulkAssignTeams(program, roomId)
+    await bulkAssignTeams(groupId, roomId)
   } else {
-    await bulkUnassignTeams(program)
+    await bulkUnassignTeams(groupId)
   }
   
   // Refresh readiness
@@ -690,20 +863,37 @@ const getItemsInRoom = (roomId) => {
     for (const group of category.groups) {
       if (category.type === 'team') {
         // For teams: check bulk mode and show proxy or individual teams
-        const isExplore = group.id === 'explore'
-        const isChallenge = group.id === 'challenge'
-        const bulkMode = isExplore ? bulkModeExplore.value : (isChallenge ? bulkModeChallenge.value : false)
+        let bulkMode = false
+        let proxyKey = null
+        let proxyName = ''
         
-        if (bulkMode) {
+        if (group.id === 'explore-morning') {
+          bulkMode = bulkModeExploreMorning.value
+          proxyKey = PROXY_EXPLORE_MORNING_KEY
+          proxyName = 'Alle FIRST LEGO League Explore Vormittag Teams'
+        } else if (group.id === 'explore-afternoon') {
+          bulkMode = bulkModeExploreAfternoon.value
+          proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
+          proxyName = 'Alle FIRST LEGO League Explore Nachmittag Teams'
+        } else if (group.id === 'explore') {
+          bulkMode = bulkModeExplore.value
+          proxyKey = PROXY_EXPLORE_KEY
+          proxyName = 'Alle FIRST LEGO League Explore Teams'
+        } else if (group.id === 'challenge') {
+          bulkMode = bulkModeChallenge.value
+          proxyKey = PROXY_CHALLENGE_KEY
+          proxyName = 'Alle FIRST LEGO League Challenge Teams'
+        }
+        
+        if (bulkMode && proxyKey) {
           // Bulk mode: check if proxy is assigned to this room
-          const proxyKey = isExplore ? 'proxy-explore' : 'proxy-challenge'
           if (assignments.value[proxyKey] === roomId) {
             all.push({
               key: proxyKey,
               type: 'team-proxy',
-              name: isExplore ? 'Alle FIRST LEGO League Explore Teams' : 'Alle FIRST LEGO League Challenge Teams',
-              first_program: isExplore ? 2 : 3,
-              program: isExplore ? 'explore' : 'challenge'
+              name: proxyName,
+              first_program: (group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon') ? 2 : 3,
+              program: group.id
             })
           }
         } else {
@@ -1001,12 +1191,16 @@ const showChallengeTeams = computed(() => {
           :key="group.id"
         >
           <div
-            v-if="category.type !== 'team' || (group.id === 'explore' && showExploreTeams) || (group.id === 'challenge' && showChallengeTeams)"
+            v-if="category.type !== 'team' || 
+                  (group.id === 'explore' && showExploreTeams && !hasTwoExploreGroups) || 
+                  (group.id === 'explore-morning' && showExploreTeams && hasTwoExploreGroups) ||
+                  (group.id === 'explore-afternoon' && showExploreTeams && hasTwoExploreGroups) ||
+                  (group.id === 'challenge' && showChallengeTeams)"
             class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
           >
           <div class="text-lg font-semibold text-black mb-3 flex items-center gap-2">
             <img
-                v-if="group.id === 'explore' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
+                v-if="group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
                 :src="programLogoSrc('E')"
                 :alt="programLogoAlt('E')"
                 class="w-6 h-6 flex-shrink-0"
@@ -1025,7 +1219,10 @@ const showChallengeTeams = computed(() => {
             <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input
                 type="checkbox"
-                :checked="(group.id === 'explore' ? bulkModeExplore : bulkModeChallenge)"
+                :checked="group.id === 'explore-morning' ? bulkModeExploreMorning :
+                          group.id === 'explore-afternoon' ? bulkModeExploreAfternoon :
+                          group.id === 'explore' ? bulkModeExplore :
+                          group.id === 'challenge' ? bulkModeChallenge : false"
                 @change="toggleBulkMode(group.id)"
                 class="cursor-pointer"
               />
@@ -1034,14 +1231,36 @@ const showChallengeTeams = computed(() => {
           </div>
           
           <draggable
-            :list="category.type === 'team' && (group.id === 'explore' ? bulkModeExplore : group.id === 'challenge' ? bulkModeChallenge : false)
+            :list="category.type === 'team' && (
+                    (group.id === 'explore-morning' && bulkModeExploreMorning) ||
+                    (group.id === 'explore-afternoon' && bulkModeExploreAfternoon) ||
+                    (group.id === 'explore' && bulkModeExplore) ||
+                    (group.id === 'challenge' && bulkModeChallenge)
+                  )
               ? (() => {
-                  const proxyKey = group.id === 'explore' ? 'proxy-explore' : 'proxy-challenge'
+                  let proxyKey, proxyName, firstProgram
+                  if (group.id === 'explore-morning') {
+                    proxyKey = PROXY_EXPLORE_MORNING_KEY
+                    proxyName = 'Alle FLL Explore Vormittag Teams'
+                    firstProgram = 2
+                  } else if (group.id === 'explore-afternoon') {
+                    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
+                    proxyName = 'Alle FLL Explore Nachmittag Teams'
+                    firstProgram = 2
+                  } else if (group.id === 'explore') {
+                    proxyKey = PROXY_EXPLORE_KEY
+                    proxyName = 'Alle FLL Explore Teams'
+                    firstProgram = 2
+                  } else {
+                    proxyKey = PROXY_CHALLENGE_KEY
+                    proxyName = 'Alle FLL Challenge Teams'
+                    firstProgram = 3
+                  }
                   return [{
                     key: proxyKey,
                     type: 'team-proxy',
-                    name: group.id === 'explore' ? 'Alle FLL Explore Teams' : 'Alle FLL Challenge Teams',
-                    first_program: group.id === 'explore' ? 2 : 3,
+                    name: proxyName,
+                    first_program: firstProgram,
                     program: group.id
                   }].filter(p => !assignments[p.key])
                 })()

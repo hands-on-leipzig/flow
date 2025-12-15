@@ -236,8 +236,10 @@ const applyDrahtTeam = async (team) => {
 
     // Refresh teams from server to get the updated/created team with correct ID
     const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
+    // Handle both array format and object format (for Explore teams with metadata)
+    const teamsArray = Array.isArray(dbRes.data) ? dbRes.data : (dbRes.data.teams || [])
     // Normalize noshow values to boolean (handle null, 0, 1, true, false)
-    localTeams.value = dbRes.data.map(team => ({
+    localTeams.value = teamsArray.map(team => ({
       ...team,
       noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1'
     }))
@@ -278,8 +280,10 @@ const deleteTeam = async (team) => {
 
     // Refresh teams from server
     const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
+    // Handle both array format and object format (for Explore teams with metadata)
+    const teamsArray = Array.isArray(dbRes.data) ? dbRes.data : (dbRes.data.teams || [])
     // Normalize noshow values to boolean (handle null, 0, 1, true, false)
-    localTeams.value = dbRes.data.map(team => ({
+    localTeams.value = teamsArray.map(team => ({
       ...team,
       noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1'
     }))
@@ -319,8 +323,10 @@ const showSyncPrompt = computed(() =>
 onMounted(async () => {
   try {
     const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
+    // Handle both array format and object format (for Explore teams with metadata)
+    const teamsArray = Array.isArray(dbRes.data) ? dbRes.data : (dbRes.data.teams || [])
     // Normalize noshow values to boolean (handle null, 0, 1, true, false)
-    localTeams.value = dbRes.data.map(team => ({
+    localTeams.value = teamsArray.map(team => ({
       ...team,
       noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1'
     }))
