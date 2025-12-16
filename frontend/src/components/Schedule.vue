@@ -15,7 +15,6 @@ import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex
 import FllEvent from "@/models/FllEvent";
 import {Parameter, ParameterCondition} from "@/models/Parameter"
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
-import TeamSelectionExample from "@/components/molecules/TeamSelectionExample.vue";
 import ScheduleToast from "@/components/atoms/ScheduleToast.vue";
 import { useDebouncedSave } from "@/composables/useDebouncedSave";
 import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";
