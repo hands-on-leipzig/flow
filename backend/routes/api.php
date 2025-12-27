@@ -341,4 +341,9 @@ Route::middleware(['keycloak'])->group(function () {
         Route::put('/{applicationId}/api-keys/{apiKeyId}', [\App\Http\Controllers\Api\ApplicationController::class, 'updateApiKey']);
         Route::delete('/{applicationId}/api-keys/{apiKeyId}', [\App\Http\Controllers\Api\ApplicationController::class, 'deleteApiKey']);
     });
+
+    // Admin helper functions routes
+    Route::prefix('admin/helpers')->group(function () {
+        Route::post('/logos/cleanup-orphaned', [LogoController::class, 'cleanupOrphanedLogos']); // Admin: Clean up orphaned logos
+    });
 });
