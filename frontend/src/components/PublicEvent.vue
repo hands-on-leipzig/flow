@@ -144,116 +144,65 @@ const formatTimeOnly = (timeString) => {
 
 // Get timeline items for Explore program, sorted chronologically
 const getExploreTimelineItems = () => {
-  if (!scheduleInfo.value?.plan?.explore) return []
+  const plan = scheduleInfo.value?.plan
+  if (!plan) return []
 
-  const items = []
-  const plan = scheduleInfo.value.plan.explore
-
-  // Add opening time
-  if (plan.opening) {
-    items.push({
-      time: formatTimeOnly(plan.opening),
-      label: 'Eröffnung',
-      type: 'opening',
-      timestamp: new Date(plan.opening).getTime()
-    })
+  // Backend returns explore as an array of {value, label, sequence}
+  // or explore_morning/explore_afternoon for two groups
+  let exploreData = null
+  if (plan.explore && Array.isArray(plan.explore)) {
+    exploreData = plan.explore
+  } else if (plan.explore_morning && Array.isArray(plan.explore_morning)) {
+    // For two groups, use morning group
+    exploreData = plan.explore_morning
   }
 
-  // Add briefing times
-  if (plan.briefing?.teams) {
-    items.push({
-      time: formatTimeOnly(plan.briefing.teams),
-      label: 'Coach:innen-Briefing',
-      type: 'briefing',
-      description: 'Briefing für Coach:innen',
-      timestamp: new Date(plan.briefing.teams).getTime()
-    })
-  }
+  if (!exploreData || exploreData.length === 0) return []
 
-  if (plan.briefing?.judges) {
-    items.push({
-      time: formatTimeOnly(plan.briefing.judges),
-      label: 'Gutachter:innen-Briefing',
-      type: 'briefing',
-      description: 'Briefing für Gutachter:innen',
-      timestamp: new Date(plan.briefing.judges).getTime()
-    })
-  }
+  // Map backend format to frontend format
+  return exploreData.map(item => {
+    const timestamp = new Date(item.value).getTime()
+    let type = 'briefing'
+    if (item.label?.toLowerCase().includes('eröffnung') || item.label?.toLowerCase().includes('opening')) {
+      type = 'opening'
+    } else if (item.label?.toLowerCase().includes('ende') || item.label?.toLowerCase().includes('end')) {
+      type = 'end'
+    }
 
-  // Add end time
-  if (plan.end) {
-    items.push({
-      time: formatTimeOnly(plan.end),
-      label: 'Ende',
-      type: 'end',
-      timestamp: new Date(plan.end).getTime()
-    })
-  }
-
-  // Sort by timestamp
-  return items.sort((a, b) => a.timestamp - b.timestamp)
+    return {
+      time: formatTimeOnly(item.value),
+      label: item.label || '',
+      type: type,
+      timestamp: timestamp,
+      description: item.description || null
+    }
+  }).sort((a, b) => a.timestamp - b.timestamp)
 }
 
 // Get timeline items for Challenge program, sorted chronologically
 const getChallengeTimelineItems = () => {
-  if (!scheduleInfo.value?.plan?.challenge) return []
+  const plan = scheduleInfo.value?.plan
+  if (!plan?.challenge || !Array.isArray(plan.challenge) || plan.challenge.length === 0) return []
 
-  const items = []
-  const plan = scheduleInfo.value.plan.challenge
+  // Backend returns challenge as an array of {value, label, sequence}
+  // Map backend format to frontend format
+  return plan.challenge.map(item => {
+    const timestamp = new Date(item.value).getTime()
+    let type = 'briefing'
+    if (item.label?.toLowerCase().includes('beginn') || item.label?.toLowerCase().includes('opening')) {
+      type = 'opening'
+    } else if (item.label?.toLowerCase().includes('ende') || item.label?.toLowerCase().includes('end')) {
+      type = 'end'
+    }
 
-  // Add opening time
-  if (plan.opening) {
-    items.push({
-      time: formatTimeOnly(plan.opening),
-      label: 'Beginn',
-      type: 'opening',
-      timestamp: new Date(plan.opening).getTime()
-    })
-  }
-
-  // Add briefing times
-  if (plan.briefing?.teams) {
-    items.push({
-      time: formatTimeOnly(plan.briefing.teams),
-      label: 'Coach-Briefing',
-      type: 'briefing',
-      description: 'Briefing für Coaches',
-      timestamp: new Date(plan.briefing.teams).getTime()
-    })
-  }
-
-  if (plan.briefing?.judges) {
-    items.push({
-      time: formatTimeOnly(plan.briefing.judges),
-      label: 'Juror:innen-Briefing',
-      type: 'briefing',
-      description: 'Briefing für Juror:innen',
-      timestamp: new Date(plan.briefing.judges).getTime()
-    })
-  }
-
-  if (plan.briefing?.referees) {
-    items.push({
-      time: formatTimeOnly(plan.briefing.referees),
-      label: 'Schiedsrichter:innen-Briefing',
-      type: 'briefing',
-      description: 'Briefing für Schiedsrichter:innen',
-      timestamp: new Date(plan.briefing.referees).getTime()
-    })
-  }
-
-  // Add end time
-  if (plan.end) {
-    items.push({
-      time: formatTimeOnly(plan.end),
-      label: 'Ende',
-      type: 'end',
-      timestamp: new Date(plan.end).getTime()
-    })
-  }
-
-  // Sort by timestamp (chronological order)
-  return items.sort((a, b) => a.timestamp - b.timestamp)
+    return {
+      time: formatTimeOnly(item.value),
+      label: item.label || '',
+      type: type,
+      timestamp: timestamp,
+      description: item.description || null
+    }
+  }).sort((a, b) => a.timestamp - b.timestamp)
 }
 
 // Get timeline minimum height based on max items
@@ -787,7 +736,7 @@ onBeforeUnmount(() => {
         <div v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
              class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <!-- Explore: Timeline -->
-          <div v-if="scheduleInfo.plan.explore && getExploreTimelineItems().length > 0"
+          <div v-if="getExploreTimelineItems().length > 0"
                class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
             <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
               <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
@@ -825,7 +774,7 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Challenge: Timeline -->
-          <div v-if="scheduleInfo.plan.challenge && getChallengeTimelineItems().length > 0"
+          <div v-if="getChallengeTimelineItems().length > 0"
                class="bg-gradient-to-br from-red-100 to-pink-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-red-300 shadow-md md:shadow-lg flex flex-col">
             <h3 class="font-bold text-red-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
               <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="w-6 h-6"/>
@@ -1069,9 +1018,9 @@ onBeforeUnmount(() => {
             <table class="w-full min-w-[600px]" style="table-layout: fixed;">
               <colgroup>
                 <col style="width: 15%;">
-                <col style="width: 30%;">
-                <col style="width: 30%;">
-                <col style="width: 25%;">
+                <col style="width: 28.33%;">
+                <col style="width: 28.33%;">
+                <col style="width: 28.34%;">
               </colgroup>
               <thead>
               <tr>
@@ -1092,18 +1041,27 @@ onBeforeUnmount(() => {
                   }"
                   class="hover:transition-colors"
                   :class="`hover:bg-[var(--hover-color)]`">
-                <td class="px-2 md:px-4 py-2 md:py-4 whitespace-nowrap text-sm md:text-base font-bold text-right"
+                <td class="px-2 md:px-4 py-2 md:py-4 whitespace-nowrap text-sm md:text-base font-bold text-center"
                     :style="{ color: exploreColor }">
                   {{ team.team_number_hot || '-' }}
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base font-medium text-gray-900 break-words">
-                  {{ team.name }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base font-medium text-gray-900 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-people-group text-gray-500"></i>
+                    <span>{{ team.name }}</span>
+                  </div>
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words">
-                  {{ team.organization || '-' }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-school text-gray-500"></i>
+                    <span>{{ team.organization || '-' }}</span>
+                  </div>
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words">
-                  {{ team.location || '-' }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-location-dot text-gray-500"></i>
+                    <span>{{ team.location || '-' }}</span>
+                  </div>
                 </td>
               </tr>
               </tbody>
@@ -1133,9 +1091,9 @@ onBeforeUnmount(() => {
             <table class="w-full min-w-[600px]" style="table-layout: fixed;">
               <colgroup>
                 <col style="width: 15%;">
-                <col style="width: 30%;">
-                <col style="width: 30%;">
-                <col style="width: 25%;">
+                <col style="width: 28.33%;">
+                <col style="width: 28.33%;">
+                <col style="width: 28.34%;">
               </colgroup>
               <thead>
               <tr>
@@ -1155,18 +1113,27 @@ onBeforeUnmount(() => {
                   }"
                   class="hover:transition-colors"
                   :class="`hover:bg-[var(--hover-color)]`">
-                <td class="px-2 md:px-4 py-2 md:py-4 whitespace-nowrap text-sm md:text-base font-bold text-right"
+                <td class="px-2 md:px-4 py-2 md:py-4 whitespace-nowrap text-sm md:text-base font-bold text-center"
                     :style="{ color: challengeColor }">
                   {{ team.team_number_hot || '-' }}
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base font-medium text-gray-900 break-words">
-                  {{ team.name }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base font-medium text-gray-900 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-people-group text-gray-500"></i>
+                    <span>{{ team.name }}</span>
+                  </div>
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words">
-                  {{ team.organization || '-' }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-school text-gray-500"></i>
+                    <span>{{ team.organization || '-' }}</span>
+                  </div>
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words">
-                  {{ team.location || '-' }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-location-dot text-gray-500"></i>
+                    <span>{{ team.location || '-' }}</span>
+                  </div>
                 </td>
               </tr>
               </tbody>
