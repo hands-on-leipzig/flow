@@ -3,6 +3,7 @@ import { computed, ref, watch, onMounted } from 'vue'
 import { useEventStore } from '@/stores/event'
 import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
+import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -21,7 +22,8 @@ const hasChallengeTeams = computed(() => availableTeamPrograms.value.some(p => p
 
 // --- Modal State ---
 const showModal = ref(false)
-const selectedRound = ref<number>(0) // 0 = Testrunde, 1-3 = Vorrunde 1-3
+const selectedRound = ref<number | null>(null) // Currently selected round (1-3)
+const openRound = ref<number | null>(null) // Currently open accordion (1-3)
 const matches = ref<Array<{
   match_no: number
   team_1: { name: string; hot_number: number } | null
@@ -31,11 +33,23 @@ const isLoadingMatches = ref(false)
 
 // Round options
 const roundOptions = [
-  { value: 0, label: 'Testrunde' },
   { value: 1, label: 'Vorrunde 1' },
   { value: 2, label: 'Vorrunde 2' },
   { value: 3, label: 'Vorrunde 3' },
 ]
+
+// Toggle accordion round
+function toggleRound(round: number) {
+  if (openRound.value === round) {
+    openRound.value = null
+    matches.value = []
+    selectedRound.value = null
+  } else {
+    openRound.value = round
+    selectedRound.value = round
+    fetchMatches()
+  }
+}
 
 // Get plan ID from event
 async function getPlanId(): Promise<number | null> {
@@ -70,23 +84,26 @@ async function fetchMatches() {
   }
 }
 
-// Watch for round changes
+// Watch for round changes (when accordion opens)
 watch(selectedRound, () => {
-  if (showModal.value) {
+  if (showModal.value && selectedRound.value !== null) {
     fetchMatches()
   }
 })
 
-// Open modal and fetch matches
-async function openModal() {
+// Open modal
+function openModal() {
   showModal.value = true
-  selectedRound.value = 0 // Default to Testrunde
-  await fetchMatches()
+  openRound.value = null
+  selectedRound.value = null
+  matches.value = []
 }
 
 // Close modal
 function closeModal() {
   showModal.value = false
+  openRound.value = null
+  selectedRound.value = null
   matches.value = []
 }
 
@@ -177,17 +194,7 @@ watch(() => event.value?.id, async (id) => {
       >
         <!-- Modal Header -->
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <div class="flex items-center gap-4">
-            <h3 class="text-lg font-semibold text-gray-900" v-html="eventTitleNormalized"></h3>
-            <select
-              v-model="selectedRound"
-              class="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option v-for="option in roundOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
-          </div>
+          <h3 class="text-lg font-semibold text-gray-900" v-html="eventTitleNormalized"></h3>
           <button
             @click="closeModal"
             class="text-gray-400 hover:text-gray-600 transition-colors"
@@ -200,35 +207,53 @@ watch(() => event.value?.id, async (id) => {
         
         <!-- Modal Content -->
         <div class="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-          <div v-if="isLoadingMatches" class="flex items-center justify-center py-8">
-            <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
-            <span class="ml-3 text-gray-600">Lade Matches...</span>
-          </div>
-          
-          <div v-else-if="matches.length === 0" class="text-center py-8 text-gray-500">
-            Keine Matches gefunden
-          </div>
-          
-          <!-- Match Grid -->
-          <div v-else class="grid grid-cols-2 gap-3">
-            <template v-for="match in matches" :key="match.match_no">
-              <!-- Team 1 (Left Column) -->
-              <div
-                class="px-4 py-2 rounded text-white text-sm font-medium"
-                :class="isEmptySlot(match.team_1) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600'"
-              >
-                {{ formatTeam(match.team_1) }}
-              </div>
-              
-              <!-- Team 2 (Right Column) -->
-              <div
-                class="px-4 py-2 rounded text-white text-sm font-medium"
-                :class="isEmptySlot(match.team_2) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600'"
-              >
-                {{ formatTeam(match.team_2) }}
+          <!-- Accordion for rounds -->
+          <div class="space-y-2">
+            <template v-for="option in roundOptions" :key="option.value">
+              <div class="bg-white border rounded-lg shadow">
+                <button
+                  class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
+                  @click="toggleRound(option.value)"
+                >
+                  {{ option.label }}
+                  <AccordionArrow :opened="openRound === option.value"/>
+                </button>
+                <transition name="fade">
+                  <div v-if="openRound === option.value" class="p-4">
+                    <div v-if="isLoadingMatches" class="flex items-center justify-center py-8">
+                      <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                      </svg>
+                      <span class="ml-3 text-gray-600">Lade Matches...</span>
+                    </div>
+                    
+                    <div v-else-if="matches.length === 0" class="text-center py-8 text-gray-500">
+                      Keine Matches gefunden
+                    </div>
+                    
+                    <!-- Match Grid -->
+                    <div v-else class="grid grid-cols-2 gap-3">
+                      <template v-for="match in matches" :key="match.match_no">
+                        <!-- Team 1 (Left Column) -->
+                        <div
+                          class="px-4 py-2 rounded text-white text-sm font-medium"
+                          :class="isEmptySlot(match.team_1) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600'"
+                        >
+                          {{ formatTeam(match.team_1) }}
+                        </div>
+                        
+                        <!-- Team 2 (Right Column) -->
+                        <div
+                          class="px-4 py-2 rounded text-white text-sm font-medium"
+                          :class="isEmptySlot(match.team_2) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600'"
+                        >
+                          {{ formatTeam(match.team_2) }}
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </transition>
               </div>
             </template>
           </div>
@@ -237,3 +262,14 @@ watch(() => event.value?.id, async (id) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active {
+  transition: all 0.2s ease;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+  transform: translateY(-0.5rem);
+}
+</style>
