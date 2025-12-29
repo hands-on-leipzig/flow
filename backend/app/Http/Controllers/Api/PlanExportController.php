@@ -2065,7 +2065,12 @@ if ($prepRooms->isNotEmpty()) {
         $requestExplore = new \Illuminate\Http\Request();
         $requestExplore->query->set('program', 'explore');
         $exploreResponse = $teamController->index($requestExplore, $event);
-        $exploreTeams = collect($exploreResponse->getData(true));
+        $exploreData = $exploreResponse->getData(true);
+        // Handle both array format (challenge) and object format (explore with metadata)
+        $exploreTeamsArray = is_array($exploreData) && !isset($exploreData['teams']) 
+            ? $exploreData 
+            : ($exploreData['teams'] ?? []);
+        $exploreTeams = collect($exploreTeamsArray);
 
         // Log::debug('Explore Teams:', $exploreTeams->toArray());
 
@@ -2073,7 +2078,9 @@ if ($prepRooms->isNotEmpty()) {
         $requestChallenge = new \Illuminate\Http\Request();
         $requestChallenge->query->set('program', 'challenge');
         $challengeResponse = $teamController->index($requestChallenge, $event);
-        $challengeTeams = collect($challengeResponse->getData(true));
+        $challengeData = $challengeResponse->getData(true);
+        // Challenge teams are returned as direct array
+        $challengeTeams = collect($challengeData);
 
         // Log::debug('Challenge Teams:', $challengeTeams->toArray());
 
