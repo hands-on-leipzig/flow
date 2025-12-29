@@ -3,6 +3,7 @@ import {ref, computed, onMounted, onBeforeUnmount, watch, nextTick, Teleport} fr
 import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import {programLogoSrc, programLogoAlt, imageUrl} from '@/utils/images'
+import {formatTimeOnly} from '@/utils/dateTimeFormat'
 import QRCode from 'qrcode'
 
 const route = useRoute()
@@ -132,35 +133,15 @@ const formatDateOnly = (dateString) => {
   })
 }
 
-// Format time to show only time part
-const formatTimeOnly = (timeString) => {
-  if (!timeString) return ''
-  const date = new Date(timeString)
-  return date.toLocaleTimeString('de-DE', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-// Get timeline items for Explore program, sorted chronologically
-const getExploreTimelineItems = () => {
+// Get timeline items for Explore morning group, sorted chronologically
+const getExploreMorningTimelineItems = () => {
   const plan = scheduleInfo.value?.plan
-  if (!plan) return []
-
-  // Backend returns explore as an array of {value, label, sequence}
-  // or explore_morning/explore_afternoon for two groups
-  let exploreData = null
-  if (plan.explore && Array.isArray(plan.explore)) {
-    exploreData = plan.explore
-  } else if (plan.explore_morning && Array.isArray(plan.explore_morning)) {
-    // For two groups, use morning group
-    exploreData = plan.explore_morning
+  if (!plan?.explore_morning || !Array.isArray(plan.explore_morning) || plan.explore_morning.length === 0) {
+    return []
   }
 
-  if (!exploreData || exploreData.length === 0) return []
-
   // Map backend format to frontend format
-  return exploreData.map(item => {
+  return plan.explore_morning.map(item => {
     const timestamp = new Date(item.value).getTime()
     let type = 'briefing'
     if (item.label?.toLowerCase().includes('eröffnung') || item.label?.toLowerCase().includes('opening')) {
@@ -170,13 +151,82 @@ const getExploreTimelineItems = () => {
     }
 
     return {
-      time: formatTimeOnly(item.value),
+      time: formatTimeOnly(item.value, true),
       label: item.label || '',
       type: type,
       timestamp: timestamp,
       description: item.description || null
     }
   }).sort((a, b) => a.timestamp - b.timestamp)
+}
+
+// Get timeline items for Explore afternoon group, sorted chronologically
+const getExploreAfternoonTimelineItems = () => {
+  const plan = scheduleInfo.value?.plan
+  if (!plan?.explore_afternoon || !Array.isArray(plan.explore_afternoon) || plan.explore_afternoon.length === 0) {
+    return []
+  }
+
+  // Map backend format to frontend format
+  return plan.explore_afternoon.map(item => {
+    const timestamp = new Date(item.value).getTime()
+    let type = 'briefing'
+    if (item.label?.toLowerCase().includes('eröffnung') || item.label?.toLowerCase().includes('opening')) {
+      type = 'opening'
+    } else if (item.label?.toLowerCase().includes('ende') || item.label?.toLowerCase().includes('end')) {
+      type = 'end'
+    }
+
+    return {
+      time: formatTimeOnly(item.value, true),
+      label: item.label || '',
+      type: type,
+      timestamp: timestamp,
+      description: item.description || null
+    }
+  }).sort((a, b) => a.timestamp - b.timestamp)
+}
+
+// Get timeline items for single Explore group (fallback when no morning/afternoon), sorted chronologically
+const getExploreSingleTimelineItems = () => {
+  const plan = scheduleInfo.value?.plan
+  if (!plan?.explore || !Array.isArray(plan.explore) || plan.explore.length === 0) {
+    return []
+  }
+
+  // Map backend format to frontend format
+  return plan.explore.map(item => {
+    const timestamp = new Date(item.value).getTime()
+    let type = 'briefing'
+    if (item.label?.toLowerCase().includes('eröffnung') || item.label?.toLowerCase().includes('opening')) {
+      type = 'opening'
+    } else if (item.label?.toLowerCase().includes('ende') || item.label?.toLowerCase().includes('end')) {
+      type = 'end'
+    }
+
+    return {
+      time: formatTimeOnly(item.value, true),
+      label: item.label || '',
+      type: type,
+      timestamp: timestamp,
+      description: item.description || null
+    }
+  }).sort((a, b) => a.timestamp - b.timestamp)
+}
+
+// Get all Explore timeline items (for compatibility with existing code)
+const getExploreTimelineItems = () => {
+  const morningItems = getExploreMorningTimelineItems()
+  const afternoonItems = getExploreAfternoonTimelineItems()
+  const singleItems = getExploreSingleTimelineItems()
+  
+  // If we have morning or afternoon, return those (combined for compatibility)
+  if (morningItems.length > 0 || afternoonItems.length > 0) {
+    return [...morningItems, ...afternoonItems].sort((a, b) => a.timestamp - b.timestamp)
+  }
+  
+  // Otherwise return single explore items
+  return singleItems
 }
 
 // Get timeline items for Challenge program, sorted chronologically
@@ -196,7 +246,7 @@ const getChallengeTimelineItems = () => {
     }
 
     return {
-      time: formatTimeOnly(item.value),
+      time: formatTimeOnly(item.value, true),
       label: item.label || '',
       type: type,
       timestamp: timestamp,
@@ -205,15 +255,65 @@ const getChallengeTimelineItems = () => {
   }).sort((a, b) => a.timestamp - b.timestamp)
 }
 
+// Get combined Explore items count (morning + afternoon if both exist)
+const combinedExploreItemsCount = computed(() => {
+  const morningItems = getExploreMorningTimelineItems()
+  const afternoonItems = getExploreAfternoonTimelineItems()
+  const singleItems = getExploreSingleTimelineItems()
+  
+  // If both morning and afternoon exist, sum them; otherwise use single
+  if (morningItems.length > 0 && afternoonItems.length > 0) {
+    return morningItems.length + afternoonItems.length
+  }
+  
+  // Return the max of single explore or whichever of morning/afternoon exists
+  return Math.max(morningItems.length, afternoonItems.length, singleItems.length)
+})
+
 // Get timeline minimum height based on max items
 const timelineMinHeight = computed(() => {
-  const exploreItems = getExploreTimelineItems()
+  const morningItems = getExploreMorningTimelineItems()
+  const afternoonItems = getExploreAfternoonTimelineItems()
+  const singleItems = getExploreSingleTimelineItems()
   const challengeItems = getChallengeTimelineItems()
-  const maxItems = Math.max(exploreItems.length, challengeItems.length)
+  
+  // Calculate max items across all explore sections and challenge
+  const maxExploreItems = Math.max(morningItems.length, afternoonItems.length, singleItems.length)
+  const maxItems = Math.max(maxExploreItems, challengeItems.length)
 
-  // Each item takes approximately 100px (card + spacing)
+  // Each item takes approximately 70px (card + compact spacing with gap-3)
   // Base height for timeline line
-  return `${maxItems * 100}px`
+  return `${maxItems * 70}px`
+})
+
+// Get combined Explore height for matching Challenge height
+const combinedExploreHeight = computed(() => {
+  // Each item takes approximately 70px (card + compact spacing with gap-3)
+  // Add some padding for headers and spacing between sections
+  const itemHeight = 70
+  const headerHeight = 80 // Approximate header height
+  const sectionSpacing = 16 // Spacing between morning/afternoon sections (gap-4)
+  
+  const morningItems = getExploreMorningTimelineItems()
+  const afternoonItems = getExploreAfternoonTimelineItems()
+  const singleItems = getExploreSingleTimelineItems()
+  
+  let height = 0
+  
+  // If both morning and afternoon exist
+  if (morningItems.length > 0 && afternoonItems.length > 0) {
+    height = headerHeight + (morningItems.length * itemHeight) + sectionSpacing + headerHeight + (afternoonItems.length * itemHeight)
+  } else if (singleItems.length > 0) {
+    height = headerHeight + (singleItems.length * itemHeight)
+  } else {
+    // Use whichever exists
+    const items = morningItems.length > 0 ? morningItems : afternoonItems
+    if (items.length > 0) {
+      height = headerHeight + (items.length * itemHeight)
+    }
+  }
+  
+  return `${height}px`
 })
 
 // Check if content should be visible based on publication level
@@ -735,23 +835,24 @@ onBeforeUnmount(() => {
 
         <div v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
              class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <!-- Explore: Timeline -->
-          <div v-if="getExploreTimelineItems().length > 0"
-               class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
+          <!-- Left Column: Explore (morning + afternoon stacked if both exist) -->
+          <div class="flex flex-col gap-4 md:gap-6">
+            <!-- 2x Explore: Morning section -->
+            <div v-if="getExploreMorningTimelineItems().length > 0"
+                 class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
             <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
               <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
-              FIRST LEGO League Explore
+              <span class="italic">FIRST</span> LEGO League Explore <span style="color: #1e40af;">Vormittag</span>
             </h3>
             <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
               <!-- Timeline line -->
               <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
 
-              <!-- Timeline items - evenly spaced -->
-              <div class="relative h-full flex flex-col justify-between">
+              <!-- Timeline items - compact spacing -->
+              <div class="relative h-full flex flex-col gap-3">
                 <div
-                    v-for="(item, index) in getExploreTimelineItems()"
+                    v-for="(item, index) in getExploreMorningTimelineItems()"
                     :key="index"
-                    :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getExploreTimelineItems().length - 1 ? '0' : 'auto' }"
                     class="relative pl-12"
                 >
                   <!-- Timeline dot -->
@@ -771,11 +872,88 @@ onBeforeUnmount(() => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
 
-          <!-- Challenge: Timeline -->
+            <!-- 2x Explore: Afternoon section -->
+            <div v-if="getExploreAfternoonTimelineItems().length > 0"
+                 class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
+            <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
+              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
+              <span class="italic">FIRST</span> LEGO League Explore <span style="color: #93c5fd;">Nachmittag</span>
+            </h3>
+            <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
+              <!-- Timeline line -->
+              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
+
+              <!-- Timeline items - compact spacing -->
+              <div class="relative h-full flex flex-col gap-3">
+                <div
+                    v-for="(item, index) in getExploreAfternoonTimelineItems()"
+                    :key="index"
+                    class="relative pl-12"
+                >
+                  <!-- Timeline dot -->
+                  <div
+                      :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
+                      class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
+                  </div>
+
+                  <!-- Timeline content -->
+                  <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
+                    <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+                      <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{ item.label }}</span>
+                      <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                    </div>
+                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+
+            <!-- Single Explore Section (fallback when no morning/afternoon) -->
+            <div v-else-if="getExploreSingleTimelineItems().length > 0"
+                 class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
+            <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
+              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
+              FIRST LEGO League Explore
+            </h3>
+            <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
+              <!-- Timeline line -->
+              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
+
+              <!-- Timeline items - compact spacing -->
+              <div class="relative h-full flex flex-col gap-3">
+                <div
+                    v-for="(item, index) in getExploreSingleTimelineItems()"
+                    :key="index"
+                    class="relative pl-12"
+                >
+                  <!-- Timeline dot -->
+                  <div
+                      :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
+                      class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
+                  </div>
+
+                  <!-- Timeline content -->
+                  <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
+                    <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+                      <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{ item.label }}</span>
+                      <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                    </div>
+                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+          <!-- End of Left Column: Explore -->
+
+          <!-- Right Column: Challenge -->
           <div v-if="getChallengeTimelineItems().length > 0"
-               class="bg-gradient-to-br from-red-100 to-pink-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-red-300 shadow-md md:shadow-lg flex flex-col">
+               class="bg-gradient-to-br from-red-100 to-pink-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-red-300 shadow-md md:shadow-lg flex flex-col"
+               :style="{ minHeight: combinedExploreHeight }">
             <h3 class="font-bold text-red-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
               <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="w-6 h-6"/>
               FIRST LEGO League Challenge
@@ -784,12 +962,11 @@ onBeforeUnmount(() => {
               <!-- Timeline line -->
               <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-red-400"></div>
 
-              <!-- Timeline items - evenly spaced -->
-              <div class="relative h-full flex flex-col justify-between">
+              <!-- Timeline items - compact spacing -->
+              <div class="relative h-full flex flex-col gap-3">
                 <div
                     v-for="(item, index) in getChallengeTimelineItems()"
                     :key="index"
-                    :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getChallengeTimelineItems().length - 1 ? '0' : 'auto' }"
                     class="relative pl-12"
                 >
                   <!-- Timeline dot -->
