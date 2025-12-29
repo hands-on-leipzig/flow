@@ -670,7 +670,7 @@ function exportToCSV() {
     return
   }
 
-  // Define CSV headers
+  // Define CSV headers (only columns that are visible in the table)
   const headers = [
     'RP ID',
     'Partner',
@@ -685,16 +685,15 @@ function exportToCSV() {
     'Teams Challenge',
     'DRAHT Issue',
     'Plan ID',
-    'Plan Name',
-    'Plan Created',
     'Plan Last Change',
+    'Plan Warning',
     'Generator Stats',
     'Expert Parameter Changes (Input)',
     'Expert Parameter Changes (Expert)',
+    'Table Names',
     'Extra Blocks (Free)',
     'Extra Blocks (Inserted)',
     'Publication Level',
-    'Publication Date',
     'Publication Last Change',
     'Access Count'
   ]
@@ -727,16 +726,15 @@ function exportToCSV() {
         escapeCSV(row.event_teams_challenge),
         escapeCSV(row.draht_issue ? 'Yes' : 'No'),
         escapeCSV(row.plan_id),
-        escapeCSV(row.plan_name),
-        escapeCSV(row.plan_created ? formatDateTime(row.plan_created) : ''),
         escapeCSV(row.plan_last_change ? formatDateTime(row.plan_last_change) : ''),
+        escapeCSV(row.has_warning ? 'Yes' : 'No'),
         escapeCSV(row.generator_stats),
         escapeCSV(row.expert_param_changes?.input ?? 0),
         escapeCSV(row.expert_param_changes?.expert ?? 0),
+        escapeCSV(row.has_table_names ? 'Yes' : 'No'),
         escapeCSV(row.extra_blocks?.free ?? 0),
         escapeCSV(row.extra_blocks?.inserted ?? 0),
         escapeCSV(row.publication_level ?? ''),
-        escapeCSV(row.publication_date ? formatDateTime(row.publication_date) : ''),
         escapeCSV(row.publication_last_change ? formatDateTime(row.publication_last_change) : ''),
         escapeCSV(row.access_count ?? '')
       ].join(',')
