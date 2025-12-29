@@ -758,7 +758,7 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="bg-white border rounded-lg shadow">
+    <div v-if="showChallenge" class="bg-white border rounded-lg shadow">
       <button
           class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
           @click="toggle('extras')"
