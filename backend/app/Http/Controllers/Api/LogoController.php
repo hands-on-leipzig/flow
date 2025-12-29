@@ -7,6 +7,8 @@ use App\Models\Logo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 
 class LogoController extends Controller
 {
@@ -115,5 +117,91 @@ class LogoController extends Controller
             });
 
         return response()->json($logos);
+    }
+
+    /**
+     * Clean up orphaned logos - remove DB entries without files and files without DB entries
+     */
+    public function cleanupOrphanedLogos()
+    {
+        try {
+            $deletedDbEntries = 0;
+            $deletedFiles = 0;
+            $errors = [];
+
+            // Get all logos from database
+            $logos = Logo::all();
+            $storagePath = storage_path('app/public');
+
+            // Check each logo in DB - if file doesn't exist, delete DB entry
+            foreach ($logos as $logo) {
+                $filePath = $storagePath . '/' . $logo->path;
+                
+                if (!File::exists($filePath)) {
+                    try {
+                        // Delete related event_logo entries first (cascade)
+                        DB::table('event_logo')->where('logo', $logo->id)->delete();
+                        $logo->delete();
+                        $deletedDbEntries++;
+                        Log::info("Deleted orphaned logo DB entry: ID {$logo->id}, path: {$logo->path}");
+                    } catch (\Exception $e) {
+                        $errors[] = "Failed to delete logo DB entry ID {$logo->id}: " . $e->getMessage();
+                        Log::error("Failed to delete logo DB entry", [
+                            'logo_id' => $logo->id,
+                            'path' => $logo->path,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+            }
+
+            // Check all files in logos directory - if no DB entry exists, delete file
+            $logosDirectory = $storagePath . '/logos';
+            if (File::isDirectory($logosDirectory)) {
+                $files = File::files($logosDirectory);
+                
+                foreach ($files as $file) {
+                    $relativePath = 'logos/' . $file->getFilename();
+                    
+                    // Check if this file has a corresponding DB entry
+                    $logoExists = Logo::where('path', $relativePath)->exists();
+                    
+                    if (!$logoExists) {
+                        try {
+                            // Only delete user-uploaded logos (in logos/ directory)
+                            // System logos would be in other directories
+                            File::delete($file->getPathname());
+                            $deletedFiles++;
+                            Log::info("Deleted orphaned logo file: {$relativePath}");
+                        } catch (\Exception $e) {
+                            $errors[] = "Failed to delete logo file {$relativePath}: " . $e->getMessage();
+                            Log::error("Failed to delete logo file", [
+                                'path' => $relativePath,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Logo cleanup completed',
+                'deleted_db_entries' => $deletedDbEntries,
+                'deleted_files' => $deletedFiles,
+                'errors' => $errors
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Logo cleanup failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Logo cleanup failed: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

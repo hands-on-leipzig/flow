@@ -156,12 +156,12 @@ class PublishController extends Controller
 
                 // Update link for challenge event if it exists
                 if (!empty($event->event_challenge)) {
-                    $drahtController->updateEventLink($event->event_challenge, $link);
+                    $drahtController->updateEventLink($event->event_challenge, $displayLink);
                 }
 
                 // Update link for explore event if it exists
                 if (!empty($event->event_explore)) {
-                    $drahtController->updateEventLink($event->event_explore, $link);
+                    $drahtController->updateEventLink($event->event_explore, $displayLink);
                 }
             } catch (\Exception $e) {
                 // Log error but don't fail the link generation

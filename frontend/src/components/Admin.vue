@@ -20,6 +20,7 @@ const isDevEnvironment = ref(false)
 const seasons = ref([])
 const selectedSeason = ref(null)
 const regeneratingLinks = ref(false)
+const cleaningLogos = ref(false)
 
 // Check environment on mount
 onMounted(async () => {
@@ -137,6 +138,33 @@ const regenerateLinksForSeason = async () => {
   }
 }
 
+const cleanupOrphanedLogos = async () => {
+  if (!confirm('Möchtest du wirklich die Logo-Bereinigung durchführen?\n\nDies wird:\n- Datenbankeinträge ohne Datei löschen\n- Dateien ohne Datenbankeintrag löschen (nur hochgeladene Logos)\n\nDiese Aktion kann nicht rückgängig gemacht werden.')) {
+    return
+  }
+  
+  cleaningLogos.value = true
+  try {
+    const response = await axios.post('/admin/helpers/logos/cleanup-orphaned')
+    if (response.data.success) {
+      const message = `✅ Logo-Bereinigung abgeschlossen!\n\n` +
+        `Gelöschte DB-Einträge: ${response.data.deleted_db_entries}\n` +
+        `Gelöschte Dateien: ${response.data.deleted_files}`
+      if (response.data.errors && response.data.errors.length > 0) {
+        alert(message + `\n\nFehler:\n${response.data.errors.join('\n')}`)
+      } else {
+        alert(message)
+      }
+    } else {
+      alert('Fehler: ' + (response.data.message || 'Unbekannter Fehler'))
+    }
+  } catch (error) {
+    alert('Fehler bei der Logo-Bereinigung: ' + (error.response?.data?.message || error.message))
+  } finally {
+    cleaningLogos.value = false
+  }
+}
+
 
 fetchParameters()
 fetchConditions()
@@ -230,6 +258,14 @@ fetchConditions()
           @click="activeTab = 'external-api'"
       >
         🔑 External API
+      </button>
+
+      <button
+          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
+          :class="{ 'bg-white font-semibold shadow': activeTab === 'hilfsfunktionen' }"
+          @click="activeTab = 'hilfsfunktionen'"
+      >
+        🔧 Hilfsfunktionen
       </button>
 
 
@@ -341,37 +377,6 @@ fetchConditions()
             </button>
           </div>
           
-          <!-- Regenerate Public Links -->
-          <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <h3 class="text-lg font-semibold mb-2">Öffentliche Links regenerieren</h3>
-            <p class="text-gray-600 mb-4">
-              Regeneriert alle öffentlichen Links und QR-Codes für alle Events einer ausgewählten Saison.
-              Dies erstellt neue Links und QR-Codes und aktualisiert sie auch in DRAHT.
-            </p>
-            <div class="flex items-center gap-4">
-              <select 
-                v-model="selectedSeason" 
-                class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :disabled="regeneratingLinks"
-              >
-                <option :value="null">-- Saison auswählen --</option>
-                <option 
-                  v-for="season in seasons" 
-                  :key="season.id" 
-                  :value="season.id"
-                >
-                  {{ season.name }} ({{ season.year }})
-                </option>
-              </select>
-              <button 
-                class="px-6 py-2 rounded bg-green-500 text-white hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
-                @click="regenerateLinksForSeason"
-                :disabled="!selectedSeason || regeneratingLinks"
-              >
-                {{ regeneratingLinks ? '⏳ Regeneriere...' : '🔗 Links regenerieren' }}
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -406,6 +411,63 @@ fetchConditions()
 
       <div v-if="activeTab === 'external-api'">
         <ExternalApiManagement />
+      </div>
+
+      <div v-if="activeTab === 'hilfsfunktionen'">
+        <h2 class="text-xl font-bold mb-6">Hilfsfunktionen</h2>
+        
+        <div class="space-y-6">
+          <!-- Regenerate Public Links -->
+          <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <h3 class="text-lg font-semibold mb-2">Öffentliche Links regenerieren</h3>
+            <p class="text-gray-600 mb-4">
+              Regeneriert alle öffentlichen Links und QR-Codes für alle Events einer ausgewählten Saison.
+              Dies erstellt neue Links und QR-Codes und aktualisiert sie auch in DRAHT.
+            </p>
+            <div class="flex items-center gap-4">
+              <select 
+                v-model="selectedSeason" 
+                class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                :disabled="regeneratingLinks"
+              >
+                <option :value="null">-- Saison auswählen --</option>
+                <option 
+                  v-for="season in seasons" 
+                  :key="season.id" 
+                  :value="season.id"
+                >
+                  {{ season.name }} ({{ season.year }})
+                </option>
+              </select>
+              <button 
+                class="px-6 py-2 rounded bg-green-500 text-white hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                @click="regenerateLinksForSeason"
+                :disabled="!selectedSeason || regeneratingLinks"
+              >
+                {{ regeneratingLinks ? '⏳ Regeneriere...' : '🔗 Links regenerieren' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Logo Cleanup -->
+          <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <h3 class="text-lg font-semibold mb-2">Logo-Bereinigung</h3>
+            <p class="text-gray-600 mb-4">
+              Diese Funktion bereinigt verwaiste Logos:
+              <ul class="list-disc list-inside mt-2 space-y-1 text-sm">
+                <li>Löscht Datenbankeinträge, deren Dateien nicht mehr auf dem Server existieren</li>
+                <li>Löscht Dateien ohne zugehörigen Datenbankeintrag (nur hochgeladene Logos, keine System-Logos)</li>
+              </ul>
+            </p>
+            <button 
+              class="px-6 py-2 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+              @click="cleanupOrphanedLogos"
+              :disabled="cleaningLogos"
+            >
+              {{ cleaningLogos ? '⏳ Bereinige...' : '🧹 Logo-Bereinigung durchführen' }}
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>

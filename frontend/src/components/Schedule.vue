@@ -15,7 +15,6 @@ import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex
 import FllEvent from "@/models/FllEvent";
 import {Parameter, ParameterCondition} from "@/models/Parameter"
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
-import TeamSelectionExample from "@/components/molecules/TeamSelectionExample.vue";
 import ScheduleToast from "@/components/atoms/ScheduleToast.vue";
 import { useDebouncedSave } from "@/composables/useDebouncedSave";
 import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";
@@ -759,7 +758,7 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="bg-white border rounded-lg shadow">
+    <div v-if="showChallenge" class="bg-white border rounded-lg shadow">
       <button
           class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
           @click="toggle('extras')"
