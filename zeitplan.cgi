@@ -1989,7 +1989,7 @@ sub get_team_name {
     }
 
     if ($team_hash_ref->{$team_number_plan}{$team_first_program}{noshow} == 1) {
-        $team_name = "<s>Team $team_number_plan</s>";
+        $team_name = "<s>$team_name</s>";
     }
 
     return $team_name;
