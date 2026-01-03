@@ -627,6 +627,36 @@ sub get_detailplan {
 
     my $event_id = "";
 
+
+    #####
+    # koennte / sollte ausgelagert werden und nur einmal aufgerufen werden (wird bei get_plan_metadata auch gemacht)
+    #####
+    # weitere Informationen holen
+    # Plan-Parameter
+    # u.a.
+    # e_teams
+    # c_teams
+    # plus alle weiteren
+    my %plan_parameter;
+
+    $query = qq{select
+                m_parameter.name,
+                plan_param_value.set_value
+                from plan_param_value
+                join m_parameter on m_parameter.id=plan_param_value.parameter
+                where plan_param_value.plan=$params->{plan}
+            };
+    $sth = $dbh->prepare($query);
+    $rv = $sth->execute;
+
+    if ($rv ne "0E0") {
+        while (@row = $sth->fetchrow_array) {
+            $plan_parameter{$row[0]} = $row[1];
+        }
+    }
+    # Ende Parameter
+
+
     # check auf fehlende Parameter / Inkonsistenzen
 
     # jetzt noch die Event-ID ermitteln, wird aktuell fuer die Raeume benoetigt!
