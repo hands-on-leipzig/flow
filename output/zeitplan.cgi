@@ -745,6 +745,8 @@ sub get_detailplan {
     my $where_table = "";
     my $where_team = "";
 
+    my $where_explore_vormittag_nachmittag = "";
+
     my %activity_groups;
 
     my %activity_group_rooms;
@@ -861,6 +863,44 @@ sub get_detailplan {
             }
 
 
+            #####################################################################################
+            # Unterscheidung Explore Vormittag / Nachmittag
+            #####################################################################################
+            if ($params->{role} == 8 || $params->{role} == 9) {
+                # nur fuer Rolle Explore Team oder GutachterIn
+                # role = 8 = Explore Team
+                # role = 9 = GutachterIn
+
+                if ($plan_parameter{e_mode} == 5 || $plan_parameter{e_mode} == 8) {
+                    # nur bei e_mode = 5 oder 8 (Explore am Vormittag UND Nachmittag)
+
+                    if ($params->{role} == 8) {
+                        # role = 8 = Explore Team
+                        if ($params->{team} > $plan_parameter{e1_teams}) {
+                            # dann ist das Team am Nachmittag eingeplant (e1_teams = Anzahl Teams am Vormittag)
+                            $where_explore_vormittag_nachmittag = qq{and activity.explore_group=2}; # 2 = Nachmittag
+                        }
+                        else {
+                            # andernfalls ist das Team am Vormittag eingeplant
+                            $where_explore_vormittag_nachmittag = qq{and activity.explore_group=1}; # 1 = Vormittag
+                        }
+                    }
+                    else {
+                        # role = 9 = GutachterIn
+                        if ($params->{lane} > $plan_parameter{e1_lanes}) {
+                            # dann ist die Gutachtergruppe am Nachmittag eingeplant (e1_lanes = Anzahl Lanes/Gruppen am Vormittag)
+                            $where_explore_vormittag_nachmittag = qq{and activity.explore_group=2}; # 2 = Nachmittag
+                        }
+                        else {
+                            # andernfalls ist die Gutachtergruppe am Vormittag eingeplant
+                            $where_explore_vormittag_nachmittag = qq{and activity.explore_group=1}; # 1 = Vormittag
+                        }
+                    }
+                }
+            }
+
+
+
             # Liste fuer Web und XML initialisieren (je Activity-Group)
             $activity_item_list = "";
             $xml_activities = "";
@@ -911,6 +951,7 @@ sub get_detailplan {
             $where_lane
             $where_table
             $where_team
+            $where_explore_vormittag_nachmittag
             order by time_format(activity.start,'%H:%i') ASC
             };
             $sth_activities = $dbh->prepare($query_activities);
