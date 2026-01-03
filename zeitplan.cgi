@@ -1965,7 +1965,7 @@ sub teams_in_hash {
             $team{$team_number_plan}{$team_first_program}{location} = $team_location;
             $team{$team_number_plan}{$team_first_program}{organization} = $team_organization;
             $team{$team_number_plan}{$team_first_program}{room_name} = $team_room_name;
-            $team{$team_number_plan}{$team_first_program}{no_show} = $team_noshow;
+            $team{$team_number_plan}{$team_first_program}{noshow} = $team_noshow;
         }
     }
 
