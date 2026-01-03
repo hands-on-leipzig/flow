@@ -1988,6 +1988,8 @@ sub get_team_name {
         $team_name = "Team $team_number_plan";
     }
 
+    $team_name = ".$team_name";
+
     if ($team_hash_ref->{$team_number_plan}{$team_first_program}{noshow} == 1) {
         $team_name = "<s>$team_name</s>";
     }
