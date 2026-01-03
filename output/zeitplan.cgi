@@ -908,22 +908,22 @@ sub get_detailplan {
                         # role = 8 = Explore Team
                         if ($params->{team} > $plan_parameter{e1_teams}) {
                             # dann ist das Team am Nachmittag eingeplant (e1_teams = Anzahl Teams am Vormittag)
-                            $where_explore_vormittag_nachmittag = qq{and activity.explore_group=2}; # 2 = Nachmittag
+                            $where_explore_vormittag_nachmittag = qq{and (activity.explore_group=2 or isnull(activity.explore_group))}; # 2 = Nachmittag
                         }
                         else {
                             # andernfalls ist das Team am Vormittag eingeplant
-                            $where_explore_vormittag_nachmittag = qq{and activity.explore_group=1}; # 1 = Vormittag
+                            $where_explore_vormittag_nachmittag = qq{and (activity.explore_group=1 or isnull(activity.explore_group))}; # 1 = Vormittag
                         }
                     }
                     else {
                         # role = 9 = GutachterIn
                         if ($params->{lane} > $plan_parameter{e1_lanes}) {
                             # dann ist die Gutachtergruppe am Nachmittag eingeplant (e1_lanes = Anzahl Lanes/Gruppen am Vormittag)
-                            $where_explore_vormittag_nachmittag = qq{and activity.explore_group=2}; # 2 = Nachmittag
+                            $where_explore_vormittag_nachmittag = qq{and (activity.explore_group=2 or isnull(activity.explore_group))}; # 2 = Nachmittag
                         }
                         else {
                             # andernfalls ist die Gutachtergruppe am Vormittag eingeplant
-                            $where_explore_vormittag_nachmittag = qq{and activity.explore_group=1}; # 1 = Vormittag
+                            $where_explore_vormittag_nachmittag = qq{and (activity.explore_group=1 or isnull(activity.explore_group))}; # 1 = Vormittag
                         }
                     }
                 }
