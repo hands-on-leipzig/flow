@@ -1926,6 +1926,7 @@ sub teams_in_hash {
     my $team_location = "";
     my $team_organization = "";
     my $team_room_name = "";
+    my $team_noshow = "";
 
     $query = qq{select
                 team.id,
@@ -1935,7 +1936,8 @@ sub teams_in_hash {
                 team_plan.team_number_plan,
                 team.location,
                 team.organization,
-                room.name
+                room.name,
+                team_plan.noshow
                 from team_plan
                 join team on team_plan.team=team.id
                 left join room on room.id=team_plan.room
@@ -1954,6 +1956,7 @@ sub teams_in_hash {
             $team_location = $row[5];
             $team_organization = $row[6];
             $team_room_name = $row[7];
+            $team_noshow = $row[8];
 
 
             $team{$team_number_plan}{$team_first_program}{id} = $team_id;
@@ -1962,6 +1965,7 @@ sub teams_in_hash {
             $team{$team_number_plan}{$team_first_program}{location} = $team_location;
             $team{$team_number_plan}{$team_first_program}{organization} = $team_organization;
             $team{$team_number_plan}{$team_first_program}{room_name} = $team_room_name;
+            $team{$team_number_plan}{$team_first_program}{noshow} = $team_noshow;
         }
     }
 
@@ -1982,6 +1986,10 @@ sub get_team_name {
     }
     else {
         $team_name = "Team $team_number_plan";
+    }
+
+    if ($team_hash_ref->{$team_number_plan}{$team_first_program}{noshow} == 1) {
+        $team_name = "<s>$team_name</s>";
     }
 
     return $team_name;
