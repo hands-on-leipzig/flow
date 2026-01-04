@@ -1785,6 +1785,8 @@ if ($prepRooms->isNotEmpty()) {
                         $c = clone $a;
                         $c->ref_table = (int)$a->table_1;
                         $c->ref_table_name = $a->table_1_name ?? null;
+                        // Normalize team data: for table_1 clone, use table_1_team data as primary
+                        // (team display logic checks table_1_team first)
                         $expanded->push($c);
                         $made++;
                     }
@@ -1792,6 +1794,17 @@ if ($prepRooms->isNotEmpty()) {
                         $c = clone $a;
                         $c->ref_table = (int)$a->table_2;
                         $c->ref_table_name = $a->table_2_name ?? null;
+                        // Normalize team data: for table_2 clone, map table_2_team data to table_1_team
+                        // so the team display logic shows the correct team
+                        $c->table_1_team = $a->table_2_team;
+                        $c->table_1_team_name = $a->table_2_team_name ?? null;
+                        $c->table_1_team_number_hot = $a->table_2_team_number_hot ?? null;
+                        $c->table_1_team_id = $a->table_2_team_id ?? null;
+                        // Clear table_2_team to avoid confusion
+                        $c->table_2_team = null;
+                        $c->table_2_team_name = null;
+                        $c->table_2_team_number_hot = null;
+                        $c->table_2_team_id = null;
                         $expanded->push($c);
                         $made++;
                     }
