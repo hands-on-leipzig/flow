@@ -49,14 +49,14 @@ $isEmptySlot = function($team) {
                     <tr>
                         <!-- Team 1 (Left Column) -->
                         <td style="width: 50%; padding: 0; padding-right: 3px;">
-                            <div style="padding: 5px 8px; border-radius: 4px; font-size: 9px; font-weight: 500; {{ $team1Style }}">
+                            <div style="padding: 5px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; {{ $team1Style }}">
                                 {{ $formatTeam($match['team_1']) }}
                             </div>
                         </td>
                         
                         <!-- Team 2 (Right Column) -->
                         <td style="width: 50%; padding: 0; padding-left: 3px;">
-                            <div style="padding: 5px 8px; border-radius: 4px; font-size: 9px; font-weight: 500; {{ $team2Style }}">
+                            <div style="padding: 5px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; {{ $team2Style }}">
                                 {{ $formatTeam($match['team_2']) }}
                             </div>
                         </td>
