@@ -32,7 +32,7 @@
                             </td>
 
                             {{-- Teamname --}}
-                            <td style="padding:5px 8px;">{{ $row['team_display'] }}</td>
+                            <td style="padding:5px 8px;">{!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['team_display'] ?? '–', $row['team_is_noshow'] ?? false) !!}</td>
                         </tr>
                     @endforeach
                 </tbody>

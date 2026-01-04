@@ -95,7 +95,8 @@ class PlanExportController extends Controller
                 'team_plan.team_number_plan',
                 'team.id as team_id',
                 'team.name as team_name',
-                'team.team_number_hot'
+                'team.team_number_hot',
+                'team_plan.noshow'
             )
             ->get()
             ->keyBy('team_number_plan');
@@ -112,6 +113,7 @@ class PlanExportController extends Controller
                 $team1 = [
                     'name' => $t1->team_name,
                     'hot_number' => $t1->team_number_hot,
+                    'noshow' => (bool)($t1->noshow ?? false),
                 ];
             }
 
@@ -121,6 +123,7 @@ class PlanExportController extends Controller
                 $team2 = [
                     'name' => $t2->team_name,
                     'hot_number' => $t2->team_number_hot,
+                    'noshow' => (bool)($t2->noshow ?? false),
                 ];
             }
 
@@ -132,6 +135,124 @@ class PlanExportController extends Controller
         }
 
         return response()->json(['matches' => $matchData]);
+    }
+
+    /**
+     * Generate PDF for Robot-Game Match-Plan (all 3 rounds)
+     */
+    public function matchPlanPdf(int $planId)
+    {
+        // Get team_plan entries for Challenge teams (first_program = 3) to map team_number_plan to team IDs
+        $teamPlanMap = DB::table('team_plan')
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team_plan.plan', $planId)
+            ->where('team.first_program', 3) // Challenge only
+            ->select(
+                'team_plan.team_number_plan',
+                'team.id as team_id',
+                'team.name as team_name',
+                'team.team_number_hot',
+                'team_plan.noshow'
+            )
+            ->get()
+            ->keyBy('team_number_plan');
+
+        // Fetch all 3 rounds (Vorrunde 1, 2, 3)
+        $roundsData = [];
+        for ($round = 1; $round <= 3; $round++) {
+            // Get matches for this round, ordered by match_no
+            $matches = DB::table('match')
+                ->where('match.plan', $planId)
+                ->where('match.round', $round)
+                ->orderBy('match.match_no')
+                ->get();
+
+            // Build match data with team information
+            $matchData = [];
+            foreach ($matches as $match) {
+                $team1 = null;
+                $team2 = null;
+
+                // Get team 1 info
+                if ($match->table_1_team > 0 && isset($teamPlanMap[$match->table_1_team])) {
+                    $t1 = $teamPlanMap[$match->table_1_team];
+                    $team1 = [
+                        'name' => $t1->team_name,
+                        'hot_number' => $t1->team_number_hot,
+                        'noshow' => (bool)($t1->noshow ?? false),
+                    ];
+                }
+
+                // Get team 2 info
+                if ($match->table_2_team > 0 && isset($teamPlanMap[$match->table_2_team])) {
+                    $t2 = $teamPlanMap[$match->table_2_team];
+                    $team2 = [
+                        'name' => $t2->team_name,
+                        'hot_number' => $t2->team_number_hot,
+                        'noshow' => (bool)($t2->noshow ?? false),
+                    ];
+                }
+
+                $matchData[] = [
+                    'match_no' => $match->match_no,
+                    'team_1' => $team1,
+                    'team_2' => $team2,
+                ];
+            }
+
+            $roundsData[$round] = $matchData;
+        }
+
+        // Get event data for header
+        $event = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->select('event.*')
+            ->first();
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        // Generate content HTML using the match-plan template
+        $contentHtml = view('pdf.match-plan', [
+            'roundsData' => $roundsData,
+        ])->render();
+
+        // Use portrait layout with same header/footer as overview plan
+        $header = $this->buildHeaderData($event);
+        $footerLogos = $this->buildFooterLogos($event->id);
+        
+        $finalHtml = view('pdf.layout_portrait', [
+            'title' => 'FLOW Robot-Game Match-Plan',
+            'header' => $header,
+            'footerLogos' => $footerLogos,
+            'contentHtml' => $contentHtml,
+        ])->render();
+
+        // Generate PDF in portrait orientation
+        $pdf = Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'portrait');
+
+        // Get plan info for filename
+        $plan = DB::table('plan')
+            ->where('id', $planId)
+            ->select('last_change')
+            ->first();
+
+        // Format date for filename
+        $formattedDate = $plan && $plan->last_change
+            ? \Carbon\Carbon::parse($plan->last_change)
+                ->timezone('Europe/Berlin')
+                ->format('d.m.y')
+            : date('d.m.y');
+
+        $filename = "FLOW_Match-Plan_({$formattedDate}).pdf";
+
+        // Return PDF with header for filename
+        return response($pdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('X-Filename', $filename)
+            ->header('Access-Control-Expose-Headers', 'X-Filename');
     }
 
     /**
@@ -495,6 +616,7 @@ class PlanExportController extends Controller
                 $clone->team_name = $a->jury_team_name;
                 $clone->team_number_hot = $a->jury_team_number_hot ?? null;
                 $clone->team_id   = $a->jury_team_id ?? null;
+                $clone->team_noshow = (bool)($a->jury_team_noshow ?? false);
                 $clone->assign    = 'Jury ' . $a->lane;
                 $expanded->push($clone);
                 
@@ -504,6 +626,7 @@ class PlanExportController extends Controller
                         'name' => $a->jury_team_name,
                         'hot'  => $a->jury_team_number_hot ?? null,
                         'id'   => $a->jury_team_id ?? null,
+                        'noshow' => (bool)($a->jury_team_noshow ?? false),
                     ]);
                 }
             }
@@ -513,6 +636,7 @@ class PlanExportController extends Controller
                 $clone->team_name = $a->table_1_team_name;
                 $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
                 $clone->team_id   = $a->table_1_team_id ?? null;
+                $clone->team_noshow = (bool)($a->table_1_team_noshow ?? false);
                 $clone->assign    = $a->table_1_name ?? ('Tisch ' . $a->table_1);
                 $expanded->push($clone);
                 
@@ -521,6 +645,7 @@ class PlanExportController extends Controller
                         'name' => $a->table_1_team_name,
                         'hot'  => $a->table_1_team_number_hot ?? null,
                         'id'   => $a->table_1_team_id ?? null,
+                        'noshow' => (bool)($a->table_1_team_noshow ?? false),
                     ]);
                 }
             }
@@ -530,6 +655,7 @@ class PlanExportController extends Controller
                 $clone->team_name = $a->table_2_team_name;
                 $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
                 $clone->team_id   = $a->table_2_team_id ?? null;
+                $clone->team_noshow = (bool)($a->table_2_team_noshow ?? false);
                 $clone->assign    = $a->table_2_name ?? ('Tisch ' . $a->table_2);
                 $expanded->push($clone);
                 
@@ -538,6 +664,7 @@ class PlanExportController extends Controller
                         'name' => $a->table_2_team_name,
                         'hot'  => $a->table_2_team_number_hot ?? null,
                         'id'   => $a->table_2_team_id ?? null,
+                        'noshow' => (bool)($a->table_2_team_noshow ?? false),
                     ]);
                 }
             }
@@ -585,10 +712,11 @@ class PlanExportController extends Controller
         // === Schritt 5: Build team data with labels ===
         $teamData = [];
         foreach ($groups as $teamNum => $acts) {
-            $info = $teamInfo->get($teamNum, ['name' => null, 'hot' => null, 'id' => null]);
+            $info = $teamInfo->get($teamNum, ['name' => null, 'hot' => null, 'id' => null, 'noshow' => false]);
             $teamName = $info['name'];
             $teamHot = $info['hot'];
             $teamId = $info['id'];
+            $isNoshow = $info['noshow'] ?? false;
             
             // Build label: "TeamName (HotNumber) – Teambereich RoomName"
             $label = '';
@@ -621,6 +749,7 @@ class PlanExportController extends Controller
             $teamData[] = [
                 'sortName' => $teamName ?? 'zzz', // For sorting
                 'label' => $label,
+                'is_noshow' => $isNoshow,
                 'programName' => $programName,
                 'acts' => $allActs,
             ];
@@ -646,6 +775,7 @@ class PlanExportController extends Controller
             
             $programGroups[$programName][$role->id]['teams'][] = [
                 'teamLabel' => $td['label'],
+                'is_noshow' => $td['is_noshow'] ?? false,
                 'rows'      => $td['acts']->map($mapRow)->values()->all(),
             ];
         }
@@ -805,6 +935,7 @@ class PlanExportController extends Controller
                 $clone->team_id    = $a->table_1_team;
                 $clone->team_name  = $a->table_1_team_name;
                 $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
+                $clone->team_noshow = (bool)($a->table_1_team_noshow ?? false);
                 $clone->assign     = $a->table_1_name ?? ('Tisch ' . $a->table_1);
                 $expanded->push($clone);
             }
@@ -814,6 +945,7 @@ class PlanExportController extends Controller
                 $clone->team_id    = $a->table_2_team;
                 $clone->team_name  = $a->table_2_team_name;
                 $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
+                $clone->team_noshow = (bool)($a->table_2_team_noshow ?? false);
                 $clone->assign     = $a->table_2_name ?? ('Tisch ' . $a->table_2);
                 $expanded->push($clone);
             }
@@ -830,6 +962,7 @@ class PlanExportController extends Controller
         $mapRow = function ($a) {
             // Build team label: "TeamName (HotNumber)" or placeholder
             $teamLabel = '–';
+            $isNoshow = false;
             if ($a->team_id) {
                 if ($a->team_name && $a->team_number_hot) {
                     $teamLabel = $a->team_name . ' (' . $a->team_number_hot . ')';
@@ -838,6 +971,7 @@ class PlanExportController extends Controller
                 } else {
                     $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team_id);
                 }
+                $isNoshow = (bool)($a->team_noshow ?? false);
             }
 
             return [
@@ -846,6 +980,7 @@ class PlanExportController extends Controller
                 'activity'  => $this->formatActivityLabel($a),
                 'is_free'   => $this->isFreeBlock($a),
                 'teamLabel' => $teamLabel,
+                'team_is_noshow' => $isNoshow,
                 'assign'    => $a->assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
             ];
@@ -890,6 +1025,7 @@ class PlanExportController extends Controller
         $mapRow = function ($a) {
             // Teamlabel bestimmen (falls es über Jury/Tables erkennbar ist)
             $teamLabel = '–';
+            $isNoshow = false;
             
             // Check jury team first
             if (!empty($a->jury_team_name)) {
@@ -898,20 +1034,25 @@ class PlanExportController extends Controller
                 } else {
                     $teamLabel = $a->jury_team_name;
                 }
+                $isNoshow = (bool)($a->jury_team_noshow ?? false);
             } elseif (!empty($a->table_1_team_name)) {
                 if ($a->table_1_team_number_hot) {
                     $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
                 } else {
                     $teamLabel = $a->table_1_team_name;
                 }
+                $isNoshow = (bool)($a->table_1_team_noshow ?? false);
             } elseif (!empty($a->table_2_team_name)) {
                 if ($a->table_2_team_number_hot) {
                     $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
                 } else {
                     $teamLabel = $a->table_2_team_name;
                 }
+                $isNoshow = (bool)($a->table_2_team_noshow ?? false);
             } elseif (!empty($a->team)) {
                 $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
+                // For placeholder teams, check if we can determine noshow from jury_team_noshow
+                $isNoshow = (bool)($a->jury_team_noshow ?? false);
             }
 
             // Assignment (Jury/Tisch/-)
@@ -929,6 +1070,7 @@ class PlanExportController extends Controller
                 'end_hm'    => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                 'activity'  => $this->formatActivityLabel($a),
                 'teamLabel' => $teamLabel ?? '–',
+                'team_is_noshow' => $isNoshow,
                 'assign'    => $assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
             ];
@@ -1135,16 +1277,22 @@ class PlanExportController extends Controller
             $teamParts = [];
 
             // Hilfsfunktion für einheitliche Darstellung
-            $formatTeam = function ($name, $numHot, $numInternal) {
+            $formatTeam = function ($name, $numHot, $numInternal, $isNoshow = false) {
+                $teamName = null;
                 if (!empty($name) && !empty($numHot)) {
-                    return "{$name} ({$numHot})";
+                    $teamName = "{$name} ({$numHot})";
                 } elseif (!empty($name)) {
-                    return $name;
+                    $teamName = $name;
                 } elseif (!empty($numInternal)) {
-                    return sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $numInternal);
+                    $teamName = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $numInternal);
                 } else {
-                    return '–';
+                    $teamName = '–';
                 }
+                
+                return [
+                    'name' => $teamName,
+                    'is_noshow' => $isNoshow
+                ];
             };
 
             // Jury (Lane)
@@ -1152,7 +1300,8 @@ class PlanExportController extends Controller
                 $teamParts[] = $formatTeam(
                     $a->jury_team_name ?? null,
                     $a->jury_team_number_hot ?? null,
-                    $a->team
+                    $a->team,
+                    (bool)($a->jury_team_noshow ?? false)
                 );
             }
 
@@ -1161,7 +1310,8 @@ class PlanExportController extends Controller
                 $teamParts[] = $formatTeam(
                     $a->table_1_team_name ?? null,
                     $a->table_1_team_number_hot ?? null,
-                    $a->table_1_team
+                    $a->table_1_team,
+                    (bool)($a->table_1_team_noshow ?? false)
                 );
             }
 
@@ -1170,18 +1320,17 @@ class PlanExportController extends Controller
                 $teamParts[] = $formatTeam(
                     $a->table_2_team_name ?? null,
                     $a->table_2_team_number_hot ?? null,
-                    $a->table_2_team
+                    $a->table_2_team,
+                    (bool)($a->table_2_team_noshow ?? false)
                 );
             }
-
-            $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
 
             return [
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                 'is_free'  => $this->isFreeBlock($a),
                 'activity' => $this->formatActivityLabel($a),
-                'team'     => $teamDisplay,
+                'team'     => $teamParts, // Array of team parts with name and is_noshow
                 // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
                 'is_explore'    => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
                 'is_challenge'  => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::CHALLENGE->value]),
@@ -1242,7 +1391,8 @@ if ($prepRooms->isNotEmpty()) {
             ->select(
                 'team.name as team_name',
                 'team.team_number_hot as team_number_hot',
-                'team.first_program as program'
+                'team.first_program as program',
+                'team_plan.noshow as noshow'
             )
             ->orderBy('team.team_number_hot')
             ->get();
@@ -1265,6 +1415,7 @@ if ($prepRooms->isNotEmpty()) {
                 'is_explore'   => in_array($t->program, [0, 2]),
                 'is_challenge' => in_array($t->program, [0, 3]),
                 'team_display' => trim($t->team_name . ' (' . $t->team_number_hot . ')'),
+                'team_is_noshow' => (bool)($t->noshow ?? false),
             ];
         });
 
@@ -1492,6 +1643,7 @@ if ($prepRooms->isNotEmpty()) {
             foreach ($chunks as $chunkIndex => $chunkRows) {
                 $html .= view('pdf.content.team_schedule', [
                     'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
+                    'is_noshow' => $page['is_noshow'] ?? false,
                     'rows'  => $chunkRows,
                     'event' => $event,
                     'multi_day_event' => isset($isMultidayEvent) ? $isMultidayEvent : false,
@@ -1530,6 +1682,7 @@ if ($prepRooms->isNotEmpty()) {
         $teamNames = []; // [num => name]
         $teamHot   = []; // [num => team_number_hot]
         $teamIds   = []; // [num => actual team.id]
+        $teamNoshow = []; // [num => noshow flag]
         $teamSet   = []; // num als key
 
         foreach ($acts as $a) {
@@ -1548,6 +1701,11 @@ if ($prepRooms->isNotEmpty()) {
                 // Store actual team ID
                 if (isset($a->jury_team_id)) {
                     $teamIds[$num] = $a->jury_team_id;
+                }
+                
+                // Store noshow flag
+                if (isset($a->jury_team_noshow)) {
+                    $teamNoshow[$num] = (bool)$a->jury_team_noshow;
                 }
             }
         }
@@ -1570,6 +1728,7 @@ if ($prepRooms->isNotEmpty()) {
             // 🔹 Label nach neuer Regel
             $teamName = $teamNames[$num] ?? null;
             $teamHotNum = $teamHot[$num] ?? null;
+            $isNoshow = $teamNoshow[$num] ?? false;
 
             if ($teamName && $teamHotNum) {
                 $label = "FLL Explore {$teamName} ({$teamHotNum})";
@@ -1585,6 +1744,7 @@ if ($prepRooms->isNotEmpty()) {
                 'label' => $label,
                 'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
                 'team_number' => $num, // Plan team number for table assignment lookup
+                'is_noshow' => $isNoshow,
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -1602,6 +1762,7 @@ if ($prepRooms->isNotEmpty()) {
         $teamNames = []; // [num => name]
         $teamHot   = []; // [num => team_number_hot]
         $teamIds   = []; // [num => actual team.id]
+        $teamNoshow = []; // [num => noshow flag]
         $teamSet   = [];
 
         foreach ($acts as $a) {
@@ -1621,6 +1782,9 @@ if ($prepRooms->isNotEmpty()) {
                 if (isset($a->jury_team_id) && !isset($teamIds[$n])) {
                     $teamIds[$n] = $a->jury_team_id;
                 }
+                if (isset($a->jury_team_noshow) && !isset($teamNoshow[$n])) {
+                    $teamNoshow[$n] = (bool)$a->jury_team_noshow;
+                }
             }
 
             // Table 1
@@ -1639,6 +1803,9 @@ if ($prepRooms->isNotEmpty()) {
                 if (isset($a->table_1_team_id) && !isset($teamIds[$n])) {
                     $teamIds[$n] = $a->table_1_team_id;
                 }
+                if (isset($a->table_1_team_noshow) && !isset($teamNoshow[$n])) {
+                    $teamNoshow[$n] = (bool)$a->table_1_team_noshow;
+                }
             }
 
             // Table 2
@@ -1656,6 +1823,9 @@ if ($prepRooms->isNotEmpty()) {
                 }
                 if (isset($a->table_2_team_id) && !isset($teamIds[$n])) {
                     $teamIds[$n] = $a->table_2_team_id;
+                }
+                if (isset($a->table_2_team_noshow) && !isset($teamNoshow[$n])) {
+                    $teamNoshow[$n] = (bool)$a->table_2_team_noshow;
                 }
             }
         }
@@ -1698,6 +1868,7 @@ if ($prepRooms->isNotEmpty()) {
             // 🔹 Label-Logik wie bei Explore
             $teamName = $teamNames[$num] ?? null;
             $teamHotNum = $teamHot[$num] ?? null;
+            $isNoshow = $teamNoshow[$num] ?? false;
 
             if ($teamName && $teamHotNum) {
                 $label = "FLL Challenge {$teamName} ({$teamHotNum})";
@@ -1713,6 +1884,7 @@ if ($prepRooms->isNotEmpty()) {
                 'label' => $label,
                 'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
                 'team_number' => $num, // Plan team number for table assignment lookup
+                'is_noshow' => $isNoshow,
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -1785,6 +1957,8 @@ if ($prepRooms->isNotEmpty()) {
                         $c = clone $a;
                         $c->ref_table = (int)$a->table_1;
                         $c->ref_table_name = $a->table_1_name ?? null;
+                        // Normalize team data: for table_1 clone, use table_1_team data as primary
+                        // (team display logic checks table_1_team first)
                         $expanded->push($c);
                         $made++;
                     }
@@ -1792,6 +1966,19 @@ if ($prepRooms->isNotEmpty()) {
                         $c = clone $a;
                         $c->ref_table = (int)$a->table_2;
                         $c->ref_table_name = $a->table_2_name ?? null;
+                        // Normalize team data: for table_2 clone, map table_2_team data to table_1_team
+                        // so the team display logic shows the correct team
+                        $c->table_1_team = $a->table_2_team;
+                        $c->table_1_team_name = $a->table_2_team_name ?? null;
+                        $c->table_1_team_number_hot = $a->table_2_team_number_hot ?? null;
+                        $c->table_1_team_id = $a->table_2_team_id ?? null;
+                        $c->table_1_team_noshow = (bool)($a->table_2_team_noshow ?? false);
+                        // Clear table_2_team to avoid confusion
+                        $c->table_2_team = null;
+                        $c->table_2_team_name = null;
+                        $c->table_2_team_number_hot = null;
+                        $c->table_2_team_id = null;
+                        $c->table_2_team_noshow = null;
                         $expanded->push($c);
                         $made++;
                     }
@@ -1950,20 +2137,38 @@ if ($prepRooms->isNotEmpty()) {
                     // 1) Jury
                     $val = $fmtNameHot($a->jury_team_name ?? null, $a->jury_team_number_hot ?? null)
                         ?? $fmtInternal(($a->jury_team ?? null) ?? ($a->team ?? null)); // $a->team ist Alias auf jury_team
-                    if ($val) return $val;
+                    if ($val) {
+                        return [
+                            'name' => $val,
+                            'is_noshow' => (bool)($a->jury_team_noshow ?? false)
+                        ];
+                    }
 
                     // 2) Tisch 1
                     $val = $fmtNameHot($a->table_1_team_name ?? null, $a->table_1_team_number_hot ?? null)
                         ?? $fmtInternal($a->table_1_team ?? null);
-                    if ($val) return $val;
+                    if ($val) {
+                        return [
+                            'name' => $val,
+                            'is_noshow' => (bool)($a->table_1_team_noshow ?? false)
+                        ];
+                    }
 
                     // 3) Tisch 2
                     $val = $fmtNameHot($a->table_2_team_name ?? null, $a->table_2_team_number_hot ?? null)
                         ?? $fmtInternal($a->table_2_team ?? null);
-                    if ($val) return $val;
+                    if ($val) {
+                        return [
+                            'name' => $val,
+                            'is_noshow' => (bool)($a->table_2_team_noshow ?? false)
+                        ];
+                    }
 
                     // 4) Generisch
-                    return '–';
+                    return [
+                        'name' => '–',
+                        'is_noshow' => false
+                    ];
                 })(),
                 'room'     => $a->room_name ?? '–',
                 // Add date information for day grouping
