@@ -2,12 +2,16 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useEventStore } from '@/stores/event'
 import { getEventTitleLong } from '@/utils/eventTitle'
+import { usePdfExport } from '@/composables/usePdfExport'
 import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
+
+// --- PDF Download (Composable) ---
+const { isDownloading, downloadPdf } = usePdfExport()
 
 // --- Available Team Programs ---
 interface Program {
@@ -113,6 +117,16 @@ function formatTeam(team: { name: string; hot_number: number } | null): string {
   return `${team.name} [${team.hot_number}]`
 }
 
+// Download match plan PDF
+async function downloadMatchPlanPdf() {
+  if (!eventId.value) return
+  
+  const plan = await getPlanId()
+  if (!plan) return
+  
+  await downloadPdf('match-plan', `/export/match-plan/${plan}`, 'Match-Plan.pdf')
+}
+
 // Check if team is empty slot
 function isEmptySlot(team: { name: string; hot_number: number } | null): boolean {
   return team === null
@@ -172,13 +186,30 @@ watch(() => event.value?.id, async (id) => {
       </p>
     </div>
 
-    <!-- Button -->
-    <div class="mt-4 flex justify-start">
+    <!-- Buttons -->
+    <div class="mt-4 flex justify-between">
       <button
         class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
         @click="openModal"
       >
         <span>Match-Plan</span>
+      </button>
+      
+      <!-- PDF Button -->
+      <button
+        class="px-4 py-2 rounded text-sm flex items-center gap-2"
+        :class="!isDownloading['match-plan'] 
+          ? 'bg-gray-200 hover:bg-gray-300' 
+          : 'bg-gray-100 cursor-not-allowed opacity-50'"
+        :disabled="isDownloading['match-plan']"
+        @click="downloadMatchPlanPdf()"
+      >
+        <svg v-if="isDownloading['match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+        </svg>
+        <span>{{ isDownloading['match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
       </button>
     </div>
 

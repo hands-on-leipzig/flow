@@ -135,6 +135,121 @@ class PlanExportController extends Controller
     }
 
     /**
+     * Generate PDF for Robot-Game Match-Plan (all 3 rounds)
+     */
+    public function matchPlanPdf(int $planId)
+    {
+        // Get team_plan entries for Challenge teams (first_program = 3) to map team_number_plan to team IDs
+        $teamPlanMap = DB::table('team_plan')
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team_plan.plan', $planId)
+            ->where('team.first_program', 3) // Challenge only
+            ->select(
+                'team_plan.team_number_plan',
+                'team.id as team_id',
+                'team.name as team_name',
+                'team.team_number_hot'
+            )
+            ->get()
+            ->keyBy('team_number_plan');
+
+        // Fetch all 3 rounds (Vorrunde 1, 2, 3)
+        $roundsData = [];
+        for ($round = 1; $round <= 3; $round++) {
+            // Get matches for this round, ordered by match_no
+            $matches = DB::table('match')
+                ->where('match.plan', $planId)
+                ->where('match.round', $round)
+                ->orderBy('match.match_no')
+                ->get();
+
+            // Build match data with team information
+            $matchData = [];
+            foreach ($matches as $match) {
+                $team1 = null;
+                $team2 = null;
+
+                // Get team 1 info
+                if ($match->table_1_team > 0 && isset($teamPlanMap[$match->table_1_team])) {
+                    $t1 = $teamPlanMap[$match->table_1_team];
+                    $team1 = [
+                        'name' => $t1->team_name,
+                        'hot_number' => $t1->team_number_hot,
+                    ];
+                }
+
+                // Get team 2 info
+                if ($match->table_2_team > 0 && isset($teamPlanMap[$match->table_2_team])) {
+                    $t2 = $teamPlanMap[$match->table_2_team];
+                    $team2 = [
+                        'name' => $t2->team_name,
+                        'hot_number' => $t2->team_number_hot,
+                    ];
+                }
+
+                $matchData[] = [
+                    'match_no' => $match->match_no,
+                    'team_1' => $team1,
+                    'team_2' => $team2,
+                ];
+            }
+
+            $roundsData[$round] = $matchData;
+        }
+
+        // Get event data for header
+        $event = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->select('event.*')
+            ->first();
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        // Generate content HTML using the match-plan template
+        $contentHtml = view('pdf.match-plan', [
+            'roundsData' => $roundsData,
+        ])->render();
+
+        // Use portrait layout with same header/footer as overview plan
+        $header = $this->buildHeaderData($event);
+        $footerLogos = $this->buildFooterLogos($event->id);
+        
+        $finalHtml = view('pdf.layout_portrait', [
+            'title' => 'FLOW Robot-Game Match-Plan',
+            'header' => $header,
+            'footerLogos' => $footerLogos,
+            'contentHtml' => $contentHtml,
+        ])->render();
+
+        // Generate PDF in portrait orientation
+        $pdf = Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'portrait');
+
+        // Get plan info for filename
+        $plan = DB::table('plan')
+            ->where('id', $planId)
+            ->select('last_change')
+            ->first();
+
+        // Format date for filename
+        $formattedDate = $plan && $plan->last_change
+            ? \Carbon\Carbon::parse($plan->last_change)
+                ->timezone('Europe/Berlin')
+                ->format('d.m.y')
+            : date('d.m.y');
+
+        $filename = "FLOW_Match-Plan_({$formattedDate}).pdf";
+
+        // Return PDF with header for filename
+        return response($pdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('X-Filename', $filename)
+            ->header('Access-Control-Expose-Headers', 'X-Filename');
+    }
+
+    /**
      * Helper: Get programs that have activities in a plan
      * @return array Array of program info with id and name
      */
