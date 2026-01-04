@@ -248,12 +248,15 @@ class ActivityFetcherService
                 t_j.id    as jury_team_id,
                 t_j.name  as jury_team_name,
                 t_j.team_number_hot  as jury_team_number_hot,
+                COALESCE(tp_j.noshow, false) as jury_team_noshow,
                 t_t1.id   as table_1_team_id,
                 t_t1.name as table_1_team_name,
                 t_t1.team_number_hot as table_1_team_number_hot,
+                COALESCE(tp_t1.noshow, false) as table_1_team_noshow,
                 t_t2.id   as table_2_team_id,
                 t_t2.name as table_2_team_name,
-                t_t2.team_number_hot as table_2_team_number_hot
+                t_t2.team_number_hot as table_2_team_number_hot,
+                COALESCE(tp_t2.noshow, false) as table_2_team_noshow
             ';
         }
 

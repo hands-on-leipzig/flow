@@ -72,7 +72,13 @@
                                 <td style="padding:5px 8px;">{{ $row['start'] }}</td>
                                 <td style="padding:5px 8px;">{{ $row['end'] }}</td>
                                 <td style="padding:5px 8px;">{{ $row['activity'] }}</td>
-                                <td style="padding:5px 8px;">{{ $row['team'] }}</td>
+                                <td style="padding:5px 8px;">
+                                    @php
+                                        $teamName = is_array($row['team']) ? ($row['team']['name'] ?? '–') : ($row['team'] ?? '–');
+                                        $teamNoshow = is_array($row['team']) ? ($row['team']['is_noshow'] ?? false) : false;
+                                    @endphp
+                                    {!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($teamName, $teamNoshow) !!}
+                                </td>
                                 <td style="padding:5px 8px;">{{ $row['room'] }}</td>
                             </tr>
                         @endforeach

@@ -22,7 +22,7 @@
                     <td>{{ $row['start_hm'] }}</td>
                     <td>{{ $row['end_hm'] }}</td>
                     <td>{{ $row['activity'] }}</td>
-                    <td>{{ $row['teamLabel'] }}</td>
+                    <td>{!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['teamLabel'] ?? '–', $row['team_is_noshow'] ?? false) !!}</td>
                     <td>{{ $row['assign'] }}</td>
                     <td>{{ $row['room'] }}</td>
                 </tr>
