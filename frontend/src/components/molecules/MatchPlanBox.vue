@@ -30,8 +30,8 @@ const selectedRound = ref<number | null>(null) // Currently selected round (1-3)
 const openRound = ref<number | null>(null) // Currently open accordion (1-3)
 const matches = ref<Array<{
   match_no: number
-  team_1: { name: string; hot_number: number } | null
-  team_2: { name: string; hot_number: number } | null
+  team_1: { name: string; hot_number: number; noshow?: boolean } | null
+  team_2: { name: string; hot_number: number; noshow?: boolean } | null
 }>>([])
 const isLoadingMatches = ref(false)
 
@@ -112,9 +112,14 @@ function closeModal() {
 }
 
 // Format team display: "Team Name [HOT Number]" or "Freier Slot"
-function formatTeam(team: { name: string; hot_number: number } | null): string {
+function formatTeam(team: { name: string; hot_number: number; noshow?: boolean } | null): string {
   if (!team) return 'Freier Slot'
   return `${team.name} [${team.hot_number}]`
+}
+
+// Check if team is no-show
+function isNoshow(team: { name: string; hot_number: number; noshow?: boolean } | null): boolean {
+  return team !== null && (team.noshow === true)
 }
 
 // Download match plan PDF
@@ -128,7 +133,7 @@ async function downloadMatchPlanPdf() {
 }
 
 // Check if team is empty slot
-function isEmptySlot(team: { name: string; hot_number: number } | null): boolean {
+function isEmptySlot(team: { name: string; hot_number: number; noshow?: boolean } | null): boolean {
   return team === null
 }
 
@@ -269,7 +274,10 @@ watch(() => event.value?.id, async (id) => {
                         <!-- Team 1 (Left Column) -->
                         <div
                           class="px-4 py-2 rounded text-white text-sm font-medium"
-                          :class="isEmptySlot(match.team_1) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600'"
+                          :class="[
+                            isEmptySlot(match.team_1) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600',
+                            isNoshow(match.team_1) ? 'line-through' : ''
+                          ]"
                         >
                           {{ formatTeam(match.team_1) }}
                         </div>
@@ -277,7 +285,10 @@ watch(() => event.value?.id, async (id) => {
                         <!-- Team 2 (Right Column) -->
                         <div
                           class="px-4 py-2 rounded text-white text-sm font-medium"
-                          :class="isEmptySlot(match.team_2) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600'"
+                          :class="[
+                            isEmptySlot(match.team_2) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600',
+                            isNoshow(match.team_2) ? 'line-through' : ''
+                          ]"
                         >
                           {{ formatTeam(match.team_2) }}
                         </div>

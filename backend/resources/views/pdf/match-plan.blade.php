@@ -11,7 +11,9 @@ $formatTeam = function($team) {
     if (!$team) {
         return 'Freier Slot';
     }
-    return $team['name'] . ' [' . $team['hot_number'] . ']';
+    $teamName = $team['name'] . ' [' . $team['hot_number'] . ']';
+    $isNoshow = (bool)($team['noshow'] ?? false);
+    return \App\Helpers\PdfHelper::formatTeamNameWithNoshow($teamName, $isNoshow);
 };
 
 // Helper function to check if team is empty slot
@@ -50,14 +52,14 @@ $isEmptySlot = function($team) {
                         <!-- Team 1 (Left Column) -->
                         <td style="width: 50%; padding: 0; padding-right: 3px;">
                             <div style="padding: 5px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; {{ $team1Style }}">
-                                {{ $formatTeam($match['team_1']) }}
+                                {!! $formatTeam($match['team_1']) !!}
                             </div>
                         </td>
                         
                         <!-- Team 2 (Right Column) -->
                         <td style="width: 50%; padding: 0; padding-left: 3px;">
                             <div style="padding: 5px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; {{ $team2Style }}">
-                                {{ $formatTeam($match['team_2']) }}
+                                {!! $formatTeam($match['team_2']) !!}
                             </div>
                         </td>
                     </tr>

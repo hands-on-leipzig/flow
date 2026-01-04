@@ -95,7 +95,8 @@ class PlanExportController extends Controller
                 'team_plan.team_number_plan',
                 'team.id as team_id',
                 'team.name as team_name',
-                'team.team_number_hot'
+                'team.team_number_hot',
+                'team_plan.noshow'
             )
             ->get()
             ->keyBy('team_number_plan');
@@ -112,6 +113,7 @@ class PlanExportController extends Controller
                 $team1 = [
                     'name' => $t1->team_name,
                     'hot_number' => $t1->team_number_hot,
+                    'noshow' => (bool)($t1->noshow ?? false),
                 ];
             }
 
@@ -121,6 +123,7 @@ class PlanExportController extends Controller
                 $team2 = [
                     'name' => $t2->team_name,
                     'hot_number' => $t2->team_number_hot,
+                    'noshow' => (bool)($t2->noshow ?? false),
                 ];
             }
 
@@ -148,7 +151,8 @@ class PlanExportController extends Controller
                 'team_plan.team_number_plan',
                 'team.id as team_id',
                 'team.name as team_name',
-                'team.team_number_hot'
+                'team.team_number_hot',
+                'team_plan.noshow'
             )
             ->get()
             ->keyBy('team_number_plan');
@@ -175,6 +179,7 @@ class PlanExportController extends Controller
                     $team1 = [
                         'name' => $t1->team_name,
                         'hot_number' => $t1->team_number_hot,
+                        'noshow' => (bool)($t1->noshow ?? false),
                     ];
                 }
 
@@ -184,6 +189,7 @@ class PlanExportController extends Controller
                     $team2 = [
                         'name' => $t2->team_name,
                         'hot_number' => $t2->team_number_hot,
+                        'noshow' => (bool)($t2->noshow ?? false),
                     ];
                 }
 
