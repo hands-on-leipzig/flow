@@ -74,7 +74,16 @@ $isMultiDay = count($activitiesByDay) > 1;
                                 @endif
                             </td>
                             <td style="padding:5px 8px;">{{ $row['activity'] }}</td>
-                            <td style="padding:5px 8px;">{{ $row['team'] }}</td>
+                            <td style="padding:5px 8px;">
+                                @if(is_array($row['team']) && count($row['team']) > 0)
+                                    @foreach($row['team'] as $index => $teamPart)
+                                        @if($index > 0) / @endif
+                                        {!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($teamPart['name'] ?? '–', $teamPart['is_noshow'] ?? false) !!}
+                                    @endforeach
+                                @else
+                                    {{ is_array($row['team']) ? '–' : ($row['team'] ?? '–') }}
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

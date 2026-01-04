@@ -15,7 +15,7 @@
     @if($icon)
         <img src="file://{{ $icon }}" alt="Program Icon" style="height:28px; width:auto; vertical-align:middle;">
     @endif
-    {{ $cleanTitle }}
+    {!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($cleanTitle, $is_noshow ?? false) !!}
 </h2>
 @if(!empty($multi_day_event) && !empty($page_date))
     <div style="background-color: #34495e; color: white; padding: 6px 10px; margin: 0 0 8px 0; font-size: 14px; border-radius: 3px;">

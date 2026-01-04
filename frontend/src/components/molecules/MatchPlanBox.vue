@@ -2,12 +2,16 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useEventStore } from '@/stores/event'
 import { getEventTitleLong } from '@/utils/eventTitle'
+import { usePdfExport } from '@/composables/usePdfExport'
 import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
+
+// --- PDF Download (Composable) ---
+const { isDownloading, anyDownloading, downloadPdf } = usePdfExport()
 
 // --- Available Team Programs ---
 interface Program {
@@ -26,8 +30,8 @@ const selectedRound = ref<number | null>(null) // Currently selected round (1-3)
 const openRound = ref<number | null>(null) // Currently open accordion (1-3)
 const matches = ref<Array<{
   match_no: number
-  team_1: { name: string; hot_number: number } | null
-  team_2: { name: string; hot_number: number } | null
+  team_1: { name: string; hot_number: number; noshow?: boolean } | null
+  team_2: { name: string; hot_number: number; noshow?: boolean } | null
 }>>([])
 const isLoadingMatches = ref(false)
 
@@ -108,13 +112,28 @@ function closeModal() {
 }
 
 // Format team display: "Team Name [HOT Number]" or "Freier Slot"
-function formatTeam(team: { name: string; hot_number: number } | null): string {
+function formatTeam(team: { name: string; hot_number: number; noshow?: boolean } | null): string {
   if (!team) return 'Freier Slot'
   return `${team.name} [${team.hot_number}]`
 }
 
+// Check if team is no-show
+function isNoshow(team: { name: string; hot_number: number; noshow?: boolean } | null): boolean {
+  return team !== null && (team.noshow === true)
+}
+
+// Download match plan PDF
+async function downloadMatchPlanPdf() {
+  if (!eventId.value) return
+  
+  const plan = await getPlanId()
+  if (!plan) return
+  
+  await downloadPdf('match-plan', `/export/match-plan/${plan}`, 'Match-Plan.pdf')
+}
+
 // Check if team is empty slot
-function isEmptySlot(team: { name: string; hot_number: number } | null): boolean {
+function isEmptySlot(team: { name: string; hot_number: number; noshow?: boolean } | null): boolean {
   return team === null
 }
 
@@ -172,13 +191,30 @@ watch(() => event.value?.id, async (id) => {
       </p>
     </div>
 
-    <!-- Button -->
-    <div class="mt-4 flex justify-start">
+    <!-- Buttons -->
+    <div class="mt-4 flex justify-between">
       <button
         class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
         @click="openModal"
       >
         <span>Match-Plan</span>
+      </button>
+      
+      <!-- PDF Button -->
+      <button
+        class="px-4 py-2 rounded text-sm flex items-center gap-2"
+        :class="!isDownloading['match-plan'] 
+          ? 'bg-gray-200 hover:bg-gray-300' 
+          : 'bg-gray-100 cursor-not-allowed opacity-50'"
+        :disabled="isDownloading['match-plan']"
+        @click="downloadMatchPlanPdf()"
+      >
+        <svg v-if="isDownloading['match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+        </svg>
+        <span>{{ isDownloading['match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
       </button>
     </div>
 
@@ -238,7 +274,10 @@ watch(() => event.value?.id, async (id) => {
                         <!-- Team 1 (Left Column) -->
                         <div
                           class="px-4 py-2 rounded text-white text-sm font-medium"
-                          :class="isEmptySlot(match.team_1) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600'"
+                          :class="[
+                            isEmptySlot(match.team_1) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600',
+                            isNoshow(match.team_1) ? 'line-through' : ''
+                          ]"
                         >
                           {{ formatTeam(match.team_1) }}
                         </div>
@@ -246,7 +285,10 @@ watch(() => event.value?.id, async (id) => {
                         <!-- Team 2 (Right Column) -->
                         <div
                           class="px-4 py-2 rounded text-white text-sm font-medium"
-                          :class="isEmptySlot(match.team_2) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600'"
+                          :class="[
+                            isEmptySlot(match.team_2) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600',
+                            isNoshow(match.team_2) ? 'line-through' : ''
+                          ]"
                         >
                           {{ formatTeam(match.team_2) }}
                         </div>
@@ -258,6 +300,21 @@ watch(() => event.value?.id, async (id) => {
             </template>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Globaler Ladeindikator für PDF-Generierung -->
+    <div
+      v-if="anyDownloading"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
+    >
+      <div class="bg-white px-4 py-3 rounded shadow flex items-center gap-2">
+        <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+        </svg>
+        <span>PDF wird erzeugt…</span>
       </div>
     </div>
   </div>
