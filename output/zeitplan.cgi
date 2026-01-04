@@ -1872,6 +1872,7 @@ sub get_logos {
                 from event_logo
                 join logo on event_logo.logo=logo.id
                 where event_logo.event=$event
+                order by event_logo.sort_order
             };
     $sth = $dbh->prepare($query);
     $rv = $sth->execute;
