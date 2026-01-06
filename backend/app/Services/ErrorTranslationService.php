@@ -10,10 +10,10 @@ class ErrorTranslationService
     /**
      * Translate SQL errors to user-friendly messages
      * 
-     * @param \Exception $exception
+     * @param \Throwable $exception
      * @return array{message: string, details: string|null}
      */
-    public static function translateException(\Exception $exception): array
+    public static function translateException(\Throwable $exception): array
     {
         // Log the full exception for debugging
         Log::error('Exception occurred', [

@@ -65,19 +65,15 @@ class PublishController extends Controller
             ]);
         }
 
-        $region = DB::table('regional_partner')
-            ->where('id', $event->regional_partner)
-            ->value('region');
-
-        if (!$region) {
-            return response()->json(['error' => 'Region not found'], 404);
+        if (empty($event->name)) {
+            return response()->json(['error' => 'Event name is required'], 400);
         }
 
         switch ($event->level) {
 
             case 1:
-
-                $link = $region;
+                // Use event name directly
+                $link = $event->name;
 
                 // Prüfen, ob mehrere Regio für diesen Regionalpartner existieren
                 $eventCount = DB::table('event')
@@ -97,7 +93,17 @@ class PublishController extends Controller
                 break;
 
             case 2:
-                $link = "quali-" . $region;
+                // Find first "-" in event name, add 2 to position, use the rest
+                $dashPos = strpos($event->name, '-');
+                if ($dashPos !== false) {
+                    // Add 2 to skip the "-" and space
+                    $position = $dashPos + 2;
+                    $suffix = substr($event->name, $position);
+                    $link = "quali-" . $suffix;
+                } else {
+                    // No dash found, use full event name
+                    $link = "quali-" . $event->name;
+                }
                 break;
 
             case 3:
@@ -228,15 +234,24 @@ class PublishController extends Controller
                 ], 404);
             }
 
+            $eventCount = $events->count();
+            
+            // Increase execution time limit for batch operation
+            // Allow ~10 seconds per event, minimum 60 seconds, maximum 600 seconds (10 minutes)
+            $estimatedTime = max(60, min(600, $eventCount * 10));
+            set_time_limit($estimatedTime);
+            ini_set('max_execution_time', $estimatedTime);
+            
             $regenerated = 0;
             $failed = 0;
             $errors = [];
 
             Log::info("Regenerating links for season {$seasonId}", [
-                'event_count' => $events->count()
+                'event_count' => $eventCount,
+                'time_limit' => $estimatedTime
             ]);
 
-            foreach ($events as $event) {
+            foreach ($events as $index => $event) {
                 try {
                     // Clear existing link and QR code to force regeneration
                     DB::table('event')
@@ -251,14 +266,20 @@ class PublishController extends Controller
                     $this->linkAndQRcode($event->id);
                     $regenerated++;
 
-                    Log::info("Regenerated link for event {$event->id} ({$event->name})");
+                    // Log progress every 10 events or on last event
+                    if (($index + 1) % 10 === 0 || ($index + 1) === $eventCount) {
+                        Log::info("Progress: {$regenerated}/{$eventCount} events regenerated for season {$seasonId}");
+                    } else {
+                        Log::info("Regenerated link for event {$event->id} ({$event->name})");
+                    }
                 } catch (\Exception $e) {
                     $failed++;
                     $errorMsg = "Failed to regenerate link for event {$event->id} ({$event->name}): " . $e->getMessage();
                     $errors[] = $errorMsg;
                     Log::error($errorMsg, [
                         'event_id' => $event->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
                     ]);
                 }
             }
@@ -268,15 +289,25 @@ class PublishController extends Controller
                 'message' => "Regenerated links for {$regenerated} events" . ($failed > 0 ? ", {$failed} failed" : ''),
                 'regenerated' => $regenerated,
                 'failed' => $failed,
-                'total' => $events->count(),
+                'total' => $eventCount,
                 'errors' => $errors
             ]);
 
-        } catch (\Exception $e) {
-            Log::error("Error regenerating links for season {$seasonId}: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            // Catch both Exception and Error (like FatalError) for better error handling
+            Log::error("Error regenerating links for season {$seasonId}: " . $e->getMessage(), [
+                'error_type' => get_class($e),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $errorMessage = $e->getMessage();
+            if (str_contains($errorMessage, 'Maximum execution time')) {
+                $errorMessage = 'Operation timed out. Please try with fewer events or increase PHP max_execution_time.';
+            }
+            
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $errorMessage
             ], 500);
         }
     }

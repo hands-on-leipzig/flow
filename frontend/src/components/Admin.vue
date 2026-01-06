@@ -36,9 +36,18 @@ onMounted(async () => {
   // Fetch seasons
   try {
     const seasonsResponse = await axios.get('/seasons')
-    seasons.value = seasonsResponse.data
+    // Ensure we have an array (axios wraps responses, but this endpoint returns array directly)
+    seasons.value = Array.isArray(seasonsResponse.data) ? seasonsResponse.data : []
+    if (seasons.value.length === 0) {
+      console.warn('No seasons found in API response:', seasonsResponse.data)
+    }
   } catch (error) {
     console.error('Failed to fetch seasons:', error)
+    if (error.response) {
+      console.error('Response status:', error.response.status)
+      console.error('Response data:', error.response.data)
+    }
+    seasons.value = []
   }
 })
 
