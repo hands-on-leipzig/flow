@@ -65,19 +65,15 @@ class PublishController extends Controller
             ]);
         }
 
-        $region = DB::table('regional_partner')
-            ->where('id', $event->regional_partner)
-            ->value('region');
-
-        if (!$region) {
-            return response()->json(['error' => 'Region not found'], 404);
+        if (empty($event->name)) {
+            return response()->json(['error' => 'Event name is required'], 400);
         }
 
         switch ($event->level) {
 
             case 1:
-
-                $link = $region;
+                // Use event name directly
+                $link = $event->name;
 
                 // Prüfen, ob mehrere Regio für diesen Regionalpartner existieren
                 $eventCount = DB::table('event')
@@ -97,7 +93,17 @@ class PublishController extends Controller
                 break;
 
             case 2:
-                $link = "quali-" . $region;
+                // Find first "-" in event name, add 2 to position, use the rest
+                $dashPos = strpos($event->name, '-');
+                if ($dashPos !== false) {
+                    // Add 2 to skip the "-" and space
+                    $position = $dashPos + 2;
+                    $suffix = substr($event->name, $position);
+                    $link = "quali-" . $suffix;
+                } else {
+                    // No dash found, use full event name
+                    $link = "quali-" . $event->name;
+                }
                 break;
 
             case 3:
