@@ -243,12 +243,13 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     Route::get('/seasons', function () {
-        return response()->json(
-            DB::table('m_season')
-                ->select('id', 'name', 'year')
-                ->orderBy('year', 'desc')
-                ->get()
-        );
+        $seasons = DB::table('m_season')
+            ->select('id', 'name', 'year')
+            ->orderBy('year', 'desc')
+            ->get()
+            ->toArray(); // Convert Collection to array
+            
+        return response()->json($seasons);
     }); // Get all seasons for dropdowns
     
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
