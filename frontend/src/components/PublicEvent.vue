@@ -340,7 +340,10 @@ const goHome = () => {
 }
 
 // Extract German address format (street + PLZ + city)
-// German addresses typically have format: Street, PLZ City
+// German addresses have format:
+// - First line: always the street
+// - Optional second and third lines
+// - Then: PLZ and city
 const extractGermanAddress = (address) => {
   if (!address) return null
   
@@ -349,46 +352,34 @@ const extractGermanAddress = (address) => {
   
   if (lines.length === 0) return null
   
-  // Try to find street and PLZ+City
+  // First line is always the street
+  const street = lines[0]
+  
   // PLZ is typically 5 digits, followed by city name
   const plzPattern = /\b\d{5}\b/
   
-  let street = null
+  // Find the line containing PLZ (usually the last line, but could be second-to-last)
+  // Search from the end backwards
   let plzCity = null
-  
-  // Look for PLZ pattern in each line
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = lines.length - 1; i >= 1; i--) {
     if (plzPattern.test(lines[i])) {
       plzCity = lines[i]
-      // Street is usually the line before PLZ+City, or the first line
-      if (i > 0) {
-        street = lines[i - 1]
-      } else if (lines.length > 1) {
-        street = lines[0]
-      }
       break
     }
   }
   
-  // If we found both, combine them
-  if (street && plzCity) {
+  // If we found PLZ+City, combine with street
+  if (plzCity) {
     return `${street}, ${plzCity}`
   }
   
-  // Fallback: try to extract from last two lines (common format)
+  // Fallback: if no PLZ found but we have at least 2 lines, use first and last
   if (lines.length >= 2) {
-    const lastLine = lines[lines.length - 1]
-    if (plzPattern.test(lastLine)) {
-      return `${lines[lines.length - 2]}, ${lastLine}`
-    }
+    return `${street}, ${lines[lines.length - 1]}`
   }
   
-  // Last resort: return last line if it has PLZ
-  if (lines.length > 0 && plzPattern.test(lines[lines.length - 1])) {
-    return lines[lines.length - 1]
-  }
-  
-  return null
+  // Last resort: return just the street
+  return street
 }
 
 // Geocode address using backend API (proxies to OpenStreetMap Nominatim API)
