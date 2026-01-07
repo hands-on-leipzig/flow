@@ -949,11 +949,7 @@ function exportToCSV() {
           <div class="text-xs text-gray-600 flex items-center gap-4 flex-wrap">
             <span class="flex items-center gap-1">
               <div class="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span>= Event benötigt Aufmerksamkeit (Teams/Schedule/Rooms)</span>
-            </span>
-            <span class="flex items-center gap-1">
-              <div class="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span>= Plan hat Warnung</span>
+              <span>= Event benötigt Aufmerksamkeit (Ablauf/Teams/Räume)</span>
             </span>
             <span>🔴 = Problem mit DRAHT Daten</span>
             <span>⬜️ = Kein Plan</span>
@@ -1064,7 +1060,7 @@ function exportToCSV() {
                 <div
                   v-if="row.event_needs_attention"
                   class="w-2 h-2 bg-red-500 rounded-full"
-                  title="Event benötigt Aufmerksamkeit: Teams, Schedule oder Räume haben Probleme"
+                  title="Event benötigt Aufmerksamkeit: Ablauf, Teams oder Räume haben Probleme"
                 ></div>
               </span>
 
@@ -1111,11 +1107,6 @@ function exportToCSV() {
             <div class="flex flex-col items-start">
               <div class="flex items-center gap-1">
                 <span>{{ row.plan_id }}</span>
-                <div
-                  v-if="row.has_warning"
-                  class="w-2 h-2 bg-red-500 rounded-full"
-                  title="Achtung: Es gibt offene Punkte in diesem Bereich"
-                ></div>
               </div>
               <div v-if="row.plan_id" class="flex gap-2 mt-1">
                 <!-- Preview -->
