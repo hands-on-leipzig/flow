@@ -29,6 +29,13 @@ class EventController extends Controller
         $event = Event::with(['seasonRel', 'levelRel', 'tableNames'])->findOrFail($id);
         $event->wifi_password = isset($event->wifi_password) ? Crypt::decryptString($event->wifi_password) : "";
 
+        // Lazy initialization: calculate attention status if not yet calculated
+        $attentionService = app(EventAttentionService::class);
+        $attentionService->ensureAttentionStatusCalculated($event->id);
+        
+        // Reload event to get updated needs_attention values
+        $event->refresh();
+
         // Ensure needs_attention fields are included in response
         return response()->json([
             ...$event->toArray(),
