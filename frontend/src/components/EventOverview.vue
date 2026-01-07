@@ -4,6 +4,7 @@ import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
+import EventMap from '@/components/molecules/EventMap.vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { getEventTitleLong, getCompetitionType, cleanEventName } from '@/utils/eventTitle'
 
@@ -179,7 +180,14 @@ watch(
 
           <div class="p-4 border rounded shadow">
             <h3 class="font-semibold mb-2">Adresse</h3>
-            <p>{{ event?.address }}</p>
+            <p class="mb-3">{{ event?.address }}</p>
+            <EventMap
+              v-if="event?.address && event?.id"
+              :address="event.address"
+              :event-id="event.id"
+              :event-name="event.name"
+              :show-q-r-code="false"
+            />
           </div>
 
           <div class="p-4 border rounded shadow">
