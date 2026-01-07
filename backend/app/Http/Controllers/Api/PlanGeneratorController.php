@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Services\PlanGeneratorService;
+use App\Services\EventAttentionService;
 
 class PlanGeneratorController extends Controller
 {
@@ -53,6 +54,13 @@ class PlanGeneratorController extends Controller
             Log::info('Generation started', ['plan_id' => $planId]);
             try {
                 $this->generator->run($planId);
+                
+                // Update attention status after successful plan generation
+                $eventId = DB::table('plan')->where('id', $planId)->value('event');
+                if ($eventId) {
+                    app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+                }
+                
                 return response()->json(['message' => 'Generation done']);
             } catch (\Throwable $e) {
                 // Re-throw to be caught by outer catch block for proper error formatting
@@ -109,6 +117,12 @@ class PlanGeneratorController extends Controller
         try {
             // Service aufrufen
             $this->generator->generateLite($planId);
+            
+            // Update attention status after successful lite generation
+            $eventId = DB::table('plan')->where('id', $planId)->value('event');
+            if ($eventId) {
+                app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+            }
 
             return response()->json([
                 'status' => 'ok',

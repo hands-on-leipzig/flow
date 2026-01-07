@@ -28,7 +28,9 @@ class Event extends Model
         'wifi_ssid',
         'wifi_password',
         'wifi_instruction',
-        'wifi_qrcode'
+        'wifi_qrcode',
+        'needs_attention',
+        'needs_attention_checked_at'
     ];
 
     public function regionalPartner()

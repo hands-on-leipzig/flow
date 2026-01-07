@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\MParameter;
 use App\Models\Plan;
 use App\Models\PlanParamValue;
+use App\Services\EventAttentionService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -130,6 +131,33 @@ class PlanParameterController extends Controller
                     'set_value' => $validated['value'],
                 ]
             );
+        }
+
+        // Get event ID from plan to update attention status
+        $plan = Plan::find($planId);
+        if ($plan) {
+            // Only update attention if team count parameters (c_teams, e_teams) were changed
+            $teamParamNames = ['c_teams', 'e_teams'];
+            $shouldUpdate = false;
+            
+            if ($request->has('parameters')) {
+                foreach ($validated['parameters'] as $param) {
+                    $paramName = DB::table('m_parameter')->where('id', $param['id'])->value('name');
+                    if (in_array($paramName, $teamParamNames)) {
+                        $shouldUpdate = true;
+                        break;
+                    }
+                }
+            } else {
+                $paramName = DB::table('m_parameter')->where('id', $validated['id'])->value('name');
+                if (in_array($paramName, $teamParamNames)) {
+                    $shouldUpdate = true;
+                }
+            }
+            
+            if ($shouldUpdate) {
+                app(EventAttentionService::class)->updateEventAttentionStatus($plan->event);
+            }
         }
 
         return response()->json(['status' => 'ok', 'queued' => true]);

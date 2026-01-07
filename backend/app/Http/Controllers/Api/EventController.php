@@ -10,6 +10,7 @@ use App\Models\Slide;
 use App\Models\TableEvent;
 use App\Models\User;
 use App\Services\SeasonService;
+use App\Services\EventAttentionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -28,7 +29,12 @@ class EventController extends Controller
         $event = Event::with(['seasonRel', 'levelRel', 'tableNames'])->findOrFail($id);
         $event->wifi_password = isset($event->wifi_password) ? Crypt::decryptString($event->wifi_password) : "";
 
-        return response()->json($event);
+        // Ensure needs_attention fields are included in response
+        return response()->json([
+            ...$event->toArray(),
+            'needs_attention' => $event->needs_attention ?? false,
+            'needs_attention_checked_at' => $event->needs_attention_checked_at,
+        ]);
     }
 
     public function getEventBySlug($slug)
@@ -316,6 +322,38 @@ class EventController extends Controller
      * Geocode an address using OpenStreetMap Nominatim API
      * Proxies the request to avoid CORS issues
      */
+    /**
+     * Manually check and update attention status for an event
+     */
+    public function checkAttention(int $eventId): JsonResponse
+    {
+        $event = Event::find($eventId);
+        
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        try {
+            $attentionService = app(EventAttentionService::class);
+            $attentionService->updateEventAttentionStatus($eventId);
+            
+            // Reload event to get updated status
+            $event->refresh();
+            
+            return response()->json([
+                'success' => true,
+                'needs_attention' => $event->needs_attention,
+                'needs_attention_checked_at' => $event->needs_attention_checked_at,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to check attention for event {$eventId}: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function geocodeAddress(Request $request)
     {
         $request->validate([

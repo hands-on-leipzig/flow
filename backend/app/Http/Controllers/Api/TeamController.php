@@ -9,6 +9,7 @@ use App\Models\Team;
 use App\Models\TeamPlan;
 use App\Models\Plan;
 use App\Http\Controllers\Api\PlanController;
+use App\Services\EventAttentionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -121,10 +122,12 @@ class TeamController extends Controller
             $team->save();
         }
 
+        $eventId = null;
         if (isset($data['noshow'])) {
             // Update noshow in team_plan for the current event's plan
             $event = Event::find($team->event);
             if ($event) {
+                $eventId = $event->id;
                 $plan = Plan::where('event', $event->id)->first();
                 if ($plan) {
                     TeamPlan::where('team', $team->id)
@@ -132,6 +135,13 @@ class TeamController extends Controller
                         ->update(['noshow' => $data['noshow']]);
                 }
             }
+        } else {
+            $eventId = $team->event;
+        }
+
+        // Update attention status after team modification
+        if ($eventId) {
+            app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
         }
 
         return response()->json(['message' => 'Team updated successfully', 'team' => $team]);
@@ -163,6 +173,9 @@ class TeamController extends Controller
                     ->update(['noshow' => false]);
             }
         }
+        
+        // Update attention status after creating new team
+        app(EventAttentionService::class)->updateEventAttentionStatus($team->event);
         
         return response()->json(['message' => 'Team created successfully', 'team' => $team]);
     }
@@ -212,13 +225,21 @@ class TeamController extends Controller
             }
         });
 
+        // Update attention status after reordering teams
+        app(EventAttentionService::class)->updateEventAttentionStatus($event->id);
+
         return response()->json(['message' => 'Team order updated successfully']);
     }
 
     public function destroy(Team $team)
     {
         try {
+            $eventId = $team->event;
             $team->delete();
+            
+            // Update attention status after deleting team
+            app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+            
             return response()->json(['message' => 'Team deleted successfully']);
         } catch (\Exception $e) {
             Log::error('Error deleting team', [

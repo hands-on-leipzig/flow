@@ -216,6 +216,14 @@ class ExploreGenerator
 
             $this->eTime->addMinutes($this->pp("e{$group}_duration_deliberations"));
             
+            // For INTEGRATED_MORNING mode, store deliberation end time (after e_ready_awards buffer)
+            // This is when Explore awards can start (after buffer period)
+            if ($group == 1 && $this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
+                $this->eTime->addMinutes($this->pp('e_ready_awards'));
+                $this->integratedExplore->deliberationEndTime = $this->eTime->format('H:i');
+                $this->eTime->subMinutes($this->pp('e_ready_awards')); // Restore for exhibition calculation
+            }
+            
             // Capture end time of deliberations (end of exhibition)
             $exhibitionEnd = clone $this->eTime;
             
