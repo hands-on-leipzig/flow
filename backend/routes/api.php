@@ -161,6 +161,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/events', [EventController::class, 'store']);
     Route::get('/events/{eventId}', [EventController::class, 'getEvent']);
     Route::put('/events/{eventId}', [EventController::class, 'update']);
+    Route::post('/events/{eventId}/check-attention', [EventController::class, 'checkAttention']);
     Route::get('/table-names/{eventId}', [EventController::class, 'getTableNames']);
     Route::put('/table-names/{eventId}', [EventController::class, 'updateTableNames']);
 
