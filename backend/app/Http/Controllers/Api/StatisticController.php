@@ -10,6 +10,7 @@ use App\Models\Event;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\TeamController;
+use App\Services\EventAttentionService;
 use Carbon\Carbon;
 
 
@@ -61,6 +62,7 @@ class StatisticController extends Controller
                 'event.event_explore as event_explore', 
                 'event.event_challenge as event_challenge',
                 'event.needs_attention as event_needs_attention',
+                'event.needs_attention_checked_at as event_needs_attention_checked_at',
 
                 // Season
                 'm_season.id as season_id',
@@ -281,6 +283,15 @@ class StatisticController extends Controller
 
             // Event anlegen
             if ($row->event_id && !isset($groupedSeasons[$seasonKey]['partners'][$partnerKey]['events'][$eventKey])) {
+                // Lazy initialization: calculate attention status if not yet calculated
+                if ($row->event_needs_attention_checked_at === null) {
+                    $attentionService = app(EventAttentionService::class);
+                    $attentionService->ensureAttentionStatusCalculated($row->event_id);
+                    // Reload needs_attention from database
+                    $updatedEvent = DB::table('event')->where('id', $row->event_id)->first();
+                    $row->event_needs_attention = $updatedEvent->needs_attention ?? false;
+                }
+                
                 $counts = $teamCountsByEvent->get($row->event_id);
                 if (!empty($counts)) {
                     $exploreCount = ($counts[FirstProgram::EXPLORE->value] ?? 0) + ($counts[FirstProgram::DISCOVER->value] ?? 0);
