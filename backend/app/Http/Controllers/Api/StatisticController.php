@@ -60,6 +60,7 @@ class StatisticController extends Controller
                 'event.season as event_season_id',
                 'event.event_explore as event_explore', 
                 'event.event_challenge as event_challenge',
+                'event.needs_attention as event_needs_attention',
 
                 // Season
                 'm_season.id as season_id',
@@ -297,6 +298,7 @@ class StatisticController extends Controller
                     'event_link' => $row->event_link,
                     'event_explore' => $row->event_explore,
                     'event_challenge' => $row->event_challenge,
+                    'event_needs_attention' => $row->event_needs_attention ?? false,
                     'teams_explore' => $exploreCount,
                     'teams_challenge' => $challengeCount,
                     'contact_email' => null, // Will be fetched asynchronously

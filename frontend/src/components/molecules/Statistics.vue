@@ -24,6 +24,7 @@ type FlattenedRow = {
   event_link: string | null
   event_explore: number | null
   event_challenge: number | null
+  event_needs_attention?: boolean
   event_teams_explore: number
   event_teams_challenge: number
   draht_issue?: boolean
@@ -392,6 +393,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_link: event.event_link ?? null,
           event_explore: event.event_explore,
           event_challenge: event.event_challenge,
+          event_needs_attention: event.event_needs_attention ?? false,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
           draht_issue: drahtIssues.value.get(event.event_id) ?? false,
@@ -416,6 +418,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_link: event.event_link ?? null,
           event_explore: event.event_explore,
           event_challenge: event.event_challenge,
+          event_needs_attention: event.event_needs_attention ?? false,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
           draht_issue: drahtIssues.value.get(event.event_id) ?? false,
@@ -909,10 +912,10 @@ function exportToCSV() {
         </div>
       </div>
 
-      <!-- DRAHT Check Banner -->
-      <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="mb-2 p-2 rounded border" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'bg-red-50 border-red-300' : drahtCheckState.completed ? 'bg-green-50 border-green-300' : 'bg-blue-50 border-blue-300'">
+      <!-- DRAHT Check Banner (without red dot/visual indication, but keep logic) -->
+      <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="mb-2 p-2 rounded border bg-blue-50 border-blue-300">
         <div class="flex justify-between items-center">
-          <div class="text-sm font-medium" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'text-red-800' : drahtCheckState.completed ? 'text-green-800' : 'text-blue-800'">
+          <div class="text-sm font-medium text-blue-800">
             <template v-if="drahtCheckState.isRunning">
               DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
             </template>
@@ -943,10 +946,14 @@ function exportToCSV() {
       <!-- Table -->
       <div class="border border-gray-300 bg-white rounded shadow-sm overflow-hidden">
         <div class="flex justify-between items-center p-2 bg-gray-50 border-b">
-          <div class="text-xs text-gray-600">
-            <span class="mr-4">🔴 = Problem mit DRAHT Daten</span>
-            <span class="mr-4">⬜️ = Kein Plan</span>
-            <span class="mr-4">✅ = Genau ein Plan</span>
+          <div class="text-xs text-gray-600 flex items-center gap-4 flex-wrap">
+            <span class="flex items-center gap-1">
+              <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span>= Event benötigt Aufmerksamkeit (Ablauf/Teams/Räume)</span>
+            </span>
+            <span>🔴 = Problem mit DRAHT Daten</span>
+            <span>⬜️ = Kein Plan</span>
+            <span>✅ = Genau ein Plan</span>
             <span>⚠️ = Mehrere Pläne</span>
           </div>
           <button
@@ -1041,14 +1048,21 @@ function exportToCSV() {
                   ⚠️
                 </template>
               </span>
-              <!-- Clickable name -->
-              <a
-                href="#"
-                class="text-blue-600 hover:underline cursor-pointer"
-                @click.prevent="selectEvent(row.event_id, row.partner_id)"
-              >
-                {{ row.event_name }}
-              </a>
+              <!-- Clickable name with needs_attention indicator -->
+              <span class="flex items-center gap-1">
+                <a
+                  href="#"
+                  class="text-blue-600 hover:underline cursor-pointer"
+                  @click.prevent="selectEvent(row.event_id, row.partner_id)"
+                >
+                  {{ row.event_name }}
+                </a>
+                <div
+                  v-if="row.event_needs_attention"
+                  class="w-2 h-2 bg-red-500 rounded-full"
+                  title="Event benötigt Aufmerksamkeit: Ablauf, Teams oder Räume haben Probleme"
+                ></div>
+              </span>
 
               <span class="text-gray-500"> ({{ formatDateOnly(row.event_date) }})</span>
               <span
@@ -1093,11 +1107,6 @@ function exportToCSV() {
             <div class="flex flex-col items-start">
               <div class="flex items-center gap-1">
                 <span>{{ row.plan_id }}</span>
-                <div
-                  v-if="row.has_warning"
-                  class="w-2 h-2 bg-red-500 rounded-full"
-                  title="Achtung: Es gibt offene Punkte in diesem Bereich"
-                ></div>
               </div>
               <div v-if="row.plan_id" class="flex gap-2 mt-1">
                 <!-- Preview -->
