@@ -174,7 +174,7 @@ class PlanGeneratorCore
     
                     $this->explore->openingsAndBriefings(1);
                     $this->explore->judgingAndDeliberations(1);
-                    $this->explore->awards(2);
+                    $this->explore->awards(1);
                 }
 
                 if ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
