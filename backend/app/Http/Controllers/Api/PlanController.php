@@ -9,6 +9,7 @@ use App\Models\PlanParamValue;
 use App\Models\Team;
 use App\Models\TeamPlan;
 use App\Enums\FirstProgram;
+use App\Services\EventAttentionService;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -193,6 +194,9 @@ class PlanController extends Controller
 
         // Add some default free blocks to illustrate usage
         $this->addDefaultFreeBlocks($newId);
+
+        // Update attention status after creating plan (team counts are set which affects attention)
+        app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
 
         return response()->json([
             'id' => $newId,
