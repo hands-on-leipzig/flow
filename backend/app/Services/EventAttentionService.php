@@ -71,6 +71,30 @@ class EventAttentionService
     }
 
     /**
+     * Ensure attention status is calculated for an event (lazy initialization)
+     * If needs_attention_checked_at is null, calculate and update the status
+     * 
+     * @param int $eventId
+     * @return bool True if status was calculated, false if already existed
+     */
+    public function ensureAttentionStatusCalculated(int $eventId): bool
+    {
+        $event = Event::find($eventId);
+        if (!$event) {
+            return false;
+        }
+
+        // If already calculated, nothing to do
+        if ($event->needs_attention_checked_at !== null) {
+            return false;
+        }
+
+        // Calculate and update
+        $this->updateEventAttentionStatus($eventId);
+        return true;
+    }
+
+    /**
      * Check 1: Team Discrepancy
      * Returns true if local teams differ from DRAHT teams
      */
