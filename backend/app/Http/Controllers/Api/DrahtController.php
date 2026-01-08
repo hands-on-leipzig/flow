@@ -263,6 +263,8 @@ class DrahtController extends Controller
                             'name' => $teamData['name'],
                             'team_number_hot' => $teamData['team_number_hot'],
                             'first_program' => $teamData['first_program'],
+                            'location' => $teamData['location'],
+                            'organization' => $teamData['organization'],
                         ];
                     });
 
@@ -332,7 +334,7 @@ class DrahtController extends Controller
             }
 
             $data = $response->json();
-            
+
             // Handle different response formats
             if (is_array($data)) {
                 // If it's an array of IDs
