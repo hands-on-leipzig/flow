@@ -1781,7 +1781,13 @@ sub get_auswahl {
                             # Challenge- oder Explore-Team
                             if (defined $team{$differentiation_count}{$role_first_program}{name}) {
                                 # erstmal ohne Organisation, weil sonst zu unuebersichtlich...
-                                $role_name_display = $team{$differentiation_count}{$role_first_program}{name}." <i class='bi-geo'></i> ".$team{$differentiation_count}{$role_first_program}{location};
+                                $role_name_display = $team{$differentiation_count}{$role_first_program}{name};
+
+                                # + Location anhaengen
+                                # erstmal ohne Organisation, weil sonst zu unuebersichtlich...
+                                if ($team{$differentiation_count}{$role_first_program}{location} ne "") {
+                                    $role_name_display = $role_name_display." <i class='bi-geo'></i> ".$team{$differentiation_count}{$role_first_program}{location};
+                                }
                             }
                             else {
                                 $role_name_display = "$role_name $differentiation_count";
