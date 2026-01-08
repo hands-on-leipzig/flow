@@ -1786,6 +1786,12 @@ sub get_auswahl {
                             else {
                                 $role_name_display = "$role_name $differentiation_count";
                             }
+
+                            # bei noshow -> Durchstreichen!
+                            if ($team{$differentiation_count}{$role_first_program}{noshow} == 1) {
+                                $role_name_display = "<s>$role_name_display</s>";
+                            }
+
                         }
                         elsif ($role_id == 5 || $role_id == 11) {
                             # SchiedsrichterIn
@@ -1806,7 +1812,9 @@ sub get_auswahl {
                 # select team_plan.team_number_plan, team.name from team_plan join team on team_plan.team=team.id where plan=[plan] and team.first_program=3 order by team.name
                 # und Explore-Team
                 # select team_plan.team_number_plan, team.name from team_plan join team on team_plan.team=team.id where plan=[plan] and team.first_program=2 order by team.name
+
                 # wird aber beides nicht mehr verwendet seit Umbau...
+                # wird auch über diffrentiation_type = number abgebildet jetzt!
 
                 # in $role_differentiation_source noch den [plan] ersetzen
                 $role_differentiation_source =~ s/\[plan\]/$params->{plan}/g;
