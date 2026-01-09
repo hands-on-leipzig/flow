@@ -2305,7 +2305,7 @@
         },
         {
             "id": 4,
-            "name": "Juror:in",
+            "name": "Jury",
             "name_short": "C J",
             "sequence": 3,
             "first_program": 3,
@@ -2370,7 +2370,7 @@
         },
         {
             "id": 9,
-            "name": "Gutachter:in",
+            "name": "Gutachter-Gruppe",
             "name_short": "E G",
             "sequence": 3,
             "first_program": 2,
@@ -2461,7 +2461,7 @@
         },
         {
             "id": 16,
-            "name": "Live Challenge-Juror:in",
+            "name": "Live Challenge-Jury-Gruppe",
             "name_short": "LC J",
             "sequence": 6,
             "first_program": 3,
@@ -6403,7 +6403,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-01-09T07:15:11.915681Z",
+        "exported_at": "2026-01-09T09:28:08.225320Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",

@@ -174,13 +174,13 @@ class ActivityFetcherService
             a.extra_block as extra_block_id,
             peb.insert_point as extra_block_insert_point,
             CASE a.table_1
-                WHEN 1 THEN COALESCE(te1.table_name, "Tisch 1")
-                WHEN 3 THEN COALESCE(te3.table_name, "Tisch 3")
+                WHEN 1 THEN CONCAT("Tisch ", COALESCE(te1.table_name, "1"))
+                WHEN 3 THEN CONCAT("Tisch ", COALESCE(te3.table_name, "3"))
                 ELSE NULL
             END AS table_1_name,
             CASE a.table_2
-                WHEN 2 THEN COALESCE(te2.table_name, "Tisch 2")
-                WHEN 4 THEN COALESCE(te4.table_name, "Tisch 4")
+                WHEN 2 THEN CONCAT("Tisch ", COALESCE(te2.table_name, "2"))
+                WHEN 4 THEN CONCAT("Tisch ", COALESCE(te4.table_name, "4"))
                 ELSE NULL
             END AS table_2_name
         ';

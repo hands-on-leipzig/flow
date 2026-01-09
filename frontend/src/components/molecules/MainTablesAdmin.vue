@@ -115,6 +115,9 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Aktionen
+                </th>
                 <th
                   v-for="column in tableColumns"
                   :key="column"
@@ -122,26 +125,10 @@
                 >
                   {{ column }}
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Aktionen
-                </th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               <tr v-for="(record, index) in tableData" :key="record.id || index">
-                <td
-                  v-for="column in tableColumns"
-                  :key="column"
-                  class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                >
-                  <input
-                    v-if="editingRecord === index"
-                    v-model="editingData[column]"
-                    :type="getInputType(column)"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <span v-else>{{ record[column] || '-' }}</span>
-                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div v-if="editingRecord === index" class="flex space-x-2">
                     <button
@@ -171,6 +158,19 @@
                       Löschen
                     </button>
                   </div>
+                </td>
+                <td
+                  v-for="column in tableColumns"
+                  :key="column"
+                  class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                >
+                  <input
+                    v-if="editingRecord === index"
+                    v-model="editingData[column]"
+                    :type="getInputType(column)"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <span v-else>{{ record[column] || '-' }}</span>
                 </td>
               </tr>
             </tbody>

@@ -482,9 +482,9 @@ sub get_zeitplan {
         }
         elsif ($role_id == 9) {
             # GutachterIn
-            $role = qq{GutachterIn $params->{lane}};
-            $role_xml = qq{GutachterIn $params->{lane}};
-            $role_filename = qq{GutachterIn-$params->{lane}};
+            $role = qq{Gutachter-Gruppe $params->{lane}};
+            $role_xml = qq{Gutachter-Gruppe $params->{lane}};
+            $role_filename = qq{Gutachter-Gruppe-$params->{lane}};
         }
         else {
             # alles andere
