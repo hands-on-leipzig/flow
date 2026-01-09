@@ -683,8 +683,8 @@ const updateTableName = async () => {
 
                 <!-- Robot-Game-Tische -->
                 <div class="p-4 border rounded shadow mt-4 w-full max-w-lg">
-                  <div class="flex items-center mb-3">
-                    <span class="font-medium text-gray-800">Bezeichnung der Robot-Game-Tische (ersetzt nur die Nummer)</span>
+                  <div class="mb-3">
+                    <span class="font-medium text-gray-800">Bezeichnung der Robot-Game-Tische<br>(ersetzt nur die Nummer)</span>
                   </div>
 
                   <div class="grid grid-cols-2 gap-4">
