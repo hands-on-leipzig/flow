@@ -683,8 +683,8 @@ const updateTableName = async () => {
 
                 <!-- Robot-Game-Tische -->
                 <div class="p-4 border rounded shadow mt-4 w-full max-w-lg">
-                  <div class="flex items-center mb-3">
-                    <span class="font-medium text-gray-800">Bezeichnung der Robot-Game-Tische</span>
+                  <div class="mb-3">
+                    <span class="font-medium text-gray-800">Bezeichnung der Robot-Game-Tische<br>(ersetzt nur die Nummer)</span>
                   </div>
 
                   <div class="grid grid-cols-2 gap-4">
@@ -693,7 +693,7 @@ const updateTableName = async () => {
                       <input
                           v-model="tableNames[i]"
                           class="w-full border px-3 py-1 rounded text-sm"
-                          :placeholder="`leer lassen für >>Tisch ${i + 1}<<`"
+                          :placeholder="`z.B. Alpha (leer lassen für >>Tisch ${i + 1}<<)`"
                           type="text"
                           @blur="updateTableName"
                       />
