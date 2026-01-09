@@ -88,9 +88,21 @@ const uploadLogo = async () => {
 
 const updateLogo = async (logo) => {
   try {
+    // Normalize link to always start with https://
+    let normalizedLink = logo.link
+    if (normalizedLink && normalizedLink.trim()) {
+      normalizedLink = normalizedLink.trim()
+      // If it doesn't start with http:// or https://, prepend https://
+      if (!normalizedLink.match(/^https?:\/\//i)) {
+        normalizedLink = 'https://' + normalizedLink
+      }
+      // Update the logo object to reflect the normalized link
+      logo.link = normalizedLink
+    }
+    
     await axios.patch(`/logos/${logo.id}`, {
       title: logo.title,
-      link: logo.link
+      link: normalizedLink
     })
   } catch (error) {
     console.error('Error updating logo:', error)
@@ -469,7 +481,7 @@ onMounted(async () => {
                   v-model="logo.link"
                   @change="updateLogo(logo)"
                   class="w-full px-2 py-0.5 text-xs border rounded"
-                  placeholder="Link"
+                  placeholder="https://domain.tld"
                   type="url"
               />
             </div>

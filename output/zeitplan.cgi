@@ -1781,11 +1781,23 @@ sub get_auswahl {
                             # Challenge- oder Explore-Team
                             if (defined $team{$differentiation_count}{$role_first_program}{name}) {
                                 # erstmal ohne Organisation, weil sonst zu unuebersichtlich...
-                                $role_name_display = $team{$differentiation_count}{$role_first_program}{name}." <i class='bi-geo'></i> ".$team{$differentiation_count}{$role_first_program}{location};
+                                $role_name_display = $team{$differentiation_count}{$role_first_program}{name};
+
+                                # + Location anhaengen
+                                # erstmal ohne Organisation, weil sonst zu unuebersichtlich...
+                                if ($team{$differentiation_count}{$role_first_program}{location} ne "") {
+                                    $role_name_display = $role_name_display." <i class='bi-geo'></i> ".$team{$differentiation_count}{$role_first_program}{location};
+                                }
                             }
                             else {
                                 $role_name_display = "$role_name $differentiation_count";
                             }
+
+                            # bei noshow -> Durchstreichen!
+                            if ($team{$differentiation_count}{$role_first_program}{noshow} == 1) {
+                                $role_name_display = "<s>$role_name_display</s>";
+                            }
+
                         }
                         elsif ($role_id == 5 || $role_id == 11) {
                             # SchiedsrichterIn
@@ -1806,7 +1818,9 @@ sub get_auswahl {
                 # select team_plan.team_number_plan, team.name from team_plan join team on team_plan.team=team.id where plan=[plan] and team.first_program=3 order by team.name
                 # und Explore-Team
                 # select team_plan.team_number_plan, team.name from team_plan join team on team_plan.team=team.id where plan=[plan] and team.first_program=2 order by team.name
+
                 # wird aber beides nicht mehr verwendet seit Umbau...
+                # wird auch über diffrentiation_type = number abgebildet jetzt!
 
                 # in $role_differentiation_source noch den [plan] ersetzen
                 $role_differentiation_source =~ s/\[plan\]/$params->{plan}/g;

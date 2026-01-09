@@ -1133,10 +1133,13 @@ const showChallengeTeams = computed(() => {
               ref="newRoomInput"
               v-model="newRoomName"
               class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
-              placeholder="Neuer Raum"
+              placeholder="Neuer Raum z.B. A2.03"
               @keyup.enter="createRoom"
               :disabled="isSaving"
             />
+            <p v-if="!newRoomName.trim()" class="text-xs text-gray-500 mt-1">
+              Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert.
+            </p>
           </div>
           <transition name="fade">
             <div v-if="newRoomName.trim().length > 0">
@@ -1148,6 +1151,9 @@ const showChallengeTeams = computed(() => {
                 @keyup.enter="createRoom"
                 :disabled="isSaving"
               />
+              <p v-if="!newRoomNote.trim()" class="text-xs text-gray-500 mt-1">
+                Falls der Raum schwer zu finden ist, hier bitte einen Hinweis eintragen.
+              </p>
             </div>
           </transition>
         </div>
