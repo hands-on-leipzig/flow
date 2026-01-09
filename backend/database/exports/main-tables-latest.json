@@ -3611,7 +3611,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppen umgestellt werden.",
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppe umgestellt werden.",
             "alert_level": 3
         },
         {
@@ -3621,7 +3621,7 @@
             "lanes": 2,
             "tables": 4,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppen umgestellt werden.",
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppe umgestellt werden.",
             "alert_level": 3
         },
         {
@@ -3781,7 +3781,7 @@
             "lanes": 3,
             "tables": 2,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 2 Jurygruppen umgestellt werden.",
             "alert_level": 3
         },
         {
@@ -3791,7 +3791,7 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 2 Jurygruppen umgestellt werden.",
             "alert_level": 3
         },
         {
@@ -3831,7 +3831,7 @@
             "lanes": 5,
             "tables": 4,
             "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 4 Jurygruppe umgestellt werden.",
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 4 Jurygruppen umgestellt werden.",
             "alert_level": 2
         },
         {
@@ -4970,11 +4970,6 @@
             "id": 491,
             "activity_type_detail": 7,
             "role": 16
-        },
-        {
-            "id": 497,
-            "activity_type_detail": 33,
-            "role": 4
         },
         {
             "id": 499,
@@ -6408,7 +6403,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2025-12-15T18:59:31.866127Z",
+        "exported_at": "2026-01-09T07:15:11.915681Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
