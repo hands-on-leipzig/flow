@@ -171,6 +171,9 @@ class TeamController extends Controller
                 TeamPlan::where('team', $team->id)
                     ->where('plan', $plan->id)
                     ->update(['noshow' => false]);
+                
+                // Renumber team_plan entries sequentially for this program
+                $this->renumberTeamPlanForProgram($plan->id, $event->id, $program->id);
             }
         }
         
@@ -235,7 +238,17 @@ class TeamController extends Controller
     {
         try {
             $eventId = $team->event;
+            $programId = $team->first_program;
+            
+            // Get plan before deleting team (for renumbering)
+            $plan = Plan::where('event', $eventId)->first();
+            
             $team->delete();
+            
+            // Renumber team_plan entries sequentially for this program after deletion
+            if ($plan) {
+                $this->renumberTeamPlanForProgram($plan->id, $eventId, $programId);
+            }
             
             // Update attention status after deleting team
             app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
@@ -248,5 +261,42 @@ class TeamController extends Controller
             ]);
             return response()->json(['error' => 'Failed to delete team'], 500);
         }
+    }
+
+    /**
+     * Renumber team_plan entries sequentially (1, 2, 3...) for a given plan and program
+     * Preserves room assignments and noshow status
+     */
+    private function renumberTeamPlanForProgram($planId, $eventId, $programId)
+    {
+        // Get all teams for this event and program
+        $teams = Team::where('event', $eventId)
+            ->where('first_program', $programId)
+            ->get();
+        
+        if ($teams->isEmpty()) {
+            return; // No teams to renumber
+        }
+        
+        // Get existing team_plan entries for these teams, ordered by current team_number_plan
+        $teamPlanEntries = TeamPlan::where('plan', $planId)
+            ->whereIn('team', $teams->pluck('id'))
+            ->orderBy('team_number_plan')
+            ->get();
+        
+        if ($teamPlanEntries->isEmpty()) {
+            return; // No team_plan entries to renumber
+        }
+        
+        // Renumber sequentially starting from 1, preserving room and noshow
+        DB::transaction(function () use ($teamPlanEntries, $planId) {
+            foreach ($teamPlanEntries as $index => $entry) {
+                TeamPlan::where('team', $entry->team)
+                    ->where('plan', $planId)
+                    ->update(['team_number_plan' => $index + 1]);
+            }
+        });
+        
+        Log::info("Renumbered team_plan entries for plan $planId, program $programId - new sequential order 1-" . count($teamPlanEntries));
     }
 }
