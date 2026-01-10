@@ -750,15 +750,20 @@ class PublishController extends Controller
             }
         }
 
+        // Get footer logos for QR PDF (logos will be rendered in content area)
+        $pdfLayoutService = app(\App\Services\PdfLayoutService::class);
+        $footerLogos = $pdfLayoutService->buildFooterLogos($event->id);
+
         // Inhalt + Layout rendern
         $contentHtml = view('pdf.content.qr_codes', [
             'event' => $event,
             'wifi' => $type === 'plan_wifi',
             'wifiPassword' => $wifiPassword,
+            'footerLogos' => $footerLogos, // Pass logos to content template
         ])->render();
 
         $layout = app(\App\Services\PdfLayoutService::class);
-        return $layout->renderLayout($event, $contentHtml, 'Event Sheet');
+        return $layout->renderLayout($event, $contentHtml, 'Event Sheet', true); // true = isQrCodePdf
     }
 
     /**
