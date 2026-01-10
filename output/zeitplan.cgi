@@ -990,8 +990,8 @@ sub get_detailplan {
             $sth_activities = $dbh->prepare($query_activities);
             $rv_activities = $sth_activities->execute;
 
-            #print "Content-type: text/html; charset=utf-8\n\n";
-            #print qq{$query_activities<br><br>};
+            print "Content-type: text/html; charset=utf-8\n\n";
+            print qq{$query_activities<br><br>};
 
             if ($rv_activities ne "0E0") {
                 while (@row_activities = $sth_activities->fetchrow_array) {
