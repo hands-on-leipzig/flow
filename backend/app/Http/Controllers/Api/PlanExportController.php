@@ -10,6 +10,7 @@ use App\Models\Plan;
 use App\Models\Event;
 use App\Services\ActivityFetcherService;
 use App\Services\EventTitleService;
+use App\Services\PdfLayoutService;
 use App\Enums\FirstProgram;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -21,11 +22,16 @@ class PlanExportController extends Controller
 {
     private ActivityFetcherService $activityFetcher;
     private EventTitleService $eventTitleService;
+    private PdfLayoutService $pdfLayoutService;
 
-    public function __construct(ActivityFetcherService $activityFetcher, EventTitleService $eventTitleService)
-    {
+    public function __construct(
+        ActivityFetcherService $activityFetcher,
+        EventTitleService $eventTitleService,
+        PdfLayoutService $pdfLayoutService
+    ) {
         $this->activityFetcher = $activityFetcher;
         $this->eventTitleService = $eventTitleService;
+        $this->pdfLayoutService = $pdfLayoutService;
     }
 
     /**
@@ -220,15 +226,11 @@ class PlanExportController extends Controller
         ])->render();
 
         // Use portrait layout with same header/footer as overview plan
-        $header = $this->buildHeaderData($event);
-        $footerLogos = $this->buildFooterLogos($event->id);
-        
-        $finalHtml = view('pdf.layout_portrait', [
-            'title' => 'FLOW Robot-Game Match-Plan',
-            'header' => $header,
-            'footerLogos' => $footerLogos,
-            'contentHtml' => $contentHtml,
-        ])->render();
+        $finalHtml = $this->pdfLayoutService->renderPortraitLayout(
+            $event,
+            $contentHtml,
+            'FLOW Robot-Game Match-Plan'
+        );
 
         // Generate PDF in portrait orientation
         $pdf = Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'portrait');
@@ -2623,15 +2625,11 @@ if ($prepRooms->isNotEmpty()) {
             ])->render();
 
             // Use portrait layout specifically for overview PDF
-            $header = $this->buildHeaderData($event);
-            $footerLogos = $this->buildFooterLogos($event->id);
-            
-            $finalHtml = view('pdf.layout_portrait', [
-                'title' => 'FLOW Übersichtsplan',
-                'header' => $header,
-                'footerLogos' => $footerLogos,
-                'contentHtml' => $contentHtml,
-            ])->render();
+            $finalHtml = $this->pdfLayoutService->renderPortraitLayout(
+                $event,
+                $contentHtml,
+                'FLOW Übersichtsplan'
+            );
 
             // Generate PDF in portrait orientation
             $pdf = Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'portrait');
@@ -2673,91 +2671,6 @@ if ($prepRooms->isNotEmpty()) {
         }
     }
 
-    /**
-     * Build header data for PDF (copied from PdfLayoutService)
-     */
-    private function buildHeaderData(object $event): array
-    {
-        $formattedDate = '';
-        if (!empty($event->date)) {
-            try {
-                $startDate = Carbon::parse($event->date);
-                
-                // Check if this is a multi-day event
-                if (!empty($event->days) && $event->days > 1) {
-                    // Multi-day event: show date range
-                    $endDate = $startDate->copy()->addDays($event->days - 1);
-                    $formattedDate = $startDate->format('d.m') . '-' . $endDate->format('d.m.Y');
-                } else {
-                    // Single-day event: show just the date
-                    $formattedDate = $startDate->format('d.m.Y');
-                }
-            } catch (\Throwable $e) {
-                $formattedDate = (string) $event->date;
-            }
-        }
-
-        $leftLogos = [];
-        if (!empty($event->event_explore)) {
-            $leftLogos[] = $this->toDataUri(public_path('flow/fll_explore_hs.png'));
-        }
-        if (!empty($event->event_challenge)) {
-            $leftLogos[] = $this->toDataUri(public_path('flow/fll_challenge_hs.png'));
-        }
-        $leftLogos = array_values(array_filter($leftLogos));
-
-        $rightLogo = $this->toDataUri(public_path('flow/hot.png'));
-
-        // Use EventTitleService for consistent title formatting
-        $competitionType = $this->eventTitleService->getCompetitionTypeText($event);
-        $cleanedEventName = $this->eventTitleService->cleanEventName($event);
-
-        return [
-            'leftLogos'       => $leftLogos,
-            'centerTitleTop'  => 'FIRST LEGO League ' . $competitionType,
-            'centerTitleMain' => trim($cleanedEventName . ' ' . $formattedDate),
-            'rightLogo'       => $rightLogo,
-        ];
-    }
-
-    /**
-     * Build footer logos for PDF (copied from PdfLayoutService)
-     */
-    private function buildFooterLogos(int $eventId): array
-    {
-        $logos = DB::table('logo')
-            ->join('event_logo', 'logo.id', '=', 'event_logo.logo')
-            ->where('event_logo.event', $eventId)
-            ->select('logo.path')
-            ->get();
-
-        $dataUris = [];
-        foreach ($logos as $logo) {
-            $path = storage_path('app/public/' . $logo->path);
-            $uri  = $this->toDataUri($path);
-            if ($uri) {
-                $dataUris[] = $uri;
-            }
-        }
-
-        return $dataUris;
-    }
-
-    /**
-     * Convert file to data URI (copied from PdfLayoutService)
-     */
-    private function toDataUri(string $path): ?string
-    {
-        if (!is_file($path)) {
-            return null;
-        }
-        $mime = mime_content_type($path) ?: 'image/png';
-        $data = @file_get_contents($path);
-        if ($data === false) {
-            return null;
-        }
-        return 'data:' . $mime . ';base64,' . base64_encode($data);
-    }
 
     /**
      * Get worker shifts for roles with differentiation_parameter

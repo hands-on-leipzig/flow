@@ -15,7 +15,7 @@ class PdfLayoutService
         $this->eventTitleService = $eventTitleService;
     }
     /**
-     * Baut das vollständige HTML-Dokument mit Header, Content (Mittelteil) und Footer.
+     * Baut das vollständige HTML-Dokument mit Header, Content (Mittelteil) und Footer im Querformat.
      */
     public function renderLayout(object $event, string $contentHtml, string $title = 'Dokument'): string
     {
@@ -33,7 +33,26 @@ class PdfLayoutService
         ])->render();
     }
 
-    private function buildHeaderData(object $event): array
+    /**
+     * Baut das vollständige HTML-Dokument mit Header, Content (Mittelteil) und Footer im Hochformat.
+     */
+    public function renderPortraitLayout(object $event, string $contentHtml, string $title = 'Dokument'): string
+    {
+        // Headerdaten
+        $header = $this->buildHeaderData($event);
+
+        // Footerlogos
+        $footerLogos = $this->buildFooterLogos($event->id);
+
+        return View::make('pdf.layout_portrait', [
+            'title'       => $title,
+            'header'      => $header,
+            'footerLogos' => $footerLogos,
+            'contentHtml' => $contentHtml,
+        ])->render();
+    }
+
+    public function buildHeaderData(object $event): array
     {
         $formattedDate = '';
         if (!empty($event->date)) {
@@ -74,7 +93,7 @@ class PdfLayoutService
         ];
     }
 
-    private function buildFooterLogos(int $eventId): array
+    public function buildFooterLogos(int $eventId): array
     {
         $logos = DB::table('logo')
             ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
@@ -95,7 +114,7 @@ class PdfLayoutService
     }
 
 
-    private function toDataUri(string $path): ?string
+    public function toDataUri(string $path): ?string
     {
         if (!is_file($path)) {
             return null;
