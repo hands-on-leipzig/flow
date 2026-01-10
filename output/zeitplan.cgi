@@ -734,6 +734,8 @@ sub get_detailplan {
 
     my $activity_activity_type_detail_description_html = "";
 
+    my $activity_id = "";
+    
     my $activity_first_program_name = "";
     my $activity_start = "";
     my $activity_start_datum = "";
@@ -965,7 +967,8 @@ sub get_detailplan {
             extra_block.description,
             extra_block.link,
             extra_block_room.name,
-            extra_block_room.navigation_instruction
+            extra_block_room.navigation_instruction,
+            activity.id
             from activity
             join m_activity_type_detail on activity.activity_type_detail=m_activity_type_detail.id
             join m_activity_type on m_activity_type_detail.activity_type=m_activity_type.id
@@ -1028,6 +1031,8 @@ sub get_detailplan {
                     $activity_extra_block_room_name = $row_activities[25];
                     $activity_extra_block_room_navigation_instruction = $row_activities[26];
 
+                    $activity_id = $row_activities[27];
+
                     if ($activity_room_type_name eq "") {
                         $activity_room_type_name = "nicht spezifiziert";
                     }
@@ -1064,7 +1069,7 @@ sub get_detailplan {
                         }
                         $activity_activity_type_detail_description_html = $activity_activity_type_detail_description;
                         $activity_activity_type_detail_description_html =~ s/'/&apos;/g;
-                        $activity_activity_type_detail_description_html = qq{<span data-bs-toggle="popover" data-bs-placement="top" data-bs-html="true" data-bs-content='$activity_activity_type_detail_description_html. $activity_activity_type_detail_link'><i class="bi-info-circle"></i></span>};
+                        $activity_activity_type_detail_description_html = qq{<span data-bs-toggle="popover" data-bs-placement="top" data-bs-html="true" data-bs-content='$activity_activity_type_detail_description_html. $activity_activity_type_detail_link ($activity_id)'><i class="bi-info-circle"></i></span>};
                     }
                     else {
                         $activity_activity_type_detail_description_html = "";
