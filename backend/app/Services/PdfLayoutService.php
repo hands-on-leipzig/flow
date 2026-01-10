@@ -16,20 +16,27 @@ class PdfLayoutService
     }
     /**
      * Baut das vollständige HTML-Dokument mit Header, Content (Mittelteil) und Footer im Querformat.
+     * 
+     * @param object $event Event object
+     * @param string $contentHtml Content HTML
+     * @param string $title Document title
+     * @param bool $isQrCodePdf If true, logos are rendered in content area and footer is reduced to 40px
+     * @return string Rendered HTML
      */
-    public function renderLayout(object $event, string $contentHtml, string $title = 'Dokument'): string
+    public function renderLayout(object $event, string $contentHtml, string $title = 'Dokument', bool $isQrCodePdf = false): string
     {
         // Headerdaten
         $header = $this->buildHeaderData($event);
 
-        // Footerlogos
-        $footerLogos = $this->buildFooterLogos($event->id);
+        // Footerlogos: For QR PDFs, logos are rendered in content area, so pass empty array
+        $footerLogos = $isQrCodePdf ? [] : $this->buildFooterLogos($event->id);
 
         return View::make('pdf.layout_landscape', [
             'title'       => $title,
             'header'      => $header,
             'footerLogos' => $footerLogos,
             'contentHtml' => $contentHtml,
+            'isQrCodePdf' => $isQrCodePdf,
         ])->render();
     }
 
