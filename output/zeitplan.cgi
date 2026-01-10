@@ -990,8 +990,8 @@ sub get_detailplan {
             $sth_activities = $dbh->prepare($query_activities);
             $rv_activities = $sth_activities->execute;
 
-            print "Content-type: text/html; charset=utf-8\n\n";
-            print qq{$query_activities<br><br>};
+            #print "Content-type: text/html; charset=utf-8\n\n";
+            #print qq{$query_activities<br><br>};
 
             if ($rv_activities ne "0E0") {
                 while (@row_activities = $sth_activities->fetchrow_array) {
@@ -1069,7 +1069,7 @@ sub get_detailplan {
                         }
                         $activity_activity_type_detail_description_html = $activity_activity_type_detail_description;
                         $activity_activity_type_detail_description_html =~ s/'/&apos;/g;
-                        $activity_activity_type_detail_description_html = qq{<span data-bs-toggle="popover" data-bs-placement="top" data-bs-html="true" data-bs-content='$activity_activity_type_detail_description_html. $activity_activity_type_detail_link ($activity_id)'><i class="bi-info-circle"></i></span>};
+                        $activity_activity_type_detail_description_html = qq{<span data-bs-toggle="popover" data-bs-placement="top" data-bs-html="true" data-bs-content='$activity_activity_type_detail_description_html. $activity_activity_type_detail_link'><i class="bi-info-circle"></i></span>};
                     }
                     else {
                         $activity_activity_type_detail_description_html = "";
