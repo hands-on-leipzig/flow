@@ -239,9 +239,7 @@ class VisibilityController extends Controller
                 if ($toggle['visible']) {
                     DB::table('m_visibility')->insertOrIgnore([
                         'role' => $toggle['role_id'],
-                        'activity_type_detail' => $toggle['activity_type_detail_id'],
-                        'created_at' => now(),
-                        'updated_at' => now()
+                        'activity_type_detail' => $toggle['activity_type_detail_id']
                     ]);
                 } else {
                     DB::table('m_visibility')
