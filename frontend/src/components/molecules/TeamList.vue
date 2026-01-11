@@ -24,6 +24,12 @@ const savingToast = ref(null)
 
 const ignoredTeamNumbers = ref(new Set())
 
+// People data from DRAHT API
+const peopleData = ref({})
+const expandedTeams = ref(new Set())
+const totalPlayers = ref(0)
+const totalCoaches = ref(0)
+
 // Plan parameter values for display
 const planParams = ref({
   c_teams: 0,
@@ -57,7 +63,7 @@ const onSort = async () => {
     })
     // Refresh discrepancy status after team reordering
     await eventStore.updateTeamDiscrepancyStatus()
-    
+
     // Reload teams to sync with backend (backend may have additional logic for team_number_plan)
     const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
     const teamsArray = Array.isArray(dbRes.data) ? dbRes.data : (dbRes.data.teams || [])
@@ -349,9 +355,9 @@ const planCapacity = computed(() => {
 
 // Computed: Get enrolled count for current program
 const enrolledCount = computed(() => {
-  return props.program === 'explore' 
-    ? (event.value?.drahtTeamsExplore || 0) 
-    : (event.value?.drahtTeamsChallenge || 0)
+  return props.program === 'explore'
+      ? (event.value?.drahtTeamsExplore || 0)
+      : (event.value?.drahtTeamsChallenge || 0)
 })
 
 // Computed: Get placeholder rows if plan > enrolled
@@ -359,7 +365,7 @@ const placeholderRows = computed(() => {
   const capacity = planCapacity.value
   const enrolled = enrolledCount.value
   const currentTeams = teamList.value.length
-  
+
   // If plan has more teams than enrolled, add empty rows to fill up to plan capacity
   if (capacity > enrolled) {
     const count = Math.max(0, capacity - currentTeams)
@@ -417,6 +423,150 @@ const afternoonStartIndex = computed(() => {
   return -1
 })
 
+// Get DRAHT team number for a team (try team_number_hot first, then remoteTeams)
+const getDrahtTeamNumber = (team) => {
+  // First try team_number_hot
+  if (team.team_number_hot) {
+    return String(team.team_number_hot)
+  }
+  // If not found, try to find in remoteTeams by matching name or id
+  const remoteTeam = props.remoteTeams.find(rt =>
+      rt.id === team.id ||
+      (rt.name === team.name && rt.number)
+  )
+  if (remoteTeam && remoteTeam.number) {
+    return String(remoteTeam.number)
+  }
+  return null
+}
+
+// Get people count for a team (players + coaches)
+const getPeopleCount = (team) => {
+  const teamNumber = getDrahtTeamNumber(team)
+  if (!teamNumber || !peopleData.value[teamNumber]) {
+    return null
+  }
+  const teamData = peopleData.value[teamNumber]
+  return (teamData.num_players || 0) + (teamData.num_coaches || 0)
+}
+
+// Get team people data
+const getTeamPeopleData = (team) => {
+  const teamNumber = getDrahtTeamNumber(team)
+  if (!teamNumber || !peopleData.value[teamNumber]) {
+    return null
+  }
+  return peopleData.value[teamNumber]
+}
+
+// Toggle team expansion
+const toggleTeamExpansion = (team) => {
+  const teamNumber = getDrahtTeamNumber(team)
+  if (!teamNumber) return
+
+  if (expandedTeams.value.has(teamNumber)) {
+    expandedTeams.value.delete(teamNumber)
+  } else {
+    expandedTeams.value.add(teamNumber)
+  }
+}
+
+// Check if team is expanded
+const isTeamExpanded = (team) => {
+  const teamNumber = getDrahtTeamNumber(team)
+  return teamNumber && expandedTeams.value.has(teamNumber)
+}
+
+// Format birthday timestamp to date string
+const formatBirthday = (timestamp) => {
+  if (!timestamp || timestamp === false) return 'N/A'
+  const date = new Date(timestamp * 1000)
+  return date.toLocaleDateString('de-DE')
+}
+
+// Download functions
+const downloadJSON = () => {
+  const dataStr = JSON.stringify(peopleData.value, null, 2)
+  const dataBlob = new Blob([dataStr], {type: 'application/json'})
+  const url = URL.createObjectURL(dataBlob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${props.program}_teams_people.json`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const downloadCSV = () => {
+  const rows = []
+  rows.push(['Team Number', 'Team Name', 'Player Name', 'First Name', 'Gender', 'Birthday'])
+
+  Object.entries(peopleData.value).forEach(([teamNumber, teamData]) => {
+    if (teamData.players && Array.isArray(teamData.players)) {
+      teamData.players.forEach(player => {
+        rows.push([
+          teamNumber,
+          teamData.name || '',
+          player.name || '',
+          player.firstname || '',
+          player.gender || '',
+          formatBirthday(player.birthday)
+        ])
+      })
+    }
+  })
+
+  const csvContent = rows.map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+  ).join('\n')
+
+  const dataBlob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'})
+  const url = URL.createObjectURL(dataBlob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${props.program}_teams_people.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const downloadXML = () => {
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<teams>\n'
+
+  Object.entries(peopleData.value).forEach(([teamNumber, teamData]) => {
+    xml += `  <team number="${teamNumber}" name="${escapeXml(teamData.name || '')}">\n`
+    if (teamData.players && Array.isArray(teamData.players)) {
+      teamData.players.forEach(player => {
+        xml += `    <player>\n`
+        xml += `      <name>${escapeXml(player.name || '')}</name>\n`
+        xml += `      <firstname>${escapeXml(player.firstname || '')}</firstname>\n`
+        xml += `      <gender>${escapeXml(player.gender || '')}</gender>\n`
+        xml += `      <birthday>${formatBirthday(player.birthday)}</birthday>\n`
+        xml += `    </player>\n`
+      })
+    }
+    xml += `  </team>\n`
+  })
+
+  xml += '</teams>'
+
+  const dataBlob = new Blob([xml], {type: 'application/xml;charset=utf-8;'})
+  const url = URL.createObjectURL(dataBlob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${props.program}_teams_people.xml`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const escapeXml = (str) => {
+  if (!str) return ''
+  return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;')
+}
+
 onMounted(async () => {
   try {
     // Fetch plan parameters
@@ -453,6 +603,29 @@ onMounted(async () => {
 
     teamList.value = [...localTeams.value]
     teamsDiffer.value = JSON.stringify(localTeams.value) !== JSON.stringify(props.remoteTeams)
+
+    // Fetch people data from DRAHT API
+    const drahtEventId = props.program === 'explore'
+        ? event.value?.event_explore
+        : event.value?.event_challenge
+
+    if (drahtEventId) {
+      try {
+        const peopleRes = await axios.get(`/draht/people/${drahtEventId}`)
+        if (peopleRes.data) {
+          // Store totals before removing them
+          totalPlayers.value = peopleRes.data.total_players || 0
+          totalCoaches.value = peopleRes.data.total_coaches || 0
+          // Remove 'total_players' and 'total_coaches' from the data
+          const {total_players, total_coaches, ...teamsData} = peopleRes.data
+          peopleData.value = teamsData
+        }
+      } catch (peopleErr) {
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch people data', peopleErr)
+        }
+      }
+    }
   } catch (err) {
     if (import.meta.env.DEV) {
       console.error('Failed to fetch teams', err)
@@ -468,8 +641,8 @@ onMounted(async () => {
     <div class="p-4 border rounded shadow">
       <div class="flex items-center gap-2 mb-2">
         <img
-            :src="programLogoSrc(program)"
             :alt="programLogoAlt(program)"
+            :src="programLogoSrc(program)"
             class="w-10 h-10 flex-shrink-0"
         />
         <div>
@@ -478,7 +651,12 @@ onMounted(async () => {
           </h3>
           <div class="text-sm text-gray-500 flex items-center gap-3">
             <span>
-              <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Plan für: {{ program === 'explore' ? planParams.e_teams : planParams.c_teams }}</span>, <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Angemeldet: {{ program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0 }}</span>, Kapazität: {{
+              <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Plan für: {{
+                  program === 'explore' ? planParams.e_teams : planParams.c_teams
+                }}</span>, <span
+                :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Angemeldet: {{
+                program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0
+              }}</span>, Kapazität: {{
                 program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0
               }}
             </span>
@@ -505,70 +683,117 @@ onMounted(async () => {
       </div>
       <draggable
           v-model="teamList"
-          item-key="id"
-          handle=".drag-handle"
-          @end="onSort"
-          ghost-class="drag-ghost"
+          animation="150"
           chosen-class="drag-chosen"
           drag-class="drag-dragging"
-          animation="150"
+          ghost-class="drag-ghost"
+          handle=".drag-handle"
+          item-key="id"
+          @end="onSort"
       >
         <template #item="{element: team, index}">
-          <li
-              :class="[
-                'rounded px-3 py-2 mb-1 flex justify-between items-center gap-2 transition-opacity',
-                (teamsBeyondCapacity && index >= planCapacity) 
-                  ? 'bg-yellow-100 text-red-800' 
-                  : 'bg-gray-50',
-                team.noshow ? 'opacity-50' : 'opacity-100',
-                (teamsBeyondCapacity && index >= planCapacity)
-                  ? 'border border-yellow-300'
-                  : '',
-                // Only apply colored border if team is NOT beyond capacity
-                !(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'morning' 
-                  ? 'border-l-[6px]' 
-                  : (!(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'afternoon' 
-                      ? 'border-l-[6px]' 
-                      : '')
-              ]"
-              :style="(teamsBeyondCapacity && index >= planCapacity) ? '' : getTeamBorderStyle(team)"
-          >
-            <!-- Drag-Handle -->
-            <span class="drag-handle cursor-move text-gray-500"><IconDraggable/></span>
-
-            <!-- Neue Positionsspalte (Txx) - empty if beyond capacity -->
-            <span v-if="!teamsBeyondCapacity || index < planCapacity" class="w-8 text-right text-sm" :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-black'">T{{ String(index + 1).padStart(2, '0') }}</span>
-            <span v-else class="w-8 text-right text-sm text-red-800">–</span>
-
-            <!-- Teamnummer (grau) -->
-            <span class="text-sm w-12" :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-gray-500'">{{ team.team_number_hot || '–' }}</span>
-
-            <!-- Eingabefeld -->
-            <input
-                v-model="team.name"
-                @blur="updateTeamName(team)"
+          <div>
+            <li
                 :class="[
-                  'editable-input flex-1 text-sm px-2 py-1 border border-transparent rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors cursor-pointer',
-                  (teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : ''
+                  'rounded px-3 py-2 mb-1 flex justify-between items-center gap-2 transition-opacity cursor-pointer',
+                  (teamsBeyondCapacity && index >= planCapacity) 
+                    ? 'bg-yellow-100 text-red-800' 
+                    : 'bg-gray-50',
+                  team.noshow ? 'opacity-50' : 'opacity-100',
+                  (teamsBeyondCapacity && index >= planCapacity)
+                    ? 'border border-yellow-300'
+                    : '',
+                  // Only apply colored border if team is NOT beyond capacity
+                  !(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'morning' 
+                    ? 'border-l-[6px]' 
+                    : (!(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'afternoon' 
+                        ? 'border-l-[6px]' 
+                        : '')
                 ]"
-                placeholder="Click to edit team name"
-            />
+                :style="(teamsBeyondCapacity && index >= planCapacity) ? '' : getTeamBorderStyle(team)"
+                @click="toggleTeamExpansion(team)"
+            >
+              <!-- Drag-Handle -->
+              <span class="drag-handle cursor-move text-gray-500" @click.stop><IconDraggable/></span>
 
-            <!-- No-Show Checkbox (hidden for teams beyond capacity) -->
-            <label v-if="!(teamsBeyondCapacity && index >= planCapacity)" class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
+              <!-- Neue Positionsspalte (Txx) - empty if beyond capacity -->
+              <span v-if="!teamsBeyondCapacity || index < planCapacity"
+                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-black'"
+                    class="w-8 text-right text-sm">T{{
+                  String(index + 1).padStart(2, '0')
+                }}</span>
+              <span v-else class="w-8 text-right text-sm text-red-800">–</span>
+
+              <!-- Teamnummer (grau) -->
+              <span :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-gray-500'"
+                    class="text-sm w-12">{{
+                  team.team_number_hot || '–'
+                }}</span>
+
+              <!-- No-Show Checkbox (hidden for teams beyond capacity) -->
+              <label v-if="!(teamsBeyondCapacity && index >= planCapacity)"
+                     class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer" @click.stop>
+                <input
+                    v-model="team.noshow"
+                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    type="checkbox"
+                    @change="updateTeamNoshow(team)"
+                />
+                <span class="text-xs">No-Show</span>
+              </label>
+              <span v-else class="w-16"></span>
+
+              <!-- Eingabefeld -->
               <input
-                  type="checkbox"
-                  v-model="team.noshow"
-                  @change="updateTeamNoshow(team)"
-                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  v-model="team.name"
+                  :class="[
+                    'editable-input flex-1 text-sm px-2 py-1 border border-transparent rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors cursor-pointer',
+                    (teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : ''
+                  ]"
+                  placeholder="Click to edit team name"
+                  @blur="updateTeamName(team)"
+                  @click.stop
               />
-              <span class="text-xs">No-Show</span>
-            </label>
-            <span v-else class="w-16"></span>
-          </li>
+
+              <!-- People count -->
+              <span v-if="getPeopleCount(team) !== null" class="text-sm text-gray-600 space-x-2">
+                {{ getPeopleCount(team) }} <i class="fa-solid fa-person"></i>
+              </span>
+              <span v-else class="text-sm text-gray-400">–</span>
+
+              <!-- Expand/Collapse icon -->
+              <span class="text-gray-500 text-sm">
+                {{ isTeamExpanded(team) ? '▼' : '▶' }}
+              </span>
+            </li>
+            <!-- Expanded players list -->
+            <div v-if="isTeamExpanded(team) && getTeamPeopleData(team)" class="ml-8 mb-2 bg-gray-100 rounded p-3">
+              <div class="text-sm font-semibold mb-2">
+                Mitglieder ({{ getTeamPeopleData(team).num_players || 0 }}) / Coaches
+                ({{ getTeamPeopleData(team).num_coaches || 0 }})
+              </div>
+              <div v-if="getTeamPeopleData(team).players && getTeamPeopleData(team).players.length > 0"
+                   class="space-y-1">
+                <div
+                    v-for="(player, playerIndex) in getTeamPeopleData(team).players"
+                    :key="playerIndex"
+                    class="text-sm text-gray-700"
+                >
+                  <span v-if="player.name || player.firstname">
+                    {{ player.firstname || '' }} {{ player.name || '' }}
+                    <span class="text-gray-500">({{ player.gender || 'N/A' }}, {{
+                        formatBirthday(player.birthday)
+                      }})</span>
+                  </span>
+                  <span v-else class="text-gray-400 italic">Unbekanntes Mitglied</span>
+                </div>
+              </div>
+              <div v-else class="text-sm text-gray-400 italic">Keine Mitglieder gefunden</div>
+            </div>
+          </div>
         </template>
       </draggable>
-      
+
       <!-- Placeholder rows for plan > enrolled -->
       <template v-for="placeholder in placeholderRows" :key="placeholder.id">
         <li
@@ -576,24 +801,60 @@ onMounted(async () => {
         >
           <!-- Empty space for drag handle -->
           <span class="w-6"></span>
-          
+
           <!-- Empty Txx column (no Txx shown as per requirements) -->
           <span class="w-8"></span>
-          
+
           <!-- Empty team number -->
           <span class="text-sm w-12 text-red-800">–</span>
-          
+
           <!-- Placeholder text -->
           <span class="flex-1 text-sm text-red-800 italic">Fehlendes Team</span>
-          
+
           <!-- Empty space for checkbox -->
           <span class="w-16"></span>
         </li>
       </template>
-      
+
       <!-- Note about no-show teams -->
       <div class="mt-4 text-xs text-gray-600 italic">
         "No-show" Teams bleiben im Plan, werden aber in allen Ausgaben "durchgestrichen" dargestellt.
+      </div>
+
+      <!-- Totals and Download buttons -->
+      <div v-if="Object.keys(peopleData).length > 0" class="mt-4 pt-4 border-t border-gray-300">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-4">
+            <div class="text-sm">
+              <span class="font-semibold">Gesamt:</span>
+              <span class="ml-2">{{ totalPlayers }} {{ totalPlayers === 1 ? 'Mitglied' : 'Mitglieder' }}</span>
+              <span class="ml-2">+</span>
+              <span class="ml-2">{{ totalCoaches }} {{ totalCoaches === 1 ? 'Coach' : 'Coaches' }}</span>
+              <span class="ml-2">=</span>
+              <span class="ml-2 font-semibold">{{ totalCoaches + totalPlayers }} Personen</span>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button
+                class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                @click="downloadJSON"
+            >
+              Download JSON
+            </button>
+            <button
+                class="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                @click="downloadCSV"
+            >
+              Download CSV
+            </button>
+            <button
+                class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                @click="downloadXML"
+            >
+              Download XML
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <div
@@ -613,24 +874,24 @@ onMounted(async () => {
           <div
               v-for="team in mergedTeams.filter(t => t.status !== 'match' && t.status !== 'ignored')"
               :key="team.number"
-              class="rounded-md p-4 border-l-4 bg-gray-50"
               :class="{
       'border-yellow-400': team.status === 'conflict',
       'border-green-500': team.status === 'new',
       'border-red-500': team.status === 'missing'
     }"
+              class="rounded-md p-4 border-l-4 bg-gray-50"
           >
             <div class="flex justify-between items-center mb-2">
               <span class="text-sm font-semibold text-gray-700">
                 Team-Nr: {{ team.number ?? (team.draht?.number ?? 'Keine Nummer') }}
               </span>
               <span
-                  class="text-xs font-medium uppercase"
                   :class="{
           'text-yellow-700': team.status === 'conflict',
           'text-green-700': team.status === 'new',
           'text-red-700': team.status === 'missing'
         }"
+                  class="text-xs font-medium uppercase"
               >
         {{ statusLabels[team.status] }}
       </span>
@@ -661,12 +922,12 @@ onMounted(async () => {
               </button>
               <button
                   v-else
-                  class="px-3 py-1 text-sm rounded"
                   :class="{
                     'bg-blue-600 text-white hover:bg-blue-700': team.draht?.number || team.number,
                     'bg-gray-300 text-gray-500 cursor-not-allowed': !team.draht?.number && !team.number
                   }"
                   :disabled="!team.draht?.number && !team.number"
+                  class="px-3 py-1 text-sm rounded"
                   @click="applyDrahtTeam(team)"
               >
                 {{
