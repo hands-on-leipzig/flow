@@ -389,11 +389,13 @@ sub get_zeitplan {
             my $team_name = "";
             my $team_number_hot = "";
             my $team_room_name = "";
+            my $team_noshow = "";
 
             $query = qq{select
                         team.name,
                         team.team_number_hot,
-                        room.name
+                        room.name,
+                        team_plan.noshow
                         from team_plan
                         join team on team_plan.team=team.id
                         left join room on room.id=team_plan.room
@@ -409,6 +411,7 @@ sub get_zeitplan {
                 $team_name = $row[0];
                 $team_number_hot = $row[1];
                 $team_room_name = $row[2];
+                $team_noshow = $row[3];
 
                 if ($team_room_name ne "") {
                     $team_room_name = qq{- Raum $team_room_name};
@@ -425,6 +428,11 @@ sub get_zeitplan {
                 $role = qq{Team $team_name};
                 $role_xml = qq{Team $team_name};
                 $role_filename = qq{Team-$team_name};
+            }
+
+            # bei noshow -> Durchstreichen!
+            if ($team_noshow == 1) {
+                $role = "<s>$role</s>";
             }
         }
         elsif ($role_id == 5) {
@@ -449,10 +457,12 @@ sub get_zeitplan {
             # Explore Team
             my $team_name = "";
             my $team_number_hot = "";
+            my $team_noshow = "";
 
             $query = qq{select
                         team.name,
-                        team.team_number_hot
+                        team.team_number_hot,
+                        team_plan.noshow
                         from team_plan
                         join team on team_plan.team=team.id
                         where team_plan.plan=$params->{plan}
@@ -466,6 +476,7 @@ sub get_zeitplan {
                 @row = $sth->fetchrow_array;
                 $team_name = $row[0];
                 $team_number_hot = $row[1];
+                $team_noshow = $row[2];
 
                 $role = qq{Team $team_name<br>$team_number_hot};
                 $role_xml = qq{Team $team_name ($team_number_hot)};
@@ -478,6 +489,10 @@ sub get_zeitplan {
                 $role = qq{Team $team_name};
                 $role_xml = qq{Team $team_name};
                 $role_filename = qq{Team-$team_name};
+            }
+            # bei noshow -> Durchstreichen!
+            if ($team_noshow == 1) {
+                $role = "<s>$role</s>";
             }
         }
         elsif ($role_id == 9) {
