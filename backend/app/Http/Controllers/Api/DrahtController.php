@@ -459,6 +459,44 @@ class DrahtController extends Controller
     }
 
     /**
+     * Get people data (players and coaches) for a DRAHT event
+     *
+     * @param int $drahtEventId The DRAHT event ID (event_explore or event_challenge)
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPeople(int $drahtEventId)
+    {
+        try {
+            $response = $this->makeDrahtCall("/handson/flow/{$drahtEventId}/people");
+
+            if (!$response->ok()) {
+                Log::error("Failed to fetch people data from DRAHT API", [
+                    'draht_event_id' => $drahtEventId,
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return response()->json([
+                    'error' => 'Failed to fetch people data from DRAHT API',
+                    'status' => $response->status()
+                ], $response->status());
+            }
+
+            $peopleData = $response->json();
+            return response()->json($peopleData);
+        } catch (\Exception $e) {
+            Log::error("Exception while fetching people data from DRAHT API", [
+                'draht_event_id' => $drahtEventId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Internal server error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Format contact data for frontend consumption
      */
     private function formatContactData($contactData)

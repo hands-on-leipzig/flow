@@ -12,6 +12,7 @@ const exploreTeamsDraht = ref([])
 const challengeTeamsDraht = ref([])
 const loading = ref(true)
 
+
 onMounted(async () => {
   loading.value = true
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
