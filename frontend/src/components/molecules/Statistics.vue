@@ -1133,32 +1133,37 @@ function exportToCSV() {
               >
                 {{ row.event_name }}
               </a>
+              <span class="text-gray-500 ml-1">({{ formatDateOnly(row.event_date) }})</span>
               <span
                 v-if="row.event_needs_attention"
                 class="inline-block w-2 h-2 bg-red-500 rounded-full ml-1 align-middle"
                 title="Event benötigt Aufmerksamkeit: Ablauf, Teams oder Räume haben Probleme"
               ></span>
-              <span class="text-gray-500 ml-1">({{ formatDateOnly(row.event_date) }})</span>
-              <template v-if="row.event_explore">
-                <img
-                  :src="programLogoSrc('E')"
-                  :alt="programLogoAlt('E')"
-                  class="w-5 h-5 inline-block align-middle ml-2"
-                />
-                <span class="text-xs text-gray-600 ml-1">
-                  {{ row.event_teams_explore ?? 0 }}
-                </span>
-              </template>
-              <template v-if="row.event_challenge">
-                <img
-                  :src="programLogoSrc('C')"
-                  :alt="programLogoAlt('C')"
-                  class="w-5 h-5 inline-block align-middle ml-2"
-                />
-                <span class="text-xs text-gray-600 ml-1">
-                  {{ row.event_teams_challenge ?? 0 }}
-                </span>
-              </template>
+              <span
+                v-if="row.event_explore || row.event_challenge"
+                class="inline-flex items-center ml-2 whitespace-nowrap"
+              >
+                <template v-if="row.event_explore">
+                  <img
+                    :src="programLogoSrc('E')"
+                    :alt="programLogoAlt('E')"
+                    class="w-5 h-5 inline-block align-middle"
+                  />
+                  <span class="text-xs text-gray-600 ml-1">
+                    {{ row.event_teams_explore ?? 0 }}
+                  </span>
+                </template>
+                <template v-if="row.event_challenge">
+                  <img
+                    :src="programLogoSrc('C')"
+                    :alt="programLogoAlt('C')"
+                    class="w-5 h-5 inline-block align-middle ml-2"
+                  />
+                  <span class="text-xs text-gray-600 ml-1">
+                    {{ row.event_teams_challenge ?? 0 }}
+                  </span>
+                </template>
+              </span>
             </template>
             <template v-else>
               &nbsp;
