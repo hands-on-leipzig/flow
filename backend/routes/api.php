@@ -46,6 +46,7 @@ Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPubli
 Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
 Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
+Route::get('/events', [EventController::class, 'index']); // Get list of current events
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
@@ -67,20 +68,20 @@ Route::middleware(['keycloak'])->group(function () {
             'is_prod' => app()->environment('production')
         ]);
     });
-    
+
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/regional-partners', function (Request $request) {
         $user = $request->user();
         if (!$user) {
             return response()->json(['regional_partners' => []]);
         }
-        
+
         // Use fully qualified column names to avoid ambiguity with pivot table's 'id' column
         // The pivot table 'user_regional_partner' also has an 'id' column, so we need to specify the table
         $regionalPartners = $user->regionalPartners()
             ->select('regional_partner.id', 'regional_partner.name', 'regional_partner.region')
             ->get();
-        
+
         return response()->json(['regional_partners' => $regionalPartners]);
     });
     Route::get('/user/selected-event', function (Request $request) {
@@ -250,10 +251,10 @@ Route::middleware(['keycloak'])->group(function () {
             ->orderBy('year', 'desc')
             ->get()
             ->toArray(); // Convert Collection to array
-            
+
         return response()->json($seasons);
     }); // Get all seasons for dropdowns
-    
+
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
@@ -339,7 +340,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/{id}', [\App\Http\Controllers\Api\ApplicationController::class, 'show']);
         Route::put('/{id}', [\App\Http\Controllers\Api\ApplicationController::class, 'update']);
         Route::delete('/{id}', [\App\Http\Controllers\Api\ApplicationController::class, 'destroy']);
-        
+
         // API key management
         Route::post('/{applicationId}/api-keys', [\App\Http\Controllers\Api\ApplicationController::class, 'createApiKey']);
         Route::put('/{applicationId}/api-keys/{apiKeyId}', [\App\Http\Controllers\Api\ApplicationController::class, 'updateApiKey']);
