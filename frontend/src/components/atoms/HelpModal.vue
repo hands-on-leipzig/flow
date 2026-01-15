@@ -30,6 +30,12 @@ const presentationFilename = ref('FLOW 2025-2026.pdf')
 const presentationUrl = computed(() => {
   return presentationFilename.value ? imageUrl(`/flow/${presentationFilename.value}`) : ''
 })
+
+// Special situation guides
+const specialSituationFilename = ref('FLOW - Wenn Teams am Tag der Veranstaltung nicht erscheinen.pdf')
+const specialSituationUrl = computed(() => {
+  return specialSituationFilename.value ? imageUrl(`/flow/${specialSituationFilename.value}`) : ''
+})
 </script>
 
 <template>
@@ -46,6 +52,9 @@ const presentationUrl = computed(() => {
 
       <!-- Content -->
       <div class="px-6 py-6">
+        <!-- Section Header: Quick Start -->
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Schneller Einstieg in die Benutzung</h3>
+        
         <!-- Intro text -->
         <div class="text-gray-800 whitespace-pre-wrap leading-relaxed mb-6">
           <p class="mb-4">
@@ -95,6 +104,26 @@ const presentationUrl = computed(() => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
           Präsentation wird noch hochgeladen
+        </div>
+
+        <!-- Special Situation Guides Section -->
+        <div class="mt-6 pt-6 border-t border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4">Kurzanleitungen für spezielle Situationen</h3>
+          
+          <!-- Special Situation PDF Link -->
+          <div v-if="specialSituationUrl" class="mb-4">
+            <a 
+              :href="specialSituationUrl" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="inline-flex items-center text-blue-600 hover:text-blue-800 hover:underline font-medium"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              Wenn Teams am Tag der Veranstaltung nicht erscheinen
+            </a>
+          </div>
         </div>
       </div>
 
