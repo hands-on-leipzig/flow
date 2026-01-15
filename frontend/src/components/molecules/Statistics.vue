@@ -62,6 +62,10 @@ const drahtIssues = ref<Map<number, boolean>>(new Map())
 const contactEmails = ref<Record<number, string>>({})
 const planWarnings = ref<Map<number, boolean>>(new Map()) // plan_id => has_warning
 
+// Filter toggles
+const hidePastEvents = ref(true) // Default: hide past events
+const showOnlyNext14Days = ref(false) // Default: show all future events
+
 const router = useRouter()
 const eventStore = useEventStore()
 
@@ -443,15 +447,63 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
   return rows
 })
 
+// Filtered rows based on toggle states (for display only)
+const filteredRows = computed(() => {
+  if (!flattenedRows.value) return []
+  
+  let filtered = [...flattenedRows.value]
+  
+  // Filter 1: Hide past events (default: on)
+  if (hidePastEvents.value) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    filtered = filtered.filter(row => {
+      if (!row.event_date) return true // Keep rows without date
+      try {
+        const eventDate = new Date(row.event_date)
+        eventDate.setHours(0, 0, 0, 0)
+        return eventDate >= today
+      } catch (e) {
+        return true // Keep rows with invalid dates
+      }
+    })
+  }
+  
+  // Filter 2: Show only next 14 days (default: off)
+  if (showOnlyNext14Days.value) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const maxDate = new Date(today)
+    maxDate.setDate(today.getDate() + 14)
+    
+    filtered = filtered.filter(row => {
+      if (!row.event_date) return false // Hide rows without date when filtering
+      try {
+        const eventDate = new Date(row.event_date)
+        eventDate.setHours(0, 0, 0, 0)
+        const diffTime = eventDate.getTime() - today.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        // Show events from today (0) to 14 days in the future
+        return diffDays >= 0 && diffDays <= 14
+      } catch (e) {
+        return false // Hide rows with invalid dates when filtering
+      }
+    })
+  }
+  
+  return filtered
+})
+
 function shouldShowPartner(index) {
   if (index === 0) return true
-  return flattenedRows.value[index].partner_id !== flattenedRows.value[index - 1].partner_id
+  return filteredRows.value[index].partner_id !== filteredRows.value[index - 1].partner_id
 }
 
 function shouldShowEvent(index) {
   if (index === 0) return true
-  const current = flattenedRows.value[index]
-  const previous = flattenedRows.value[index - 1]
+  const current = filteredRows.value[index]
+  const previous = filteredRows.value[index - 1]
   return (
     current.partner_id !== previous.partner_id ||
     current.event_id !== previous.event_id
@@ -460,12 +512,12 @@ function shouldShowEvent(index) {
 
 function getEventName(eventId: number | null): string {
   if (!eventId) return ''
-  const row = flattenedRows.value.find(r => r.event_id === eventId)
+  const row = filteredRows.value.find(r => r.event_id === eventId)
   return row?.event_name || ''
 }
 
 const getPlanCount = (eventId) => {
-  return flattenedRows.value.filter(r => r.event_id === eventId && r.plan_id !== null).length
+  return filteredRows.value.filter(r => r.event_id === eventId && r.plan_id !== null).length
 }
 
 function openPreview(planId) {
@@ -914,35 +966,59 @@ function exportToCSV() {
         </div>
       </div>
 
-      <!-- DRAHT Check Banner (without red dot/visual indication, but keep logic) -->
-      <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="mb-2 p-2 rounded border bg-blue-50 border-blue-300">
-        <div class="flex justify-between items-center">
-          <div class="text-sm font-medium text-blue-800">
-            <template v-if="drahtCheckState.isRunning">
-              DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
-            </template>
-            <template v-else-if="drahtCheckState.completed">
-              DRAHT-Daten geladen: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
-            </template>
+      <!-- Filter toggles and DRAHT Check -->
+      <div class="mb-2 p-2 rounded border bg-blue-50 border-blue-300">
+        <div class="flex justify-between items-center gap-4 flex-wrap">
+          <!-- Filter toggles on the left -->
+          <div class="flex items-center gap-4 flex-wrap">
+            <!-- Toggle 1: Hide past events -->
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input
+                v-model="hidePastEvents"
+                class="sr-only peer"
+                type="checkbox"
+              >
+              <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+              <div
+                class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
+              ></div>
+              <span class="ml-2 text-sm font-medium text-gray-700">Vergangenheit ausblenden</span>
+            </label>
+            
+            <!-- Toggle 2: Show only next 14 days -->
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input
+                v-model="showOnlyNext14Days"
+                class="sr-only peer"
+                type="checkbox"
+              >
+              <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+              <div
+                class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
+              ></div>
+              <span class="ml-2 text-sm font-medium text-gray-700">Nur die nächsten 14 Tage</span>
+            </label>
           </div>
-          <button
-            v-if="!drahtCheckState.isRunning"
-            @click="startDrahtCheck"
-            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
-          >
-            DRAHT-Daten holen
-          </button>
+          
+          <!-- DRAHT Check on the right -->
+          <div class="flex items-center gap-2">
+            <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="text-sm font-medium text-blue-800">
+              <template v-if="drahtCheckState.isRunning">
+                DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
+              </template>
+              <template v-else-if="drahtCheckState.completed">
+                DRAHT-Daten geladen: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
+              </template>
+            </div>
+            <button
+              @click="startDrahtCheck"
+              :disabled="drahtCheckState.isRunning"
+              class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              DRAHT-Daten holen
+            </button>
+          </div>
         </div>
-      </div>
-      
-      <!-- DRAHT Check Button (when not running and not completed) -->
-      <div v-if="!drahtCheckState.isRunning && !drahtCheckState.completed" class="mb-2 p-2 rounded border bg-blue-50 border-blue-300">
-        <button
-          @click="startDrahtCheck"
-          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
-        >
-          DRAHT-Daten holen
-        </button>
       </div>
 
       <!-- Table -->
@@ -970,7 +1046,7 @@ function exportToCSV() {
             <thead class="bg-gray-100 text-left sticky top-0 z-10">
               <tr>
                 <th class="px-3 py-2">RP</th>
-                <th class="px-3 py-2">Partner</th>
+                <th class="px-3 py-2 w-24">Partner</th>
                 <th class="px-3 py-2">Event</th>
                 <th class="px-3 py-2">Name, Datum, Anmeldungen</th>
                 <th class="px-3 py-2">Plan</th>
@@ -985,7 +1061,7 @@ function exportToCSV() {
             </thead>
             <tbody>
         <tr
-            v-for="(row, index) in flattenedRows"
+            v-for="(row, index) in filteredRows"
           :key="`${row.partner_id}-${row.event_id}-${row.plan_id}`"
           class="border-t border-gray-200 hover:bg-gray-50"
         >
@@ -1000,14 +1076,14 @@ function exportToCSV() {
           </td>
 
           <!-- RP name -->
-          <td class="px-3 py-2">
+          <td class="px-3 py-2 w-24">
             <template v-if="shouldShowPartner(index)">
-              <span class="flex items-center gap-1">
+              <span class="inline-flex items-center gap-1">
                 {{ row.partner_name }}
                 <a
                   v-if="row.contact_email"
                   :href="`mailto:${row.contact_email}?subject=FLOW`"
-                  class="text-blue-600 hover:text-blue-800"
+                  class="text-blue-600 hover:text-blue-800 flex-shrink-0"
                   title="E-Mail senden"
                 >
                   ✉️
@@ -1032,7 +1108,7 @@ function exportToCSV() {
           <!-- Event name + date -->
           <td class="px-3 py-2" :class="getEventDateClass(row.event_date)">
             <template v-if="shouldShowEvent(index)">
-              <span class="mr-2">
+              <span class="mr-1">
                 <template v-if="row.draht_issue">
                   <!-- 🔴 DRAHT issue (critical) -->
                   🔴
@@ -1050,53 +1126,43 @@ function exportToCSV() {
                   ⚠️
                 </template>
               </span>
-              <!-- Clickable name with needs_attention indicator -->
-              <span class="flex items-center gap-1">
-                <a
-                  href="#"
-                  class="text-blue-600 hover:underline cursor-pointer"
-                  @click.prevent="selectEvent(row.event_id, row.partner_id)"
-                >
-                  {{ row.event_name }}
-                </a>
-                <div
-                  v-if="row.event_needs_attention"
-                  class="w-2 h-2 bg-red-500 rounded-full"
-                  title="Event benötigt Aufmerksamkeit: Ablauf, Teams oder Räume haben Probleme"
-                ></div>
-              </span>
-
-              <span class="text-gray-500"> ({{ formatDateOnly(row.event_date) }})</span>
+              <a
+                href="#"
+                class="text-blue-600 hover:underline cursor-pointer"
+                @click.prevent="selectEvent(row.event_id, row.partner_id)"
+              >
+                {{ row.event_name }}
+              </a>
+              <span class="text-gray-500 ml-1">({{ formatDateOnly(row.event_date) }})</span>
+              <span
+                v-if="row.event_needs_attention"
+                class="inline-block w-2 h-2 bg-red-500 rounded-full ml-1 align-middle"
+                title="Event benötigt Aufmerksamkeit: Ablauf, Teams oder Räume haben Probleme"
+              ></span>
               <span
                 v-if="row.event_explore || row.event_challenge"
-                class="inline-flex items-center space-x-2 ml-2"
+                class="inline-flex items-center ml-2 whitespace-nowrap"
               >
-                <span
-                  v-if="row.event_explore"
-                  class="inline-flex items-center space-x-1"
-                >
+                <template v-if="row.event_explore">
                   <img
                     :src="programLogoSrc('E')"
                     :alt="programLogoAlt('E')"
-                    class="w-5 h-5 inline-block"
+                    class="w-5 h-5 inline-block align-middle"
                   />
-                  <span class="text-xs text-gray-600">
+                  <span class="text-xs text-gray-600 ml-1">
                     {{ row.event_teams_explore ?? 0 }}
                   </span>
-                </span>
-                <span
-                  v-if="row.event_challenge"
-                  class="inline-flex items-center space-x-1"
-                >
+                </template>
+                <template v-if="row.event_challenge">
                   <img
                     :src="programLogoSrc('C')"
                     :alt="programLogoAlt('C')"
-                    class="w-5 h-5 inline-block"
+                    class="w-5 h-5 inline-block align-middle ml-2"
                   />
-                  <span class="text-xs text-gray-600">
+                  <span class="text-xs text-gray-600 ml-1">
                     {{ row.event_teams_challenge ?? 0 }}
                   </span>
-                </span>
+                </template>
               </span>
             </template>
             <template v-else>
@@ -1271,8 +1337,13 @@ function exportToCSV() {
         </div>
       </div>
 
-      <div v-if="flattenedRows.length === 0" class="mt-4 text-gray-500 italic">
-        Keine Pläne in dieser Saison.
+      <div v-if="filteredRows.length === 0" class="mt-4 text-gray-500 italic">
+        <template v-if="flattenedRows.length === 0">
+          Keine Pläne in dieser Saison.
+        </template>
+        <template v-else>
+          Keine Pläne entsprechen den aktuellen Filtern.
+        </template>
       </div>
     </div>
   </div>

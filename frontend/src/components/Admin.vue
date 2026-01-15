@@ -461,13 +461,13 @@ fetchConditions()
           <!-- Logo Cleanup -->
           <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
             <h3 class="text-lg font-semibold mb-2">Logo-Bereinigung</h3>
-            <p class="text-gray-600 mb-4">
+            <p class="text-gray-600 mb-2">
               Diese Funktion bereinigt verwaiste Logos:
-              <ul class="list-disc list-inside mt-2 space-y-1 text-sm">
-                <li>Löscht Datenbankeinträge, deren Dateien nicht mehr auf dem Server existieren</li>
-                <li>Löscht Dateien ohne zugehörigen Datenbankeintrag (nur hochgeladene Logos, keine System-Logos)</li>
-              </ul>
             </p>
+            <ul class="list-disc list-inside mb-4 space-y-1 text-sm text-gray-600">
+              <li>Löscht Datenbankeinträge, deren Dateien nicht mehr auf dem Server existieren</li>
+              <li>Löscht Dateien ohne zugehörigen Datenbankeintrag (nur hochgeladene Logos, keine System-Logos)</li>
+            </ul>
             <button 
               class="px-6 py-2 rounded bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
               @click="cleanupOrphanedLogos"
