@@ -1046,7 +1046,7 @@ function exportToCSV() {
             <thead class="bg-gray-100 text-left sticky top-0 z-10">
               <tr>
                 <th class="px-3 py-2">RP</th>
-                <th class="px-3 py-2">Partner</th>
+                <th class="px-3 py-2 w-24">Partner</th>
                 <th class="px-3 py-2">Event</th>
                 <th class="px-3 py-2">Name, Datum, Anmeldungen</th>
                 <th class="px-3 py-2">Plan</th>
@@ -1076,14 +1076,14 @@ function exportToCSV() {
           </td>
 
           <!-- RP name -->
-          <td class="px-3 py-2">
+          <td class="px-3 py-2 w-24">
             <template v-if="shouldShowPartner(index)">
-              <span class="flex items-center gap-1">
+              <span class="inline-flex items-center gap-1">
                 {{ row.partner_name }}
                 <a
                   v-if="row.contact_email"
                   :href="`mailto:${row.contact_email}?subject=FLOW`"
-                  class="text-blue-600 hover:text-blue-800"
+                  class="text-blue-600 hover:text-blue-800 flex-shrink-0"
                   title="E-Mail senden"
                 >
                   ✉️
@@ -1108,7 +1108,7 @@ function exportToCSV() {
           <!-- Event name + date -->
           <td class="px-3 py-2" :class="getEventDateClass(row.event_date)">
             <template v-if="shouldShowEvent(index)">
-              <span class="mr-2">
+              <span class="mr-1">
                 <template v-if="row.draht_issue">
                   <!-- 🔴 DRAHT issue (critical) -->
                   🔴
@@ -1126,54 +1126,39 @@ function exportToCSV() {
                   ⚠️
                 </template>
               </span>
-              <!-- Clickable name with needs_attention indicator -->
-              <span class="flex items-center gap-1">
-                <a
-                  href="#"
-                  class="text-blue-600 hover:underline cursor-pointer"
-                  @click.prevent="selectEvent(row.event_id, row.partner_id)"
-                >
-                  {{ row.event_name }}
-                </a>
-                <div
-                  v-if="row.event_needs_attention"
-                  class="w-2 h-2 bg-red-500 rounded-full"
-                  title="Event benötigt Aufmerksamkeit: Ablauf, Teams oder Räume haben Probleme"
-                ></div>
-              </span>
-
-              <span class="text-gray-500"> ({{ formatDateOnly(row.event_date) }})</span>
-              <span
-                v-if="row.event_explore || row.event_challenge"
-                class="inline-flex items-center space-x-2 ml-2"
+              <a
+                href="#"
+                class="text-blue-600 hover:underline cursor-pointer"
+                @click.prevent="selectEvent(row.event_id, row.partner_id)"
               >
-                <span
-                  v-if="row.event_explore"
-                  class="inline-flex items-center space-x-1"
-                >
-                  <img
-                    :src="programLogoSrc('E')"
-                    :alt="programLogoAlt('E')"
-                    class="w-5 h-5 inline-block"
-                  />
-                  <span class="text-xs text-gray-600">
-                    {{ row.event_teams_explore ?? 0 }}
-                  </span>
+                {{ row.event_name }}
+              </a>
+              <span
+                v-if="row.event_needs_attention"
+                class="inline-block w-2 h-2 bg-red-500 rounded-full ml-1 align-middle"
+                title="Event benötigt Aufmerksamkeit: Ablauf, Teams oder Räume haben Probleme"
+              ></span>
+              <span class="text-gray-500 ml-1">({{ formatDateOnly(row.event_date) }})</span>
+              <template v-if="row.event_explore">
+                <img
+                  :src="programLogoSrc('E')"
+                  :alt="programLogoAlt('E')"
+                  class="w-5 h-5 inline-block align-middle ml-2"
+                />
+                <span class="text-xs text-gray-600 ml-1">
+                  {{ row.event_teams_explore ?? 0 }}
                 </span>
-                <span
-                  v-if="row.event_challenge"
-                  class="inline-flex items-center space-x-1"
-                >
-                  <img
-                    :src="programLogoSrc('C')"
-                    :alt="programLogoAlt('C')"
-                    class="w-5 h-5 inline-block"
-                  />
-                  <span class="text-xs text-gray-600">
-                    {{ row.event_teams_challenge ?? 0 }}
-                  </span>
+              </template>
+              <template v-if="row.event_challenge">
+                <img
+                  :src="programLogoSrc('C')"
+                  :alt="programLogoAlt('C')"
+                  class="w-5 h-5 inline-block align-middle ml-2"
+                />
+                <span class="text-xs text-gray-600 ml-1">
+                  {{ row.event_teams_challenge ?? 0 }}
                 </span>
-              </span>
+              </template>
             </template>
             <template v-else>
               &nbsp;
