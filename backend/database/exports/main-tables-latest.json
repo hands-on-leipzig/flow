@@ -3953,9 +3953,34 @@
             "calibration": 0,
             "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
             "alert_level": 3
+        },
+        {
+            "id": 111,
+            "first_program": 2,
+            "teams": 11,
+            "lanes": 2,
+            "tables": null,
+            "calibration": null,
+            "note": "F\u00fcr Cathrin :-)",
+            "alert_level": null
         }
     ],
     "m_visibility": [
+        {
+            "id": 875,
+            "activity_type_detail": 1,
+            "role": 1
+        },
+        {
+            "id": 702,
+            "activity_type_detail": 1,
+            "role": 2
+        },
+        {
+            "id": 871,
+            "activity_type_detail": 1,
+            "role": 7
+        },
         {
             "id": 8,
             "activity_type_detail": 1,
@@ -3972,9 +3997,44 @@
             "role": 10
         },
         {
+            "id": 701,
+            "activity_type_detail": 1,
+            "role": 14
+        },
+        {
+            "id": 703,
+            "activity_type_detail": 1,
+            "role": 15
+        },
+        {
+            "id": 593,
+            "activity_type_detail": 1,
+            "role": 17
+        },
+        {
+            "id": 632,
+            "activity_type_detail": 1,
+            "role": 19
+        },
+        {
+            "id": 872,
+            "activity_type_detail": 2,
+            "role": 7
+        },
+        {
             "id": 19,
             "activity_type_detail": 2,
             "role": 9
+        },
+        {
+            "id": 596,
+            "activity_type_detail": 2,
+            "role": 17
+        },
+        {
+            "id": 634,
+            "activity_type_detail": 2,
+            "role": 19
         },
         {
             "id": 27,
@@ -3987,14 +4047,74 @@
             "role": 9
         },
         {
+            "id": 450,
+            "activity_type_detail": 3,
+            "role": 15
+        },
+        {
+            "id": 595,
+            "activity_type_detail": 3,
+            "role": 17
+        },
+        {
+            "id": 633,
+            "activity_type_detail": 3,
+            "role": 19
+        },
+        {
+            "id": 448,
+            "activity_type_detail": 4,
+            "role": 2
+        },
+        {
+            "id": 390,
+            "activity_type_detail": 4,
+            "role": 7
+        },
+        {
             "id": 38,
             "activity_type_detail": 4,
             "role": 8
         },
         {
+            "id": 825,
+            "activity_type_detail": 4,
+            "role": 9
+        },
+        {
             "id": 40,
             "activity_type_detail": 4,
             "role": 10
+        },
+        {
+            "id": 389,
+            "activity_type_detail": 4,
+            "role": 12
+        },
+        {
+            "id": 447,
+            "activity_type_detail": 4,
+            "role": 14
+        },
+        {
+            "id": 449,
+            "activity_type_detail": 4,
+            "role": 15
+        },
+        {
+            "id": 829,
+            "activity_type_detail": 4,
+            "role": 17
+        },
+        {
+            "id": 631,
+            "activity_type_detail": 4,
+            "role": 19
+        },
+        {
+            "id": 453,
+            "activity_type_detail": 5,
+            "role": 2
         },
         {
             "id": 47,
@@ -4015,6 +4135,31 @@
             "id": 50,
             "activity_type_detail": 5,
             "role": 10
+        },
+        {
+            "id": 392,
+            "activity_type_detail": 5,
+            "role": 12
+        },
+        {
+            "id": 454,
+            "activity_type_detail": 5,
+            "role": 14
+        },
+        {
+            "id": 452,
+            "activity_type_detail": 5,
+            "role": 15
+        },
+        {
+            "id": 592,
+            "activity_type_detail": 5,
+            "role": 17
+        },
+        {
+            "id": 636,
+            "activity_type_detail": 5,
+            "role": 19
         },
         {
             "id": 51,
@@ -4045,6 +4190,41 @@
             "id": 56,
             "activity_type_detail": 6,
             "role": 6
+        },
+        {
+            "id": 165,
+            "activity_type_detail": 6,
+            "role": 11
+        },
+        {
+            "id": 699,
+            "activity_type_detail": 6,
+            "role": 13
+        },
+        {
+            "id": 417,
+            "activity_type_detail": 6,
+            "role": 14
+        },
+        {
+            "id": 418,
+            "activity_type_detail": 6,
+            "role": 15
+        },
+        {
+            "id": 857,
+            "activity_type_detail": 6,
+            "role": 16
+        },
+        {
+            "id": 510,
+            "activity_type_detail": 6,
+            "role": 18
+        },
+        {
+            "id": 601,
+            "activity_type_detail": 6,
+            "role": 19
         },
         {
             "id": 61,
@@ -4097,6 +4277,56 @@
             "role": 10
         },
         {
+            "id": 166,
+            "activity_type_detail": 7,
+            "role": 11
+        },
+        {
+            "id": 399,
+            "activity_type_detail": 7,
+            "role": 12
+        },
+        {
+            "id": 398,
+            "activity_type_detail": 7,
+            "role": 13
+        },
+        {
+            "id": 400,
+            "activity_type_detail": 7,
+            "role": 14
+        },
+        {
+            "id": 401,
+            "activity_type_detail": 7,
+            "role": 15
+        },
+        {
+            "id": 491,
+            "activity_type_detail": 7,
+            "role": 16
+        },
+        {
+            "id": 587,
+            "activity_type_detail": 7,
+            "role": 17
+        },
+        {
+            "id": 542,
+            "activity_type_detail": 7,
+            "role": 18
+        },
+        {
+            "id": 643,
+            "activity_type_detail": 7,
+            "role": 19
+        },
+        {
+            "id": 380,
+            "activity_type_detail": 8,
+            "role": 1
+        },
+        {
             "id": 72,
             "activity_type_detail": 8,
             "role": 2
@@ -4115,6 +4345,41 @@
             "id": 76,
             "activity_type_detail": 8,
             "role": 6
+        },
+        {
+            "id": 804,
+            "activity_type_detail": 8,
+            "role": 11
+        },
+        {
+            "id": 379,
+            "activity_type_detail": 8,
+            "role": 13
+        },
+        {
+            "id": 437,
+            "activity_type_detail": 8,
+            "role": 14
+        },
+        {
+            "id": 438,
+            "activity_type_detail": 8,
+            "role": 15
+        },
+        {
+            "id": 534,
+            "activity_type_detail": 8,
+            "role": 18
+        },
+        {
+            "id": 626,
+            "activity_type_detail": 8,
+            "role": 19
+        },
+        {
+            "id": 386,
+            "activity_type_detail": 9,
+            "role": 1
         },
         {
             "id": 81,
@@ -4137,6 +4402,41 @@
             "role": 6
         },
         {
+            "id": 477,
+            "activity_type_detail": 9,
+            "role": 11
+        },
+        {
+            "id": 353,
+            "activity_type_detail": 9,
+            "role": 13
+        },
+        {
+            "id": 441,
+            "activity_type_detail": 9,
+            "role": 14
+        },
+        {
+            "id": 442,
+            "activity_type_detail": 9,
+            "role": 15
+        },
+        {
+            "id": 536,
+            "activity_type_detail": 9,
+            "role": 18
+        },
+        {
+            "id": 627,
+            "activity_type_detail": 9,
+            "role": 19
+        },
+        {
+            "id": 387,
+            "activity_type_detail": 10,
+            "role": 1
+        },
+        {
             "id": 91,
             "activity_type_detail": 10,
             "role": 2
@@ -4155,6 +4455,41 @@
             "id": 95,
             "activity_type_detail": 10,
             "role": 6
+        },
+        {
+            "id": 478,
+            "activity_type_detail": 10,
+            "role": 11
+        },
+        {
+            "id": 354,
+            "activity_type_detail": 10,
+            "role": 13
+        },
+        {
+            "id": 443,
+            "activity_type_detail": 10,
+            "role": 14
+        },
+        {
+            "id": 444,
+            "activity_type_detail": 10,
+            "role": 15
+        },
+        {
+            "id": 537,
+            "activity_type_detail": 10,
+            "role": 18
+        },
+        {
+            "id": 628,
+            "activity_type_detail": 10,
+            "role": 19
+        },
+        {
+            "id": 388,
+            "activity_type_detail": 11,
+            "role": 1
         },
         {
             "id": 101,
@@ -4177,6 +4512,41 @@
             "role": 6
         },
         {
+            "id": 479,
+            "activity_type_detail": 11,
+            "role": 11
+        },
+        {
+            "id": 355,
+            "activity_type_detail": 11,
+            "role": 13
+        },
+        {
+            "id": 445,
+            "activity_type_detail": 11,
+            "role": 14
+        },
+        {
+            "id": 446,
+            "activity_type_detail": 11,
+            "role": 15
+        },
+        {
+            "id": 538,
+            "activity_type_detail": 11,
+            "role": 18
+        },
+        {
+            "id": 629,
+            "activity_type_detail": 11,
+            "role": 19
+        },
+        {
+            "id": 382,
+            "activity_type_detail": 12,
+            "role": 1
+        },
+        {
             "id": 111,
             "activity_type_detail": 12,
             "role": 2
@@ -4195,6 +4565,41 @@
             "id": 115,
             "activity_type_detail": 12,
             "role": 6
+        },
+        {
+            "id": 832,
+            "activity_type_detail": 12,
+            "role": 11
+        },
+        {
+            "id": 352,
+            "activity_type_detail": 12,
+            "role": 13
+        },
+        {
+            "id": 439,
+            "activity_type_detail": 12,
+            "role": 14
+        },
+        {
+            "id": 440,
+            "activity_type_detail": 12,
+            "role": 15
+        },
+        {
+            "id": 535,
+            "activity_type_detail": 12,
+            "role": 18
+        },
+        {
+            "id": 625,
+            "activity_type_detail": 12,
+            "role": 19
+        },
+        {
+            "id": 369,
+            "activity_type_detail": 13,
+            "role": 1
         },
         {
             "id": 121,
@@ -4217,6 +4622,41 @@
             "role": 6
         },
         {
+            "id": 801,
+            "activity_type_detail": 13,
+            "role": 11
+        },
+        {
+            "id": 368,
+            "activity_type_detail": 13,
+            "role": 13
+        },
+        {
+            "id": 468,
+            "activity_type_detail": 13,
+            "role": 14
+        },
+        {
+            "id": 424,
+            "activity_type_detail": 13,
+            "role": 15
+        },
+        {
+            "id": 532,
+            "activity_type_detail": 13,
+            "role": 18
+        },
+        {
+            "id": 624,
+            "activity_type_detail": 13,
+            "role": 19
+        },
+        {
+            "id": 363,
+            "activity_type_detail": 14,
+            "role": 1
+        },
+        {
             "id": 131,
             "activity_type_detail": 14,
             "role": 2
@@ -4227,9 +4667,54 @@
             "role": 3
         },
         {
+            "id": 361,
+            "activity_type_detail": 14,
+            "role": 4
+        },
+        {
             "id": 134,
             "activity_type_detail": 14,
             "role": 5
+        },
+        {
+            "id": 334,
+            "activity_type_detail": 14,
+            "role": 6
+        },
+        {
+            "id": 802,
+            "activity_type_detail": 14,
+            "role": 11
+        },
+        {
+            "id": 362,
+            "activity_type_detail": 14,
+            "role": 13
+        },
+        {
+            "id": 419,
+            "activity_type_detail": 14,
+            "role": 14
+        },
+        {
+            "id": 420,
+            "activity_type_detail": 14,
+            "role": 15
+        },
+        {
+            "id": 858,
+            "activity_type_detail": 14,
+            "role": 16
+        },
+        {
+            "id": 531,
+            "activity_type_detail": 14,
+            "role": 18
+        },
+        {
+            "id": 623,
+            "activity_type_detail": 14,
+            "role": 19
         },
         {
             "id": 141,
@@ -4252,19 +4737,49 @@
             "role": 6
         },
         {
+            "id": 373,
+            "activity_type_detail": 15,
+            "role": 13
+        },
+        {
+            "id": 470,
+            "activity_type_detail": 15,
+            "role": 14
+        },
+        {
+            "id": 533,
+            "activity_type_detail": 15,
+            "role": 18
+        },
+        {
+            "id": 621,
+            "activity_type_detail": 15,
+            "role": 19
+        },
+        {
             "id": 152,
             "activity_type_detail": 16,
             "role": 3
         },
         {
-            "id": 165,
-            "activity_type_detail": 6,
+            "id": 471,
+            "activity_type_detail": 16,
             "role": 11
         },
         {
-            "id": 166,
-            "activity_type_detail": 7,
-            "role": 11
+            "id": 529,
+            "activity_type_detail": 16,
+            "role": 18
+        },
+        {
+            "id": 619,
+            "activity_type_detail": 16,
+            "role": 19
+        },
+        {
+            "id": 870,
+            "activity_type_detail": 17,
+            "role": 1
         },
         {
             "id": 179,
@@ -4282,9 +4797,39 @@
             "role": 6
         },
         {
+            "id": 469,
+            "activity_type_detail": 17,
+            "role": 14
+        },
+        {
+            "id": 516,
+            "activity_type_detail": 17,
+            "role": 18
+        },
+        {
+            "id": 607,
+            "activity_type_detail": 17,
+            "role": 19
+        },
+        {
+            "id": 831,
+            "activity_type_detail": 18,
+            "role": 1
+        },
+        {
             "id": 191,
             "activity_type_detail": 18,
             "role": 4
+        },
+        {
+            "id": 515,
+            "activity_type_detail": 18,
+            "role": 18
+        },
+        {
+            "id": 606,
+            "activity_type_detail": 18,
+            "role": 19
         },
         {
             "id": 199,
@@ -4292,9 +4837,74 @@
             "role": 1
         },
         {
+            "id": 460,
+            "activity_type_detail": 19,
+            "role": 4
+        },
+        {
+            "id": 428,
+            "activity_type_detail": 19,
+            "role": 15
+        },
+        {
+            "id": 514,
+            "activity_type_detail": 19,
+            "role": 18
+        },
+        {
+            "id": 605,
+            "activity_type_detail": 19,
+            "role": 19
+        },
+        {
+            "id": 371,
+            "activity_type_detail": 20,
+            "role": 1
+        },
+        {
+            "id": 869,
+            "activity_type_detail": 20,
+            "role": 3
+        },
+        {
             "id": 213,
             "activity_type_detail": 20,
             "role": 4
+        },
+        {
+            "id": 868,
+            "activity_type_detail": 20,
+            "role": 6
+        },
+        {
+            "id": 421,
+            "activity_type_detail": 20,
+            "role": 14
+        },
+        {
+            "id": 423,
+            "activity_type_detail": 20,
+            "role": 15
+        },
+        {
+            "id": 513,
+            "activity_type_detail": 20,
+            "role": 18
+        },
+        {
+            "id": 604,
+            "activity_type_detail": 20,
+            "role": 19
+        },
+        {
+            "id": 374,
+            "activity_type_detail": 21,
+            "role": 1
+        },
+        {
+            "id": 431,
+            "activity_type_detail": 21,
+            "role": 2
         },
         {
             "id": 223,
@@ -4322,6 +4932,41 @@
             "role": 11
         },
         {
+            "id": 833,
+            "activity_type_detail": 21,
+            "role": 13
+        },
+        {
+            "id": 430,
+            "activity_type_detail": 21,
+            "role": 14
+        },
+        {
+            "id": 429,
+            "activity_type_detail": 21,
+            "role": 15
+        },
+        {
+            "id": 522,
+            "activity_type_detail": 21,
+            "role": 18
+        },
+        {
+            "id": 613,
+            "activity_type_detail": 21,
+            "role": 19
+        },
+        {
+            "id": 377,
+            "activity_type_detail": 32,
+            "role": 1
+        },
+        {
+            "id": 433,
+            "activity_type_detail": 32,
+            "role": 2
+        },
+        {
             "id": 234,
             "activity_type_detail": 32,
             "role": 3
@@ -4342,59 +4987,9 @@
             "role": 6
         },
         {
-            "id": 334,
-            "activity_type_detail": 14,
-            "role": 6
-        },
-        {
-            "id": 338,
-            "activity_type_detail": 39,
-            "role": 9
-        },
-        {
-            "id": 339,
-            "activity_type_detail": 38,
-            "role": 8
-        },
-        {
-            "id": 341,
-            "activity_type_detail": 35,
-            "role": 3
-        },
-        {
-            "id": 342,
-            "activity_type_detail": 33,
-            "role": 3
-        },
-        {
-            "id": 343,
-            "activity_type_detail": 33,
-            "role": 6
-        },
-        {
-            "id": 345,
-            "activity_type_detail": 36,
-            "role": 4
-        },
-        {
-            "id": 346,
+            "id": 376,
             "activity_type_detail": 32,
-            "role": 6
-        },
-        {
-            "id": 347,
-            "activity_type_detail": 32,
-            "role": 3
-        },
-        {
-            "id": 348,
-            "activity_type_detail": 32,
-            "role": 5
-        },
-        {
-            "id": 349,
-            "activity_type_detail": 32,
-            "role": 4
+            "role": 11
         },
         {
             "id": 350,
@@ -4402,34 +4997,9 @@
             "role": 13
         },
         {
-            "id": 351,
-            "activity_type_detail": 37,
-            "role": 5
-        },
-        {
-            "id": 352,
-            "activity_type_detail": 12,
-            "role": 13
-        },
-        {
-            "id": 353,
-            "activity_type_detail": 9,
-            "role": 13
-        },
-        {
-            "id": 354,
-            "activity_type_detail": 10,
-            "role": 13
-        },
-        {
-            "id": 355,
-            "activity_type_detail": 11,
-            "role": 13
-        },
-        {
-            "id": 356,
-            "activity_type_detail": 37,
-            "role": 1
+            "id": 432,
+            "activity_type_detail": 32,
+            "role": 14
         },
         {
             "id": 358,
@@ -4437,29 +5007,44 @@
             "role": 15
         },
         {
-            "id": 359,
-            "activity_type_detail": 35,
+            "id": 859,
+            "activity_type_detail": 32,
+            "role": 16
+        },
+        {
+            "id": 523,
+            "activity_type_detail": 32,
+            "role": 18
+        },
+        {
+            "id": 614,
+            "activity_type_detail": 32,
+            "role": 19
+        },
+        {
+            "id": 367,
+            "activity_type_detail": 33,
             "role": 1
         },
         {
-            "id": 361,
-            "activity_type_detail": 14,
-            "role": 4
+            "id": 425,
+            "activity_type_detail": 33,
+            "role": 2
         },
         {
-            "id": 362,
-            "activity_type_detail": 14,
-            "role": 13
-        },
-        {
-            "id": 363,
-            "activity_type_detail": 14,
-            "role": 1
+            "id": 342,
+            "activity_type_detail": 33,
+            "role": 3
         },
         {
             "id": 364,
             "activity_type_detail": 33,
             "role": 5
+        },
+        {
+            "id": 343,
+            "activity_type_detail": 33,
+            "role": 6
         },
         {
             "id": 365,
@@ -4472,154 +5057,29 @@
             "role": 13
         },
         {
-            "id": 367,
+            "id": 426,
             "activity_type_detail": 33,
-            "role": 1
-        },
-        {
-            "id": 368,
-            "activity_type_detail": 13,
-            "role": 13
-        },
-        {
-            "id": 369,
-            "activity_type_detail": 13,
-            "role": 1
-        },
-        {
-            "id": 370,
-            "activity_type_detail": 36,
-            "role": 1
-        },
-        {
-            "id": 371,
-            "activity_type_detail": 20,
-            "role": 1
-        },
-        {
-            "id": 373,
-            "activity_type_detail": 15,
-            "role": 13
-        },
-        {
-            "id": 374,
-            "activity_type_detail": 21,
-            "role": 1
-        },
-        {
-            "id": 376,
-            "activity_type_detail": 32,
-            "role": 11
-        },
-        {
-            "id": 377,
-            "activity_type_detail": 32,
-            "role": 1
-        },
-        {
-            "id": 379,
-            "activity_type_detail": 8,
-            "role": 13
-        },
-        {
-            "id": 380,
-            "activity_type_detail": 8,
-            "role": 1
-        },
-        {
-            "id": 382,
-            "activity_type_detail": 12,
-            "role": 1
-        },
-        {
-            "id": 386,
-            "activity_type_detail": 9,
-            "role": 1
-        },
-        {
-            "id": 387,
-            "activity_type_detail": 10,
-            "role": 1
-        },
-        {
-            "id": 388,
-            "activity_type_detail": 11,
-            "role": 1
-        },
-        {
-            "id": 389,
-            "activity_type_detail": 4,
-            "role": 12
-        },
-        {
-            "id": 390,
-            "activity_type_detail": 4,
-            "role": 7
-        },
-        {
-            "id": 391,
-            "activity_type_detail": 38,
-            "role": 7
-        },
-        {
-            "id": 392,
-            "activity_type_detail": 5,
-            "role": 12
-        },
-        {
-            "id": 393,
-            "activity_type_detail": 39,
-            "role": 7
-        },
-        {
-            "id": 398,
-            "activity_type_detail": 7,
-            "role": 13
-        },
-        {
-            "id": 399,
-            "activity_type_detail": 7,
-            "role": 12
-        },
-        {
-            "id": 400,
-            "activity_type_detail": 7,
             "role": 14
         },
         {
-            "id": 401,
-            "activity_type_detail": 7,
+            "id": 427,
+            "activity_type_detail": 33,
             "role": 15
         },
         {
-            "id": 402,
-            "activity_type_detail": 34,
-            "role": 6
+            "id": 860,
+            "activity_type_detail": 33,
+            "role": 16
         },
         {
-            "id": 403,
-            "activity_type_detail": 34,
-            "role": 3
+            "id": 511,
+            "activity_type_detail": 33,
+            "role": 18
         },
         {
-            "id": 404,
-            "activity_type_detail": 34,
-            "role": 5
-        },
-        {
-            "id": 405,
-            "activity_type_detail": 34,
-            "role": 11
-        },
-        {
-            "id": 406,
-            "activity_type_detail": 34,
-            "role": 13
-        },
-        {
-            "id": 407,
-            "activity_type_detail": 34,
-            "role": 4
+            "id": 602,
+            "activity_type_detail": 33,
+            "role": 19
         },
         {
             "id": 408,
@@ -4627,9 +5087,34 @@
             "role": 1
         },
         {
-            "id": 409,
+            "id": 415,
             "activity_type_detail": 34,
-            "role": 10
+            "role": 2
+        },
+        {
+            "id": 403,
+            "activity_type_detail": 34,
+            "role": 3
+        },
+        {
+            "id": 407,
+            "activity_type_detail": 34,
+            "role": 4
+        },
+        {
+            "id": 404,
+            "activity_type_detail": 34,
+            "role": 5
+        },
+        {
+            "id": 402,
+            "activity_type_detail": 34,
+            "role": 6
+        },
+        {
+            "id": 413,
+            "activity_type_detail": 34,
+            "role": 7
         },
         {
             "id": 410,
@@ -4642,14 +5127,24 @@
             "role": 9
         },
         {
+            "id": 409,
+            "activity_type_detail": 34,
+            "role": 10
+        },
+        {
+            "id": 405,
+            "activity_type_detail": 34,
+            "role": 11
+        },
+        {
             "id": 412,
             "activity_type_detail": 34,
             "role": 12
         },
         {
-            "id": 413,
+            "id": 406,
             "activity_type_detail": 34,
-            "role": 7
+            "role": 13
         },
         {
             "id": 414,
@@ -4657,524 +5152,9 @@
             "role": 14
         },
         {
-            "id": 415,
-            "activity_type_detail": 34,
-            "role": 2
-        },
-        {
             "id": 416,
             "activity_type_detail": 34,
             "role": 15
-        },
-        {
-            "id": 417,
-            "activity_type_detail": 6,
-            "role": 14
-        },
-        {
-            "id": 418,
-            "activity_type_detail": 6,
-            "role": 15
-        },
-        {
-            "id": 419,
-            "activity_type_detail": 14,
-            "role": 14
-        },
-        {
-            "id": 420,
-            "activity_type_detail": 14,
-            "role": 15
-        },
-        {
-            "id": 421,
-            "activity_type_detail": 20,
-            "role": 14
-        },
-        {
-            "id": 423,
-            "activity_type_detail": 20,
-            "role": 15
-        },
-        {
-            "id": 424,
-            "activity_type_detail": 13,
-            "role": 15
-        },
-        {
-            "id": 425,
-            "activity_type_detail": 33,
-            "role": 2
-        },
-        {
-            "id": 426,
-            "activity_type_detail": 33,
-            "role": 14
-        },
-        {
-            "id": 427,
-            "activity_type_detail": 33,
-            "role": 15
-        },
-        {
-            "id": 428,
-            "activity_type_detail": 19,
-            "role": 15
-        },
-        {
-            "id": 429,
-            "activity_type_detail": 21,
-            "role": 15
-        },
-        {
-            "id": 430,
-            "activity_type_detail": 21,
-            "role": 14
-        },
-        {
-            "id": 431,
-            "activity_type_detail": 21,
-            "role": 2
-        },
-        {
-            "id": 432,
-            "activity_type_detail": 32,
-            "role": 14
-        },
-        {
-            "id": 433,
-            "activity_type_detail": 32,
-            "role": 2
-        },
-        {
-            "id": 434,
-            "activity_type_detail": 32,
-            "role": 15
-        },
-        {
-            "id": 436,
-            "activity_type_detail": 37,
-            "role": 15
-        },
-        {
-            "id": 437,
-            "activity_type_detail": 8,
-            "role": 14
-        },
-        {
-            "id": 438,
-            "activity_type_detail": 8,
-            "role": 15
-        },
-        {
-            "id": 439,
-            "activity_type_detail": 12,
-            "role": 14
-        },
-        {
-            "id": 440,
-            "activity_type_detail": 12,
-            "role": 15
-        },
-        {
-            "id": 441,
-            "activity_type_detail": 9,
-            "role": 14
-        },
-        {
-            "id": 442,
-            "activity_type_detail": 9,
-            "role": 15
-        },
-        {
-            "id": 443,
-            "activity_type_detail": 10,
-            "role": 14
-        },
-        {
-            "id": 444,
-            "activity_type_detail": 10,
-            "role": 15
-        },
-        {
-            "id": 445,
-            "activity_type_detail": 11,
-            "role": 14
-        },
-        {
-            "id": 446,
-            "activity_type_detail": 11,
-            "role": 15
-        },
-        {
-            "id": 447,
-            "activity_type_detail": 4,
-            "role": 14
-        },
-        {
-            "id": 448,
-            "activity_type_detail": 4,
-            "role": 2
-        },
-        {
-            "id": 449,
-            "activity_type_detail": 4,
-            "role": 15
-        },
-        {
-            "id": 450,
-            "activity_type_detail": 3,
-            "role": 15
-        },
-        {
-            "id": 451,
-            "activity_type_detail": 38,
-            "role": 15
-        },
-        {
-            "id": 452,
-            "activity_type_detail": 5,
-            "role": 15
-        },
-        {
-            "id": 453,
-            "activity_type_detail": 5,
-            "role": 2
-        },
-        {
-            "id": 454,
-            "activity_type_detail": 5,
-            "role": 14
-        },
-        {
-            "id": 455,
-            "activity_type_detail": 39,
-            "role": 15
-        },
-        {
-            "id": 456,
-            "activity_type_detail": 32,
-            "role": 15
-        },
-        {
-            "id": 457,
-            "activity_type_detail": 32,
-            "role": 14
-        },
-        {
-            "id": 458,
-            "activity_type_detail": 32,
-            "role": 2
-        },
-        {
-            "id": 459,
-            "activity_type_detail": 32,
-            "role": 15
-        },
-        {
-            "id": 460,
-            "activity_type_detail": 19,
-            "role": 4
-        },
-        {
-            "id": 465,
-            "activity_type_detail": 37,
-            "role": 11
-        },
-        {
-            "id": 467,
-            "activity_type_detail": 32,
-            "role": 11
-        },
-        {
-            "id": 468,
-            "activity_type_detail": 13,
-            "role": 14
-        },
-        {
-            "id": 469,
-            "activity_type_detail": 17,
-            "role": 14
-        },
-        {
-            "id": 470,
-            "activity_type_detail": 15,
-            "role": 14
-        },
-        {
-            "id": 471,
-            "activity_type_detail": 16,
-            "role": 11
-        },
-        {
-            "id": 477,
-            "activity_type_detail": 9,
-            "role": 11
-        },
-        {
-            "id": 478,
-            "activity_type_detail": 10,
-            "role": 11
-        },
-        {
-            "id": 479,
-            "activity_type_detail": 11,
-            "role": 11
-        },
-        {
-            "id": 480,
-            "activity_type_detail": 44,
-            "role": 16
-        },
-        {
-            "id": 481,
-            "activity_type_detail": 40,
-            "role": 16
-        },
-        {
-            "id": 482,
-            "activity_type_detail": 42,
-            "role": 16
-        },
-        {
-            "id": 483,
-            "activity_type_detail": 43,
-            "role": 16
-        },
-        {
-            "id": 484,
-            "activity_type_detail": 41,
-            "role": 16
-        },
-        {
-            "id": 485,
-            "activity_type_detail": 42,
-            "role": 3
-        },
-        {
-            "id": 486,
-            "activity_type_detail": 41,
-            "role": 3
-        },
-        {
-            "id": 487,
-            "activity_type_detail": 41,
-            "role": 1
-        },
-        {
-            "id": 489,
-            "activity_type_detail": 40,
-            "role": 1
-        },
-        {
-            "id": 491,
-            "activity_type_detail": 7,
-            "role": 16
-        },
-        {
-            "id": 499,
-            "activity_type_detail": 45,
-            "role": 6
-        },
-        {
-            "id": 500,
-            "activity_type_detail": 45,
-            "role": 3
-        },
-        {
-            "id": 501,
-            "activity_type_detail": 45,
-            "role": 5
-        },
-        {
-            "id": 503,
-            "activity_type_detail": 45,
-            "role": 13
-        },
-        {
-            "id": 504,
-            "activity_type_detail": 45,
-            "role": 1
-        },
-        {
-            "id": 506,
-            "activity_type_detail": 45,
-            "role": 14
-        },
-        {
-            "id": 507,
-            "activity_type_detail": 45,
-            "role": 2
-        },
-        {
-            "id": 508,
-            "activity_type_detail": 45,
-            "role": 15
-        },
-        {
-            "id": 509,
-            "activity_type_detail": 35,
-            "role": 18
-        },
-        {
-            "id": 510,
-            "activity_type_detail": 6,
-            "role": 18
-        },
-        {
-            "id": 511,
-            "activity_type_detail": 33,
-            "role": 18
-        },
-        {
-            "id": 512,
-            "activity_type_detail": 36,
-            "role": 18
-        },
-        {
-            "id": 513,
-            "activity_type_detail": 20,
-            "role": 18
-        },
-        {
-            "id": 514,
-            "activity_type_detail": 19,
-            "role": 18
-        },
-        {
-            "id": 515,
-            "activity_type_detail": 18,
-            "role": 18
-        },
-        {
-            "id": 516,
-            "activity_type_detail": 17,
-            "role": 18
-        },
-        {
-            "id": 517,
-            "activity_type_detail": 44,
-            "role": 18
-        },
-        {
-            "id": 518,
-            "activity_type_detail": 40,
-            "role": 18
-        },
-        {
-            "id": 519,
-            "activity_type_detail": 42,
-            "role": 18
-        },
-        {
-            "id": 520,
-            "activity_type_detail": 43,
-            "role": 18
-        },
-        {
-            "id": 521,
-            "activity_type_detail": 41,
-            "role": 18
-        },
-        {
-            "id": 522,
-            "activity_type_detail": 21,
-            "role": 18
-        },
-        {
-            "id": 523,
-            "activity_type_detail": 32,
-            "role": 18
-        },
-        {
-            "id": 524,
-            "activity_type_detail": 32,
-            "role": 18
-        },
-        {
-            "id": 525,
-            "activity_type_detail": 32,
-            "role": 18
-        },
-        {
-            "id": 526,
-            "activity_type_detail": 32,
-            "role": 18
-        },
-        {
-            "id": 527,
-            "activity_type_detail": 32,
-            "role": 18
-        },
-        {
-            "id": 528,
-            "activity_type_detail": 32,
-            "role": 18
-        },
-        {
-            "id": 529,
-            "activity_type_detail": 16,
-            "role": 18
-        },
-        {
-            "id": 530,
-            "activity_type_detail": 45,
-            "role": 18
-        },
-        {
-            "id": 531,
-            "activity_type_detail": 14,
-            "role": 18
-        },
-        {
-            "id": 532,
-            "activity_type_detail": 13,
-            "role": 18
-        },
-        {
-            "id": 533,
-            "activity_type_detail": 15,
-            "role": 18
-        },
-        {
-            "id": 534,
-            "activity_type_detail": 8,
-            "role": 18
-        },
-        {
-            "id": 535,
-            "activity_type_detail": 12,
-            "role": 18
-        },
-        {
-            "id": 536,
-            "activity_type_detail": 9,
-            "role": 18
-        },
-        {
-            "id": 537,
-            "activity_type_detail": 10,
-            "role": 18
-        },
-        {
-            "id": 538,
-            "activity_type_detail": 11,
-            "role": 18
-        },
-        {
-            "id": 539,
-            "activity_type_detail": 37,
-            "role": 18
-        },
-        {
-            "id": 541,
-            "activity_type_detail": 34,
-            "role": 18
-        },
-        {
-            "id": 542,
-            "activity_type_detail": 7,
-            "role": 18
         },
         {
             "id": 543,
@@ -5187,259 +5167,9 @@
             "role": 17
         },
         {
-            "id": 587,
-            "activity_type_detail": 7,
-            "role": 17
-        },
-        {
-            "id": 592,
-            "activity_type_detail": 5,
-            "role": 17
-        },
-        {
-            "id": 593,
-            "activity_type_detail": 1,
-            "role": 17
-        },
-        {
-            "id": 595,
-            "activity_type_detail": 3,
-            "role": 17
-        },
-        {
-            "id": 596,
-            "activity_type_detail": 2,
-            "role": 17
-        },
-        {
-            "id": 597,
-            "activity_type_detail": 38,
-            "role": 17
-        },
-        {
-            "id": 598,
-            "activity_type_detail": 39,
-            "role": 17
-        },
-        {
-            "id": 600,
-            "activity_type_detail": 35,
-            "role": 19
-        },
-        {
-            "id": 601,
-            "activity_type_detail": 6,
-            "role": 19
-        },
-        {
-            "id": 602,
-            "activity_type_detail": 33,
-            "role": 19
-        },
-        {
-            "id": 603,
-            "activity_type_detail": 36,
-            "role": 19
-        },
-        {
-            "id": 604,
-            "activity_type_detail": 20,
-            "role": 19
-        },
-        {
-            "id": 605,
-            "activity_type_detail": 19,
-            "role": 19
-        },
-        {
-            "id": 606,
-            "activity_type_detail": 18,
-            "role": 19
-        },
-        {
-            "id": 607,
-            "activity_type_detail": 17,
-            "role": 19
-        },
-        {
-            "id": 608,
-            "activity_type_detail": 44,
-            "role": 19
-        },
-        {
-            "id": 609,
-            "activity_type_detail": 40,
-            "role": 19
-        },
-        {
-            "id": 610,
-            "activity_type_detail": 42,
-            "role": 19
-        },
-        {
-            "id": 611,
-            "activity_type_detail": 43,
-            "role": 19
-        },
-        {
-            "id": 612,
-            "activity_type_detail": 41,
-            "role": 19
-        },
-        {
-            "id": 613,
-            "activity_type_detail": 21,
-            "role": 19
-        },
-        {
-            "id": 614,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 615,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 616,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 617,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 618,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 619,
-            "activity_type_detail": 16,
-            "role": 19
-        },
-        {
-            "id": 620,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 621,
-            "activity_type_detail": 15,
-            "role": 19
-        },
-        {
-            "id": 622,
-            "activity_type_detail": 45,
-            "role": 19
-        },
-        {
-            "id": 623,
-            "activity_type_detail": 14,
-            "role": 19
-        },
-        {
-            "id": 624,
-            "activity_type_detail": 13,
-            "role": 19
-        },
-        {
-            "id": 625,
-            "activity_type_detail": 12,
-            "role": 19
-        },
-        {
-            "id": 626,
-            "activity_type_detail": 8,
-            "role": 19
-        },
-        {
-            "id": 627,
-            "activity_type_detail": 9,
-            "role": 19
-        },
-        {
-            "id": 628,
-            "activity_type_detail": 10,
-            "role": 19
-        },
-        {
-            "id": 629,
-            "activity_type_detail": 11,
-            "role": 19
-        },
-        {
-            "id": 630,
-            "activity_type_detail": 37,
-            "role": 19
-        },
-        {
-            "id": 631,
-            "activity_type_detail": 4,
-            "role": 19
-        },
-        {
-            "id": 632,
-            "activity_type_detail": 1,
-            "role": 19
-        },
-        {
-            "id": 633,
-            "activity_type_detail": 3,
-            "role": 19
-        },
-        {
-            "id": 634,
-            "activity_type_detail": 2,
-            "role": 19
-        },
-        {
-            "id": 635,
-            "activity_type_detail": 38,
-            "role": 19
-        },
-        {
-            "id": 636,
-            "activity_type_detail": 5,
-            "role": 19
-        },
-        {
-            "id": 637,
-            "activity_type_detail": 39,
-            "role": 19
-        },
-        {
-            "id": 638,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 639,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 640,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 641,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 642,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 643,
-            "activity_type_detail": 7,
-            "role": 19
+            "id": 541,
+            "activity_type_detail": 34,
+            "role": 18
         },
         {
             "id": 644,
@@ -5447,458 +5177,173 @@
             "role": 19
         },
         {
-            "id": 645,
-            "activity_type_detail": 46,
-            "role": 5
-        },
-        {
-            "id": 646,
-            "activity_type_detail": 46,
-            "role": 11
-        },
-        {
-            "id": 656,
-            "activity_type_detail": 49,
-            "role": 6
-        },
-        {
-            "id": 657,
-            "activity_type_detail": 49,
-            "role": 3
-        },
-        {
-            "id": 658,
-            "activity_type_detail": 49,
-            "role": 5
-        },
-        {
-            "id": 659,
-            "activity_type_detail": 49,
-            "role": 11
-        },
-        {
-            "id": 660,
-            "activity_type_detail": 49,
-            "role": 4
-        },
-        {
-            "id": 662,
-            "activity_type_detail": 49,
-            "role": 13
-        },
-        {
-            "id": 663,
-            "activity_type_detail": 49,
+            "id": 359,
+            "activity_type_detail": 35,
             "role": 1
         },
         {
-            "id": 664,
-            "activity_type_detail": 49,
-            "role": 18
-        },
-        {
-            "id": 665,
-            "activity_type_detail": 48,
-            "role": 17
-        },
-        {
-            "id": 666,
-            "activity_type_detail": 48,
-            "role": 7
-        },
-        {
-            "id": 667,
-            "activity_type_detail": 48,
-            "role": 12
-        },
-        {
-            "id": 668,
-            "activity_type_detail": 48,
-            "role": 9
-        },
-        {
-            "id": 669,
-            "activity_type_detail": 48,
-            "role": 8
-        },
-        {
-            "id": 670,
-            "activity_type_detail": 48,
-            "role": 10
-        },
-        {
-            "id": 672,
-            "activity_type_detail": 49,
-            "role": 14
-        },
-        {
-            "id": 673,
-            "activity_type_detail": 49,
-            "role": 2
-        },
-        {
-            "id": 674,
-            "activity_type_detail": 49,
-            "role": 15
-        },
-        {
-            "id": 675,
-            "activity_type_detail": 49,
-            "role": 19
-        },
-        {
-            "id": 676,
-            "activity_type_detail": 48,
-            "role": 14
-        },
-        {
-            "id": 677,
-            "activity_type_detail": 48,
-            "role": 2
-        },
-        {
-            "id": 678,
-            "activity_type_detail": 48,
-            "role": 15
-        },
-        {
-            "id": 679,
-            "activity_type_detail": 48,
-            "role": 19
-        },
-        {
-            "id": 680,
-            "activity_type_detail": 47,
-            "role": 6
-        },
-        {
-            "id": 681,
-            "activity_type_detail": 47,
+            "id": 341,
+            "activity_type_detail": 35,
             "role": 3
         },
         {
-            "id": 682,
-            "activity_type_detail": 47,
-            "role": 5
+            "id": 805,
+            "activity_type_detail": 35,
+            "role": 15
         },
         {
-            "id": 683,
-            "activity_type_detail": 47,
-            "role": 11
+            "id": 509,
+            "activity_type_detail": 35,
+            "role": 18
         },
         {
-            "id": 684,
-            "activity_type_detail": 47,
+            "id": 600,
+            "activity_type_detail": 35,
+            "role": 19
+        },
+        {
+            "id": 370,
+            "activity_type_detail": 36,
+            "role": 1
+        },
+        {
+            "id": 345,
+            "activity_type_detail": 36,
             "role": 4
         },
         {
-            "id": 685,
-            "activity_type_detail": 47,
+            "id": 806,
+            "activity_type_detail": 36,
+            "role": 15
+        },
+        {
+            "id": 512,
+            "activity_type_detail": 36,
+            "role": 18
+        },
+        {
+            "id": 603,
+            "activity_type_detail": 36,
+            "role": 19
+        },
+        {
+            "id": 356,
+            "activity_type_detail": 37,
+            "role": 1
+        },
+        {
+            "id": 351,
+            "activity_type_detail": 37,
+            "role": 5
+        },
+        {
+            "id": 465,
+            "activity_type_detail": 37,
+            "role": 11
+        },
+        {
+            "id": 436,
+            "activity_type_detail": 37,
+            "role": 15
+        },
+        {
+            "id": 539,
+            "activity_type_detail": 37,
+            "role": 18
+        },
+        {
+            "id": 630,
+            "activity_type_detail": 37,
+            "role": 19
+        },
+        {
+            "id": 391,
+            "activity_type_detail": 38,
+            "role": 7
+        },
+        {
+            "id": 339,
+            "activity_type_detail": 38,
+            "role": 8
+        },
+        {
+            "id": 451,
+            "activity_type_detail": 38,
+            "role": 15
+        },
+        {
+            "id": 597,
+            "activity_type_detail": 38,
+            "role": 17
+        },
+        {
+            "id": 635,
+            "activity_type_detail": 38,
+            "role": 19
+        },
+        {
+            "id": 393,
+            "activity_type_detail": 39,
+            "role": 7
+        },
+        {
+            "id": 338,
+            "activity_type_detail": 39,
+            "role": 9
+        },
+        {
+            "id": 455,
+            "activity_type_detail": 39,
+            "role": 15
+        },
+        {
+            "id": 598,
+            "activity_type_detail": 39,
+            "role": 17
+        },
+        {
+            "id": 637,
+            "activity_type_detail": 39,
+            "role": 19
+        },
+        {
+            "id": 489,
+            "activity_type_detail": 40,
+            "role": 1
+        },
+        {
+            "id": 807,
+            "activity_type_detail": 40,
+            "role": 15
+        },
+        {
+            "id": 481,
+            "activity_type_detail": 40,
             "role": 16
         },
         {
-            "id": 686,
-            "activity_type_detail": 47,
-            "role": 13
-        },
-        {
-            "id": 687,
-            "activity_type_detail": 47,
-            "role": 1
-        },
-        {
-            "id": 688,
-            "activity_type_detail": 47,
+            "id": 518,
+            "activity_type_detail": 40,
             "role": 18
         },
         {
-            "id": 689,
-            "activity_type_detail": 47,
-            "role": 10
-        },
-        {
-            "id": 690,
-            "activity_type_detail": 47,
-            "role": 8
-        },
-        {
-            "id": 691,
-            "activity_type_detail": 47,
-            "role": 9
-        },
-        {
-            "id": 692,
-            "activity_type_detail": 47,
-            "role": 12
-        },
-        {
-            "id": 693,
-            "activity_type_detail": 47,
-            "role": 7
-        },
-        {
-            "id": 694,
-            "activity_type_detail": 47,
-            "role": 17
-        },
-        {
-            "id": 695,
-            "activity_type_detail": 47,
-            "role": 14
-        },
-        {
-            "id": 696,
-            "activity_type_detail": 47,
-            "role": 2
-        },
-        {
-            "id": 697,
-            "activity_type_detail": 47,
-            "role": 15
-        },
-        {
-            "id": 698,
-            "activity_type_detail": 47,
+            "id": 609,
+            "activity_type_detail": 40,
             "role": 19
         },
         {
-            "id": 699,
-            "activity_type_detail": 6,
-            "role": 13
+            "id": 487,
+            "activity_type_detail": 41,
+            "role": 1
         },
         {
-            "id": 701,
-            "activity_type_detail": 1,
-            "role": 14
-        },
-        {
-            "id": 702,
-            "activity_type_detail": 1,
-            "role": 2
-        },
-        {
-            "id": 703,
-            "activity_type_detail": 1,
-            "role": 15
-        },
-        {
-            "id": 704,
-            "activity_type_detail": 52,
+            "id": 486,
+            "activity_type_detail": 41,
             "role": 3
-        },
-        {
-            "id": 705,
-            "activity_type_detail": 52,
-            "role": 1
-        },
-        {
-            "id": 706,
-            "activity_type_detail": 52,
-            "role": 18
-        },
-        {
-            "id": 708,
-            "activity_type_detail": 52,
-            "role": 6
-        },
-        {
-            "id": 709,
-            "activity_type_detail": 52,
-            "role": 5
-        },
-        {
-            "id": 710,
-            "activity_type_detail": 52,
-            "role": 11
-        },
-        {
-            "id": 711,
-            "activity_type_detail": 52,
-            "role": 4
-        },
-        {
-            "id": 712,
-            "activity_type_detail": 52,
-            "role": 16
-        },
-        {
-            "id": 713,
-            "activity_type_detail": 52,
-            "role": 13
-        },
-        {
-            "id": 714,
-            "activity_type_detail": 52,
-            "role": 14
-        },
-        {
-            "id": 715,
-            "activity_type_detail": 52,
-            "role": 2
-        },
-        {
-            "id": 716,
-            "activity_type_detail": 52,
-            "role": 15
-        },
-        {
-            "id": 717,
-            "activity_type_detail": 52,
-            "role": 19
-        },
-        {
-            "id": 726,
-            "activity_type_detail": 51,
-            "role": 14
-        },
-        {
-            "id": 727,
-            "activity_type_detail": 51,
-            "role": 2
-        },
-        {
-            "id": 728,
-            "activity_type_detail": 51,
-            "role": 15
-        },
-        {
-            "id": 729,
-            "activity_type_detail": 51,
-            "role": 19
-        },
-        {
-            "id": 730,
-            "activity_type_detail": 50,
-            "role": 6
-        },
-        {
-            "id": 731,
-            "activity_type_detail": 50,
-            "role": 3
-        },
-        {
-            "id": 732,
-            "activity_type_detail": 50,
-            "role": 5
-        },
-        {
-            "id": 733,
-            "activity_type_detail": 50,
-            "role": 11
-        },
-        {
-            "id": 734,
-            "activity_type_detail": 51,
-            "role": 10
-        },
-        {
-            "id": 735,
-            "activity_type_detail": 51,
-            "role": 8
-        },
-        {
-            "id": 736,
-            "activity_type_detail": 51,
-            "role": 9
-        },
-        {
-            "id": 737,
-            "activity_type_detail": 51,
-            "role": 12
-        },
-        {
-            "id": 738,
-            "activity_type_detail": 51,
-            "role": 7
-        },
-        {
-            "id": 739,
-            "activity_type_detail": 51,
-            "role": 17
-        },
-        {
-            "id": 740,
-            "activity_type_detail": 50,
-            "role": 4
-        },
-        {
-            "id": 741,
-            "activity_type_detail": 50,
-            "role": 16
-        },
-        {
-            "id": 742,
-            "activity_type_detail": 50,
-            "role": 13
-        },
-        {
-            "id": 743,
-            "activity_type_detail": 50,
-            "role": 1
-        },
-        {
-            "id": 744,
-            "activity_type_detail": 50,
-            "role": 18
-        },
-        {
-            "id": 745,
-            "activity_type_detail": 50,
-            "role": 10
-        },
-        {
-            "id": 746,
-            "activity_type_detail": 50,
-            "role": 8
-        },
-        {
-            "id": 747,
-            "activity_type_detail": 50,
-            "role": 9
-        },
-        {
-            "id": 748,
-            "activity_type_detail": 50,
-            "role": 12
-        },
-        {
-            "id": 749,
-            "activity_type_detail": 50,
-            "role": 7
-        },
-        {
-            "id": 750,
-            "activity_type_detail": 50,
-            "role": 17
-        },
-        {
-            "id": 751,
-            "activity_type_detail": 50,
-            "role": 14
-        },
-        {
-            "id": 752,
-            "activity_type_detail": 50,
-            "role": 2
-        },
-        {
-            "id": 753,
-            "activity_type_detail": 50,
-            "role": 15
-        },
-        {
-            "id": 754,
-            "activity_type_detail": 50,
-            "role": 19
         },
         {
             "id": 755,
             "activity_type_detail": 41,
-            "role": 6
-        },
-        {
-            "id": 756,
-            "activity_type_detail": 42,
             "role": 6
         },
         {
@@ -5907,204 +5352,64 @@
             "role": 14
         },
         {
+            "id": 808,
+            "activity_type_detail": 41,
+            "role": 15
+        },
+        {
+            "id": 484,
+            "activity_type_detail": 41,
+            "role": 16
+        },
+        {
+            "id": 521,
+            "activity_type_detail": 41,
+            "role": 18
+        },
+        {
+            "id": 612,
+            "activity_type_detail": 41,
+            "role": 19
+        },
+        {
+            "id": 873,
+            "activity_type_detail": 42,
+            "role": 1
+        },
+        {
+            "id": 485,
+            "activity_type_detail": 42,
+            "role": 3
+        },
+        {
+            "id": 756,
+            "activity_type_detail": 42,
+            "role": 6
+        },
+        {
             "id": 758,
             "activity_type_detail": 42,
             "role": 14
         },
         {
-            "id": 759,
-            "activity_type_detail": 54,
-            "role": 6
-        },
-        {
-            "id": 760,
-            "activity_type_detail": 54,
-            "role": 3
-        },
-        {
-            "id": 761,
-            "activity_type_detail": 54,
-            "role": 5
-        },
-        {
-            "id": 762,
-            "activity_type_detail": 54,
-            "role": 11
-        },
-        {
-            "id": 764,
-            "activity_type_detail": 54,
+            "id": 482,
+            "activity_type_detail": 42,
             "role": 16
         },
         {
-            "id": 765,
-            "activity_type_detail": 54,
-            "role": 13
+            "id": 519,
+            "activity_type_detail": 42,
+            "role": 18
         },
         {
-            "id": 766,
-            "activity_type_detail": 54,
+            "id": 610,
+            "activity_type_detail": 42,
+            "role": 19
+        },
+        {
+            "id": 874,
+            "activity_type_detail": 43,
             "role": 1
-        },
-        {
-            "id": 767,
-            "activity_type_detail": 54,
-            "role": 18
-        },
-        {
-            "id": 768,
-            "activity_type_detail": 54,
-            "role": 14
-        },
-        {
-            "id": 769,
-            "activity_type_detail": 54,
-            "role": 2
-        },
-        {
-            "id": 770,
-            "activity_type_detail": 54,
-            "role": 15
-        },
-        {
-            "id": 771,
-            "activity_type_detail": 54,
-            "role": 19
-        },
-        {
-            "id": 772,
-            "activity_type_detail": 32,
-            "role": 6
-        },
-        {
-            "id": 773,
-            "activity_type_detail": 32,
-            "role": 3
-        },
-        {
-            "id": 774,
-            "activity_type_detail": 32,
-            "role": 5
-        },
-        {
-            "id": 775,
-            "activity_type_detail": 32,
-            "role": 11
-        },
-        {
-            "id": 776,
-            "activity_type_detail": 32,
-            "role": 4
-        },
-        {
-            "id": 778,
-            "activity_type_detail": 32,
-            "role": 13
-        },
-        {
-            "id": 779,
-            "activity_type_detail": 32,
-            "role": 1
-        },
-        {
-            "id": 780,
-            "activity_type_detail": 32,
-            "role": 18
-        },
-        {
-            "id": 781,
-            "activity_type_detail": 32,
-            "role": 14
-        },
-        {
-            "id": 782,
-            "activity_type_detail": 32,
-            "role": 2
-        },
-        {
-            "id": 783,
-            "activity_type_detail": 32,
-            "role": 15
-        },
-        {
-            "id": 784,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 785,
-            "activity_type_detail": 46,
-            "role": 18
-        },
-        {
-            "id": 786,
-            "activity_type_detail": 46,
-            "role": 19
-        },
-        {
-            "id": 787,
-            "activity_type_detail": 55,
-            "role": 4
-        },
-        {
-            "id": 788,
-            "activity_type_detail": 55,
-            "role": 1
-        },
-        {
-            "id": 789,
-            "activity_type_detail": 55,
-            "role": 18
-        },
-        {
-            "id": 790,
-            "activity_type_detail": 55,
-            "role": 19
-        },
-        {
-            "id": 791,
-            "activity_type_detail": 55,
-            "role": 15
-        },
-        {
-            "id": 801,
-            "activity_type_detail": 13,
-            "role": 11
-        },
-        {
-            "id": 802,
-            "activity_type_detail": 14,
-            "role": 11
-        },
-        {
-            "id": 803,
-            "activity_type_detail": 45,
-            "role": 11
-        },
-        {
-            "id": 804,
-            "activity_type_detail": 8,
-            "role": 11
-        },
-        {
-            "id": 805,
-            "activity_type_detail": 35,
-            "role": 15
-        },
-        {
-            "id": 806,
-            "activity_type_detail": 36,
-            "role": 15
-        },
-        {
-            "id": 807,
-            "activity_type_detail": 40,
-            "role": 15
-        },
-        {
-            "id": 808,
-            "activity_type_detail": 41,
-            "role": 15
         },
         {
             "id": 810,
@@ -6112,94 +5417,19 @@
             "role": 15
         },
         {
-            "id": 812,
-            "activity_type_detail": 32,
-            "role": 1
+            "id": 483,
+            "activity_type_detail": 43,
+            "role": 16
         },
         {
-            "id": 813,
-            "activity_type_detail": 46,
-            "role": 1
+            "id": 520,
+            "activity_type_detail": 43,
+            "role": 18
         },
         {
-            "id": 814,
-            "activity_type_detail": 46,
-            "role": 15
-        },
-        {
-            "id": 815,
-            "activity_type_detail": 56,
-            "role": 10
-        },
-        {
-            "id": 816,
-            "activity_type_detail": 56,
-            "role": 8
-        },
-        {
-            "id": 817,
-            "activity_type_detail": 56,
-            "role": 9
-        },
-        {
-            "id": 818,
-            "activity_type_detail": 56,
-            "role": 12
-        },
-        {
-            "id": 819,
-            "activity_type_detail": 56,
-            "role": 7
-        },
-        {
-            "id": 820,
-            "activity_type_detail": 56,
-            "role": 17
-        },
-        {
-            "id": 821,
-            "activity_type_detail": 56,
-            "role": 14
-        },
-        {
-            "id": 822,
-            "activity_type_detail": 56,
-            "role": 2
-        },
-        {
-            "id": 823,
-            "activity_type_detail": 56,
-            "role": 15
-        },
-        {
-            "id": 824,
-            "activity_type_detail": 56,
+            "id": 611,
+            "activity_type_detail": 43,
             "role": 19
-        },
-        {
-            "id": 825,
-            "activity_type_detail": 4,
-            "role": 9
-        },
-        {
-            "id": 829,
-            "activity_type_detail": 4,
-            "role": 17
-        },
-        {
-            "id": 831,
-            "activity_type_detail": 18,
-            "role": 1
-        },
-        {
-            "id": 832,
-            "activity_type_detail": 12,
-            "role": 11
-        },
-        {
-            "id": 833,
-            "activity_type_detail": 21,
-            "role": 13
         },
         {
             "id": 834,
@@ -6212,6 +5442,671 @@
             "role": 15
         },
         {
+            "id": 480,
+            "activity_type_detail": 44,
+            "role": 16
+        },
+        {
+            "id": 517,
+            "activity_type_detail": 44,
+            "role": 18
+        },
+        {
+            "id": 608,
+            "activity_type_detail": 44,
+            "role": 19
+        },
+        {
+            "id": 504,
+            "activity_type_detail": 45,
+            "role": 1
+        },
+        {
+            "id": 507,
+            "activity_type_detail": 45,
+            "role": 2
+        },
+        {
+            "id": 500,
+            "activity_type_detail": 45,
+            "role": 3
+        },
+        {
+            "id": 501,
+            "activity_type_detail": 45,
+            "role": 5
+        },
+        {
+            "id": 499,
+            "activity_type_detail": 45,
+            "role": 6
+        },
+        {
+            "id": 803,
+            "activity_type_detail": 45,
+            "role": 11
+        },
+        {
+            "id": 503,
+            "activity_type_detail": 45,
+            "role": 13
+        },
+        {
+            "id": 506,
+            "activity_type_detail": 45,
+            "role": 14
+        },
+        {
+            "id": 508,
+            "activity_type_detail": 45,
+            "role": 15
+        },
+        {
+            "id": 530,
+            "activity_type_detail": 45,
+            "role": 18
+        },
+        {
+            "id": 622,
+            "activity_type_detail": 45,
+            "role": 19
+        },
+        {
+            "id": 813,
+            "activity_type_detail": 46,
+            "role": 1
+        },
+        {
+            "id": 645,
+            "activity_type_detail": 46,
+            "role": 5
+        },
+        {
+            "id": 646,
+            "activity_type_detail": 46,
+            "role": 11
+        },
+        {
+            "id": 814,
+            "activity_type_detail": 46,
+            "role": 15
+        },
+        {
+            "id": 785,
+            "activity_type_detail": 46,
+            "role": 18
+        },
+        {
+            "id": 786,
+            "activity_type_detail": 46,
+            "role": 19
+        },
+        {
+            "id": 687,
+            "activity_type_detail": 47,
+            "role": 1
+        },
+        {
+            "id": 696,
+            "activity_type_detail": 47,
+            "role": 2
+        },
+        {
+            "id": 681,
+            "activity_type_detail": 47,
+            "role": 3
+        },
+        {
+            "id": 684,
+            "activity_type_detail": 47,
+            "role": 4
+        },
+        {
+            "id": 682,
+            "activity_type_detail": 47,
+            "role": 5
+        },
+        {
+            "id": 680,
+            "activity_type_detail": 47,
+            "role": 6
+        },
+        {
+            "id": 693,
+            "activity_type_detail": 47,
+            "role": 7
+        },
+        {
+            "id": 690,
+            "activity_type_detail": 47,
+            "role": 8
+        },
+        {
+            "id": 691,
+            "activity_type_detail": 47,
+            "role": 9
+        },
+        {
+            "id": 689,
+            "activity_type_detail": 47,
+            "role": 10
+        },
+        {
+            "id": 683,
+            "activity_type_detail": 47,
+            "role": 11
+        },
+        {
+            "id": 692,
+            "activity_type_detail": 47,
+            "role": 12
+        },
+        {
+            "id": 686,
+            "activity_type_detail": 47,
+            "role": 13
+        },
+        {
+            "id": 695,
+            "activity_type_detail": 47,
+            "role": 14
+        },
+        {
+            "id": 697,
+            "activity_type_detail": 47,
+            "role": 15
+        },
+        {
+            "id": 685,
+            "activity_type_detail": 47,
+            "role": 16
+        },
+        {
+            "id": 694,
+            "activity_type_detail": 47,
+            "role": 17
+        },
+        {
+            "id": 688,
+            "activity_type_detail": 47,
+            "role": 18
+        },
+        {
+            "id": 698,
+            "activity_type_detail": 47,
+            "role": 19
+        },
+        {
+            "id": 677,
+            "activity_type_detail": 48,
+            "role": 2
+        },
+        {
+            "id": 666,
+            "activity_type_detail": 48,
+            "role": 7
+        },
+        {
+            "id": 669,
+            "activity_type_detail": 48,
+            "role": 8
+        },
+        {
+            "id": 668,
+            "activity_type_detail": 48,
+            "role": 9
+        },
+        {
+            "id": 670,
+            "activity_type_detail": 48,
+            "role": 10
+        },
+        {
+            "id": 667,
+            "activity_type_detail": 48,
+            "role": 12
+        },
+        {
+            "id": 676,
+            "activity_type_detail": 48,
+            "role": 14
+        },
+        {
+            "id": 678,
+            "activity_type_detail": 48,
+            "role": 15
+        },
+        {
+            "id": 665,
+            "activity_type_detail": 48,
+            "role": 17
+        },
+        {
+            "id": 679,
+            "activity_type_detail": 48,
+            "role": 19
+        },
+        {
+            "id": 663,
+            "activity_type_detail": 49,
+            "role": 1
+        },
+        {
+            "id": 673,
+            "activity_type_detail": 49,
+            "role": 2
+        },
+        {
+            "id": 657,
+            "activity_type_detail": 49,
+            "role": 3
+        },
+        {
+            "id": 660,
+            "activity_type_detail": 49,
+            "role": 4
+        },
+        {
+            "id": 658,
+            "activity_type_detail": 49,
+            "role": 5
+        },
+        {
+            "id": 656,
+            "activity_type_detail": 49,
+            "role": 6
+        },
+        {
+            "id": 659,
+            "activity_type_detail": 49,
+            "role": 11
+        },
+        {
+            "id": 662,
+            "activity_type_detail": 49,
+            "role": 13
+        },
+        {
+            "id": 672,
+            "activity_type_detail": 49,
+            "role": 14
+        },
+        {
+            "id": 674,
+            "activity_type_detail": 49,
+            "role": 15
+        },
+        {
+            "id": 861,
+            "activity_type_detail": 49,
+            "role": 16
+        },
+        {
+            "id": 664,
+            "activity_type_detail": 49,
+            "role": 18
+        },
+        {
+            "id": 675,
+            "activity_type_detail": 49,
+            "role": 19
+        },
+        {
+            "id": 743,
+            "activity_type_detail": 50,
+            "role": 1
+        },
+        {
+            "id": 752,
+            "activity_type_detail": 50,
+            "role": 2
+        },
+        {
+            "id": 731,
+            "activity_type_detail": 50,
+            "role": 3
+        },
+        {
+            "id": 740,
+            "activity_type_detail": 50,
+            "role": 4
+        },
+        {
+            "id": 732,
+            "activity_type_detail": 50,
+            "role": 5
+        },
+        {
+            "id": 730,
+            "activity_type_detail": 50,
+            "role": 6
+        },
+        {
+            "id": 749,
+            "activity_type_detail": 50,
+            "role": 7
+        },
+        {
+            "id": 746,
+            "activity_type_detail": 50,
+            "role": 8
+        },
+        {
+            "id": 747,
+            "activity_type_detail": 50,
+            "role": 9
+        },
+        {
+            "id": 745,
+            "activity_type_detail": 50,
+            "role": 10
+        },
+        {
+            "id": 733,
+            "activity_type_detail": 50,
+            "role": 11
+        },
+        {
+            "id": 748,
+            "activity_type_detail": 50,
+            "role": 12
+        },
+        {
+            "id": 742,
+            "activity_type_detail": 50,
+            "role": 13
+        },
+        {
+            "id": 751,
+            "activity_type_detail": 50,
+            "role": 14
+        },
+        {
+            "id": 753,
+            "activity_type_detail": 50,
+            "role": 15
+        },
+        {
+            "id": 741,
+            "activity_type_detail": 50,
+            "role": 16
+        },
+        {
+            "id": 750,
+            "activity_type_detail": 50,
+            "role": 17
+        },
+        {
+            "id": 744,
+            "activity_type_detail": 50,
+            "role": 18
+        },
+        {
+            "id": 754,
+            "activity_type_detail": 50,
+            "role": 19
+        },
+        {
+            "id": 727,
+            "activity_type_detail": 51,
+            "role": 2
+        },
+        {
+            "id": 738,
+            "activity_type_detail": 51,
+            "role": 7
+        },
+        {
+            "id": 735,
+            "activity_type_detail": 51,
+            "role": 8
+        },
+        {
+            "id": 736,
+            "activity_type_detail": 51,
+            "role": 9
+        },
+        {
+            "id": 734,
+            "activity_type_detail": 51,
+            "role": 10
+        },
+        {
+            "id": 737,
+            "activity_type_detail": 51,
+            "role": 12
+        },
+        {
+            "id": 726,
+            "activity_type_detail": 51,
+            "role": 14
+        },
+        {
+            "id": 728,
+            "activity_type_detail": 51,
+            "role": 15
+        },
+        {
+            "id": 739,
+            "activity_type_detail": 51,
+            "role": 17
+        },
+        {
+            "id": 729,
+            "activity_type_detail": 51,
+            "role": 19
+        },
+        {
+            "id": 705,
+            "activity_type_detail": 52,
+            "role": 1
+        },
+        {
+            "id": 715,
+            "activity_type_detail": 52,
+            "role": 2
+        },
+        {
+            "id": 704,
+            "activity_type_detail": 52,
+            "role": 3
+        },
+        {
+            "id": 711,
+            "activity_type_detail": 52,
+            "role": 4
+        },
+        {
+            "id": 709,
+            "activity_type_detail": 52,
+            "role": 5
+        },
+        {
+            "id": 708,
+            "activity_type_detail": 52,
+            "role": 6
+        },
+        {
+            "id": 710,
+            "activity_type_detail": 52,
+            "role": 11
+        },
+        {
+            "id": 713,
+            "activity_type_detail": 52,
+            "role": 13
+        },
+        {
+            "id": 714,
+            "activity_type_detail": 52,
+            "role": 14
+        },
+        {
+            "id": 716,
+            "activity_type_detail": 52,
+            "role": 15
+        },
+        {
+            "id": 712,
+            "activity_type_detail": 52,
+            "role": 16
+        },
+        {
+            "id": 706,
+            "activity_type_detail": 52,
+            "role": 18
+        },
+        {
+            "id": 717,
+            "activity_type_detail": 52,
+            "role": 19
+        },
+        {
+            "id": 766,
+            "activity_type_detail": 54,
+            "role": 1
+        },
+        {
+            "id": 769,
+            "activity_type_detail": 54,
+            "role": 2
+        },
+        {
+            "id": 760,
+            "activity_type_detail": 54,
+            "role": 3
+        },
+        {
+            "id": 761,
+            "activity_type_detail": 54,
+            "role": 5
+        },
+        {
+            "id": 759,
+            "activity_type_detail": 54,
+            "role": 6
+        },
+        {
+            "id": 762,
+            "activity_type_detail": 54,
+            "role": 11
+        },
+        {
+            "id": 765,
+            "activity_type_detail": 54,
+            "role": 13
+        },
+        {
+            "id": 768,
+            "activity_type_detail": 54,
+            "role": 14
+        },
+        {
+            "id": 770,
+            "activity_type_detail": 54,
+            "role": 15
+        },
+        {
+            "id": 764,
+            "activity_type_detail": 54,
+            "role": 16
+        },
+        {
+            "id": 767,
+            "activity_type_detail": 54,
+            "role": 18
+        },
+        {
+            "id": 771,
+            "activity_type_detail": 54,
+            "role": 19
+        },
+        {
+            "id": 788,
+            "activity_type_detail": 55,
+            "role": 1
+        },
+        {
+            "id": 787,
+            "activity_type_detail": 55,
+            "role": 4
+        },
+        {
+            "id": 791,
+            "activity_type_detail": 55,
+            "role": 15
+        },
+        {
+            "id": 789,
+            "activity_type_detail": 55,
+            "role": 18
+        },
+        {
+            "id": 790,
+            "activity_type_detail": 55,
+            "role": 19
+        },
+        {
+            "id": 822,
+            "activity_type_detail": 56,
+            "role": 2
+        },
+        {
+            "id": 819,
+            "activity_type_detail": 56,
+            "role": 7
+        },
+        {
+            "id": 816,
+            "activity_type_detail": 56,
+            "role": 8
+        },
+        {
+            "id": 817,
+            "activity_type_detail": 56,
+            "role": 9
+        },
+        {
+            "id": 815,
+            "activity_type_detail": 56,
+            "role": 10
+        },
+        {
+            "id": 818,
+            "activity_type_detail": 56,
+            "role": 12
+        },
+        {
+            "id": 821,
+            "activity_type_detail": 56,
+            "role": 14
+        },
+        {
+            "id": 823,
+            "activity_type_detail": 56,
+            "role": 15
+        },
+        {
+            "id": 820,
+            "activity_type_detail": 56,
+            "role": 17
+        },
+        {
+            "id": 824,
+            "activity_type_detail": 56,
+            "role": 19
+        },
+        {
+            "id": 842,
+            "activity_type_detail": 59,
+            "role": 1
+        },
+        {
+            "id": 851,
+            "activity_type_detail": 59,
+            "role": 2
+        },
+        {
             "id": 836,
             "activity_type_detail": 59,
             "role": 3
@@ -6222,19 +6117,14 @@
             "role": 4
         },
         {
-            "id": 838,
-            "activity_type_detail": 59,
-            "role": 11
-        },
-        {
             "id": 839,
             "activity_type_detail": 59,
             "role": 5
         },
         {
-            "id": 840,
+            "id": 838,
             "activity_type_detail": 59,
-            "role": 16
+            "role": 11
         },
         {
             "id": 841,
@@ -6242,9 +6132,14 @@
             "role": 13
         },
         {
-            "id": 842,
+            "id": 853,
             "activity_type_detail": 59,
-            "role": 1
+            "role": 15
+        },
+        {
+            "id": 840,
+            "activity_type_detail": 59,
+            "role": 16
         },
         {
             "id": 843,
@@ -6252,29 +6147,9 @@
             "role": 18
         },
         {
-            "id": 844,
-            "activity_type_detail": 60,
-            "role": 4
-        },
-        {
-            "id": 845,
-            "activity_type_detail": 60,
-            "role": 11
-        },
-        {
-            "id": 846,
-            "activity_type_detail": 60,
-            "role": 5
-        },
-        {
-            "id": 847,
-            "activity_type_detail": 60,
-            "role": 16
-        },
-        {
-            "id": 848,
-            "activity_type_detail": 60,
-            "role": 13
+            "id": 855,
+            "activity_type_detail": 59,
+            "role": 19
         },
         {
             "id": 849,
@@ -6282,24 +6157,29 @@
             "role": 1
         },
         {
-            "id": 850,
-            "activity_type_detail": 60,
-            "role": 18
-        },
-        {
-            "id": 851,
-            "activity_type_detail": 59,
-            "role": 2
-        },
-        {
             "id": 852,
             "activity_type_detail": 60,
             "role": 2
         },
         {
-            "id": 853,
-            "activity_type_detail": 59,
-            "role": 15
+            "id": 844,
+            "activity_type_detail": 60,
+            "role": 4
+        },
+        {
+            "id": 846,
+            "activity_type_detail": 60,
+            "role": 5
+        },
+        {
+            "id": 845,
+            "activity_type_detail": 60,
+            "role": 11
+        },
+        {
+            "id": 848,
+            "activity_type_detail": 60,
+            "role": 13
         },
         {
             "id": 854,
@@ -6307,58 +6187,18 @@
             "role": 15
         },
         {
-            "id": 855,
-            "activity_type_detail": 59,
-            "role": 19
+            "id": 847,
+            "activity_type_detail": 60,
+            "role": 16
+        },
+        {
+            "id": 850,
+            "activity_type_detail": 60,
+            "role": 18
         },
         {
             "id": 856,
             "activity_type_detail": 60,
-            "role": 19
-        },
-        {
-            "id": 857,
-            "activity_type_detail": 6,
-            "role": 16
-        },
-        {
-            "id": 858,
-            "activity_type_detail": 14,
-            "role": 16
-        },
-        {
-            "id": 859,
-            "activity_type_detail": 32,
-            "role": 16
-        },
-        {
-            "id": 860,
-            "activity_type_detail": 33,
-            "role": 16
-        },
-        {
-            "id": 861,
-            "activity_type_detail": 49,
-            "role": 16
-        },
-        {
-            "id": 862,
-            "activity_type_detail": 62,
-            "role": 10
-        },
-        {
-            "id": 863,
-            "activity_type_detail": 62,
-            "role": 17
-        },
-        {
-            "id": 864,
-            "activity_type_detail": 62,
-            "role": 14
-        },
-        {
-            "id": 865,
-            "activity_type_detail": 62,
             "role": 19
         },
         {
@@ -6367,43 +6207,28 @@
             "role": 8
         },
         {
-            "id": 868,
-            "activity_type_detail": 20,
-            "role": 6
+            "id": 862,
+            "activity_type_detail": 62,
+            "role": 10
         },
         {
-            "id": 869,
-            "activity_type_detail": 20,
-            "role": 3
+            "id": 864,
+            "activity_type_detail": 62,
+            "role": 14
         },
         {
-            "id": 870,
-            "activity_type_detail": 17,
-            "role": 1
+            "id": 863,
+            "activity_type_detail": 62,
+            "role": 17
         },
         {
-            "id": 871,
-            "activity_type_detail": 1,
-            "role": 7
-        },
-        {
-            "id": 872,
-            "activity_type_detail": 2,
-            "role": 7
-        },
-        {
-            "id": 873,
-            "activity_type_detail": 42,
-            "role": 1
-        },
-        {
-            "id": 874,
-            "activity_type_detail": 43,
-            "role": 1
+            "id": 865,
+            "activity_type_detail": 62,
+            "role": 19
         }
     ],
     "_metadata": {
-        "exported_at": "2026-01-09T09:28:08.225320Z",
+        "exported_at": "2026-01-15T16:21:41.993981Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
