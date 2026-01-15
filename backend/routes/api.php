@@ -197,6 +197,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);
     Route::get('/events/{event}/draht-data', [DrahtController::class, 'show']);
+    Route::get('/draht/people/{drahtEventId}', [DrahtController::class, 'getPeople']);
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::put('/rooms/assign-types', [RoomController::class, 'assignRoomType']);
     Route::put('/rooms/assign-teams', [RoomController::class, 'assignTeam']);

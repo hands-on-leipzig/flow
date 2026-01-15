@@ -6,7 +6,7 @@
     <style>
         @page {
             size: A4 landscape;
-            margin: 120px 40px 100px 40px; /* top, right, bottom, left */
+            margin: 120px 40px {{ $isQrCodePdf ?? false ? '40px' : '100px' }} 40px; /* top, right, bottom, left */
         }
 
         body {
@@ -27,11 +27,11 @@
         /* Footer */
         footer {
             position: fixed;
-            bottom: -80px; /* entspricht margin-bottom von @page */
+            bottom: {{ $isQrCodePdf ?? false ? '-40px' : '-80px' }}; /* entspricht margin-bottom von @page */
             left: 0;
             right: 0;
-            height: 80px;
-            padding-bottom: 15px;
+            height: {{ $isQrCodePdf ?? false ? '40px' : '80px' }};
+            padding-bottom: {{ $isQrCodePdf ?? false ? '5px' : '15px' }};
         }
 
         .logos img { height:80px; margin:0 5px; }
@@ -56,7 +56,7 @@
         .footer-timestamp {
             position: absolute;
             right: 10px;
-            bottom: 5px;
+            bottom: {{ $isQrCodePdf ?? false ? '2px' : '5px' }};
             font-size: 8px;
             color: #999;
             font-family: sans-serif;

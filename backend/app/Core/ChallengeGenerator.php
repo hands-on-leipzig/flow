@@ -605,7 +605,7 @@ class ChallengeGenerator
     }
 
     /**
-     * Handle timing point logic: presentations OR extra_block OR break
+     * Handle timing point logic: insert point first, then presentations if scheduled
      * 
      * @param int $when Timing point (1=after round 3, 2=after QF, 3=after SF, 4=after F)
      * @param string $insertPointCode Code for the insert point (for extra_block lookup)
@@ -613,18 +613,18 @@ class ChallengeGenerator
      */
     private function handleTimingPoint(int $when, string $insertPointCode, string $durationParam): void
     {
+        // Always check insert point first (extra_block OR break)
+        $this->writer->insertPoint($insertPointCode, $this->pp($durationParam), $this->rTime);
+
+        // Then check if presentations are scheduled for this timing point
         $presentationWhen = (int) $this->pp('c_presentations_when');
         $presentationsCount = (int) $this->pp('c_presentations');
 
-        // If presentations are scheduled for this timing point
         if ($presentationsCount > 0 && $presentationWhen === $when) {
-            // Insert presentations, skip extra_block, no break
+            // Insert presentations after the insert point
             $this->rTime->addMinutes($this->pp('c_ready_presentations'));
             $this->presentations();
             // presentations() already handles time advancement
-        } else {
-            // Normal logic: extra_block OR break via insertPoint
-            $this->writer->insertPoint($insertPointCode, $this->pp($durationParam), $this->rTime);
         }
     }
     
