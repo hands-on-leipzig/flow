@@ -24,6 +24,17 @@ use Endroid\QrCode\Encoding\Encoding;
 class EventController extends Controller
 {
     // Test deployment: verifying new deployment workflow with real content change
+
+    public function index()
+    {
+        $events = Event::where('season', SeasonService::currentSeasonId());
+        $response = [];
+        foreach ($events->get() as $event) {
+            $response[$event->slug] = sprintf('%s (%s)', $event->name, $event->date);
+        }
+        return response()->json($response);
+    }
+
     public function getEvent($id)
     {
         $event = Event::with(['seasonRel', 'levelRel', 'tableNames'])->findOrFail($id);
@@ -32,7 +43,7 @@ class EventController extends Controller
         // Lazy initialization: calculate attention status if not yet calculated
         $attentionService = app(EventAttentionService::class);
         $attentionService->ensureAttentionStatusCalculated($event->id);
-        
+
         // Reload event to get updated needs_attention values
         $event->refresh();
 
@@ -335,7 +346,7 @@ class EventController extends Controller
     public function checkAttention(int $eventId): JsonResponse
     {
         $event = Event::find($eventId);
-        
+
         if (!$event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
@@ -343,10 +354,10 @@ class EventController extends Controller
         try {
             $attentionService = app(EventAttentionService::class);
             $attentionService->updateEventAttentionStatus($eventId);
-            
+
             // Reload event to get updated status
             $event->refresh();
-            
+
             return response()->json([
                 'success' => true,
                 'needs_attention' => $event->needs_attention,
