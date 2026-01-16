@@ -22,6 +22,9 @@ const selectedSeason = ref(null)
 const regeneratingLinks = ref(false)
 const cleaningLogos = ref(false)
 
+// Toggle for "Nur Tabelle" mode in Statistics
+const statisticsTableOnly = ref(false)
+
 // Check environment on mount
 onMounted(async () => {
   try {
@@ -182,7 +185,7 @@ fetchConditions()
 <template>
   <div class="flex h-full min-h-screen">
     <!-- Sidebar -->
-    <div class="w-64 bg-gray-100 border-r p-4 space-y-2">
+    <div v-if="!(activeTab === 'statistics' && statisticsTableOnly)" class="w-64 bg-gray-100 border-r p-4 space-y-2">
 
       <button
         class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
@@ -414,8 +417,20 @@ fetchConditions()
       </div>
 
       <div v-if="activeTab === 'statistics'">
-        <h2 class="text-xl font-bold mb-4">Statistiken</h2>
-        <statistics />
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold">Statistiken</h2>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input 
+              v-model="statisticsTableOnly" 
+              type="checkbox" 
+              class="sr-only peer"
+            />
+            <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+            <div class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
+            <span class="ml-2 text-sm font-medium text-gray-700">Nur Tabelle</span>
+          </label>
+        </div>
+        <statistics :table-only="statisticsTableOnly" />
       </div>
 
       <div v-if="activeTab === 'external-api'">
