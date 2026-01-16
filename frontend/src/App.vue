@@ -5,6 +5,7 @@ import axios from "axios";
 
 const Navigation = defineAsyncComponent(() => import('@/components/Navigation.vue'));
 const NewsModal = defineAsyncComponent(() => import('@/components/atoms/NewsModal.vue'));
+const EventDayBanner = defineAsyncComponent(() => import('@/components/atoms/EventDayBanner.vue'));
 
 // Check if current route is public (no navigation needed)
 const isPublicRoute = computed(() => {
@@ -77,6 +78,7 @@ onMounted(() => {
 <template>
   <div :class="['flex flex-col w-full font-sans', isPublicRoute ? 'min-h-screen' : 'h-screen', { 'px-10': !isPublicRoute }]">
     <Navigation v-if="!isPublicRoute"/>
+    <EventDayBanner v-if="!isPublicRoute"/>
 
     <router-view :class="['shadow-lg', isPublicRoute ? 'flex-grow' : 'flex-1']"/>
 
