@@ -230,6 +230,21 @@ class StatisticController extends Controller
             ->get()
             ->keyBy('plan');
 
+        // Get e_mode (Explore mode) for each plan
+        $eModeStatsRaw = DB::table('plan_param_value as ppv')
+            ->join('m_parameter as mp', 'mp.id', '=', 'ppv.parameter')
+            ->whereIn('ppv.plan', $planIds)
+            ->where('mp.name', 'e_mode')
+            ->select(
+                'ppv.plan',
+                'ppv.set_value as e_mode'
+            )
+            ->get()
+            ->keyBy('plan')
+            ->map(function ($item) {
+                return (int)($item->e_mode ?? 0);
+            });
+
         // Check for overwritten table names per event
         // Get event IDs for all plans
         $planEventMap = DB::table('plan')
@@ -336,6 +351,7 @@ class StatisticController extends Controller
                     'publication_last_change' => $row->publication_last_change,
                     'has_warning' => false, // Will be set by DRAHT check
                     'has_table_names' => $planTableNamesOverwritten[$row->plan_id] ?? false,
+                    'e_mode' => $eModeStatsRaw[$row->plan_id] ?? 0,
                 ];
             }
         }

@@ -33,6 +33,7 @@ type FlattenedRow = {
   plan_created: string | null
   plan_last_change: string | null
   generator_stats: number | null
+  e_mode?: number
   expert_param_changes?: { input: number; expert: number }
   extra_blocks?: { free: number; inserted: number }
   publication_level?: number | null
@@ -439,6 +440,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           access_count: accessStats.value.get(event.event_id) ?? undefined,
           has_warning: planWarnings.value.get(plan.plan_id) ?? false,
           has_table_names: plan.has_table_names ?? false,
+          e_mode: plan.e_mode ?? 0,
         })
       }
     }
@@ -741,6 +743,7 @@ function exportToCSV() {
     'Teams Challenge',
     'DRAHT Issue',
     'Plan ID',
+    'Explore Mode',
     'Plan Last Change',
     'Plan Warning',
     'Generator Stats',
@@ -783,6 +786,7 @@ function exportToCSV() {
         escapeCSV(row.event_teams_challenge),
         escapeCSV(row.draht_issue ? 'Yes' : 'No'),
         escapeCSV(row.plan_id),
+        escapeCSV(row.e_mode ?? 0),
         escapeCSV(row.plan_last_change ? formatDateTime(row.plan_last_change) : ''),
         escapeCSV(row.has_warning ? 'Yes' : 'No'),
         escapeCSV(row.generator_stats),
@@ -1174,7 +1178,7 @@ function exportToCSV() {
           <td class="px-3 py-2 text-gray-400">
             <div class="flex flex-col items-start">
               <div class="flex items-center gap-1">
-                <span>{{ row.plan_id }}</span>
+                <span>{{ row.plan_id }}<template v-if="row.plan_id && row.e_mode !== undefined && row.e_mode !== null"> E{{ row.e_mode }}</template></span>
               </div>
               <div v-if="row.plan_id" class="flex gap-2 mt-1">
                 <!-- Preview -->
