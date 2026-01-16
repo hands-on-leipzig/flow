@@ -930,28 +930,29 @@ class StatisticController extends Controller
         // Calculate event day intervals (15-minute intervals)
         $eventDayIntervals = [];
         if ($event->event_date) {
-            // Event times are in local time (CET), but Carbon interprets as UTC
-            // Convert to CET by adding 1 hour (simple shift, ignore DST)
-            $eventStart = Carbon::parse($event->event_date)->setTime(6, 0, 0)->addHour();
+            // Event times are in local time (Europe/Berlin)
+            // Create Carbon instances in Europe/Berlin timezone
+            $eventStartLocal = Carbon::parse($event->event_date, 'Europe/Berlin')->setTime(6, 0, 0);
             $eventDays = (int)($event->event_days ?? 1);
-            $eventEnd = Carbon::parse($event->event_date)
+            $eventEndLocal = Carbon::parse($event->event_date, 'Europe/Berlin')
                 ->addDays($eventDays - 1)
-                ->setTime(20, 55, 0)
-                ->addHour();
+                ->setTime(20, 55, 0);
+            
+            // Convert to UTC for database query (access_time is stored in UTC)
+            $eventStartUtc = $eventStartLocal->copy()->setTimezone('UTC');
+            $eventEndUtc = $eventEndLocal->copy()->setTimezone('UTC');
 
             // Get access counts for 15-minute intervals
-            // Convert access_time from UTC to CET by adding 1 hour, then round to nearest 15-minute interval
+            // Convert access_time from UTC to Europe/Berlin using CONVERT_TZ (handles DST automatically)
+            // Then round to nearest 15-minute interval
             $intervalAccesses = DB::table('s_one_link_access')
                 ->where('event', $eventId)
-                ->whereBetween('access_time', [
-                    $eventStart->copy()->subHour(), // Convert back to UTC for DB query
-                    $eventEnd->copy()->subHour()
-                ])
+                ->whereBetween('access_time', [$eventStartUtc, $eventEndUtc])
                 ->select(
                     DB::raw('DATE_FORMAT(
                         DATE_ADD(
-                            DATE_ADD(access_time, INTERVAL 1 HOUR),
-                            INTERVAL (15 - MINUTE(DATE_ADD(access_time, INTERVAL 1 HOUR)) % 15) MINUTE
+                            CONVERT_TZ(access_time, "UTC", "Europe/Berlin"),
+                            INTERVAL (15 - MINUTE(CONVERT_TZ(access_time, "UTC", "Europe/Berlin")) % 15) MINUTE
                         ),
                         "%Y-%m-%d %H:%i"
                     ) as interval_time'),
@@ -959,8 +960,8 @@ class StatisticController extends Controller
                 )
                 ->groupBy(DB::raw('DATE_FORMAT(
                     DATE_ADD(
-                        DATE_ADD(access_time, INTERVAL 1 HOUR),
-                        INTERVAL (15 - MINUTE(DATE_ADD(access_time, INTERVAL 1 HOUR)) % 15) MINUTE
+                        CONVERT_TZ(access_time, "UTC", "Europe/Berlin"),
+                        INTERVAL (15 - MINUTE(CONVERT_TZ(access_time, "UTC", "Europe/Berlin")) % 15) MINUTE
                     ),
                     "%Y-%m-%d %H:%i"
                 )'))
@@ -968,9 +969,9 @@ class StatisticController extends Controller
                 ->keyBy('interval_time')
                 ->map(fn($item) => (int)$item->access_count);
 
-            // Generate all 15-minute intervals (already in CET)
-            $currentInterval = $eventStart->copy();
-            while ($currentInterval->lte($eventEnd)) {
+            // Generate all 15-minute intervals in local time (Europe/Berlin)
+            $currentInterval = $eventStartLocal->copy();
+            while ($currentInterval->lte($eventEndLocal)) {
                 $intervalKey = $currentInterval->format('Y-m-d H:i');
                 
                 $eventDayIntervals[] = [
