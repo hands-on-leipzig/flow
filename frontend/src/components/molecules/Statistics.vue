@@ -14,6 +14,10 @@ import StatisticsDeleteModal from './statistics/StatisticsDeleteModal.vue'
 import StatisticsExtraBlocksModal from './statistics/StatisticsExtraBlocksModal.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
 
+const props = defineProps<{
+  tableOnly?: boolean
+}>()
+
 type FlattenedRow = {
   partner_id: number | null
   partner_name: string | null
@@ -834,7 +838,7 @@ function exportToCSV() {
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
       <!-- Global orphans -->
-      <div class="mb-2 flex flex-wrap items-center gap-2">
+      <div v-if="!props.tableOnly" class="mb-2 flex flex-wrap items-center gap-2">
         <button
           type="button"
           :disabled="orphans.events === 0"
@@ -883,9 +887,9 @@ function exportToCSV() {
         >
           Activities (ohne/ungültiger ActGroup): {{ orphans.acts }}
         </button>
-      </div>
+        </div>
         <!-- Season filter -->
-        <div class="mb-3">
+        <div v-if="!props.tableOnly" class="mb-3">
           <div class="flex flex-wrap gap-2">
             <label
               v-for="season in data.seasons"
@@ -904,7 +908,7 @@ function exportToCSV() {
         </div>
 
         <!-- Season totals (5 boxes) -->
-        <div class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+        <div v-if="!props.tableOnly" class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
           <!-- Box 1: regional partners -->
           <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
