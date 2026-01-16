@@ -215,7 +215,7 @@ async function regenerateLinkAndQR() {
 
     <div class="flex items-start gap-6">
       <!-- Radiobuttons -->
-      <div class="flex flex-col space-y-3">
+      <div class="flex flex-col space-y-3 max-w-xs">
         <h3 class="text-sm font-semibold mb-2">Detaillevel</h3>
         <label
           v-for="(label, idx) in levels"
@@ -226,13 +226,21 @@ async function regenerateLinkAndQR() {
             type="radio"
             :value="idx"
             v-model="detailLevel"
-            class="mt-1 accent-blue-600"
+            class="mt-1 accent-blue-600 flex-shrink-0"
             @focus="(e: Event) => { (e.target as HTMLInputElement)?.blur() }"
           />
-          <span class="text-sm leading-tight">
-            {{ label.split(' ')[0] }} <br />
-            {{ label.split(' ').slice(1).join(' ') }}
-          </span>
+          <div class="flex flex-col" style="width: 180px;">
+            <span class="text-sm leading-tight">
+              {{ label.split(' ')[0] }} <br />
+              {{ label.split(' ').slice(1).join(' ') }}
+            </span>
+            <span v-if="idx === 1" class="text-xs text-gray-500 italic mt-1" style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+              sinnvoll, sobald der Plan grob fertig ist
+            </span>
+            <span v-if="idx === 2" class="text-xs text-gray-500 italic mt-1" style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+              nur nutzen, wenn der Plan komplett ist
+            </span>
+          </div>
         </label>
       </div>
 
