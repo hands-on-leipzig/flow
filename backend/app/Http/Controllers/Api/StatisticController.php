@@ -230,6 +230,21 @@ class StatisticController extends Controller
             ->get()
             ->keyBy('plan');
 
+        // Get e_mode (Explore mode) for each plan
+        $eModeStatsRaw = DB::table('plan_param_value as ppv')
+            ->join('m_parameter as mp', 'mp.id', '=', 'ppv.parameter')
+            ->whereIn('ppv.plan', $planIds)
+            ->where('mp.name', 'e_mode')
+            ->select(
+                'ppv.plan',
+                'ppv.set_value as e_mode'
+            )
+            ->get()
+            ->keyBy('plan')
+            ->map(function ($item) {
+                return (int)($item->e_mode ?? 0);
+            });
+
         // Check for overwritten table names per event
         // Get event IDs for all plans
         $planEventMap = DB::table('plan')
@@ -336,6 +351,7 @@ class StatisticController extends Controller
                     'publication_last_change' => $row->publication_last_change,
                     'has_warning' => false, // Will be set by DRAHT check
                     'has_table_names' => $planTableNamesOverwritten[$row->plan_id] ?? false,
+                    'e_mode' => $eModeStatsRaw[$row->plan_id] ?? 0,
                 ];
             }
         }
@@ -930,22 +946,38 @@ class StatisticController extends Controller
         // Calculate event day intervals (15-minute intervals)
         $eventDayIntervals = [];
         if ($event->event_date) {
-            $eventStart = Carbon::parse($event->event_date)->setTime(6, 0, 0);
+            // Event times are in local time (Europe/Berlin)
+            // Create Carbon instances - parse as UTC then add appropriate offset based on DST
+            $eventDateCarbon = Carbon::parse($event->event_date)->setTime(6, 0, 0);
             $eventDays = (int)($event->event_days ?? 1);
+            
+            // Determine DST offset: check if event date is in DST period
+            // DST in Europe: last Sunday in March (02:00 → 03:00) to last Sunday in October (03:00 → 02:00)
+            // Use Carbon to check if date is in DST by creating a datetime in Europe/Berlin timezone
+            $testDate = Carbon::parse($event->event_date, 'Europe/Berlin')->setTime(12, 0, 0);
+            $isDST = $testDate->isDST();
+            $hourOffset = $isDST ? 2 : 1; // UTC+2 in summer (CEST), UTC+1 in winter (CET)
+            
+            $eventStart = $eventDateCarbon->copy()->addHours($hourOffset);
             $eventEnd = Carbon::parse($event->event_date)
                 ->addDays($eventDays - 1)
-                ->setTime(20, 55, 0);
+                ->setTime(20, 55, 0)
+                ->addHours($hourOffset);
 
             // Get access counts for 15-minute intervals
-            // Round access_time to nearest 15-minute interval
+            // access_time is stored in UTC, convert by adding offset (DST-aware)
+            // Then round to nearest 15-minute interval
             $intervalAccesses = DB::table('s_one_link_access')
                 ->where('event', $eventId)
-                ->whereBetween('access_time', [$eventStart, $eventEnd])
+                ->whereBetween('access_time', [
+                    $eventStart->copy()->subHours($hourOffset), // Convert back to UTC for query
+                    $eventEnd->copy()->subHours($hourOffset)
+                ])
                 ->select(
                     DB::raw('DATE_FORMAT(
                         DATE_ADD(
-                            access_time,
-                            INTERVAL (15 - MINUTE(access_time) % 15) MINUTE
+                            DATE_ADD(access_time, INTERVAL ' . $hourOffset . ' HOUR),
+                            INTERVAL (15 - MINUTE(DATE_ADD(access_time, INTERVAL ' . $hourOffset . ' HOUR)) % 15) MINUTE
                         ),
                         "%Y-%m-%d %H:%i"
                     ) as interval_time'),
@@ -953,8 +985,8 @@ class StatisticController extends Controller
                 )
                 ->groupBy(DB::raw('DATE_FORMAT(
                     DATE_ADD(
-                        access_time,
-                        INTERVAL (15 - MINUTE(access_time) % 15) MINUTE
+                        DATE_ADD(access_time, INTERVAL ' . $hourOffset . ' HOUR),
+                        INTERVAL (15 - MINUTE(DATE_ADD(access_time, INTERVAL ' . $hourOffset . ' HOUR)) % 15) MINUTE
                     ),
                     "%Y-%m-%d %H:%i"
                 )'))
@@ -962,7 +994,7 @@ class StatisticController extends Controller
                 ->keyBy('interval_time')
                 ->map(fn($item) => (int)$item->access_count);
 
-            // Generate all 15-minute intervals
+            // Generate all 15-minute intervals (already shifted by hourOffset)
             $currentInterval = $eventStart->copy();
             while ($currentInterval->lte($eventEnd)) {
                 $intervalKey = $currentInterval->format('Y-m-d H:i');
