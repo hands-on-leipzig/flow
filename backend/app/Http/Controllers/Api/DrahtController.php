@@ -204,15 +204,20 @@ class DrahtController extends Controller
                     })
                     ->first();
 
+                $IDs = [];
+                switch ($firstProgram) {
+                    case FirstProgram::EXPLORE->value:
+                        $IDs['event_explore'] = $eventData['id'];
+                        $IDs['contao_id_explore'] = $eventData['contao_id'];
+                        break;
+                    case FirstProgram::CHALLENGE->value:
+                        $IDs['event_challenge'] = $eventData['id'];
+                        $IDs['contao_id_challenge'] = $eventData['contao_id'];
+                        break;
+                }
+
                 if ($existingEvent) {
-                    $updateData = [];
-
-                    if ($firstProgram === FirstProgram::EXPLORE->value) {
-                        $updateData['event_explore'] = $eventData['id'];
-                    } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
-                        $updateData['event_challenge'] = $eventData['id'];
-                    }
-
+                    $updateData = $IDs;
                     if (empty($existingEvent->name) && !empty($eventData['name'])) {
                         $updateData['name'] = $eventData['name'];
                     }
@@ -234,12 +239,8 @@ class DrahtController extends Controller
                         'days' => $days,
                         'regional_partner' => $regionalPartner?->id,
                         'level' => $eventData['level'] ?? null,
+                        $IDs
                     ];
-                    match ($firstProgram) {
-                        2 => $eventAttributes['event_explore'] = $eventData['id'],
-                        3 => $eventAttributes['event_challenge'] = $eventData['id'],
-                        default => null
-                    };
 
                     $event = Event::create($eventAttributes);
 
