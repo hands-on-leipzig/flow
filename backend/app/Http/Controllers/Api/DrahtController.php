@@ -174,14 +174,9 @@ class DrahtController extends Controller
         $eventsData = $response->json();
 
         DB::transaction(function () use ($seasonId, $eventsData) {
-            $eventIds = Event::where('season', $seasonId)->pluck('id');
-
-            if ($eventIds->isNotEmpty()) {
-                DB::statement("SET foreign_key_checks=0");
-                Team::whereIn('event', $eventIds)->delete();
-                Event::whereIn('id', $eventIds)->delete();
-                DB::statement("SET foreign_key_checks=1");
-            }
+            // Track which events we've processed to identify events that should be deleted
+            $processedEventIds = [];
+            $processedDrahtIds = [];
 
             foreach ($eventsData as $eventData) {
                 $date = (isset($eventData["date"]) && $eventData["date"] != "") ? $eventData["date"] : "1970-01-01";
@@ -192,45 +187,61 @@ class DrahtController extends Controller
 
                 $days = 1;
 
-                $existingEvent = Event::where('regional_partner', $regionalPartner?->id)
-                    ->where('date', $date)
-                    ->where('season', $seasonId)
-                    ->where(function ($query) use ($firstProgram) {
-                        if ($firstProgram === FirstProgram::EXPLORE->value) {
-                            $query->whereNull('event_explore');
-                        } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
-                            $query->whereNull('event_challenge');
-                        }
-                    })
-                    ->first();
-
                 $IDs = [];
                 switch ($firstProgram) {
                     case FirstProgram::EXPLORE->value:
                         $IDs['event_explore'] = $eventData['id'];
-                        $IDs['contao_id_explore'] = $eventData['contao_id'];
+                        $IDs['contao_id_explore'] = $eventData['contao_id'] ?? null;
                         break;
                     case FirstProgram::CHALLENGE->value:
                         $IDs['event_challenge'] = $eventData['id'];
-                        $IDs['contao_id_challenge'] = $eventData['contao_id'];
+                        $IDs['contao_id_challenge'] = $eventData['contao_id'] ?? null;
                         break;
                 }
 
+                // First, try to find event by draht ID (most reliable)
+                $existingEvent = null;
+                if ($firstProgram === FirstProgram::EXPLORE->value) {
+                    $existingEvent = Event::where('event_explore', $eventData['id'])
+                        ->where('season', $seasonId)
+                        ->first();
+                } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
+                    $existingEvent = Event::where('event_challenge', $eventData['id'])
+                        ->where('season', $seasonId)
+                        ->first();
+                }
+
+                // If not found by draht ID, try fallback: find by date/regional_partner/season
+                // (for events that don't have draht IDs yet)
+                if (!$existingEvent) {
+                    $existingEvent = Event::where('regional_partner', $regionalPartner?->id)
+                        ->where('date', $date)
+                        ->where('season', $seasonId)
+                        ->where(function ($query) use ($firstProgram) {
+                            if ($firstProgram === FirstProgram::EXPLORE->value) {
+                                $query->whereNull('event_explore');
+                            } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
+                                $query->whereNull('event_challenge');
+                            }
+                        })
+                        ->first();
+                }
+
                 if ($existingEvent) {
-                    $updateData = $IDs;
-                    if (empty($existingEvent->name) && !empty($eventData['name'])) {
-                        $updateData['name'] = $eventData['name'];
-                    }
-                    if (empty($existingEvent->enddate) && $enddate) {
-                        $updateData['days'] = $days;
-                    }
-                    if (empty($existingEvent->level) && isset($eventData['level']) && $eventData['level']) {
-                        $updateData['level'] = $eventData['level'];
-                    }
+                    // Update existing event
+                    $updateData = array_merge($IDs, [
+                        'name' => $eventData['name'] ?? $existingEvent->name,
+                        'date' => $date,
+                        'enddate' => $enddate,
+                        'days' => $days,
+                        'regional_partner' => $regionalPartner?->id ?? $existingEvent->regional_partner,
+                        'level' => $eventData['level'] ?? $existingEvent->level,
+                    ]);
 
                     $existingEvent->update($updateData);
                     $event = $existingEvent;
                 } else {
+                    // Create new event
                     $eventAttributes = [
                         'name' => $eventData['name'] ?? null,
                         'date' => $date,
@@ -239,8 +250,8 @@ class DrahtController extends Controller
                         'days' => $days,
                         'regional_partner' => $regionalPartner?->id,
                         'level' => $eventData['level'] ?? null,
-                        $IDs
                     ];
+                    $eventAttributes = array_merge($eventAttributes, $IDs);
 
                     $event = Event::create($eventAttributes);
 
@@ -257,6 +268,17 @@ class DrahtController extends Controller
                     }
                 }
 
+                $processedEventIds[] = $event->id;
+                if ($firstProgram === FirstProgram::EXPLORE->value) {
+                    $processedDrahtIds[] = $eventData['id'];
+                } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
+                    $processedDrahtIds[] = $eventData['id'];
+                }
+
+                // Sync teams for this event: delete existing teams and insert new ones
+                // (Teams don't have unique identifiers from Draht, so delete/recreate is safest)
+                Team::where('event', $event->id)->delete();
+
                 if (isset($eventData['teams']) && is_array($eventData['teams'])) {
                     $teamsToCreate = collect($eventData['teams'])->map(function ($teamData) use ($event) {
                         return [
@@ -264,12 +286,14 @@ class DrahtController extends Controller
                             'name' => $teamData['name'],
                             'team_number_hot' => $teamData['team_number_hot'],
                             'first_program' => $teamData['first_program'],
-                            'location' => $teamData['location'],
-                            'organization' => $teamData['organization'],
+                            'location' => $teamData['location'] ?? null,
+                            'organization' => $teamData['organization'] ?? null,
                         ];
                     });
 
-                    Team::insert($teamsToCreate->toArray());
+                    if ($teamsToCreate->isNotEmpty()) {
+                        Team::insert($teamsToCreate->toArray());
+                    }
                 }
             }
         });
