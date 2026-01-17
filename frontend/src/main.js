@@ -23,6 +23,7 @@ import PlanLayout from "@/components/PlanLayout.vue";
 import PresentationSettings from "@/components/molecules/PresentationSettings.vue";
 import PublicEvent from "@/components/PublicEvent.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
+import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
 import ScoreViewer from "@/components/ScoreViewer.vue";
 import {useEventStore} from "@/stores/event";
 
@@ -64,6 +65,8 @@ const routes = [
     
     // Public slug-based routes (must be after all specific routes)
     {path: '/:slug', component: PublicEvent, props: true, meta: {public: true}},
+    // Unauthorized access route
+    {path: '/unauthorized', component: UnauthorizedAccess, meta: {public: true}},
 ];
 
 const router = createRouter({
@@ -76,8 +79,8 @@ const pinia = createPinia()
 setActivePinia(pinia)
 
 router.beforeEach(async (to, from, next) => {
-    // Allow public routes
-    if (to.meta?.public) {
+    // Allow public routes (including unauthorized page)
+    if (to.meta?.public || to.path === '/unauthorized') {
         next();
         return;
     }
@@ -153,6 +156,25 @@ axios.interceptors.request.use(config => {
     }
     return config
 })
+
+// Response interceptor to handle 403 Forbidden errors
+axios.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response?.status === 403) {
+            // Store error message for display
+            const errorMessage = error.response.data?.error || 'Zugriff verweigert'
+            sessionStorage.setItem('unauthorized_error', errorMessage)
+            
+            // Only redirect if not already on unauthorized page
+            if (window.location.pathname !== '/unauthorized') {
+                // Redirect to unauthorized page
+                window.location.href = '/unauthorized?error=' + encodeURIComponent(errorMessage)
+            }
+        }
+        return Promise.reject(error)
+    }
+)
 
 dayjs.locale('de')
 
