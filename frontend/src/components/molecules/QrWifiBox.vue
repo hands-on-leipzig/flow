@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import { usePdfExport } from '@/composables/usePdfExport'
@@ -9,6 +9,162 @@ const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
 const loadingWifiQr = ref(false)
+
+// === Password Management ===
+const showPassword = ref(false)
+const passwordInput = ref<string>('')
+const originalPassword = ref<string>('')
+
+// Watch for event changes to update password value
+watch(() => event.value?.wifi_password, (newPassword) => {
+  if (newPassword !== undefined && newPassword !== null && newPassword !== '') {
+    // Backend should always return decrypted password, but if we see encrypted format, fetch fresh
+    // Laravel encrypted strings start with "eyJ" (base64 JSON)
+    if (newPassword.startsWith('eyJ') && eventId.value) {
+      // Password appears encrypted, fetch decrypted version
+      axios.get(`/events/${eventId.value}`).then(({ data }) => {
+        if (data.wifi_password && !data.wifi_password.startsWith('eyJ')) {
+          originalPassword.value = data.wifi_password
+          if (showPassword.value) {
+            passwordInput.value = data.wifi_password
+          }
+        }
+      }).catch(() => {
+        // Fallback to what we have
+        originalPassword.value = newPassword
+      })
+    } else {
+      // Already decrypted
+      originalPassword.value = newPassword
+    }
+    
+    // If password exists, show asterisks by default (hidden)
+    if (!showPassword.value) {
+      passwordInput.value = '*****'
+    } else {
+      passwordInput.value = originalPassword.value
+    }
+  } else {
+    originalPassword.value = ''
+    passwordInput.value = ''
+  }
+}, { immediate: true })
+
+const hasPassword = computed(() => {
+  return !!originalPassword.value && originalPassword.value !== ''
+})
+
+// Computed for password display
+const displayPassword = computed(() => {
+  if (!hasPassword.value) {
+    return passwordInput.value
+  }
+  if (showPassword.value) {
+    // Show the decrypted password from originalPassword
+    // If user is editing (passwordInput is not asterisks and not original), use their input
+    if (passwordInput.value !== '*****' && passwordInput.value !== originalPassword.value) {
+      return passwordInput.value
+    }
+    // Otherwise show the original decrypted password
+    return originalPassword.value
+  }
+  // Show asterisks if password exists but is hidden
+  return '*****'
+})
+
+// Toggle password visibility
+async function togglePasswordVisibility() {
+  if (!showPassword.value) {
+    // When showing password, ensure we have the decrypted version
+    // Fetch fresh from backend to guarantee decrypted password
+    if (eventId.value && hasPassword.value) {
+      try {
+        const { data } = await axios.get(`/events/${eventId.value}`)
+        if (data.wifi_password) {
+          originalPassword.value = data.wifi_password
+          passwordInput.value = data.wifi_password
+        }
+      } catch (e) {
+        console.error('Failed to fetch decrypted password:', e)
+        // Fallback to stored value
+        passwordInput.value = originalPassword.value
+      }
+    } else {
+      passwordInput.value = originalPassword.value
+    }
+  } else {
+    // Hide password with asterisks
+    passwordInput.value = '*****'
+  }
+  showPassword.value = !showPassword.value
+}
+
+// Handle password input
+function onPasswordInput(value: string) {
+  // If user is typing and password is hidden (showing asterisks), reveal it
+  if (!showPassword.value && hasPassword.value) {
+    if (value === '*****') {
+      // User hasn't changed anything yet, keep asterisks
+      passwordInput.value = '*****'
+      return
+    }
+    // User is typing, show the actual password and use their input
+    showPassword.value = true
+    // Remove any leading asterisks from the input
+    passwordInput.value = value.replace(/^\*+/, '')
+    return
+  }
+  
+  // Normal input when password is visible
+  passwordInput.value = value
+}
+
+// Handle password focus - if showing asterisks, select all so user can easily replace
+function onPasswordFocus(e: FocusEvent) {
+  if (!showPassword.value && hasPassword.value && passwordInput.value === '*****') {
+    // Select all asterisks so user can easily type to replace
+    ;(e.target as HTMLInputElement).select()
+  }
+}
+
+// Handle password blur - save if changed
+async function onPasswordBlur() {
+  if (!eventId.value) return
+  
+  // If password is the asterisk placeholder, don't save
+  if (passwordInput.value === '*****' && hasPassword.value) {
+    return
+  }
+  
+  // If password is empty, save empty string
+  if (!passwordInput.value || passwordInput.value.trim() === '') {
+    await updateEventField('wifi_password', '')
+    originalPassword.value = ''
+    passwordInput.value = ''
+    showPassword.value = false
+    return
+  }
+  
+  // If password hasn't changed from original, don't save
+  if (passwordInput.value === originalPassword.value) {
+    // Hide password again
+    if (showPassword.value && hasPassword.value) {
+      showPassword.value = false
+      passwordInput.value = '*****'
+    }
+    return
+  }
+  
+  // Save the new password
+  await updateEventField('wifi_password', passwordInput.value)
+  // After save, update original password
+  originalPassword.value = passwordInput.value
+  // Hide password again if it was shown
+  if (showPassword.value && passwordInput.value) {
+    showPassword.value = false
+    passwordInput.value = '*****'
+  }
+}
 
 // === PDF Download (neu über Composable) ===
 const { isDownloading, anyDownloading, downloadPdf } = usePdfExport()
@@ -146,13 +302,63 @@ onMounted(() => {
         </div>
         <div class="flex items-center gap-3">
           <label class="w-20 text-sm text-gray-700">Passwort</label>
-          <input
-            v-model="event.wifi_password"
-            @blur="updateEventField('wifi_password', event.wifi_password)"
-            class="flex-1 border px-3 py-1 rounded text-sm"
-            type="text"
-            placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
-          />
+          <div class="flex-1 relative">
+            <input
+              :value="displayPassword"
+              @input="(e) => onPasswordInput((e.target as HTMLInputElement).value)"
+              @focus="onPasswordFocus"
+              @blur="onPasswordBlur"
+              class="w-full border px-3 py-1 pr-10 rounded text-sm"
+              type="text"
+              :placeholder="hasPassword ? '*****' : 'z. B. $N#Uh)eA~ado]tyMXTkG'"
+            />
+            <button
+              v-if="hasPassword"
+              type="button"
+              @click="togglePasswordVisibility"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+              tabindex="-1"
+            >
+              <!-- Eye icon (show password) -->
+              <svg
+                v-if="!showPassword"
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+              <!-- Eye slash icon (hide password) -->
+              <svg
+                v-else
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="flex items-start gap-3">
           <label class="w-20 text-sm text-gray-700 mt-1">Hinweise</label>
