@@ -603,36 +603,83 @@ const downloadCSV = () => {
 }
 
 const downloadXML = () => {
-  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<teams>\n'
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<teams offset="0">\n'
+
+  // Create a map of team_number_hot to team objects for quick lookup
+  const teamMap = new Map()
+  teamList.value.forEach(team => {
+    if (team.team_number_hot) {
+      teamMap.set(String(team.team_number_hot), team)
+    }
+  })
+
+  // Get program name in German
+  const programName = props.program === 'explore' ? 'Explore' : 'Challenge'
 
   Object.entries(peopleData.value).forEach(([teamNumber, teamData]) => {
-    xml += `  <team number="${teamNumber}" name="${escapeXml(teamData.name || '')}">\n`
-    // Add players
+    // Find matching team object to get organization and location
+    const teamObj = teamMap.get(teamNumber)
+    const organization = teamObj?.organization || teamData.organization || ''
+    const location = teamObj?.location || teamData.location || ''
+    const teamName = teamData.name || teamObj?.name || ''
+
+    xml += `\t<team>\n`
+    xml += `\t\t<nummer>${escapeXml(teamNumber)}</nummer>\n`
+    xml += `\t\t<name>${escapeXml(teamName)}</name>\n`
+    xml += `\t\t<programm>${escapeXml(programName)}</programm>\n`
+    xml += `\t\t<institution>\n`
+    xml += `\t\t\t<name>${escapeXml(organization)}</name>\n`
+    xml += `\t\t\t<ort>${escapeXml(location)}</ort>\n`
+    xml += `\t\t</institution>\n`
+    xml += `\t\t<mitglieder>\n`
+
+    // Add players as teammitglied
     if (teamData.players && Array.isArray(teamData.players)) {
       teamData.players.forEach(player => {
-        xml += `    <player>\n`
-        xml += `      <name>${escapeXml(player.name || '')}</name>\n`
-        xml += `      <firstname>${escapeXml(player.firstname || '')}</firstname>\n`
-        xml += `      <gender>${escapeXml(player.gender || '')}</gender>\n`
-        xml += `      <birthday>${formatBirthday(player.birthday)}</birthday>\n`
-        xml += `    </player>\n`
-      })
-    }
-    // Add coaches
-    if (teamData.coaches && Array.isArray(teamData.coaches)) {
-      teamData.coaches.forEach(coach => {
-        xml += `    <coach>\n`
-        if (typeof coach === 'object' && coach !== null) {
-          xml += `      <name>${escapeXml(coach.name || '')}</name>\n`
-          xml += `      <email>${escapeXml(coach.email || '')}</email>\n`
-          xml += `      <phone>${escapeXml(coach.phone || '')}</phone>\n`
-        } else {
-          xml += `      <name>${escapeXml(coach || '')}</name>\n`
+        if (player.name || player.firstname) {
+          xml += `\t\t\t<mitglied typ="teammitglied">\n`
+          xml += `\t\t\t\t<vorname>${escapeXml(player.firstname || '')}</vorname>\n`
+          xml += `\t\t\t\t<nachname>${escapeXml(player.name || '')}</nachname>\n`
+          xml += `\t\t\t</mitglied>\n`
         }
-        xml += `    </coach>\n`
       })
     }
-    xml += `  </team>\n`
+
+    // Add coaches - first one is "coach", rest are "co-coach"
+    if (teamData.coaches && Array.isArray(teamData.coaches)) {
+      teamData.coaches.forEach((coach, index) => {
+        const coachType = index === 0 ? 'coach' : 'co-coach'
+        xml += `\t\t\t<mitglied typ="${coachType}">\n`
+        
+        if (typeof coach === 'object' && coach !== null) {
+          // Split name into firstname and lastname if possible
+          const fullName = coach.name || ''
+          const nameParts = fullName.trim().split(/\s+/)
+          const vorname = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : ''
+          const nachname = nameParts.length > 0 ? nameParts[nameParts.length - 1] : fullName
+          
+          xml += `\t\t\t\t<vorname>${escapeXml(vorname)}</vorname>\n`
+          xml += `\t\t\t\t<nachname>${escapeXml(nachname)}</nachname>\n`
+          xml += `\t\t\t\t<email>${escapeXml(coach.email || '')}</email>\n`
+          xml += `\t\t\t\t<telefon>${escapeXml(coach.phone || '')}</telefon>\n`
+        } else {
+          // String coach - try to split name
+          const fullName = String(coach || '')
+          const nameParts = fullName.trim().split(/\s+/)
+          const vorname = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : ''
+          const nachname = nameParts.length > 0 ? nameParts[nameParts.length - 1] : fullName
+          
+          xml += `\t\t\t\t<vorname>${escapeXml(vorname)}</vorname>\n`
+          xml += `\t\t\t\t<nachname>${escapeXml(nachname)}</nachname>\n`
+          xml += `\t\t\t\t<email></email>\n`
+          xml += `\t\t\t\t<telefon></telefon>\n`
+        }
+        xml += `\t\t\t</mitglied>\n`
+      })
+    }
+
+    xml += `\t\t</mitglieder>\n`
+    xml += `\t</team>\n`
   })
 
   xml += '</teams>'
