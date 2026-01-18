@@ -484,6 +484,45 @@ const formatBirthday = (timestamp) => {
   return date.toLocaleDateString('de-DE')
 }
 
+// Copy to clipboard function
+const copyToClipboard = async (text, type) => {
+  if (!text) return
+
+  try {
+    await navigator.clipboard.writeText(text)
+    // Show temporary feedback
+    const toast = document.createElement('div')
+    toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50'
+    toast.textContent = `${type} kopiert!`
+    document.body.appendChild(toast)
+    setTimeout(() => {
+      toast.remove()
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to copy to clipboard:', err)
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.style.position = 'fixed'
+    textArea.style.opacity = '0'
+    document.body.appendChild(textArea)
+    textArea.select()
+    try {
+      document.execCommand('copy')
+      const toast = document.createElement('div')
+      toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50'
+      toast.textContent = `${type} kopiert!`
+      document.body.appendChild(toast)
+      setTimeout(() => {
+        toast.remove()
+      }, 2000)
+    } catch (e) {
+      console.error('Fallback copy failed:', e)
+    }
+    document.body.removeChild(textArea)
+  }
+}
+
 // Download functions
 const downloadJSON = () => {
   const dataStr = JSON.stringify(peopleData.value, null, 2)
@@ -498,19 +537,54 @@ const downloadJSON = () => {
 
 const downloadCSV = () => {
   const rows = []
-  rows.push(['Team Number', 'Team Name', 'Player Name', 'First Name', 'Gender', 'Birthday'])
+  rows.push(['Team Number', 'Team Name', 'Type', 'Name', 'First Name', 'Gender', 'Birthday', 'Email', 'Phone'])
 
   Object.entries(peopleData.value).forEach(([teamNumber, teamData]) => {
+    // Add players
     if (teamData.players && Array.isArray(teamData.players)) {
       teamData.players.forEach(player => {
         rows.push([
           teamNumber,
           teamData.name || '',
+          'Player',
           player.name || '',
           player.firstname || '',
           player.gender || '',
-          formatBirthday(player.birthday)
+          formatBirthday(player.birthday),
+          '',
+          ''
         ])
+      })
+    }
+    // Add coaches
+    if (teamData.coaches && Array.isArray(teamData.coaches)) {
+      teamData.coaches.forEach(coach => {
+        if (typeof coach === 'object' && coach !== null) {
+          rows.push([
+            teamNumber,
+            teamData.name || '',
+            'Coach',
+            coach.name || '',
+            '',
+            '',
+            '',
+            coach.email || '',
+            coach.phone || ''
+          ])
+        } else {
+          // Handle string coaches
+          rows.push([
+            teamNumber,
+            teamData.name || '',
+            'Coach',
+            coach || '',
+            '',
+            '',
+            '',
+            '',
+            ''
+          ])
+        }
       })
     }
   })
@@ -533,6 +607,7 @@ const downloadXML = () => {
 
   Object.entries(peopleData.value).forEach(([teamNumber, teamData]) => {
     xml += `  <team number="${teamNumber}" name="${escapeXml(teamData.name || '')}">\n`
+    // Add players
     if (teamData.players && Array.isArray(teamData.players)) {
       teamData.players.forEach(player => {
         xml += `    <player>\n`
@@ -541,6 +616,20 @@ const downloadXML = () => {
         xml += `      <gender>${escapeXml(player.gender || '')}</gender>\n`
         xml += `      <birthday>${formatBirthday(player.birthday)}</birthday>\n`
         xml += `    </player>\n`
+      })
+    }
+    // Add coaches
+    if (teamData.coaches && Array.isArray(teamData.coaches)) {
+      teamData.coaches.forEach(coach => {
+        xml += `    <coach>\n`
+        if (typeof coach === 'object' && coach !== null) {
+          xml += `      <name>${escapeXml(coach.name || '')}</name>\n`
+          xml += `      <email>${escapeXml(coach.email || '')}</email>\n`
+          xml += `      <phone>${escapeXml(coach.phone || '')}</phone>\n`
+        } else {
+          xml += `      <name>${escapeXml(coach || '')}</name>\n`
+        }
+        xml += `    </coach>\n`
       })
     }
     xml += `  </team>\n`
@@ -766,29 +855,83 @@ onMounted(async () => {
                 {{ isTeamExpanded(team) ? '▼' : '▶' }}
               </span>
             </li>
-            <!-- Expanded players list -->
+            <!-- Expanded players and coaches list -->
             <div v-if="isTeamExpanded(team) && getTeamPeopleData(team)" class="ml-8 mb-2 bg-gray-100 rounded p-3">
-              <div class="text-sm font-semibold mb-2">
-                Mitglieder ({{ getTeamPeopleData(team).num_players || 0 }}) / Coaches
-                ({{ getTeamPeopleData(team).num_coaches || 0 }})
-              </div>
-              <div v-if="getTeamPeopleData(team).players && getTeamPeopleData(team).players.length > 0"
-                   class="space-y-1">
-                <div
-                    v-for="(player, playerIndex) in getTeamPeopleData(team).players"
-                    :key="playerIndex"
-                    class="text-sm text-gray-700"
-                >
-                  <span v-if="player.name || player.firstname">
-                    {{ player.firstname || '' }} {{ player.name || '' }}
-                    <span class="text-gray-500">({{ player.gender || 'N/A' }}, {{
-                        formatBirthday(player.birthday)
-                      }})</span>
-                  </span>
-                  <span v-else class="text-gray-400 italic">Unbekanntes Mitglied</span>
+              <!-- Players section -->
+              <div v-if="getTeamPeopleData(team).players && getTeamPeopleData(team).players.length > 0" class="mb-3">
+                <div class="text-xs font-semibold text-gray-600 mb-1">Mitglieder
+                  ({{ getTeamPeopleData(team).num_players || 0 }}):
+                </div>
+                <div class="space-y-1">
+                  <div
+                      v-for="(player, playerIndex) in getTeamPeopleData(team).players"
+                      :key="playerIndex"
+                      class="text-sm text-gray-700"
+                  >
+                    <span v-if="player.name || player.firstname">
+                      {{ player.firstname || '' }} {{ player.name || '' }}
+                      <span class="text-gray-500">({{ player.gender || 'N/A' }}, {{
+                          formatBirthday(player.birthday)
+                        }})</span>
+                    </span>
+                    <span v-else class="text-gray-400 italic">Unbekanntes Mitglied</span>
+                  </div>
                 </div>
               </div>
-              <div v-else class="text-sm text-gray-400 italic">Keine Mitglieder gefunden</div>
+              <div v-else class="text-sm text-gray-400 italic mb-3">Keine Mitglieder gefunden</div>
+
+              <!-- Coaches section -->
+              <div v-if="getTeamPeopleData(team).coaches && getTeamPeopleData(team).coaches.length > 0">
+                <div class="text-xs font-semibold text-gray-600 mb-1">Coaches
+                  ({{ getTeamPeopleData(team).num_coaches || 0 }}):
+                </div>
+                <div class="space-y-1">
+                  <div
+                      v-for="(coach, coachIndex) in getTeamPeopleData(team).coaches"
+                      :key="coachIndex"
+                      class="text-sm text-gray-700"
+                  >
+                    <template v-if="typeof coach === 'object' && coach !== null">
+                      <div class="flex flex-col">
+                        <span class="font-medium">{{ coach.name || 'Unbekannt' }}</span>
+                        <div v-if="coach.email || coach.phone"
+                             class="text-xs text-gray-500 ml-2 flex flex-wrap items-center gap-2">
+                          <span v-if="coach.email" class="flex items-center gap-1">
+                            {{ coach.email }}
+                            <button
+                                @click.stop="copyToClipboard(coach.email, 'E-Mail')"
+                                class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded p-0.5 transition-colors"
+                                title="E-Mail kopieren"
+                            >
+                              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                              </svg>
+                            </button>
+                          </span>
+                          <span v-if="coach.phone" class="flex items-center gap-1">
+                            {{ coach.phone }}
+                            <button
+                                @click.stop="copyToClipboard(coach.phone, 'Telefon')"
+                                class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded p-0.5 transition-colors"
+                                title="Telefonnummer kopieren"
+                            >
+                              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                              </svg>
+                            </button>
+                          </span>
+                        </div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <span>{{ coach || 'Unbekannt' }}</span>
+                    </template>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-sm text-gray-400 italic">Keine Coaches gefunden</div>
             </div>
           </div>
         </template>
