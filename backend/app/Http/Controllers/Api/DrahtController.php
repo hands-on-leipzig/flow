@@ -164,141 +164,187 @@ class DrahtController extends Controller
 
     public function getAllEventsAndTeams(int $seasonId)
     {
-        $response = $this->makeDrahtCall("/handson/flow/events");
+        try {
+            $response = $this->makeDrahtCall("/handson/flow/events");
 
-        if (!$response->ok()) {
-            return response()->json(['error' => 'Failed to fetch events from Draht API'], 500);
-        }
-
-        ini_set('max_execution_time', 300);
-        $eventsData = $response->json();
-
-        DB::transaction(function () use ($seasonId, $eventsData) {
-            // Track which events we've processed to identify events that should be deleted
-            $processedEventIds = [];
-            $processedDrahtIds = [];
-
-            foreach ($eventsData as $eventData) {
-                $date = (isset($eventData["date"]) && $eventData["date"] != "") ? $eventData["date"] : "1970-01-01";
-                $enddate = (isset($eventData["enddate"]) && $eventData["enddate"] != "") ? $eventData["enddate"] : "1970-01-01";
-
-                $regionalPartner = RegionalPartner::where('dolibarr_id', $eventData['region'])->first();
-                $firstProgram = (int)$eventData['first_program'];
-
-                $days = 1;
-
-                $IDs = [];
-                switch ($firstProgram) {
-                    case FirstProgram::EXPLORE->value:
-                        $IDs['event_explore'] = $eventData['id'];
-                        $IDs['contao_id_explore'] = $eventData['contao_id'] ?? null;
-                        break;
-                    case FirstProgram::CHALLENGE->value:
-                        $IDs['event_challenge'] = $eventData['id'];
-                        $IDs['contao_id_challenge'] = $eventData['contao_id'] ?? null;
-                        break;
-                }
-
-                // First, try to find event by draht ID (most reliable)
-                $existingEvent = null;
-                if ($firstProgram === FirstProgram::EXPLORE->value) {
-                    $existingEvent = Event::where('event_explore', $eventData['id'])
-                        ->where('season', $seasonId)
-                        ->first();
-                } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
-                    $existingEvent = Event::where('event_challenge', $eventData['id'])
-                        ->where('season', $seasonId)
-                        ->first();
-                }
-
-                // If not found by draht ID, try fallback: find by date/regional_partner/season
-                // (for events that don't have draht IDs yet)
-                if (!$existingEvent) {
-                    $existingEvent = Event::where('regional_partner', $regionalPartner?->id)
-                        ->where('date', $date)
-                        ->where('season', $seasonId)
-                        ->where(function ($query) use ($firstProgram) {
-                            if ($firstProgram === FirstProgram::EXPLORE->value) {
-                                $query->whereNull('event_explore');
-                            } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
-                                $query->whereNull('event_challenge');
-                            }
-                        })
-                        ->first();
-                }
-
-                if ($existingEvent) {
-                    // Update existing event
-                    $updateData = array_merge($IDs, [
-                        'name' => $eventData['name'] ?? $existingEvent->name,
-                        'date' => $date,
-                        'enddate' => $enddate,
-                        'days' => $days,
-                        'regional_partner' => $regionalPartner?->id ?? $existingEvent->regional_partner,
-                        'level' => $eventData['level'] ?? $existingEvent->level,
-                    ]);
-
-                    $existingEvent->update($updateData);
-                    $event = $existingEvent;
-                } else {
-                    // Create new event
-                    $eventAttributes = [
-                        'name' => $eventData['name'] ?? null,
-                        'date' => $date,
-                        'enddate' => $enddate,
-                        'season' => $seasonId,
-                        'days' => $days,
-                        'regional_partner' => $regionalPartner?->id,
-                        'level' => $eventData['level'] ?? null,
-                    ];
-                    $eventAttributes = array_merge($eventAttributes, $IDs);
-
-                    $event = Event::create($eventAttributes);
-
-                    // Automatically generate link and QR code for new events using existing PublishController
-                    try {
-                        $publishController = app(\App\Http\Controllers\Api\PublishController::class);
-                        $publishController->linkAndQRcode($event->id);
-                        Log::info("Automatically generated link and QR code for new event {$event->id}");
-                    } catch (\Exception $e) {
-                        Log::error("Failed to auto-generate link and QR code for event {$event->id}", [
-                            'error' => $e->getMessage()
-                        ]);
-                        // Don't fail the entire process if link generation fails
-                    }
-                }
-
-                $processedEventIds[] = $event->id;
-                if ($firstProgram === FirstProgram::EXPLORE->value) {
-                    $processedDrahtIds[] = $eventData['id'];
-                } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
-                    $processedDrahtIds[] = $eventData['id'];
-                }
-
-                // Sync teams for this event: delete existing teams and insert new ones
-                // (Teams don't have unique identifiers from Draht, so delete/recreate is safest)
-                Team::where('event', $event->id)->delete();
-
-                if (isset($eventData['teams']) && is_array($eventData['teams'])) {
-                    $teamsToCreate = collect($eventData['teams'])->map(function ($teamData) use ($event) {
-                        return [
-                            'event' => $event->id,
-                            'name' => $teamData['name'],
-                            'team_number_hot' => $teamData['team_number_hot'],
-                            'first_program' => $teamData['first_program'],
-                            'location' => $teamData['location'] ?? null,
-                            'organization' => $teamData['organization'] ?? null,
-                        ];
-                    });
-
-                    if ($teamsToCreate->isNotEmpty()) {
-                        Team::insert($teamsToCreate->toArray());
-                    }
-                }
+            if (!$response->ok()) {
+                Log::error('Failed to fetch events from Draht API', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return response()->json([
+                    'error' => 'Failed to fetch events from Draht API',
+                    'message' => 'HTTP ' . $response->status() . ': ' . $response->body()
+                ], 500);
             }
-        });
 
-        return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);
+            ini_set('max_execution_time', 300);
+            $eventsData = $response->json();
+
+            if (!is_array($eventsData)) {
+                Log::error('Invalid response format from Draht API', [
+                    'response' => $eventsData
+                ]);
+                return response()->json([
+                    'error' => 'Invalid response format from Draht API',
+                    'message' => 'Expected array but got ' . gettype($eventsData)
+                ], 500);
+            }
+
+            DB::transaction(function () use ($seasonId, $eventsData) {
+                // Track which events we've processed to identify events that should be deleted
+                $processedEventIds = [];
+                $processedDrahtIds = [];
+
+                foreach ($eventsData as $eventData) {
+                    try {
+                        $date = (isset($eventData["date"]) && $eventData["date"] != "") ? $eventData["date"] : "1970-01-01";
+                        $enddate = (isset($eventData["enddate"]) && $eventData["enddate"] != "") ? $eventData["enddate"] : "1970-01-01";
+
+                        $regionalPartner = RegionalPartner::where('dolibarr_id', $eventData['region'])->first();
+                        $firstProgram = (int)$eventData['first_program'];
+
+                        $days = 1;
+
+                        $IDs = [];
+                        switch ($firstProgram) {
+                            case FirstProgram::EXPLORE->value:
+                                $IDs['event_explore'] = $eventData['id'];
+                                $IDs['contao_id_explore'] = $eventData['contao_id'] ?? null;
+                                break;
+                            case FirstProgram::CHALLENGE->value:
+                                $IDs['event_challenge'] = $eventData['id'];
+                                $IDs['contao_id_challenge'] = $eventData['contao_id'] ?? null;
+                                break;
+                        }
+
+                        // First, try to find event by draht ID (most reliable)
+                        $existingEvent = null;
+                        if ($firstProgram === FirstProgram::EXPLORE->value) {
+                            $existingEvent = Event::where('event_explore', $eventData['id'])
+                                ->where('season', $seasonId)
+                                ->first();
+                        } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
+                            $existingEvent = Event::where('event_challenge', $eventData['id'])
+                                ->where('season', $seasonId)
+                                ->first();
+                        }
+
+                        // If not found by draht ID, try fallback: find by date/regional_partner/season
+                        // (for events that don't have draht IDs yet)
+                        if (!$existingEvent) {
+                            $existingEvent = Event::where('regional_partner', $regionalPartner?->id)
+                                ->where('date', $date)
+                                ->where('season', $seasonId)
+                                ->where(function ($query) use ($firstProgram) {
+                                    if ($firstProgram === FirstProgram::EXPLORE->value) {
+                                        $query->whereNull('event_explore');
+                                    } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
+                                        $query->whereNull('event_challenge');
+                                    }
+                                })
+                                ->first();
+                        }
+
+                        if ($existingEvent) {
+                            // Update existing event
+                            $updateData = array_merge($IDs, [
+                                'name' => $eventData['name'] ?? $existingEvent->name,
+                                'date' => $date,
+                                'enddate' => $enddate,
+                                'days' => $days,
+                                'regional_partner' => $regionalPartner?->id ?? $existingEvent->regional_partner,
+                                'level' => $eventData['level'] ?? $existingEvent->level,
+                            ]);
+
+                            $existingEvent->update($updateData);
+                            $event = $existingEvent;
+                        } else {
+                            // Create new event
+                            $eventAttributes = [
+                                'name' => $eventData['name'] ?? null,
+                                'date' => $date,
+                                'enddate' => $enddate,
+                                'season' => $seasonId,
+                                'days' => $days,
+                                'regional_partner' => $regionalPartner?->id,
+                                'level' => $eventData['level'] ?? null,
+                            ];
+                            $eventAttributes = array_merge($eventAttributes, $IDs);
+
+                            $event = Event::create($eventAttributes);
+
+                            // Automatically generate link and QR code for new events using existing PublishController
+                            try {
+                                $publishController = app(\App\Http\Controllers\Api\PublishController::class);
+                                $publishController->linkAndQRcode($event->id);
+                                Log::info("Automatically generated link and QR code for new event {$event->id}");
+                            } catch (\Exception $e) {
+                                Log::error("Failed to auto-generate link and QR code for event {$event->id}", [
+                                    'error' => $e->getMessage()
+                                ]);
+                                // Don't fail the entire process if link generation fails
+                            }
+                        }
+
+                        $processedEventIds[] = $event->id;
+                        if ($firstProgram === FirstProgram::EXPLORE->value) {
+                            $processedDrahtIds[] = $eventData['id'];
+                        } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
+                            $processedDrahtIds[] = $eventData['id'];
+                        }
+
+                        // Sync teams for this event: delete existing teams and insert new ones
+                        // (Teams don't have unique identifiers from Draht, so delete/recreate is safest)
+                        Team::where('event', $event->id)->delete();
+
+                        if (isset($eventData['teams']) && is_array($eventData['teams'])) {
+                            $teamsToCreate = collect($eventData['teams'])->map(function ($teamData) use ($event) {
+                                return [
+                                    'event' => $event->id,
+                                    'name' => $teamData['name'],
+                                    'team_number_hot' => $teamData['team_number_hot'],
+                                    'first_program' => $teamData['first_program'],
+                                    'location' => $teamData['location'] ?? null,
+                                    'organization' => $teamData['organization'] ?? null,
+                                ];
+                            });
+
+                            if ($teamsToCreate->isNotEmpty()) {
+                                Team::insert($teamsToCreate->toArray());
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Error processing event from Draht', [
+                            'event_data' => $eventData,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        // Continue with next event instead of failing entire sync
+                        continue;
+                    }
+                }
+            });
+
+            return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::error('Connection error while fetching events from Draht API', [
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'error' => 'Connection error',
+                'message' => 'Could not connect to Draht API: ' . $e->getMessage()
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Error in getAllEventsAndTeams', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Internal server error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
