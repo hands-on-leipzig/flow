@@ -293,25 +293,66 @@ class DrahtController extends Controller
                         } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
                             $processedDrahtIds[] = $eventData['id'];
                         }
-
-                        // Sync teams for this event: delete existing teams and insert new ones
-                        // (Teams don't have unique identifiers from Draht, so delete/recreate is safest)
-                        Team::where('event', $event->id)->delete();
-
                         if (isset($eventData['teams']) && is_array($eventData['teams'])) {
-                            $teamsToCreate = collect($eventData['teams'])->map(function ($teamData) use ($event) {
-                                return [
-                                    'event' => $event->id,
-                                    'name' => $teamData['name'],
-                                    'team_number_hot' => $teamData['team_number_hot'],
-                                    'first_program' => $teamData['first_program'],
-                                    'location' => $teamData['location'] ?? null,
-                                    'organization' => $teamData['organization'] ?? null,
-                                ];
-                            });
-
-                            if ($teamsToCreate->isNotEmpty()) {
-                                Team::insert($teamsToCreate->toArray());
+                            $existingTeams = Team::where('event', $event->id)
+                                ->get()
+                                ->keyBy('team_number_hot');
+                            
+                            $processedTeamNumbers = [];
+                            
+                            foreach ($eventData['teams'] as $teamData) {
+                                $teamNumberHot = $teamData['team_number_hot'] ?? null;
+                                
+                                if ($teamNumberHot === null) {
+                                    Log::warning('Skipping team without team_number_hot', [
+                                        'event_id' => $event->id,
+                                        'team_data' => $teamData
+                                    ]);
+                                    continue;
+                                }
+                                
+                                $processedTeamNumbers[] = $teamNumberHot;
+                                
+                                $existingTeam = $existingTeams->get($teamNumberHot);
+                                
+                                if ($existingTeam) {
+                                    $existingTeam->update([
+                                        'name' => $teamData['name'],
+                                        'location' => $teamData['location'] ?? null,
+                                        'organization' => $teamData['organization'] ?? null,
+                                        'first_program' => $teamData['first_program'] ?? $existingTeam->first_program,
+                                    ]);
+                                } else {
+                                    Team::create([
+                                        'event' => $event->id,
+                                        'name' => $teamData['name'],
+                                        'team_number_hot' => $teamNumberHot,
+                                        'first_program' => $teamData['first_program'] ?? $firstProgram,
+                                        'location' => $teamData['location'] ?? null,
+                                        'organization' => $teamData['organization'] ?? null,
+                                    ]);
+                                }
+                            }
+                            
+                            $teamsToDelete = Team::where('event', $event->id)
+                                ->whereNotIn('team_number_hot', $processedTeamNumbers)
+                                ->whereDoesntHave('teamPlans')
+                                ->get();
+                            
+                            foreach ($teamsToDelete as $teamToDelete) {
+                                $teamToDelete->delete();
+                            }
+                            
+                            $teamsWithPlans = Team::where('event', $event->id)
+                                ->whereNotIn('team_number_hot', $processedTeamNumbers)
+                                ->whereHas('teamPlans')
+                                ->get();
+                            
+                            if ($teamsWithPlans->isNotEmpty()) {
+                                Log::warning('Teams not deleted because they have team_plan entries', [
+                                    'event_id' => $event->id,
+                                    'team_numbers' => $teamsWithPlans->pluck('team_number_hot')->toArray()
+                                ]);
                             }
                         }
                     } catch (\Exception $e) {
@@ -320,7 +361,6 @@ class DrahtController extends Controller
                             'error' => $e->getMessage(),
                             'trace' => $e->getTraceAsString()
                         ]);
-                        // Continue with next event instead of failing entire sync
                         continue;
                     }
                 }
