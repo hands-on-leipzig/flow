@@ -48,9 +48,9 @@ const loadEvent = async () => {
         viewport_height: window.innerHeight,
         device_pixel_ratio: window.devicePixelRatio || 1,
         touch_support: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-        connection_type: navigator.connection?.effectiveType || 
-                         navigator.connection?.type || 
-                         null
+        connection_type: navigator.connection?.effectiveType ||
+            navigator.connection?.type ||
+            null
       };
 
       // Log access (fire and forget - don't await)
@@ -200,12 +200,12 @@ const getExploreTimelineItems = () => {
   const morningItems = getExploreMorningTimelineItems()
   const afternoonItems = getExploreAfternoonTimelineItems()
   const singleItems = getExploreSingleTimelineItems()
-  
+
   // If we have morning or afternoon, return those (combined for compatibility)
   if (morningItems.length > 0 || afternoonItems.length > 0) {
     return [...morningItems, ...afternoonItems].sort((a, b) => a.timestamp - b.timestamp)
   }
-  
+
   // Otherwise return single explore items
   return singleItems
 }
@@ -241,12 +241,12 @@ const combinedExploreItemsCount = computed(() => {
   const morningItems = getExploreMorningTimelineItems()
   const afternoonItems = getExploreAfternoonTimelineItems()
   const singleItems = getExploreSingleTimelineItems()
-  
+
   // If both morning and afternoon exist, sum them; otherwise use single
   if (morningItems.length > 0 && afternoonItems.length > 0) {
     return morningItems.length + afternoonItems.length
   }
-  
+
   // Return the max of single explore or whichever of morning/afternoon exists
   return Math.max(morningItems.length, afternoonItems.length, singleItems.length)
 })
@@ -257,7 +257,7 @@ const timelineMinHeight = computed(() => {
   const afternoonItems = getExploreAfternoonTimelineItems()
   const singleItems = getExploreSingleTimelineItems()
   const challengeItems = getChallengeTimelineItems()
-  
+
   // Calculate max items across all explore sections and challenge
   const maxExploreItems = Math.max(morningItems.length, afternoonItems.length, singleItems.length)
   const maxItems = Math.max(maxExploreItems, challengeItems.length)
@@ -274,13 +274,13 @@ const combinedExploreHeight = computed(() => {
   const itemHeight = 70
   const headerHeight = 80 // Approximate header height
   const sectionSpacing = 16 // Spacing between morning/afternoon sections (gap-4)
-  
+
   const morningItems = getExploreMorningTimelineItems()
   const afternoonItems = getExploreAfternoonTimelineItems()
   const singleItems = getExploreSingleTimelineItems()
-  
+
   let height = 0
-  
+
   // If both morning and afternoon exist
   if (morningItems.length > 0 && afternoonItems.length > 0) {
     height = headerHeight + (morningItems.length * itemHeight) + sectionSpacing + headerHeight + (afternoonItems.length * itemHeight)
@@ -293,7 +293,7 @@ const combinedExploreHeight = computed(() => {
       height = headerHeight + (items.length * itemHeight)
     }
   }
-  
+
   return `${height}px`
 })
 
@@ -442,112 +442,118 @@ onMounted(async () => {
             <!-- 2x Explore: Morning section -->
             <div v-if="getExploreMorningTimelineItems().length > 0"
                  class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
-            <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
-              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
-              <span class="italic">FIRST</span> LEGO League Explore <span style="color: #1e40af;">Vormittag</span>
-            </h3>
-            <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
-              <!-- Timeline line -->
-              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
+              <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
+                <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
+                <span class="italic">FIRST</span> LEGO League Explore <span style="color: #1e40af;">Vormittag</span>
+              </h3>
+              <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
+                <!-- Timeline line -->
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
 
-              <!-- Timeline items - compact spacing -->
-              <div class="relative h-full flex flex-col gap-3">
-                <div
-                    v-for="(item, index) in getExploreMorningTimelineItems()"
-                    :key="index"
-                    class="relative pl-12"
-                >
-                  <!-- Timeline dot -->
+                <!-- Timeline items - compact spacing -->
+                <div class="relative h-full flex flex-col gap-3">
                   <div
-                      :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
-                      class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
-                  </div>
-
-                  <!-- Timeline content -->
-                  <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
-                    <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
-                      <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{ item.label }}</span>
-                      <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                      v-for="(item, index) in getExploreMorningTimelineItems()"
+                      :key="index"
+                      class="relative pl-12"
+                  >
+                    <!-- Timeline dot -->
+                    <div
+                        :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
+                        class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
                     </div>
-                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+
+                    <!-- Timeline content -->
+                    <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
+                      <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+                        <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
+                            item.label
+                          }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                      </div>
+                      <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
             </div>
 
             <!-- 2x Explore: Afternoon section -->
             <div v-if="getExploreAfternoonTimelineItems().length > 0"
                  class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
-            <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
-              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
-              <span class="italic">FIRST</span> LEGO League Explore <span style="color: #93c5fd;">Nachmittag</span>
-            </h3>
-            <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
-              <!-- Timeline line -->
-              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
+              <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
+                <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
+                <span class="italic">FIRST</span> LEGO League Explore <span style="color: #93c5fd;">Nachmittag</span>
+              </h3>
+              <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
+                <!-- Timeline line -->
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
 
-              <!-- Timeline items - compact spacing -->
-              <div class="relative h-full flex flex-col gap-3">
-                <div
-                    v-for="(item, index) in getExploreAfternoonTimelineItems()"
-                    :key="index"
-                    class="relative pl-12"
-                >
-                  <!-- Timeline dot -->
+                <!-- Timeline items - compact spacing -->
+                <div class="relative h-full flex flex-col gap-3">
                   <div
-                      :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
-                      class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
-                  </div>
-
-                  <!-- Timeline content -->
-                  <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
-                    <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
-                      <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{ item.label }}</span>
-                      <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                      v-for="(item, index) in getExploreAfternoonTimelineItems()"
+                      :key="index"
+                      class="relative pl-12"
+                  >
+                    <!-- Timeline dot -->
+                    <div
+                        :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
+                        class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
                     </div>
-                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+
+                    <!-- Timeline content -->
+                    <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
+                      <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+                        <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
+                            item.label
+                          }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                      </div>
+                      <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
             </div>
 
             <!-- Single Explore Section (fallback when no morning/afternoon) -->
             <div v-else-if="getExploreSingleTimelineItems().length > 0"
                  class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
-            <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
-              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
-              FIRST LEGO League Explore
-            </h3>
-            <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
-              <!-- Timeline line -->
-              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
+              <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
+                <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
+                FIRST LEGO League Explore
+              </h3>
+              <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
+                <!-- Timeline line -->
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
 
-              <!-- Timeline items - compact spacing -->
-              <div class="relative h-full flex flex-col gap-3">
-                <div
-                    v-for="(item, index) in getExploreSingleTimelineItems()"
-                    :key="index"
-                    class="relative pl-12"
-                >
-                  <!-- Timeline dot -->
+                <!-- Timeline items - compact spacing -->
+                <div class="relative h-full flex flex-col gap-3">
                   <div
-                      :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
-                      class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
-                  </div>
-
-                  <!-- Timeline content -->
-                  <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
-                    <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
-                      <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{ item.label }}</span>
-                      <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                      v-for="(item, index) in getExploreSingleTimelineItems()"
+                      :key="index"
+                      class="relative pl-12"
+                  >
+                    <!-- Timeline dot -->
+                    <div
+                        :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
+                        class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
                     </div>
-                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+
+                    <!-- Timeline content -->
+                    <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
+                      <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+                        <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
+                            item.label
+                          }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                      </div>
+                      <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
             </div>
           </div>
           <!-- End of Left Column: Explore -->
@@ -607,24 +613,24 @@ onMounted(async () => {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
           <div class="bg-orange-50 rounded-lg md:rounded-xl p-4 md:p-5 border-2 border-[#F78B1F]/20">
             <h3 class="font-bold text-[#F78B1F] mb-2 md:mb-3 text-base md:text-lg flex items-center gap-2">
-              <span>📍</span>
+              <span><i class="bi bi-pin-map-fill"></i></span>
               Datum & Ort
             </h3>
             <p class="text-gray-800 font-medium text-base md:text-lg">{{ formatDateOnly(scheduleInfo.date) }}</p>
             <!-- EventMap Component -->
             <div v-if="scheduleInfo.address" class="mt-3 md:mt-4">
               <EventMap
-                :address="scheduleInfo.address"
-                :event-id="event.id"
-                :event-name="event.name"
-                :show-q-r-code="true"
+                  :address="scheduleInfo.address"
+                  :event-id="event.id"
+                  :event-name="event.name"
+                  :show-q-r-code="true"
               />
             </div>
           </div>
           <div v-if="scheduleInfo.contact?.length"
                class="bg-orange-50 rounded-xl p-5 border-2 border-[#F78B1F]/20">
             <h3 class="font-bold text-[#F78B1F] mb-2 md:mb-3 text-base md:text-lg flex items-center gap-2">
-              <span>✉️</span>
+              <span><i class="bi bi-envelope"></i></span>
               Kontakt
             </h3>
             <div class="space-y-3">
@@ -688,19 +694,19 @@ onMounted(async () => {
                 </td>
                 <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base font-medium text-gray-900 break-words text-left">
                   <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-people-group text-gray-500"></i>
+                    <i class="bi bi-people-fill text-gray-500"></i>
                     <span>{{ team.name }}</span>
                   </div>
                 </td>
                 <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
                   <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-school text-gray-500"></i>
+                    <i class="bi bi-building-fill text-gray-500"></i>
                     <span>{{ team.organization || '-' }}</span>
                   </div>
                 </td>
                 <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
                   <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-location-dot text-gray-500"></i>
+                    <i class="bi bi-pin-map-fill text-gray-500"></i>
                     <span>{{ team.location || '-' }}</span>
                   </div>
                 </td>
@@ -760,19 +766,19 @@ onMounted(async () => {
                 </td>
                 <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base font-medium text-gray-900 break-words text-left">
                   <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-people-group text-gray-500"></i>
+                    <i class="bi bi-people-fill text-gray-500"></i>
                     <span>{{ team.name }}</span>
                   </div>
                 </td>
                 <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
                   <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-school text-gray-500"></i>
+                    <i class="bi bi-building-fill text-gray-500"></i>
                     <span>{{ team.organization || '-' }}</span>
                   </div>
                 </td>
                 <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
                   <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-location-dot text-gray-500"></i>
+                    <i class="bi bi-pin-map-fill text-gray-500"></i>
                     <span>{{ team.location || '-' }}</span>
                   </div>
                 </td>

@@ -15,6 +15,7 @@
     "@tailwindcss/cli": "^4.1.18",
     "@vueform/multiselect": "^2.6.11",
     "axios": "^1.13.2",
+    "bootstrap-icons": "^1.13.1",
     "chart.js": "^4.5.1",
     "dayjs": "^1.11.19",
     "fabric": "^6.9.1",
