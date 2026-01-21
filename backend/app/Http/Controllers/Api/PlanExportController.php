@@ -258,6 +258,236 @@ class PlanExportController extends Controller
     }
 
     /**
+     * Generate compact PDF for moderator with robot game matches
+     * Simple data-focused format: Testrunde + Runde 1-3
+     */
+    public function moderatorMatchPlanPdf(int $planId)
+    {
+        try {
+            Log::info("moderatorMatchPlanPdf called for planId: {$planId}");
+            
+            // Get team_plan entries for Challenge teams (first_program = 3) to map team_number_plan to team IDs
+        $teamPlanMap = DB::table('team_plan')
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team_plan.plan', $planId)
+            ->where('team.first_program', 3) // Challenge only
+            ->select(
+                'team_plan.team_number_plan',
+                'team.id as team_id',
+                'team.name as team_name',
+                'team.team_number_hot',
+                'team_plan.noshow'
+            )
+            ->get()
+            ->keyBy('team_number_plan');
+
+        // Get r_match activity type detail ID
+        $matchActivityTypeId = DB::table('m_activity_type_detail')
+            ->where('code', 'r_match')
+            ->value('id');
+
+        if (!$matchActivityTypeId) {
+            return response()->json(['error' => 'Match activity type not found'], 404);
+        }
+
+        // Fetch matches for rounds 0 (Testrunde), 1, 2, 3
+        $roundsData = [];
+        $roundLabels = [
+            0 => 'Testrunde',
+            1 => 'Runde 1',
+            2 => 'Runde 2',
+            3 => 'Runde 3',
+        ];
+
+        for ($round = 0; $round <= 3; $round++) {
+            // Get matches for this round, ordered by match_no
+            $matches = DB::table('match')
+                ->where('match.plan', $planId)
+                ->where('match.round', $round)
+                ->orderBy('match.match_no')
+                ->get();
+
+            // Get start times from activities table
+            // Join with activities where table_1/table_2 match and activity_type_detail = r_match
+            $matchData = [];
+            foreach ($matches as $match) {
+                // Find activity for this match
+                // Match on table_1, table_2, and table_1_team, table_2_team
+                // Also match on round by checking activity_group's activity_type_detail (r_round_1, r_round_2, etc.)
+                $roundActivityCodes = [
+                    0 => 'r_test_round',
+                    1 => 'r_round_1',
+                    2 => 'r_round_2',
+                    3 => 'r_round_3',
+                ];
+                $roundActivityCode = $roundActivityCodes[$round] ?? null;
+                
+                $activity = null;
+                if ($roundActivityCode) {
+                    $roundActivityTypeId = DB::table('m_activity_type_detail')
+                        ->where('code', $roundActivityCode)
+                        ->value('id');
+                    
+                    if ($roundActivityTypeId) {
+                        $activity = DB::table('activity')
+                            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                            ->where('activity_group.plan', $planId)
+                            ->where('activity_group.activity_type_detail', $roundActivityTypeId)
+                            ->where('activity.activity_type_detail', $matchActivityTypeId)
+                            ->where('activity.table_1', $match->table_1)
+                            ->where('activity.table_2', $match->table_2)
+                            ->where('activity.table_1_team', $match->table_1_team)
+                            ->where('activity.table_2_team', $match->table_2_team)
+                            ->select('activity.start as start_time')
+                            ->orderBy('activity.start')
+                            ->first();
+                    }
+                }
+
+                $startTime = $activity ? Carbon::parse($activity->start_time)->format('H:i') : '–';
+
+                // Get team 1 info
+                $team1 = null;
+                if ($match->table_1_team > 0) {
+                    if (isset($teamPlanMap[$match->table_1_team])) {
+                        $t1 = $teamPlanMap[$match->table_1_team];
+                        $team1 = [
+                            'name' => $t1->team_name,
+                            'noshow' => (bool)($t1->noshow ?? false),
+                        ];
+                    } else {
+                        // Placeholder team
+                        $team1 = [
+                            'name' => sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $match->table_1_team),
+                            'noshow' => false,
+                        ];
+                    }
+                } else {
+                    // Empty slot
+                    $team1 = [
+                        'name' => 'Freiwilliges Team ohne Wertung',
+                        'noshow' => false,
+                    ];
+                }
+
+                // Get team 2 info
+                $team2 = null;
+                if ($match->table_2_team > 0) {
+                    if (isset($teamPlanMap[$match->table_2_team])) {
+                        $t2 = $teamPlanMap[$match->table_2_team];
+                        $team2 = [
+                            'name' => $t2->team_name,
+                            'noshow' => (bool)($t2->noshow ?? false),
+                        ];
+                    } else {
+                        // Placeholder team
+                        $team2 = [
+                            'name' => sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $match->table_2_team),
+                            'noshow' => false,
+                        ];
+                    }
+                } else {
+                    // Empty slot
+                    $team2 = [
+                        'name' => 'Freiwilliges Team ohne Wertung',
+                        'noshow' => false,
+                    ];
+                }
+
+                // Get table names (without "Tisch " prefix)
+                // Get event ID first
+                $eventId = DB::table('plan')->where('id', $planId)->value('event');
+                
+                $table1Name = null;
+                if ($eventId) {
+                    $table1Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $match->table_1)
+                        ->value('table_name');
+                }
+                $table1Label = $table1Name ?: (string)$match->table_1;
+
+                $table2Name = null;
+                if ($eventId) {
+                    $table2Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $match->table_2)
+                        ->value('table_name');
+                }
+                $table2Label = $table2Name ?: (string)$match->table_2;
+
+                $matchData[] = [
+                    'match_no' => $match->match_no,
+                    'start_time' => $startTime,
+                    'table_1' => $table1Label,
+                    'table_2' => $table2Label,
+                    'team_1' => $team1,
+                    'team_2' => $team2,
+                ];
+            }
+
+            $roundsData[$round] = [
+                'label' => $roundLabels[$round],
+                'matches' => $matchData,
+            ];
+        }
+
+        Log::info("moderatorMatchPlanPdf roundsData summary", [
+            'round_0_count' => count($roundsData[0]['matches'] ?? []),
+            'round_1_count' => count($roundsData[1]['matches'] ?? []),
+            'round_2_count' => count($roundsData[2]['matches'] ?? []),
+            'round_3_count' => count($roundsData[3]['matches'] ?? []),
+        ]);
+
+        // Get plan and event data
+        $plan = Plan::findOrFail($planId);
+        $event = Event::findOrFail($plan->event);
+
+        // Format timestamp like Gesamtplan
+        $eventName = $event->name;
+        $eventDate = Carbon::parse($event->date)->format('d.m.Y');
+        $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
+            ->timezone('Europe/Berlin')
+            ->format('d.m.Y H:i');
+
+        // Generate content HTML
+        Log::info("Rendering moderator-match-plan view with roundsData count: " . count($roundsData));
+        $contentHtml = view('pdf.moderator-match-plan', [
+            'roundsData' => $roundsData,
+            'eventName' => $eventName,
+            'eventDate' => $eventDate,
+            'lastUpdated' => $lastUpdated,
+        ])->render();
+
+        Log::info("View rendered, HTML length: " . strlen($contentHtml));
+        
+        // Generate PDF in portrait orientation (simple, no fancy layout)
+        $pdf = Pdf::loadHTML($contentHtml, 'UTF-8')->setPaper('a4', 'portrait');
+
+        // Format date for filename
+        $formattedDate = Carbon::parse($plan->last_change, 'UTC')
+            ->timezone('Europe/Berlin')
+            ->format('d.m.y');
+
+        $filename = "FLOW_Robot-Game_kompakt_({$formattedDate}).pdf";
+
+            // Return PDF with header for filename
+            Log::info("moderatorMatchPlanPdf returning PDF with filename: {$filename}");
+            return response($pdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('X-Filename', $filename)
+                ->header('X-PDF-Type', 'moderator-match-plan')
+                ->header('Access-Control-Expose-Headers', 'X-Filename, X-PDF-Type');
+        } catch (\Exception $e) {
+            Log::error("moderatorMatchPlanPdf error: " . $e->getMessage(), [
+                'planId' => $planId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'PDF generation failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Helper: Get programs that have activities in a plan
      * @return array Array of program info with id and name
      */

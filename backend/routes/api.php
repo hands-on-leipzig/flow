@@ -273,13 +273,14 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::prefix('export')->group(function () {
         Route::get('/pdf_preview/{eventId}', [PublishController::class, 'preview']);    // PDF mit Vorschau holen
-        Route::match(['get', 'post'], '/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);
         Route::get('/ready/{eventId}', [PlanExportController::class, 'dataReadiness']);
         Route::get('/available-roles/{eventId}', [PlanExportController::class, 'availableRoles']);
         Route::get('/available-team-programs/{eventId}', [PlanExportController::class, 'availableTeamPrograms']);
         Route::get('/match-teams/{planId}/{round}', [PlanExportController::class, 'matchTeams']);
         Route::get('/match-plan/{planId}', [PlanExportController::class, 'matchPlanPdf']);
+        Route::get('/moderator-match-plan/{planId}', [PlanExportController::class, 'moderatorMatchPlanPdf']);
         Route::get('/event-overview/{planId}', [PlanExportController::class, 'eventOverviewPdf']);
+        Route::match(['get', 'post'], '/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);
         Route::get('/worker-shifts/{eventId}', [PlanExportController::class, 'workerShifts']);
         Route::get('/csv/room-utilization/{eventId}', [PlanExportController::class, 'roomUtilizationCsv']);
     });
