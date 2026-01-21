@@ -363,9 +363,9 @@ class PlanExportController extends Controller
                         ];
                     }
                 } else {
-                    // Empty slot
+                    // Empty slot - use "---" for test round, otherwise "Freiwilliges Team ohne Wertung"
                     $team1 = [
-                        'name' => 'Freiwilliges Team ohne Wertung',
+                        'name' => $round === 0 ? '---' : 'Freiwilliges Team ohne Wertung',
                         'noshow' => false,
                     ];
                 }
@@ -387,9 +387,9 @@ class PlanExportController extends Controller
                         ];
                     }
                 } else {
-                    // Empty slot
+                    // Empty slot - use "---" for test round, otherwise "Freiwilliges Team ohne Wertung"
                     $team2 = [
-                        'name' => 'Freiwilliges Team ohne Wertung',
+                        'name' => $round === 0 ? '---' : 'Freiwilliges Team ohne Wertung',
                         'noshow' => false,
                     ];
                 }
