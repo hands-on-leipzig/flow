@@ -702,6 +702,118 @@ class PlanExportController extends Controller
 
     }
 
+    /**
+     * Generate Teamliste PDF for check-in
+     * Simple data-focused format: Explore and Challenge teams with assigned rooms
+     */
+    public function teamListPdf(int $planId)
+    {
+        try {
+            Log::info("teamListPdf called for planId: {$planId}");
+
+            // Get plan and event data
+            $plan = Plan::findOrFail($planId);
+            $event = Event::findOrFail($plan->event);
+
+            // Format timestamp like Gesamtplan
+            $eventName = $event->name;
+            $eventDate = Carbon::parse($event->date)->format('d.m.Y');
+            $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
+                ->timezone('Europe/Berlin')
+                ->format('d.m.Y H:i');
+
+            // Fetch teams with their assigned rooms, grouped by program
+            // Explore teams (first_program = 2)
+            $exploreTeams = DB::table('team_plan')
+                ->join('team', 'team_plan.team', '=', 'team.id')
+                ->leftJoin('room', 'team_plan.room', '=', 'room.id')
+                ->where('team_plan.plan', $planId)
+                ->where('team.first_program', 2) // Explore
+                ->select(
+                    'team.name as team_name',
+                    'team.team_number_hot',
+                    'team_plan.noshow',
+                    'room.name as room_name'
+                )
+                ->orderBy('team.name')
+                ->get()
+                ->map(function ($team) {
+                    return [
+                        'name' => $team->team_name,
+                        'hot_number' => $team->team_number_hot,
+                        'noshow' => (bool)($team->noshow ?? false),
+                        'room_name' => $team->room_name ?? '–',
+                    ];
+                })
+                ->values()
+                ->all();
+
+            // Challenge teams (first_program = 3)
+            $challengeTeams = DB::table('team_plan')
+                ->join('team', 'team_plan.team', '=', 'team.id')
+                ->leftJoin('room', 'team_plan.room', '=', 'room.id')
+                ->where('team_plan.plan', $planId)
+                ->where('team.first_program', 3) // Challenge
+                ->select(
+                    'team.name as team_name',
+                    'team.team_number_hot',
+                    'team_plan.noshow',
+                    'room.name as room_name'
+                )
+                ->orderBy('team.name')
+                ->get()
+                ->map(function ($team) {
+                    return [
+                        'name' => $team->team_name,
+                        'hot_number' => $team->team_number_hot,
+                        'noshow' => (bool)($team->noshow ?? false),
+                        'room_name' => $team->room_name ?? '–',
+                    ];
+                })
+                ->values()
+                ->all();
+
+            Log::info("teamListPdf teams count", [
+                'explore_count' => count($exploreTeams),
+                'challenge_count' => count($challengeTeams),
+            ]);
+
+            // Generate content HTML
+            $contentHtml = view('pdf.team-list', [
+                'exploreTeams' => $exploreTeams,
+                'challengeTeams' => $challengeTeams,
+                'eventName' => $eventName,
+                'eventDate' => $eventDate,
+                'lastUpdated' => $lastUpdated,
+            ])->render();
+
+            Log::info("teamListPdf view rendered, HTML length: " . strlen($contentHtml));
+
+            // Generate PDF in portrait orientation (simple, no fancy layout)
+            $pdf = Pdf::loadHTML($contentHtml, 'UTF-8')->setPaper('a4', 'portrait');
+
+            // Format date for filename
+            $formattedDate = Carbon::parse($plan->last_change, 'UTC')
+                ->timezone('Europe/Berlin')
+                ->format('d.m.y');
+
+            $filename = "FLOW_Teamliste_({$formattedDate}).pdf";
+
+            // Return PDF with header for filename
+            Log::info("teamListPdf returning PDF with filename: {$filename}");
+            return response($pdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('X-Filename', $filename)
+                ->header('X-PDF-Type', 'team-list')
+                ->header('Access-Control-Expose-Headers', 'X-Filename, X-PDF-Type');
+        } catch (\Exception $e) {
+            Log::error("teamListPdf error: " . $e->getMessage(), [
+                'planId' => $planId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'PDF generation failed: ' . $e->getMessage()], 500);
+        }
+    }
 
     public function fullSchedulePdf(int $planId)
     {

@@ -266,6 +266,35 @@ async function downloadModeratorMatchPlanPdf() {
   }
 }
 
+// Download team list PDF
+async function downloadTeamListPdf() {
+  if (!eventId.value) return
+  
+  isDownloading.value['team-list'] = true
+  try {
+    // Get the plan ID for this event
+    const planResponse = await axios.get(`/plans/event/${eventId.value}`)
+    const planId = planResponse.data.id
+    
+    const response = await axios.get(
+      `/export/team-list/${planId}`,
+      { responseType: 'blob' }
+    )
+
+    const filename = response.headers['x-filename'] || 'Teamliste.pdf'
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (error) {
+    console.error('Fehler beim PDF-Download (Teamliste):', error)
+  } finally {
+    isDownloading.value['team-list'] = false
+  }
+}
+
 // Fetch worker shifts and show modal
 async function showWorkerShiftsModal() {
   if (!eventId.value) return
@@ -684,10 +713,19 @@ function formatDate(dateString: string): string {
           <p class="text-sm text-gray-600">Alle Teams und Teamräume</p>
         </div>
         <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300 flex-shrink-0"
-          disabled
+          class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
+          :class="!isDownloading['team-list'] 
+            ? 'bg-gray-200 hover:bg-gray-300' 
+            : 'bg-gray-100 cursor-not-allowed opacity-50'"
+          :disabled="isDownloading['team-list']"
+          @click="downloadTeamListPdf"
         >
-          <span>PDF</span>
+          <svg v-if="isDownloading['team-list']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+          </svg>
+          <span>{{ isDownloading['team-list'] ? 'Erzeuge…' : 'PDF' }}</span>
         </button>
       </div>
     </div>

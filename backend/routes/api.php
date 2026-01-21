@@ -279,6 +279,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/match-teams/{planId}/{round}', [PlanExportController::class, 'matchTeams']);
         Route::get('/match-plan/{planId}', [PlanExportController::class, 'matchPlanPdf']);
         Route::get('/moderator-match-plan/{planId}', [PlanExportController::class, 'moderatorMatchPlanPdf']);
+        Route::get('/team-list/{planId}', [PlanExportController::class, 'teamListPdf']);
         Route::get('/event-overview/{planId}', [PlanExportController::class, 'eventOverviewPdf']);
         Route::match(['get', 'post'], '/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);
         Route::get('/worker-shifts/{eventId}', [PlanExportController::class, 'workerShifts']);
