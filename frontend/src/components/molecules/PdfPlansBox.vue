@@ -595,31 +595,74 @@ function formatDate(dateString: string): string {
       </div>
     </div>
 
-    <!-- Gesamtplan -->
+    <!-- Organisation -->
     <div>
-      <div class="mb-2">
-        <h4 class="text-base font-semibold text-gray-800">Gesamtplan</h4>
-        <p class="text-sm text-gray-600">Volle Details, aber in einfacher Formatierung.</p>
+      <div class="mb-4">
+        <h4 class="text-base font-semibold text-gray-800">Organisation</h4>
         <p class="text-xs text-gray-500">Nur für den Veranstalter – nicht für Teams oder Besucher.</p>
       </div>
 
-      <!-- PDF Button -->
-      <div class="mt-4 flex justify-end">
-        <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2"
-          :class="!isDownloading.full 
-            ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-gray-100 cursor-not-allowed opacity-50'"
-          :disabled="isDownloading.full"
-          @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
-        >
-          <svg v-if="isDownloading.full" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
+      <!-- Gesamtplan -->
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="mb-2">
+          <h5 class="text-sm font-semibold text-gray-800">Gesamtplan</h5>
+          <p class="text-sm text-gray-600">Volle Details, aber in einfacher Formatierung.</p>
+        </div>
+
+        <!-- PDF Button -->
+        <div class="mt-4 flex justify-end">
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2"
+            :class="!isDownloading.full 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading.full"
+            @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
+          >
+            <svg v-if="isDownloading.full" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Robot-Game-Matches -->
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="mb-2">
+          <h5 class="text-sm font-semibold text-gray-800">Robot-Game-Matches</h5>
+          <p class="text-sm text-gray-600">Einfache Liste für den Moderator</p>
+        </div>
+
+        <!-- PDF Button -->
+        <div class="mt-4 flex justify-end">
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
+            disabled
+          >
+            <span>PDF</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Teamliste für den Check-In -->
+      <div>
+        <div class="mb-2">
+          <h5 class="text-sm font-semibold text-gray-800">Teamliste für den Check-In</h5>
+          <p class="text-sm text-gray-600">Alle Teams und Teamräume</p>
+        </div>
+
+        <!-- PDF Button -->
+        <div class="mt-4 flex justify-end">
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
+            disabled
+          >
+            <span>PDF</span>
+          </button>
+        </div>
       </div>
     </div>
 
