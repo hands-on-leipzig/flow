@@ -57,17 +57,6 @@
             vertical-align: top;
         }
 
-        th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        /* Column widths - same for all sections */
-        .col-start { width: 12%; }
-        .col-table { width: 12%; }
-        .col-team { width: 32%; }
-
         td {
             font-size: 10px;
         }
@@ -98,27 +87,20 @@
                 <div class="section-header">{{ $roundData['label'] }}</div>
                 
                 <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 12%;">Start</th>
-                            <th colspan="2" style="width: 24%;">Tische</th>
-                            <th colspan="2" style="width: 64%;">Match</th>
-                        </tr>
-                    </thead>
                     <tbody>
                         @foreach($roundData['matches'] as $match)
                             <tr>
-                                <td>{{ $match['start_time'] }}</td>
+                                <td style="width: 12%;">{{ $match['start_time'] }}</td>
                                 <td style="width: 12%;">{{ $match['table_1'] }}</td>
-                                <td style="width: 12%;">{{ $match['table_2'] }}</td>
-                                <td style="width: 32%;">
+                                <td style="width: 32%; font-weight: bold;">
                                     @if($match['team_1']['noshow'])
                                         <span class="noshow">{{ e($match['team_1']['name']) }}</span>
                                     @else
                                         {{ e($match['team_1']['name']) }}
                                     @endif
                                 </td>
-                                <td style="width: 32%;">
+                                <td style="width: 12%;">{{ $match['table_2'] }}</td>
+                                <td style="width: 32%; font-weight: bold;">
                                     @if($match['team_2']['noshow'])
                                         <span class="noshow">{{ e($match['team_2']['name']) }}</span>
                                     @else
