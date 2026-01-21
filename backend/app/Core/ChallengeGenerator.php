@@ -234,7 +234,7 @@ class ChallengeGenerator
 
 
 
-    public function main(bool $explore = false)
+    public function main(bool $explore = false, ?callable $afterRG1Callback = null)
     {
         Log::info('ChallengeGenerator::main', [
             'plan_id' => $this->pp('g_plan'),
@@ -437,6 +437,10 @@ class ChallengeGenerator
                         case 2:
                             if ($this->pp('j_rounds') == 4) {
                                 $this->matchPlan->insertOneRound(1);
+                                // For INTEGRATED_MORNING: insert awards and adjust rTime after RG1, before RG2
+                                if ($afterRG1Callback !== null && $this->pp('e_mode') == ExploreMode::INTEGRATED_MORNING->value) {
+                                    $afterRG1Callback($this->rTime);
+                                }
                             }
                             break;
                         case 3:
@@ -444,6 +448,10 @@ class ChallengeGenerator
                                 $this->matchPlan->insertOneRound(2);
                             } else {
                                 $this->matchPlan->insertOneRound(1);
+                                // For INTEGRATED_MORNING: insert awards and adjust rTime after RG1, before RG2
+                                if ($afterRG1Callback !== null && $this->pp('e_mode') == ExploreMode::INTEGRATED_MORNING->value) {
+                                    $afterRG1Callback($this->rTime);
+                                }
                             }
                             break;
                         case 4:
@@ -686,6 +694,21 @@ class ChallengeGenerator
 
                 // log::info('ChallengeGenerator: Explore group 2 start time: ' . $this->integratedExplore->startTime);
 
+            } elseif ($this->pp('e_mode') == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                // For INTEGRATED_AFTERNOON: Ensure awards don't start before Explore is complete
+                // Compare cTime (Challenge end) with exploreEndTime (Explore end) and use the later one
+                $exploreEnd = $this->integratedExplore->exploreEndTime;
+                if ($exploreEnd !== null) {
+                    // Convert both to DateTime for comparison
+                    $baseDate = $this->cTime->current()->format('Y-m-d');
+                    $cTime = new \DateTime($baseDate . ' ' . $this->cTime->format('H:i'));
+                    $exploreTime = new \DateTime($baseDate . ' ' . $exploreEnd);
+                    
+                    // Use the later time
+                    if ($exploreTime > $cTime) {
+                        $this->cTime->setTime($exploreEnd);
+                    }
+                }
             }
 
             $this->writer->withGroup('g_awards', function () {
@@ -711,6 +734,15 @@ class ChallengeGenerator
             ]);
             throw new \RuntimeException("Fehler beim Generieren der Challenge-Preisverleihung (Explore: " . ($explore ? 'aktiv' : 'inaktiv') . "): {$e->getMessage()}", 0, $e);
         }
+    }
+
+    /**
+     * Get the robot game time cursor
+     * Used for coordinating with Explore awards timing in integrated mode
+     */
+    public function getRTime(): TimeCursor
+    {
+        return $this->rTime;
     }
 
 }
