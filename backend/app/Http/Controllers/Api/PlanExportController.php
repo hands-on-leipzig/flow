@@ -1025,41 +1025,92 @@ class PlanExportController extends Controller
 
         // Map-Funktion für Rows
         $mapRow = function ($a) {
+            // Check if this is a robot game match (has both table_1 and table_2)
+            $isMatch = false;
+            $matchCode = $a->group_activity_type_code ?? $a->activity_type_code ?? null;
+            if ($matchCode === 'r_match' || (int)($a->activity_type_detail_id ?? 0) === 15) {
+                // It's a match if both table_1 and table_2 are set
+                $isMatch = !empty($a->table_1) && !empty($a->table_2);
+            }
+            
             // Teamlabel bestimmen (falls es über Jury/Tables erkennbar ist)
             $teamLabel = '–';
             $isNoshow = false;
             
-            // Check jury team first
-            if (!empty($a->jury_team_name)) {
-                if ($a->jury_team_number_hot) {
-                    $teamLabel = $a->jury_team_name . ' (' . $a->jury_team_number_hot . ')';
-                } else {
-                    $teamLabel = $a->jury_team_name;
+            if ($isMatch) {
+                // For matches: show both teams with " vs " separator
+                $team1Label = '–';
+                $team2Label = '–';
+                $team1Noshow = false;
+                $team2Noshow = false;
+                
+                // Team 1
+                if (!empty($a->table_1_team_name)) {
+                    if ($a->table_1_team_number_hot) {
+                        $team1Label = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
+                    } else {
+                        $team1Label = $a->table_1_team_name;
+                    }
+                    $team1Noshow = (bool)($a->table_1_team_noshow ?? false);
+                } elseif (!empty($a->table_1_team)) {
+                    $team1Label = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->table_1_team);
                 }
-                $isNoshow = (bool)($a->jury_team_noshow ?? false);
-            } elseif (!empty($a->table_1_team_name)) {
-                if ($a->table_1_team_number_hot) {
-                    $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
-                } else {
-                    $teamLabel = $a->table_1_team_name;
+                
+                // Team 2
+                if (!empty($a->table_2_team_name)) {
+                    if ($a->table_2_team_number_hot) {
+                        $team2Label = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
+                    } else {
+                        $team2Label = $a->table_2_team_name;
+                    }
+                    $team2Noshow = (bool)($a->table_2_team_noshow ?? false);
+                } elseif (!empty($a->table_2_team)) {
+                    $team2Label = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->table_2_team);
                 }
-                $isNoshow = (bool)($a->table_1_team_noshow ?? false);
-            } elseif (!empty($a->table_2_team_name)) {
-                if ($a->table_2_team_number_hot) {
-                    $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
-                } else {
-                    $teamLabel = $a->table_2_team_name;
+                
+                // Combine both teams
+                $teamLabel = $team1Label . ' / ' . $team2Label;
+                // If either team is noshow, mark as noshow (though we can't strikethrough both in simple text)
+                $isNoshow = $team1Noshow || $team2Noshow;
+            } else {
+                // Non-match activities: original logic
+                // Check jury team first
+                if (!empty($a->jury_team_name)) {
+                    if ($a->jury_team_number_hot) {
+                        $teamLabel = $a->jury_team_name . ' (' . $a->jury_team_number_hot . ')';
+                    } else {
+                        $teamLabel = $a->jury_team_name;
+                    }
+                    $isNoshow = (bool)($a->jury_team_noshow ?? false);
+                } elseif (!empty($a->table_1_team_name)) {
+                    if ($a->table_1_team_number_hot) {
+                        $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
+                    } else {
+                        $teamLabel = $a->table_1_team_name;
+                    }
+                    $isNoshow = (bool)($a->table_1_team_noshow ?? false);
+                } elseif (!empty($a->table_2_team_name)) {
+                    if ($a->table_2_team_number_hot) {
+                        $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
+                    } else {
+                        $teamLabel = $a->table_2_team_name;
+                    }
+                    $isNoshow = (bool)($a->table_2_team_noshow ?? false);
+                } elseif (!empty($a->team)) {
+                    $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
+                    // For placeholder teams, check if we can determine noshow from jury_team_noshow
+                    $isNoshow = (bool)($a->jury_team_noshow ?? false);
                 }
-                $isNoshow = (bool)($a->table_2_team_noshow ?? false);
-            } elseif (!empty($a->team)) {
-                $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
-                // For placeholder teams, check if we can determine noshow from jury_team_noshow
-                $isNoshow = (bool)($a->jury_team_noshow ?? false);
             }
 
             // Assignment (Jury/Tisch/-)
             $assign = '–';
-            if (!empty($a->lane)) {
+            if ($isMatch) {
+                // For matches: show both tables with " / " separator
+                $table1Label = $a->table_1_name ?? ('Tisch ' . $a->table_1);
+                $table2Label = $a->table_2_name ?? ('Tisch ' . $a->table_2);
+                $assign = $table1Label . ' / ' . $table2Label;
+            } elseif (!empty($a->lane)) {
                 $assign = 'Jury ' . $a->lane;
             } elseif (!empty($a->table_1)) {
                 $assign = $a->table_1_name ?? ('Tisch ' . $a->table_1);
