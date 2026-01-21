@@ -594,17 +594,16 @@ class RobotGameGenerator
                                 // Fallback: use RG1 time if deliberation time not set
                                 $this->integratedExplore->startTime = $this->integratedExplore->rg1EndTime;
                             }
+                            
+                            // For INTEGRATED_MORNING: Do NOT advance rTime here
+                            // rTime will be adjusted in PlanGeneratorCore after awards are inserted
+                            // based on the actual awards end time
+                            
                         } else {
-                            // INTEGRATED_AFTERNOON: use RG1 time directly (as before)
+                            // INTEGRATED_AFTERNOON: use RG1 time directly and advance by duration
                             $this->integratedExplore->startTime = $this->rTime->format('H:i');
+                            $this->rTime->addMinutes($this->integratedExplore->duration);
                         }
-                        
-                        // Advance rTime by the duration that Explore will use
-                        // (Duration was calculated by ExploreGenerator constructor)
-                        // Log::debug("RobotGameGenerator: Advancing rTime by {$this->integratedExplore->duration} minutes");
-                        $this->rTime->addMinutes($this->integratedExplore->duration);
-                        
-                        // Log::debug("RobotGameGenerator: rTime after advance: {$this->rTime->format('H:i')}");
                         
                     } else {
                         // Skip lunch insert point if early lunch is enabled (lunch already handled at test round)
