@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
-import { programLogoSrc, programLogoAlt } from '@/utils/images'
-import { useDebouncedSave } from "@/composables/useDebouncedSave";
-import { TIMING_FIELDS, DEBOUNCE_DELAY } from "@/constants/extraBlocks";
+import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {useDebouncedSave} from "@/composables/useDebouncedSave";
+import {TIMING_FIELDS, DEBOUNCE_DELAY} from "@/constants/extraBlocks";
 import ScheduleToast from "@/components/atoms/ScheduleToast.vue";
 
 type Maybe<T> = T | null | undefined
@@ -50,7 +50,7 @@ const errorDetails = ref<string | null>(null)
 const savingToast = ref(null)
 const countdownSeconds = ref<number | null>(null)
 
-const { scheduleUpdate, flush, immediateFlush } = useDebouncedSave({
+const {scheduleUpdate, flush, immediateFlush} = useDebouncedSave({
   delay: DEBOUNCE_DELAY,
   isGenerating: () => isGenerating.value,
   onShowToast: (countdown) => {
@@ -86,7 +86,9 @@ const visibleCustomBlocks = computed(() => {
 onMounted(() => {
   if (props.planId != null) loadBlocks()
 })
-watch(() => props.planId, v => { if (v != null) loadBlocks() }, { immediate: true })
+watch(() => props.planId, v => {
+  if (v != null) loadBlocks()
+}, {immediate: true})
 
 // Cleanup handled by composable
 
@@ -94,31 +96,31 @@ watch(() => props.planId, v => { if (v != null) loadBlocks() }, { immediate: tru
 async function loadBlocks() {
   const pid = props.planId
   if (!pid) return
-  const { data } = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`)
+  const {data} = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`)
   const loadedBlocks = Array.isArray(data) ? data : []
-  
+
   // Sort by date first, then start time (ascending - earliest first)
   blocks.value = loadedBlocks.sort((a, b) => {
     // Extract dates for comparison
     const dateA = extractDate(a.start || a.end || '')
     const dateB = extractDate(b.start || b.end || '')
-    
+
     // Compare dates first
     if (dateA && dateB) {
       const dateCompare = dateA.localeCompare(dateB)
       if (dateCompare !== 0) return dateCompare
     } else if (dateA) return -1 // A has date, B doesn't - A comes first
     else if (dateB) return 1 // B has date, A doesn't - B comes first
-    
+
     // If dates are equal or both missing, compare start times
     const timeA = extractTime(a.start || '')
     const timeB = extractTime(b.start || '')
-    
+
     if (timeA && timeB) {
       return timeA.localeCompare(timeB)
     } else if (timeA) return -1
     else if (timeB) return 1
-    
+
     return 0 // Both missing, keep order
   })
 }
@@ -126,14 +128,14 @@ async function loadBlocks() {
 // Save all enabled blocks to DB (called when countdown triggers)
 async function saveAllEnabledBlocks() {
   if (!props.planId) return
-  
+
   // Get all enabled blocks (including newly created ones without ID)
   const enabledBlocks = blocks.value.filter(b => b.active !== false && b.plan === props.planId)
   if (enabledBlocks.length === 0) return
-  
+
   try {
     saving.value = true
-    
+
     // Save all enabled blocks
     for (const block of enabledBlocks) {
       const blockData: any = {
@@ -147,21 +149,21 @@ async function saveAllEnabledBlocks() {
         room: block.room,
         active: block.active
       }
-      
+
       // Only include id if block already exists in DB
       if (block.id) {
         blockData.id = block.id
       }
-      
+
       // Check if this block has timing changes (start/end times)
       const hasTimingChanges = block.start || block.end
-      
+
       const response = await axios.post(`/plans/${props.planId}/extra-blocks`, {
         ...blockData,
         skip_regeneration: !hasTimingChanges
       })
       const saved = response.data?.block || response.data
-      
+
       // Check if response contains error from generateLite
       if (response.data?.error) {
         generatorError.value = response.data.error
@@ -170,12 +172,12 @@ async function saveAllEnabledBlocks() {
         await loadBlocks() // Still reload blocks even on error
         throw new Error(response.data.error) // Re-throw so caller can handle it
       }
-      
+
       if (saved?.id) {
-        const index = blocks.value.findIndex(b => 
-          (b.id && b.id === saved.id) || 
-          (!b.id && !saved.id && b.plan === saved.plan && 
-           b.start === saved.start && b.end === saved.end)
+        const index = blocks.value.findIndex(b =>
+            (b.id && b.id === saved.id) ||
+            (!b.id && !saved.id && b.plan === saved.plan &&
+                b.start === saved.start && b.end === saved.end)
         )
         if (index !== -1) {
           blocks.value[index] = saved
@@ -184,7 +186,7 @@ async function saveAllEnabledBlocks() {
         }
       }
     }
-    
+
     emit('changed')
   } catch (error) {
     console.error('Failed to save blocks:', error)
@@ -233,12 +235,12 @@ async function flushUpdates(updates: Record<string, any>) {
     for (const [name, value] of Object.entries(updates)) {
       if (name === 'extra_block_update' && value) {
         const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f) || f === 'start' || f === 'end')
-        const blockData = { ...value }
+        const blockData = {...value}
         if (!hasTimingChanges) {
           blockData.skip_regeneration = true
         }
         const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
-        
+
         // Check if response contains error from generateLite
         if (response.data?.error) {
           generatorError.value = response.data.error
@@ -250,7 +252,7 @@ async function flushUpdates(updates: Record<string, any>) {
       }
       if (name === 'extra_block_delete' && value?.id) {
         const deleteResponse = await axios.delete(`/extra-blocks/${value.id}`)
-        
+
         // Check if response contains error from generateLite
         if (deleteResponse.data?.error) {
           generatorError.value = deleteResponse.data.error
@@ -262,7 +264,7 @@ async function flushUpdates(updates: Record<string, any>) {
       }
       if (name === 'extra_block_add' && value) {
         const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
-        
+
         // Check if response contains error from generateLite
         if (response.data?.error) {
           generatorError.value = response.data.error
@@ -285,15 +287,15 @@ async function flushUpdates(updates: Record<string, any>) {
   } catch (error: any) {
     console.error('Error flushing updates:', error)
     isGenerating.value = false
-    
+
     // Extract error message from response
     let errorMessage = 'Fehler beim Speichern der Blöcke'
     let details: string | null = null
-    
+
     if (axios.isAxiosError(error)) {
       const status = error.response?.status
       const errorData = error.response?.data
-      
+
       if (status === 422) {
         errorMessage = errorData?.error || 'Die aktuelle Konfiguration wird nicht unterstützt'
         details = errorData?.details || errorData?.message || 'Ungültige Block-Kombination'
@@ -312,7 +314,7 @@ async function flushUpdates(updates: Record<string, any>) {
     } else if (error instanceof Error) {
       errorMessage = error.message
     }
-    
+
     generatorError.value = errorMessage
     errorDetails.value = details
   }
@@ -322,7 +324,7 @@ async function flushUpdates(updates: Record<string, any>) {
 async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 1000) {
   // Give backend a moment to set status to RUNNING
   await new Promise(resolve => setTimeout(resolve, 200))
-  
+
   // isGenerating is already set to true in flushUpdates
   const start = Date.now()
 
@@ -330,12 +332,12 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
     while (Date.now() - start < timeoutMs) {
       const res = await axios.get(`/plans/${planId}/status`)
       const status = res.data.status
-      
+
       if (status === 'done') {
         isGenerating.value = false
         return
       }
-      
+
       // Check for failed status
       if (status === 'failed') {
         isGenerating.value = false
@@ -343,7 +345,7 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
         errorDetails.value = 'Der Plan konnte nicht generiert werden. Bitte überprüfe die Block-Einstellungen.'
         return
       }
-      
+
       // Keep polling if still running
       await new Promise(resolve => setTimeout(resolve, intervalMs))
     }
@@ -351,7 +353,7 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
     throw new Error('Timeout: Plan generation took too long')
   } catch (error: any) {
     isGenerating.value = false
-    
+
     if (error instanceof Error && error.message.includes('Timeout')) {
       generatorError.value = 'Zeitüberschreitung'
       errorDetails.value = 'Die Generierung dauert zu lange. Bitte versuche es erneut.'
@@ -401,7 +403,7 @@ async function addCustom() {
   const baseDate = props.eventDate ? new Date(props.eventDate) : new Date()
   // Format as YYYY-MM-DD
   const dateStr = baseDate.toISOString().slice(0, 10)
-  
+
   const draft: ExtraBlock = {
     plan: props.planId!,
     first_program: 0, // Start with both icons on (joint)
@@ -412,7 +414,7 @@ async function addCustom() {
     start: combineDateTime(dateStr, '06:00') || `${dateStr} 06:00:00`,
     end: combineDateTime(dateStr, '07:00') || `${dateStr} 07:00:00`
   }
-  
+
   try {
     // Save immediately with default timing but empty content
     // This gives the block an ID so it behaves like any other block
@@ -420,17 +422,17 @@ async function addCustom() {
       ...draft,
       skip_regeneration: true // Don't regenerate for empty block
     })
-    
+
     // Check for errors
     if (response.data?.error) {
       generatorError.value = response.data.error
       errorDetails.value = response.data.details || null
       return
     }
-    
+
     // Reload blocks to get the new block with its ID
     await loadBlocks()
-    
+
     // Emit changed event
     emit('changed')
   } catch (error: any) {
@@ -443,9 +445,11 @@ async function addCustom() {
 function confirmDeleteBlock(block: ExtraBlock) {
   blockToDelete.value = block
 }
+
 function cancelDeleteBlock() {
   blockToDelete.value = null
 }
+
 async function deleteBlock() {
   if (!blockToDelete.value?.id) return
   scheduleUpdate('extra_block_delete', blockToDelete.value)
@@ -462,18 +466,18 @@ function saveBlock(block: ExtraBlock) {
     console.warn('Attempted to save block without ID - this should not happen')
     return
   }
-  
+
   // Create a new object copy to avoid reference issues during countdown
   // This ensures each update captures the current state independently
   // Note: DB save will happen when countdown reaches 0 or is clicked
-  scheduleUpdate('extra_block_update', { ...block })
+  scheduleUpdate('extra_block_update', {...block})
 }
 
 function toggleActive(block: ExtraBlock, active: boolean) {
   if (!block.id) return
   block.active = active
   // Ensure toggle change is caught by debouncer with countdown
-  scheduleUpdate('extra_block_update', { ...block, active })
+  scheduleUpdate('extra_block_update', {...block, active})
 }
 
 function toggleProgram(block: ExtraBlock, program: 2 | 3) {
@@ -517,7 +521,7 @@ function toggleProgram(block: ExtraBlock, program: 2 | 3) {
 function handleDateChange(block: ExtraBlock, date: string) {
   const startTime = extractTime(block.start || '')
   const endTime = extractTime(block.end || '')
-  
+
   block.start = combineDateTime(date, startTime || '00:00')
   block.end = combineDateTime(date, endTime || '00:00')
   saveBlock(block)
@@ -537,25 +541,25 @@ function timeToMinutes(timeString: string): number {
  */
 function normalizeTime(time: string): string {
   if (!time || typeof time !== 'string' || !time.includes(':')) return '00:05'
-  
+
   const [hours, minutes] = time.split(':').map(Number)
   if (isNaN(hours) || isNaN(minutes)) return '00:05'
-  
+
   // Round to nearest 5 minutes
   const roundedMinutes = Math.round(minutes / 5) * 5
   let totalMinutes = hours * 60 + roundedMinutes
-  
+
   // Clamp to 00:05 - 23:55
   const minMinutes = 5 // 00:05
   const maxMinutes = 23 * 60 + 55 // 23:55
-  
+
   if (totalMinutes < minMinutes) totalMinutes = minMinutes
   if (totalMinutes > maxMinutes) totalMinutes = maxMinutes
-  
+
   // Convert back to hours and minutes
   const finalHours = Math.floor(totalMinutes / 60)
   const finalMinutes = totalMinutes % 60
-  
+
   return `${String(finalHours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`
 }
 
@@ -563,23 +567,23 @@ function normalizeTime(time: string): string {
 function handleStartTimeChange(block: ExtraBlock, time: string) {
   const date = extractDate(block.start || block.end || '')
   if (!date || !time) return
-  
+
   // Normalize start time (round to 5 min, clamp to 00:05-23:55)
   const normalizedStart = normalizeTime(time)
   const startMinutes = timeToMinutes(normalizedStart)
-  
+
   // Get current end time from block (use current state, not stale)
   const currentEnd = extractTime(block.end || '')
   const normalizedEnd = currentEnd ? normalizeTime(currentEnd) : '23:55'
   let endMinutes = timeToMinutes(normalizedEnd)
-  
+
   // If start >= end, set end = start + 5 min (capped at 23:55)
   if (startMinutes >= endMinutes) {
     endMinutes = Math.min(startMinutes + 5, 23 * 60 + 55) // Cap at 23:55
     const endHours = Math.floor(endMinutes / 60)
     const endMins = endMinutes % 60
     const newEnd = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`
-    
+
     // Update block immediately (for UI reactivity)
     block.start = combineDateTime(date, normalizedStart)
     block.end = combineDateTime(date, newEnd)
@@ -588,25 +592,25 @@ function handleStartTimeChange(block: ExtraBlock, time: string) {
     block.start = combineDateTime(date, normalizedStart)
     block.end = combineDateTime(date, normalizedEnd)
   }
-  
+
   // Trigger debounce with current block state (this will overwrite any pending update)
-  scheduleUpdate('extra_block_update', { ...block })
+  scheduleUpdate('extra_block_update', {...block})
 }
 
 // Handle end time change (called on blur)
 function handleEndTimeChange(block: ExtraBlock, time: string) {
   const date = extractDate(block.start || block.end || '')
   if (!date || !time) return
-  
+
   // Normalize end time (round to 5 min, clamp to 00:05-23:55)
   const normalizedEnd = normalizeTime(time)
   const endMinutes = timeToMinutes(normalizedEnd)
-  
+
   // Get current start time from block (use current state, not stale)
   const currentStart = extractTime(block.start || '')
   const normalizedStart = currentStart ? normalizeTime(currentStart) : '00:05'
   const startMinutes = timeToMinutes(normalizedStart)
-  
+
   // Ensure end >= start (if not, adjust start down)
   if (endMinutes < startMinutes) {
     // This shouldn't happen if user is editing end, but handle it gracefully
@@ -615,7 +619,7 @@ function handleEndTimeChange(block: ExtraBlock, time: string) {
     const startHours = Math.floor(newStartMinutes / 60)
     const startMins = newStartMinutes % 60
     const newStart = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`
-    
+
     // Update block immediately (for UI reactivity)
     block.start = combineDateTime(date, newStart)
     block.end = combineDateTime(date, normalizedEnd)
@@ -624,9 +628,9 @@ function handleEndTimeChange(block: ExtraBlock, time: string) {
     block.start = combineDateTime(date, normalizedStart)
     block.end = combineDateTime(date, normalizedEnd)
   }
-  
+
   // Trigger debounce with current block state (this will overwrite any pending update)
-  scheduleUpdate('extra_block_update', { ...block })
+  scheduleUpdate('extra_block_update', {...block})
 }
 
 const deleteMessage = computed(() => {
@@ -638,14 +642,14 @@ const deleteMessage = computed(() => {
 function isBlockOutsideEventDates(block: ExtraBlock): boolean {
   if (!props.eventDate) return false
   if (!props.eventDays || props.eventDays < 1) return false
-  
+
   const blockDateStr = extractDate(block.start || block.end || '')
   if (!blockDateStr) return false
-  
+
   const eventStartDate = dayjs(props.eventDate)
   const eventEndDate = eventStartDate.add(props.eventDays - 1, 'day')
   const blockDate = dayjs(blockDateStr)
-  
+
   // Check if block date is before event start or after event end
   return blockDate.isBefore(eventStartDate, 'day') || blockDate.isAfter(eventEndDate, 'day')
 }
@@ -664,19 +668,23 @@ const hasBlocksOutsideEventDates = computed(() => {
         <div class="flex-1">
           <div class="flex items-center">
             <svg class="h-5 w-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+              <path fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clip-rule="evenodd"/>
             </svg>
             <h3 class="text-red-800 font-semibold text-lg">{{ generatorError }}</h3>
           </div>
           <p v-if="errorDetails" class="mt-2 text-red-700 text-sm">{{ errorDetails }}</p>
         </div>
         <button
-          @click="generatorError = null; errorDetails = null"
-          class="ml-4 text-red-500 hover:text-red-700 focus:outline-none"
-          aria-label="Fehler schließen"
+            @click="generatorError = null; errorDetails = null"
+            class="ml-4 text-red-500 hover:text-red-700 focus:outline-none"
+            aria-label="Fehler schließen"
         >
           <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            <path fill-rule="evenodd"
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                  clip-rule="evenodd"/>
           </svg>
         </button>
       </div>
@@ -686,15 +694,17 @@ const hasBlocksOutsideEventDates = computed(() => {
     <div class="bg-white shadow-sm rounded-xl border border-gray-200 relative">
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <span class="text-sm text-gray-600">Diese Blöcke werden direkt in den generierten Plan kopiert.</span>
-        <button class="bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
-                :disabled="!planId"
-                @click="addCustom">
+        <button
+            class="bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+            :disabled="!planId"
+            @click="addCustom">
           + Block hinzufügen
         </button>
       </div>
 
       <!-- Warning for blocks outside event dates -->
-      <div v-if="hasBlocksOutsideEventDates" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
+      <div v-if="hasBlocksOutsideEventDates"
+           class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
         Freie Blöcke an Tagen außerhalb der Veranstaltung werden in den Plänen nicht angezeigt.
       </div>
 
@@ -719,17 +729,17 @@ const hasBlocksOutsideEventDates = computed(() => {
             <td class="px-2 py-2">
               <div class="flex flex-col items-center space-y-2">
                 <ToggleSwitch
-                  :model-value="b.active !== false"
-                  @update:modelValue="toggleActive(b, $event)"
-                  :disabled="!b.id"
+                    :model-value="b.active !== false"
+                    @update:modelValue="toggleActive(b, $event)"
+                    :disabled="!b.id"
                 />
                 <button
-                  v-if="b.id"
-                  @click="confirmDeleteBlock(b)"
-                  class="text-red-500 hover:text-red-700"
-                  title="Block löschen"
+                    v-if="b.id"
+                    @click="confirmDeleteBlock(b)"
+                    class="hover:text-red-800 text-lg"
+                    title="Block löschen"
                 >
-                  🗑️
+                  <i class="bi bi-trash-fill"></i>
                 </button>
               </div>
             </td>
@@ -762,47 +772,47 @@ const hasBlocksOutsideEventDates = computed(() => {
             <td class="px-2 py-2">
               <div class="space-y-2">
                 <!-- Date field (first line) -->
-                <input 
-                  :value="extractDate(b.start || b.end)" 
-                  :disabled="b.active === false"
-                  :class="['w-full border rounded px-2 py-1 text-sm',
+                <input
+                    :value="extractDate(b.start || b.end)"
+                    :disabled="b.active === false"
+                    :class="['w-full border rounded px-2 py-1 text-sm',
                            b.active !== false
                              ? 'bg-white border-gray-300'
                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                  type="date"
-                  @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
+                    type="date"
+                    @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
                 />
                 <!-- Start and End time fields (second line) -->
                 <div class="flex space-x-1">
-                  <input 
-                    :value="extractTime(b.start)" 
-                    :disabled="b.active === false"
-                    :class="['flex-1 border rounded px-2 py-1 text-sm',
+                  <input
+                      :value="extractTime(b.start)"
+                      :disabled="b.active === false"
+                      :class="['flex-1 border rounded px-2 py-1 text-sm',
                              b.active !== false
                                ? 'bg-white border-gray-300'
                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                    type="time"
-                    min="00:05"
-                    max="23:55"
-                    step="300"
-                    placeholder="Start"
-                    @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start }"
-                    @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
+                      type="time"
+                      min="00:05"
+                      max="23:55"
+                      step="300"
+                      placeholder="Start"
+                      @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start }"
+                      @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
                   />
-                  <input 
-                    :value="extractTime(b.end)" 
-                    :disabled="b.active === false"
-                    :class="['flex-1 border rounded px-2 py-1 text-sm',
+                  <input
+                      :value="extractTime(b.end)"
+                      :disabled="b.active === false"
+                      :class="['flex-1 border rounded px-2 py-1 text-sm',
                              b.active !== false
                                ? 'bg-white border-gray-300'
                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                    type="time"
-                    min="00:05"
-                    max="23:55"
-                    step="300"
-                    placeholder="Ende"
-                    @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
-                    @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
+                      type="time"
+                      min="00:05"
+                      max="23:55"
+                      step="300"
+                      placeholder="Ende"
+                      @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
+                      @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
                   />
                 </div>
               </div>
@@ -854,22 +864,22 @@ const hasBlocksOutsideEventDates = computed(() => {
     </div>
 
     <ConfirmationModal
-      :show="!!blockToDelete"
-      title="Block löschen"
-      :message="deleteMessage"
-      type="danger"
-      confirm-text="Löschen"
-      cancel-text="Abbrechen"
-      @confirm="deleteBlock"
-      @cancel="cancelDeleteBlock"
+        :show="!!blockToDelete"
+        title="Block löschen"
+        :message="deleteMessage"
+        type="danger"
+        confirm-text="Löschen"
+        cancel-text="Abbrechen"
+        @confirm="deleteBlock"
+        @cancel="cancelDeleteBlock"
     />
 
     <ScheduleToast
-      ref="savingToast" 
-      :is-generating="isGenerating"
-      :countdown="countdownSeconds"
-      :on-immediate-save="immediateFlush"
-      message="Block-Änderungen werden gespeichert..."
+        ref="savingToast"
+        :is-generating="isGenerating"
+        :countdown="countdownSeconds"
+        :on-immediate-save="immediateFlush"
+        message="Block-Änderungen werden gespeichert..."
     />
   </div>
 </template>

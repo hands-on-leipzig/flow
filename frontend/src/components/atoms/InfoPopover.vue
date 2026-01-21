@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import {computed, onMounted, onBeforeUnmount} from 'vue'
-import IconInfo from "@/components/icons/IconInfo.vue";
-import { useInfoPopover } from '@/composables/useInfoPopover'
+import {useInfoPopover} from '@/composables/useInfoPopover'
 
 const props = defineProps<{ text?: string | null }>()
-const { toggle, isOpen, close } = useInfoPopover()
+const {toggle, isOpen, close} = useInfoPopover()
 
 // Generate a unique ID for this popover instance
 const popoverId = `info-popover-${Math.random().toString(36).substr(2, 9)}`

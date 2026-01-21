@@ -650,14 +650,14 @@ const downloadXML = () => {
       teamData.coaches.forEach((coach, index) => {
         const coachType = index === 0 ? 'coach' : 'co-coach'
         xml += `\t\t\t<mitglied typ="${coachType}">\n`
-        
+
         if (typeof coach === 'object' && coach !== null) {
           // Split name into firstname and lastname if possible
           const fullName = coach.name || ''
           const nameParts = fullName.trim().split(/\s+/)
           const vorname = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : ''
           const nachname = nameParts.length > 0 ? nameParts[nameParts.length - 1] : fullName
-          
+
           xml += `\t\t\t\t<vorname>${escapeXml(vorname)}</vorname>\n`
           xml += `\t\t\t\t<nachname>${escapeXml(nachname)}</nachname>\n`
           xml += `\t\t\t\t<email>${escapeXml(coach.email || '')}</email>\n`
@@ -668,7 +668,7 @@ const downloadXML = () => {
           const nameParts = fullName.trim().split(/\s+/)
           const vorname = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : ''
           const nachname = nameParts.length > 0 ? nameParts[nameParts.length - 1] : fullName
-          
+
           xml += `\t\t\t\t<vorname>${escapeXml(vorname)}</vorname>\n`
           xml += `\t\t\t\t<nachname>${escapeXml(nachname)}</nachname>\n`
           xml += `\t\t\t\t<email></email>\n`
@@ -893,7 +893,7 @@ onMounted(async () => {
 
               <!-- People count -->
               <span v-if="getPeopleCount(team) !== null" class="text-sm text-gray-600 space-x-2">
-                {{ getPeopleCount(team) }} <i class="fa-solid fa-person"></i>
+                {{ getPeopleCount(team) }} <i class="bi bi-person-fill"></i>
               </span>
               <span v-else class="text-sm text-gray-400">–</span>
 
