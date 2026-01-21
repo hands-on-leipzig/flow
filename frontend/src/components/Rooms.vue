@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
+import {ref, onMounted, onUnmounted, computed, nextTick, watch} from 'vue'
 import axios from 'axios'
-import { useEventStore } from '@/stores/event'
+import {useEventStore} from '@/stores/event'
 import draggable from 'vuedraggable'
-import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import LoaderText from "@/components/atoms/LoaderText.vue";
 import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
@@ -28,6 +28,9 @@ const challengeTeams = ref([])
 const e1Teams = ref(0) // Threshold for morning vs afternoon split
 const hasTwoExploreGroups = ref(false) // Whether there are 2 Explore groups
 
+// People data from DRAHT API
+const peopleData = ref({})
+
 const dragOverRoomId = ref(null)
 const isDragging = ref(false)
 const isDraggingRoom = ref(false)
@@ -36,9 +39,12 @@ const previewedTypeId = ref(null)
 // --- Farbzuweisung ---
 const getProgramColor = (item) => {
   switch (item.first_program) {
-    case 2: return '#10B981' // Grün (Explore)
-    case 3: return '#EF4444' // Rot (Challenge)
-    default: return '#9CA3AF' // Grau (Neutral)
+    case 2:
+      return '#10B981' // Grün (Explore)
+    case 3:
+      return '#EF4444' // Rot (Challenge)
+    default:
+      return '#9CA3AF' // Grau (Neutral)
   }
 }
 
@@ -46,15 +52,26 @@ const getProgramColor = (item) => {
 // Handles both normalized names (FIRST LEGO League) and DB names (FLL Explore/Challenge)
 const formatProgramName = (name) => {
   if (!name) return ''
-  
+
   // First, expand FLL to FIRST LEGO League if present
   let normalized = name
-    .replace(/^FLL Explore$/i, 'FIRST LEGO League Explore')
-    .replace(/^FLL Challenge$/i, 'FIRST LEGO League Challenge')
-    .replace(/FLL /g, 'FIRST LEGO League ')
-  
+      .replace(/^FLL Explore$/i, 'FIRST LEGO League Explore')
+      .replace(/^FLL Challenge$/i, 'FIRST LEGO League Challenge')
+      .replace(/FLL /g, 'FIRST LEGO League ')
+
   // Then apply italic styling to FIRST
   return normalized.replace(/FIRST/g, '<span class="italic">FIRST</span>')
+}
+
+// Get people count for a team (players + coaches)
+const getPeopleCount = (team) => {
+  if (!team || !team.number) return null
+  const teamNumber = String(team.number)
+  if (!peopleData.value[teamNumber]) {
+    return null
+  }
+  const teamData = peopleData.value[teamNumber]
+  return (teamData.num_players || 0) + (teamData.num_coaches || 0)
 }
 
 // --- Loading state ---
@@ -66,11 +83,11 @@ onMounted(async () => {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
 
   // Räume laden
-  const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
+  const {data: roomsData} = await axios.get(`/events/${eventId.value}/rooms`)
   rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
 
   // Plan-ID holen
-  const { data: planData } = await axios.get(`/plans/event/${eventId.value}`)
+  const {data: planData} = await axios.get(`/plans/event/${eventId.value}`)
   if (!planData?.id) {
     if (import.meta.env.DEV) {
       console.debug('Kein Plan für Event gefunden')
@@ -79,32 +96,31 @@ onMounted(async () => {
   }
 
   // --- Aktivitäten (room-types) laden ---
-  const { data: roomTypeGroups } = await axios.get(`/room-types/${planData.id}`)
+  const {data: roomTypeGroups} = await axios.get(`/room-types/${planData.id}`)
   typeGroups.value = roomTypeGroups
   roomTypes.value = roomTypeGroups.flatMap(group =>
-    group.room_types.map(rt => ({
-      id: rt.type_id,
-      key: `activity-${rt.type_id}`,   // 👈 HIER NEU
-      name: rt.type_name,
-      first_program: rt.first_program,
-      type: 'activity',
-      group: { id: group.id, name: group.name }
-    }))
-
+      group.room_types.map(rt => ({
+        id: rt.type_id,
+        key: `activity-${rt.type_id}`,   // 👈 HIER NEU
+        name: rt.type_name,
+        first_program: rt.first_program,
+        type: 'activity',
+        group: {id: group.id, name: group.name}
+      }))
   )
 
   // --- Teams laden über neue API ---
   try {
     const [exploreResponse, challengeResponse] = await Promise.all([
-      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'explore', sort: 'name' } }),
-      axios.get(`/events/${eventId.value}/teams`, { params: { program: 'challenge', sort: 'name' } })
+      axios.get(`/events/${eventId.value}/teams`, {params: {program: 'explore', sort: 'name'}}),
+      axios.get(`/events/${eventId.value}/teams`, {params: {program: 'challenge', sort: 'name'}})
     ])
 
     // Handle Explore teams - response may be object with metadata or array (backward compatible)
     const exploreData = exploreResponse.data
     let exploreTeamsArray = Array.isArray(exploreData) ? exploreData : exploreData.teams || []
     const exploreMetadata = exploreData.metadata || {}
-    
+
     // Check if there are 2 Explore groups (e_mode = 8 for HYBRID_BOTH or 5 for DECOUPLED_BOTH)
     const eMode = exploreMetadata.e_mode || 0
     hasTwoExploreGroups.value = (eMode === 8 || eMode === 5)
@@ -113,33 +129,33 @@ onMounted(async () => {
     // Split Explore teams into morning and afternoon based on team_number_plan
     if (hasTwoExploreGroups.value && e1Teams.value > 0) {
       exploreTeamsMorning.value = exploreTeamsArray
-        .filter(t => (t.team_number_plan || 0) <= e1Teams.value)
-        .map(t => ({
-          id: t.id,
-          key: `team-${t.id}`,
-          number: t.team_number_hot,
-          name: t.name ?? 'Unbenannt',
-          type: 'team',
-          first_program: 2,
-          room: t.room ?? null,
-          team_number_plan: t.team_number_plan,
-          group: { id: 'explore-morning', name: 'Explore Vormittag' }
-        }))
-      
+          .filter(t => (t.team_number_plan || 0) <= e1Teams.value)
+          .map(t => ({
+            id: t.id,
+            key: `team-${t.id}`,
+            number: t.team_number_hot,
+            name: t.name ?? 'Unbenannt',
+            type: 'team',
+            first_program: 2,
+            room: t.room ?? null,
+            team_number_plan: t.team_number_plan,
+            group: {id: 'explore-morning', name: 'Explore Vormittag'}
+          }))
+
       exploreTeamsAfternoon.value = exploreTeamsArray
-        .filter(t => (t.team_number_plan || 0) > e1Teams.value)
-        .map(t => ({
-          id: t.id,
-          key: `team-${t.id}`,
-          number: t.team_number_hot,
-          name: t.name ?? 'Unbenannt',
-          type: 'team',
-          first_program: 2,
-          room: t.room ?? null,
-          team_number_plan: t.team_number_plan,
-          group: { id: 'explore-afternoon', name: 'Explore Nachmittag' }
-        }))
-      
+          .filter(t => (t.team_number_plan || 0) > e1Teams.value)
+          .map(t => ({
+            id: t.id,
+            key: `team-${t.id}`,
+            number: t.team_number_hot,
+            name: t.name ?? 'Unbenannt',
+            type: 'team',
+            first_program: 2,
+            room: t.room ?? null,
+            team_number_plan: t.team_number_plan,
+            group: {id: 'explore-afternoon', name: 'Explore Nachmittag'}
+          }))
+
       // Keep exploreTeams for backward compatibility (all teams combined)
       exploreTeams.value = [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
     } else {
@@ -153,7 +169,7 @@ onMounted(async () => {
         first_program: 2,
         room: t.room ?? null,
         team_number_plan: t.team_number_plan,
-        group: { id: 'explore', name: 'Explore' }
+        group: {id: 'explore', name: 'Explore'}
       }))
       exploreTeamsMorning.value = []
       exploreTeamsAfternoon.value = []
@@ -167,7 +183,7 @@ onMounted(async () => {
       type: 'team',
       first_program: 3,
       room: t.room ?? null,
-      group: { id: 'challenge', name: 'Challenge' }
+      group: {id: 'challenge', name: 'Challenge'}
     }))
   } catch (err) {
     if (import.meta.env.DEV) {
@@ -178,28 +194,28 @@ onMounted(async () => {
     exploreTeamsAfternoon.value = []
     challengeTeams.value = []
   }
-  
+
   // --- Zusammenführen in gemeinsame Struktur ---
   // Build team groups based on whether there are 2 Explore groups
   const teamGroups = []
-  
+
   if (hasTwoExploreGroups.value) {
     // Two Explore groups: Vormittag and Nachmittag
     teamGroups.push(
-      { id: 'explore-morning', name: 'Explore Vormittag', items: exploreTeamsMorning.value },
-      { id: 'explore-afternoon', name: 'Explore Nachmittag', items: exploreTeamsAfternoon.value }
+        {id: 'explore-morning', name: 'Explore Vormittag', items: exploreTeamsMorning.value},
+        {id: 'explore-afternoon', name: 'Explore Nachmittag', items: exploreTeamsAfternoon.value}
     )
   } else {
     // Single Explore group
     teamGroups.push(
-      { id: 'explore', name: 'Explore', items: exploreTeams.value }
+        {id: 'explore', name: 'Explore', items: exploreTeams.value}
     )
   }
-  
+
   // Add Challenge group
   if (showChallengeTeams.value) {
     teamGroups.push(
-      { id: 'challenge', name: 'Challenge', items: challengeTeams.value }
+        {id: 'challenge', name: 'Challenge', items: challengeTeams.value}
     )
   }
 
@@ -217,7 +233,7 @@ onMounted(async () => {
           name: rt.type_name,
           first_program: rt.first_program,
           type: 'activity',
-          group: { id: g.id, name: g.name },
+          group: {id: g.id, name: g.name},
           item_type: rt.item_type || 'room_type' // Store for reference
         }))
       }))
@@ -247,9 +263,9 @@ onMounted(async () => {
 
   // 2) Teams (Explore + Challenge) – nur wenn backend room mitliefert
   // Use split teams if available, otherwise use combined exploreTeams
-  const exploreTeamsForAssignment = hasTwoExploreGroups.value 
-    ? [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
-    : exploreTeams.value
+  const exploreTeamsForAssignment = hasTwoExploreGroups.value
+      ? [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
+      : exploreTeams.value
   ;[...exploreTeamsForAssignment, ...challengeTeams.value].forEach(team => {
     if (team.room !== null && team.room !== undefined) {
       result[`team-${team.id}`] = team.room
@@ -268,7 +284,50 @@ onMounted(async () => {
   //   activities: Object.keys(result).filter(k => k.startsWith('activity-')).length,
   //   teams: Object.keys(result).filter(k => k.startsWith('team-')).length
   // })
-  
+
+  // Fetch people data from DRAHT API for both programs
+  const fetchPeopleData = async () => {
+    const promises = []
+
+    if (event.value?.event_explore) {
+      promises.push(
+          axios.get(`/draht/people/${event.value.event_explore}`)
+              .then(res => {
+                if (res.data) {
+                  const {total_players, total_coaches, ...teamsData} = res.data
+                  Object.assign(peopleData.value, teamsData)
+                }
+              })
+              .catch(err => {
+                if (import.meta.env.DEV) {
+                  console.error('Failed to fetch Explore people data', err)
+                }
+              })
+      )
+    }
+
+    if (event.value?.event_challenge) {
+      promises.push(
+          axios.get(`/draht/people/${event.value.event_challenge}`)
+              .then(res => {
+                if (res.data) {
+                  const {total_players, total_coaches, ...teamsData} = res.data
+                  Object.assign(peopleData.value, teamsData)
+                }
+              })
+              .catch(err => {
+                if (import.meta.env.DEV) {
+                  console.error('Failed to fetch Challenge people data', err)
+                }
+              })
+      )
+    }
+
+    await Promise.all(promises)
+  }
+
+  await fetchPeopleData()
+
   loading.value = false
 })
 
@@ -290,12 +349,12 @@ const toggleAccessibility = async (room) => {
 // --- Gemeinsame Zuordnung Raum <-> Item ---
 const assignItemToRoom = async (itemKey, roomId) => {
   // Handle proxy items
-  if (itemKey === PROXY_EXPLORE_KEY || itemKey === PROXY_EXPLORE_MORNING_KEY || 
+  if (itemKey === PROXY_EXPLORE_KEY || itemKey === PROXY_EXPLORE_MORNING_KEY ||
       itemKey === PROXY_EXPLORE_AFTERNOON_KEY || itemKey === PROXY_CHALLENGE_KEY) {
     await handleProxyAssignment(itemKey, roomId)
     return
   }
-  
+
   const item = findItemById(itemKey)
   if (!item) return
 
@@ -329,16 +388,16 @@ const assignItemToRoom = async (itemKey, roomId) => {
 // --- Item nach ID finden ---
 const findItemById = (idOrKey) => {
   const str = String(idOrKey)
-  
+
   // Handle new key format: activity-rt-5, activity-eb-5, team-123, proxy-explore, etc.
   if (str.includes('-')) {
     const parts = str.split('-')
-    
+
     // Handle proxy keys
     if (parts[0] === 'proxy') {
       return null // Proxy items don't need lookup
     }
-    
+
     // Handle activity keys: activity-rt-5 or activity-eb-5
     if (parts[0] === 'activity' && (parts[1] === 'rt' || parts[1] === 'eb')) {
       const normalizedId = Number(parts[2])
@@ -351,7 +410,7 @@ const findItemById = (idOrKey) => {
       }
       return null
     }
-    
+
     // Handle team keys: team-123
     if (parts[0] === 'team') {
       const normalizedId = Number(parts[1])
@@ -364,7 +423,7 @@ const findItemById = (idOrKey) => {
       }
       return null
     }
-    
+
     // Legacy format fallback: activity-5 or team-5 (for backwards compatibility)
     const normalizedId = Number(parts[1])
     const typeFilter = parts[0] === 'team' || parts[0] === 'activity' ? parts[0] : null
@@ -376,7 +435,7 @@ const findItemById = (idOrKey) => {
       }
     }
   }
-  
+
   // If no dashes, treat as plain ID and search all items
   const normalizedId = Number(str)
   for (const category of assignables.value) {
@@ -391,12 +450,12 @@ const findItemById = (idOrKey) => {
 // --- Unassign ---
 const unassignItemFromRoom = async (itemKey) => {
   // Handle proxy items
-  if (itemKey === PROXY_EXPLORE_KEY || itemKey === PROXY_EXPLORE_MORNING_KEY || 
+  if (itemKey === PROXY_EXPLORE_KEY || itemKey === PROXY_EXPLORE_MORNING_KEY ||
       itemKey === PROXY_EXPLORE_AFTERNOON_KEY || itemKey === PROXY_CHALLENGE_KEY) {
     await handleProxyAssignment(itemKey, null)
     return
   }
-  
+
   const item = findItemById(itemKey)
   if (!item) return
 
@@ -444,7 +503,7 @@ const createRoom = async () => {
   isCreatingRoom.value = true
   isSaving.value = true
   try {
-    const { data } = await axios.post('/rooms', {
+    const {data} = await axios.post('/rooms', {
       name: newRoomName.value.trim(),
       navigation_instruction: newRoomNote.value.trim(),
       event: eventId.value
@@ -496,7 +555,7 @@ const handleRoomReorder = async () => {
       console.error('Error updating room sequence:', error)
     }
     // Optionally reload rooms to restore original order
-    const { data: roomsData } = await axios.get(`/events/${eventId.value}/rooms`)
+    const {data: roomsData} = await axios.get(`/events/${eventId.value}/rooms`)
     rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
   }
 }
@@ -564,7 +623,7 @@ const getStorageKey = () => {
 const loadBulkModePreferences = () => {
   const key = getStorageKey()
   if (!key) return
-  
+
   try {
     const saved = localStorage.getItem(key)
     if (saved) {
@@ -577,7 +636,7 @@ const loadBulkModePreferences = () => {
       bulkModeExploreMorning.value = prefs.exploreMorning ?? false
       bulkModeExploreAfternoon.value = prefs.exploreAfternoon ?? false
       bulkModeChallenge.value = prefs.challenge ?? false
-      
+
       // Restore proxy assignments if bulk mode is enabled and teams are assigned
       // We need to check after assignments are loaded, so we'll call restoreProxyAssignments separately
       nextTick(() => {
@@ -596,9 +655,9 @@ const restoreProxyAssignments = () => {
   // Check Explore Morning teams
   if (bulkModeExploreMorning.value && exploreTeamsMorning.value.length > 0) {
     const teamsWithAssignments = exploreTeamsMorning.value
-      .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
-      .filter(t => t.room !== null && t.room !== undefined)
-    
+        .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
+        .filter(t => t.room !== null && t.room !== undefined)
+
     if (teamsWithAssignments.length === exploreTeamsMorning.value.length) {
       const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
       if (roomIds.length === 1) {
@@ -606,13 +665,13 @@ const restoreProxyAssignments = () => {
       }
     }
   }
-  
+
   // Check Explore Afternoon teams
   if (bulkModeExploreAfternoon.value && exploreTeamsAfternoon.value.length > 0) {
     const teamsWithAssignments = exploreTeamsAfternoon.value
-      .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
-      .filter(t => t.room !== null && t.room !== undefined)
-    
+        .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
+        .filter(t => t.room !== null && t.room !== undefined)
+
     if (teamsWithAssignments.length === exploreTeamsAfternoon.value.length) {
       const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
       if (roomIds.length === 1) {
@@ -620,13 +679,13 @@ const restoreProxyAssignments = () => {
       }
     }
   }
-  
+
   // Check single Explore group (backward compatibility)
   if (bulkModeExplore.value && !hasTwoExploreGroups.value && exploreTeams.value.length > 0) {
     const teamsWithAssignments = exploreTeams.value
-      .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
-      .filter(t => t.room !== null && t.room !== undefined)
-    
+        .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
+        .filter(t => t.room !== null && t.room !== undefined)
+
     if (teamsWithAssignments.length === exploreTeams.value.length) {
       const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
       if (roomIds.length === 1) {
@@ -634,13 +693,13 @@ const restoreProxyAssignments = () => {
       }
     }
   }
-  
+
   // Check Challenge teams
   if (bulkModeChallenge.value && challengeTeams.value.length > 0) {
     const teamsWithAssignments = challengeTeams.value
-      .map(t => ({ id: t.id, room: assignments.value[`team-${t.id}`] }))
-      .filter(t => t.room !== null && t.room !== undefined)
-    
+        .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
+        .filter(t => t.room !== null && t.room !== undefined)
+
     if (teamsWithAssignments.length === challengeTeams.value.length) {
       const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
       if (roomIds.length === 1) {
@@ -651,24 +710,24 @@ const restoreProxyAssignments = () => {
 }
 
 // Save bulk mode preferences when they change
-watch([bulkModeExplore, bulkModeExploreMorning, bulkModeExploreAfternoon, bulkModeChallenge], 
-  ([explore, exploreMorning, exploreAfternoon, challenge]) => {
-    const key = getStorageKey()
-    if (!key) return
-    
-    try {
-      localStorage.setItem(key, JSON.stringify({ 
-        explore, 
-        exploreMorning, 
-        exploreAfternoon, 
-        challenge 
-      }))
-    } catch (e) {
-      if (import.meta.env.DEV) {
-        console.debug('Failed to save bulk mode preferences', e)
+watch([bulkModeExplore, bulkModeExploreMorning, bulkModeExploreAfternoon, bulkModeChallenge],
+    ([explore, exploreMorning, exploreAfternoon, challenge]) => {
+      const key = getStorageKey()
+      if (!key) return
+
+      try {
+        localStorage.setItem(key, JSON.stringify({
+          explore,
+          exploreMorning,
+          exploreAfternoon,
+          challenge
+        }))
+      } catch (e) {
+        if (import.meta.env.DEV) {
+          console.debug('Failed to save bulk mode preferences', e)
+        }
       }
     }
-  }
 )
 
 // Reload preferences when event changes
@@ -696,28 +755,36 @@ const toggleBulkMode = async (groupId) => {
   let currentMode
   let setBulkMode
   let proxyKey
-  
+
   if (groupId === 'explore-morning') {
     currentMode = bulkModeExploreMorning.value
-    setBulkMode = (val) => { bulkModeExploreMorning.value = val }
+    setBulkMode = (val) => {
+      bulkModeExploreMorning.value = val
+    }
     proxyKey = PROXY_EXPLORE_MORNING_KEY
   } else if (groupId === 'explore-afternoon') {
     currentMode = bulkModeExploreAfternoon.value
-    setBulkMode = (val) => { bulkModeExploreAfternoon.value = val }
+    setBulkMode = (val) => {
+      bulkModeExploreAfternoon.value = val
+    }
     proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
   } else if (groupId === 'explore') {
     // Single Explore group (backward compatibility)
     currentMode = bulkModeExplore.value
-    setBulkMode = (val) => { bulkModeExplore.value = val }
+    setBulkMode = (val) => {
+      bulkModeExplore.value = val
+    }
     proxyKey = PROXY_EXPLORE_KEY
   } else if (groupId === 'challenge') {
     currentMode = bulkModeChallenge.value
-    setBulkMode = (val) => { bulkModeChallenge.value = val }
+    setBulkMode = (val) => {
+      bulkModeChallenge.value = val
+    }
     proxyKey = PROXY_CHALLENGE_KEY
   } else {
     return
   }
-  
+
   if (!currentMode) {
     // Enabling bulk mode: unassign all teams of this group
     const teams = getTeamsForProgram(groupId)
@@ -732,7 +799,7 @@ const toggleBulkMode = async (groupId) => {
   } else {
     // Disabling bulk mode: if proxy is assigned, keep assignments, otherwise clear
     const proxyRoomId = getProxyRoomId(proxyKey)
-    
+
     if (proxyRoomId) {
       // Proxy is assigned: all teams should appear individually in that room
       const teams = getTeamsForProgram(groupId)
@@ -749,10 +816,10 @@ const toggleBulkMode = async (groupId) => {
       // Remove proxy assignment
       assignments.value[proxyKey] = null
     }
-    
+
     setBulkMode(false)
   }
-  
+
   // Refresh readiness after mode change
   if (eventStore.selectedEvent?.id) {
     await eventStore.refreshReadiness(eventStore.selectedEvent.id)
@@ -762,19 +829,19 @@ const toggleBulkMode = async (groupId) => {
 // Bulk assign all teams of a group to a room
 const bulkAssignTeams = async (groupId, roomId) => {
   const teams = getTeamsForProgram(groupId)
-  
+
   // Assign all teams to the room
   for (const team of teams) {
     const key = `team-${team.id}`
     assignments.value[key] = roomId
-    
+
     await axios.put(`/rooms/assign-teams`, {
       team_id: team.id,
       room_id: roomId,
       event: eventStore.selectedEvent?.id
     })
   }
-  
+
   // Also set proxy assignment based on group ID
   let proxyKey
   if (groupId === 'explore-morning') {
@@ -786,7 +853,7 @@ const bulkAssignTeams = async (groupId, roomId) => {
   } else if (groupId === 'challenge') {
     proxyKey = PROXY_CHALLENGE_KEY
   }
-  
+
   if (proxyKey) {
     assignments.value[proxyKey] = roomId
   }
@@ -795,7 +862,7 @@ const bulkAssignTeams = async (groupId, roomId) => {
 // Bulk unassign all teams of a group
 const bulkUnassignTeams = async (groupId) => {
   const teams = getTeamsForProgram(groupId)
-  
+
   // Unassign all teams
   for (const team of teams) {
     const key = `team-${team.id}`
@@ -808,7 +875,7 @@ const bulkUnassignTeams = async (groupId) => {
       })
     }
   }
-  
+
   // Remove proxy assignment based on group ID
   let proxyKey
   if (groupId === 'explore-morning') {
@@ -820,7 +887,7 @@ const bulkUnassignTeams = async (groupId) => {
   } else if (groupId === 'challenge') {
     proxyKey = PROXY_CHALLENGE_KEY
   }
-  
+
   if (proxyKey) {
     assignments.value[proxyKey] = null
   }
@@ -841,13 +908,13 @@ const handleProxyAssignment = async (proxyKey, roomId) => {
   } else {
     return
   }
-  
+
   if (roomId) {
     await bulkAssignTeams(groupId, roomId)
   } else {
     await bulkUnassignTeams(groupId)
   }
-  
+
   // Refresh readiness
   if (eventStore.selectedEvent?.id) {
     await eventStore.refreshReadiness(eventStore.selectedEvent.id)
@@ -857,7 +924,7 @@ const handleProxyAssignment = async (proxyKey, roomId) => {
 // Hilfsfunktion für Template (typisierte IDs)
 const getItemsInRoom = (roomId) => {
   const all = []
-  
+
   // Handle regular items
   for (const category of assignables.value) {
     for (const group of category.groups) {
@@ -866,7 +933,7 @@ const getItemsInRoom = (roomId) => {
         let bulkMode = false
         let proxyKey = null
         let proxyName = ''
-        
+
         if (group.id === 'explore-morning') {
           bulkMode = bulkModeExploreMorning.value
           proxyKey = PROXY_EXPLORE_MORNING_KEY
@@ -884,7 +951,7 @@ const getItemsInRoom = (roomId) => {
           proxyKey = PROXY_CHALLENGE_KEY
           proxyName = 'Alle Challenge Teams'
         }
-        
+
         if (bulkMode && proxyKey) {
           // Bulk mode: check if proxy is assigned to this room
           if (assignments.value[proxyKey] === roomId) {
@@ -910,8 +977,6 @@ const getItemsInRoom = (roomId) => {
 }
 
 
-
-
 // --- Data Readiness: direkt aus Store ---
 
 // Reaktive Referenz auf den Store-Status
@@ -926,11 +991,11 @@ onMounted(async () => {
 
 // --- Watcher für Änderungen am Store (z. B. aus anderen Seiten) ---
 watch(
-  () => eventStore.readiness,
-  (newVal) => {
-    if (newVal) console.debug('Readiness aktualisiert:', newVal)
-  },
-  { deep: true }
+    () => eventStore.readiness,
+    (newVal) => {
+      if (newVal) console.debug('Readiness aktualisiert:', newVal)
+    },
+    {deep: true}
 )
 
 // --- Helper für Warnungen ---
@@ -961,103 +1026,103 @@ const showChallengeTeams = computed(() => {
       <LoaderText/>
     </div>
     <div v-else class="grid grid-cols-4 gap-6 p-6">
-    <!-- 🟢 Räume: Erste 3 Spalten -->
-    <div class="col-span-3">
-      <h2 class="text-xl font-bold mb-4">Räume</h2>
-      <div class="grid grid-cols-3 gap-4">
-        <draggable
-          v-model="rooms"
-          group="rooms"
-          item-key="id"
-          @start="isDraggingRoom = true"
-          @end="isDraggingRoom = false; handleRoomReorder()"
-          class="contents"
-        >
-          <template #item="{ element: room }">
-            <div
-              :key="room.id"
-              class="p-4 mb-2 border rounded bg-white shadow cursor-move hover:shadow-md transition-shadow"
-              :class="{
+      <!-- 🟢 Räume: Erste 3 Spalten -->
+      <div class="col-span-3">
+        <h2 class="text-xl font-bold mb-4">Räume</h2>
+        <div class="grid grid-cols-3 gap-4">
+          <draggable
+              v-model="rooms"
+              class="contents"
+              group="rooms"
+              item-key="id"
+              @end="isDraggingRoom = false; handleRoomReorder()"
+              @start="isDraggingRoom = true"
+          >
+            <template #item="{ element: room }">
+              <div
+                  :key="room.id"
+                  :class="{
                 'opacity-50': isDraggingRoom,
                 'shadow-lg': isDraggingRoom
               }"
-            >
-              <!-- Line 1: Drag handle, Room name, Delete icon -->
-              <div class="flex items-center gap-2 mb-2">
-                <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
-                <input
-                  v-model="room.name"
-                  class="text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
-                  @blur="updateRoom(room)"
-                />
-                <button
-                  @click="askDeleteRoom(room)"
-                  class="text-red-600 text-lg"
-                  title="Raum löschen"
-                >
-                  🗑️
-                </button>
-              </div>
-
-              <!-- Line 2: Navigation instruction full width with accessibility icon at end -->
-              <div class="mb-2 flex items-center gap-2">
-                <input
-                  v-model="room.navigation_instruction"
-                  class="text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
-                  placeholder="z. B. 2. Etage rechts"
-                  @blur="updateRoom(room)"
-                />
-                <div 
-                  class="cursor-pointer"
-                  :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
-                  @click="toggleAccessibility(room)"
-                >
-                  <img 
-                    :src="room.is_accessible ? '/flow/accessible_yes.png' : '/flow/accessible_no.png'"
-                    :alt="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
-                    class="w-6 h-6"
+                  class="p-4 mb-2 border rounded bg-white shadow cursor-move hover:shadow-md transition-shadow"
+              >
+                <!-- Line 1: Drag handle, Room name, Delete icon -->
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
+                  <input
+                      v-model="room.name"
+                      class="text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
+                      @blur="updateRoom(room)"
                   />
+                  <button
+                      class="text-red-600 text-lg"
+                      title="Raum löschen"
+                      @click="askDeleteRoom(room)"
+                  >
+                    🗑️
+                  </button>
                 </div>
-              </div>
 
-              <!-- Line 3: Drop area full width with reduced padding -->
-              <div
-                class="flex flex-wrap gap-1 min-h-[40px] border rounded p-1 transition-colors"
-                :class="{
+                <!-- Line 2: Navigation instruction full width with accessibility icon at end -->
+                <div class="mb-2 flex items-center gap-2">
+                  <input
+                      v-model="room.navigation_instruction"
+                      class="text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
+                      placeholder="z. B. 2. Etage rechts"
+                      @blur="updateRoom(room)"
+                  />
+                  <div
+                      :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                      class="cursor-pointer"
+                      @click="toggleAccessibility(room)"
+                  >
+                    <img
+                        :alt="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                        :src="room.is_accessible ? '/flow/accessible_yes.png' : '/flow/accessible_no.png'"
+                        class="w-6 h-6"
+                    />
+                  </div>
+                </div>
+
+                <!-- Line 3: Drop area full width with reduced padding -->
+                <div
+                    :class="{
                   'bg-blue-100': dragOverRoomId === room.id,
                   'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
                   'bg-gray-50': !isDragging && dragOverRoomId !== room.id
                 }"
-              >
+                    class="flex flex-wrap gap-1 min-h-[40px] border rounded p-1 transition-colors"
+                >
                   <draggable
-                    :list="getItemsInRoom(room.id)"
-                    group="assignables"
-                    item-key="key"
-                    @add="event => handleDrop(event, room)"
-                    @start="isDragging = true"
-                    @end="isDragging = false"
-                    class="flex flex-wrap gap-1 w-full"
+                      :list="getItemsInRoom(room.id)"
+                      class="flex flex-wrap gap-1 w-full"
+                      group="assignables"
+                      item-key="key"
+                      @add="event => handleDrop(event, room)"
+                      @end="isDragging = false"
+                      @start="isDragging = true"
                   >
 
-                  
+
                     <template #item="{ element }">
                       <div class="flex items-center">
                         <!-- Activity -->
                         <span
-                          v-if="element.type === 'activity'"
-                          :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
-                          class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
+                            v-if="element.type === 'activity'"
+                            :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
+                            class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
                         >
                           <img
-                            v-if="programLogoSrc(element.first_program)"
-                            :src="programLogoSrc(element.first_program)"
-                            :alt="programLogoAlt(element.first_program)"
-                            class="w-3 h-3 flex-shrink-0"
+                              v-if="programLogoSrc(element.first_program)"
+                              :alt="programLogoAlt(element.first_program)"
+                              :src="programLogoSrc(element.first_program)"
+                              class="w-3 h-3 flex-shrink-0"
                           />
                           {{ element.name }}
                           <button
-                            class="ml-1 text-sm text-gray-500 hover:text-black"
-                            @click.stop="unassignItemFromRoom(element.key)"
+                              class="ml-1 text-sm text-gray-500 hover:text-black"
+                              @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
                           </button>
@@ -1065,25 +1130,25 @@ const showChallengeTeams = computed(() => {
 
                         <!-- Team Proxy -->
                         <span
-                          v-else-if="element.type === 'team-proxy'"
-                          class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+                            v-else-if="element.type === 'team-proxy'"
+                            class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
                         >
                           <span
-                            class="w-1.5 self-stretch rounded-l-md"
-                            :style="{ backgroundColor: getProgramColor(element) }"
+                              :style="{ backgroundColor: getProgramColor(element) }"
+                              class="w-1.5 self-stretch rounded-l-md"
                           ></span>
                           <span class="px-2 py-1 flex items-center gap-1">
                             <img
-                              v-if="programLogoSrc(element.first_program)"
-                              :src="programLogoSrc(element.first_program)"
-                              :alt="programLogoAlt(element.first_program)"
-                              class="w-3 h-3 flex-shrink-0"
+                                v-if="programLogoSrc(element.first_program)"
+                                :alt="programLogoAlt(element.first_program)"
+                                :src="programLogoSrc(element.first_program)"
+                                class="w-3 h-3 flex-shrink-0"
                             />
                             {{ element.name }}
                           </span>
                           <button
-                            class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
-                            @click.stop="unassignItemFromRoom(element.key)"
+                              class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
+                              @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
                           </button>
@@ -1091,25 +1156,29 @@ const showChallengeTeams = computed(() => {
 
                         <!-- Team -->
                         <span
-                          v-else
-                          class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+                            v-else
+                            class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
                         >
                           <span
-                              class="w-1.5 self-stretch rounded-l-md"
                               :style="{ backgroundColor: getProgramColor(element) }"
-                            ></span>
-                          <span class="px-2 py-1 flex items-center gap-1">
+                              class="w-1.5 self-stretch rounded-l-md"
+                          ></span>
+                          <span class="px-2 py-1 flex items-center gap-1.5">
                             <img
-                              v-if="programLogoSrc(element.first_program)"
-                              :src="programLogoSrc(element.first_program)"
-                              :alt="programLogoAlt(element.first_program)"
-                              class="w-3 h-3 flex-shrink-0"
+                                v-if="programLogoSrc(element.first_program)"
+                                :alt="programLogoAlt(element.first_program)"
+                                :src="programLogoSrc(element.first_program)"
+                                class="w-3 h-3 flex-shrink-0"
                             />
-                            {{ element.name }} ({{ element.number }})
+                            <span class="text-gray-600">{{ element.number || '–' }} | {{ element.name }}</span>
+                            <span v-if="getPeopleCount(element) !== null" class="text-gray-600 space-x-1">
+                              <span> | {{ getPeopleCount(element) }}</span>
+                              <i class="fa-solid fa-person"></i>
+                            </span>
                           </span>
                           <button
-                            class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
-                            @click.stop="unassignItemFromRoom(element.key)"
+                              class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
+                              @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
                           </button>
@@ -1119,125 +1188,125 @@ const showChallengeTeams = computed(() => {
 
                   </draggable>
                 </div>
-            </div>
-          </template>
-        </draggable>
+              </div>
+            </template>
+          </draggable>
 
-        <!-- 🟩 Neuer Raum (always visible, outside draggable) -->
-        <div
-          ref="newRoomCardRef"
-          class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
-        >
-          <div class="mb-2">
-            <input
-              ref="newRoomInput"
-              v-model="newRoomName"
-              class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
-              placeholder="Neuer Raum z.B. A2.03"
-              @keyup.enter="createRoom"
-              :disabled="isSaving"
-            />
-            <p v-if="!newRoomName.trim()" class="text-xs text-gray-500 mt-1">
-              Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert.
-            </p>
-          </div>
-          <transition name="fade">
-            <div v-if="newRoomName.trim().length > 0">
+          <!-- 🟩 Neuer Raum (always visible, outside draggable) -->
+          <div
+              ref="newRoomCardRef"
+              class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+          >
+            <div class="mb-2">
               <input
-                ref="newRoomNoteInput"
-                v-model="newRoomNote"
-                class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
-                placeholder="Navigationshinweis"
-                @keyup.enter="createRoom"
-                :disabled="isSaving"
+                  ref="newRoomInput"
+                  v-model="newRoomName"
+                  :disabled="isSaving"
+                  class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
+                  placeholder="Neuer Raum z.B. A2.03"
+                  @keyup.enter="createRoom"
               />
-              <p v-if="!newRoomNote.trim()" class="text-xs text-gray-500 mt-1">
-                Falls der Raum schwer zu finden ist, hier bitte einen Hinweis eintragen.
+              <p v-if="!newRoomName.trim()" class="text-xs text-gray-500 mt-1">
+                Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert.
               </p>
             </div>
-          </transition>
+            <transition name="fade">
+              <div v-if="newRoomName.trim().length > 0">
+                <input
+                    ref="newRoomNoteInput"
+                    v-model="newRoomNote"
+                    :disabled="isSaving"
+                    class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                    placeholder="Navigationshinweis"
+                    @keyup.enter="createRoom"
+                />
+                <p v-if="!newRoomNote.trim()" class="text-xs text-gray-500 mt-1">
+                  Falls der Raum schwer zu finden ist, hier bitte einen Hinweis eintragen.
+                </p>
+              </div>
+            </transition>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->
-    <div class="col-span-1">
-      <div class="flex mb-4 border-b text-xl font-bold relative">
-        <button
-          class="px-4 py-2 relative"
-          :class="activeTab === 'activities' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
-          @click="activeTab = 'activities'"
-        >
-          Aktivitäten
-          <div
-            v-if="hasWarning('activities')"
-            class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
-            title="Noch nicht alle Aktivitäten zugeordnet"
-          ></div>
-        </button>
+      <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->
+      <div class="col-span-1">
+        <div class="flex mb-4 border-b text-xl font-bold relative">
+          <button
+              :class="activeTab === 'activities' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
+              class="px-4 py-2 relative"
+              @click="activeTab = 'activities'"
+          >
+            Aktivitäten
+            <div
+                v-if="hasWarning('activities')"
+                class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+                title="Noch nicht alle Aktivitäten zugeordnet"
+            ></div>
+          </button>
 
-        <button
-          class="px-4 py-2 ml-4 relative"
-          :class="activeTab === 'teams' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
-          @click="activeTab = 'teams'"
-        >
-          Teams
-          <div
-            v-if="hasWarning('teams')"
-            class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
-            title="Noch nicht alle Teams zugeordnet"
-          ></div>
-        </button>
-      </div>
+          <button
+              :class="activeTab === 'teams' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
+              class="px-4 py-2 ml-4 relative"
+              @click="activeTab = 'teams'"
+          >
+            Teams
+            <div
+                v-if="hasWarning('teams')"
+                class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+                title="Noch nicht alle Teams zugeordnet"
+            ></div>
+          </button>
+        </div>
 
-      <!-- Dynamisch alle Gruppen aus der gemeinsamen Struktur -->
-      <div v-for="category in assignables" :key="category.id" v-show="activeTab === category.id">
-        <template
-          v-for="group in category.groups"
-          :key="group.id"
-        >
-          <div
-            v-if="category.type !== 'team' || 
+        <!-- Dynamisch alle Gruppen aus der gemeinsamen Struktur -->
+        <div v-for="category in assignables" v-show="activeTab === category.id" :key="category.id">
+          <template
+              v-for="group in category.groups"
+              :key="group.id"
+          >
+            <div
+                v-if="category.type !== 'team' ||
                   (group.id === 'explore' && showExploreTeams && !hasTwoExploreGroups) || 
                   (group.id === 'explore-morning' && showExploreTeams && hasTwoExploreGroups) ||
                   (group.id === 'explore-afternoon' && showExploreTeams && hasTwoExploreGroups) ||
                   (group.id === 'challenge' && showChallengeTeams)"
-            class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
-          >
-          <div class="text-lg font-semibold text-black mb-3 flex items-center gap-2">
-            <img
-                v-if="group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
-                :src="programLogoSrc('E')"
-                :alt="programLogoAlt('E')"
-                class="w-6 h-6 flex-shrink-0"
-            />
-            <img
-                v-if="group.id === 'challenge' || /FLL Challenge|FIRST LEGO League Challenge/i.test(group.name)"
-                :src="programLogoSrc('C')"
-                :alt="programLogoAlt('C')"
-                class="w-6 h-6 flex-shrink-0"
-            />
-            <span v-html="formatProgramName(group.name)"></span>
-          </div>
-          
-          <!-- Bulk mode checkbox for teams -->
-          <div v-if="category.type === 'team'" class="mb-2">
-            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                :checked="group.id === 'explore-morning' ? bulkModeExploreMorning :
+                class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
+            >
+              <div class="text-lg font-semibold text-black mb-3 flex items-center gap-2">
+                <img
+                    v-if="group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
+                    :alt="programLogoAlt('E')"
+                    :src="programLogoSrc('E')"
+                    class="w-6 h-6 flex-shrink-0"
+                />
+                <img
+                    v-if="group.id === 'challenge' || /FLL Challenge|FIRST LEGO League Challenge/i.test(group.name)"
+                    :alt="programLogoAlt('C')"
+                    :src="programLogoSrc('C')"
+                    class="w-6 h-6 flex-shrink-0"
+                />
+                <span v-html="formatProgramName(group.name)"></span>
+              </div>
+
+              <!-- Bulk mode checkbox for teams -->
+              <div v-if="category.type === 'team'" class="mb-2">
+                <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                      :checked="group.id === 'explore-morning' ? bulkModeExploreMorning :
                           group.id === 'explore-afternoon' ? bulkModeExploreAfternoon :
                           group.id === 'explore' ? bulkModeExplore :
                           group.id === 'challenge' ? bulkModeChallenge : false"
-                @change="toggleBulkMode(group.id)"
-                class="cursor-pointer"
-              />
-              <span>Alle Teams zusammen</span>
-            </label>
-          </div>
-          
-          <draggable
-            :list="category.type === 'team' && (
+                      class="cursor-pointer"
+                      type="checkbox"
+                      @change="toggleBulkMode(group.id)"
+                  />
+                  <span>Alle Teams zusammen</span>
+                </label>
+              </div>
+
+              <draggable
+                  :list="category.type === 'team' && (
                     (group.id === 'explore-morning' && bulkModeExploreMorning) ||
                     (group.id === 'explore-afternoon' && bulkModeExploreAfternoon) ||
                     (group.id === 'explore' && bulkModeExplore) ||
@@ -1271,91 +1340,93 @@ const showChallengeTeams = computed(() => {
                   }].filter(p => !assignments[p.key])
                 })()
               : group.items.filter(i => !assignments[i.key])"
-            group="assignables"
-            item-key="key"
-            class="flex flex-wrap gap-2"
-            @start="isDragging = true"
-            @end="isDragging = false"
-          >
+                  class="flex flex-wrap gap-2"
+                  group="assignables"
+                  item-key="key"
+                  @end="isDragging = false"
+                  @start="isDragging = true"
+              >
 
 
-
-            <template #item="{ element }">
+                <template #item="{ element }">
               <span
-                v-if="element.type === 'activity'"
-                :style="{
+                  v-if="element.type === 'activity'"
+                  :style="{
                   border: '2px solid ' + getProgramColor(element),
                   backgroundColor: '#fff'
                 }"
-                class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
+                  class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
               >
                 <img
-                  v-if="programLogoSrc(element.first_program)"
-                  :src="programLogoSrc(element.first_program)"
-                  :alt="programLogoAlt(element.first_program)"
-                  class="w-3 h-3 flex-shrink-0"
+                    v-if="programLogoSrc(element.first_program)"
+                    :alt="programLogoAlt(element.first_program)"
+                    :src="programLogoSrc(element.first_program)"
+                    class="w-3 h-3 flex-shrink-0"
                 />
                 {{ element.name }}
               </span>
 
-              <span
-                v-else-if="element.type === 'team-proxy'"
-                class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
-              >
+                  <span
+                      v-else-if="element.type === 'team-proxy'"
+                      class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+                  >
                 <span
-                  class="w-1.5 self-stretch rounded-l-md"
-                  :style="{ backgroundColor: getProgramColor(element) }"
+                    :style="{ backgroundColor: getProgramColor(element) }"
+                    class="w-1.5 self-stretch rounded-l-md"
                 ></span>
                 <span class="px-2 py-1 flex items-center gap-1">
                   <img
-                    v-if="programLogoSrc(element.first_program)"
-                    :src="programLogoSrc(element.first_program)"
-                    :alt="programLogoAlt(element.first_program)"
-                    class="w-3 h-3 flex-shrink-0"
+                      v-if="programLogoSrc(element.first_program)"
+                      :alt="programLogoAlt(element.first_program)"
+                      :src="programLogoSrc(element.first_program)"
+                      class="w-3 h-3 flex-shrink-0"
                   />
                   {{ element.name }}
                 </span>
               </span>
 
+                  <span
+                      v-else-if="element.type === 'team'"
+                      class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+                  >
               <span
-                v-else-if="element.type === 'team'"
-                class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
-              >
-              <span
-                class="w-1.5 self-stretch rounded-l-md"
-                :style="{ backgroundColor: getProgramColor(element) }"
+                  :style="{ backgroundColor: getProgramColor(element) }"
+                  class="w-1.5 self-stretch rounded-l-md"
               ></span>
-                <span class="px-2 py-1 flex items-center gap-1">
+                <span class="px-2 py-1 flex items-center gap-1.5">
                   <img
-                    v-if="programLogoSrc(element.first_program)"
-                    :src="programLogoSrc(element.first_program)"
-                    :alt="programLogoAlt(element.first_program)"
-                    class="w-3 h-3 flex-shrink-0"
+                      v-if="programLogoSrc(element.first_program)"
+                      :alt="programLogoAlt(element.first_program)"
+                      :src="programLogoSrc(element.first_program)"
+                      class="w-3 h-3 flex-shrink-0"
                   />
-                  {{ element.name }} ({{ element.number }})
+                 <span class="text-gray-600">{{ element.number || '–' }} | {{ element.name }}</span>
+                            <span v-if="getPeopleCount(element) !== null" class="text-gray-600 space-x-1">
+                              <span> | {{ getPeopleCount(element) }}</span>
+                              <i class="fa-solid fa-person"></i>
+                            </span>
                 </span>
               </span>
-            </template>
+                </template>
 
 
-
-          </draggable>
+              </draggable>
+            </div>
+          </template>
         </div>
-        </template>
       </div>
-    </div>
     </div>
 
     <!-- 🔴 Lösch-Modal -->
     <ConfirmationModal
-      :show="!!roomToDelete"
-      title="Raum löschen"
-      :message="deleteRoomMessage"
-      type="danger"
-      confirm-text="Löschen"
-      cancel-text="Abbrechen"
-      @confirm="confirmDeleteRoom"
-      @cancel="cancelDeleteRoom"
+        :message="deleteRoomMessage"
+        :show="!!roomToDelete"
+        cancel-text="Abbrechen"
+        confirm-text="Löschen"
+        title="Raum löschen"
+        type="danger"
+        @cancel="cancelDeleteRoom"
+        @confirm="confirmDeleteRoom"
     />
   </div>
 </template>
