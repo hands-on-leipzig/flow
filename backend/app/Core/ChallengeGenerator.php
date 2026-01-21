@@ -234,7 +234,7 @@ class ChallengeGenerator
 
 
 
-    public function main(bool $explore = false)
+    public function main(bool $explore = false, ?callable $afterRG1Callback = null)
     {
         Log::info('ChallengeGenerator::main', [
             'plan_id' => $this->pp('g_plan'),
@@ -437,6 +437,10 @@ class ChallengeGenerator
                         case 2:
                             if ($this->pp('j_rounds') == 4) {
                                 $this->matchPlan->insertOneRound(1);
+                                // For INTEGRATED_MORNING: insert awards and adjust rTime after RG1, before RG2
+                                if ($afterRG1Callback !== null && $this->pp('e_mode') == ExploreMode::INTEGRATED_MORNING->value) {
+                                    $afterRG1Callback($this->rTime);
+                                }
                             }
                             break;
                         case 3:
@@ -444,6 +448,10 @@ class ChallengeGenerator
                                 $this->matchPlan->insertOneRound(2);
                             } else {
                                 $this->matchPlan->insertOneRound(1);
+                                // For INTEGRATED_MORNING: insert awards and adjust rTime after RG1, before RG2
+                                if ($afterRG1Callback !== null && $this->pp('e_mode') == ExploreMode::INTEGRATED_MORNING->value) {
+                                    $afterRG1Callback($this->rTime);
+                                }
                             }
                             break;
                         case 4:
@@ -711,6 +719,15 @@ class ChallengeGenerator
             ]);
             throw new \RuntimeException("Fehler beim Generieren der Challenge-Preisverleihung (Explore: " . ($explore ? 'aktiv' : 'inaktiv') . "): {$e->getMessage()}", 0, $e);
         }
+    }
+
+    /**
+     * Get the robot game time cursor
+     * Used for coordinating with Explore awards timing in integrated mode
+     */
+    public function getRTime(): TimeCursor
+    {
+        return $this->rTime;
     }
 
 }
