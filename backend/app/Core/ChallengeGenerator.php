@@ -694,6 +694,21 @@ class ChallengeGenerator
 
                 // log::info('ChallengeGenerator: Explore group 2 start time: ' . $this->integratedExplore->startTime);
 
+            } elseif ($this->pp('e_mode') == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                // For INTEGRATED_AFTERNOON: Ensure awards don't start before Explore is complete
+                // Compare cTime (Challenge end) with exploreEndTime (Explore end) and use the later one
+                $exploreEnd = $this->integratedExplore->exploreEndTime;
+                if ($exploreEnd !== null) {
+                    // Convert both to DateTime for comparison
+                    $baseDate = $this->cTime->current()->format('Y-m-d');
+                    $cTime = new \DateTime($baseDate . ' ' . $this->cTime->format('H:i'));
+                    $exploreTime = new \DateTime($baseDate . ' ' . $exploreEnd);
+                    
+                    // Use the later time
+                    if ($exploreTime > $cTime) {
+                        $this->cTime->setTime($exploreEnd);
+                    }
+                }
             }
 
             $this->writer->withGroup('g_awards', function () {
