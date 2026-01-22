@@ -1056,11 +1056,11 @@ const showChallengeTeams = computed(() => {
                       @blur="updateRoom(room)"
                   />
                   <button
-                      class="text-red-600 text-lg"
+                      class="text-lg hover:text-red-800"
                       title="Raum löschen"
                       @click="askDeleteRoom(room)"
                   >
-                    🗑️
+                    <i style="color: grey;" class="bi bi-trash-fill"></i>
                   </button>
                 </div>
 
@@ -1173,7 +1173,7 @@ const showChallengeTeams = computed(() => {
                             <span class="text-gray-600">{{ element.number || '–' }} | {{ element.name }}</span>
                             <span v-if="getPeopleCount(element) !== null" class="text-gray-600 space-x-1">
                               <span> | {{ getPeopleCount(element) }}</span>
-                              <i class="fa-solid fa-person"></i>
+                              <i class="bi bi-person"></i>
                             </span>
                           </span>
                           <button
@@ -1403,7 +1403,7 @@ const showChallengeTeams = computed(() => {
                  <span class="text-gray-600">{{ element.number || '–' }} | {{ element.name }}</span>
                             <span v-if="getPeopleCount(element) !== null" class="text-gray-600 space-x-1">
                               <span> | {{ getPeopleCount(element) }}</span>
-                              <i class="fa-solid fa-person"></i>
+                              <i class="bi bi-person-fill"></i>
                             </span>
                 </span>
               </span>
@@ -1417,7 +1417,6 @@ const showChallengeTeams = computed(() => {
       </div>
     </div>
 
-    <!-- 🔴 Lösch-Modal -->
     <ConfirmationModal
         :message="deleteRoomMessage"
         :show="!!roomToDelete"

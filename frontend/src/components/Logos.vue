@@ -99,7 +99,7 @@ const updateLogo = async (logo) => {
       // Update the logo object to reflect the normalized link
       logo.link = normalizedLink
     }
-    
+
     await axios.patch(`/logos/${logo.id}`, {
       title: logo.title,
       link: normalizedLink
@@ -496,8 +496,8 @@ onMounted(async () => {
                     @change="toggleEventLogo(logo)"
                 />
               </label>
-              <button @click="confirmDeleteLogo(logo)" class="text-red-600 hover:text-red-800 text-sm">
-                🗑️
+              <button @click="confirmDeleteLogo(logo)" class="hover:text-red-800 text-lg">
+                <i class="bi bi-trash-fill"></i>
               </button>
             </div>
           </div>
@@ -631,14 +631,14 @@ onMounted(async () => {
 
     <!-- Delete Confirmation Modal -->
     <ConfirmationModal
-      :show="!!logoToDelete"
-      title="Logo löschen"
-      :message="deleteLogoMessage"
-      type="danger"
-      confirm-text="Löschen"
-      cancel-text="Abbrechen"
-      @confirm="deleteLogo"
-      @cancel="cancelDeleteLogo"
+        :show="!!logoToDelete"
+        title="Logo löschen"
+        :message="deleteLogoMessage"
+        type="danger"
+        confirm-text="Löschen"
+        cancel-text="Abbrechen"
+        @confirm="deleteLogo"
+        @cancel="cancelDeleteLogo"
     />
   </div>
 </template>
