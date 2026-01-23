@@ -254,6 +254,11 @@ sub get_plan_metadata {
         $plan_metadata{event_level} = $row[13];
     }
 
+    if ($plan_metadata{event_level} > 1) {
+        # sofern kein Regionalwettbewerb (level = 1) sondern Quali (level = 2) oder Finale (level = 3)
+        $plan_metadata{event_name} =~ s/^.*? - //; # alles bis einschliesslich " - " wird vom Anfang ausgehend abgeschnitten
+    }
+
     # weitere Informationen holen
     # Plan-Parameter
     # u.a.
@@ -550,6 +555,7 @@ sub get_zeitplan {
                 s/<!--zeitplan:regionalpartner_region-->/$plan_metadata{regional_partner_region}/eg;
                 s/<!--zeitplan:regionalpartner_name-->/$plan_metadata{regional_partner_name}/eg;
                 s/<!--zeitplan:event_date-->/$plan_metadata{event_date}/eg;
+                s/<!--zeitplan:event_name-->/$plan_metadata{event_name}/eg;
 
                 s/<!--zeitplan:event_start-->/$detailplan_data{start}/eg;
                 s/<!--zeitplan:event_end-->/$detailplan_data{end}/eg;
