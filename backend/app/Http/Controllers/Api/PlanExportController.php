@@ -633,7 +633,16 @@ class PlanExportController extends Controller
             return $a['start_timestamp'] <=> $b['start_timestamp'];
         });
 
+        // Get plan and event data (needed for date filtering)
+        $plan = Plan::findOrFail($planId);
+        $event = Event::findOrFail($plan->event);
+        
+        // Calculate event date range
+        $eventStartDate = Carbon::parse($event->date)->startOfDay();
+        $eventEndDate = Carbon::parse($event->date)->addDays($event->days - 1)->endOfDay();
+
         // Collect free blocks separately (for right column)
+        // Filter to only include activities on event day(s)
         $freeBlockActivities = [];
         if ($freeBlockTypeIds->isNotEmpty()) {
             $freeBlockIds = $freeBlockTypeIds->keys()->toArray();
@@ -656,6 +665,12 @@ class PlanExportController extends Controller
             foreach ($activities as $activity) {
                 $typeDetailId = $activity->activity_type_detail;
                 if (isset($freeBlockTypeIds[$typeDetailId])) {
+                    // Filter by event date range
+                    $activityStart = Carbon::parse($activity->start);
+                    if ($activityStart->lt($eventStartDate) || $activityStart->gt($eventEndDate)) {
+                        continue; // Skip activities outside event date range
+                    }
+                    
                     $typeDetail = $freeBlockTypeIds[$typeDetailId];
                     
                     // Get name from extra_block table
@@ -679,10 +694,6 @@ class PlanExportController extends Controller
             }
         }
 
-        // Get plan and event data
-        $plan = Plan::findOrFail($planId);
-        $event = Event::findOrFail($plan->event);
-
         // Format timestamp like Gesamtplan
         $eventName = $event->name;
         $eventDate = Carbon::parse($event->date)->format('d.m.Y');
@@ -694,7 +705,7 @@ class PlanExportController extends Controller
         Log::info("Rendering moderator-match-plan view with roundsData count: " . count($roundsData));
         $contentHtml = view('pdf.moderator-match-plan', [
             'roundsData' => $roundsData,
-            'scheduleActivities' => $activitiesToInsert, // Left column: Zeitplan
+            'scheduleActivities' => $activitiesToInsert, // Left column: Mit Moderation
             'parallelActivities' => $freeBlockActivities, // Right column: Parallele Aktivitäten
             'eventName' => $eventName,
             'eventDate' => $eventDate,

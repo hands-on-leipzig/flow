@@ -117,9 +117,9 @@
     @if(!empty($scheduleActivities) || !empty($parallelActivities))
         <table class="two-columns">
             <tr>
-                {{-- Left column: Zeitplan --}}
+                {{-- Left column: Mit Moderation --}}
                 <td>
-                    <div class="column-header">Zeitplan</div>
+                    <div class="column-header">Mit Moderation</div>
                     @if(!empty($scheduleActivities))
                         @foreach($scheduleActivities as $activity)
                             <div class="special-activity">
