@@ -993,7 +993,7 @@ class PlanExportController extends Controller
                 ->get()
                 ->map(function ($team) use ($planId) {
                     // Find Gutachter-Gruppe assignment by looking for activities with this team as jury_team
-                    $gutachterGroup = null;
+                    $gutachterGroupNumber = null;
                     $activity = DB::table('activity')
                         ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
                         ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
@@ -1005,7 +1005,7 @@ class PlanExportController extends Controller
                         ->first();
                     
                     if ($activity && $activity->jury_lane) {
-                        $gutachterGroup = 'Gutachter-Gruppe ' . $activity->jury_lane;
+                        $gutachterGroupNumber = $activity->jury_lane;
                     }
                     
                     return [
@@ -1013,7 +1013,7 @@ class PlanExportController extends Controller
                         'hot_number' => $team->team_number_hot,
                         'noshow' => (bool)($team->noshow ?? false),
                         'room_name' => $team->room_name ?? '–',
-                        'group_assignment' => $gutachterGroup,
+                        'group_assignment' => $gutachterGroupNumber,
                     ];
                 })
                 ->values()
@@ -1036,7 +1036,7 @@ class PlanExportController extends Controller
                 ->get()
                 ->map(function ($team) use ($planId) {
                     // Find Jury-Gruppe assignment by looking for activities with this team as jury_team
-                    $juryGroup = null;
+                    $juryGroupNumber = null;
                     $activity = DB::table('activity')
                         ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
                         ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
@@ -1048,7 +1048,7 @@ class PlanExportController extends Controller
                         ->first();
                     
                     if ($activity && $activity->jury_lane) {
-                        $juryGroup = 'Jury-Gruppe ' . $activity->jury_lane;
+                        $juryGroupNumber = $activity->jury_lane;
                     }
                     
                     return [
@@ -1056,7 +1056,7 @@ class PlanExportController extends Controller
                         'hot_number' => $team->team_number_hot,
                         'noshow' => (bool)($team->noshow ?? false),
                         'room_name' => $team->room_name ?? '–',
-                        'group_assignment' => $juryGroup,
+                        'group_assignment' => $juryGroupNumber,
                     ];
                 })
                 ->values()

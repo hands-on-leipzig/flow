@@ -87,7 +87,7 @@
                     <tr>
                         <th style="width: 50%;">Team</th>
                         <th style="width: 30%;">Teambereich</th>
-                        <th style="width: 20%;">Zuordnung</th>
+                        <th style="width: 20%;">Gutachter:innen-Gruppe</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -107,7 +107,7 @@
                                 @endif
                             </td>
                             <td>{{ e($team['room_name']) }}</td>
-                            <td>{{ e($team['group_assignment'] ?? '–') }}</td>
+                            <td style="text-align: center;">{{ $team['group_assignment'] ? e($team['group_assignment']) : '–' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -124,7 +124,7 @@
                     <tr>
                         <th style="width: 50%;">Team</th>
                         <th style="width: 30%;">Teambereich</th>
-                        <th style="width: 20%;">Zuordnung</th>
+                        <th style="width: 20%;">Jury-Gruppe</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -144,7 +144,7 @@
                                 @endif
                             </td>
                             <td>{{ e($team['room_name']) }}</td>
-                            <td>{{ e($team['group_assignment'] ?? '–') }}</td>
+                            <td style="text-align: center;">{{ $team['group_assignment'] ? e($team['group_assignment']) : '–' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
