@@ -448,7 +448,7 @@ const activeTab = ref<'public' | 'organisation'>('public')
     <h3 class="text-lg font-semibold mb-4">Pläne als PDF</h3>
 
     <!-- Tabs -->
-    <div class="flex mb-4 border-b text-xl font-bold relative">
+    <div class="flex mb-4 border-b text-lg font-semibold relative">
       <button
         :class="activeTab === 'public' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
         class="px-4 py-2 relative"
@@ -796,64 +796,10 @@ const activeTab = ref<'public' | 'organisation'>('public')
 
     <!-- Tab Content: Organisation -->
     <div v-show="activeTab === 'organisation'">
-      <!-- Gesamtplan -->
+      <!-- 1. Teamliste -->
       <div class="border-b border-gray-200 pb-3 mb-3">
         <div class="mb-2">
-          <h4 class="text-base font-semibold text-gray-800">Gesamtplan</h4>
-          <p class="text-sm text-gray-600">Volle Details, aber in einfacher Formatierung.</p>
-        </div>
-
-        <!-- PDF Button -->
-        <div class="mt-4 flex justify-end">
-          <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2"
-            :class="!isDownloading.full 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
-            :disabled="isDownloading.full"
-            @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
-          >
-            <svg v-if="isDownloading.full" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
-            <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Robot-Game kompakt -->
-      <div class="border-b border-gray-200 pb-3 mb-3">
-        <div class="mb-2">
-          <h4 class="text-base font-semibold text-gray-800">Robot-Game kompakt</h4>
-          <p class="text-sm text-gray-600">Einfache Liste für den Moderator</p>
-        </div>
-
-        <!-- PDF Button -->
-        <div class="mt-4 flex justify-end">
-          <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2"
-            :class="!isDownloading['moderator-match-plan'] 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
-            :disabled="isDownloading['moderator-match-plan']"
-            @click="downloadModeratorMatchPlanPdf"
-          >
-            <svg v-if="isDownloading['moderator-match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
-            <span>{{ isDownloading['moderator-match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Teamliste für den Check-In -->
-      <div class="border-b border-gray-200 pb-3 mb-3">
-        <div class="mb-2">
-          <h4 class="text-base font-semibold text-gray-800">Teamliste für den Check-In</h4>
+          <h4 class="text-base font-semibold text-gray-800">Teamliste</h4>
           <p class="text-sm text-gray-600">Alle Teams und Teamräume</p>
         </div>
 
@@ -877,10 +823,37 @@ const activeTab = ref<'public' | 'organisation'>('public')
         </div>
       </div>
 
-      <!-- Robot-Game Match-Plan -->
+      <!-- 2. Moderation -->
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="mb-2">
+          <h4 class="text-base font-semibold text-gray-800">Moderation</h4>
+          <p class="text-sm text-gray-600">Einfache Liste für den Moderator</p>
+        </div>
+
+        <!-- PDF Button -->
+        <div class="mt-4 flex justify-end">
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2"
+            :class="!isDownloading['moderator-match-plan'] 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading['moderator-match-plan']"
+            @click="downloadModeratorMatchPlanPdf"
+          >
+            <svg v-if="isDownloading['moderator-match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading['moderator-match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Match-Plan für SCORE -->
       <div v-if="hasChallengeTeams || event?.event_challenge" class="border-b border-gray-200 pb-3 mb-3">
         <div class="mb-2">
-          <h4 class="text-base font-semibold text-gray-800">Robot-Game Match-Plan</h4>
+          <h4 class="text-base font-semibold text-gray-800">Match-Plan für SCORE</h4>
           <p class="text-sm text-gray-600">Vorrunden-Matches zum Übernehmen in die Auswertesoftware 
             <a 
               href="https://evaluation.hands-on-technology.org/" 
@@ -915,6 +888,33 @@ const activeTab = ref<'public' | 'organisation'>('public')
                     d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading['match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. Gesamtplan -->
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="mb-2">
+          <h4 class="text-base font-semibold text-gray-800">Gesamtplan</h4>
+          <p class="text-sm text-gray-600">Volle Details, aber in einfacher Formatierung.</p>
+        </div>
+
+        <!-- PDF Button -->
+        <div class="mt-4 flex justify-end">
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2"
+            :class="!isDownloading.full 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading.full"
+            @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
+          >
+            <svg v-if="isDownloading.full" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </div>
       </div>
