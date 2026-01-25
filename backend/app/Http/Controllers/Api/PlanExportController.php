@@ -298,6 +298,7 @@ class PlanExportController extends Controller
             2 => 'Runde 2',
             3 => 'Runde 3',
         ];
+        $roundStartTimes = []; // Store start times for chronological insertion
 
         for ($round = 0; $round <= 3; $round++) {
             // Get matches for this round, ordered by match_no
@@ -345,6 +346,11 @@ class PlanExportController extends Controller
                 }
 
                 $startTime = $activity ? Carbon::parse($activity->start_time)->format('H:i') : '–';
+                
+                // Store earliest start time for this round
+                if ($activity && (!isset($roundStartTimes[$round]) || Carbon::parse($activity->start_time)->timestamp < $roundStartTimes[$round])) {
+                    $roundStartTimes[$round] = Carbon::parse($activity->start_time)->timestamp;
+                }
 
                 // Get team 1 info
                 $team1 = null;
@@ -474,8 +480,15 @@ class PlanExportController extends Controller
             }
 
             $finalMatchData = [];
+            $finalRoundStartTime = null;
             foreach ($finalActivities as $activity) {
                 $startTime = Carbon::parse($activity->start_time)->format('H:i');
+                
+                // Store earliest start time for this final round
+                $activityTimestamp = Carbon::parse($activity->start_time)->timestamp;
+                if ($finalRoundStartTime === null || $activityTimestamp < $finalRoundStartTime) {
+                    $finalRoundStartTime = $activityTimestamp;
+                }
 
                 // Get table names (without "Tisch " prefix)
                 $table1Name = null;
@@ -517,6 +530,12 @@ class PlanExportController extends Controller
                 'label' => $finalLabel,
                 'matches' => $finalMatchData,
             ];
+            
+            // Store start time for this final round
+            if ($finalRoundStartTime !== null) {
+                $roundStartTimes[$finalRoundKey] = $finalRoundStartTime;
+            }
+            
             $finalRoundKey++;
         }
 
@@ -528,7 +547,7 @@ class PlanExportController extends Controller
             'final_rounds_count' => count($roundsData) - 4,
         ]);
 
-        // Fetch special activities (opening, research on stage, awards, extra blocks, etc.)
+        // Fetch special activities (opening, research on stage, awards, inserted blocks, free blocks)
         $specialActivityCodes = [
             'c_opening',
             'e_opening',
@@ -537,27 +556,36 @@ class PlanExportController extends Controller
             'c_awards',
             'e_awards',
             'g_awards',
-            // Extra blocks
-            'c_free_block',
-            'e_free_block',
-            'g_free_block',
             'c_inserted_block',
             'e_inserted_block',
             'g_inserted_block',
         ];
 
-        // Get activity type detail IDs for special activities
+        $freeBlockCodes = [
+            'c_free_block',
+            'e_free_block',
+            'g_free_block',
+        ];
+
+        // Get activity type detail IDs for special activities (excluding free blocks)
         $specialActivityTypeIds = DB::table('m_activity_type_detail')
             ->whereIn('code', $specialActivityCodes)
             ->select('id', 'code', 'name')
             ->get()
             ->keyBy('id');
 
-        $specialActivities = [];
+        // Get activity type detail IDs for free blocks
+        $freeBlockTypeIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $freeBlockCodes)
+            ->select('id', 'code', 'name')
+            ->get()
+            ->keyBy('id');
+
+        // Collect special activities (non-free-block) to insert between rounds
+        $activitiesToInsert = [];
         if ($specialActivityTypeIds->isNotEmpty()) {
             $specialActivityIds = $specialActivityTypeIds->keys()->toArray();
             
-            // Get activities for these types, grouped by activity_group
             $activities = DB::table('activity')
                 ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
                 ->where('activity_group.plan', $planId)
@@ -578,9 +606,9 @@ class PlanExportController extends Controller
                 if (isset($specialActivityTypeIds[$typeDetailId])) {
                     $typeDetail = $specialActivityTypeIds[$typeDetailId];
                     
-                    // For extra blocks, try to get the name from extra_block table
+                    // For inserted blocks, try to get the name from extra_block table
                     $activityName = $typeDetail->name;
-                    if (in_array($typeDetail->code, ['c_free_block', 'e_free_block', 'g_free_block', 'c_inserted_block', 'e_inserted_block', 'g_inserted_block']) && $activity->extra_block) {
+                    if (in_array($typeDetail->code, ['c_inserted_block', 'e_inserted_block', 'g_inserted_block']) && $activity->extra_block) {
                         $extraBlockName = DB::table('extra_block')
                             ->where('id', $activity->extra_block)
                             ->value('name');
@@ -590,7 +618,59 @@ class PlanExportController extends Controller
                         }
                     }
                     
-                    $specialActivities[] = [
+                    $activitiesToInsert[] = [
+                        'name' => $activityName,
+                        'start_time' => Carbon::parse($activity->start)->format('H:i'),
+                        'end_time' => Carbon::parse($activity->end)->format('H:i'),
+                        'start_timestamp' => Carbon::parse($activity->start)->timestamp,
+                    ];
+                }
+            }
+        }
+
+        // Sort special activities chronologically for left column
+        usort($activitiesToInsert, function($a, $b) {
+            return $a['start_timestamp'] <=> $b['start_timestamp'];
+        });
+
+        // Collect free blocks separately (for right column)
+        $freeBlockActivities = [];
+        if ($freeBlockTypeIds->isNotEmpty()) {
+            $freeBlockIds = $freeBlockTypeIds->keys()->toArray();
+            
+            $activities = DB::table('activity')
+                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                ->where('activity_group.plan', $planId)
+                ->whereIn('activity_group.activity_type_detail', $freeBlockIds)
+                ->select(
+                    'activity.id',
+                    'activity.start',
+                    'activity.end',
+                    'activity.activity_group',
+                    'activity.extra_block',
+                    'activity_group.activity_type_detail'
+                )
+                ->orderBy('activity.start')
+                ->get();
+
+            foreach ($activities as $activity) {
+                $typeDetailId = $activity->activity_type_detail;
+                if (isset($freeBlockTypeIds[$typeDetailId])) {
+                    $typeDetail = $freeBlockTypeIds[$typeDetailId];
+                    
+                    // Get name from extra_block table
+                    $activityName = $typeDetail->name;
+                    if ($activity->extra_block) {
+                        $extraBlockName = DB::table('extra_block')
+                            ->where('id', $activity->extra_block)
+                            ->value('name');
+                        
+                        if ($extraBlockName) {
+                            $activityName = $extraBlockName;
+                        }
+                    }
+                    
+                    $freeBlockActivities[] = [
                         'name' => $activityName,
                         'start_time' => Carbon::parse($activity->start)->format('H:i'),
                         'end_time' => Carbon::parse($activity->end)->format('H:i'),
@@ -614,7 +694,8 @@ class PlanExportController extends Controller
         Log::info("Rendering moderator-match-plan view with roundsData count: " . count($roundsData));
         $contentHtml = view('pdf.moderator-match-plan', [
             'roundsData' => $roundsData,
-            'specialActivities' => $specialActivities,
+            'scheduleActivities' => $activitiesToInsert, // Left column: Zeitplan
+            'parallelActivities' => $freeBlockActivities, // Right column: Parallele Aktivitäten
             'eventName' => $eventName,
             'eventDate' => $eventDate,
             'lastUpdated' => $lastUpdated,
