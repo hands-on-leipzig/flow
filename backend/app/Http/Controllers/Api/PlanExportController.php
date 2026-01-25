@@ -722,7 +722,7 @@ class PlanExportController extends Controller
             ->timezone('Europe/Berlin')
             ->format('d.m.y');
 
-        $filename = "FLOW_Robot-Game_kompakt_({$formattedDate}).pdf";
+        $filename = "FLOW_Moderation_({$formattedDate}).pdf";
 
             // Return PDF with header for filename
             Log::info("moderatorMatchPlanPdf returning PDF with filename: {$filename}");
