@@ -438,13 +438,44 @@ const eventTitleNormalized = computed(() => {
   const title = getEventTitleLong(event.value)
   return title.replace(/FIRST/, '<em>FIRST</em>')
 })
+
+// Tab state
+const activeTab = ref<'public' | 'organisation'>('public')
 </script>
 
 <template>
   <div class="rounded-xl shadow bg-white p-6 flex flex-col">
     <h3 class="text-lg font-semibold mb-4">Pläne als PDF</h3>
 
-    <!-- Übersichtsplan -->
+    <!-- Tabs -->
+    <div class="flex mb-4 border-b text-xl font-bold relative">
+      <button
+        :class="activeTab === 'public' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
+        class="px-4 py-2 relative"
+        @click="activeTab = 'public'"
+      >
+        Öffentlich
+      </button>
+      <button
+        :class="activeTab === 'organisation' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
+        class="px-4 py-2 ml-4 relative"
+        @click="activeTab = 'organisation'"
+      >
+        Organisation
+      </button>
+    </div>
+
+    <!-- Subtitle -->
+    <p v-if="activeTab === 'public'" class="text-sm text-gray-600 mb-4">
+      Zum Aushang bzw zum Verteilen an Teams und Volunteers
+    </p>
+    <p v-if="activeTab === 'organisation'" class="text-sm text-gray-600 mb-4">
+      Nur für den Veranstalter – nicht für Teams oder Besucher.
+    </p>
+
+    <!-- Tab Content: Öffentlich -->
+    <div v-show="activeTab === 'public'">
+      <!-- Übersichtsplan -->
     <div class="border-b border-gray-200 pb-3 mb-3">
       <div class="mb-2">
         <h4 class="text-base font-semibold text-gray-800">Übersichtsplan für das Publikum</h4>
@@ -763,87 +794,95 @@ const eventTitleNormalized = computed(() => {
         </button>
       </div>
     </div>
+    </div>
 
-    <!-- Organisation -->
-    <div>
-      <div class="mb-4">
-        <h4 class="text-base font-semibold text-gray-800">Organisation</h4>
-        <p class="text-xs text-gray-500">Nur für den Veranstalter – nicht für Teams oder Besucher.</p>
-      </div>
-
+    <!-- Tab Content: Organisation -->
+    <div v-show="activeTab === 'organisation'">
       <!-- Gesamtplan -->
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <h5 class="text-sm font-semibold text-gray-800">Gesamtplan</h5>
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="mb-2">
+          <h4 class="text-base font-semibold text-gray-800">Gesamtplan</h4>
           <p class="text-sm text-gray-600">Volle Details, aber in einfacher Formatierung.</p>
         </div>
-        <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-          :class="!isDownloading.full 
-            ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-gray-100 cursor-not-allowed opacity-50'"
-          :disabled="isDownloading.full"
-          @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
-        >
-          <svg v-if="isDownloading.full" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
+
+        <!-- PDF Button -->
+        <div class="mt-4 flex justify-end">
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2"
+            :class="!isDownloading.full 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading.full"
+            @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
+          >
+            <svg v-if="isDownloading.full" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Robot-Game-Matches -->
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <h5 class="text-sm font-semibold text-gray-800">Robot-Game kompakt</h5>
+      <!-- Robot-Game kompakt -->
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="mb-2">
+          <h4 class="text-base font-semibold text-gray-800">Robot-Game kompakt</h4>
           <p class="text-sm text-gray-600">Einfache Liste für den Moderator</p>
         </div>
-        <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-          :class="!isDownloading['moderator-match-plan'] 
-            ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-gray-100 cursor-not-allowed opacity-50'"
-          :disabled="isDownloading['moderator-match-plan']"
-          @click="downloadModeratorMatchPlanPdf"
-        >
-          <svg v-if="isDownloading['moderator-match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading['moderator-match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
+
+        <!-- PDF Button -->
+        <div class="mt-4 flex justify-end">
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2"
+            :class="!isDownloading['moderator-match-plan'] 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading['moderator-match-plan']"
+            @click="downloadModeratorMatchPlanPdf"
+          >
+            <svg v-if="isDownloading['moderator-match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading['moderator-match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- Teamliste für den Check-In -->
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <h5 class="text-sm font-semibold text-gray-800">Teamliste für den Check-In</h5>
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="mb-2">
+          <h4 class="text-base font-semibold text-gray-800">Teamliste für den Check-In</h4>
           <p class="text-sm text-gray-600">Alle Teams und Teamräume</p>
         </div>
-        <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-          :class="!isDownloading['team-list'] 
-            ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-gray-100 cursor-not-allowed opacity-50'"
-          :disabled="isDownloading['team-list']"
-          @click="downloadTeamListPdf"
-        >
-          <svg v-if="isDownloading['team-list']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading['team-list'] ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
+
+        <!-- PDF Button -->
+        <div class="mt-4 flex justify-end">
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2"
+            :class="!isDownloading['team-list'] 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading['team-list']"
+            @click="downloadTeamListPdf"
+          >
+            <svg v-if="isDownloading['team-list']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading['team-list'] ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- Robot-Game Match-Plan -->
-      <div v-if="hasChallengeTeams || event?.event_challenge" class="flex items-center justify-between">
-        <div>
-          <h5 class="text-sm font-semibold text-gray-800">Robot-Game Match-Plan</h5>
+      <div v-if="hasChallengeTeams || event?.event_challenge" class="border-b border-gray-200 pb-3 mb-3">
+        <div class="mb-2">
+          <h4 class="text-base font-semibold text-gray-800">Robot-Game Match-Plan</h4>
           <p class="text-sm text-gray-600">Vorrunden-Matches zum Übernehmen in die Auswertesoftware 
             <a 
               href="https://evaluation.hands-on-technology.org/" 
@@ -855,7 +894,9 @@ const eventTitleNormalized = computed(() => {
             </a>.
           </p>
         </div>
-        <div class="flex gap-2 flex-shrink-0">
+
+        <!-- Buttons -->
+        <div class="mt-4 flex justify-between">
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
             @click="openMatchPlanModal"
