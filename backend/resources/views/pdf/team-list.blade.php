@@ -85,8 +85,9 @@
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 60%;">Team</th>
-                        <th style="width: 40%;">Teambereich</th>
+                        <th style="width: 50%;">Team</th>
+                        <th style="width: 30%;">Teambereich</th>
+                        <th style="width: 20%;">Zuordnung</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -106,6 +107,7 @@
                                 @endif
                             </td>
                             <td>{{ e($team['room_name']) }}</td>
+                            <td>{{ e($team['group_assignment'] ?? '–') }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -120,8 +122,9 @@
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 60%;">Team</th>
-                        <th style="width: 40%;">Teambereich</th>
+                        <th style="width: 50%;">Team</th>
+                        <th style="width: 30%;">Teambereich</th>
+                        <th style="width: 20%;">Zuordnung</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -141,6 +144,7 @@
                                 @endif
                             </td>
                             <td>{{ e($team['room_name']) }}</td>
+                            <td>{{ e($team['group_assignment'] ?? '–') }}</td>
                         </tr>
                     @endforeach
                 </tbody>

@@ -975,7 +975,7 @@ class PlanExportController extends Controller
                 ->timezone('Europe/Berlin')
                 ->format('d.m.Y H:i');
 
-            // Fetch teams with their assigned rooms, grouped by program
+            // Fetch teams with their assigned rooms and jury/gutachter group assignments
             // Explore teams (first_program = 2)
             $exploreTeams = DB::table('team_plan')
                 ->join('team', 'team_plan.team', '=', 'team.id')
@@ -986,16 +986,34 @@ class PlanExportController extends Controller
                     'team.name as team_name',
                     'team.team_number_hot',
                     'team_plan.noshow',
+                    'team_plan.team_number_plan',
                     'room.name as room_name'
                 )
                 ->orderBy('team.name')
                 ->get()
-                ->map(function ($team) {
+                ->map(function ($team) use ($planId) {
+                    // Find Gutachter-Gruppe assignment by looking for activities with this team as jury_team
+                    $gutachterGroup = null;
+                    $activity = DB::table('activity')
+                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                        ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                        ->where('activity_group.plan', $planId)
+                        ->where('m_activity_type_detail.first_program', 2) // Explore
+                        ->where('activity.jury_team', $team->team_number_plan)
+                        ->whereNotNull('activity.jury_lane')
+                        ->select('activity.jury_lane')
+                        ->first();
+                    
+                    if ($activity && $activity->jury_lane) {
+                        $gutachterGroup = 'Gutachter-Gruppe ' . $activity->jury_lane;
+                    }
+                    
                     return [
                         'name' => $team->team_name,
                         'hot_number' => $team->team_number_hot,
                         'noshow' => (bool)($team->noshow ?? false),
                         'room_name' => $team->room_name ?? '–',
+                        'group_assignment' => $gutachterGroup,
                     ];
                 })
                 ->values()
@@ -1011,16 +1029,34 @@ class PlanExportController extends Controller
                     'team.name as team_name',
                     'team.team_number_hot',
                     'team_plan.noshow',
+                    'team_plan.team_number_plan',
                     'room.name as room_name'
                 )
                 ->orderBy('team.name')
                 ->get()
-                ->map(function ($team) {
+                ->map(function ($team) use ($planId) {
+                    // Find Jury-Gruppe assignment by looking for activities with this team as jury_team
+                    $juryGroup = null;
+                    $activity = DB::table('activity')
+                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                        ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                        ->where('activity_group.plan', $planId)
+                        ->where('m_activity_type_detail.first_program', 3) // Challenge
+                        ->where('activity.jury_team', $team->team_number_plan)
+                        ->whereNotNull('activity.jury_lane')
+                        ->select('activity.jury_lane')
+                        ->first();
+                    
+                    if ($activity && $activity->jury_lane) {
+                        $juryGroup = 'Jury-Gruppe ' . $activity->jury_lane;
+                    }
+                    
                     return [
                         'name' => $team->team_name,
                         'hot_number' => $team->team_number_hot,
                         'noshow' => (bool)($team->noshow ?? false),
                         'room_name' => $team->room_name ?? '–',
+                        'group_assignment' => $juryGroup,
                     ];
                 })
                 ->values()
