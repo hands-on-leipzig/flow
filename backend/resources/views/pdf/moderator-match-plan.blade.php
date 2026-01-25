@@ -64,6 +64,21 @@
         .noshow {
             text-decoration: line-through;
         }
+
+        .special-activity {
+            margin-bottom: 15px;
+        }
+
+        .special-activity-header {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .special-activity-time {
+            font-size: 10px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
@@ -121,5 +136,14 @@
             </div>
         @endif
     @endforeach
+
+    @if(!empty($specialActivities))
+        @foreach($specialActivities as $activity)
+            <div class="special-activity">
+                <div class="special-activity-header">{{ e($activity['name']) }}</div>
+                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
+            </div>
+        @endforeach
+    @endif
 </body>
 </html>
