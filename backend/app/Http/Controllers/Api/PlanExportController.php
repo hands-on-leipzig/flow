@@ -432,12 +432,172 @@ class PlanExportController extends Controller
             ];
         }
 
+        // Fetch final rounds from activities (r_final_16, r_final_8, r_final_4, r_final_2)
+        $finalRoundCodes = [
+            'r_final_16' => 'Achtelfinale',
+            'r_final_8' => 'Viertelfinale',
+            'r_final_4' => 'Halbfinale',
+            'r_final_2' => 'Finale',
+        ];
+
+        $eventId = DB::table('plan')->where('id', $planId)->value('event');
+        $finalRoundKey = 4; // Start after regular rounds (0-3)
+
+        foreach ($finalRoundCodes as $finalCode => $finalLabel) {
+            // Get activity type detail ID for this final round group
+            $finalGroupTypeId = DB::table('m_activity_type_detail')
+                ->where('code', $finalCode)
+                ->value('id');
+
+            if (!$finalGroupTypeId) {
+                continue;
+            }
+
+            // Get activities for this final round
+            $finalActivities = DB::table('activity')
+                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                ->where('activity_group.plan', $planId)
+                ->where('activity_group.activity_type_detail', $finalGroupTypeId)
+                ->where('activity.activity_type_detail', $matchActivityTypeId)
+                ->select(
+                    'activity.start as start_time',
+                    'activity.table_1',
+                    'activity.table_2',
+                    'activity.table_1_team',
+                    'activity.table_2_team'
+                )
+                ->orderBy('activity.start')
+                ->get();
+
+            if ($finalActivities->isEmpty()) {
+                continue;
+            }
+
+            $finalMatchData = [];
+            foreach ($finalActivities as $activity) {
+                $startTime = Carbon::parse($activity->start_time)->format('H:i');
+
+                // Get table names (without "Tisch " prefix)
+                $table1Name = null;
+                if ($eventId) {
+                    $table1Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $activity->table_1)
+                        ->value('table_name');
+                }
+                $table1Label = $table1Name ?: (string)$activity->table_1;
+
+                $table2Name = null;
+                if ($eventId) {
+                    $table2Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $activity->table_2)
+                        ->value('table_name');
+                }
+                $table2Label = $table2Name ?: (string)$activity->table_2;
+
+                // For final rounds, team names are empty (moderator fills in during the day)
+                $finalMatchData[] = [
+                    'start_time' => $startTime,
+                    'table_1' => $table1Label,
+                    'table_2' => $table2Label,
+                    'team_1' => [
+                        'name' => '', // Empty - moderator fills in
+                        'noshow' => false,
+                    ],
+                    'team_2' => [
+                        'name' => '', // Empty - moderator fills in
+                        'noshow' => false,
+                    ],
+                ];
+            }
+
+            // Use a key that sorts after regular rounds (4, 5, 6, 7)
+            $roundsData[$finalRoundKey] = [
+                'label' => $finalLabel,
+                'matches' => $finalMatchData,
+            ];
+            $finalRoundKey++;
+        }
+
         Log::info("moderatorMatchPlanPdf roundsData summary", [
             'round_0_count' => count($roundsData[0]['matches'] ?? []),
             'round_1_count' => count($roundsData[1]['matches'] ?? []),
             'round_2_count' => count($roundsData[2]['matches'] ?? []),
             'round_3_count' => count($roundsData[3]['matches'] ?? []),
+            'final_rounds_count' => count($roundsData) - 4,
         ]);
+
+        // Fetch special activities (opening, research on stage, awards, extra blocks, etc.)
+        $specialActivityCodes = [
+            'c_opening',
+            'e_opening',
+            'g_opening',
+            'c_presentations', // Forschung auf der Bühne
+            'c_awards',
+            'e_awards',
+            'g_awards',
+            // Extra blocks
+            'c_free_block',
+            'e_free_block',
+            'g_free_block',
+            'c_inserted_block',
+            'e_inserted_block',
+            'g_inserted_block',
+        ];
+
+        // Get activity type detail IDs for special activities
+        $specialActivityTypeIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $specialActivityCodes)
+            ->select('id', 'code', 'name')
+            ->get()
+            ->keyBy('id');
+
+        $specialActivities = [];
+        if ($specialActivityTypeIds->isNotEmpty()) {
+            $specialActivityIds = $specialActivityTypeIds->keys()->toArray();
+            
+            // Get activities for these types, grouped by activity_group
+            $activities = DB::table('activity')
+                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                ->where('activity_group.plan', $planId)
+                ->whereIn('activity_group.activity_type_detail', $specialActivityIds)
+                ->select(
+                    'activity.id',
+                    'activity.start',
+                    'activity.end',
+                    'activity.activity_group',
+                    'activity.extra_block',
+                    'activity_group.activity_type_detail'
+                )
+                ->orderBy('activity.start')
+                ->get();
+
+            foreach ($activities as $activity) {
+                $typeDetailId = $activity->activity_type_detail;
+                if (isset($specialActivityTypeIds[$typeDetailId])) {
+                    $typeDetail = $specialActivityTypeIds[$typeDetailId];
+                    
+                    // For extra blocks, try to get the name from extra_block table
+                    $activityName = $typeDetail->name;
+                    if (in_array($typeDetail->code, ['c_free_block', 'e_free_block', 'g_free_block', 'c_inserted_block', 'e_inserted_block', 'g_inserted_block']) && $activity->extra_block) {
+                        $extraBlockName = DB::table('extra_block')
+                            ->where('id', $activity->extra_block)
+                            ->value('name');
+                        
+                        if ($extraBlockName) {
+                            $activityName = $extraBlockName;
+                        }
+                    }
+                    
+                    $specialActivities[] = [
+                        'name' => $activityName,
+                        'start_time' => Carbon::parse($activity->start)->format('H:i'),
+                        'end_time' => Carbon::parse($activity->end)->format('H:i'),
+                    ];
+                }
+            }
+        }
 
         // Get plan and event data
         $plan = Plan::findOrFail($planId);
@@ -454,6 +614,7 @@ class PlanExportController extends Controller
         Log::info("Rendering moderator-match-plan view with roundsData count: " . count($roundsData));
         $contentHtml = view('pdf.moderator-match-plan', [
             'roundsData' => $roundsData,
+            'specialActivities' => $specialActivities,
             'eventName' => $eventName,
             'eventDate' => $eventDate,
             'lastUpdated' => $lastUpdated,

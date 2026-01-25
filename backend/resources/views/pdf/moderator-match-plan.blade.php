@@ -65,8 +65,19 @@
             text-decoration: line-through;
         }
 
-        .page-break {
-            page-break-before: always;
+        .special-activity {
+            margin-bottom: 15px;
+        }
+
+        .special-activity-header {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .special-activity-time {
+            font-size: 10px;
+            color: #555;
         }
     </style>
 </head>
@@ -76,14 +87,19 @@
         <p>Letzte Änderung: {{ $lastUpdated }}</p>
     </div>
 
-    @foreach([0, 1, 2, 3] as $round)
+    @php
+        $regularRounds = [0, 1, 2, 3];
+        $finalRoundKeys = array_filter(array_keys($roundsData), fn($k) => !in_array($k, $regularRounds));
+        $allRoundKeys = array_merge($regularRounds, $finalRoundKeys);
+    @endphp
+
+    @foreach($allRoundKeys as $roundKey)
         @php
-            $roundData = $roundsData[$round] ?? null;
-            $isPageBreak = $round === 2; // Page break before Runde 2
+            $roundData = $roundsData[$roundKey] ?? null;
         @endphp
 
         @if($roundData && !empty($roundData['matches']))
-            <div class="section {{ $isPageBreak ? 'page-break' : '' }}">
+            <div class="section">
                 <div class="section-header">{{ $roundData['label'] }}</div>
                 
                 <table>
@@ -93,7 +109,10 @@
                                 <td style="width: 12%;">{{ $match['start_time'] }}</td>
                                 <td style="width: 12%;">{{ $match['table_1'] }}</td>
                                 <td style="width: 32%; font-weight: bold;">
-                                    @if($match['team_1']['noshow'])
+                                    @if(empty($match['team_1']['name']))
+                                        {{-- Empty for final rounds - moderator fills in --}}
+                                        &nbsp;
+                                    @elseif($match['team_1']['noshow'])
                                         <span class="noshow">{{ e($match['team_1']['name']) }}</span>
                                     @else
                                         {{ e($match['team_1']['name']) }}
@@ -101,7 +120,10 @@
                                 </td>
                                 <td style="width: 12%;">{{ $match['table_2'] }}</td>
                                 <td style="width: 32%; font-weight: bold;">
-                                    @if($match['team_2']['noshow'])
+                                    @if(empty($match['team_2']['name']))
+                                        {{-- Empty for final rounds - moderator fills in --}}
+                                        &nbsp;
+                                    @elseif($match['team_2']['noshow'])
                                         <span class="noshow">{{ e($match['team_2']['name']) }}</span>
                                     @else
                                         {{ e($match['team_2']['name']) }}
@@ -114,5 +136,14 @@
             </div>
         @endif
     @endforeach
+
+    @if(!empty($specialActivities))
+        @foreach($specialActivities as $activity)
+            <div class="special-activity">
+                <div class="special-activity-header">{{ e($activity['name']) }}</div>
+                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
+            </div>
+        @endforeach
+    @endif
 </body>
 </html>
