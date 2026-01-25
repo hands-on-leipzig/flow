@@ -3,7 +3,9 @@ import { computed, ref, watch, onMounted } from 'vue'
 import { useEventStore } from '@/stores/event'
 import { usePdfExport } from '@/composables/usePdfExport'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
+import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -327,6 +329,115 @@ function formatDate(dateString: string): string {
   const year = date.getFullYear()
   return `${day}.${month}.${year}`
 }
+
+// --- Match Plan Modal State (from MatchPlanBox) ---
+const showMatchPlanModal = ref(false)
+const selectedRound = ref<number | null>(null)
+const openRound = ref<number | null>(null)
+const matches = ref<Array<{
+  match_no: number
+  team_1: { name: string; hot_number: number; noshow?: boolean } | null
+  team_2: { name: string; hot_number: number; noshow?: boolean } | null
+}>>([])
+const isLoadingMatches = ref(false)
+
+// Round options
+const roundOptions = [
+  { value: 1, label: 'Vorrunde 1' },
+  { value: 2, label: 'Vorrunde 2' },
+  { value: 3, label: 'Vorrunde 3' },
+]
+
+// Toggle accordion round
+function toggleRound(round: number) {
+  if (openRound.value === round) {
+    openRound.value = null
+    matches.value = []
+    selectedRound.value = null
+  } else {
+    openRound.value = round
+    selectedRound.value = round
+    fetchMatches()
+  }
+}
+
+// Fetch matches for selected round
+async function fetchMatches() {
+  if (!eventId.value || isLoadingMatches.value) return
+  
+  const planResponse = await axios.get(`/plans/event/${eventId.value}`)
+  const planId = planResponse.data.id
+  if (!planId || !selectedRound.value) return
+
+  isLoadingMatches.value = true
+  try {
+    const { data } = await axios.get(`/export/match-teams/${planId}/${selectedRound.value}`)
+    matches.value = data.matches || []
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.error('Failed to fetch matches:', error)
+    }
+    matches.value = []
+  } finally {
+    isLoadingMatches.value = false
+  }
+}
+
+// Watch for round changes
+watch(selectedRound, () => {
+  if (showMatchPlanModal.value && selectedRound.value !== null) {
+    fetchMatches()
+  }
+})
+
+// Open match plan modal
+function openMatchPlanModal() {
+  showMatchPlanModal.value = true
+  openRound.value = null
+  selectedRound.value = null
+  matches.value = []
+}
+
+// Close match plan modal
+function closeMatchPlanModal() {
+  showMatchPlanModal.value = false
+  openRound.value = null
+  selectedRound.value = null
+  matches.value = []
+}
+
+// Format team display
+function formatTeam(team: { name: string; hot_number: number; noshow?: boolean } | null): string {
+  if (!team) return 'Freier Slot'
+  return `${team.name} [${team.hot_number}]`
+}
+
+// Check if team is no-show
+function isNoshow(team: { name: string; hot_number: number; noshow?: boolean } | null): boolean {
+  return team !== null && (team.noshow === true)
+}
+
+// Check if team is empty slot
+function isEmptySlot(team: { name: string; hot_number: number; noshow?: boolean } | null): boolean {
+  return team === null
+}
+
+// Download match plan PDF
+async function downloadMatchPlanPdf() {
+  if (!eventId.value) return
+  
+  const planResponse = await axios.get(`/plans/event/${eventId.value}`)
+  const planId = planResponse.data.id
+  if (!planId) return
+  
+  await downloadPdf('match-plan', `/export/match-plan/${planId}`, 'Match-Plan.pdf')
+}
+
+// Computed: normalized event title for modal header
+const eventTitleNormalized = computed(() => {
+  const title = getEventTitleLong(event.value)
+  return title.replace(/FIRST/, '<em>FIRST</em>')
+})
 </script>
 
 <template>
@@ -707,7 +818,7 @@ function formatDate(dateString: string): string {
       </div>
 
       <!-- Teamliste für den Check-In -->
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between mb-3">
         <div>
           <h5 class="text-sm font-semibold text-gray-800">Teamliste für den Check-In</h5>
           <p class="text-sm text-gray-600">Alle Teams und Teamräume</p>
@@ -727,6 +838,131 @@ function formatDate(dateString: string): string {
           </svg>
           <span>{{ isDownloading['team-list'] ? 'Erzeuge…' : 'PDF' }}</span>
         </button>
+      </div>
+
+      <!-- Robot-Game Match-Plan -->
+      <div v-if="hasChallengeTeams || event?.event_challenge" class="flex items-center justify-between">
+        <div>
+          <h5 class="text-sm font-semibold text-gray-800">Robot-Game Match-Plan</h5>
+          <p class="text-sm text-gray-600">Vorrunden-Matches zum Übernehmen in die Auswertesoftware 
+            <a 
+              href="https://evaluation.hands-on-technology.org/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="text-blue-600 underline hover:text-blue-800"
+            >
+              SCORE
+            </a>.
+          </p>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
+            @click="openMatchPlanModal"
+          >
+            <span>Match-Plan</span>
+          </button>
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2"
+            :class="!isDownloading['match-plan'] 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading['match-plan']"
+            @click="downloadMatchPlanPdf"
+          >
+            <svg v-if="isDownloading['match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading['match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Match Plan Modal -->
+    <div
+      v-if="showMatchPlanModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @click="closeMatchPlanModal"
+    >
+      <div 
+        class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden"
+        @click.stop
+      >
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-gray-900" v-html="eventTitleNormalized"></h3>
+          <button
+            @click="closeMatchPlanModal"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Modal Content -->
+        <div class="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+          <!-- Accordion for rounds -->
+          <div class="space-y-2">
+            <template v-for="option in roundOptions" :key="option.value">
+              <div class="bg-white border rounded-lg shadow">
+                <button
+                  class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
+                  @click="toggleRound(option.value)"
+                >
+                  {{ option.label }}
+                  <AccordionArrow :opened="openRound === option.value"/>
+                </button>
+                <transition name="fade">
+                  <div v-if="openRound === option.value" class="p-4">
+                    <div v-if="isLoadingMatches" class="flex items-center justify-center py-8">
+                      <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                      </svg>
+                      <span class="ml-3 text-gray-600">Lade Matches...</span>
+                    </div>
+                    
+                    <div v-else-if="matches.length === 0" class="text-center py-8 text-gray-500">
+                      Keine Matches gefunden
+                    </div>
+                    
+                    <!-- Match Grid -->
+                    <div v-else class="grid grid-cols-2 gap-3">
+                      <template v-for="match in matches" :key="match.match_no">
+                        <!-- Team 1 (Left Column) -->
+                        <div
+                          class="px-4 py-2 rounded text-white text-sm font-medium"
+                          :class="[
+                            isEmptySlot(match.team_1) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600',
+                            isNoshow(match.team_1) ? 'line-through' : ''
+                          ]"
+                        >
+                          {{ formatTeam(match.team_1) }}
+                        </div>
+                        
+                        <!-- Team 2 (Right Column) -->
+                        <div
+                          class="px-4 py-2 rounded text-white text-sm font-medium"
+                          :class="[
+                            isEmptySlot(match.team_2) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600',
+                            isNoshow(match.team_2) ? 'line-through' : ''
+                          ]"
+                        >
+                          {{ formatTeam(match.team_2) }}
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </transition>
+              </div>
+            </template>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -818,3 +1054,14 @@ function formatDate(dateString: string): string {
     </div>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active, .fade-leave-active {
+  transition: all 0.2s ease;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+  transform: translateY(-0.5rem);
+}
+</style>
