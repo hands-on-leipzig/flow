@@ -466,41 +466,39 @@ const activeTab = ref<'public' | 'organisation'>('public')
     </div>
 
     <!-- Subtitle -->
-    <p v-if="activeTab === 'public'" class="text-sm text-gray-600 mb-4">
+    <p v-if="activeTab === 'public'" class="text-sm text-blue-600 mb-4">
       Zum Aushang bzw zum Verteilen an Teams und Volunteers
     </p>
-    <p v-if="activeTab === 'organisation'" class="text-sm text-gray-600 mb-4">
+    <p v-if="activeTab === 'organisation'" class="text-sm text-blue-600 mb-4">
       Nur für den Veranstalter – nicht für Teams oder Besucher.
     </p>
 
     <!-- Tab Content: Öffentlich -->
     <div v-show="activeTab === 'public'">
       <!-- Übersichtsplan -->
-    <div class="border-b border-gray-200 pb-3 mb-3">
-      <div class="mb-2">
-        <h4 class="text-base font-semibold text-gray-800">Übersichtsplan für das Publikum</h4>
-        <p class="text-sm text-gray-600">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-base font-semibold text-gray-800">Übersichtsplan für das Publikum</h4>
+            <p class="text-sm text-gray-600">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
+          </div>
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
+            :class="!isDownloading.overview 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading.overview"
+            @click="downloadEventOverviewPdf()"
+          >
+            <svg v-if="isDownloading.overview" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.overview ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
       </div>
-
-      <!-- PDF Button -->
-      <div class="mt-4 flex justify-end">
-        <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2"
-          :class="!isDownloading.overview 
-            ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-gray-100 cursor-not-allowed opacity-50'"
-          :disabled="isDownloading.overview"
-          @click="downloadEventOverviewPdf()"
-        >
-          <svg v-if="isDownloading.overview" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading.overview ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
-      </div>
-    </div>
 
     <!-- Räume -->
     <div class="border-b border-gray-200 pb-3 mb-3">
