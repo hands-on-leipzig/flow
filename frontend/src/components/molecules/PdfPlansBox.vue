@@ -798,15 +798,13 @@ const activeTab = ref<'public' | 'organisation'>('public')
     <div v-show="activeTab === 'organisation'">
       <!-- 1. Teamliste -->
       <div class="border-b border-gray-200 pb-3 mb-3">
-        <div class="mb-2">
-          <h4 class="text-base font-semibold text-gray-800">Teamliste</h4>
-          <p class="text-sm text-gray-600">Alle Teams und Teamräume</p>
-        </div>
-
-        <!-- PDF Button -->
-        <div class="mt-4 flex justify-end">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-base font-semibold text-gray-800">Teamliste</h4>
+            <p class="text-sm text-gray-600">Alle Teams und Teamräume</p>
+          </div>
           <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2"
+            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
             :class="!isDownloading['team-list'] 
               ? 'bg-gray-200 hover:bg-gray-300' 
               : 'bg-gray-100 cursor-not-allowed opacity-50'"
@@ -825,15 +823,13 @@ const activeTab = ref<'public' | 'organisation'>('public')
 
       <!-- 2. Moderation -->
       <div class="border-b border-gray-200 pb-3 mb-3">
-        <div class="mb-2">
-          <h4 class="text-base font-semibold text-gray-800">Moderation</h4>
-          <p class="text-sm text-gray-600">Einfache Liste für den Moderator</p>
-        </div>
-
-        <!-- PDF Button -->
-        <div class="mt-4 flex justify-end">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-base font-semibold text-gray-800">Moderation</h4>
+            <p class="text-sm text-gray-600">Zeiten für alle Aktivitäten mit Moderation und kompletter Robot-Game-Matchplan</p>
+          </div>
           <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2"
+            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
             :class="!isDownloading['moderator-match-plan'] 
               ? 'bg-gray-200 hover:bg-gray-300' 
               : 'bg-gray-100 cursor-not-allowed opacity-50'"
@@ -864,6 +860,9 @@ const activeTab = ref<'public' | 'organisation'>('public')
               SCORE
             </a>.
           </p>
+          <p class="text-sm text-gray-600 mt-2">
+            Damit die Schiedsrichter:innen die Matches in der Reihenfolge angezeigt bekommen, wie in den den Plänen aus FLOW, müssen in SCORE die Matches exakt so angepasst werden, wie hier gezeigt.
+          </p>
         </div>
 
         <!-- Buttons -->
@@ -872,7 +871,7 @@ const activeTab = ref<'public' | 'organisation'>('public')
             class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
             @click="openMatchPlanModal"
           >
-            <span>Match-Plan</span>
+            <span>Online. Ohne zu Drucken.</span>
           </button>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2"
@@ -894,15 +893,13 @@ const activeTab = ref<'public' | 'organisation'>('public')
 
       <!-- 4. Gesamtplan -->
       <div class="border-b border-gray-200 pb-3 mb-3">
-        <div class="mb-2">
-          <h4 class="text-base font-semibold text-gray-800">Gesamtplan</h4>
-          <p class="text-sm text-gray-600">Volle Details, aber in einfacher Formatierung.</p>
-        </div>
-
-        <!-- PDF Button -->
-        <div class="mt-4 flex justify-end">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-base font-semibold text-gray-800">Gesamtplan</h4>
+            <p class="text-sm text-gray-600">Volle Details, aber in einfacher Formatierung.</p>
+          </div>
           <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2"
+            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
             :class="!isDownloading.full 
               ? 'bg-gray-200 hover:bg-gray-300' 
               : 'bg-gray-100 cursor-not-allowed opacity-50'"
