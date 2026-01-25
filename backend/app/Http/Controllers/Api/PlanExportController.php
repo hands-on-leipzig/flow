@@ -434,10 +434,10 @@ class PlanExportController extends Controller
 
         // Fetch final rounds from activities (r_final_16, r_final_8, r_final_4, r_final_2)
         $finalRoundCodes = [
-            'r_final_16' => 'Achtelfinale (Top 16)',
-            'r_final_8' => 'Viertelfinale (Top 8)',
-            'r_final_4' => 'Halbfinale (Top 4)',
-            'r_final_2' => 'Finale (Top 2)',
+            'r_final_16' => 'Achtelfinale',
+            'r_final_8' => 'Viertelfinale',
+            'r_final_4' => 'Halbfinale',
+            'r_final_2' => 'Finale',
         ];
 
         $eventId = DB::table('plan')->where('id', $planId)->value('event');
