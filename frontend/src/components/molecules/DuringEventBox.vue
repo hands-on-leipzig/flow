@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import QrWifiBox from '@/components/molecules/QrWifiBox.vue'
 import PdfPlansBox from '@/components/molecules/PdfPlansBox.vue'
-import MatchPlanBox from '@/components/molecules/MatchPlanBox.vue'
 import CarouselBox from '@/components/molecules/CarouselBox.vue'
 </script>
 
@@ -13,11 +12,8 @@ import CarouselBox from '@/components/molecules/CarouselBox.vue'
       <!-- Column 1 -->
       <QrWifiBox />
       
-      <!-- Column 2 - Two boxes stacked -->
-      <div class="space-y-6">
-        <MatchPlanBox />
-        <PdfPlansBox />
-      </div>
+      <!-- Column 2 -->
+      <PdfPlansBox />
       
       <!-- Column 3 -->
       <CarouselBox />

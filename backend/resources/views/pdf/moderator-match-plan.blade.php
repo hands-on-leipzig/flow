@@ -79,6 +79,32 @@
             font-size: 10px;
             color: #555;
         }
+
+        .two-columns {
+            width: 100%;
+            margin-bottom: 20px;
+            border-collapse: collapse;
+        }
+
+        .two-columns td {
+            width: 50%;
+            vertical-align: top;
+            padding-right: 10px;
+            border: none;
+        }
+
+        .two-columns td:last-child {
+            padding-right: 0;
+            padding-left: 10px;
+        }
+
+        .column-header {
+            font-size: 13px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #333;
+        }
     </style>
 </head>
 <body>
@@ -87,9 +113,43 @@
         <p>Letzte Änderung: {{ $lastUpdated }}</p>
     </div>
 
+    {{-- Two-column layout for activities --}}
+    @if(!empty($scheduleActivities) || !empty($parallelActivities))
+        <table class="two-columns">
+            <tr>
+                {{-- Left column: Mit Moderation --}}
+                <td>
+                    <div class="column-header">Mit Moderation</div>
+                    @if(!empty($scheduleActivities))
+                        @foreach($scheduleActivities as $activity)
+                            <div class="special-activity">
+                                <div class="special-activity-header">{{ e($activity['name']) }}</div>
+                                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
+                            </div>
+                        @endforeach
+                    @endif
+                </td>
+
+                {{-- Right column: Parallele Aktivitäten --}}
+                <td>
+                    <div class="column-header">Parallele Aktivitäten</div>
+                    @if(!empty($parallelActivities))
+                        @foreach($parallelActivities as $activity)
+                            <div class="special-activity">
+                                <div class="special-activity-header">{{ e($activity['name']) }}</div>
+                                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
+                            </div>
+                        @endforeach
+                    @endif
+                </td>
+            </tr>
+        </table>
+    @endif
+
+    {{-- Robot game rounds --}}
     @php
         $regularRounds = [0, 1, 2, 3];
-        $finalRoundKeys = array_filter(array_keys($roundsData), fn($k) => !in_array($k, $regularRounds));
+        $finalRoundKeys = array_filter(array_keys($roundsData), fn($k) => !in_array($k, $regularRounds) && is_numeric($k) && $k >= 4);
         $allRoundKeys = array_merge($regularRounds, $finalRoundKeys);
     @endphp
 
@@ -136,14 +196,5 @@
             </div>
         @endif
     @endforeach
-
-    @if(!empty($specialActivities))
-        @foreach($specialActivities as $activity)
-            <div class="special-activity">
-                <div class="special-activity-header">{{ e($activity['name']) }}</div>
-                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
-            </div>
-        @endforeach
-    @endif
 </body>
 </html>
