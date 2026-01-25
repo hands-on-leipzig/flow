@@ -801,7 +801,8 @@ const activeTab = ref<'public' | 'organisation'>('public')
         <div class="flex items-center justify-between">
           <div>
             <h4 class="text-base font-semibold text-gray-800">Teamliste</h4>
-            <p class="text-sm text-gray-600">Alle Teams und Teamräume</p>
+            <p class="text-sm text-gray-600">Alle Teams mit Teamräume und Zuordnung zu Guterachter:innen- bzw. Jury Gruppen.</p>
+            <p class="text-sm text-gray-600 mt-2">Diese Liste hilft beim Check-In und bei den Briefings und Beratungen.</p>
           </div>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
