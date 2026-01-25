@@ -64,10 +64,6 @@
         .noshow {
             text-decoration: line-through;
         }
-
-        .page-break {
-            page-break-before: always;
-        }
     </style>
 </head>
 <body>
@@ -77,27 +73,18 @@
     </div>
 
     @php
-        $roundIndex = 0;
         $regularRounds = [0, 1, 2, 3];
         $finalRoundKeys = array_filter(array_keys($roundsData), fn($k) => !in_array($k, $regularRounds));
         $allRoundKeys = array_merge($regularRounds, $finalRoundKeys);
-        $firstFinalRoundKey = !empty($finalRoundKeys) ? min($finalRoundKeys) : null;
     @endphp
 
     @foreach($allRoundKeys as $roundKey)
         @php
             $roundData = $roundsData[$roundKey] ?? null;
-            // Page break before Runde 2 (regular round 2)
-            $isPageBreak = ($roundKey === 2);
-            // Also add page break before first final round
-            if ($roundKey === $firstFinalRoundKey) {
-                $isPageBreak = true;
-            }
-            $roundIndex++;
         @endphp
 
         @if($roundData && !empty($roundData['matches']))
-            <div class="section {{ $isPageBreak ? 'page-break' : '' }}">
+            <div class="section">
                 <div class="section-header">{{ $roundData['label'] }}</div>
                 
                 <table>
