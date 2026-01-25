@@ -76,10 +76,24 @@
         <p>Letzte Änderung: {{ $lastUpdated }}</p>
     </div>
 
-    @foreach([0, 1, 2, 3] as $round)
+    @php
+        $roundIndex = 0;
+        $regularRounds = [0, 1, 2, 3];
+        $finalRoundKeys = array_filter(array_keys($roundsData), fn($k) => !in_array($k, $regularRounds));
+        $allRoundKeys = array_merge($regularRounds, $finalRoundKeys);
+        $firstFinalRoundKey = !empty($finalRoundKeys) ? min($finalRoundKeys) : null;
+    @endphp
+
+    @foreach($allRoundKeys as $roundKey)
         @php
-            $roundData = $roundsData[$round] ?? null;
-            $isPageBreak = $round === 2; // Page break before Runde 2
+            $roundData = $roundsData[$roundKey] ?? null;
+            // Page break before Runde 2 (regular round 2)
+            $isPageBreak = ($roundKey === 2);
+            // Also add page break before first final round
+            if ($roundKey === $firstFinalRoundKey) {
+                $isPageBreak = true;
+            }
+            $roundIndex++;
         @endphp
 
         @if($roundData && !empty($roundData['matches']))
@@ -93,7 +107,10 @@
                                 <td style="width: 12%;">{{ $match['start_time'] }}</td>
                                 <td style="width: 12%;">{{ $match['table_1'] }}</td>
                                 <td style="width: 32%; font-weight: bold;">
-                                    @if($match['team_1']['noshow'])
+                                    @if(empty($match['team_1']['name']))
+                                        {{-- Empty for final rounds - moderator fills in --}}
+                                        &nbsp;
+                                    @elseif($match['team_1']['noshow'])
                                         <span class="noshow">{{ e($match['team_1']['name']) }}</span>
                                     @else
                                         {{ e($match['team_1']['name']) }}
@@ -101,7 +118,10 @@
                                 </td>
                                 <td style="width: 12%;">{{ $match['table_2'] }}</td>
                                 <td style="width: 32%; font-weight: bold;">
-                                    @if($match['team_2']['noshow'])
+                                    @if(empty($match['team_2']['name']))
+                                        {{-- Empty for final rounds - moderator fills in --}}
+                                        &nbsp;
+                                    @elseif($match['team_2']['noshow'])
                                         <span class="noshow">{{ e($match['team_2']['name']) }}</span>
                                     @else
                                         {{ e($match['team_2']['name']) }}

@@ -432,11 +432,100 @@ class PlanExportController extends Controller
             ];
         }
 
+        // Fetch final rounds from activities (r_final_16, r_final_8, r_final_4, r_final_2)
+        $finalRoundCodes = [
+            'r_final_16' => 'Achtelfinale (Top 16)',
+            'r_final_8' => 'Viertelfinale (Top 8)',
+            'r_final_4' => 'Halbfinale (Top 4)',
+            'r_final_2' => 'Finale (Top 2)',
+        ];
+
+        $eventId = DB::table('plan')->where('id', $planId)->value('event');
+        $finalRoundKey = 4; // Start after regular rounds (0-3)
+
+        foreach ($finalRoundCodes as $finalCode => $finalLabel) {
+            // Get activity type detail ID for this final round group
+            $finalGroupTypeId = DB::table('m_activity_type_detail')
+                ->where('code', $finalCode)
+                ->value('id');
+
+            if (!$finalGroupTypeId) {
+                continue;
+            }
+
+            // Get activities for this final round
+            $finalActivities = DB::table('activity')
+                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                ->where('activity_group.plan', $planId)
+                ->where('activity_group.activity_type_detail', $finalGroupTypeId)
+                ->where('activity.activity_type_detail', $matchActivityTypeId)
+                ->select(
+                    'activity.start as start_time',
+                    'activity.table_1',
+                    'activity.table_2',
+                    'activity.table_1_team',
+                    'activity.table_2_team'
+                )
+                ->orderBy('activity.start')
+                ->get();
+
+            if ($finalActivities->isEmpty()) {
+                continue;
+            }
+
+            $finalMatchData = [];
+            foreach ($finalActivities as $activity) {
+                $startTime = Carbon::parse($activity->start_time)->format('H:i');
+
+                // Get table names (without "Tisch " prefix)
+                $table1Name = null;
+                if ($eventId) {
+                    $table1Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $activity->table_1)
+                        ->value('table_name');
+                }
+                $table1Label = $table1Name ?: (string)$activity->table_1;
+
+                $table2Name = null;
+                if ($eventId) {
+                    $table2Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $activity->table_2)
+                        ->value('table_name');
+                }
+                $table2Label = $table2Name ?: (string)$activity->table_2;
+
+                // For final rounds, team names are empty (moderator fills in during the day)
+                $finalMatchData[] = [
+                    'start_time' => $startTime,
+                    'table_1' => $table1Label,
+                    'table_2' => $table2Label,
+                    'team_1' => [
+                        'name' => '', // Empty - moderator fills in
+                        'noshow' => false,
+                    ],
+                    'team_2' => [
+                        'name' => '', // Empty - moderator fills in
+                        'noshow' => false,
+                    ],
+                ];
+            }
+
+            // Use a key that sorts after regular rounds (4, 5, 6, 7)
+            $roundsData[$finalRoundKey] = [
+                'label' => $finalLabel,
+                'matches' => $finalMatchData,
+            ];
+            $finalRoundKey++;
+        }
+
         Log::info("moderatorMatchPlanPdf roundsData summary", [
             'round_0_count' => count($roundsData[0]['matches'] ?? []),
             'round_1_count' => count($roundsData[1]['matches'] ?? []),
             'round_2_count' => count($roundsData[2]['matches'] ?? []),
             'round_3_count' => count($roundsData[3]['matches'] ?? []),
+            'final_rounds_count' => count($roundsData) - 4,
         ]);
 
         // Get plan and event data
