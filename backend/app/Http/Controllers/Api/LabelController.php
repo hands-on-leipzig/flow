@@ -35,6 +35,9 @@ class LabelController extends Controller
     public function nameTagsPdf(int $eventId)
     {
         try {
+            // Increase memory limit for PDF generation with many images
+            ini_set('memory_limit', '512M');
+            
             // Get event with season relationship
             $event = Event::with('seasonRel')->findOrFail($eventId);
 
@@ -45,14 +48,17 @@ class LabelController extends Controller
                 return response()->json(['error' => 'No teams found for this event'], 404);
             }
 
-            // Get season logo
+            // Get season logo (load once, reuse for all tags)
             $seasonLogo = $this->getSeasonLogo($event->seasonRel);
 
-            // Get organizer logos
+            // Get organizer logos (load once, reuse for all tags)
             $organizerLogos = $this->pdfLayoutService->buildFooterLogos($eventId);
 
             // Collect all name tags
             $nameTags = [];
+            
+            // Cache program logos to avoid loading the same logo multiple times
+            $programLogoCache = [];
 
             foreach ($teams as $team) {
                 // Determine program and DRAHT event ID
@@ -78,8 +84,11 @@ class LabelController extends Controller
                     continue;
                 }
 
-                // Get program logo
-                $programLogo = $this->getProgramLogo($program);
+                // Get program logo (use cache to avoid loading same logo multiple times)
+                if (!isset($programLogoCache[$program])) {
+                    $programLogoCache[$program] = $this->getProgramLogo($program);
+                }
+                $programLogo = $programLogoCache[$program];
 
                 // Create name tags for players
                 if (!empty($peopleData['players']) && is_array($peopleData['players'])) {
@@ -118,10 +127,16 @@ class LabelController extends Controller
                 return response()->json(['error' => 'No team members found to generate name tags'], 404);
             }
 
-            // Generate HTML
+            // Generate HTML - pass logos separately to avoid duplication in template
             $html = view('pdf.name-tags', [
                 'nameTags' => $nameTags,
+                'seasonLogo' => $seasonLogo,
+                'organizerLogos' => $organizerLogos,
+                'programLogoCache' => $programLogoCache,
             ])->render();
+            
+            // Clear large arrays from memory before PDF generation
+            unset($nameTags, $programLogoCache, $organizerLogos);
 
             // Generate PDF
             $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'portrait');
@@ -291,6 +306,7 @@ class LabelController extends Controller
 
     /**
      * Create name tag data structure
+     * Note: Logos are not stored here to save memory - they're passed separately to template
      */
     private function createNameTagData(
         array $person,
@@ -307,13 +323,11 @@ class LabelController extends Controller
             $personName = $person['name'] ?? 'Unbekannt';
         }
 
+        // Only store minimal data - logos are passed separately to template to avoid duplication
         return [
             'person_name' => $personName,
             'team_name' => $teamName,
             'program' => $program,
-            'program_logo' => $programLogo,
-            'season_logo' => $seasonLogo,
-            'organizer_logos' => $organizerLogos,
         ];
     }
 }

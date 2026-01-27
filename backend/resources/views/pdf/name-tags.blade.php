@@ -110,16 +110,21 @@
                     </div>
                     
                     <div class="logos-container">
-                        @if(!empty($nameTag['program_logo']))
-                            <img src="{{ $nameTag['program_logo'] }}" alt="Program Logo" class="logo" />
+                        @php
+                            // Get program logo from cache instead of storing in each name tag
+                            $programLogo = $programLogoCache[$nameTag['program']] ?? null;
+                        @endphp
+                        
+                        @if(!empty($programLogo))
+                            <img src="{{ $programLogo }}" alt="Program Logo" class="logo" />
                         @endif
                         
-                        @if(!empty($nameTag['season_logo']))
-                            <img src="{{ $nameTag['season_logo'] }}" alt="Season Logo" class="logo" />
+                        @if(!empty($seasonLogo))
+                            <img src="{{ $seasonLogo }}" alt="Season Logo" class="logo" />
                         @endif
                         
-                        @if(!empty($nameTag['organizer_logos']))
-                            @foreach($nameTag['organizer_logos'] as $organizerLogo)
+                        @if(!empty($organizerLogos))
+                            @foreach($organizerLogos as $organizerLogo)
                                 <img src="{{ $organizerLogo }}" alt="Organizer Logo" class="logo" />
                             @endforeach
                         @endif

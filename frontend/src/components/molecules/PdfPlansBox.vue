@@ -942,7 +942,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
         <div class="flex items-center justify-between">
           <div>
             <h4 class="text-base font-semibold text-gray-800">Namensaufkleber für Teams</h4>
-            <p class="text-sm text-gray-600">Aufkleber für alle Team-Mitglieder (Spieler:innen und Coaches) im Format Avery L4785.</p>
+            <p class="text-sm text-gray-600">Aufkleber für alle Team-Mitglieder und Coach:innen im Format Avery L4785.</p>
             <p class="text-sm text-gray-600 mt-2">Jeder Aufkleber enthält den Namen der Person, den Team-Namen sowie die Logos (Programm, Saison, Veranstalter).</p>
           </div>
           <button
