@@ -937,7 +937,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
       <p class="text-sm text-blue-600 mb-4">
         Aufkleber und Etiketten zum Drucken
       </p>
-      <p class="text-sm text-gray-600">
+      <p class="text-sm text-gray-600 mb-3">
         Die PDF-Dateien im 
         <a 
           href="https://www.avery-zweckform.com/vorlage-l4785" 
@@ -948,7 +948,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
           Format Avery L4785
         </a>.
       </p>
-      <p class="text-sm text-gray-600">
+      <p class="text-sm text-gray-600 mb-4">
         Jeder Aufkleber enthält den Namen der Person, den Team-Namen sowie die Logos (Programm, Saison, Veranstalter).
       </p>
       
@@ -956,9 +956,8 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
       <div class="border-b border-gray-200 pb-3 mb-3">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-base font-semibold text-gray-800">Namensaufkleber für Teams</h4>
-            
-            <p class="text-sm text-gray-600 mt-2">Ein Aufkleber für jedes Teammitglied und alle Coach:innen.</p>
+            <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Teams</h4>
+            <p class="text-sm text-gray-600">Ein Aufkleber für jedes Teammitglied und alle Coach:innen.</p>
           </div>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
