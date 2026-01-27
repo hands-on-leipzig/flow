@@ -872,7 +872,7 @@ const activeTab = ref<'public' | 'organisation'>('public')
             class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
             @click="openMatchPlanModal"
           >
-            <span>Online. Ohne zu Drucken.</span>
+            <span>Online anzeigen</span>
           </button>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2"

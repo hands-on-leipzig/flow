@@ -2357,46 +2357,26 @@ if ($prepRooms->isNotEmpty()) {
                     }
                 }
                 
-                // Final round codes and labels
-                $finalRoundCodes = [
-                    'r_final_8' => 'Viertelfinale',
-                    'r_final_4' => 'Halbfinale',
-                    'r_final_2' => 'Finale',
-                ];
-                
-                // Optionally include r_final_16 if it exists
-                $finalRoundCodesWith16 = [
-                    'r_final_16' => 'Achtelfinale',
-                    'r_final_8' => 'Viertelfinale',
-                    'r_final_4' => 'Halbfinale',
-                    'r_final_2' => 'Finale',
-                ];
-                
-                // Check if r_final_16 exists
-                $hasFinal16 = DB::table('activity_group')
-                    ->join('m_activity_type_detail', 'activity_group.activity_type_detail', '=', 'm_activity_type_detail.id')
-                    ->where('activity_group.plan', $planId)
-                    ->where('m_activity_type_detail.code', 'r_final_16')
-                    ->exists();
-                
-                $roundsToCheck = $hasFinal16 ? $finalRoundCodesWith16 : $finalRoundCodes;
+                // Final round codes (order matters: 16, 8, 4, 2)
+                $finalRoundCodes = ['r_final_16', 'r_final_8', 'r_final_4', 'r_final_2'];
                 
                 // matchActivityTypeId already defined above
                 if ($matchActivityTypeId) {
-                    foreach ($roundsToCheck as $finalCode => $finalLabel) {
-                        // Get activity group ID for this final round
-                        $finalGroupTypeId = DB::table('m_activity_type_detail')
+                    foreach ($finalRoundCodes as $finalCode) {
+                        // Get activity type detail for this final round (to get the name)
+                        $finalGroupTypeDetail = DB::table('m_activity_type_detail')
                             ->where('code', $finalCode)
-                            ->value('id');
+                            ->select('id', 'name')
+                            ->first();
                         
-                        if (!$finalGroupTypeId) {
+                        if (!$finalGroupTypeDetail) {
                             continue;
                         }
                         
                         // Get activity group for this final round
                         $finalGroup = DB::table('activity_group')
                             ->where('plan', $planId)
-                            ->where('activity_type_detail', $finalGroupTypeId)
+                            ->where('activity_type_detail', $finalGroupTypeDetail->id)
                             ->first();
                         
                         if (!$finalGroup) {
@@ -2424,11 +2404,11 @@ if ($prepRooms->isNotEmpty()) {
                             $endTime = \Carbon\Carbon::parse($latestEnd)->format('H:i');
                             $startDate = \Carbon\Carbon::parse($earliestStart);
                             
-                            // Add final round row
+                            // Add final round row with label from activity_type_detail
                             $rows[] = [
                                 'start'    => $startTime,
                                 'end'      => $endTime,
-                                'activity' => $finalLabel,
+                                'activity' => $finalGroupTypeDetail->name,
                                 'room'     => $robotGameRoomName,
                                 'start_date' => $startDate,
                             ];
