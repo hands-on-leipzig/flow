@@ -52,7 +52,8 @@ class LabelController extends Controller
             $seasonLogo = $this->getSeasonLogo($event->seasonRel);
 
             // Get organizer logos (load once, reuse for all tags)
-            $organizerLogos = $this->pdfLayoutService->buildFooterLogos($eventId);
+            // Only use the first logo by sort_order
+            $organizerLogos = $this->getFirstOrganizerLogo($eventId);
 
             // Collect all name tags
             $nameTags = [];
@@ -302,6 +303,28 @@ class LabelController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Get the first organizer logo by sort_order
+     */
+    private function getFirstOrganizerLogo(int $eventId): array
+    {
+        $logo = DB::table('logo')
+            ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
+            ->where('event_logo.event', $eventId)
+            ->orderBy('event_logo.sort_order')
+            ->select('logo.path')
+            ->first();
+
+        if (!$logo) {
+            return [];
+        }
+
+        $path = storage_path('app/public/' . $logo->path);
+        $uri = $this->pdfLayoutService->toDataUri($path);
+        
+        return $uri ? [$uri] : [];
     }
 
     /**
