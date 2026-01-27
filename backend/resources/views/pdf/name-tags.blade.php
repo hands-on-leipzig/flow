@@ -64,22 +64,28 @@
         }
 
         /* Column 1 positions */
-        .col1-row1 { top: 13.5mm; left: 17.5mm; }
-        .col1-row2 { top: 68.5mm; left: 17.5mm; } /* 13.5 + 50 + 5 */
-        .col1-row3 { top: 123.5mm; left: 17.5mm; } /* 13.5 + 50 + 5 + 50 + 5 */
-        .col1-row4 { top: 178.5mm; left: 17.5mm; } /* 13.5 + 50 + 5 + 50 + 5 + 50 + 5 */
+        /* Specification: top margin 13.5mm, label height 50mm, vertical spacing 5mm */
+        .col1-row1 { top: 13.5mm; left: 17.5mm; } /* Row 1: top margin */
+        .col1-row2 { top: 68.5mm; left: 17.5mm; } /* Row 2: 13.5 + 50 + 5 = 68.5 */
+        .col1-row3 { top: 123.5mm; left: 17.5mm; } /* Row 3: 13.5 + (50+5)*2 = 123.5 */
+        .col1-row4 { top: 178.5mm; left: 17.5mm; } /* Row 4: 13.5 + (50+5)*3 = 178.5 */
+        .col1-row5 { top: 233.5mm; left: 17.5mm; } /* Row 5: 13.5 + (50+5)*4 = 233.5 */
 
-        /* Column 2 positions (17.5mm left margin + 80mm label + 15mm spacing) */
+        /* Column 2 positions */
+        /* Specification: left margin 17.5mm, label width 80mm, column spacing 15mm */
+        /* Column 2 left = 17.5 + 80 + 15 = 112.5mm */
         .col2-row1 { top: 13.5mm; left: 112.5mm; }
         .col2-row2 { top: 68.5mm; left: 112.5mm; }
         .col2-row3 { top: 123.5mm; left: 112.5mm; }
         .col2-row4 { top: 178.5mm; left: 112.5mm; }
+        .col2-row5 { top: 233.5mm; left: 112.5mm; }
     </style>
 </head>
 <body>
     @php
-        // Calculate labels per page: 2 columns × 4 rows = 8 labels per page
-        $labelsPerPage = 8;
+        // Calculate labels per page: 2 columns × 5 rows = 10 labels per page
+        // Specification: Avery L4785 supports 2 columns × 5 rows
+        $labelsPerPage = 10;
         $totalLabels = count($nameTags);
         $totalPages = ceil($totalLabels / $labelsPerPage);
     @endphp
@@ -94,11 +100,11 @@
         <div style="page-break-after: {{ $page < $totalPages - 1 ? 'always' : 'auto' }};">
             @foreach($pageLabels as $index => $nameTag)
                 @php
-                    // Calculate position within this page (0-7)
+                    // Calculate position within this page (0-9 for 10 labels per page)
                     $pagePosition = $index;
                     // Column: 0 = left (col1), 1 = right (col2)
                     $col = ($pagePosition % 2) + 1;
-                    // Row: 0-3, but we need 1-4
+                    // Row: 0-4, but we need 1-5
                     $row = floor($pagePosition / 2) + 1;
                     $cssClass = "col{$col}-row{$row}";
                 @endphp

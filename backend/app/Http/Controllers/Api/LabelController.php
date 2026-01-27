@@ -41,8 +41,12 @@ class LabelController extends Controller
             // Get event with season relationship
             $event = Event::with('seasonRel')->findOrFail($eventId);
 
-            // Get all teams for this event
-            $teams = Team::where('event', $eventId)->get();
+            // Get all teams for this event, sorted by program sequence (Explore first, then Challenge)
+            $teams = Team::where('event', $eventId)
+                ->join('m_first_program', 'team.first_program', '=', 'm_first_program.id')
+                ->select('team.*')
+                ->orderBy('m_first_program.sequence')
+                ->get();
 
             if ($teams->isEmpty()) {
                 return response()->json(['error' => 'No teams found for this event'], 404);
