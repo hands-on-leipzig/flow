@@ -2320,6 +2320,141 @@ if ($prepRooms->isNotEmpty()) {
                 'start_date' => $firstDate,
             ]);
             
+            // ➕ Add final round lines for Challenge teams only
+            // Check if this is a Challenge team by looking at the label
+            $isChallengeTeam = isset($page['label']) && strpos($page['label'], 'FLL Challenge') === 0;
+            
+            if ($isChallengeTeam && $page['team_number']) {
+                // Get robot game area room from any r_match activity
+                $robotGameRoomName = '–';
+                
+                // Try to get room from an actual r_match activity
+                $matchActivityTypeId = DB::table('m_activity_type_detail')
+                    ->where('code', 'r_match')
+                    ->value('id');
+                
+                if ($matchActivityTypeId) {
+                    // Get room from any r_match activity in this plan
+                    $matchActivity = DB::table('activity')
+                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                        ->where('activity_group.plan', $planId)
+                        ->where('activity.activity_type_detail', $matchActivityTypeId)
+                        ->whereNotNull('activity.room_type')
+                        ->select('activity.room_type')
+                        ->first();
+                    
+                    if ($matchActivity && $matchActivity->room_type) {
+                        $robotGameRoom = DB::table('room_type_room')
+                            ->join('room', 'room_type_room.room', '=', 'room.id')
+                            ->where('room_type_room.room_type', $matchActivity->room_type)
+                            ->where('room.event', $event->id)
+                            ->select('room.name')
+                            ->first();
+                        
+                        if ($robotGameRoom) {
+                            $robotGameRoomName = $robotGameRoom->name;
+                        }
+                    }
+                }
+                
+                // Final round codes and labels
+                $finalRoundCodes = [
+                    'r_final_8' => 'Viertelfinale',
+                    'r_final_4' => 'Halbfinale',
+                    'r_final_2' => 'Finale',
+                ];
+                
+                // Optionally include r_final_16 if it exists
+                $finalRoundCodesWith16 = [
+                    'r_final_16' => 'Achtelfinale',
+                    'r_final_8' => 'Viertelfinale',
+                    'r_final_4' => 'Halbfinale',
+                    'r_final_2' => 'Finale',
+                ];
+                
+                // Check if r_final_16 exists
+                $hasFinal16 = DB::table('activity_group')
+                    ->join('m_activity_type_detail', 'activity_group.activity_type_detail', '=', 'm_activity_type_detail.id')
+                    ->where('activity_group.plan', $planId)
+                    ->where('m_activity_type_detail.code', 'r_final_16')
+                    ->exists();
+                
+                $roundsToCheck = $hasFinal16 ? $finalRoundCodesWith16 : $finalRoundCodes;
+                
+                // matchActivityTypeId already defined above
+                if ($matchActivityTypeId) {
+                    foreach ($roundsToCheck as $finalCode => $finalLabel) {
+                        // Get activity group ID for this final round
+                        $finalGroupTypeId = DB::table('m_activity_type_detail')
+                            ->where('code', $finalCode)
+                            ->value('id');
+                        
+                        if (!$finalGroupTypeId) {
+                            continue;
+                        }
+                        
+                        // Get activity group for this final round
+                        $finalGroup = DB::table('activity_group')
+                            ->where('plan', $planId)
+                            ->where('activity_type_detail', $finalGroupTypeId)
+                            ->first();
+                        
+                        if (!$finalGroup) {
+                            continue;
+                        }
+                        
+                        // Get all match activities within this final round group
+                        $finalMatches = DB::table('activity')
+                            ->where('activity_group', $finalGroup->id)
+                            ->where('activity_type_detail', $matchActivityTypeId)
+                            ->select('start', 'end')
+                            ->orderBy('start')
+                            ->get();
+                        
+                        if ($finalMatches->isEmpty()) {
+                            continue;
+                        }
+                        
+                        // Get earliest start and latest end
+                        $earliestStart = $finalMatches->min('start');
+                        $latestEnd = $finalMatches->max('end');
+                        
+                        if ($earliestStart && $latestEnd) {
+                            $startTime = \Carbon\Carbon::parse($earliestStart)->format('H:i');
+                            $endTime = \Carbon\Carbon::parse($latestEnd)->format('H:i');
+                            $startDate = \Carbon\Carbon::parse($earliestStart);
+                            
+                            // Add final round row
+                            $rows[] = [
+                                'start'    => $startTime,
+                                'end'      => $endTime,
+                                'activity' => $finalLabel,
+                                'room'     => $robotGameRoomName,
+                                'start_date' => $startDate,
+                            ];
+                        }
+                    }
+                }
+                
+                // Sort rows chronologically (but keep "Teambereich" at the top)
+                if (count($rows) > 1) {
+                    $teambereichRow = array_shift($rows); // Remove first row (Teambereich)
+                    usort($rows, function($a, $b) {
+                        // Compare by start_date timestamp
+                        $dateA = $a['start_date'] ?? \Carbon\Carbon::now();
+                        $dateB = $b['start_date'] ?? \Carbon\Carbon::now();
+                        if ($dateA->timestamp !== $dateB->timestamp) {
+                            return $dateA->timestamp <=> $dateB->timestamp;
+                        }
+                        // If same date, compare by start time
+                        $timeA = $a['start'] ?? '';
+                        $timeB = $b['start'] ?? '';
+                        return strcmp($timeA, $timeB);
+                    });
+                    array_unshift($rows, $teambereichRow); // Put Teambereich back at the top
+                }
+            }
+            
             // Chunk rows uniformly (independent of day changes)
             $chunks = array_chunk($rows, $maxRowsPerPage);
             $chunkCount = count($chunks);
