@@ -486,9 +486,6 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
     <p v-if="activeTab === 'organisation'" class="text-sm text-blue-600 mb-4">
       Nur für den Veranstalter – nicht für Teams oder Besucher.
     </p>
-    <p v-if="activeTab === 'aufkleber'" class="text-sm text-blue-600 mb-4">
-      Aufkleber und Etiketten zum Drucken
-    </p>
 
     <!-- Tab Content: Öffentlich -->
     <div v-show="activeTab === 'public'">
@@ -937,13 +934,31 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
 
     <!-- Tab Content: Aufkleber -->
     <div v-show="activeTab === 'aufkleber'">
+      <p class="text-sm text-blue-600 mb-4">
+        Aufkleber und Etiketten zum Drucken
+      </p>
+      <p class="text-sm text-gray-600">
+        Die PDF-Dateien im 
+        <a 
+          href="https://www.avery-zweckform.com/vorlage-l4785" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="text-blue-600 underline hover:text-blue-800"
+        >
+          Format Avery L4785
+        </a>.
+      </p>
+      <p class="text-sm text-gray-600">
+        Jeder Aufkleber enthält den Namen der Person, den Team-Namen sowie die Logos (Programm, Saison, Veranstalter).
+      </p>
+      
       <!-- Namensaufkleber -->
       <div class="border-b border-gray-200 pb-3 mb-3">
         <div class="flex items-center justify-between">
           <div>
             <h4 class="text-base font-semibold text-gray-800">Namensaufkleber für Teams</h4>
-            <p class="text-sm text-gray-600">Aufkleber für alle Team-Mitglieder und Coach:innen im Format Avery L4785.</p>
-            <p class="text-sm text-gray-600 mt-2">Jeder Aufkleber enthält den Namen der Person, den Team-Namen sowie die Logos (Programm, Saison, Veranstalter).</p>
+            
+            <p class="text-sm text-gray-600 mt-2">Ein Aufkleber für jedes Teammitglied und alle Coach:innen.</p>
           </div>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
