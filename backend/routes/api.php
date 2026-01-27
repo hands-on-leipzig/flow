@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\MainTablesController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\PlanExportController;
+use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\NewsController;
 
@@ -284,6 +285,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::match(['get', 'post'], '/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);
         Route::get('/worker-shifts/{eventId}', [PlanExportController::class, 'workerShifts']);
         Route::get('/csv/room-utilization/{eventId}', [PlanExportController::class, 'roomUtilizationCsv']);
+        Route::get('/name-tags/{eventId}', [LabelController::class, 'nameTagsPdf']);
     });
 
 

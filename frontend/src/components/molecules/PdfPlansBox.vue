@@ -297,6 +297,13 @@ async function downloadTeamListPdf() {
   }
 }
 
+// Download name tags PDF
+async function downloadNameTagsPdf() {
+  if (!eventId.value) return
+  
+  await downloadPdf('name-tags', `/export/name-tags/${eventId.value}`, 'Namensaufkleber.pdf')
+}
+
 // Fetch worker shifts and show modal
 async function showWorkerShiftsModal() {
   if (!eventId.value) return
@@ -440,12 +447,12 @@ const eventTitleNormalized = computed(() => {
 })
 
 // Tab state
-const activeTab = ref<'public' | 'organisation'>('public')
+const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
 </script>
 
 <template>
   <div class="rounded-xl shadow bg-white p-6 flex flex-col">
-    <h3 class="text-lg font-semibold mb-4">Pläne als PDF</h3>
+    <h3 class="text-lg font-semibold mb-4">Drucksachen</h3>
 
     <!-- Tabs -->
     <div class="flex mb-4 border-b text-lg font-semibold relative">
@@ -462,6 +469,13 @@ const activeTab = ref<'public' | 'organisation'>('public')
         @click="activeTab = 'organisation'"
       >
         Organisation
+      </button>
+      <button
+        :class="activeTab === 'aufkleber' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
+        class="px-4 py-2 ml-4 relative"
+        @click="activeTab = 'aufkleber'"
+      >
+        Aufkleber
       </button>
     </div>
 
@@ -914,6 +928,78 @@ const activeTab = ref<'public' | 'organisation'>('public')
             </svg>
             <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Content: Aufkleber -->
+    <div v-show="activeTab === 'aufkleber'">
+      <p class="text-sm text-blue-600 mb-4">
+        Aufkleber und Etiketten zum Drucken
+      </p>
+      <p class="text-sm text-gray-600 mb-3">
+        Die PDF-Dateien passen zu dem  
+        <a 
+          href="https://www.avery-zweckform.com/vorlage-l4785" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="text-blue-600 underline hover:text-blue-800"
+        >
+          Format Avery L4785</a>.
+      </p>
+      <p class="text-sm text-gray-600 mb-4">
+        Jeder Aufkleber enthält den Namen der Person, den Team-Namen sowie die Logos (Programm, Saison, Veranstalter).
+      </p>
+      
+      <!-- Namensaufkleber für Teams -->
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Teams</h4>
+            <p class="text-sm text-gray-600">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
+          </div>
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
+            :class="!isDownloading['name-tags'] 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading['name-tags']"
+            @click="downloadNameTagsPdf"
+          >
+            <svg v-if="isDownloading['name-tags']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Namensaufkleber für Volunteer -->
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div>
+          <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Volunteer</h4>
+          <p class="text-sm text-gray-600 mb-4">
+            Hier kann eine einfache Liste von Rollen und Namen hochgeladen werden, aus der dann ein PDF erzeugt wird.
+          </p>
+          <div class="flex gap-2">
+            <button
+              class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+            >
+              Vorlage Excel herunterladen
+            </button>
+            <button
+              class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+            >
+              Ausgefülltes Excel hochladen
+            </button>
+            <button
+              class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+            >
+              PDF
+            </button>
+          </div>
         </div>
       </div>
     </div>
