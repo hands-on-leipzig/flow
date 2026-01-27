@@ -938,26 +938,25 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
         Aufkleber und Etiketten zum Drucken
       </p>
       <p class="text-sm text-gray-600 mb-3">
-        Die PDF-Dateien im 
+        Die PDF-Dateien passen zu dem  
         <a 
           href="https://www.avery-zweckform.com/vorlage-l4785" 
           target="_blank" 
           rel="noopener noreferrer"
           class="text-blue-600 underline hover:text-blue-800"
         >
-          Format Avery L4785
-        </a>.
+          Format Avery L4785</a>.
       </p>
       <p class="text-sm text-gray-600 mb-4">
         Jeder Aufkleber enthält den Namen der Person, den Team-Namen sowie die Logos (Programm, Saison, Veranstalter).
       </p>
       
-      <!-- Namensaufkleber -->
+      <!-- Namensaufkleber für Teams -->
       <div class="border-b border-gray-200 pb-3 mb-3">
         <div class="flex items-center justify-between">
           <div>
             <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Teams</h4>
-            <p class="text-sm text-gray-600">Ein Aufkleber für jedes Teammitglied und alle Coach:innen.</p>
+            <p class="text-sm text-gray-600">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
           </div>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
@@ -974,6 +973,33 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
             </svg>
             <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
+        </div>
+      </div>
+
+      <!-- Namensaufkleber für Volunteer -->
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div>
+          <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Volunteer</h4>
+          <p class="text-sm text-gray-600 mb-4">
+            Hier kann eine einfache Liste von Rollen und Namen hochgeladen werden, aus der dann ein PDF erzeugt wird.
+          </p>
+          <div class="flex gap-2">
+            <button
+              class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+            >
+              Vorlage Excel herunterladen
+            </button>
+            <button
+              class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+            >
+              Ausgefülltes Excel hochladen
+            </button>
+            <button
+              class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+            >
+              PDF
+            </button>
+          </div>
         </div>
       </div>
     </div>
