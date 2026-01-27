@@ -297,6 +297,13 @@ async function downloadTeamListPdf() {
   }
 }
 
+// Download name tags PDF
+async function downloadNameTagsPdf() {
+  if (!eventId.value) return
+  
+  await downloadPdf('name-tags', `/export/name-tags/${eventId.value}`, 'Namensaufkleber.pdf')
+}
+
 // Fetch worker shifts and show modal
 async function showWorkerShiftsModal() {
   if (!eventId.value) return
@@ -440,12 +447,12 @@ const eventTitleNormalized = computed(() => {
 })
 
 // Tab state
-const activeTab = ref<'public' | 'organisation'>('public')
+const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
 </script>
 
 <template>
   <div class="rounded-xl shadow bg-white p-6 flex flex-col">
-    <h3 class="text-lg font-semibold mb-4">Pläne als PDF</h3>
+    <h3 class="text-lg font-semibold mb-4">Drucksachen</h3>
 
     <!-- Tabs -->
     <div class="flex mb-4 border-b text-lg font-semibold relative">
@@ -463,6 +470,13 @@ const activeTab = ref<'public' | 'organisation'>('public')
       >
         Organisation
       </button>
+      <button
+        :class="activeTab === 'aufkleber' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
+        class="px-4 py-2 ml-4 relative"
+        @click="activeTab = 'aufkleber'"
+      >
+        Aufkleber
+      </button>
     </div>
 
     <!-- Subtitle -->
@@ -471,6 +485,9 @@ const activeTab = ref<'public' | 'organisation'>('public')
     </p>
     <p v-if="activeTab === 'organisation'" class="text-sm text-blue-600 mb-4">
       Nur für den Veranstalter – nicht für Teams oder Besucher.
+    </p>
+    <p v-if="activeTab === 'aufkleber'" class="text-sm text-blue-600 mb-4">
+      Aufkleber und Etiketten zum Drucken
     </p>
 
     <!-- Tab Content: Öffentlich -->
@@ -913,6 +930,35 @@ const activeTab = ref<'public' | 'organisation'>('public')
                     d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Content: Aufkleber -->
+    <div v-show="activeTab === 'aufkleber'">
+      <!-- Namensaufkleber -->
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-base font-semibold text-gray-800">Namensaufkleber für Teams</h4>
+            <p class="text-sm text-gray-600">Aufkleber für alle Team-Mitglieder (Spieler:innen und Coaches) im Format Avery L4785.</p>
+            <p class="text-sm text-gray-600 mt-2">Jeder Aufkleber enthält den Namen der Person, den Team-Namen sowie die Logos (Programm, Saison, Veranstalter).</p>
+          </div>
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
+            :class="!isDownloading['name-tags'] 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading['name-tags']"
+            @click="downloadNameTagsPdf"
+          >
+            <svg v-if="isDownloading['name-tags']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </div>
       </div>
