@@ -269,6 +269,7 @@ class LabelController extends Controller
 
     /**
      * Get program logo as data URI
+     * Returns Explore, Challenge, or default FLL logo if no program specified
      */
     private function getProgramLogo(?string $program): ?string
     {
@@ -277,7 +278,25 @@ class LabelController extends Controller
         } elseif ($program === 'challenge') {
             $logoPath = public_path('flow/fll_challenge_hs.png');
         } else {
-            return null;
+            // Default FLL logo when no specific program is chosen
+            // Try horizontal small version first, fallback to vertical
+            $defaultPaths = [
+                public_path('flow/first+fll_hs.png'),
+                public_path('flow/first+fll_h.png'),
+                public_path('flow/first+fll_v.png'),
+            ];
+            
+            $logoPath = null;
+            foreach ($defaultPaths as $path) {
+                if (file_exists($path)) {
+                    $logoPath = $path;
+                    break;
+                }
+            }
+            
+            if (!$logoPath) {
+                return null;
+            }
         }
 
         return $this->pdfLayoutService->toDataUri($logoPath);
@@ -406,16 +425,17 @@ class LabelController extends Controller
             // Only use the first logo by sort_order
             $organizerLogos = $this->getFirstOrganizerLogo($eventId);
             
-            // Cache program logos
+            // Cache program logos (including default FLL logo for volunteers without program)
             $programLogoCache = [];
             $programLogoCache['explore'] = $this->getProgramLogo('explore');
             $programLogoCache['challenge'] = $this->getProgramLogo('challenge');
+            $programLogoCache['default'] = $this->getProgramLogo(null); // Default FLL logo
             
             // Convert volunteers to name tag format
             $nameTags = [];
             foreach ($volunteers as $volunteer) {
-                // Map program: E -> explore, C -> challenge, other/empty -> null
-                $program = null;
+                // Map program: E -> explore, C -> challenge, other/empty -> default
+                $program = 'default';
                 if ($volunteer['program'] === 'E') {
                     $program = 'explore';
                 } elseif ($volunteer['program'] === 'C') {

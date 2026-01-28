@@ -1040,7 +1040,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
         Aufkleber und Etiketten zum Drucken
       </p>
       <p class="text-sm text-gray-600 mb-3">
-        Die PDF-Dateien passen zu dem  
+        Die PDF-Dateien sind passend zum  
         <a 
           href="https://www.avery-zweckform.com/vorlage-l4785" 
           target="_blank" 
@@ -1058,8 +1058,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
           href="/plan/logos"
           class="text-blue-600 underline hover:text-blue-800"
         >
-          View Logos
-        </a>
+          View Logos</a>
         verwendet.
       </p>
  
@@ -1134,12 +1133,10 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
                         <img 
-                          v-if="vol.program === 'E' || vol.program === 'C'"
-                          :src="programLogoSrc(vol.program)" 
-                          :alt="programLogoAlt(vol.program)" 
+                          :src="programLogoSrc(vol.program || '')" 
+                          :alt="programLogoAlt(vol.program || '')" 
                           class="w-5 h-5 inline-block"
                         />
-                        <span v-else class="text-gray-400">–</span>
                       </td>
                     </tr>
                     <!-- Preview volunteers (pending) -->
@@ -1148,12 +1145,10 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
                         <img 
-                          v-if="vol.program === 'E' || vol.program === 'C'"
-                          :src="programLogoSrc(vol.program)" 
-                          :alt="programLogoAlt(vol.program)" 
+                          :src="programLogoSrc(vol.program || '')" 
+                          :alt="programLogoAlt(vol.program || '')" 
                           class="w-5 h-5 inline-block"
                         />
-                        <span v-else class="text-gray-400">–</span>
                       </td>
                     </tr>
                   </tbody>
