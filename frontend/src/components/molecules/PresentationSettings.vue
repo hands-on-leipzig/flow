@@ -70,6 +70,8 @@ const slideshowNameInput = ref<HTMLInputElement | null>(null);
 const creatingSlideType = ref<string | null>(null);
 const expandedSlideshows = ref<Set<number>>(new Set());
 const copiedSlideshowId = ref<number | null>(null);
+const isDragging = ref(false);
+const draggedSlideId = ref<number | null>(null);
 const slideTypes = [
   {value: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse', icon: 'bi-trophy'},
   {value: 'PublicPlanSlideContent', label: 'Öffentlicher Zeitplan', icon: 'bi-calendar'},
@@ -110,19 +112,44 @@ async function fetchPlanId() {
   }
 }
 
-async function updateOrder(slideshow: Slideshow) {
+function onDragStart(event: any) {
+  isDragging.value = true;
+  // Get the dragged element's ID
+  if (event.item) {
+    const slideElement = event.item.querySelector('[data-slide-id]');
+    if (slideElement) {
+      draggedSlideId.value = parseInt(slideElement.getAttribute('data-slide-id') || '0');
+    }
+  }
+}
+
+async function onDragEnd(slideshow: Slideshow) {
+  // Wait for animation to complete
+  await new Promise(resolve => setTimeout(resolve, 250));
+  
+  isDragging.value = false;
+  draggedSlideId.value = null;
+  
+  // Wait for DOM to settle
+  await nextTick();
+  
+  // Get the current order from the slideshow (v-model should have updated it)
   const slideIds = slideshow.slides.map(slide => slide.id);
+  
+  console.log('Updating order:', slideIds);
 
   savingToast?.value?.show();
 
   try {
-    await axios.put(`/slideshow/${slideshow.id}/updateOrder`, {
+    const response = await axios.put(`/slideshow/${slideshow.id}/updateOrder`, {
       slide_ids: slideIds
     });
+    console.log('Order updated successfully:', response.data);
   } catch (e) {
-    console.error(e);
+    console.error('Error updating order:', e);
+    // Revert on error - reload slideshows
+    await loadSlideshows();
   }
-  console.log('update order');
 }
 
 function deleteSlide(slideshow: Slideshow, slideId: number) {
@@ -478,7 +505,7 @@ function copyUrl(url) {
 
             <!-- Slides Grid -->
             <div class="bg-gray-800 rounded-xl p-4 min-h-[200px]">
-              <div class="flex flex-wrap gap-3">
+              <div class="flex flex-wrap gap-3" :class="{ 'dragging': isDragging }">
                 <!-- New Slide Button -->
                 <button
                     class="flex flex-col items-center justify-center w-56 h-52 m-2 border-2 border-dashed border-gray-500 rounded-xl hover:border-green-500 hover:bg-gray-700 transition-all cursor-pointer group flex-shrink-0"
@@ -508,9 +535,13 @@ function copyUrl(url) {
                       chosen-class="drag-chosen"
                       drag-class="drag-dragging"
                       animation="200"
-                      @end="updateOrder(slideshow)">
+                      @start="onDragStart"
+                      @end="onDragEnd(slideshow)">
                     <template #item="{ element }">
-                      <SlideThumb :slide="element" @deleteSlide="deleteSlide(slideshow, element.id)"/>
+                      <SlideThumb 
+                          :slide="element" 
+                          :class="{ 'opacity-0': draggedSlideId === element.id && isDragging }"
+                          @deleteSlide="deleteSlide(slideshow, element.id)"/>
                     </template>
                   </draggable>
                 </template>
@@ -606,17 +637,30 @@ function copyUrl(url) {
 <style scoped>
 
 .drag-ghost {
-  opacity: 0.4;
-  transform: scale(0.98);
+  opacity: 0.8 !important;
+  transform: scale(0.95) !important;
+  cursor: grabbing !important;
+  border: 3px dashed #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
+  z-index: 1000 !important;
+  pointer-events: none !important;
 }
 
 .drag-chosen {
-  background-color: #fde68a; /* yellow-200 */
-  box-shadow: 0 0 0 2px #facc15; /* yellow-400 */
+  opacity: 0.5 !important;
+  cursor: grabbing !important;
 }
 
 .drag-dragging {
-  cursor: grabbing;
+  cursor: grabbing !important;
+  opacity: 0.5 !important;
+}
+
+/* Prevent transitions on the dragged element itself */
+.drag-dragging,
+.drag-chosen {
+  transition: none !important;
 }
 
 .fade-enter-active, .fade-leave-active {
