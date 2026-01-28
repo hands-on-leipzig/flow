@@ -7,8 +7,8 @@ use App\Models\Event;
 use App\Models\Team;
 use App\Models\MSeason;
 use App\Services\PdfLayoutService;
+use App\Services\LabelPdfService;
 use App\Http\Controllers\Api\DrahtController;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -16,13 +16,16 @@ use Illuminate\Support\Facades\Http;
 class LabelController extends Controller
 {
     private PdfLayoutService $pdfLayoutService;
+    private LabelPdfService $labelPdfService;
     private DrahtController $drahtController;
 
     public function __construct(
         PdfLayoutService $pdfLayoutService,
+        LabelPdfService $labelPdfService,
         DrahtController $drahtController
     ) {
         $this->pdfLayoutService = $pdfLayoutService;
+        $this->labelPdfService = $labelPdfService;
         $this->drahtController = $drahtController;
     }
 
@@ -132,36 +135,44 @@ class LabelController extends Controller
                 return response()->json(['error' => 'No team members found to generate name tags'], 404);
             }
 
-            // Generate HTML - pass logos separately to avoid duplication in template
-            $html = view('pdf.name-tags', [
-                'nameTags' => $nameTags,
-                'seasonLogo' => $seasonLogo,
-                'organizerLogos' => $organizerLogos,
-                'programLogoCache' => $programLogoCache,
-            ])->render();
-            
-            // Clear large arrays from memory before PDF generation
-            unset($nameTags, $programLogoCache, $organizerLogos);
+            // Generate PDF using TCPDF for precise positioning
+            try {
+                $pdfData = $this->labelPdfService->generateNameTags(
+                    $nameTags,
+                    $seasonLogo,
+                    $organizerLogos,
+                    $programLogoCache,
+                    true // Show borders for debugging
+                );
+                
+                if (empty($pdfData) || strlen($pdfData) < 100) {
+                    Log::error('Generated PDF is empty or too small', [
+                        'size' => strlen($pdfData ?? ''),
+                        'event_id' => $eventId
+                    ]);
+                    throw new \Exception('PDF generation failed: output is empty or invalid');
+                }
+                
+                // Format date for filename
+                $formattedDate = $event->date 
+                    ? \Carbon\Carbon::parse($event->date)->format('d.m.y')
+                    : date('d.m.y');
+                
+                $filename = "FLOW_Namensaufkleber_({$formattedDate}).pdf";
 
-            // Generate PDF with precise settings
-            $pdf = Pdf::loadHTML($html, 'UTF-8')
-                ->setPaper('a4', 'portrait')
-                ->setOption('enable-local-file-access', true)
-                ->setOption('isHtml5ParserEnabled', true)
-                ->setOption('isRemoteEnabled', true);
-            
-            // Format date for filename
-            $formattedDate = $event->date 
-                ? \Carbon\Carbon::parse($event->date)->format('d.m.y')
-                : date('d.m.y');
-            
-            $filename = "FLOW_Namensaufkleber_({$formattedDate}).pdf";
-
-            // Return PDF with headers
-            return response($pdf->output(), 200)
-                ->header('Content-Type', 'application/pdf')
-                ->header('X-Filename', $filename)
-                ->header('Access-Control-Expose-Headers', 'X-Filename');
+                // Return PDF with headers
+                return response($pdfData, 200)
+                    ->header('Content-Type', 'application/pdf')
+                    ->header('X-Filename', $filename)
+                    ->header('Access-Control-Expose-Headers', 'X-Filename');
+            } catch (\Exception $pdfException) {
+                Log::error('Error generating PDF with TCPDF', [
+                    'event_id' => $eventId,
+                    'error' => $pdfException->getMessage(),
+                    'trace' => $pdfException->getTraceAsString()
+                ]);
+                throw $pdfException; // Re-throw to be caught by outer catch
+            }
         } catch (\Exception $e) {
             Log::error('Error generating name tags PDF', [
                 'event_id' => $eventId,
