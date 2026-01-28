@@ -297,11 +297,84 @@ async function downloadTeamListPdf() {
   }
 }
 
-// Download name tags PDF
+// --- Team Label Filters ---
+// Track person types per program: { programId: { players: boolean, coaches: boolean } }
+const teamLabelFilters = ref<Record<number, { players: boolean; coaches: boolean }>>({})
+
+// Skip labels offset (0-9)
+const teamLabelSkipOffset = ref(0)
+const volunteerLabelSkipOffset = ref(0)
+
+// Initialize filters for available programs
+watch(availableTeamPrograms, (programs) => {
+  programs.forEach(program => {
+    if (!teamLabelFilters.value[program.id]) {
+      teamLabelFilters.value[program.id] = {
+        players: true,
+        coaches: true
+      }
+    }
+  })
+}, { immediate: true })
+
+// Toggle person type for a specific program
+function toggleTeamLabelPersonType(programId: number, type: 'players' | 'coaches') {
+  if (!teamLabelFilters.value[programId]) {
+    teamLabelFilters.value[programId] = { players: true, coaches: true }
+  }
+  teamLabelFilters.value[programId][type] = !teamLabelFilters.value[programId][type]
+  teamLabelFilters.value = { ...teamLabelFilters.value } // Trigger reactivity
+}
+
+// Computed: at least one program with at least one person type selected
+const canDownloadTeamLabels = computed(() => {
+  return Object.keys(teamLabelFilters.value).some(programId => {
+    const filters = teamLabelFilters.value[Number(programId)]
+    return filters && (filters.players || filters.coaches)
+  })
+})
+
+// Download name tags PDF with filters
 async function downloadNameTagsPdf() {
-  if (!eventId.value) return
+  if (!eventId.value || !canDownloadTeamLabels.value) return
   
-  await downloadPdf('name-tags', `/export/name-tags/${eventId.value}`, 'Namensaufkleber.pdf')
+  // Build filter object: for each selected program, include person types
+  const programFilters: Record<number, { players: boolean; coaches: boolean }> = {}
+  Object.keys(teamLabelFilters.value).forEach(programIdStr => {
+    const programId = Number(programIdStr)
+    const filters = teamLabelFilters.value[programId]
+    if (filters && (filters.players || filters.coaches)) {
+      programFilters[programId] = filters
+    }
+  })
+  
+  const filters = {
+    program_filters: programFilters,
+    skip_offset: teamLabelSkipOffset.value
+  }
+  
+  isDownloading.value['name-tags'] = true
+  try {
+    const response = await axios.post(
+      `/export/name-tags/${eventId.value}`,
+      filters,
+      { responseType: 'blob' }
+    )
+    
+    const filename = response.headers['x-filename'] || 'FLOW_Aufkleber_Teams.pdf'
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (error: any) {
+    console.error('Fehler beim PDF-Download (Team Labels):', error)
+    const errorMessage = error.response?.data?.message || error.message || 'Unbekannter Fehler'
+    alert('Fehler beim Erstellen des PDFs: ' + errorMessage)
+  } finally {
+    isDownloading.value['name-tags'] = false
+  }
 }
 
 // --- Volunteer Labels State ---
@@ -361,13 +434,6 @@ function clearAllVolunteers() {
   submittedVolunteers.value = []
 }
 
-// Insert parsed data into preview (Einfügen)
-function insertVolunteers() {
-  const parsed = parseVolunteerInput(volunteerInputText.value)
-  volunteerPreview.value = [...volunteerPreview.value, ...parsed]
-  volunteerInputText.value = '' // Clear input after inserting
-}
-
 // Submit preview data (Übernehmen) - add preview to submitted list
 function submitVolunteers() {
   submittedVolunteers.value = [...submittedVolunteers.value, ...volunteerPreview.value]
@@ -386,7 +452,10 @@ async function downloadVolunteerLabelsPdf() {
   try {
     const response = await axios.post(
       `/export/volunteer-labels/${eventId.value}`,
-      { volunteers: submittedVolunteers.value },
+      { 
+        volunteers: submittedVolunteers.value,
+        skip_offset: volunteerLabelSkipOffset.value
+      },
       { responseType: 'blob' }
     )
     
@@ -1037,10 +1106,10 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
     <!-- Tab Content: Aufkleber -->
     <div v-show="activeTab === 'aufkleber'">
       <p class="text-sm text-blue-600 mb-4">
-        Aufkleber und Etiketten zum Drucken
+        Namensaufkleber zum Drucken auf A4-Papier
       </p>
       <p class="text-sm text-gray-600 mb-3">
-        Die PDF-Dateien passen zu dem  
+        Die PDF-Dateien sind passend zum  
         <a 
           href="https://www.avery-zweckform.com/vorlage-l4785" 
           target="_blank" 
@@ -1058,34 +1127,123 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
           href="/plan/logos"
           class="text-blue-600 underline hover:text-blue-800"
         >
-          View Logos
-        </a>
+          View Logos</a>
         verwendet.
+      </p>
+      <p class="text-sm text-gray-600 mb-4">
+        Mit "Überspringen" können die ersten Aufkleber auf dem ersten Blatt übersprungen werden, um teilweise bereits verwendete Blätter weiter zu nutzen und Material zu sparen.
       </p>
  
       
       <!-- Namensaufkleber für Teams -->
       <div class="border-b border-gray-200 pb-3 mb-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Teams</h4>
-            <p class="text-sm text-gray-600">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
-          </div>
-          <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-            :class="!isDownloading['name-tags'] 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
-            :disabled="isDownloading['name-tags']"
-            @click="downloadNameTagsPdf"
+        <div>
+          <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Teams</h4>
+          <p class="text-sm text-gray-600 mb-4">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
+          <p class="text-sm text-gray-600 mb-4">"No-Show" Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.</p>
+          
+          <!-- Filters - Two columns (or single column if only one program) -->
+          <div 
+            v-if="availableTeamPrograms.length > 0"
+            class="mb-4 grid gap-4"
+            :class="{
+              'grid-cols-2': hasExploreTeams && hasChallengeTeams,
+              'grid-cols-1': !hasExploreTeams || !hasChallengeTeams
+            }"
           >
-            <svg v-if="isDownloading['name-tags']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
-            <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
+            <!-- Explore -->
+            <div v-if="hasExploreTeams" class="bg-gray-50 rounded p-3">
+              <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <img 
+                  :src="programLogoSrc('E')" 
+                  :alt="programLogoAlt('E')"
+                  class="w-6 h-6 flex-shrink-0"
+                />
+                <span>FIRST LEGO League Explore</span>
+              </h5>
+              <div class="space-y-0.5">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                  <input 
+                    type="checkbox" 
+                    :checked="teamLabelFilters[2]?.players ?? true"
+                    @change="toggleTeamLabelPersonType(2, 'players')"
+                    class="accent-blue-600"
+                  />
+                  <span class="text-sm">Teammitglieder</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                  <input 
+                    type="checkbox" 
+                    :checked="teamLabelFilters[2]?.coaches ?? true"
+                    @change="toggleTeamLabelPersonType(2, 'coaches')"
+                    class="accent-blue-600"
+                  />
+                  <span class="text-sm">Coach:innen</span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Challenge -->
+            <div v-if="hasChallengeTeams" class="bg-gray-50 rounded p-3">
+              <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <img 
+                  :src="programLogoSrc('C')" 
+                  :alt="programLogoAlt('C')"
+                  class="w-6 h-6 flex-shrink-0"
+                />
+                <span>FIRST LEGO League Challenge</span>
+              </h5>
+              <div class="space-y-0.5">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                  <input 
+                    type="checkbox" 
+                    :checked="teamLabelFilters[3]?.players ?? true"
+                    @change="toggleTeamLabelPersonType(3, 'players')"
+                    class="accent-blue-600"
+                  />
+                  <span class="text-sm">Teammitglieder</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                  <input 
+                    type="checkbox" 
+                    :checked="teamLabelFilters[3]?.coaches ?? true"
+                    @change="toggleTeamLabelPersonType(3, 'coaches')"
+                    class="accent-blue-600"
+                  />
+                  <span class="text-sm">Coach:innen</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- PDF Button -->
+          <div class="flex items-center justify-end gap-2">
+            <label class="flex items-center gap-1 text-sm text-gray-600">
+              <span class="text-xs">Überspringen:</span>
+              <input
+                type="number"
+                v-model.number="teamLabelSkipOffset"
+                min="0"
+                max="9"
+                class="w-12 border border-gray-300 rounded px-1 py-0.5 text-sm text-center"
+              />
+            </label>
+            <button
+              class="px-4 py-2 rounded text-sm flex items-center gap-2"
+              :class="canDownloadTeamLabels && !isDownloading['name-tags']
+                ? 'bg-gray-200 hover:bg-gray-300' 
+                : 'bg-gray-100 cursor-not-allowed opacity-50'"
+              :disabled="!canDownloadTeamLabels || isDownloading['name-tags']"
+              @click="downloadNameTagsPdf"
+            >
+              <svg v-if="isDownloading['name-tags']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              </svg>
+              <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1106,7 +1264,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
             <textarea
               v-model="volunteerInputText"
               @input="updateVolunteerPreview"
-              placeholder="Max Mustermann&#9;Schiedsrichter&#9;E&#10;Anna Schmidt&#9;Zeitnehmer&#9;C&#10;..."
+              placeholder="Max Mustermann&#9;Gutachter&#9;E&#10;Anna Schmidt&#9;Schiedsrichter:in&#9;C&#10;..."
               class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono"
               rows="6"
             ></textarea>
@@ -1134,12 +1292,10 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
                         <img 
-                          v-if="vol.program === 'E' || vol.program === 'C'"
-                          :src="programLogoSrc(vol.program)" 
-                          :alt="programLogoAlt(vol.program)" 
+                          :src="programLogoSrc(vol.program || '')" 
+                          :alt="programLogoAlt(vol.program || '')" 
                           class="w-5 h-5 inline-block"
                         />
-                        <span v-else class="text-gray-400">–</span>
                       </td>
                     </tr>
                     <!-- Preview volunteers (pending) -->
@@ -1148,12 +1304,10 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
                         <img 
-                          v-if="vol.program === 'E' || vol.program === 'C'"
-                          :src="programLogoSrc(vol.program)" 
-                          :alt="programLogoAlt(vol.program)" 
+                          :src="programLogoSrc(vol.program || '')" 
+                          :alt="programLogoAlt(vol.program || '')" 
                           class="w-5 h-5 inline-block"
                         />
-                        <span v-else class="text-gray-400">–</span>
                       </td>
                     </tr>
                   </tbody>
@@ -1163,43 +1317,50 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
           </div>
           
           <!-- Action Buttons -->
-          <div class="flex gap-2 flex-wrap">
-            <button
-              @click="clearAllVolunteers"
-              class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
-              :disabled="volunteerPreview.length === 0 && submittedVolunteers.length === 0"
-            >
-              Alles Löschen
-            </button>
-            <button
-              @click="insertVolunteers"
-              class="px-4 py-2 rounded text-sm bg-blue-200 hover:bg-blue-300"
-              :disabled="!volunteerInputText.trim()"
-            >
-              Einfügen
-            </button>
-            <button
-              @click="submitVolunteers"
-              class="px-4 py-2 rounded text-sm bg-green-200 hover:bg-green-300"
-              :disabled="volunteerPreview.length === 0"
-            >
-              Übernehmen
-            </button>
-            <button
-              @click="downloadVolunteerLabelsPdf"
-              class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-              :class="hasSubmittedVolunteers && !isDownloading['volunteer-labels']
-                ? 'bg-gray-200 hover:bg-gray-300' 
-                : 'bg-gray-100 cursor-not-allowed opacity-50'"
-              :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
-            >
+          <div class="flex gap-2 flex-wrap justify-between items-center">
+            <div class="flex gap-2">
+              <button
+                @click="clearAllVolunteers"
+                class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+                :disabled="volunteerPreview.length === 0 && submittedVolunteers.length === 0"
+              >
+                Alles Löschen
+              </button>
+              <button
+                @click="submitVolunteers"
+                class="px-4 py-2 rounded text-sm bg-green-200 hover:bg-green-300"
+                :disabled="volunteerPreview.length === 0"
+              >
+                Übernehmen
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="flex items-center gap-1 text-sm text-gray-600">
+                <span class="text-xs">Überspringen:</span>
+                <input
+                  type="number"
+                  v-model.number="volunteerLabelSkipOffset"
+                  min="0"
+                  max="9"
+                  class="w-12 border border-gray-300 rounded px-1 py-0.5 text-sm text-center"
+                />
+              </label>
+              <button
+                @click="downloadVolunteerLabelsPdf"
+                class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
+                :class="hasSubmittedVolunteers && !isDownloading['volunteer-labels']
+                  ? 'bg-gray-200 hover:bg-gray-300' 
+                  : 'bg-gray-100 cursor-not-allowed opacity-50'"
+                :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
+              >
               <svg v-if="isDownloading['volunteer-labels']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                 <path class="opacity-75" fill="currentColor"
                       d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
               </svg>
               <span>{{ isDownloading['volunteer-labels'] ? 'Erzeuge…' : 'PDF' }}</span>
-            </button>
+              </button>
+            </div>
           </div>
         </div>
       </div>
