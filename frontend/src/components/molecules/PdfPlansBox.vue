@@ -429,13 +429,6 @@ function clearAllVolunteers() {
   submittedVolunteers.value = []
 }
 
-// Insert parsed data into preview (Einfügen)
-function insertVolunteers() {
-  const parsed = parseVolunteerInput(volunteerInputText.value)
-  volunteerPreview.value = [...volunteerPreview.value, ...parsed]
-  volunteerInputText.value = '' // Clear input after inserting
-}
-
 // Submit preview data (Übernehmen) - add preview to submitted list
 function submitVolunteers() {
   submittedVolunteers.value = [...submittedVolunteers.value, ...volunteerPreview.value]
@@ -1136,6 +1129,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
         <div>
           <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Teams</h4>
           <p class="text-sm text-gray-600 mb-4">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
+          <p class="text-sm text-gray-600 mb-4">"No-Show" Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.</p>
           
           <!-- Filters - Two columns (or single column if only one program) -->
           <div 
@@ -1309,13 +1303,6 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
               :disabled="volunteerPreview.length === 0 && submittedVolunteers.length === 0"
             >
               Alles Löschen
-            </button>
-            <button
-              @click="insertVolunteers"
-              class="px-4 py-2 rounded text-sm bg-blue-200 hover:bg-blue-300"
-              :disabled="!volunteerInputText.trim()"
-            >
-              Einfügen
             </button>
             <button
               @click="submitVolunteers"
