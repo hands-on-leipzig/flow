@@ -43,6 +43,17 @@ class LabelController extends Controller
             // Increase memory limit for PDF generation with many images
             ini_set('memory_limit', '512M');
             
+            // Increase timeout for local installations with slow internet
+            // Check if running in local environment
+            $isLocal = app()->environment('local') || config('app.env') === 'local';
+            if ($isLocal) {
+                ini_set('max_execution_time', 600); // 10 minutes for local
+                set_time_limit(600);
+            } else {
+                ini_set('max_execution_time', 300); // 5 minutes for production
+                set_time_limit(300);
+            }
+            
             // Get event with season relationship
             $event = Event::with('seasonRel')->findOrFail($eventId);
 
@@ -115,7 +126,9 @@ class LabelController extends Controller
                 }
             }
             
-            $teams = $teamsQuery->orderBy('m_first_program.sequence')->get();
+            $teams = $teamsQuery->orderBy('m_first_program.sequence')
+                ->orderBy('team.name')
+                ->get();
             
             // Convert to Team models for compatibility with existing code
             $teamModels = collect($teams)->map(function($team) {
@@ -138,6 +151,10 @@ class LabelController extends Controller
             
             // Cache program logos to avoid loading the same logo multiple times
             $programLogoCache = [];
+            
+            // Cache DRAHT people data per program to avoid multiple API calls
+            // Key: drahtEventId, Value: all people data for that event
+            $drahtPeopleCache = [];
 
             foreach ($teamModels as $team) {
                 // Determine program and DRAHT event ID
@@ -152,8 +169,39 @@ class LabelController extends Controller
                     continue;
                 }
 
-                // Get team members from DRAHT
-                $peopleData = $this->getTeamPeopleFromDraht($drahtEventId, $team->team_number_hot);
+                // Fetch all people data for this DRAHT event once (cache per event)
+                if (!isset($drahtPeopleCache[$drahtEventId])) {
+                    try {
+                        $response = $this->drahtController->getPeople($drahtEventId);
+                        $statusCode = $response->getStatusCode();
+                        if ($statusCode === 200) {
+                            $allPeopleData = $response->getData(true);
+                            $drahtPeopleCache[$drahtEventId] = is_array($allPeopleData) ? $allPeopleData : [];
+                        } else {
+                            Log::warning("Failed to fetch people data from DRAHT", [
+                                'draht_event_id' => $drahtEventId,
+                                'status' => $statusCode
+                            ]);
+                            $drahtPeopleCache[$drahtEventId] = [];
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Error fetching people data from DRAHT', [
+                            'draht_event_id' => $drahtEventId,
+                            'error' => $e->getMessage()
+                        ]);
+                        $drahtPeopleCache[$drahtEventId] = [];
+                    }
+                }
+
+                // Get team members from cached DRAHT data
+                $allPeopleData = $drahtPeopleCache[$drahtEventId];
+                $peopleData = null;
+                
+                if ($team->team_number_hot && isset($allPeopleData[$team->team_number_hot])) {
+                    $peopleData = $allPeopleData[$team->team_number_hot];
+                } elseif ($team->team_number_hot && isset($allPeopleData[(string)$team->team_number_hot])) {
+                    $peopleData = $allPeopleData[(string)$team->team_number_hot];
+                }
 
                 if (!$peopleData) {
                     Log::warning("No people data found for team", [
@@ -180,11 +228,23 @@ class LabelController extends Controller
                     $includeCoaches = filter_var($filters['coaches'] ?? true, FILTER_VALIDATE_BOOLEAN);
                 }
 
-                // Create name tags for players (if enabled for this program)
-                if ($includePlayers && !empty($peopleData['players']) && is_array($peopleData['players'])) {
-                    foreach ($peopleData['players'] as $player) {
+                // Create name tags for coaches first (if enabled for this program)
+                if ($includeCoaches && !empty($peopleData['coaches']) && is_array($peopleData['coaches'])) {
+                    // Sort coaches alphabetically by name
+                    $coaches = $peopleData['coaches'];
+                    usort($coaches, function($a, $b) {
+                        $nameA = is_string($a) ? $a : ($a['name'] ?? '');
+                        $nameB = is_string($b) ? $b : ($b['name'] ?? '');
+                        return strcasecmp($nameA, $nameB);
+                    });
+                    
+                    foreach ($coaches as $coach) {
+                        // Handle both object and string coach formats
+                        if (is_string($coach)) {
+                            $coach = ['name' => $coach];
+                        }
                         $nameTags[] = $this->createNameTagData(
-                            $player,
+                            $coach,
                             $team->name,
                             $program,
                             $programLogo,
@@ -194,15 +254,19 @@ class LabelController extends Controller
                     }
                 }
 
-                // Create name tags for coaches (if enabled for this program)
-                if ($includeCoaches && !empty($peopleData['coaches']) && is_array($peopleData['coaches'])) {
-                    foreach ($peopleData['coaches'] as $coach) {
-                        // Handle both object and string coach formats
-                        if (is_string($coach)) {
-                            $coach = ['name' => $coach];
-                        }
+                // Create name tags for players (if enabled for this program)
+                if ($includePlayers && !empty($peopleData['players']) && is_array($peopleData['players'])) {
+                    // Sort players alphabetically by name
+                    $players = $peopleData['players'];
+                    usort($players, function($a, $b) {
+                        $nameA = is_string($a) ? $a : ($a['name'] ?? '');
+                        $nameB = is_string($b) ? $b : ($b['name'] ?? '');
+                        return strcasecmp($nameA, $nameB);
+                    });
+                    
+                    foreach ($players as $player) {
                         $nameTags[] = $this->createNameTagData(
-                            $coach,
+                            $player,
                             $team->name,
                             $program,
                             $programLogo,
