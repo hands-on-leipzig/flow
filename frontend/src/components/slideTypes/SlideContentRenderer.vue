@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, shallowRef} from 'vue';
+import {computed, onMounted, onUnmounted, shallowRef} from 'vue';
 import ImageSlideContentRenderer from './ImageSlideContentRenderer.vue';
 import RobotGameSlideContentRenderer from './RobotGameSlideContentRenderer.vue';
 import {ImageSlideContent} from "../../models/imageSlideContent.js";
@@ -87,6 +87,15 @@ onMounted(() => {
 
   if (root.value && io) {
     io.observe(root.value);
+  }
+});
+
+onUnmounted(() => {
+  clearAdvanceTimeout();
+  if (io && root.value) {
+    io.unobserve(root.value);
+    io.disconnect();
+    io = null;
   }
 });
 </script>
