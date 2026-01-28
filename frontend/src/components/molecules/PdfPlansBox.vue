@@ -1131,7 +1131,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
         verwendet.
       </p>
       <p class="text-sm text-gray-600 mb-4">
-        Mit "Überspringen" können ersten Aufkleber auf dem ersten Blatt überspringen, um teilweise bereits verwendete Blätter weiter zu nutzen und Material zu sparen.
+        Mit "Überspringen" können die ersten Aufkleber auf dem ersten Blatt übersprungen werden, um teilweise bereits verwendete Blätter weiter zu nutzen und Material zu sparen.
       </p>
  
       
