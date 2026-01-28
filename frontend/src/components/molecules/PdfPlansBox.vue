@@ -298,40 +298,54 @@ async function downloadTeamListPdf() {
 }
 
 // --- Team Label Filters ---
-const includePlayers = ref(true)
-const includeCoaches = ref(true)
-const selectedTeamProgramIds = ref<Set<number>>(new Set())
+// Track person types per program: { programId: { players: boolean, coaches: boolean } }
+const teamLabelFilters = ref<Record<number, { players: boolean; coaches: boolean }>>({})
 
-// Initialize team program selection
+// Initialize filters for available programs
 watch(availableTeamPrograms, (programs) => {
-  if (programs.length > 0 && selectedTeamProgramIds.value.size === 0) {
-    selectedTeamProgramIds.value = new Set(programs.map(p => p.id))
-  }
+  programs.forEach(program => {
+    if (!teamLabelFilters.value[program.id]) {
+      teamLabelFilters.value[program.id] = {
+        players: true,
+        coaches: true
+      }
+    }
+  })
 }, { immediate: true })
 
-// Toggle team program selection for labels
-function toggleTeamProgramForLabels(programId: number) {
-  if (selectedTeamProgramIds.value.has(programId)) {
-    selectedTeamProgramIds.value.delete(programId)
-  } else {
-    selectedTeamProgramIds.value.add(programId)
+// Toggle person type for a specific program
+function toggleTeamLabelPersonType(programId: number, type: 'players' | 'coaches') {
+  if (!teamLabelFilters.value[programId]) {
+    teamLabelFilters.value[programId] = { players: true, coaches: true }
   }
-  selectedTeamProgramIds.value = new Set(selectedTeamProgramIds.value) // Trigger reactivity
+  teamLabelFilters.value[programId][type] = !teamLabelFilters.value[programId][type]
+  teamLabelFilters.value = { ...teamLabelFilters.value } // Trigger reactivity
 }
 
-// Computed: at least one program selected and at least one type (players/coaches)
+// Computed: at least one program with at least one person type selected
 const canDownloadTeamLabels = computed(() => {
-  return selectedTeamProgramIds.value.size > 0 && (includePlayers.value || includeCoaches.value)
+  return Object.keys(teamLabelFilters.value).some(programId => {
+    const filters = teamLabelFilters.value[Number(programId)]
+    return filters && (filters.players || filters.coaches)
+  })
 })
 
 // Download name tags PDF with filters
 async function downloadNameTagsPdf() {
   if (!eventId.value || !canDownloadTeamLabels.value) return
   
+  // Build filter object: for each selected program, include person types
+  const programFilters: Record<number, { players: boolean; coaches: boolean }> = {}
+  Object.keys(teamLabelFilters.value).forEach(programIdStr => {
+    const programId = Number(programIdStr)
+    const filters = teamLabelFilters.value[programId]
+    if (filters && (filters.players || filters.coaches)) {
+      programFilters[programId] = filters
+    }
+  })
+  
   const filters = {
-    include_players: includePlayers.value,
-    include_coaches: includeCoaches.value,
-    program_ids: Array.from(selectedTeamProgramIds.value)
+    program_filters: programFilters
   }
   
   isDownloading.value['name-tags'] = true
@@ -1091,7 +1105,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
     <!-- Tab Content: Aufkleber -->
     <div v-show="activeTab === 'aufkleber'">
       <p class="text-sm text-blue-600 mb-4">
-        Aufkleber und Etiketten zum Drucken
+        Namensaufkleber zum Drucken auf A4-Papier
       </p>
       <p class="text-sm text-gray-600 mb-3">
         Die PDF-Dateien sind passend zum  
@@ -1123,24 +1137,40 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
           <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Teams</h4>
           <p class="text-sm text-gray-600 mb-4">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
           
-          <!-- Filters -->
-          <div class="mb-4">
-            <!-- Person Type Filter -->
-            <div class="mb-3">
-              <h5 class="text-sm font-semibold text-gray-700 mb-2">Personen</h5>
-              <div class="space-y-1">
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+          <!-- Filters - Two columns (or single column if only one program) -->
+          <div 
+            v-if="availableTeamPrograms.length > 0"
+            class="mb-4 grid gap-4"
+            :class="{
+              'grid-cols-2': hasExploreTeams && hasChallengeTeams,
+              'grid-cols-1': !hasExploreTeams || !hasChallengeTeams
+            }"
+          >
+            <!-- Explore -->
+            <div v-if="hasExploreTeams" class="bg-gray-50 rounded p-3">
+              <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <img 
+                  :src="programLogoSrc('E')" 
+                  :alt="programLogoAlt('E')"
+                  class="w-6 h-6 flex-shrink-0"
+                />
+                <span>FIRST LEGO League Explore</span>
+              </h5>
+              <div class="space-y-0.5">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
                   <input 
                     type="checkbox" 
-                    v-model="includePlayers"
+                    :checked="teamLabelFilters[2]?.players ?? true"
+                    @change="toggleTeamLabelPersonType(2, 'players')"
                     class="accent-blue-600"
                   />
                   <span class="text-sm">Teammitglieder</span>
                 </label>
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
                   <input 
                     type="checkbox" 
-                    v-model="includeCoaches"
+                    :checked="teamLabelFilters[2]?.coaches ?? true"
+                    @change="toggleTeamLabelPersonType(2, 'coaches')"
                     class="accent-blue-600"
                   />
                   <span class="text-sm">Coach:innen</span>
@@ -1148,51 +1178,35 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
               </div>
             </div>
             
-            <!-- Program Filter -->
-            <div v-if="availableTeamPrograms.length > 0">
-              <h5 class="text-sm font-semibold text-gray-700 mb-2">Programme</h5>
-              <div 
-                class="grid gap-3"
-                :class="{
-                  'grid-cols-2': hasExploreTeams && hasChallengeTeams,
-                  'grid-cols-1': !hasExploreTeams || !hasChallengeTeams
-                }"
-              >
-                <!-- Explore -->
-                <div v-if="hasExploreTeams" class="bg-gray-50 rounded p-3">
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      :checked="selectedTeamProgramIds.has(2)"
-                      @change="toggleTeamProgramForLabels(2)"
-                      class="accent-blue-600"
-                    />
-                    <img 
-                      :src="programLogoSrc('E')" 
-                      :alt="programLogoAlt('E')"
-                      class="w-5 h-5 flex-shrink-0"
-                    />
-                    <span class="text-sm">FIRST LEGO League Explore</span>
-                  </label>
-                </div>
-                
-                <!-- Challenge -->
-                <div v-if="hasChallengeTeams" class="bg-gray-50 rounded p-3">
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      :checked="selectedTeamProgramIds.has(3)"
-                      @change="toggleTeamProgramForLabels(3)"
-                      class="accent-blue-600"
-                    />
-                    <img 
-                      :src="programLogoSrc('C')" 
-                      :alt="programLogoAlt('C')"
-                      class="w-5 h-5 flex-shrink-0"
-                    />
-                    <span class="text-sm">FIRST LEGO League Challenge</span>
-                  </label>
-                </div>
+            <!-- Challenge -->
+            <div v-if="hasChallengeTeams" class="bg-gray-50 rounded p-3">
+              <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <img 
+                  :src="programLogoSrc('C')" 
+                  :alt="programLogoAlt('C')"
+                  class="w-6 h-6 flex-shrink-0"
+                />
+                <span>FIRST LEGO League Challenge</span>
+              </h5>
+              <div class="space-y-0.5">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                  <input 
+                    type="checkbox" 
+                    :checked="teamLabelFilters[3]?.players ?? true"
+                    @change="toggleTeamLabelPersonType(3, 'players')"
+                    class="accent-blue-600"
+                  />
+                  <span class="text-sm">Teammitglieder</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                  <input 
+                    type="checkbox" 
+                    :checked="teamLabelFilters[3]?.coaches ?? true"
+                    @change="toggleTeamLabelPersonType(3, 'coaches')"
+                    class="accent-blue-600"
+                  />
+                  <span class="text-sm">Coach:innen</span>
+                </label>
               </div>
             </div>
           </div>
@@ -1235,7 +1249,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
             <textarea
               v-model="volunteerInputText"
               @input="updateVolunteerPreview"
-              placeholder="Max Mustermann&#9;Schiedsrichter&#9;E&#10;Anna Schmidt&#9;Zeitnehmer&#9;C&#10;..."
+              placeholder="Max Mustermann&#9;Schiedsrichter&#9;E&#10;Anna Schmidt&#9;Jurorin Forschung&#9;C&#10;..."
               class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono"
               rows="6"
             ></textarea>

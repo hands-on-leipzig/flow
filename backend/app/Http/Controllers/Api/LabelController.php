@@ -46,18 +46,17 @@ class LabelController extends Controller
             // Get event with season relationship
             $event = Event::with('seasonRel')->findOrFail($eventId);
 
-            // Get filter parameters (defaults: include all)
-            // Handle boolean conversion (may come as string "true"/"false" or boolean)
-            $includePlayers = filter_var($request->input('include_players', true), FILTER_VALIDATE_BOOLEAN);
-            $includeCoaches = filter_var($request->input('include_coaches', true), FILTER_VALIDATE_BOOLEAN);
-            $programIds = $request->input('program_ids', []);
+            // Get filter parameters: program_filters structure { programId: { players: bool, coaches: bool } }
+            $programFilters = $request->input('program_filters', []);
             
-            // Convert program IDs to integers
-            if (is_array($programIds)) {
-                $programIds = array_map('intval', $programIds);
-            } else {
-                $programIds = [];
+            // If no filters provided, default to including all
+            if (empty($programFilters) || !is_array($programFilters)) {
+                $programFilters = [];
             }
+            
+            // Extract program IDs from filters
+            $programIds = array_keys($programFilters);
+            $programIds = array_map('intval', $programIds);
 
             // Get teams for this event, filtered by program if specified
             $teamsQuery = Team::where('event', $eventId)
@@ -65,7 +64,7 @@ class LabelController extends Controller
                 ->select('team.*');
             
             // Filter by program IDs if provided
-            if (!empty($programIds) && is_array($programIds)) {
+            if (!empty($programIds)) {
                 $teamsQuery->whereIn('team.first_program', $programIds);
             }
             
@@ -118,7 +117,18 @@ class LabelController extends Controller
                 }
                 $programLogo = $programLogoCache[$program];
 
-                // Create name tags for players (if enabled)
+                // Get filter settings for this team's program
+                $teamProgramId = $team->first_program;
+                $includePlayers = true; // Default
+                $includeCoaches = true; // Default
+                
+                if (isset($programFilters[$teamProgramId])) {
+                    $filters = $programFilters[$teamProgramId];
+                    $includePlayers = filter_var($filters['players'] ?? true, FILTER_VALIDATE_BOOLEAN);
+                    $includeCoaches = filter_var($filters['coaches'] ?? true, FILTER_VALIDATE_BOOLEAN);
+                }
+
+                // Create name tags for players (if enabled for this program)
                 if ($includePlayers && !empty($peopleData['players']) && is_array($peopleData['players'])) {
                     foreach ($peopleData['players'] as $player) {
                         $nameTags[] = $this->createNameTagData(
@@ -132,7 +142,7 @@ class LabelController extends Controller
                     }
                 }
 
-                // Create name tags for coaches (if enabled)
+                // Create name tags for coaches (if enabled for this program)
                 if ($includeCoaches && !empty($peopleData['coaches']) && is_array($peopleData['coaches'])) {
                     foreach ($peopleData['coaches'] as $coach) {
                         // Handle both object and string coach formats
