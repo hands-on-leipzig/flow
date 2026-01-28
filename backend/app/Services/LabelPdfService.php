@@ -237,6 +237,8 @@ class LabelPdfService
             
             // Try to render image
             try {
+                $imagePath = null;
+                
                 // Check if it's a data URI or file path
                 if (strpos($logo, 'data:image') === 0) {
                     // Data URI - extract base64 data and write to temp file
@@ -245,19 +247,48 @@ class LabelPdfService
                         // Create temporary file for TCPDF
                         $tempFile = tempnam(sys_get_temp_dir(), 'tcpdf_img_');
                         file_put_contents($tempFile, $imageData);
-                        
-                        $pdf->Image($tempFile, $logoX, $logoY, $logoMaxWidth, $logoMaxHeight, '', '', '', false, 300, '', false, false, 0);
-                        
-                        // Clean up temp file
-                        @unlink($tempFile);
-                        
-                        $logoX += $logoMaxWidth + $logoGap;
+                        $imagePath = $tempFile;
                     }
                 } else {
                     // File path
                     if (file_exists($logo)) {
-                        $pdf->Image($logo, $logoX, $logoY, $logoMaxWidth, $logoMaxHeight, '', '', '', false, 300, '', false, false, 0);
+                        $imagePath = $logo;
+                    }
+                }
+                
+                if ($imagePath) {
+                    // Get image dimensions to calculate aspect ratio
+                    $imageInfo = @getimagesize($imagePath);
+                    if ($imageInfo && $imageInfo[0] > 0 && $imageInfo[1] > 0) {
+                        $originalWidth = $imageInfo[0];
+                        $originalHeight = $imageInfo[1];
+                        $aspectRatio = $originalWidth / $originalHeight;
+                        
+                        // Calculate dimensions maintaining aspect ratio
+                        // Constrain by max width first, then check if height exceeds max
+                        $calculatedWidth = $logoMaxWidth;
+                        $calculatedHeight = $logoMaxWidth / $aspectRatio;
+                        
+                        // If height exceeds max, constrain by height instead
+                        if ($calculatedHeight > $logoMaxHeight) {
+                            $calculatedHeight = $logoMaxHeight;
+                            $calculatedWidth = $logoMaxHeight * $aspectRatio;
+                        }
+                        
+                        // Render image with calculated dimensions (maintains aspect ratio)
+                        $pdf->Image($imagePath, $logoX, $logoY, $calculatedWidth, $calculatedHeight, '', '', '', false, 300, '', false, false, 0);
+                        
+                        // Move X position for next logo
+                        $logoX += $calculatedWidth + $logoGap;
+                    } else {
+                        // Fallback: use max width, let TCPDF calculate height (maintains aspect ratio)
+                        $pdf->Image($imagePath, $logoX, $logoY, $logoMaxWidth, 0, '', '', '', false, 300, '', false, false, 0);
                         $logoX += $logoMaxWidth + $logoGap;
+                    }
+                    
+                    // Clean up temp file if we created one
+                    if (strpos($logo, 'data:image') === 0 && isset($tempFile)) {
+                        @unlink($tempFile);
                     }
                 }
             } catch (\Exception $e) {
