@@ -304,6 +304,108 @@ async function downloadNameTagsPdf() {
   await downloadPdf('name-tags', `/export/name-tags/${eventId.value}`, 'Namensaufkleber.pdf')
 }
 
+// --- Volunteer Labels State ---
+interface Volunteer {
+  name: string
+  role: string
+  program: string // 'E', 'C', or empty
+}
+
+const volunteerInputText = ref('')
+const volunteerPreview = ref<Volunteer[]>([])
+const submittedVolunteers = ref<Volunteer[]>([])
+
+// Parse CSV/tab-separated text into volunteer array
+function parseVolunteerInput(text: string): Volunteer[] {
+  if (!text.trim()) return []
+  
+  const lines = text.trim().split(/\r?\n/)
+  const volunteers: Volunteer[] = []
+  
+  for (const line of lines) {
+    if (!line.trim()) continue
+    
+    // Support both tab and comma separation
+    const parts = line.split(/\t|,/)
+      .map(p => p.trim())
+      .filter(p => p.length > 0)
+    
+    if (parts.length >= 2) {
+      const name = parts[0] || ''
+      const role = parts[1] || ''
+      const program = (parts[2] || '').toUpperCase().trim()
+      
+      // Only add if name and role are provided
+      if (name && role) {
+        volunteers.push({
+          name,
+          role,
+          program: (program === 'E' || program === 'C') ? program : ''
+        })
+      }
+    }
+  }
+  
+  return volunteers
+}
+
+// Update preview when input changes
+function updateVolunteerPreview() {
+  volunteerPreview.value = parseVolunteerInput(volunteerInputText.value)
+}
+
+// Clear all volunteer data
+function clearAllVolunteers() {
+  volunteerInputText.value = ''
+  volunteerPreview.value = []
+  submittedVolunteers.value = []
+}
+
+// Insert parsed data into preview (Einfügen)
+function insertVolunteers() {
+  const parsed = parseVolunteerInput(volunteerInputText.value)
+  volunteerPreview.value = [...volunteerPreview.value, ...parsed]
+  volunteerInputText.value = '' // Clear input after inserting
+}
+
+// Submit preview data (Übernehmen) - add preview to submitted list
+function submitVolunteers() {
+  submittedVolunteers.value = [...submittedVolunteers.value, ...volunteerPreview.value]
+  volunteerPreview.value = []
+  volunteerInputText.value = ''
+}
+
+// Check if we have submitted volunteers
+const hasSubmittedVolunteers = computed(() => submittedVolunteers.value.length > 0)
+
+// Download volunteer labels PDF
+async function downloadVolunteerLabelsPdf() {
+  if (!eventId.value || !hasSubmittedVolunteers.value) return
+  
+  isDownloading.value['volunteer-labels'] = true
+  try {
+    const response = await axios.post(
+      `/export/volunteer-labels/${eventId.value}`,
+      { volunteers: submittedVolunteers.value },
+      { responseType: 'blob' }
+    )
+    
+    const filename = response.headers['x-filename'] || `FLOW_Aufkleber_Volunteers.pdf`
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (error: any) {
+    console.error('Fehler beim PDF-Download (Volunteer Labels):', error)
+    const errorMessage = error.response?.data?.message || error.message || 'Unbekannter Fehler'
+    alert('Fehler beim Erstellen des PDFs: ' + errorMessage)
+  } finally {
+    isDownloading.value['volunteer-labels'] = false
+  }
+}
+
 // Fetch worker shifts and show modal
 async function showWorkerShiftsModal() {
   if (!eventId.value) return
@@ -979,25 +1081,105 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
       <!-- Namensaufkleber für Volunteer -->
       <div class="border-b border-gray-200 pb-3 mb-3">
         <div>
-          <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Volunteer</h4>
-          <p class="text-sm text-gray-600 mb-4">
+          <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Volunteers</h4>
+          <p class="text-sm text-gray-600 mb-3">
             Hier kann eine einfache Liste von Rollen und Namen hochgeladen werden, aus der dann ein PDF erzeugt wird.
           </p>
-          <div class="flex gap-2">
+          <p class="text-xs text-gray-500 mb-4">
+            Format: Name, Rolle, Programm (E für Explore, C für Challenge, leer für kein Logo). 
+            Spalten können durch Tab oder Komma getrennt sein.
+          </p>
+          
+          <!-- Input Textarea -->
+          <div class="mb-4">
+            <textarea
+              v-model="volunteerInputText"
+              @input="updateVolunteerPreview"
+              placeholder="Max Mustermann&#9;Schiedsrichter&#9;E&#10;Anna Schmidt&#9;Zeitnehmer&#9;C&#10;..."
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono"
+              rows="6"
+            ></textarea>
+          </div>
+          
+          <!-- Preview Grid -->
+          <div v-if="volunteerPreview.length > 0 || submittedVolunteers.length > 0" class="mb-4">
+            <div class="text-sm font-semibold text-gray-700 mb-2">
+              Vorschau ({{ (volunteerPreview.length + submittedVolunteers.length) }} Einträge):
+            </div>
+            <div class="border border-gray-300 rounded overflow-hidden">
+              <div class="overflow-x-auto max-h-64 overflow-y-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th class="px-3 py-2 text-left font-semibold text-gray-700 border-b">Name</th>
+                      <th class="px-3 py-2 text-left font-semibold text-gray-700 border-b">Rolle</th>
+                      <th class="px-3 py-2 text-left font-semibold text-gray-700 border-b">Programm</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <!-- Submitted volunteers (persistent) -->
+                    <tr v-for="(vol, idx) in submittedVolunteers" :key="'submitted-' + idx" class="bg-green-50">
+                      <td class="px-3 py-2">{{ vol.name }}</td>
+                      <td class="px-3 py-2">{{ vol.role }}</td>
+                      <td class="px-3 py-2">
+                        <span v-if="vol.program === 'E'" class="text-blue-600 font-semibold">Explore</span>
+                        <span v-else-if="vol.program === 'C'" class="text-orange-600 font-semibold">Challenge</span>
+                        <span v-else class="text-gray-400">–</span>
+                      </td>
+                    </tr>
+                    <!-- Preview volunteers (pending) -->
+                    <tr v-for="(vol, idx) in volunteerPreview" :key="'preview-' + idx">
+                      <td class="px-3 py-2">{{ vol.name }}</td>
+                      <td class="px-3 py-2">{{ vol.role }}</td>
+                      <td class="px-3 py-2">
+                        <span v-if="vol.program === 'E'" class="text-blue-600 font-semibold">Explore</span>
+                        <span v-else-if="vol.program === 'C'" class="text-orange-600 font-semibold">Challenge</span>
+                        <span v-else class="text-gray-400">–</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Action Buttons -->
+          <div class="flex gap-2 flex-wrap">
             <button
+              @click="clearAllVolunteers"
               class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+              :disabled="volunteerPreview.length === 0 && submittedVolunteers.length === 0"
             >
-              Vorlage Excel herunterladen
+              Alles Löschen
             </button>
             <button
-              class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+              @click="insertVolunteers"
+              class="px-4 py-2 rounded text-sm bg-blue-200 hover:bg-blue-300"
+              :disabled="!volunteerInputText.trim()"
             >
-              Ausgefülltes Excel hochladen
+              Einfügen
             </button>
             <button
-              class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+              @click="submitVolunteers"
+              class="px-4 py-2 rounded text-sm bg-green-200 hover:bg-green-300"
+              :disabled="volunteerPreview.length === 0"
             >
-              PDF
+              Übernehmen
+            </button>
+            <button
+              @click="downloadVolunteerLabelsPdf"
+              class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
+              :class="hasSubmittedVolunteers && !isDownloading['volunteer-labels']
+                ? 'bg-gray-200 hover:bg-gray-300' 
+                : 'bg-gray-100 cursor-not-allowed opacity-50'"
+              :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
+            >
+              <svg v-if="isDownloading['volunteer-labels']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              </svg>
+              <span>{{ isDownloading['volunteer-labels'] ? 'Erzeuge…' : 'PDF' }}</span>
             </button>
           </div>
         </div>

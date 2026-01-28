@@ -286,6 +286,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/worker-shifts/{eventId}', [PlanExportController::class, 'workerShifts']);
         Route::get('/csv/room-utilization/{eventId}', [PlanExportController::class, 'roomUtilizationCsv']);
         Route::get('/name-tags/{eventId}', [LabelController::class, 'nameTagsPdf']);
+        Route::post('/volunteer-labels/{eventId}', [LabelController::class, 'volunteerLabelsPdf']);
     });
 
 

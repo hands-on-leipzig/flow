@@ -9,6 +9,7 @@ use App\Models\MSeason;
 use App\Services\PdfLayoutService;
 use App\Services\LabelPdfService;
 use App\Http\Controllers\Api\DrahtController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -158,7 +159,7 @@ class LabelController extends Controller
                     ? \Carbon\Carbon::parse($event->date)->format('d.m.y')
                     : date('d.m.y');
                 
-                $filename = "FLOW_Namensaufkleber_({$formattedDate}).pdf";
+                $filename = "FLOW_Aufkleber_Teams_({$formattedDate}).pdf";
 
                 // Return PDF with headers
                 return response($pdfData, 200)
@@ -371,5 +372,117 @@ class LabelController extends Controller
             'team_name' => $teamName,
             'program' => $program,
         ];
+    }
+
+    /**
+     * Generate name tag PDF for volunteers (Avery L4785 format)
+     * 
+     * @param int $eventId
+     * @param Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function volunteerLabelsPdf(int $eventId, Request $request)
+    {
+        try {
+            // Increase memory limit for PDF generation with many images
+            ini_set('memory_limit', '512M');
+            
+            // Validate request
+            $validated = $request->validate([
+                'volunteers' => 'required|array|min:1',
+                'volunteers.*.name' => 'required|string',
+                'volunteers.*.role' => 'required|string',
+                'volunteers.*.program' => 'nullable|string|in:E,C,',
+            ]);
+            
+            $volunteers = $validated['volunteers'];
+            
+            // Get event with season relationship
+            $event = Event::with('seasonRel')->findOrFail($eventId);
+            
+            // Get season logo (load once, reuse for all tags)
+            $seasonLogo = $this->getSeasonLogo($event->seasonRel);
+            
+            // Get organizer logos (load once, reuse for all tags)
+            // Only use the first logo by sort_order
+            $organizerLogos = $this->getFirstOrganizerLogo($eventId);
+            
+            // Cache program logos
+            $programLogoCache = [];
+            $programLogoCache['explore'] = $this->getProgramLogo('explore');
+            $programLogoCache['challenge'] = $this->getProgramLogo('challenge');
+            
+            // Convert volunteers to name tag format
+            $nameTags = [];
+            foreach ($volunteers as $volunteer) {
+                // Map program: E -> explore, C -> challenge, other/empty -> null
+                $program = null;
+                if ($volunteer['program'] === 'E') {
+                    $program = 'explore';
+                } elseif ($volunteer['program'] === 'C') {
+                    $program = 'challenge';
+                }
+                
+                $nameTags[] = [
+                    'person_name' => $volunteer['name'],
+                    'team_name' => $volunteer['role'], // Use role instead of team name
+                    'program' => $program,
+                ];
+            }
+            
+            if (empty($nameTags)) {
+                return response()->json(['error' => 'No volunteers provided'], 400);
+            }
+            
+            // Generate PDF using TCPDF for precise positioning
+            try {
+                $pdfData = $this->labelPdfService->generateNameTags(
+                    $nameTags,
+                    $seasonLogo,
+                    $organizerLogos,
+                    $programLogoCache,
+                    true // Show borders for debugging
+                );
+                
+                if (empty($pdfData) || strlen($pdfData) < 100) {
+                    Log::error('Generated PDF is empty or too small', [
+                        'size' => strlen($pdfData ?? ''),
+                        'event_id' => $eventId
+                    ]);
+                    throw new \Exception('PDF generation failed: output is empty or invalid');
+                }
+                
+                // Format date for filename
+                $formattedDate = $event->date 
+                    ? \Carbon\Carbon::parse($event->date)->format('d.m.y')
+                    : date('d.m.y');
+                
+                $filename = "FLOW_Aufkleber_Volunteers_({$formattedDate}).pdf";
+
+                // Return PDF with headers
+                return response($pdfData, 200)
+                    ->header('Content-Type', 'application/pdf')
+                    ->header('X-Filename', $filename)
+                    ->header('Access-Control-Expose-Headers', 'X-Filename');
+            } catch (\Exception $pdfException) {
+                Log::error('Error generating PDF with TCPDF', [
+                    'event_id' => $eventId,
+                    'error' => $pdfException->getMessage(),
+                    'trace' => $pdfException->getTraceAsString()
+                ]);
+                throw $pdfException; // Re-throw to be caught by outer catch
+            }
+        } catch (\Exception $e) {
+            Log::error('Error generating volunteer labels PDF', [
+                'event_id' => $eventId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to generate volunteer labels PDF',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 }
