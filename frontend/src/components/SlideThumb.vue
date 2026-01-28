@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import {Slide as Slide} from "../models/slide.js";
 import SlideContentRenderer from "./slideTypes/SlideContentRenderer.vue";
-import {mdiTrashCanOutline, mdiPencil} from '@mdi/js';
-import SvgIcon from '@jamescoyle/vue-icon';
 import axios from "axios";
-import IconDraggable from "@/components/icons/IconDraggable.vue";
 import {useEventStore} from "@/stores/event";
 import {computed} from "vue";
 
@@ -52,8 +49,8 @@ const componentSlide = Slide.fromObject(props.slide);
     <div class="flex justify-between gap-1 pt-2 pr-2 items-center">
 
       <div class="flex items-center cursor-pointer gap-1">
-        <div class="drag-handle cursor-grab p-1 rounded" title="Ziehen" draggable="false">
-          <IconDraggable/>
+        <div class="drag-handle cursor-grab p-1 rounded text-gray-500" title="Ziehen" draggable="false">
+          <i class="bi bi-grip-vertical"></i>
         </div>
         <!-- Label wird benötigt, damit der Klick registriert wird -->
         <label>
@@ -72,10 +69,12 @@ const componentSlide = Slide.fromObject(props.slide);
 
       </div>
       <div class="flex gap-1 items-center">
-        <router-link :to="'/editSlide/' + slide.id">
-          <svg-icon type="mdi" :path="mdiPencil" @click="emit('editSlide')"/>
+        <router-link :to="'/editSlide/' + slide.id" class="text-gray-600 hover:text-gray-800">
+          <i class="bi bi-pencil" @click="emit('editSlide')"></i>
         </router-link>
-        <svg-icon type="mdi" :path="mdiTrashCanOutline" @click="deleteSlide"></svg-icon>
+        <button class="text-gray-600 hover:text-red-800" @click="deleteSlide" title="Folie löschen">
+          <i class="bi bi-trash-fill"></i>
+        </button>
       </div>
     </div>
     <div class="w-56 h-32 mx-auto bg-blue-300 m-2 flex items-center justify-center overflow-hidden">

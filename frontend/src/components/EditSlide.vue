@@ -1,18 +1,26 @@
 <script setup lang="ts">
 
-import {computed, onMounted, ref} from "vue";
+import {computed, onMounted, onBeforeUnmount, ref} from "vue";
+import {useRouter} from "vue-router";
 import axios from "axios";
 import {Slide} from "@/models/slide";
 import FabricEditor from "@/components/FabricEditor.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import SavingToast from "@/components/atoms/SavingToast.vue";
 
+const router = useRouter();
 const props = defineProps<{
   slideId: Number,
 }>();
 
 const slide = ref<Slide | null>(null);
 const savingToast = ref(null);
+const hasUnsavedChanges = ref(false);
+const isSaving = ref(false);
+const saveTimeoutId = ref<NodeJS.Timeout | null>(null);
+const showIndicatorTimeoutId = ref<NodeJS.Timeout | null>(null);
+const SAVE_DELAY = 5000; // 5 seconds delay
+const SHOW_INDICATOR_DELAY = 1000; // Show "unsaved changes" after 1 second
 
 const settingsSlideTypes = ['RobotGameSlideContent', 'PublicPlanSlideContent', 'UrlSlideContent'];
 
@@ -24,7 +32,29 @@ const hasSettings = computed<boolean>(() => {
   return settingsSlideTypes.includes(type);
 })
 
+const saveButtonText = computed(() => {
+  if (isSaving.value) {
+    return 'Speichere...';
+  }
+  if (hasUnsavedChanges.value) {
+    return 'Änderungen werden gespeichert...';
+  }
+  return 'Alle Änderungen gespeichert';
+});
+
 onMounted(loadSlide);
+onBeforeUnmount(() => {
+  // Save any pending changes before leaving
+  if (saveTimeoutId.value) {
+    clearTimeout(saveTimeoutId.value);
+  }
+  if (showIndicatorTimeoutId.value) {
+    clearTimeout(showIndicatorTimeoutId.value);
+  }
+  if (hasUnsavedChanges.value) {
+    saveSlide();
+  }
+});
 
 async function loadSlide() {
   const response = await axios.get(`slides/${props.slideId}`)
@@ -34,20 +64,66 @@ async function loadSlide() {
   return null;
 }
 
+function scheduleSave() {
+  // Clear existing timeouts
+  if (saveTimeoutId.value) {
+    clearTimeout(saveTimeoutId.value);
+  }
+  if (showIndicatorTimeoutId.value) {
+    clearTimeout(showIndicatorTimeoutId.value);
+  }
+  
+  // Show unsaved changes indicator after a delay (so it doesn't flash on every click)
+  showIndicatorTimeoutId.value = setTimeout(() => {
+    hasUnsavedChanges.value = true;
+  }, SHOW_INDICATOR_DELAY);
+  
+  // Schedule new save
+  saveTimeoutId.value = setTimeout(() => {
+    saveSlide();
+  }, SAVE_DELAY);
+}
+
+async function saveSlide() {
+  if (!slide.value || isSaving.value) return;
+  
+  // Clear indicator timeout if save happens before it shows
+  if (showIndicatorTimeoutId.value) {
+    clearTimeout(showIndicatorTimeoutId.value);
+    showIndicatorTimeoutId.value = null;
+  }
+  
+  isSaving.value = true;
+  const s = {...slide.value, content: slide.value.content.toJSON()};
+  
+  try {
+    await axios.put(`slides/${slide.value.id}`, s);
+    console.log('Slide saved:', s);
+    hasUnsavedChanges.value = false;
+    if (saveTimeoutId.value) {
+      clearTimeout(saveTimeoutId.value);
+      saveTimeoutId.value = null;
+    }
+  } catch (error) {
+    console.error('Error saving slide:', error);
+  } finally {
+    isSaving.value = false;
+  }
+}
+
 function updateByName(name: string, value: any) {
   if (!slide.value) return;
   slide.value.content[name] = value;
-  saveSlide();
+  scheduleSave();
   savingToast?.value?.show();
 }
 
-function saveSlide() {
-  const s = {...slide.value, content: slide.value.content.toJSON()};
-  axios.put(`slides/${slide.value.id}`, s).then(response => {
-    console.log('Slide saved:', response.data);
-  }).catch(error => {
-    console.error('Error saving slide:', error);
-  });
+function handleManualSave() {
+  if (saveTimeoutId.value) {
+    clearTimeout(saveTimeoutId.value);
+    saveTimeoutId.value = null;
+  }
+  saveSlide();
 }
 
 const tableBgHex = computed<string | undefined>({
@@ -124,6 +200,34 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
 
 <template>
   <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
+
+  <!-- Header -->
+  <div class="flex items-center justify-between border-b pb-4 mb-6 mt-4">
+    <router-link 
+        to="/plan/presentation" 
+        class="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+    >
+      <i class="bi bi-arrow-left"></i>
+      <span>Zurück zur Slideshow</span>
+    </router-link>
+    
+    <button
+        @click="handleManualSave"
+        :disabled="isSaving || !hasUnsavedChanges"
+        :class="[
+          'flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors',
+          hasUnsavedChanges
+            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+            : isSaving
+            ? 'bg-gray-400 text-white cursor-wait'
+            : 'bg-gray-100 text-gray-600 cursor-default'
+        ]"
+    >
+      <i v-if="isSaving" class="bi bi-hourglass-split animate-spin"></i>
+      <i v-else-if="!hasUnsavedChanges" class="bi bi-check-circle"></i>
+      <span>{{ saveButtonText }}</span>
+    </button>
+  </div>
 
   <div class="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-1">
     <div class="rounded-xl shadow bg-white p-4 col-span-1" v-if="hasSettings">
@@ -298,7 +402,7 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
 
     <div class="rounded-xl shadow bg-white p-4 col-span-2">
       <span class="font-semibold">Hintergrund</span> <br>
-      <FabricEditor :slide="slide" v-if="!!slide"></FabricEditor>
+      <FabricEditor :slide="slide" @change="scheduleSave" v-if="!!slide"></FabricEditor>
     </div>
   </div>
 </template>
