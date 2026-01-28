@@ -213,17 +213,18 @@ class LabelPdfService
         // Use MultiCell with simpler parameters
         $pdf->MultiCell($contentWidth, 6, $nameTag['team_name'], 0, 'L', false, 1);
         
-        // Logos at bottom of label
+        // Logos at bottom of label - distribute horizontally
         $logoY = $y + $labelHeight - 20; // 20mm from bottom
-        $logoX = $contentX;
         $logoMaxHeight = 15;
         $logoMaxWidth = 20;
-        $logoGap = 8;
         
         // Get program logo
         $programLogo = $programLogoCache[$nameTag['program']] ?? null;
         
-        // Render logos
+        // Collect all valid logos with their paths
+        $logoPaths = [];
+        $tempFiles = []; // Track temp files for cleanup
+        
         $logos = array_filter([
             $programLogo,
             $seasonLogo,
@@ -235,7 +236,6 @@ class LabelPdfService
                 continue;
             }
             
-            // Try to render image
             try {
                 $imagePath = null;
                 
@@ -248,6 +248,7 @@ class LabelPdfService
                         $tempFile = tempnam(sys_get_temp_dir(), 'tcpdf_img_');
                         file_put_contents($tempFile, $imageData);
                         $imagePath = $tempFile;
+                        $tempFiles[] = $tempFile;
                     }
                 } else {
                     // File path
@@ -257,46 +258,76 @@ class LabelPdfService
                 }
                 
                 if ($imagePath) {
-                    // Get image dimensions to calculate aspect ratio
-                    $imageInfo = @getimagesize($imagePath);
-                    if ($imageInfo && $imageInfo[0] > 0 && $imageInfo[1] > 0) {
-                        $originalWidth = $imageInfo[0];
-                        $originalHeight = $imageInfo[1];
-                        $aspectRatio = $originalWidth / $originalHeight;
-                        
-                        // Calculate dimensions maintaining aspect ratio
-                        // Constrain by max width first, then check if height exceeds max
-                        $calculatedWidth = $logoMaxWidth;
-                        $calculatedHeight = $logoMaxWidth / $aspectRatio;
-                        
-                        // If height exceeds max, constrain by height instead
-                        if ($calculatedHeight > $logoMaxHeight) {
-                            $calculatedHeight = $logoMaxHeight;
-                            $calculatedWidth = $logoMaxHeight * $aspectRatio;
-                        }
-                        
-                        // Render image with calculated dimensions (maintains aspect ratio)
-                        $pdf->Image($imagePath, $logoX, $logoY, $calculatedWidth, $calculatedHeight, '', '', '', false, 300, '', false, false, 0);
-                        
-                        // Move X position for next logo
-                        $logoX += $calculatedWidth + $logoGap;
-                    } else {
-                        // Fallback: use max width, let TCPDF calculate height (maintains aspect ratio)
-                        $pdf->Image($imagePath, $logoX, $logoY, $logoMaxWidth, 0, '', '', '', false, 300, '', false, false, 0);
-                        $logoX += $logoMaxWidth + $logoGap;
-                    }
-                    
-                    // Clean up temp file if we created one
-                    if (strpos($logo, 'data:image') === 0 && isset($tempFile)) {
-                        @unlink($tempFile);
-                    }
+                    $logoPaths[] = $imagePath;
                 }
             } catch (\Exception $e) {
-                Log::warning('Failed to render logo in label', [
+                Log::warning('Failed to prepare logo for label', [
                     'logo' => substr($logo, 0, 50) . '...',
                     'error' => $e->getMessage()
                 ]);
             }
+        }
+        
+        // Calculate dimensions for all logos and distribute them horizontally
+        $logoData = [];
+        $totalWidth = 0;
+        
+        foreach ($logoPaths as $imagePath) {
+            try {
+                // Get image dimensions to calculate aspect ratio
+                $imageInfo = @getimagesize($imagePath);
+                if ($imageInfo && $imageInfo[0] > 0 && $imageInfo[1] > 0) {
+                    $originalWidth = $imageInfo[0];
+                    $originalHeight = $imageInfo[1];
+                    $aspectRatio = $originalWidth / $originalHeight;
+                    
+                    // Calculate dimensions maintaining aspect ratio
+                    // Constrain by max width first, then check if height exceeds max
+                    $calculatedWidth = $logoMaxWidth;
+                    $calculatedHeight = $logoMaxWidth / $aspectRatio;
+                    
+                    // If height exceeds max, constrain by height instead
+                    if ($calculatedHeight > $logoMaxHeight) {
+                        $calculatedHeight = $logoMaxHeight;
+                        $calculatedWidth = $logoMaxHeight * $aspectRatio;
+                    }
+                    
+                    $logoData[] = [
+                        'path' => $imagePath,
+                        'width' => $calculatedWidth,
+                        'height' => $calculatedHeight
+                    ];
+                    $totalWidth += $calculatedWidth;
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to get logo dimensions', [
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+        
+        // Distribute logos evenly across available width
+        $logoCount = count($logoData);
+        if ($logoCount > 0) {
+            $availableWidth = $contentWidth; // 76mm
+            $totalLogoWidth = $totalWidth;
+            $remainingSpace = $availableWidth - $totalLogoWidth;
+            $gapBetweenLogos = $logoCount > 1 ? $remainingSpace / ($logoCount - 1) : 0;
+            
+            $currentX = $contentX;
+            
+            foreach ($logoData as $index => $logo) {
+                // Render logo
+                $pdf->Image($logo['path'], $currentX, $logoY, $logo['width'], $logo['height'], '', '', '', false, 300, '', false, false, 0);
+                
+                // Move to next position (logo width + gap)
+                $currentX += $logo['width'] + $gapBetweenLogos;
+            }
+        }
+        
+        // Clean up temp files
+        foreach ($tempFiles as $tempFile) {
+            @unlink($tempFile);
         }
     }
     
