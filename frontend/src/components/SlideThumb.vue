@@ -68,7 +68,7 @@ const componentSlide = Slide.fromObject(props.slide);
 
       <!-- Overlay with controls (shown on hover) -->
       <div
-          class="absolute inset-0 z-[100] bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
+          class="absolute inset-0 z-[60] bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto">
         <router-link
             :to="'/editSlide/' + slide.id"
             class="relative z-50 w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-lg hover:bg-blue-50 transition-colors pointer-events-auto"
