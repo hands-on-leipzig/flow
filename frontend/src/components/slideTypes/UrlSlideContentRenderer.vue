@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<{
                                 class="absolute inset-0 z-0"
                                 :content="props.content" :preview="props.preview"></FabricSlideContentRenderer>
 
-    <object :data="props.content.url" :class="{'preview': props.preview}"></object>
+    <object :data="props.content.url" :class="{'preview': props.preview}" class="relative z-0"></object>
   </div>
 </template>
 
@@ -29,6 +29,8 @@ object {
   margin: 0;
   position: relative;
   overflow: hidden;
+  z-index: 0;
+  pointer-events: auto;
 }
 
 .preview {
