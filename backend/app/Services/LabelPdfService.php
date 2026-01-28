@@ -189,8 +189,10 @@ class LabelPdfService
         $labelWidth = 80;
         $labelHeight = 50;
         $paddingTop = 5;
-        $paddingLeft = 2;
-        $contentWidth = $labelWidth - ($paddingLeft * 2); // 76mm
+        $paddingLeft = 5;
+        $paddingRight = 5;
+        $paddingBottom = 5;
+        $contentWidth = $labelWidth - $paddingLeft - $paddingRight; // 70mm
         
         // Set position for content (with padding)
         // Use absolute coordinates (margins are 0, so SetXY uses absolute coords)
@@ -215,8 +217,7 @@ class LabelPdfService
         // Use MultiCell with simpler parameters
         $pdf->MultiCell($contentWidth, 6, $nameTag['team_name'], 0, 'L', false, 1);
         
-        // Logos at bottom of label - distribute horizontally
-        $logoY = $y + $labelHeight - 20; // 20mm from bottom
+        // Logos at bottom of label - positioned at bottom padding (5mm from bottom)
         $logoMaxHeight = 15;
         $logoMaxWidth = 20;
         
@@ -311,7 +312,18 @@ class LabelPdfService
         // Distribute logos evenly across available width
         $logoCount = count($logoData);
         if ($logoCount > 0) {
-            $availableWidth = $contentWidth; // 76mm
+            // Find maximum logo height to align all logos at bottom
+            $maxLogoHeight = 0;
+            foreach ($logoData as $logo) {
+                if ($logo['height'] > $maxLogoHeight) {
+                    $maxLogoHeight = $logo['height'];
+                }
+            }
+            
+            // Position logos so their bottom edges are at bottom padding (5mm from bottom)
+            $logoY = $y + $labelHeight - $paddingBottom - $maxLogoHeight;
+            
+            $availableWidth = $contentWidth; // 70mm (with 5mm padding on each side)
             $totalLogoWidth = $totalWidth;
             $remainingSpace = $availableWidth - $totalLogoWidth;
             $gapBetweenLogos = $logoCount > 1 ? $remainingSpace / ($logoCount - 1) : 0;
@@ -319,8 +331,8 @@ class LabelPdfService
             $currentX = $contentX;
             
             foreach ($logoData as $index => $logo) {
-                // Render logo
-                $pdf->Image($logo['path'], $currentX, $logoY, $logo['width'], $logo['height'], '', '', '', false, 300, '', false, false, 0);
+                // Render logo (bottom edges align at 5mm from bottom)
+                $pdf->Image($logo['path'], $currentX, $logoY + ($maxLogoHeight - $logo['height']), $logo['width'], $logo['height'], '', '', '', false, 300, '', false, false, 0);
                 
                 // Move to next position (logo width + gap)
                 $currentX += $logo['width'] + $gapBetweenLogos;
