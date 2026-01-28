@@ -254,6 +254,11 @@ sub get_plan_metadata {
         $plan_metadata{event_level} = $row[13];
     }
 
+    if ($plan_metadata{event_level} > 1) {
+        # sofern kein Regionalwettbewerb (level = 1) sondern Quali (level = 2) oder Finale (level = 3)
+        $plan_metadata{event_name} =~ s/^.*? - //; # alles bis einschliesslich " - " wird vom Anfang ausgehend abgeschnitten
+    }
+
     # weitere Informationen holen
     # Plan-Parameter
     # u.a.
@@ -389,11 +394,13 @@ sub get_zeitplan {
             my $team_name = "";
             my $team_number_hot = "";
             my $team_room_name = "";
+            my $team_noshow = "";
 
             $query = qq{select
                         team.name,
                         team.team_number_hot,
-                        room.name
+                        room.name,
+                        team_plan.noshow
                         from team_plan
                         join team on team_plan.team=team.id
                         left join room on room.id=team_plan.room
@@ -409,6 +416,7 @@ sub get_zeitplan {
                 $team_name = $row[0];
                 $team_number_hot = $row[1];
                 $team_room_name = $row[2];
+                $team_noshow = $row[3];
 
                 if ($team_room_name ne "") {
                     $team_room_name = qq{- Raum $team_room_name};
@@ -425,6 +433,11 @@ sub get_zeitplan {
                 $role = qq{Team $team_name};
                 $role_xml = qq{Team $team_name};
                 $role_filename = qq{Team-$team_name};
+            }
+
+            # bei noshow -> Durchstreichen!
+            if ($team_noshow == 1) {
+                $role = "<s>$role</s>";
             }
         }
         elsif ($role_id == 5) {
@@ -449,10 +462,12 @@ sub get_zeitplan {
             # Explore Team
             my $team_name = "";
             my $team_number_hot = "";
+            my $team_noshow = "";
 
             $query = qq{select
                         team.name,
-                        team.team_number_hot
+                        team.team_number_hot,
+                        team_plan.noshow
                         from team_plan
                         join team on team_plan.team=team.id
                         where team_plan.plan=$params->{plan}
@@ -466,6 +481,7 @@ sub get_zeitplan {
                 @row = $sth->fetchrow_array;
                 $team_name = $row[0];
                 $team_number_hot = $row[1];
+                $team_noshow = $row[2];
 
                 $role = qq{Team $team_name<br>$team_number_hot};
                 $role_xml = qq{Team $team_name ($team_number_hot)};
@@ -479,12 +495,16 @@ sub get_zeitplan {
                 $role_xml = qq{Team $team_name};
                 $role_filename = qq{Team-$team_name};
             }
+            # bei noshow -> Durchstreichen!
+            if ($team_noshow == 1) {
+                $role = "<s>$role</s>";
+            }
         }
         elsif ($role_id == 9) {
             # GutachterIn
-            $role = qq{GutachterIn $params->{lane}};
-            $role_xml = qq{GutachterIn $params->{lane}};
-            $role_filename = qq{GutachterIn-$params->{lane}};
+            $role = qq{Gutachter-Gruppe $params->{lane}};
+            $role_xml = qq{Gutachter-Gruppe $params->{lane}};
+            $role_filename = qq{Gutachter-Gruppe-$params->{lane}};
         }
         else {
             # alles andere
@@ -535,6 +555,7 @@ sub get_zeitplan {
                 s/<!--zeitplan:regionalpartner_region-->/$plan_metadata{regional_partner_region}/eg;
                 s/<!--zeitplan:regionalpartner_name-->/$plan_metadata{regional_partner_name}/eg;
                 s/<!--zeitplan:event_date-->/$plan_metadata{event_date}/eg;
+                s/<!--zeitplan:event_name-->/$plan_metadata{event_name}/eg;
 
                 s/<!--zeitplan:event_start-->/$detailplan_data{start}/eg;
                 s/<!--zeitplan:event_end-->/$detailplan_data{end}/eg;
@@ -627,6 +648,36 @@ sub get_detailplan {
 
     my $event_id = "";
 
+
+    #####
+    # koennte / sollte ausgelagert werden und nur einmal aufgerufen werden (wird bei get_plan_metadata auch gemacht)
+    #####
+    # weitere Informationen holen
+    # Plan-Parameter
+    # u.a.
+    # e_teams
+    # c_teams
+    # plus alle weiteren
+    my %plan_parameter;
+
+    $query = qq{select
+                m_parameter.name,
+                plan_param_value.set_value
+                from plan_param_value
+                join m_parameter on m_parameter.id=plan_param_value.parameter
+                where plan_param_value.plan=$params->{plan}
+            };
+    $sth = $dbh->prepare($query);
+    $rv = $sth->execute;
+
+    if ($rv ne "0E0") {
+        while (@row = $sth->fetchrow_array) {
+            $plan_parameter{$row[0]} = $row[1];
+        }
+    }
+    # Ende Parameter
+
+
     # check auf fehlende Parameter / Inkonsistenzen
 
     # jetzt noch die Event-ID ermitteln, wird aktuell fuer die Raeume benoetigt!
@@ -704,6 +755,8 @@ sub get_detailplan {
 
     my $activity_activity_type_detail_description_html = "";
 
+    my $activity_id = "";
+    
     my $activity_first_program_name = "";
     my $activity_start = "";
     my $activity_start_datum = "";
@@ -744,6 +797,8 @@ sub get_detailplan {
     my $where_lane = "";
     my $where_table = "";
     my $where_team = "";
+
+    my $where_explore_vormittag_nachmittag = "";
 
     my %activity_groups;
 
@@ -861,6 +916,44 @@ sub get_detailplan {
             }
 
 
+            #####################################################################################
+            # Unterscheidung Explore Vormittag / Nachmittag
+            #####################################################################################
+            if ($params->{role} == 8 || $params->{role} == 9) {
+                # nur fuer Rolle Explore Team oder GutachterIn
+                # role = 8 = Explore Team
+                # role = 9 = GutachterIn
+
+                if ($plan_parameter{e_mode} == 5 || $plan_parameter{e_mode} == 8) {
+                    # nur bei e_mode = 5 oder 8 (Explore am Vormittag UND Nachmittag)
+
+                    if ($params->{role} == 8) {
+                        # role = 8 = Explore Team
+                        if ($params->{team} > $plan_parameter{e1_teams}) {
+                            # dann ist das Team am Nachmittag eingeplant (e1_teams = Anzahl Teams am Vormittag)
+                            $where_explore_vormittag_nachmittag = qq{and (activity.explore_group=2 or isnull(activity.explore_group))}; # 2 = Nachmittag
+                        }
+                        else {
+                            # andernfalls ist das Team am Vormittag eingeplant
+                            $where_explore_vormittag_nachmittag = qq{and (activity.explore_group=1 or isnull(activity.explore_group))}; # 1 = Vormittag
+                        }
+                    }
+                    else {
+                        # role = 9 = GutachterIn
+                        if ($params->{lane} > $plan_parameter{e1_lanes}) {
+                            # dann ist die Gutachtergruppe am Nachmittag eingeplant (e1_lanes = Anzahl Lanes/Gruppen am Vormittag)
+                            $where_explore_vormittag_nachmittag = qq{and (activity.explore_group=2 or isnull(activity.explore_group))}; # 2 = Nachmittag
+                        }
+                        else {
+                            # andernfalls ist die Gutachtergruppe am Vormittag eingeplant
+                            $where_explore_vormittag_nachmittag = qq{and (activity.explore_group=1 or isnull(activity.explore_group))}; # 1 = Vormittag
+                        }
+                    }
+                }
+            }
+
+
+
             # Liste fuer Web und XML initialisieren (je Activity-Group)
             $activity_item_list = "";
             $xml_activities = "";
@@ -895,7 +988,8 @@ sub get_detailplan {
             extra_block.description,
             extra_block.link,
             extra_block_room.name,
-            extra_block_room.navigation_instruction
+            extra_block_room.navigation_instruction,
+            activity.id
             from activity
             join m_activity_type_detail on activity.activity_type_detail=m_activity_type_detail.id
             join m_activity_type on m_activity_type_detail.activity_type=m_activity_type.id
@@ -911,6 +1005,7 @@ sub get_detailplan {
             $where_lane
             $where_table
             $where_team
+            $where_explore_vormittag_nachmittag
             order by time_format(activity.start,'%H:%i') ASC
             };
             $sth_activities = $dbh->prepare($query_activities);
@@ -956,6 +1051,8 @@ sub get_detailplan {
                     $activity_extra_block_link = $row_activities[24];
                     $activity_extra_block_room_name = $row_activities[25];
                     $activity_extra_block_room_navigation_instruction = $row_activities[26];
+
+                    $activity_id = $row_activities[27];
 
                     if ($activity_room_type_name eq "") {
                         $activity_room_type_name = "nicht spezifiziert";
@@ -1710,11 +1807,23 @@ sub get_auswahl {
                             # Challenge- oder Explore-Team
                             if (defined $team{$differentiation_count}{$role_first_program}{name}) {
                                 # erstmal ohne Organisation, weil sonst zu unuebersichtlich...
-                                $role_name_display = $team{$differentiation_count}{$role_first_program}{name}." <i class='bi-geo'></i> ".$team{$differentiation_count}{$role_first_program}{location};
+                                $role_name_display = $team{$differentiation_count}{$role_first_program}{name};
+
+                                # + Location anhaengen
+                                # erstmal ohne Organisation, weil sonst zu unuebersichtlich...
+                                if ($team{$differentiation_count}{$role_first_program}{location} ne "") {
+                                    $role_name_display = $role_name_display." <i class='bi-geo'></i> ".$team{$differentiation_count}{$role_first_program}{location};
+                                }
                             }
                             else {
                                 $role_name_display = "$role_name $differentiation_count";
                             }
+
+                            # bei noshow -> Durchstreichen!
+                            if ($team{$differentiation_count}{$role_first_program}{noshow} == 1) {
+                                $role_name_display = "<s>$role_name_display</s>";
+                            }
+
                         }
                         elsif ($role_id == 5 || $role_id == 11) {
                             # SchiedsrichterIn
@@ -1735,7 +1844,9 @@ sub get_auswahl {
                 # select team_plan.team_number_plan, team.name from team_plan join team on team_plan.team=team.id where plan=[plan] and team.first_program=3 order by team.name
                 # und Explore-Team
                 # select team_plan.team_number_plan, team.name from team_plan join team on team_plan.team=team.id where plan=[plan] and team.first_program=2 order by team.name
+
                 # wird aber beides nicht mehr verwendet seit Umbau...
+                # wird auch über diffrentiation_type = number abgebildet jetzt!
 
                 # in $role_differentiation_source noch den [plan] ersetzen
                 $role_differentiation_source =~ s/\[plan\]/$params->{plan}/g;
@@ -1801,6 +1912,7 @@ sub get_logos {
                 from event_logo
                 join logo on event_logo.logo=logo.id
                 where event_logo.event=$event
+                order by event_logo.sort_order
             };
     $sth = $dbh->prepare($query);
     $rv = $sth->execute;
@@ -1855,6 +1967,7 @@ sub teams_in_hash {
     my $team_location = "";
     my $team_organization = "";
     my $team_room_name = "";
+    my $team_noshow = "";
 
     $query = qq{select
                 team.id,
@@ -1864,7 +1977,8 @@ sub teams_in_hash {
                 team_plan.team_number_plan,
                 team.location,
                 team.organization,
-                room.name
+                room.name,
+                team_plan.noshow
                 from team_plan
                 join team on team_plan.team=team.id
                 left join room on room.id=team_plan.room
@@ -1883,6 +1997,7 @@ sub teams_in_hash {
             $team_location = $row[5];
             $team_organization = $row[6];
             $team_room_name = $row[7];
+            $team_noshow = $row[8];
 
 
             $team{$team_number_plan}{$team_first_program}{id} = $team_id;
@@ -1891,6 +2006,7 @@ sub teams_in_hash {
             $team{$team_number_plan}{$team_first_program}{location} = $team_location;
             $team{$team_number_plan}{$team_first_program}{organization} = $team_organization;
             $team{$team_number_plan}{$team_first_program}{room_name} = $team_room_name;
+            $team{$team_number_plan}{$team_first_program}{noshow} = $team_noshow;
         }
     }
 
@@ -1911,6 +2027,10 @@ sub get_team_name {
     }
     else {
         $team_name = "Team $team_number_plan";
+    }
+
+    if ($team_hash_ref->{$team_number_plan}{$team_first_program}{noshow} == 1) {
+        $team_name = "<s>$team_name</s>";
     }
 
     return $team_name;

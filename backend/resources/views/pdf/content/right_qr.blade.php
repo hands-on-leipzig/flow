@@ -33,6 +33,13 @@
     </div>
 
     @if(!empty($roomsWithNav) && count($roomsWithNav) > 0)
+        @php
+            // Sort rooms by name (case-insensitive)
+            $sortedRooms = $roomsWithNav;
+            uksort($sortedRooms, function($a, $b) {
+                return strcasecmp($a, $b);
+            });
+        @endphp
         <div style="
             margin-top:20px;
             padding-top:15px;
@@ -51,7 +58,7 @@
             
             <table style="width:100%; border-collapse:collapse;">
                 <tbody>
-                    @foreach($roomsWithNav as $roomName => $roomData)
+                    @foreach($sortedRooms as $roomName => $roomData)
                         @php
                             $navigationText = is_array($roomData) ? ($roomData['navigation'] ?? '') : $roomData;
                             $navigationText = is_string($navigationText) ? $navigationText : '';

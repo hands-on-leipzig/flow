@@ -8,6 +8,7 @@ use App\Models\FirstProgram;
 use App\Models\MRoomType;
 use App\Models\MRoomTypeGroup;
 use App\Models\Room;
+use App\Services\EventAttentionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -80,17 +81,26 @@ class RoomController extends Controller
             'is_accessible' => $validated['is_accessible'] ?? true,
         ]);
 
+        // Update attention status after creating room
+        app(EventAttentionService::class)->updateEventAttentionStatus($validated['event']);
+
         return response()->json($room, 201);
     }
 
     public function update(Request $request, Room $room)
     {
         $room->update($request->only(['name', 'navigation_instruction', 'is_accessible']));
+        
+        // Update attention status after room update
+        app(EventAttentionService::class)->updateEventAttentionStatus($room->event);
+        
         return response()->json($room);
     }
 
     public function destroy(Room $room)
     {
+        $eventId = $room->event;
+        
         DB::transaction(function () use ($room) {
             DB::table('team_plan')
                 ->where('room', $room->id)
@@ -102,6 +112,9 @@ class RoomController extends Controller
 
             $room->delete();
         });
+
+        // Update attention status after deleting room
+        app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
 
         return response()->json();
     }
@@ -146,6 +159,11 @@ class RoomController extends Controller
             // Log::info("Assigned extra block {$block->id} to room {$validated['room_id']}");
         }
 
+        // Update attention status after room type assignment
+        if ($validated['event']) {
+            app(EventAttentionService::class)->updateEventAttentionStatus($validated['event']);
+        }
+
         return response()->json(['success' => true]);
     }
 
@@ -165,6 +183,9 @@ class RoomController extends Controller
             ->where('team', $validated['team_id'])
             ->where('plan', $plan->id)
             ->update(['room' => $validated['room_id']]);
+
+        // Update attention status after team-to-room assignment
+        app(EventAttentionService::class)->updateEventAttentionStatus($validated['event']);
 
         return response()->json(['success' => true]);
     }

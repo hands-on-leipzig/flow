@@ -9,6 +9,9 @@ use App\Models\MRoomType;
 use App\Models\ExtraBlock;
 use App\Models\MInsertPoint;
 use App\Enums\FirstProgram;
+use App\Enums\ExploreMode;
+use App\Support\PlanParameter;
+use App\Support\UsesPlanParameter;
 
 use App\Core\TimeCursor;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +19,8 @@ use Illuminate\Support\Facades\DB;
 
 class ActivityWriter
 {
+    use UsesPlanParameter;
+
     private int $planId;
     private ?ActivityGroup $currentGroup = null;
 
@@ -25,9 +30,17 @@ class ActivityWriter
     /** @var array<string,int> */
     private array $roomTypeMap = [];
 
-    public function __construct(int $planId)
+    /** @var array<int,int> Cache for activity_type_detail id to first_program mapping */
+    private array $activityTypeDetailFirstProgramMap = [];
+
+    public function __construct(int $planId, ?PlanParameter $params = null)
     {
         $this->planId = $planId;
+        
+        // Set params if provided (for accessing plan parameters via pp())
+        if ($params !== null) {
+            $this->params = $params;
+        }
 
         $this->activityTypeDetailMap = MActivityTypeDetail::all()
             ->pluck('id', 'code')
@@ -38,10 +51,16 @@ class ActivityWriter
             ->pluck('id', 'code')
             ->mapWithKeys(fn($id, $code) => [strtolower($code) => (int) $id])
             ->toArray();
+
+        // Cache activity_type_detail id to first_program mapping
+        $this->activityTypeDetailFirstProgramMap = MActivityTypeDetail::all()
+            ->pluck('first_program', 'id')
+            ->map(fn($fp) => $fp ? (int) $fp : null)
+            ->toArray();
     }
 
 
-    public function insertActivityGroup(string $activityTypeDetailCode): int
+    public function insertActivityGroup(string $activityTypeDetailCode, ?int $exploreGroup = null): int
     {
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeDetailCode);
 
@@ -52,6 +71,7 @@ class ActivityWriter
         $group = ActivityGroup::create([
             'plan' => $this->planId,
             'activity_type_detail' => $activityTypeDetailId,
+            'explore_group' => $exploreGroup,
         ]);
 
         $this->currentGroup = $group;
@@ -65,7 +85,8 @@ class ActivityWriter
         ?int $juryLane = null, ?int $juryTeam = null,
         ?int $table1 = null, ?int $table1Team = null,
         ?int $table2 = null, ?int $table2Team = null,
-        ?int $extraBlockId = null
+        ?int $extraBlockId = null,
+        ?int $exploreGroup = null
     ): int {
         if (!$this->currentGroup) {
             throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Einfügen der Aktivität '{$activityTypeCode}'. Bitte setze zunächst eine Aktivitätsgruppe mit setGroup().");
@@ -78,7 +99,11 @@ class ActivityWriter
         $end = $endCursor->current()->format('Y-m-d H:i:s');
 
         $activityTypeDetailId = $this->activityTypeDetailIdFromCode($activityTypeCode);
-        $roomType = $this->resolveRoomType($activityTypeDetailId, $juryLane);
+        
+        // Inherit explore_group from current group if not explicitly provided
+        $exploreGroupValue = $exploreGroup ?? $this->currentGroup->explore_group;
+        
+        $roomType = $this->resolveRoomType($activityTypeDetailId, $juryLane, $exploreGroupValue);
 
         $activity = Activity::create([
             'activity_group'       => $this->currentGroup->id,
@@ -93,6 +118,7 @@ class ActivityWriter
             'table_2'              => $table2,
             'table_2_team'         => $table2Team,
             'extra_block'          => $extraBlockId,
+            'explore_group'        => $exploreGroupValue,
         ]);
 
         return $activity->id;
@@ -112,7 +138,8 @@ class ActivityWriter
      *   table1Team?: ?int,
      *   table2?: ?int,
      *   table2Team?: ?int,
-     *   extraBlockId?: ?int
+     *   extraBlockId?: ?int,
+     *   exploreGroup?: ?int
      * }> $activities Array of activity data
      * @return void
      */
@@ -129,7 +156,11 @@ class ActivityWriter
         $data = [];
         foreach ($activities as $act) {
             $activityTypeDetailId = $this->activityTypeDetailIdFromCode($act['activityTypeCode']);
-            $roomType = $this->resolveRoomType($activityTypeDetailId, $act['juryLane'] ?? null);
+            
+            // Inherit explore_group from current group if not explicitly provided
+            $exploreGroupValue = $act['exploreGroup'] ?? $this->currentGroup->explore_group;
+            
+            $roomType = $this->resolveRoomType($activityTypeDetailId, $act['juryLane'] ?? null, $exploreGroupValue);
 
             $data[] = [
                 'activity_group'       => $this->currentGroup->id,
@@ -144,15 +175,16 @@ class ActivityWriter
                 'table_2'              => $act['table2'] ?? null,
                 'table_2_team'         => $act['table2Team'] ?? null,
                 'extra_block'          => $act['extraBlockId'] ?? null,
+                'explore_group'        => $exploreGroupValue,
             ];
         }
 
         Activity::insert($data);
     }
 
-    public function withGroup(string $activityTypeDetailCode, \Closure $callback): void
+    public function withGroup(string $activityTypeDetailCode, \Closure $callback, ?int $exploreGroup = null): void
     {
-        $this->insertActivityGroup($activityTypeDetailCode);
+        $this->insertActivityGroup($activityTypeDetailCode, $exploreGroup);
         $callback();
         $this->currentGroup = null;
     }
@@ -169,7 +201,7 @@ class ActivityWriter
         return $cache[$key];
     }
 
-    private function resolveRoomType(int $activityTypeDetailId, ?int $juryLane): ?int
+    private function resolveRoomType(int $activityTypeDetailId, ?int $juryLane, ?int $exploreGroup = null): ?int
     {
         $code = array_search($activityTypeDetailId, $this->activityTypeDetailMap, true);
         if (!$code) {
@@ -190,6 +222,18 @@ class ActivityWriter
             }
         }
 
+        // Check if this is an Explore activity and if there are two Explore groups
+        $firstProgram = $this->activityTypeDetailFirstProgramMap[$activityTypeDetailId] ?? null;
+        $isExploreActivity = ($firstProgram === FirstProgram::EXPLORE->value);
+        $hasTwoExploreGroups = $this->hasTwoExploreGroups();
+
+        // For Explore activities without lanes, insert group number after "e" if there are two Explore groups
+        // Example: e_opening -> e1_opening or e2_opening
+        if ($isExploreActivity && $hasTwoExploreGroups && $exploreGroup !== null && ($juryLane === null || $juryLane === 0)) {
+            // Replace "e_" with "e{group}_"
+            $code = str_replace('e_', 'e' . $exploreGroup . '_', $code);
+        }
+
         $map = [
             // Exceptional cases where code != room type
             'g_party_teams'    => 'g_party_teams',
@@ -200,6 +244,18 @@ class ActivityWriter
         $roomTypeCode = $map[$code] ?? $code;
         
         return $this->roomTypeMap[$roomTypeCode] ?? null;
+    }
+
+    /**
+     * Check if this plan has two Explore groups (HYBRID_BOTH or DECOUPLED_BOTH mode)
+     */
+    private function hasTwoExploreGroups(): bool
+    {
+        $eMode = (int) $this->pp('e_mode');
+
+        // Check if e_mode indicates two Explore groups
+        return ($eMode === ExploreMode::HYBRID_BOTH->value || 
+                $eMode === ExploreMode::DECOUPLED_BOTH->value);
     }
 
 

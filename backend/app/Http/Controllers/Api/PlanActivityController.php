@@ -21,8 +21,9 @@ public function actionNow(int $planId, Request $req): JsonResponse
         [$pivot, $rows] = $this->prepareActivities($planId, $req);
 
         $rows = $rows->filter(function ($r) use ($pivot) {
-            $start = Carbon::parse($r->start_time);
-            $end   = Carbon::parse($r->end_time);
+            // Parse database datetime as Europe/Berlin time (activities are stored as Berlin time)
+            $start = Carbon::parse($r->start_time, 'Europe/Berlin');
+            $end   = Carbon::parse($r->end_time, 'Europe/Berlin');
 
             return $start <= $pivot && $end >= $pivot;
         });
@@ -38,8 +39,9 @@ public function actionNow(int $planId, Request $req): JsonResponse
         $interval = (int) $req->query('interval', 30);
 
         $rows = $rows->filter(function ($r) use ($pivot, $interval) {
-            $start = Carbon::parse($r->start_time);
-            $end   = Carbon::parse($r->end_time);
+            // Parse database datetime as Europe/Berlin time (activities are stored as Berlin time)
+            $start = Carbon::parse($r->start_time, 'Europe/Berlin');
+            $end   = Carbon::parse($r->end_time, 'Europe/Berlin');
 
             return $start >= $pivot && $start <= (clone $pivot)->addMinutes($interval);
         });
@@ -74,9 +76,9 @@ public function actionNow(int $planId, Request $req): JsonResponse
         // Uhrzeit aus Request holen
         $timeInput = $req->query('point_in_time'); // erwartet "HH:MM"
         if ($timeInput) {
-            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'UTC');
+            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'Europe/Berlin');
         } else {
-            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . now('Europe/Berlin')->format('H:i'), 'UTC');
+            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . now('Europe/Berlin')->format('H:i'), 'Europe/Berlin');
         }
 
         // Erlaubte Rollen 14: Besucher Allgemein, 6: Besucher Challenge, 10: Besucher Explore

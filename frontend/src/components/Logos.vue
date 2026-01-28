@@ -88,9 +88,21 @@ const uploadLogo = async () => {
 
 const updateLogo = async (logo) => {
   try {
+    // Normalize link to always start with https://
+    let normalizedLink = logo.link
+    if (normalizedLink && normalizedLink.trim()) {
+      normalizedLink = normalizedLink.trim()
+      // If it doesn't start with http:// or https://, prepend https://
+      if (!normalizedLink.match(/^https?:\/\//i)) {
+        normalizedLink = 'https://' + normalizedLink
+      }
+      // Update the logo object to reflect the normalized link
+      logo.link = normalizedLink
+    }
+
     await axios.patch(`/logos/${logo.id}`, {
       title: logo.title,
-      link: logo.link
+      link: normalizedLink
     })
   } catch (error) {
     console.error('Error updating logo:', error)
@@ -469,7 +481,7 @@ onMounted(async () => {
                   v-model="logo.link"
                   @change="updateLogo(logo)"
                   class="w-full px-2 py-0.5 text-xs border rounded"
-                  placeholder="Link"
+                  placeholder="https://domain.tld"
                   type="url"
               />
             </div>
@@ -484,8 +496,8 @@ onMounted(async () => {
                     @change="toggleEventLogo(logo)"
                 />
               </label>
-              <button @click="confirmDeleteLogo(logo)" class="text-red-600 hover:text-red-800 text-sm">
-                🗑️
+              <button @click="confirmDeleteLogo(logo)" class="hover:text-red-800 text-lg">
+                <i class="bi bi-trash-fill"></i>
               </button>
             </div>
           </div>
@@ -501,6 +513,9 @@ onMounted(async () => {
         <h2 class="text-xl font-semibold text-gray-900 mb-4">Logos in Verwendung</h2>
         <p class="text-sm text-gray-600 mb-4">Ziehe die Logos, um die Reihenfolge zu ändern, in welcher sie im
           öffentlichen Plan erscheinen.</p>
+        <p class="text-sm text-gray-600 mb-4">
+          Das erste Logo wird für die Namensaufkleber verwendet.
+        </p>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div
@@ -619,14 +634,14 @@ onMounted(async () => {
 
     <!-- Delete Confirmation Modal -->
     <ConfirmationModal
-      :show="!!logoToDelete"
-      title="Logo löschen"
-      :message="deleteLogoMessage"
-      type="danger"
-      confirm-text="Löschen"
-      cancel-text="Abbrechen"
-      @confirm="deleteLogo"
-      @cancel="cancelDeleteLogo"
+        :show="!!logoToDelete"
+        title="Logo löschen"
+        :message="deleteLogoMessage"
+        type="danger"
+        confirm-text="Löschen"
+        cancel-text="Abbrechen"
+        @confirm="deleteLogo"
+        @cancel="cancelDeleteLogo"
     />
   </div>
 </template>

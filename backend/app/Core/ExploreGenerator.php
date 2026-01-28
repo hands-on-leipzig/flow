@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use App\Support\IntegratedExploreState;
+use App\Core\TimeCursor;
 use App\Enums\ExploreMode;
 
 
@@ -113,7 +114,7 @@ class ExploreGenerator
 
                 $this->writer->withGroup('e_opening', function () use ($group) {
                     $this->writer->insertActivity('e_opening', $this->eTime, $this->pp("e{$group}_duration_opening"));
-                });
+                }, $group);
 
                 $this->eTime->addMinutes($this->pp("e{$group}_duration_opening"));
 
@@ -138,7 +139,7 @@ class ExploreGenerator
                 $cursor = new TimeCursor($t);
                 $cursor->subMinutes($this->pp("e{$group}_duration_briefing_t") + $this->pp("e_ready_opening"));
                 $this->writer->insertActivity('e_briefing_coach', $cursor, $this->pp("e{$group}_duration_briefing_t"));
-            });
+            }, $group);
 
             $this->writer->withGroup('e_briefing_judge', function () use ($t, $group) {
                 if (!$this->pp("e_briefing_after_opening_j")) {
@@ -151,7 +152,7 @@ class ExploreGenerator
                     $this->writer->insertActivity('e_briefing_judge', $cursor, $this->pp("e{$group}_duration_briefing_j"));
                     $this->eTime->addMinutes($this->pp("e_ready_briefing") + $this->pp("e{$group}_duration_briefing_j"));
                 }
-            });
+            }, $group);
 
             $this->eTime->addMinutes($this->pp("e_ready_action"));
 
@@ -204,7 +205,7 @@ class ExploreGenerator
                         $this->eTime->addMinutes($this->pp("e_duration_break"));
                     }
                 }
-            });
+            }, $group);
 
             // Buffer before all judges meet for deliberations
             $this->eTime->addMinutes($this->pp('e_ready_deliberations'));
@@ -212,18 +213,34 @@ class ExploreGenerator
             // Deliberations
             $this->writer->withGroup('e_deliberations', function () use ($group) {
                 $this->writer->insertActivity('e_deliberations', $this->eTime, $this->pp("e{$group}_duration_deliberations"));
-            });
+            }, $group);
 
             $this->eTime->addMinutes($this->pp("e{$group}_duration_deliberations"));
+            
+            // For INTEGRATED_MORNING mode, store deliberation end time (after e_ready_awards buffer)
+            // This is when Explore awards can start (after buffer period)
+            if ($group == 1 && $this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
+                $this->eTime->addMinutes($this->pp('e_ready_awards'));
+                $this->integratedExplore->deliberationEndTime = $this->eTime->format('H:i');
+                $this->eTime->subMinutes($this->pp('e_ready_awards')); // Restore for exhibition calculation
+            }
+            
+            // For INTEGRATED_AFTERNOON mode, store Explore end time after deliberations + e_ready_awards buffer
+            // This is when Explore activities are complete and ready for awards (for joint awards synchronization)
+            if ($group == 2 && $this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                $this->eTime->addMinutes($this->pp('e_ready_awards'));
+                $this->integratedExplore->exploreEndTime = $this->eTime->format('H:i');
+                $this->eTime->subMinutes($this->pp('e_ready_awards')); // Restore for exhibition calculation
+            }
             
             // Capture end time of deliberations (end of exhibition)
             $exhibitionEnd = clone $this->eTime;
             
             // Create exhibition activity group spanning from start of judging to end of deliberations
-            $this->writer->withGroup('e_exhibition', function () use ($exhibitionStart, $exhibitionEnd) {
+            $this->writer->withGroup('e_exhibition', function () use ($exhibitionStart, $exhibitionEnd, $group) {
                 $duration = $exhibitionEnd->diffInMinutes($exhibitionStart);
                 $this->writer->insertActivity('e_exhibition', $exhibitionStart, $duration);
-            });
+            }, $group);
             
             Log::info('ExploreGenerator: Exhibition activity created', [
                 'group' => $group,
@@ -249,7 +266,7 @@ class ExploreGenerator
             $this->eTime->addMinutes($this->pp("e_ready_awards"));
             $this->writer->withGroup('e_awards', function () use ($group) {
                 $this->writer->insertActivity('e_awards', $this->eTime, $this->pp("e{$group}_duration_awards"));
-            });
+            }, $group);
             $this->eTime->addMinutes($this->pp("e{$group}_duration_awards"));        
 
         } catch (\Throwable $e) {
@@ -268,13 +285,17 @@ class ExploreGenerator
      * Handle integrated Explore activity inserted during Challenge robot game
      * For INTEGRATED_MORNING: inserts awards
      * For INTEGRATED_AFTERNOON: inserts opening
+     * 
+     * @param int $group Explore group (1 or 2)
+     * @param TimeCursor|null $rTime Robot game time cursor (for INTEGRATED_MORNING to return awards end time)
+     * @return string|null Awards end time (H:i format) for INTEGRATED_MORNING group 1, null otherwise
      */
-    public function integratedActivity(int $group): void
+    public function integratedActivity(int $group, ?TimeCursor $rTime = null): ?string
     {
         // Check if start time was written by ChallengeGenerator
         if ($this->integratedExplore->startTime === null) {
             // Log::debug("No integratedExploreStart set, skipping integrated activity");
-            return;
+            return null;
         }
 
         try {
@@ -283,9 +304,13 @@ class ExploreGenerator
 
             if ($group == 1) {
                 // Insert awards
-            
                 $this->awards($group);
                 // Log::info("ExploreGenerator: Integrated awards inserted at {$this->integratedExplore->startTime}");
+                
+                // Return awards end time for INTEGRATED_MORNING mode
+                if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
+                    return $this->eTime->format('H:i');
+                }
                 
             } elseif ($group == 2) {
                 // Insert opening
@@ -300,6 +325,8 @@ class ExploreGenerator
                 // Log::info("ExploreGenerator: Integrated opening inserted at {$this->integratedExplore->startTime}");
             
             }
+
+            return null;
 
         } catch (\Throwable $e) {
             Log::error('ExploreGenerator: Error in integrated activity', [

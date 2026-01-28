@@ -1,9 +1,10 @@
 <script setup>
-import {ref, computed, onMounted, onBeforeUnmount, watch, nextTick, Teleport} from 'vue'
+import {ref, computed, onMounted, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import {programLogoSrc, programLogoAlt, imageUrl} from '@/utils/images'
-import QRCode from 'qrcode'
+import {formatTimeOnly} from '@/utils/dateTimeFormat'
+import EventMap from '@/components/molecules/EventMap.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,23 +14,6 @@ const loading = ref(true)
 const error = ref(null)
 const publicPlanId = ref(null)
 const eventLogos = ref([])
-const mapCoordinates = ref(null)
-const mapInstance = ref(null)
-const showMapMenu = ref(false)
-const showQRCode = ref(false)
-const copySuccessMessage = ref('')
-const qrCodeRef = ref(null)
-const mapMenuButton = ref(null)
-const menuPosition = ref({top: '0px', left: '0px'})
-
-// Check if device is Apple (iOS/macOS)
-const isAppleDevice = ref(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent))
-
-// Check if Web Share API is available
-const canShare = ref('share' in navigator)
-
-// Copy success timeout
-let copySuccessTimeout = null
 
 const loadEvent = async () => {
   try {
@@ -64,9 +48,9 @@ const loadEvent = async () => {
         viewport_height: window.innerHeight,
         device_pixel_ratio: window.devicePixelRatio || 1,
         touch_support: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-        connection_type: navigator.connection?.effectiveType || 
-                         navigator.connection?.type || 
-                         null
+        connection_type: navigator.connection?.effectiveType ||
+            navigator.connection?.type ||
+            null
       };
 
       // Log access (fire and forget - don't await)
@@ -130,139 +114,187 @@ const formatDateOnly = (dateString) => {
   })
 }
 
-// Format time to show only time part
-const formatTimeOnly = (timeString) => {
-  if (!timeString) return ''
-  const date = new Date(timeString)
-  return date.toLocaleTimeString('de-DE', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+// Get timeline items for Explore morning group, sorted chronologically
+const getExploreMorningTimelineItems = () => {
+  const plan = scheduleInfo.value?.plan
+  if (!plan?.explore_morning || !Array.isArray(plan.explore_morning) || plan.explore_morning.length === 0) {
+    return []
+  }
+
+  // Map backend format to frontend format
+  return plan.explore_morning.map(item => {
+    const timestamp = new Date(item.value).getTime()
+    let type = 'briefing'
+    if (item.label?.toLowerCase().includes('eröffnung') || item.label?.toLowerCase().includes('opening')) {
+      type = 'opening'
+    } else if (item.label?.toLowerCase().includes('ende') || item.label?.toLowerCase().includes('end')) {
+      type = 'end'
+    }
+
+    return {
+      time: formatTimeOnly(item.value, true),
+      label: item.label || '',
+      type: type,
+      timestamp: timestamp,
+      description: item.description || null
+    }
+  }).sort((a, b) => a.timestamp - b.timestamp)
 }
 
-// Get timeline items for Explore program, sorted chronologically
+// Get timeline items for Explore afternoon group, sorted chronologically
+const getExploreAfternoonTimelineItems = () => {
+  const plan = scheduleInfo.value?.plan
+  if (!plan?.explore_afternoon || !Array.isArray(plan.explore_afternoon) || plan.explore_afternoon.length === 0) {
+    return []
+  }
+
+  // Map backend format to frontend format
+  return plan.explore_afternoon.map(item => {
+    const timestamp = new Date(item.value).getTime()
+    let type = 'briefing'
+    if (item.label?.toLowerCase().includes('eröffnung') || item.label?.toLowerCase().includes('opening')) {
+      type = 'opening'
+    } else if (item.label?.toLowerCase().includes('ende') || item.label?.toLowerCase().includes('end')) {
+      type = 'end'
+    }
+
+    return {
+      time: formatTimeOnly(item.value, true),
+      label: item.label || '',
+      type: type,
+      timestamp: timestamp,
+      description: item.description || null
+    }
+  }).sort((a, b) => a.timestamp - b.timestamp)
+}
+
+// Get timeline items for single Explore group (fallback when no morning/afternoon), sorted chronologically
+const getExploreSingleTimelineItems = () => {
+  const plan = scheduleInfo.value?.plan
+  if (!plan?.explore || !Array.isArray(plan.explore) || plan.explore.length === 0) {
+    return []
+  }
+
+  // Map backend format to frontend format
+  return plan.explore.map(item => {
+    const timestamp = new Date(item.value).getTime()
+    let type = 'briefing'
+    if (item.label?.toLowerCase().includes('eröffnung') || item.label?.toLowerCase().includes('opening')) {
+      type = 'opening'
+    } else if (item.label?.toLowerCase().includes('ende') || item.label?.toLowerCase().includes('end')) {
+      type = 'end'
+    }
+
+    return {
+      time: formatTimeOnly(item.value, true),
+      label: item.label || '',
+      type: type,
+      timestamp: timestamp,
+      description: item.description || null
+    }
+  }).sort((a, b) => a.timestamp - b.timestamp)
+}
+
+// Get all Explore timeline items (for compatibility with existing code)
 const getExploreTimelineItems = () => {
-  if (!scheduleInfo.value?.plan?.explore) return []
+  const morningItems = getExploreMorningTimelineItems()
+  const afternoonItems = getExploreAfternoonTimelineItems()
+  const singleItems = getExploreSingleTimelineItems()
 
-  const items = []
-  const plan = scheduleInfo.value.plan.explore
-
-  // Add opening time
-  if (plan.opening) {
-    items.push({
-      time: formatTimeOnly(plan.opening),
-      label: 'Eröffnung',
-      type: 'opening',
-      timestamp: new Date(plan.opening).getTime()
-    })
+  // If we have morning or afternoon, return those (combined for compatibility)
+  if (morningItems.length > 0 || afternoonItems.length > 0) {
+    return [...morningItems, ...afternoonItems].sort((a, b) => a.timestamp - b.timestamp)
   }
 
-  // Add briefing times
-  if (plan.briefing?.teams) {
-    items.push({
-      time: formatTimeOnly(plan.briefing.teams),
-      label: 'Coach:innen-Briefing',
-      type: 'briefing',
-      description: 'Briefing für Coach:innen',
-      timestamp: new Date(plan.briefing.teams).getTime()
-    })
-  }
-
-  if (plan.briefing?.judges) {
-    items.push({
-      time: formatTimeOnly(plan.briefing.judges),
-      label: 'Gutachter:innen-Briefing',
-      type: 'briefing',
-      description: 'Briefing für Gutachter:innen',
-      timestamp: new Date(plan.briefing.judges).getTime()
-    })
-  }
-
-  // Add end time
-  if (plan.end) {
-    items.push({
-      time: formatTimeOnly(plan.end),
-      label: 'Ende',
-      type: 'end',
-      timestamp: new Date(plan.end).getTime()
-    })
-  }
-
-  // Sort by timestamp
-  return items.sort((a, b) => a.timestamp - b.timestamp)
+  // Otherwise return single explore items
+  return singleItems
 }
 
 // Get timeline items for Challenge program, sorted chronologically
 const getChallengeTimelineItems = () => {
-  if (!scheduleInfo.value?.plan?.challenge) return []
+  const plan = scheduleInfo.value?.plan
+  if (!plan?.challenge || !Array.isArray(plan.challenge) || plan.challenge.length === 0) return []
 
-  const items = []
-  const plan = scheduleInfo.value.plan.challenge
+  // Backend returns challenge as an array of {value, label, sequence}
+  // Map backend format to frontend format
+  return plan.challenge.map(item => {
+    const timestamp = new Date(item.value).getTime()
+    let type = 'briefing'
+    if (item.label?.toLowerCase().includes('beginn') || item.label?.toLowerCase().includes('opening')) {
+      type = 'opening'
+    } else if (item.label?.toLowerCase().includes('ende') || item.label?.toLowerCase().includes('end')) {
+      type = 'end'
+    }
 
-  // Add opening time
-  if (plan.opening) {
-    items.push({
-      time: formatTimeOnly(plan.opening),
-      label: 'Beginn',
-      type: 'opening',
-      timestamp: new Date(plan.opening).getTime()
-    })
-  }
-
-  // Add briefing times
-  if (plan.briefing?.teams) {
-    items.push({
-      time: formatTimeOnly(plan.briefing.teams),
-      label: 'Coach-Briefing',
-      type: 'briefing',
-      description: 'Briefing für Coaches',
-      timestamp: new Date(plan.briefing.teams).getTime()
-    })
-  }
-
-  if (plan.briefing?.judges) {
-    items.push({
-      time: formatTimeOnly(plan.briefing.judges),
-      label: 'Juror:innen-Briefing',
-      type: 'briefing',
-      description: 'Briefing für Juror:innen',
-      timestamp: new Date(plan.briefing.judges).getTime()
-    })
-  }
-
-  if (plan.briefing?.referees) {
-    items.push({
-      time: formatTimeOnly(plan.briefing.referees),
-      label: 'Schiedsrichter:innen-Briefing',
-      type: 'briefing',
-      description: 'Briefing für Schiedsrichter:innen',
-      timestamp: new Date(plan.briefing.referees).getTime()
-    })
-  }
-
-  // Add end time
-  if (plan.end) {
-    items.push({
-      time: formatTimeOnly(plan.end),
-      label: 'Ende',
-      type: 'end',
-      timestamp: new Date(plan.end).getTime()
-    })
-  }
-
-  // Sort by timestamp (chronological order)
-  return items.sort((a, b) => a.timestamp - b.timestamp)
+    return {
+      time: formatTimeOnly(item.value, true),
+      label: item.label || '',
+      type: type,
+      timestamp: timestamp,
+      description: item.description || null
+    }
+  }).sort((a, b) => a.timestamp - b.timestamp)
 }
+
+// Get combined Explore items count (morning + afternoon if both exist)
+const combinedExploreItemsCount = computed(() => {
+  const morningItems = getExploreMorningTimelineItems()
+  const afternoonItems = getExploreAfternoonTimelineItems()
+  const singleItems = getExploreSingleTimelineItems()
+
+  // If both morning and afternoon exist, sum them; otherwise use single
+  if (morningItems.length > 0 && afternoonItems.length > 0) {
+    return morningItems.length + afternoonItems.length
+  }
+
+  // Return the max of single explore or whichever of morning/afternoon exists
+  return Math.max(morningItems.length, afternoonItems.length, singleItems.length)
+})
 
 // Get timeline minimum height based on max items
 const timelineMinHeight = computed(() => {
-  const exploreItems = getExploreTimelineItems()
+  const morningItems = getExploreMorningTimelineItems()
+  const afternoonItems = getExploreAfternoonTimelineItems()
+  const singleItems = getExploreSingleTimelineItems()
   const challengeItems = getChallengeTimelineItems()
-  const maxItems = Math.max(exploreItems.length, challengeItems.length)
 
-  // Each item takes approximately 100px (card + spacing)
+  // Calculate max items across all explore sections and challenge
+  const maxExploreItems = Math.max(morningItems.length, afternoonItems.length, singleItems.length)
+  const maxItems = Math.max(maxExploreItems, challengeItems.length)
+
+  // Each item takes approximately 70px (card + compact spacing with gap-3)
   // Base height for timeline line
-  return `${maxItems * 100}px`
+  return `${maxItems * 70}px`
+})
+
+// Get combined Explore height for matching Challenge height
+const combinedExploreHeight = computed(() => {
+  // Each item takes approximately 70px (card + compact spacing with gap-3)
+  // Add some padding for headers and spacing between sections
+  const itemHeight = 70
+  const headerHeight = 80 // Approximate header height
+  const sectionSpacing = 16 // Spacing between morning/afternoon sections (gap-4)
+
+  const morningItems = getExploreMorningTimelineItems()
+  const afternoonItems = getExploreAfternoonTimelineItems()
+  const singleItems = getExploreSingleTimelineItems()
+
+  let height = 0
+
+  // If both morning and afternoon exist
+  if (morningItems.length > 0 && afternoonItems.length > 0) {
+    height = headerHeight + (morningItems.length * itemHeight) + sectionSpacing + headerHeight + (afternoonItems.length * itemHeight)
+  } else if (singleItems.length > 0) {
+    height = headerHeight + (singleItems.length * itemHeight)
+  } else {
+    // Use whichever exists
+    const items = morningItems.length > 0 ? morningItems : afternoonItems
+    if (items.length > 0) {
+      height = headerHeight + (items.length * itemHeight)
+    }
+  }
+
+  return `${height}px`
 })
 
 // Check if content should be visible based on publication level
@@ -288,313 +320,8 @@ const goHome = () => {
   router.push('/')
 }
 
-// Geocode address using backend API (proxies to OpenStreetMap Nominatim API)
-const geocodeAddress = async (address) => {
-  if (!address) return null
-
-  try {
-    const response = await axios.get('/geocode', {
-      params: {
-        address: address
-      }
-    })
-
-    if (response.data && response.data.lat && response.data.lon) {
-      return {
-        lat: response.data.lat,
-        lon: response.data.lon
-      }
-    }
-    return null
-  } catch (err) {
-    console.error('Error geocoding address:', err)
-    return null
-  }
-}
-
-// Initialize map with Leaflet
-const initializeMap = async (address) => {
-  if (!address) return
-
-  // Remove existing map if it exists
-  if (mapInstance.value) {
-    mapInstance.value.remove()
-    mapInstance.value = null
-  }
-
-  // Load Leaflet CSS and JS if not already loaded
-  if (!window.L) {
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-    document.head.appendChild(link)
-
-    const script = document.createElement('script')
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-    script.onload = () => {
-      // Wait a bit for Leaflet to initialize
-      setTimeout(() => createMap(address), 100)
-    }
-    document.body.appendChild(script)
-  } else {
-    createMap(address)
-  }
-}
-
-const createMap = async (address) => {
-  if (!window.L) return
-
-  // Geocode address
-  const coords = await geocodeAddress(address)
-  if (!coords) return
-
-  mapCoordinates.value = coords
-
-  // Wait for DOM to be ready
-  await new Promise(resolve => setTimeout(resolve, 100))
-
-  const mapId = `map-${event.value?.id}`
-  const mapElement = document.getElementById(mapId)
-  if (!mapElement) return
-
-  // Create map
-  const map = window.L.map(mapId).setView([coords.lat, coords.lon], 15)
-  mapInstance.value = map
-
-  // Add OpenStreetMap tiles
-  window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19
-  }).addTo(map)
-
-  // Add marker
-  window.L.marker([coords.lat, coords.lon])
-      .addTo(map)
-      .bindPopup(address)
-      .openPopup()
-}
-
-// Watch for scheduleInfo changes to initialize map
-watch(() => scheduleInfo.value?.address, async (newAddress) => {
-  if (newAddress && event.value?.id) {
-    await nextTick()
-    // Wait a bit for DOM to render
-    setTimeout(() => {
-      initializeMap(newAddress)
-    }, 300)
-  }
-}, {immediate: true})
-
 onMounted(async () => {
   await loadEvent()
-  // Add click outside listener for map menu
-  document.addEventListener('click', handleClickOutside)
-})
-
-// Open in Google Maps
-const openInGoogleMaps = () => {
-  if (!mapCoordinates.value) return
-  const url = `https://www.google.com/maps/search/?api=1&query=${mapCoordinates.value.lat},${mapCoordinates.value.lon}`
-  window.open(url, '_blank')
-  showMapMenu.value = false
-}
-
-// Open in Apple Maps
-const openInAppleMaps = () => {
-  if (!mapCoordinates.value) return
-  const url = `https://maps.apple.com/?q=${mapCoordinates.value.lat},${mapCoordinates.value.lon}`
-  window.open(url, '_blank')
-  showMapMenu.value = false
-}
-
-// Open in OpenStreetMap
-const openInOpenStreetMap = () => {
-  if (!mapCoordinates.value) return
-  const url = `https://www.openstreetmap.org/?mlat=${mapCoordinates.value.lat}&mlon=${mapCoordinates.value.lon}&zoom=15`
-  window.open(url, '_blank')
-  showMapMenu.value = false
-}
-
-// Copy coordinates to clipboard
-const copyCoordinates = async () => {
-  if (!mapCoordinates.value) return
-  const coords = `${mapCoordinates.value.lat}, ${mapCoordinates.value.lon}`
-  try {
-    await navigator.clipboard.writeText(coords)
-    copySuccessMessage.value = 'Koordinaten kopiert!'
-    showMapMenu.value = false
-    if (copySuccessTimeout) clearTimeout(copySuccessTimeout)
-    copySuccessTimeout = setTimeout(() => {
-      copySuccessMessage.value = ''
-    }, 2000)
-  } catch (err) {
-    console.error('Failed to copy coordinates:', err)
-    alert('Koordinaten konnten nicht kopiert werden')
-  }
-}
-
-// Copy address to clipboard
-const copyAddress = async () => {
-  if (!scheduleInfo.value?.address) return
-  try {
-    await navigator.clipboard.writeText(scheduleInfo.value.address)
-    copySuccessMessage.value = 'Adresse kopiert!'
-    showMapMenu.value = false
-    if (copySuccessTimeout) clearTimeout(copySuccessTimeout)
-    copySuccessTimeout = setTimeout(() => {
-      copySuccessMessage.value = ''
-    }, 2000)
-  } catch (err) {
-    console.error('Failed to copy address:', err)
-    alert('Adresse konnte nicht kopiert werden')
-  }
-}
-
-// Share location using Web Share API
-const shareLocation = async () => {
-  if (!mapCoordinates.value || !scheduleInfo.value?.address) return
-
-  const shareData = {
-    title: event.value?.name || 'Veranstaltungsort',
-    text: scheduleInfo.value.address,
-    url: `https://www.google.com/maps/search/?api=1&query=${mapCoordinates.value.lat},${mapCoordinates.value.lon}`
-  }
-
-  try {
-    if (navigator.share) {
-      await navigator.share(shareData)
-      showMapMenu.value = false
-    }
-  } catch (err) {
-    if (err.name !== 'AbortError') {
-      console.error('Error sharing:', err)
-    }
-  }
-}
-
-// Get menu position based on button position
-const updateMenuPosition = () => {
-  if (!mapMenuButton.value) {
-    menuPosition.value = {visibility: 'hidden'}
-    return
-  }
-
-  const rect = mapMenuButton.value.getBoundingClientRect()
-  menuPosition.value = {
-    top: `${rect.bottom + 8}px`,
-    left: `${rect.right - 256}px`, // 256px = w-64 (menu width)
-  }
-}
-
-const getMenuPosition = () => menuPosition.value
-
-// Close menu when clicking outside
-const handleClickOutside = (event) => {
-  if (showMapMenu.value && mapMenuButton.value && !mapMenuButton.value.contains(event.target)) {
-    // Check if click is outside the menu
-    const menuElement = document.querySelector('[data-map-menu]')
-    if (menuElement && !menuElement.contains(event.target)) {
-      showMapMenu.value = false
-    }
-  }
-}
-
-// Generate QR code for location
-const generateQRCode = async () => {
-  if (!mapCoordinates.value) {
-    console.error('No map coordinates available')
-    return
-  }
-
-  // Wait for the ref to be available
-  let attempts = 0
-  while (!qrCodeRef.value && attempts < 10) {
-    await new Promise(resolve => setTimeout(resolve, 50))
-    attempts++
-  }
-
-  if (!qrCodeRef.value) {
-    console.error('QR code ref not available')
-    return
-  }
-
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapCoordinates.value.lat},${mapCoordinates.value.lon}`
-
-  try {
-    // Clear any existing canvas content
-    const canvas = qrCodeRef.value
-    if (canvas instanceof HTMLCanvasElement) {
-      const ctx = canvas.getContext('2d')
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-      }
-    }
-
-    // Generate QR code to canvas
-    await QRCode.toCanvas(canvas, googleMapsUrl, {
-      width: 256,
-      margin: 2,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
-    })
-  } catch (err) {
-    console.error('Error generating QR code:', err)
-    // Fallback: try to generate as data URL and display as image
-    try {
-      const dataUrl = await QRCode.toDataURL(googleMapsUrl, {
-        width: 256,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      })
-      if (qrCodeRef.value && qrCodeRef.value instanceof HTMLCanvasElement) {
-        const img = new Image()
-        img.src = dataUrl
-        img.onload = () => {
-          const ctx = qrCodeRef.value.getContext('2d')
-          ctx.clearRect(0, 0, qrCodeRef.value.width, qrCodeRef.value.height)
-          ctx.drawImage(img, 0, 0)
-        }
-      }
-    } catch (fallbackErr) {
-      console.error('Error with fallback QR code generation:', fallbackErr)
-    }
-  }
-}
-
-// Watch for QR code modal to show
-watch(showQRCode, async (newVal) => {
-  if (newVal && mapCoordinates.value) {
-    await nextTick()
-    // Add a small delay to ensure the modal is fully rendered
-    setTimeout(() => {
-      generateQRCode()
-    }, 100)
-  }
-})
-
-// Watch for menu to open and update position
-watch(showMapMenu, async (newVal) => {
-  if (newVal) {
-    await nextTick()
-    updateMenuPosition()
-  }
-})
-
-// Cleanup map on unmount
-onBeforeUnmount(() => {
-  if (mapInstance.value) {
-    mapInstance.value.remove()
-    mapInstance.value = null
-  }
-  if (copySuccessTimeout) {
-    clearTimeout(copySuccessTimeout)
-  }
-  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -710,47 +437,131 @@ onBeforeUnmount(() => {
 
         <div v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
              class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <!-- Explore: Timeline -->
-          <div v-if="scheduleInfo.plan.explore && getExploreTimelineItems().length > 0"
-               class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
-            <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
-              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
-              FIRST LEGO League Explore
-            </h3>
-            <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
-              <!-- Timeline line -->
-              <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
+          <!-- Left Column: Explore (morning + afternoon stacked if both exist) -->
+          <div class="flex flex-col gap-4 md:gap-6">
+            <!-- 2x Explore: Morning section -->
+            <div v-if="getExploreMorningTimelineItems().length > 0"
+                 class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
+              <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
+                <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
+                <span class="italic">FIRST</span> LEGO League Explore <span style="color: #1e40af;">Vormittag</span>
+              </h3>
+              <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
+                <!-- Timeline line -->
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
 
-              <!-- Timeline items - evenly spaced -->
-              <div class="relative h-full flex flex-col justify-between">
-                <div
-                    v-for="(item, index) in getExploreTimelineItems()"
-                    :key="index"
-                    :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getExploreTimelineItems().length - 1 ? '0' : 'auto' }"
-                    class="relative pl-12"
-                >
-                  <!-- Timeline dot -->
+                <!-- Timeline items - compact spacing -->
+                <div class="relative h-full flex flex-col gap-3">
                   <div
-                      :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
-                      class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
-                  </div>
-
-                  <!-- Timeline content -->
-                  <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
-                    <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
-                      <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{ item.label }}</span>
-                      <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                      v-for="(item, index) in getExploreMorningTimelineItems()"
+                      :key="index"
+                      class="relative pl-12"
+                  >
+                    <!-- Timeline dot -->
+                    <div
+                        :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
+                        class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
                     </div>
-                    <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+
+                    <!-- Timeline content -->
+                    <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
+                      <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+                        <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
+                            item.label
+                          }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                      </div>
+                      <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2x Explore: Afternoon section -->
+            <div v-if="getExploreAfternoonTimelineItems().length > 0"
+                 class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
+              <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
+                <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
+                <span class="italic">FIRST</span> LEGO League Explore <span style="color: #93c5fd;">Nachmittag</span>
+              </h3>
+              <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
+                <!-- Timeline line -->
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
+
+                <!-- Timeline items - compact spacing -->
+                <div class="relative h-full flex flex-col gap-3">
+                  <div
+                      v-for="(item, index) in getExploreAfternoonTimelineItems()"
+                      :key="index"
+                      class="relative pl-12"
+                  >
+                    <!-- Timeline dot -->
+                    <div
+                        :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
+                        class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
+                    </div>
+
+                    <!-- Timeline content -->
+                    <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
+                      <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+                        <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
+                            item.label
+                          }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                      </div>
+                      <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Single Explore Section (fallback when no morning/afternoon) -->
+            <div v-else-if="getExploreSingleTimelineItems().length > 0"
+                 class="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-green-300 shadow-md md:shadow-lg flex flex-col">
+              <h3 class="font-bold text-green-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
+                <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-6 h-6"/>
+                FIRST LEGO League Explore
+              </h3>
+              <div :style="{ minHeight: timelineMinHeight }" class="relative flex-1">
+                <!-- Timeline line -->
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-green-400"></div>
+
+                <!-- Timeline items - compact spacing -->
+                <div class="relative h-full flex flex-col gap-3">
+                  <div
+                      v-for="(item, index) in getExploreSingleTimelineItems()"
+                      :key="index"
+                      class="relative pl-12"
+                  >
+                    <!-- Timeline dot -->
+                    <div
+                        :class="item.type === 'opening' ? 'bg-green-500' : item.type === 'end' ? 'bg-red-500' : 'bg-blue-500'"
+                        class="absolute left-2 top-2 w-4 h-4 rounded-full border-2 border-green-600 bg-white shadow-md">
+                    </div>
+
+                    <!-- Timeline content -->
+                    <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-green-200">
+                      <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+                        <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
+                            item.label
+                          }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                      </div>
+                      <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+          <!-- End of Left Column: Explore -->
 
-          <!-- Challenge: Timeline -->
-          <div v-if="scheduleInfo.plan.challenge && getChallengeTimelineItems().length > 0"
-               class="bg-gradient-to-br from-red-100 to-pink-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-red-300 shadow-md md:shadow-lg flex flex-col">
+          <!-- Right Column: Challenge -->
+          <div v-if="getChallengeTimelineItems().length > 0"
+               class="bg-gradient-to-br from-red-100 to-pink-100 rounded-lg md:rounded-xl p-4 md:p-6 border-2 border-red-300 shadow-md md:shadow-lg flex flex-col"
+               :style="{ minHeight: combinedExploreHeight }">
             <h3 class="font-bold text-red-800 mb-4 md:mb-6 text-base md:text-lg flex items-center gap-2">
               <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="w-6 h-6"/>
               FIRST LEGO League Challenge
@@ -759,12 +570,11 @@ onBeforeUnmount(() => {
               <!-- Timeline line -->
               <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-red-400"></div>
 
-              <!-- Timeline items - evenly spaced -->
-              <div class="relative h-full flex flex-col justify-between">
+              <!-- Timeline items - compact spacing -->
+              <div class="relative h-full flex flex-col gap-3">
                 <div
                     v-for="(item, index) in getChallengeTimelineItems()"
                     :key="index"
-                    :style="{ marginTop: index === 0 ? '0' : 'auto', marginBottom: index === getChallengeTimelineItems().length - 1 ? '0' : 'auto' }"
                     class="relative pl-12"
                 >
                   <!-- Timeline dot -->
@@ -796,163 +606,31 @@ onBeforeUnmount(() => {
 
       <!-- Level 1: Basic Event Information -->
       <div v-if="isContentVisible(1) && scheduleInfo"
-           class="mt-6 md:mt-8 bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border-2 border-[#F78B1F] p-4 md:p-8 transform hover:shadow-2xl transition-shadow">
+           class="mt-6 md:mt-8 bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border-2 border-[#F78B1F] p-4 md:p-8">
         <h2 class="text-xl md:text-2xl font-bold text-[#F78B1F] mb-4 md:mb-6 flex items-center gap-2">
           Allgemeine Infos
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
           <div class="bg-orange-50 rounded-lg md:rounded-xl p-4 md:p-5 border-2 border-[#F78B1F]/20">
             <h3 class="font-bold text-[#F78B1F] mb-2 md:mb-3 text-base md:text-lg flex items-center gap-2">
-              <span>📍</span>
+              <span><i class="bi bi-pin-map-fill"></i></span>
               Datum & Ort
             </h3>
             <p class="text-gray-800 font-medium text-base md:text-lg">{{ formatDateOnly(scheduleInfo.date) }}</p>
-            <div v-if="!mapCoordinates && scheduleInfo.address"
-                 class="mt-3 text-sm text-gray-700 whitespace-pre-line bg-white rounded-lg p-3 border border-[#F78B1F]/20">
-              {{ scheduleInfo.address }}
+            <!-- EventMap Component -->
+            <div v-if="scheduleInfo.address" class="mt-3 md:mt-4">
+              <EventMap
+                  :address="scheduleInfo.address"
+                  :event-id="event.id"
+                  :event-name="event.name"
+                  :show-q-r-code="true"
+              />
             </div>
-            <!-- OpenStreetMap Map -->
-            <div v-if="scheduleInfo.address"
-                 class="mt-3 md:mt-4 rounded-lg overflow-hidden border-2 border-[#F78B1F] shadow-lg relative"
-                 style="height: 250px; min-height: 250px;">
-              <div v-if="!mapCoordinates" class="w-full h-full flex items-center justify-center bg-gray-100">
-                <p class="text-gray-500 text-sm">Karte wird geladen...</p>
-              </div>
-              <div v-else :id="'map-' + event.id" class="w-full h-full"></div>
-
-              <!-- Map Options Menu Button (inside map container, upper right corner) -->
-              <div v-if="mapCoordinates" class="absolute top-2 right-2 z-[1000]">
-                <div class="relative">
-                  <button
-                      ref="mapMenuButton"
-                      class="bg-white hover:bg-gray-50 rounded-lg shadow-lg p-2 border border-gray-200 flex items-center gap-2 transition-colors"
-                      title="Karten-Optionen"
-                      @click="showMapMenu = !showMapMenu"
-                  >
-                    <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                          stroke-linecap="round" stroke-linejoin="round"
-                          stroke-width="2"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Dropdown Menu (outside map container to prevent clipping, positioned relative to button) -->
-            <Teleport to="body">
-              <div
-                  v-if="showMapMenu && mapCoordinates && mapMenuButton"
-                  :style="getMenuPosition()"
-                  class="fixed w-64 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[9999]"
-                  data-map-menu
-              >
-                <div class="py-1">
-                  <!-- Open in Google Maps -->
-                  <button
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
-                      @click="openInGoogleMaps"
-                  >
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path
-                          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                    </svg>
-                    <span>In Google Maps öffnen</span>
-                  </button>
-
-                  <!-- Open in Apple Maps -->
-                  <button
-                      v-if="isAppleDevice"
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
-                      @click="openInAppleMaps"
-                  >
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path
-                          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                    </svg>
-                    <span>In Apple Maps öffnen</span>
-                  </button>
-
-                  <!-- Open in OpenStreetMap -->
-                  <button
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
-                      @click="openInOpenStreetMap"
-                  >
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path
-                          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                    </svg>
-                    <span>Auf OpenStreetMap öffnen</span>
-                  </button>
-
-                  <!-- Divider -->
-                  <div class="border-t border-gray-200 my-1"></div>
-
-                  <!-- Copy Coordinates -->
-                  <button
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
-                      @click="copyCoordinates"
-                  >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          stroke-linecap="round" stroke-linejoin="round"
-                          stroke-width="2"/>
-                    </svg>
-                    <span>Koordinaten kopieren</span>
-                  </button>
-
-                  <!-- Copy Address -->
-                  <button
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
-                      @click="copyAddress"
-                  >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          stroke-linecap="round" stroke-linejoin="round"
-                          stroke-width="2"/>
-                    </svg>
-                    <span>Adresse kopieren</span>
-                  </button>
-
-                  <!-- Share Location -->
-                  <button
-                      v-if="canShare"
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
-                      @click="shareLocation"
-                  >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                          d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                          stroke-linecap="round" stroke-linejoin="round"
-                          stroke-width="2"/>
-                    </svg>
-                    <span>Teilen</span>
-                  </button>
-
-                  <!-- QR Code -->
-                  <button
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
-                      @click="showMapMenu = false; showQRCode = true"
-                  >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                          stroke-linecap="round" stroke-linejoin="round"
-                          stroke-width="2"/>
-                    </svg>
-                    <span>QR-Code anzeigen</span>
-                  </button>
-                </div>
-              </div>
-            </Teleport>
           </div>
           <div v-if="scheduleInfo.contact?.length"
                class="bg-orange-50 rounded-xl p-5 border-2 border-[#F78B1F]/20">
             <h3 class="font-bold text-[#F78B1F] mb-2 md:mb-3 text-base md:text-lg flex items-center gap-2">
-              <span>✉️</span>
+              <span><i class="bi bi-envelope"></i></span>
               Kontakt
             </h3>
             <div class="space-y-3">
@@ -987,9 +665,9 @@ onBeforeUnmount(() => {
             <table class="w-full min-w-[600px]" style="table-layout: fixed;">
               <colgroup>
                 <col style="width: 15%;">
-                <col style="width: 30%;">
-                <col style="width: 30%;">
-                <col style="width: 25%;">
+                <col style="width: 28.33%;">
+                <col style="width: 28.33%;">
+                <col style="width: 28.34%;">
               </colgroup>
               <thead>
               <tr>
@@ -1010,18 +688,27 @@ onBeforeUnmount(() => {
                   }"
                   class="hover:transition-colors"
                   :class="`hover:bg-[var(--hover-color)]`">
-                <td class="px-2 md:px-4 py-2 md:py-4 whitespace-nowrap text-sm md:text-base font-bold text-right"
+                <td class="px-2 md:px-4 py-2 md:py-4 whitespace-nowrap text-sm md:text-base font-bold text-center"
                     :style="{ color: exploreColor }">
                   {{ team.team_number_hot || '-' }}
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base font-medium text-gray-900 break-words">
-                  {{ team.name }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base font-medium text-gray-900 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="bi bi-people-fill text-gray-500"></i>
+                    <span>{{ team.name }}</span>
+                  </div>
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words">
-                  {{ team.organization || '-' }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="bi bi-building-fill text-gray-500"></i>
+                    <span>{{ team.organization || '-' }}</span>
+                  </div>
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words">
-                  {{ team.location || '-' }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="bi bi-pin-map-fill text-gray-500"></i>
+                    <span>{{ team.location || '-' }}</span>
+                  </div>
                 </td>
               </tr>
               </tbody>
@@ -1051,9 +738,9 @@ onBeforeUnmount(() => {
             <table class="w-full min-w-[600px]" style="table-layout: fixed;">
               <colgroup>
                 <col style="width: 15%;">
-                <col style="width: 30%;">
-                <col style="width: 30%;">
-                <col style="width: 25%;">
+                <col style="width: 28.33%;">
+                <col style="width: 28.33%;">
+                <col style="width: 28.34%;">
               </colgroup>
               <thead>
               <tr>
@@ -1073,18 +760,27 @@ onBeforeUnmount(() => {
                   }"
                   class="hover:transition-colors"
                   :class="`hover:bg-[var(--hover-color)]`">
-                <td class="px-2 md:px-4 py-2 md:py-4 whitespace-nowrap text-sm md:text-base font-bold text-right"
+                <td class="px-2 md:px-4 py-2 md:py-4 whitespace-nowrap text-sm md:text-base font-bold text-center"
                     :style="{ color: challengeColor }">
                   {{ team.team_number_hot || '-' }}
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base font-medium text-gray-900 break-words">
-                  {{ team.name }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base font-medium text-gray-900 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="bi bi-people-fill text-gray-500"></i>
+                    <span>{{ team.name }}</span>
+                  </div>
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words">
-                  {{ team.organization || '-' }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="bi bi-building-fill text-gray-500"></i>
+                    <span>{{ team.organization || '-' }}</span>
+                  </div>
                 </td>
-                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words">
-                  {{ team.location || '-' }}
+                <td class="px-2 md:px-4 py-2 md:py-4 text-sm md:text-base text-gray-700 break-words text-left">
+                  <div class="flex items-center gap-2">
+                    <i class="bi bi-pin-map-fill text-gray-500"></i>
+                    <span>{{ team.location || '-' }}</span>
+                  </div>
                 </td>
               </tr>
               </tbody>
@@ -1105,47 +801,6 @@ onBeforeUnmount(() => {
 
     </div>
 
-    <!-- QR Code Modal -->
-    <div
-        v-if="showQRCode && mapCoordinates"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-        @click="showQRCode = false"
-    >
-      <div class="bg-white rounded-lg md:rounded-xl p-4 md:p-6 max-w-md w-full mx-4" @click.stop>
-        <div class="flex justify-between items-center mb-3 md:mb-4">
-          <h3 class="text-base md:text-lg font-semibold text-gray-900">QR-Code für Standort</h3>
-          <button
-              class="text-gray-400 hover:text-gray-600 transition-colors"
-              @click="showQRCode = false"
-          >
-            <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-            </svg>
-          </button>
-        </div>
-        <div class="flex flex-col items-center gap-3 md:gap-4">
-          <div
-              class="bg-white p-3 md:p-4 rounded-lg min-h-[200px] md:min-h-[256px] min-w-[200px] md:min-w-[256px] flex items-center justify-center">
-            <canvas ref="qrCodeRef" class="max-w-full max-h-full"></canvas>
-            <div v-if="!mapCoordinates" class="text-gray-400 text-xs md:text-sm absolute">Lade Standort...</div>
-          </div>
-          <p class="text-xs md:text-sm text-gray-600 text-center">
-            Scannen Sie den QR-Code, um den Standort in Google Maps zu öffnen
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Copy Success Toast -->
-    <div
-        v-if="copySuccessMessage"
-        class="fixed bottom-4 right-4 bg-green-500 text-white px-3 md:px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2 text-sm md:text-base max-w-[calc(100vw-2rem)]"
-    >
-      <svg class="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-      </svg>
-      <span class="truncate">{{ copySuccessMessage }}</span>
-    </div>
 
     <!-- Event Logos Footer - at the very bottom -->
     <div class="bg-[#F78B1F] py-6 md:py-8 mt-8 md:mt-12 shadow-2xl">

@@ -15,7 +15,6 @@ import {buildLanesIndex, type LanesIndex, type LaneRow} from '@/utils/lanesIndex
 import FllEvent from "@/models/FllEvent";
 import {Parameter, ParameterCondition} from "@/models/Parameter"
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
-import TeamSelectionExample from "@/components/molecules/TeamSelectionExample.vue";
 import ScheduleToast from "@/components/atoms/ScheduleToast.vue";
 import { useDebouncedSave } from "@/composables/useDebouncedSave";
 import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";
@@ -116,8 +115,7 @@ const fetchParams = async (planId: number) => {
     showExplore.value = Number(paramMapByName.value['e_mode']?.value || 0) > 0
     showChallenge.value = Number(paramMapByName.value['c_mode']?.value || 0) > 0
 
-    console.log('Fetched parameters:', parameters.value.length)
-    console.log('Expert parameters:', parameters.value.filter(p => p.context === 'expert').length)
+    // Parameters loaded successfully
   } catch (err) {
     console.error("Failed to fetch params or conditions:", err)
     parameters.value = []
@@ -228,7 +226,9 @@ const { scheduleUpdate, flush, immediateFlush, setOriginal, setOriginals, freeze
 function handleParamUpdate(param: { name: string, value: any }) {
   const p = paramMapByName.value[param.name]
   if (!p) {
-    console.warn('Parameter not found:', param.name)
+    if (import.meta.env.DEV) {
+      console.debug('Parameter not found:', param.name)
+    }
     return
   }
 
@@ -244,7 +244,6 @@ const insertBlocksRef = ref<InstanceType<typeof InsertBlocks> | null>(null)
 
 // Handle block updates from InsertBlocks component
 function handleBlockUpdates(updates: Array<{ name: string, value: any, triggerGenerator?: boolean }>) {
-  console.log('Received block updates:', updates)
 
   // Add all block updates using composable (triggers debounce)
   updates.forEach(update => {
@@ -309,7 +308,9 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
       needsRegeneration = true
     }
   } catch (error) {
-    console.error('Error saving parameters:', error)
+    if (import.meta.env.DEV) {
+      console.error('Error saving parameters:', error)
+    }
     loading.value = false
     return
   }
@@ -342,7 +343,9 @@ async function runGeneratorOnce() {
     await axios.post(`/plans/${selectedPlanId.value}/generate`)
     await pollUntilReady(selectedPlanId.value)
   } catch (error: any) {
-    console.error("Error during initial generation:", error)
+    if (import.meta.env.DEV) {
+      console.error("Error during initial generation:", error)
+    }
     
     // Extract error message from response
     let errorMessage = 'Unbekannter Fehler bei der Plan-Generierung'
@@ -413,7 +416,9 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
 
 // Legacy function - kept for backward compatibility but not used in new batch system
 const updateParam = async (param: Parameter) => {
-  console.warn('updateParam called directly - this should not happen in new batch system')
+  if (import.meta.env.DEV) {
+    console.debug('updateParam called directly - this should not happen in new batch system')
+  }
   // This function is kept for backward compatibility but should not be used
   // All updates should go through handleParamUpdate for batching
 }
@@ -443,7 +448,6 @@ async function getOrCreatePlan() {
 
   // Generator nur starten, wenn Plan neu ist
   if (planData.existing === false) {
-    console.log("New plan detected → run generator once")
     await runGeneratorOnce()
   }
 }
@@ -471,7 +475,9 @@ onMounted(async () => {
     await eventStore.fetchSelectedEvent()
   }
   if (!selectedEvent.value) {
-    console.error('No selected event could be loaded.')
+    if (import.meta.env.DEV) {
+      console.error('No selected event could be loaded.')
+    }
     loading.value = false
     return
   }
@@ -502,7 +508,9 @@ const fetchTableNames = async () => {
     })
     tableNames.value = names
   } catch (e) {
-    console.error('Fehler beim Laden der Tischbezeichnungen:', e)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Laden der Tischbezeichnungen:', e)
+    }
     tableNames.value = Array(4).fill('')
   }
 }
@@ -520,7 +528,9 @@ const updateTableName = async () => {
 
     await axios.put(`/table-names/${selectedEvent.value.id}`, payload)
   } catch (e) {
-    console.error('Fehler beim Speichern der Tischnamen:', e)
+    if (import.meta.env.DEV) {
+      console.error('Fehler beim Speichern der Tischnamen:', e)
+    }
   }
 }
 
@@ -673,8 +683,8 @@ const updateTableName = async () => {
 
                 <!-- Robot-Game-Tische -->
                 <div class="p-4 border rounded shadow mt-4 w-full max-w-lg">
-                  <div class="flex items-center mb-3">
-                    <span class="font-medium text-gray-800">Bezeichnung der Robot-Game-Tische</span>
+                  <div class="mb-3">
+                    <span class="font-medium text-gray-800">Bezeichnung der Robot-Game-Tische<br>(ersetzt nur die Nummer)</span>
                   </div>
 
                   <div class="grid grid-cols-2 gap-4">
@@ -683,7 +693,7 @@ const updateTableName = async () => {
                       <input
                           v-model="tableNames[i]"
                           class="w-full border px-3 py-1 rounded text-sm"
-                          :placeholder="`leer lassen für >>Tisch ${i + 1}<<`"
+                          :placeholder="`z.B. Alpha (leer lassen für >>Tisch ${i + 1}<<)`"
                           type="text"
                           @blur="updateTableName"
                       />
@@ -748,7 +758,7 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="bg-white border rounded-lg shadow">
+    <div v-if="showChallenge" class="bg-white border rounded-lg shadow">
       <button
           class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
           @click="toggle('extras')"

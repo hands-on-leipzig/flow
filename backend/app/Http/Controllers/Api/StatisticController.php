@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Log;
 use App\Enums\FirstProgram;
 use App\Models\Event;
 use App\Http\Controllers\Api\DrahtController;
+use App\Http\Controllers\Api\PlanRoomTypeController;
+use App\Http\Controllers\Api\TeamController;
+use App\Services\EventAttentionService;
 use Carbon\Carbon;
 
 
@@ -58,6 +61,8 @@ class StatisticController extends Controller
                 'event.season as event_season_id',
                 'event.event_explore as event_explore', 
                 'event.event_challenge as event_challenge',
+                'event.needs_attention as event_needs_attention',
+                'event.needs_attention_checked_at as event_needs_attention_checked_at',
 
                 // Season
                 'm_season.id as season_id',
@@ -225,6 +230,44 @@ class StatisticController extends Controller
             ->get()
             ->keyBy('plan');
 
+        // Get e_mode (Explore mode) for each plan
+        $eModeStatsRaw = DB::table('plan_param_value as ppv')
+            ->join('m_parameter as mp', 'mp.id', '=', 'ppv.parameter')
+            ->whereIn('ppv.plan', $planIds)
+            ->where('mp.name', 'e_mode')
+            ->select(
+                'ppv.plan',
+                'ppv.set_value as e_mode'
+            )
+            ->get()
+            ->keyBy('plan')
+            ->map(function ($item) {
+                return (int)($item->e_mode ?? 0);
+            });
+
+        // Check for overwritten table names per event
+        // Get event IDs for all plans
+        $planEventMap = DB::table('plan')
+            ->whereIn('id', $planIds)
+            ->pluck('event', 'id');
+        
+        $eventIds = $planEventMap->values()->unique()->filter();
+        
+        // Check which events have overwritten table names (non-empty table_name)
+        $eventsWithTableNames = DB::table('table_event')
+            ->whereIn('event', $eventIds)
+            ->whereNotNull('table_name')
+            ->where('table_name', '!=', '')
+            ->distinct()
+            ->pluck('event')
+            ->toArray();
+        
+        // Map: plan_id => has_overwritten_table_names
+        $planTableNamesOverwritten = [];
+        foreach ($planEventMap as $planId => $eventId) {
+            $planTableNamesOverwritten[$planId] = in_array($eventId, $eventsWithTableNames);
+        }
+
         // Gruppieren
         $groupedSeasons = [];
 
@@ -255,6 +298,15 @@ class StatisticController extends Controller
 
             // Event anlegen
             if ($row->event_id && !isset($groupedSeasons[$seasonKey]['partners'][$partnerKey]['events'][$eventKey])) {
+                // Lazy initialization: calculate attention status if not yet calculated
+                if ($row->event_needs_attention_checked_at === null) {
+                    $attentionService = app(EventAttentionService::class);
+                    $attentionService->ensureAttentionStatusCalculated($row->event_id);
+                    // Reload needs_attention from database
+                    $updatedEvent = DB::table('event')->where('id', $row->event_id)->first();
+                    $row->event_needs_attention = $updatedEvent->needs_attention ?? false;
+                }
+                
                 $counts = $teamCountsByEvent->get($row->event_id);
                 if (!empty($counts)) {
                     $exploreCount = ($counts[FirstProgram::EXPLORE->value] ?? 0) + ($counts[FirstProgram::DISCOVER->value] ?? 0);
@@ -272,6 +324,7 @@ class StatisticController extends Controller
                     'event_link' => $row->event_link,
                     'event_explore' => $row->event_explore,
                     'event_challenge' => $row->event_challenge,
+                    'event_needs_attention' => $row->event_needs_attention ?? false,
                     'teams_explore' => $exploreCount,
                     'teams_challenge' => $challengeCount,
                     'contact_email' => null, // Will be fetched asynchronously
@@ -296,6 +349,9 @@ class StatisticController extends Controller
                     'publication_level' => $row->publication_level,
                     'publication_date' => $row->publication_date,
                     'publication_last_change' => $row->publication_last_change,
+                    'has_warning' => false, // Will be set by DRAHT check
+                    'has_table_names' => $planTableNamesOverwritten[$row->plan_id] ?? false,
+                    'e_mode' => $eModeStatsRaw[$row->plan_id] ?? 0,
                 ];
             }
         }
@@ -405,9 +461,34 @@ class StatisticController extends Controller
             $withMultiplePlans  = $eventPlanCountsPast->filter(fn ($c) => $c > 1)->count() + $eventPlanCountsFuture->filter(fn ($c) => $c > 1)->count();
             $withPlan = $withOnePlan + $withMultiplePlans;
             
-            // Events with plan - split by past and future
+            // Events with plan - split by past and future (old calculation, kept for compatibility)
             $withPlanPast = $eventPlanCountsPast->filter(fn ($c) => $c > 0)->count();
             $withPlanFuture = $eventPlanCountsFuture->filter(fn ($c) => $c > 0)->count();
+            
+            // Events with plan that has at least one generator run - split by past and future
+            $withPlanWithGeneratorPast = DB::table('event')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+                ->join('plan', 'plan.event', '=', 'event.id')
+                ->join('s_generator', 's_generator.plan', '=', 'plan.id')
+                ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
+                ->where('event.date', '<=', $today)
+                ->whereNotNull('s_generator.start')
+                ->whereNotNull('s_generator.end')
+                ->distinct()
+                ->count('event.id');
+            
+            $withPlanWithGeneratorFuture = DB::table('event')
+                ->join('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
+                ->join('plan', 'plan.event', '=', 'event.id')
+                ->join('s_generator', 's_generator.plan', '=', 'plan.id')
+                ->where('event.season', $sid)
+                ->where('regional_partner.name', 'not like', '%QPlan RP%')
+                ->where('event.date', '>', $today)
+                ->whereNotNull('s_generator.start')
+                ->whereNotNull('s_generator.end')
+                ->distinct()
+                ->count('event.id');
 
             // Events mit ungültigem RP (Left Join → RP fehlt)
             $invalidEventRp = DB::table('event')
@@ -461,6 +542,8 @@ class StatisticController extends Controller
                     'with_plan'            => $withPlan,
                     'with_plan_past'       => $withPlanPast,
                     'with_plan_future'     => $withPlanFuture,
+                    'with_plan_with_generator_past'   => $withPlanWithGeneratorPast,
+                    'with_plan_with_generator_future' => $withPlanWithGeneratorFuture,
                     'invalid_partner_refs' => $invalidEventRp,
                 ],
                 'plans' => [
@@ -863,22 +946,38 @@ class StatisticController extends Controller
         // Calculate event day intervals (15-minute intervals)
         $eventDayIntervals = [];
         if ($event->event_date) {
-            $eventStart = Carbon::parse($event->event_date)->setTime(6, 0, 0);
+            // Event times are in local time (Europe/Berlin)
+            // Create Carbon instances - parse as UTC then add appropriate offset based on DST
+            $eventDateCarbon = Carbon::parse($event->event_date)->setTime(6, 0, 0);
             $eventDays = (int)($event->event_days ?? 1);
+            
+            // Determine DST offset: check if event date is in DST period
+            // DST in Europe: last Sunday in March (02:00 → 03:00) to last Sunday in October (03:00 → 02:00)
+            // Use Carbon to check if date is in DST by creating a datetime in Europe/Berlin timezone
+            $testDate = Carbon::parse($event->event_date, 'Europe/Berlin')->setTime(12, 0, 0);
+            $isDST = $testDate->isDST();
+            $hourOffset = $isDST ? 2 : 1; // UTC+2 in summer (CEST), UTC+1 in winter (CET)
+            
+            $eventStart = $eventDateCarbon->copy()->addHours($hourOffset);
             $eventEnd = Carbon::parse($event->event_date)
                 ->addDays($eventDays - 1)
-                ->setTime(20, 55, 0);
+                ->setTime(20, 55, 0)
+                ->addHours($hourOffset);
 
             // Get access counts for 15-minute intervals
-            // Round access_time to nearest 15-minute interval
+            // access_time is stored in UTC, convert by adding offset (DST-aware)
+            // Then round to nearest 15-minute interval
             $intervalAccesses = DB::table('s_one_link_access')
                 ->where('event', $eventId)
-                ->whereBetween('access_time', [$eventStart, $eventEnd])
+                ->whereBetween('access_time', [
+                    $eventStart->copy()->subHours($hourOffset), // Convert back to UTC for query
+                    $eventEnd->copy()->subHours($hourOffset)
+                ])
                 ->select(
                     DB::raw('DATE_FORMAT(
                         DATE_ADD(
-                            access_time,
-                            INTERVAL (15 - MINUTE(access_time) % 15) MINUTE
+                            DATE_ADD(access_time, INTERVAL ' . $hourOffset . ' HOUR),
+                            INTERVAL (15 - MINUTE(DATE_ADD(access_time, INTERVAL ' . $hourOffset . ' HOUR)) % 15) MINUTE
                         ),
                         "%Y-%m-%d %H:%i"
                     ) as interval_time'),
@@ -886,8 +985,8 @@ class StatisticController extends Controller
                 )
                 ->groupBy(DB::raw('DATE_FORMAT(
                     DATE_ADD(
-                        access_time,
-                        INTERVAL (15 - MINUTE(access_time) % 15) MINUTE
+                        DATE_ADD(access_time, INTERVAL ' . $hourOffset . ' HOUR),
+                        INTERVAL (15 - MINUTE(DATE_ADD(access_time, INTERVAL ' . $hourOffset . ' HOUR)) % 15) MINUTE
                     ),
                     "%Y-%m-%d %H:%i"
                 )'))
@@ -895,7 +994,7 @@ class StatisticController extends Controller
                 ->keyBy('interval_time')
                 ->map(fn($item) => (int)$item->access_count);
 
-            // Generate all 15-minute intervals
+            // Generate all 15-minute intervals (already shifted by hourOffset)
             $currentInterval = $eventStart->copy();
             while ($currentInterval->lte($eventEnd)) {
                 $intervalKey = $currentInterval->format('Y-m-d H:i');
@@ -934,8 +1033,18 @@ class StatisticController extends Controller
                 'event_id' => $eventId,
                 'has_issue' => false,
                 'contact_email' => null,
+                'plan_warnings' => [],
                 'error' => 'Event not found'
             ], 404);
+        }
+
+        // Calculate readiness/warnings for all plans in this event
+        $planWarnings = [];
+        $plans = DB::table('plan')->where('event', $eventId)->get();
+        
+        foreach ($plans as $plan) {
+            $hasWarning = $this->calculatePlanWarning($event, $plan->id);
+            $planWarnings[$plan->id] = $hasWarning;
         }
 
         // Only check if event has DRAHT IDs
@@ -944,6 +1053,7 @@ class StatisticController extends Controller
                 'event_id' => $eventId,
                 'has_issue' => false,
                 'contact_email' => null,
+                'plan_warnings' => $planWarnings,
                 'message' => 'No DRAHT IDs'
             ]);
         }
@@ -1005,6 +1115,7 @@ class StatisticController extends Controller
                 'event_id' => $eventId,
                 'has_issue' => $hasIssue,
                 'contact_email' => $email,
+                'plan_warnings' => $planWarnings,
             ]);
         } catch (\Throwable $e) {
             // If exception occurs, there's definitely an issue
@@ -1016,9 +1127,93 @@ class StatisticController extends Controller
                 'event_id' => $eventId,
                 'has_issue' => true,
                 'contact_email' => null,
+                'plan_warnings' => $planWarnings,
                 'error' => $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Calculate if a plan has warnings (red dot conditions)
+     * Returns true if any of: team discrepancy, missing teams, or room mapping issues
+     */
+    private function calculatePlanWarning(Event $event, int $planId): bool
+    {
+        $plan = DB::table('plan')->where('id', $planId)->first();
+        if (!$plan) {
+            return true; // No plan = warning
+        }
+
+        // Get planned team counts
+        $paramIds = DB::table('m_parameter')
+            ->whereIn('name', ['c_teams', 'e_teams'])
+            ->pluck('id', 'name');
+
+        $values = DB::table('plan_param_value')
+            ->where('plan', $planId)
+            ->whereIn('parameter', $paramIds->values())
+            ->pluck('set_value', 'parameter')
+            ->map(fn($v) => (int)$v);
+
+        $plannedChallengeTeams = $values[$paramIds['c_teams']] ?? 0;
+        $plannedExploreTeams = $values[$paramIds['e_teams']] ?? 0;
+
+        // Get registered team counts from local DB
+        $teamCounts = DB::table('team')
+            ->select('first_program', DB::raw('COUNT(*) as count'))
+            ->where('event', $event->id)
+            ->groupBy('first_program')
+            ->get()
+            ->keyBy('first_program');
+
+        $registeredChallengeTeams = (int)($teamCounts[FirstProgram::CHALLENGE->value]->count ?? 0);
+        $registeredExploreTeams = (int)(($teamCounts[FirstProgram::EXPLORE->value]->count ?? 0) + ($teamCounts[FirstProgram::DISCOVER->value]->count ?? 0));
+
+        // Check team discrepancy
+        $hasTeamDiscrepancy = ($plannedChallengeTeams !== $registeredChallengeTeams) || 
+                             ($plannedExploreTeams !== $registeredExploreTeams);
+
+        $exploreTeamsOk = ($plannedExploreTeams === $registeredExploreTeams);
+        $challengeTeamsOk = ($plannedChallengeTeams === $registeredChallengeTeams);
+
+        // Check room mapping
+        $planRoomTypeController = app(PlanRoomTypeController::class);
+        $unmappedResponse = $planRoomTypeController->unmappedRoomTypes($planId);
+        $unmappedList = $unmappedResponse->getData(true);
+        $hasUnmappedRooms = !empty($unmappedList);
+
+        // Check if all teams have rooms assigned
+        $teamController = app(TeamController::class);
+        $allTeamsHaveRooms = true;
+        
+        try {
+            $requestExplore = new \Illuminate\Http\Request();
+            $requestExplore->query->set('program', 'explore');
+            $exploreResponse = $teamController->index($requestExplore, $event);
+            $exploreTeams = collect($exploreResponse->getData(true));
+            
+            $requestChallenge = new \Illuminate\Http\Request();
+            $requestChallenge->query->set('program', 'challenge');
+            $challengeResponse = $teamController->index($requestChallenge, $event);
+            $challengeTeams = collect($challengeResponse->getData(true));
+            
+            $exploreWithoutRoom = $exploreTeams->whereNull('room')->count();
+            $challengeWithoutRoom = $challengeTeams->whereNull('room')->count();
+            
+            $allExploreRoomsOk = $exploreTeams->isEmpty() || $exploreWithoutRoom === 0;
+            $allChallengeRoomsOk = $challengeTeams->isEmpty() || $challengeWithoutRoom === 0;
+            $allTeamsHaveRooms = $allExploreRoomsOk && $allChallengeRoomsOk;
+        } catch (\Exception $e) {
+            $allTeamsHaveRooms = false;
+        }
+        
+        $roomMappingOk = !$hasUnmappedRooms && $allTeamsHaveRooms;
+
+        // Red dot shows if:
+        // - hasTeamDiscrepancy (teams tab)
+        // - !explore_teams_ok || !challenge_teams_ok (schedule tab)
+        // - !room_mapping_ok (rooms tab)
+        return $hasTeamDiscrepancy || !$exploreTeamsOk || !$challengeTeamsOk || !$roomMappingOk;
     }
 
     /**

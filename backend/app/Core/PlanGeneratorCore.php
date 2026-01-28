@@ -10,6 +10,7 @@ use App\Core\ChallengeGenerator;
 use App\Core\ExploreGenerator;
 use App\Core\FreeBlockGenerator;
 use App\Core\FinaleGenerator;
+use App\Core\TimeCursor;
 
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
@@ -30,7 +31,7 @@ class PlanGeneratorCore
 
     public function __construct(int $planId, PlanParameter $params)
     {
-        $this->writer = new ActivityWriter($planId);
+        $this->writer = new ActivityWriter($planId, $params);
         $this->params = $params;
         $this->integratedExplore = new IntegratedExploreState();
     }
@@ -111,8 +112,22 @@ class PlanGeneratorCore
                 $this->challenge->openingsAndBriefings(true);
                 $this->explore->openingsAndBriefings(1);
                 $this->explore->judgingAndDeliberations(1);
-                $this->challenge->main(true);
-                $this->explore->integratedActivity(1);
+                
+                // Define callback to insert awards and adjust rTime after RG1, before RG2
+                $afterRG1Callback = function(TimeCursor $rTime) {
+                    // Insert Explore awards at the synchronized start time
+                    $awardsEndTime = $this->explore->integratedActivity(1, $rTime);
+                    
+                    if ($awardsEndTime !== null) {
+                        // Set rTime to awards end time + e_ready_awards buffer
+                        // This ensures RG2 starts after awards are complete
+                        $rTime->setTime($awardsEndTime);
+                        $rTime->addMinutes($this->pp('e_ready_awards'));
+                    }
+                };
+                
+                $this->challenge->main(true, $afterRG1Callback);
+                
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards();
                 
@@ -174,7 +189,7 @@ class PlanGeneratorCore
     
                     $this->explore->openingsAndBriefings(1);
                     $this->explore->judgingAndDeliberations(1);
-                    $this->explore->awards(2);
+                    $this->explore->awards(1);
                 }
 
                 if ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {

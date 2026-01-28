@@ -14,6 +14,10 @@ import StatisticsDeleteModal from './statistics/StatisticsDeleteModal.vue'
 import StatisticsExtraBlocksModal from './statistics/StatisticsExtraBlocksModal.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
 
+const props = defineProps<{
+  tableOnly?: boolean
+}>()
+
 type FlattenedRow = {
   partner_id: number | null
   partner_name: string | null
@@ -24,6 +28,7 @@ type FlattenedRow = {
   event_link: string | null
   event_explore: number | null
   event_challenge: number | null
+  event_needs_attention?: boolean
   event_teams_explore: number
   event_teams_challenge: number
   draht_issue?: boolean
@@ -32,12 +37,15 @@ type FlattenedRow = {
   plan_created: string | null
   plan_last_change: string | null
   generator_stats: number | null
+  e_mode?: number
   expert_param_changes?: { input: number; expert: number }
   extra_blocks?: { free: number; inserted: number }
   publication_level?: number | null
   publication_date?: string | null
   publication_last_change?: string | null
   access_count?: number
+  has_warning?: boolean
+  has_table_names?: boolean
 }
 
 const data = ref<any>(null)
@@ -57,6 +65,11 @@ const drahtCheckState = ref({
 })
 const drahtIssues = ref<Map<number, boolean>>(new Map())
 const contactEmails = ref<Record<number, string>>({})
+const planWarnings = ref<Map<number, boolean>>(new Map()) // plan_id => has_warning
+
+// Filter toggles
+const hidePastEvents = ref(true) // Default: hide past events
+const showOnlyNext14Days = ref(false) // Default: show all future events
 
 const router = useRouter()
 const eventStore = useEventStore()
@@ -166,6 +179,7 @@ async function startDrahtChecks() {
       const response = await axios.get(`/stats/draht-check/${eventId}`)
       const hasIssue = response.data.has_issue === true
       const contactEmail = response.data.contact_email && response.data.contact_email.trim() ? response.data.contact_email.trim() : null
+      const planWarningsData = response.data.plan_warnings || {}
       
       if (hasIssue) {
         drahtIssues.value.set(eventId, true)
@@ -177,6 +191,11 @@ async function startDrahtChecks() {
       // Store contact email if available
       if (contactEmail) {
         contactEmails.value[eventId] = contactEmail
+      }
+      
+      // Store plan warnings
+      for (const [planId, hasWarning] of Object.entries(planWarningsData)) {
+        planWarnings.value.set(Number(planId), hasWarning === true)
       }
     } catch (e) {
       // On error, mark as having issue
@@ -207,6 +226,7 @@ function startDrahtCheck() {
   // Reset state and start checking
   drahtIssues.value.clear()
   contactEmails.value = {}
+  planWarnings.value.clear()
   drahtCheckState.value = {
     isRunning: true,
     checked: 0,
@@ -238,6 +258,8 @@ const seasonTotals = computed(() => {
     events_with_plan: 0,
     events_with_plan_past: 0,
     events_with_plan_future: 0,
+    events_with_plan_with_generator_past: 0,
+    events_with_plan_with_generator_future: 0,
     plans_total: 0,
     activity_groups_total: 0,
     activities_total: 0,
@@ -256,6 +278,8 @@ const seasonTotals = computed(() => {
     events_with_plan: s.events?.with_plan ?? 0,
     events_with_plan_past: s.events?.with_plan_past ?? 0,
     events_with_plan_future: s.events?.with_plan_future ?? 0,
+    events_with_plan_with_generator_past: s.events?.with_plan_with_generator_past ?? 0,
+    events_with_plan_with_generator_future: s.events?.with_plan_with_generator_future ?? 0,
     plans_total: s.plans?.total ?? 0,
     activity_groups_total: s.activity_groups?.total ?? 0,
     activities_total: s.activities?.total ?? 0,
@@ -378,6 +402,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_link: event.event_link ?? null,
           event_explore: event.event_explore,
           event_challenge: event.event_challenge,
+          event_needs_attention: event.event_needs_attention ?? false,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
           draht_issue: drahtIssues.value.get(event.event_id) ?? false,
@@ -402,6 +427,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_link: event.event_link ?? null,
           event_explore: event.event_explore,
           event_challenge: event.event_challenge,
+          event_needs_attention: event.event_needs_attention ?? false,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
           draht_issue: drahtIssues.value.get(event.event_id) ?? false,
@@ -416,6 +442,9 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           publication_date: plan.publication_date ?? null,
           publication_last_change: plan.publication_last_change ?? null,
           access_count: accessStats.value.get(event.event_id) ?? undefined,
+          has_warning: planWarnings.value.get(plan.plan_id) ?? false,
+          has_table_names: plan.has_table_names ?? false,
+          e_mode: plan.e_mode ?? 0,
         })
       }
     }
@@ -424,15 +453,63 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
   return rows
 })
 
+// Filtered rows based on toggle states (for display only)
+const filteredRows = computed(() => {
+  if (!flattenedRows.value) return []
+  
+  let filtered = [...flattenedRows.value]
+  
+  // Filter 1: Hide past events (default: on)
+  if (hidePastEvents.value) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    filtered = filtered.filter(row => {
+      if (!row.event_date) return true // Keep rows without date
+      try {
+        const eventDate = new Date(row.event_date)
+        eventDate.setHours(0, 0, 0, 0)
+        return eventDate >= today
+      } catch (e) {
+        return true // Keep rows with invalid dates
+      }
+    })
+  }
+  
+  // Filter 2: Show only next 14 days (default: off)
+  if (showOnlyNext14Days.value) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const maxDate = new Date(today)
+    maxDate.setDate(today.getDate() + 14)
+    
+    filtered = filtered.filter(row => {
+      if (!row.event_date) return false // Hide rows without date when filtering
+      try {
+        const eventDate = new Date(row.event_date)
+        eventDate.setHours(0, 0, 0, 0)
+        const diffTime = eventDate.getTime() - today.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        // Show events from today (0) to 14 days in the future
+        return diffDays >= 0 && diffDays <= 14
+      } catch (e) {
+        return false // Hide rows with invalid dates when filtering
+      }
+    })
+  }
+  
+  return filtered
+})
+
 function shouldShowPartner(index) {
   if (index === 0) return true
-  return flattenedRows.value[index].partner_id !== flattenedRows.value[index - 1].partner_id
+  return filteredRows.value[index].partner_id !== filteredRows.value[index - 1].partner_id
 }
 
 function shouldShowEvent(index) {
   if (index === 0) return true
-  const current = flattenedRows.value[index]
-  const previous = flattenedRows.value[index - 1]
+  const current = filteredRows.value[index]
+  const previous = filteredRows.value[index - 1]
   return (
     current.partner_id !== previous.partner_id ||
     current.event_id !== previous.event_id
@@ -441,12 +518,12 @@ function shouldShowEvent(index) {
 
 function getEventName(eventId: number | null): string {
   if (!eventId) return ''
-  const row = flattenedRows.value.find(r => r.event_id === eventId)
+  const row = filteredRows.value.find(r => r.event_id === eventId)
   return row?.event_name || ''
 }
 
 const getPlanCount = (eventId) => {
-  return flattenedRows.value.filter(r => r.event_id === eventId && r.plan_id !== null).length
+  return filteredRows.value.filter(r => r.event_id === eventId && r.plan_id !== null).length
 }
 
 function openPreview(planId) {
@@ -654,7 +731,7 @@ function exportToCSV() {
     return
   }
 
-  // Define CSV headers
+  // Define CSV headers (only columns that are visible in the table)
   const headers = [
     'RP ID',
     'Partner',
@@ -665,20 +742,21 @@ function exportToCSV() {
     'Event Link',
     'Event Explore',
     'Event Challenge',
+    'Event Needs Attention',
     'Teams Explore',
     'Teams Challenge',
     'DRAHT Issue',
     'Plan ID',
-    'Plan Name',
-    'Plan Created',
+    'Explore Mode',
     'Plan Last Change',
+    'Plan Warning',
     'Generator Stats',
     'Expert Parameter Changes (Input)',
     'Expert Parameter Changes (Expert)',
+    'Table Names',
     'Extra Blocks (Free)',
     'Extra Blocks (Inserted)',
     'Publication Level',
-    'Publication Date',
     'Publication Last Change',
     'Access Count'
   ]
@@ -707,20 +785,21 @@ function exportToCSV() {
         escapeCSV(row.event_link),
         escapeCSV(row.event_explore),
         escapeCSV(row.event_challenge),
+        escapeCSV(row.event_needs_attention ? 'Yes' : 'No'),
         escapeCSV(row.event_teams_explore),
         escapeCSV(row.event_teams_challenge),
         escapeCSV(row.draht_issue ? 'Yes' : 'No'),
         escapeCSV(row.plan_id),
-        escapeCSV(row.plan_name),
-        escapeCSV(row.plan_created ? formatDateTime(row.plan_created) : ''),
+        escapeCSV(row.e_mode ?? 0),
         escapeCSV(row.plan_last_change ? formatDateTime(row.plan_last_change) : ''),
+        escapeCSV(row.has_warning ? 'Yes' : 'No'),
         escapeCSV(row.generator_stats),
         escapeCSV(row.expert_param_changes?.input ?? 0),
         escapeCSV(row.expert_param_changes?.expert ?? 0),
+        escapeCSV(row.has_table_names ? 'Yes' : 'No'),
         escapeCSV(row.extra_blocks?.free ?? 0),
         escapeCSV(row.extra_blocks?.inserted ?? 0),
         escapeCSV(row.publication_level ?? ''),
-        escapeCSV(row.publication_date ? formatDateTime(row.publication_date) : ''),
         escapeCSV(row.publication_last_change ? formatDateTime(row.publication_last_change) : ''),
         escapeCSV(row.access_count ?? '')
       ].join(',')
@@ -759,7 +838,7 @@ function exportToCSV() {
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
       <!-- Global orphans -->
-      <div class="mb-2 flex flex-wrap items-center gap-2">
+      <div v-if="!props.tableOnly" class="mb-2 flex flex-wrap items-center gap-2">
         <button
           type="button"
           :disabled="orphans.events === 0"
@@ -808,9 +887,9 @@ function exportToCSV() {
         >
           Activities (ohne/ungültiger ActGroup): {{ orphans.acts }}
         </button>
-      </div>
+        </div>
         <!-- Season filter -->
-        <div class="mb-3">
+        <div v-if="!props.tableOnly" class="mb-3">
           <div class="flex flex-wrap gap-2">
             <label
               v-for="season in data.seasons"
@@ -828,8 +907,8 @@ function exportToCSV() {
           </div>
         </div>
 
-        <!-- Season totals (3 boxes) -->
-        <div class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+        <!-- Season totals (5 boxes) -->
+        <div v-if="!props.tableOnly" class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
           <!-- Box 1: regional partners -->
           <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
@@ -842,19 +921,31 @@ function exportToCSV() {
             </div>
           </div>
 
-          <!-- Box 2: events -->
+          <!-- Box 2: past events -->
           <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
             <div class="flex justify-between text-gray-700">
-              <span>Events: Vergangenheit | Zukunft</span>
-              <span class="font-semibold">{{ seasonTotals.events_past }} | {{ seasonTotals.events_future }}</span>
+              <span>Events: Vergangenheit</span>
+              <span class="font-semibold">{{ seasonTotals.events_past }}</span>
             </div>
             <div class="flex justify-between text-gray-700">
-              <span>mit Plan</span>
-              <span class="font-semibold">{{ seasonTotals.events_with_plan_past }} | {{ seasonTotals.events_with_plan_future }}</span>
+              <span>mit generiertem Plan</span>
+              <span class="font-semibold">{{ seasonTotals.events_with_plan_with_generator_past }}</span>
             </div>
           </div>
 
-        <!-- Box 3: plans & activities -->
+          <!-- Box 3: future events -->
+          <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
+            <div class="flex justify-between text-gray-700">
+              <span>Events: Zukunft</span>
+              <span class="font-semibold">{{ seasonTotals.events_future }}</span>
+            </div>
+            <div class="flex justify-between text-gray-700">
+              <span>mit generiertem Plan</span>
+              <span class="font-semibold">{{ seasonTotals.events_with_plan_with_generator_future }}</span>
+            </div>
+          </div>
+
+        <!-- Box 4: plans & activities -->
         <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
           <div class="flex justify-between text-gray-700">
             <span>Pläne</span>
@@ -868,7 +959,7 @@ function exportToCSV() {
           </div>
         </div>
 
-        <!-- Box 4: Publications -->
+        <!-- Box 5: Publications -->
         <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
           <div class="flex justify-between text-gray-700">
             <span>Veröffentlichte Pläne</span>
@@ -883,44 +974,72 @@ function exportToCSV() {
         </div>
       </div>
 
-      <!-- DRAHT Check Banner -->
-      <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="mb-2 p-2 rounded border" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'bg-red-50 border-red-300' : drahtCheckState.completed ? 'bg-green-50 border-green-300' : 'bg-blue-50 border-blue-300'">
-        <div class="flex justify-between items-center">
-          <div class="text-sm font-medium" :class="drahtCheckState.completed && drahtCheckState.problems > 0 ? 'text-red-800' : drahtCheckState.completed ? 'text-green-800' : 'text-blue-800'">
-            <template v-if="drahtCheckState.isRunning">
-              DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
-            </template>
-            <template v-else-if="drahtCheckState.completed">
-              DRAHT-Daten geladen: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
-            </template>
+      <!-- Filter toggles and DRAHT Check -->
+      <div class="mb-2 p-2 rounded border bg-blue-50 border-blue-300">
+        <div class="flex justify-between items-center gap-4 flex-wrap">
+          <!-- Filter toggles on the left -->
+          <div class="flex items-center gap-4 flex-wrap">
+            <!-- Toggle 1: Hide past events -->
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input
+                v-model="hidePastEvents"
+                class="sr-only peer"
+                type="checkbox"
+              >
+              <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+              <div
+                class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
+              ></div>
+              <span class="ml-2 text-sm font-medium text-gray-700">Vergangenheit ausblenden</span>
+            </label>
+            
+            <!-- Toggle 2: Show only next 14 days -->
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input
+                v-model="showOnlyNext14Days"
+                class="sr-only peer"
+                type="checkbox"
+              >
+              <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+              <div
+                class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
+              ></div>
+              <span class="ml-2 text-sm font-medium text-gray-700">Nur die nächsten 14 Tage</span>
+            </label>
           </div>
-          <button
-            v-if="!drahtCheckState.isRunning"
-            @click="startDrahtCheck"
-            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
-          >
-            DRAHT-Daten holen
-          </button>
+          
+          <!-- DRAHT Check on the right -->
+          <div class="flex items-center gap-2">
+            <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="text-sm font-medium text-blue-800">
+              <template v-if="drahtCheckState.isRunning">
+                DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
+              </template>
+              <template v-else-if="drahtCheckState.completed">
+                DRAHT-Daten geladen: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
+              </template>
+            </div>
+            <button
+              @click="startDrahtCheck"
+              :disabled="drahtCheckState.isRunning"
+              class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              DRAHT-Daten holen
+            </button>
+          </div>
         </div>
-      </div>
-      
-      <!-- DRAHT Check Button (when not running and not completed) -->
-      <div v-if="!drahtCheckState.isRunning && !drahtCheckState.completed" class="mb-2 p-2 rounded border bg-blue-50 border-blue-300">
-        <button
-          @click="startDrahtCheck"
-          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
-        >
-          DRAHT-Daten holen
-        </button>
       </div>
 
       <!-- Table -->
       <div class="border border-gray-300 bg-white rounded shadow-sm overflow-hidden">
         <div class="flex justify-between items-center p-2 bg-gray-50 border-b">
-          <div class="text-xs text-gray-600">
-            <span class="mr-4">🔴 = Problem mit DRAHT Daten</span>
-            <span class="mr-4">⬜️ = Kein Plan</span>
-            <span class="mr-4">✅ = Genau ein Plan</span>
+          <div class="text-xs text-gray-600 flex items-center gap-4 flex-wrap">
+            <span class="flex items-center gap-1">
+              <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span>= Event benötigt Aufmerksamkeit (Ablauf/Teams/Räume)</span>
+            </span>
+            <span>🔴 = Problem mit DRAHT Daten</span>
+            <span>⬜️ = Kein Plan</span>
+            <span>✅ = Genau ein Plan</span>
             <span>⚠️ = Mehrere Pläne</span>
           </div>
           <button
@@ -935,7 +1054,7 @@ function exportToCSV() {
             <thead class="bg-gray-100 text-left sticky top-0 z-10">
               <tr>
                 <th class="px-3 py-2">RP</th>
-                <th class="px-3 py-2">Partner</th>
+                <th class="px-3 py-2 w-24">Partner</th>
                 <th class="px-3 py-2">Event</th>
                 <th class="px-3 py-2">Name, Datum, Anmeldungen</th>
                 <th class="px-3 py-2">Plan</th>
@@ -950,7 +1069,7 @@ function exportToCSV() {
             </thead>
             <tbody>
         <tr
-            v-for="(row, index) in flattenedRows"
+            v-for="(row, index) in filteredRows"
           :key="`${row.partner_id}-${row.event_id}-${row.plan_id}`"
           class="border-t border-gray-200 hover:bg-gray-50"
         >
@@ -965,14 +1084,14 @@ function exportToCSV() {
           </td>
 
           <!-- RP name -->
-          <td class="px-3 py-2">
+          <td class="px-3 py-2 w-24">
             <template v-if="shouldShowPartner(index)">
-              <span class="flex items-center gap-1">
+              <span class="inline-flex items-center gap-1">
                 {{ row.partner_name }}
                 <a
                   v-if="row.contact_email"
                   :href="`mailto:${row.contact_email}?subject=FLOW`"
-                  class="text-blue-600 hover:text-blue-800"
+                  class="text-blue-600 hover:text-blue-800 flex-shrink-0"
                   title="E-Mail senden"
                 >
                   ✉️
@@ -997,7 +1116,7 @@ function exportToCSV() {
           <!-- Event name + date -->
           <td class="px-3 py-2" :class="getEventDateClass(row.event_date)">
             <template v-if="shouldShowEvent(index)">
-              <span class="mr-2">
+              <span class="mr-1">
                 <template v-if="row.draht_issue">
                   <!-- 🔴 DRAHT issue (critical) -->
                   🔴
@@ -1015,7 +1134,6 @@ function exportToCSV() {
                   ⚠️
                 </template>
               </span>
-              <!-- Clickable name -->
               <a
                 href="#"
                 class="text-blue-600 hover:underline cursor-pointer"
@@ -1023,38 +1141,36 @@ function exportToCSV() {
               >
                 {{ row.event_name }}
               </a>
-
-              <span class="text-gray-500"> ({{ formatDateOnly(row.event_date) }})</span>
+              <span class="text-gray-500 ml-1">({{ formatDateOnly(row.event_date) }})</span>
+              <span
+                v-if="row.event_needs_attention"
+                class="inline-block w-2 h-2 bg-red-500 rounded-full ml-1 align-middle"
+                title="Event benötigt Aufmerksamkeit: Ablauf, Teams oder Räume haben Probleme"
+              ></span>
               <span
                 v-if="row.event_explore || row.event_challenge"
-                class="inline-flex items-center space-x-2 ml-2"
+                class="inline-flex items-center ml-2 whitespace-nowrap"
               >
-                <span
-                  v-if="row.event_explore"
-                  class="inline-flex items-center space-x-1"
-                >
+                <template v-if="row.event_explore">
                   <img
                     :src="programLogoSrc('E')"
                     :alt="programLogoAlt('E')"
-                    class="w-5 h-5 inline-block"
+                    class="w-5 h-5 inline-block align-middle"
                   />
-                  <span class="text-xs text-gray-600">
+                  <span class="text-xs text-gray-600 ml-1">
                     {{ row.event_teams_explore ?? 0 }}
                   </span>
-                </span>
-                <span
-                  v-if="row.event_challenge"
-                  class="inline-flex items-center space-x-1"
-                >
+                </template>
+                <template v-if="row.event_challenge">
                   <img
                     :src="programLogoSrc('C')"
                     :alt="programLogoAlt('C')"
-                    class="w-5 h-5 inline-block"
+                    class="w-5 h-5 inline-block align-middle ml-2"
                   />
-                  <span class="text-xs text-gray-600">
+                  <span class="text-xs text-gray-600 ml-1">
                     {{ row.event_teams_challenge ?? 0 }}
                   </span>
-                </span>
+                </template>
               </span>
             </template>
             <template v-else>
@@ -1065,7 +1181,9 @@ function exportToCSV() {
           <!-- Plan ID + buttons -->
           <td class="px-3 py-2 text-gray-400">
             <div class="flex flex-col items-start">
-              <span>{{ row.plan_id }}</span>
+              <div class="flex items-center gap-1">
+                <span>{{ row.plan_id }}<template v-if="row.plan_id && row.e_mode !== undefined && row.e_mode !== null"> E{{ row.e_mode }}</template></span>
+              </div>
               <div v-if="row.plan_id" class="flex gap-2 mt-1">
                 <!-- Preview -->
                 <button
@@ -1117,10 +1235,12 @@ function exportToCSV() {
             <template v-if="row.plan_id">
               <div class="flex flex-col items-center">
                 <span v-if="row.expert_param_changes">
-                  {{ row.expert_param_changes.input }} + {{ row.expert_param_changes.expert }}
+                  {{ row.expert_param_changes.input }} + {{ row.expert_param_changes.expert }}<template v-if="row.has_table_names"> + T</template>
                 </span>
-                <span v-else>0 + 0</span>
-                <template v-if="row.expert_param_changes && (row.expert_param_changes.input > 0 || row.expert_param_changes.expert > 0)">
+                <span v-else>
+                  0 + 0<template v-if="row.has_table_names"> + T</template>
+                </span>
+                <template v-if="(row.expert_param_changes && (row.expert_param_changes.input > 0 || row.expert_param_changes.expert > 0)) || row.has_table_names">
                   <a
                     href="#"
                     class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
@@ -1225,8 +1345,13 @@ function exportToCSV() {
         </div>
       </div>
 
-      <div v-if="flattenedRows.length === 0" class="mt-4 text-gray-500 italic">
-        Keine Pläne in dieser Saison.
+      <div v-if="filteredRows.length === 0" class="mt-4 text-gray-500 italic">
+        <template v-if="flattenedRows.length === 0">
+          Keine Pläne in dieser Saison.
+        </template>
+        <template v-else>
+          Keine Pläne entsprechen den aktuellen Filtern.
+        </template>
       </div>
     </div>
   </div>

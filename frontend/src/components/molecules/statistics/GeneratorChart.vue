@@ -137,13 +137,22 @@ function createChart() {
     end_date
   })
 
-  // Prepare labels (dates)
-  const labels = daily_data.map((d: any) => d.date)
+  // Prepare labels (dates) - format to dd.mm.yyyy
+  const formatDateLabel = (dateStr: string): string => {
+    const date = new Date(dateStr + 'T00:00:00')
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}.${month}.${year}`
+  }
+  
+  const labels = daily_data.map((d: any) => formatDateLabel(d.date))
 
-  // Get today's date in Y-m-d format
+  // Get today's date in Y-m-d format for comparison
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
-  const todayIndex = labels.indexOf(todayStr)
+  const todayFormatted = formatDateLabel(todayStr)
+  const todayIndex = labels.indexOf(todayFormatted)
 
   // Prepare generator runs data (bars, left y-axis)
   const generatorRunsData = daily_data.map((d: any) => d.generator_runs)
@@ -153,8 +162,9 @@ function createChart() {
   // We need to create a dataset that shows horizontal lines for each interval
   const publicationDatasets = (publication_intervals || []).map((interval: any) => {
     // Create data points for this interval
-    const intervalData = labels.map((label: string) => {
-      const labelDate = new Date(label + 'T00:00:00')
+    // Map formatted labels back to original dates for comparison
+    const intervalData = daily_data.map((d: any) => {
+      const labelDate = new Date(d.date + 'T00:00:00')
       const startDate = new Date(interval.start_date + 'T00:00:00')
       const endDate = new Date(interval.end_date + 'T00:00:00')
       
@@ -198,8 +208,8 @@ function createChart() {
       
       if (!xScale || !yScale) return
       
-      // Get the x position of today
-      const todayX = xScale.getPixelForValue(todayStr)
+      // Get the x position of today (using formatted label)
+      const todayX = xScale.getPixelForValue(todayFormatted)
       
       if (isNaN(todayX)) return
       

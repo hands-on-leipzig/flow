@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\MainTablesController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\PlanExportController;
+use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\NewsController;
 
@@ -46,6 +47,7 @@ Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPubli
 Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
 Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
+Route::get('/events', [EventController::class, 'index']); // Get list of current events
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
@@ -67,8 +69,22 @@ Route::middleware(['keycloak'])->group(function () {
             'is_prod' => app()->environment('production')
         ]);
     });
-    
+
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
+    Route::get('/user/regional-partners', function (Request $request) {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['regional_partners' => []]);
+        }
+
+        // Use fully qualified column names to avoid ambiguity with pivot table's 'id' column
+        // The pivot table 'user_regional_partner' also has an 'id' column, so we need to specify the table
+        $regionalPartners = $user->regionalPartners()
+            ->select('regional_partner.id', 'regional_partner.name', 'regional_partner.region')
+            ->get();
+
+        return response()->json(['regional_partners' => $regionalPartners]);
+    });
     Route::get('/user/selected-event', function (Request $request) {
         $eventId = $request->user()?->selection_event;
         if (!$eventId) {
@@ -147,6 +163,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/events', [EventController::class, 'store']);
     Route::get('/events/{eventId}', [EventController::class, 'getEvent']);
     Route::put('/events/{eventId}', [EventController::class, 'update']);
+    Route::post('/events/{eventId}/check-attention', [EventController::class, 'checkAttention']);
     Route::get('/table-names/{eventId}', [EventController::class, 'getTableNames']);
     Route::put('/table-names/{eventId}', [EventController::class, 'updateTableNames']);
 
@@ -168,6 +185,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);
     Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
+    Route::delete('/teams/{team}', [TeamController::class, 'destroy']);
 
     Route::prefix('logos')->group(function () {
         Route::get('/', [LogoController::class, 'index']);
@@ -181,6 +199,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);
     Route::get('/events/{event}/draht-data', [DrahtController::class, 'show']);
+    Route::get('/draht/people/{drahtEventId}', [DrahtController::class, 'getPeople']);
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::put('/rooms/assign-types', [RoomController::class, 'assignRoomType']);
     Route::put('/rooms/assign-teams', [RoomController::class, 'assignTeam']);
@@ -228,14 +247,15 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     Route::get('/seasons', function () {
-        return response()->json(
-            DB::table('m_season')
-                ->select('id', 'name', 'year')
-                ->orderBy('year', 'desc')
-                ->get()
-        );
+        $seasons = DB::table('m_season')
+            ->select('id', 'name', 'year')
+            ->orderBy('year', 'desc')
+            ->get()
+            ->toArray(); // Convert Collection to array
+
+        return response()->json($seasons);
     }); // Get all seasons for dropdowns
-    
+
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
@@ -254,13 +274,19 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::prefix('export')->group(function () {
         Route::get('/pdf_preview/{eventId}', [PublishController::class, 'preview']);    // PDF mit Vorschau holen
-        Route::match(['get', 'post'], '/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);
         Route::get('/ready/{eventId}', [PlanExportController::class, 'dataReadiness']);
         Route::get('/available-roles/{eventId}', [PlanExportController::class, 'availableRoles']);
         Route::get('/available-team-programs/{eventId}', [PlanExportController::class, 'availableTeamPrograms']);
+        Route::get('/match-teams/{planId}/{round}', [PlanExportController::class, 'matchTeams']);
+        Route::get('/match-plan/{planId}', [PlanExportController::class, 'matchPlanPdf']);
+        Route::get('/moderator-match-plan/{planId}', [PlanExportController::class, 'moderatorMatchPlanPdf']);
+        Route::get('/team-list/{planId}', [PlanExportController::class, 'teamListPdf']);
         Route::get('/event-overview/{planId}', [PlanExportController::class, 'eventOverviewPdf']);
+        Route::match(['get', 'post'], '/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);
         Route::get('/worker-shifts/{eventId}', [PlanExportController::class, 'workerShifts']);
         Route::get('/csv/room-utilization/{eventId}', [PlanExportController::class, 'roomUtilizationCsv']);
+        Route::get('/name-tags/{eventId}', [LabelController::class, 'nameTagsPdf']);
+        Route::post('/volunteer-labels/{eventId}', [LabelController::class, 'volunteerLabelsPdf']);
     });
 
 
@@ -319,10 +345,15 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/{id}', [\App\Http\Controllers\Api\ApplicationController::class, 'show']);
         Route::put('/{id}', [\App\Http\Controllers\Api\ApplicationController::class, 'update']);
         Route::delete('/{id}', [\App\Http\Controllers\Api\ApplicationController::class, 'destroy']);
-        
+
         // API key management
         Route::post('/{applicationId}/api-keys', [\App\Http\Controllers\Api\ApplicationController::class, 'createApiKey']);
         Route::put('/{applicationId}/api-keys/{apiKeyId}', [\App\Http\Controllers\Api\ApplicationController::class, 'updateApiKey']);
         Route::delete('/{applicationId}/api-keys/{apiKeyId}', [\App\Http\Controllers\Api\ApplicationController::class, 'deleteApiKey']);
+    });
+
+    // Admin helper functions routes
+    Route::prefix('admin/helpers')->group(function () {
+        Route::post('/logos/cleanup-orphaned', [LogoController::class, 'cleanupOrphanedLogos']); // Admin: Clean up orphaned logos
     });
 });

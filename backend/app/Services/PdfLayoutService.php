@@ -8,10 +8,42 @@ use Illuminate\Support\Facades\View;
 
 class PdfLayoutService
 {
+    private EventTitleService $eventTitleService;
+
+    public function __construct(EventTitleService $eventTitleService)
+    {
+        $this->eventTitleService = $eventTitleService;
+    }
     /**
-     * Baut das vollständige HTML-Dokument mit Header, Content (Mittelteil) und Footer.
+     * Baut das vollständige HTML-Dokument mit Header, Content (Mittelteil) und Footer im Querformat.
+     * 
+     * @param object $event Event object
+     * @param string $contentHtml Content HTML
+     * @param string $title Document title
+     * @param bool $isQrCodePdf If true, logos are rendered in content area and footer is reduced to 40px
+     * @return string Rendered HTML
      */
-    public function renderLayout(object $event, string $contentHtml, string $title = 'Dokument'): string
+    public function renderLayout(object $event, string $contentHtml, string $title = 'Dokument', bool $isQrCodePdf = false): string
+    {
+        // Headerdaten
+        $header = $this->buildHeaderData($event);
+
+        // Footerlogos: For QR PDFs, logos are rendered in content area, so pass empty array
+        $footerLogos = $isQrCodePdf ? [] : $this->buildFooterLogos($event->id);
+
+        return View::make('pdf.layout_landscape', [
+            'title'       => $title,
+            'header'      => $header,
+            'footerLogos' => $footerLogos,
+            'contentHtml' => $contentHtml,
+            'isQrCodePdf' => $isQrCodePdf,
+        ])->render();
+    }
+
+    /**
+     * Baut das vollständige HTML-Dokument mit Header, Content (Mittelteil) und Footer im Hochformat.
+     */
+    public function renderPortraitLayout(object $event, string $contentHtml, string $title = 'Dokument'): string
     {
         // Headerdaten
         $header = $this->buildHeaderData($event);
@@ -19,7 +51,7 @@ class PdfLayoutService
         // Footerlogos
         $footerLogos = $this->buildFooterLogos($event->id);
 
-        return View::make('pdf.layout_landscape', [
+        return View::make('pdf.layout_portrait', [
             'title'       => $title,
             'header'      => $header,
             'footerLogos' => $footerLogos,
@@ -27,7 +59,7 @@ class PdfLayoutService
         ])->render();
     }
 
-    private function buildHeaderData(object $event): array
+    public function buildHeaderData(object $event): array
     {
         $formattedDate = '';
         if (!empty($event->date)) {
@@ -56,51 +88,19 @@ class PdfLayoutService
 
         $rightLogo = $this->toDataUri(public_path('flow/hot.png'));
 
-        // Determine competition type text dynamically
-        $competitionType = $this->getCompetitionTypeText($event);
+        // Use EventTitleService for consistent title formatting
+        $competitionType = $this->eventTitleService->getCompetitionTypeText($event);
+        $cleanedEventName = $this->eventTitleService->cleanEventName($event);
 
         return [
             'leftLogos'       => $leftLogos,
             'centerTitleTop'  => 'FIRST LEGO League ' . $competitionType,
-            'centerTitleMain' => trim(($event->name ?? '') . ' ' . $formattedDate),
+            'centerTitleMain' => trim($cleanedEventName . ' ' . $formattedDate),
             'rightLogo'       => $rightLogo,
         ];
     }
 
-    /**
-     * Determine the competition type text based on event configuration
-     */
-    private function getCompetitionTypeText(object $event): string
-    {
-        $hasExplore = !empty($event->event_explore);
-        $hasChallenge = !empty($event->event_challenge);
-        $level = (int)($event->level ?? 0);
-
-        // Both Explore and Challenge Regio (level 1)
-        if ($hasExplore && $hasChallenge && $level === 1) {
-            return 'Ausstellung und Regionalwettbewerb';
-        }
-
-        // Only Explore
-        if ($hasExplore && !$hasChallenge) {
-            return 'Ausstellung';
-        }
-
-        // Only Challenge - check level
-        if ($hasChallenge && !$hasExplore) {
-            return match ($level) {
-                1 => 'Regionalwettbewerb',
-                2 => 'Qualifikationswettbewerb',
-                3 => 'Finale',
-                default => 'Wettbewerb',
-            };
-        }
-
-        // Fallback
-        return 'Wettbewerb';
-    }
-
-    private function buildFooterLogos(int $eventId): array
+    public function buildFooterLogos(int $eventId): array
     {
         $logos = DB::table('logo')
             ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
@@ -121,7 +121,7 @@ class PdfLayoutService
     }
 
 
-    private function toDataUri(string $path): ?string
+    public function toDataUri(string $path): ?string
     {
         if (!is_file($path)) {
             return null;

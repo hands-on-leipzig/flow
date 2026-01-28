@@ -234,7 +234,7 @@ class ChallengeGenerator
 
 
 
-    public function main(bool $explore = false)
+    public function main(bool $explore = false, ?callable $afterRG1Callback = null)
     {
         Log::info('ChallengeGenerator::main', [
             'plan_id' => $this->pp('g_plan'),
@@ -437,6 +437,10 @@ class ChallengeGenerator
                         case 2:
                             if ($this->pp('j_rounds') == 4) {
                                 $this->matchPlan->insertOneRound(1);
+                                // For INTEGRATED_MORNING: insert awards and adjust rTime after RG1, before RG2
+                                if ($afterRG1Callback !== null && $this->pp('e_mode') == ExploreMode::INTEGRATED_MORNING->value) {
+                                    $afterRG1Callback($this->rTime);
+                                }
                             }
                             break;
                         case 3:
@@ -444,6 +448,10 @@ class ChallengeGenerator
                                 $this->matchPlan->insertOneRound(2);
                             } else {
                                 $this->matchPlan->insertOneRound(1);
+                                // For INTEGRATED_MORNING: insert awards and adjust rTime after RG1, before RG2
+                                if ($afterRG1Callback !== null && $this->pp('e_mode') == ExploreMode::INTEGRATED_MORNING->value) {
+                                    $afterRG1Callback($this->rTime);
+                                }
                             }
                             break;
                         case 4:
@@ -605,7 +613,7 @@ class ChallengeGenerator
     }
 
     /**
-     * Handle timing point logic: presentations OR extra_block OR break
+     * Handle timing point logic: insert point first, then presentations if scheduled
      * 
      * @param int $when Timing point (1=after round 3, 2=after QF, 3=after SF, 4=after F)
      * @param string $insertPointCode Code for the insert point (for extra_block lookup)
@@ -613,18 +621,18 @@ class ChallengeGenerator
      */
     private function handleTimingPoint(int $when, string $insertPointCode, string $durationParam): void
     {
+        // Always check insert point first (extra_block OR break)
+        $this->writer->insertPoint($insertPointCode, $this->pp($durationParam), $this->rTime);
+
+        // Then check if presentations are scheduled for this timing point
         $presentationWhen = (int) $this->pp('c_presentations_when');
         $presentationsCount = (int) $this->pp('c_presentations');
 
-        // If presentations are scheduled for this timing point
         if ($presentationsCount > 0 && $presentationWhen === $when) {
-            // Insert presentations, skip extra_block, no break
+            // Insert presentations after the insert point
             $this->rTime->addMinutes($this->pp('c_ready_presentations'));
             $this->presentations();
             // presentations() already handles time advancement
-        } else {
-            // Normal logic: extra_block OR break via insertPoint
-            $this->writer->insertPoint($insertPointCode, $this->pp($durationParam), $this->rTime);
         }
     }
     
@@ -686,6 +694,21 @@ class ChallengeGenerator
 
                 // log::info('ChallengeGenerator: Explore group 2 start time: ' . $this->integratedExplore->startTime);
 
+            } elseif ($this->pp('e_mode') == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                // For INTEGRATED_AFTERNOON: Ensure awards don't start before Explore is complete
+                // Compare cTime (Challenge end) with exploreEndTime (Explore end) and use the later one
+                $exploreEnd = $this->integratedExplore->exploreEndTime;
+                if ($exploreEnd !== null) {
+                    // Convert both to DateTime for comparison
+                    $baseDate = $this->cTime->current()->format('Y-m-d');
+                    $cTime = new \DateTime($baseDate . ' ' . $this->cTime->format('H:i'));
+                    $exploreTime = new \DateTime($baseDate . ' ' . $exploreEnd);
+                    
+                    // Use the later time
+                    if ($exploreTime > $cTime) {
+                        $this->cTime->setTime($exploreEnd);
+                    }
+                }
             }
 
             $this->writer->withGroup('g_awards', function () {
@@ -711,6 +734,15 @@ class ChallengeGenerator
             ]);
             throw new \RuntimeException("Fehler beim Generieren der Challenge-Preisverleihung (Explore: " . ($explore ? 'aktiv' : 'inaktiv') . "): {$e->getMessage()}", 0, $e);
         }
+    }
+
+    /**
+     * Get the robot game time cursor
+     * Used for coordinating with Explore awards timing in integrated mode
+     */
+    public function getRTime(): TimeCursor
+    {
+        return $this->rTime;
     }
 
 }

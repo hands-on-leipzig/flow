@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Services\PlanGeneratorService;
+use App\Services\EventAttentionService;
 
 class PlanGeneratorController extends Controller
 {
@@ -38,11 +39,13 @@ class PlanGeneratorController extends Controller
                 ], 422);
             }
 
-            // Vorbereitung
-            $this->generator->prepare($planId);
+            // Vorbereitung mit korrektem Mode und User
+            $mode = $async ? 'job' : 'direct';
+            $userId = $request->user()?->id;
+            $this->generator->prepare($planId, $mode, $userId);
 
             if ($async) {
-                $this->generator->dispatchJob($planId);
+                $this->generator->dispatchJob($planId, false, $userId);
                 Log::info('Generation dispatched', ['plan_id' => $planId]);
                 return response()->json(['message' => 'Generation dispatched'], 202);
             }
@@ -51,6 +54,13 @@ class PlanGeneratorController extends Controller
             Log::info('Generation started', ['plan_id' => $planId]);
             try {
                 $this->generator->run($planId);
+                
+                // Update attention status after successful plan generation
+                $eventId = DB::table('plan')->where('id', $planId)->value('event');
+                if ($eventId) {
+                    app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+                }
+                
                 return response()->json(['message' => 'Generation done']);
             } catch (\Throwable $e) {
                 // Re-throw to be caught by outer catch block for proper error formatting
@@ -107,6 +117,12 @@ class PlanGeneratorController extends Controller
         try {
             // Service aufrufen
             $this->generator->generateLite($planId);
+            
+            // Update attention status after successful lite generation
+            $eventId = DB::table('plan')->where('id', $planId)->value('event');
+            if ($eventId) {
+                app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+            }
 
             return response()->json([
                 'status' => 'ok',

@@ -32,20 +32,19 @@ const normalizeBoolean = (val) => val === 1 || val === true || val === '1'
 
 // Initialisierung
 const localValue = ref(
-  props.param.type === 'boolean'
-    ? normalizeBoolean(props.param.value)
-    : props.param.value
+    props.param.type === 'boolean'
+        ? normalizeBoolean(props.param.value)
+        : props.param.value
 )
 
 // Synchronisierung bei Änderungen von außen
 watch(() => props.param.value, val => {
   localValue.value = props.param.type === 'boolean'
-    ? normalizeBoolean(val)
-    : val
+      ? normalizeBoolean(val)
+      : val
 })
 
 const showDefaultValue = (param) => {
-  console.log('Parameter:', param.name, 'current:', param.value, 'default:', param.default_value)
   switch (param.type) {
     case 'boolean':
       return normalizeBoolean(param.default_value) ? 'an' : 'aus'
@@ -83,37 +82,37 @@ const isChangedFromDefault = (param) => {
 function validateValue(value, param) {
   // Clear previous error
   validationError.value = ''
-  
+
   // Special validation for time inputs (hh:mm format)
   if (param.type === 'time') {
     return validateTimeValue(value, param)
   }
-  
+
   // Skip validation for non-numeric types
   if (param.type !== 'integer' && param.type !== 'decimal') {
     return true
   }
-  
+
   const numericValue = Number(value)
-  
+
   // Check if value is a valid number
   if (isNaN(numericValue)) {
     validationError.value = 'Ungültige Zahl'
     return false
   }
-  
+
   // Validate minimum
   if (param.min !== null && param.min !== undefined && numericValue < param.min) {
     validationError.value = `Wert muss mindestens ${param.min} sein`
     return false
   }
-  
+
   // Validate maximum
   if (param.max !== null && param.max !== undefined && numericValue > param.max) {
     validationError.value = `Wert darf höchstens ${param.max} sein`
     return false
   }
-  
+
   // Validate step formula: value must be min + n * step
   if (param.step !== null && param.step !== undefined && param.step > 0) {
     const min = param.min ?? 0
@@ -124,7 +123,7 @@ function validateValue(value, param) {
       return false
     }
   }
-  
+
   return true
 }
 
@@ -157,17 +156,17 @@ function validateTimeValue(timeValue, param) {
     validationError.value = ''
     return true // Don't show error for empty input during typing
   }
-  
+
   // Check if time format is valid (hh:mm)
   const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/
   if (!timeRegex.test(timeValue)) {
     validationError.value = 'Ungültiges Zeitformat (hh:mm)'
     return false
   }
-  
+
   // Convert to minutes for comparison (matching backend logic)
   const valueMinutes = timeToMinutes(timeValue)
-  
+
   // Validate minimum (if set)
   if (param.min !== null && param.min !== undefined && param.min !== '') {
     const minMinutes = timeToMinutes(param.min)
@@ -176,7 +175,7 @@ function validateTimeValue(timeValue, param) {
       return false
     }
   }
-  
+
   // Validate maximum (if set)
   if (param.max !== null && param.max !== undefined && param.max !== '') {
     const maxMinutes = timeToMinutes(param.max)
@@ -185,7 +184,7 @@ function validateTimeValue(timeValue, param) {
       return false
     }
   }
-  
+
   // Validate step formula for time: minutes must be multiples of step
   if (param.step !== null && param.step !== undefined && param.step > 0) {
     if (valueMinutes % param.step !== 0) {
@@ -193,7 +192,7 @@ function validateTimeValue(timeValue, param) {
       return false
     }
   }
-  
+
   return true
 }
 
@@ -243,7 +242,7 @@ const isDefaultValue = computed(() => {
             type="number"
             :min="param.min"
             :max="param.max"
-            :step="param.step"
+            :step="Number(param.step) || undefined"
             v-model="localValue"
             @change="emitChange"
             @input="validateValue(localValue, param)"
@@ -261,7 +260,7 @@ const isDefaultValue = computed(() => {
           {{ showDefaultValue(param) }}
         </span>
         <!-- Validation error tooltip -->
-        <div v-if="validationError" 
+        <div v-if="validationError"
              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-red-500 pointer-events-none">
           ⚠️
         </div>
@@ -281,14 +280,11 @@ const isDefaultValue = computed(() => {
               @click="!disabled && !localValue && toggleValue()"
               class="px-2 py-1 text-sm transition-all duration-150 flex-1"
               :class="{
-                // When default value is selected: dark grey for selected, light grey for unselected
-                'bg-gray-700 text-white': localValue && isDefaultValue,
-                'bg-gray-200 text-gray-600': !localValue && isDefaultValue,
-                // When different from default: orange for selected, light orange for unselected
-                'bg-orange-100 text-orange-800': localValue && !isDefaultValue,
-                'bg-orange-50 text-orange-600': !localValue && !isDefaultValue,
-                'cursor-not-allowed': disabled || localValue,
-                'opacity-60': localValue && !disabled
+                'bg-white text-black': !localValue && isDefaultValue,
+                'bg-gray-200 text-gray-600': localValue && isDefaultValue,
+                'text-black': !localValue && !isDefaultValue,
+                'bg-orange-100 text-gray-600': localValue && !isDefaultValue,
+                'cursor-not-allowed': disabled || localValue
               }"
           >
             Ja
@@ -303,14 +299,11 @@ const isDefaultValue = computed(() => {
               @click="!disabled && localValue && toggleValue()"
               class="px-2 py-1 text-sm transition-all duration-150 flex-1"
               :class="{
-                // When default value is selected: dark grey for selected, light grey for unselected
-                'bg-gray-700 text-white': !localValue && isDefaultValue,
-                'bg-gray-200 text-gray-600': localValue && isDefaultValue,
-                // When different from default: orange for selected, light orange for unselected
-                'bg-orange-100 text-orange-800': !localValue && !isDefaultValue,
-                'bg-orange-50 text-gray-600': localValue && !isDefaultValue,
-                'cursor-not-allowed': disabled || !localValue,
-                'opacity-60': !localValue && !disabled
+                'bg-gray-200 text-gray-600': !localValue && isDefaultValue,
+                'bg-white text-black': localValue && isDefaultValue,
+                'bg-orange-100 text-gray-600': !localValue && !isDefaultValue,
+                'text-black': localValue && !isDefaultValue,
+                'cursor-not-allowed': disabled || !localValue
               }"
           >
             Nein
@@ -339,9 +332,9 @@ const isDefaultValue = computed(() => {
 
       <!-- Time inputs with custom time picker -->
       <div v-else-if="param.type === 'time'" class="relative flex items-center gap-2">
-        <div 
-          class="inline-block"
-          :class="{ 
+        <div
+            class="inline-block"
+            :class="{
             'opacity-50': disabled,
             'ring-2 ring-orange-300 rounded': isChangedFromDefault(param) && !disabled,
             'ring-2 ring-red-300 rounded': validationError
@@ -354,7 +347,7 @@ const isDefaultValue = computed(() => {
               :disabled="disabled"
               :min="param.min || undefined"
               :max="param.max || undefined"
-              :step="param.step || 5"
+              :step="Number(param.step) || 5"
           />
         </div>
         <span v-if="showDefaultValue(param) && !validationError"
@@ -362,8 +355,8 @@ const isDefaultValue = computed(() => {
           {{ showDefaultValue(param) }}
         </span>
         <!-- Validation error indicator -->
-        <span v-if="validationError" 
-             class="text-xs text-red-500 pointer-events-none">
+        <span v-if="validationError"
+              class="text-xs text-red-500 pointer-events-none">
           ⚠️
         </span>
       </div>
@@ -390,7 +383,7 @@ const isDefaultValue = computed(() => {
       <!-- Info button for compact mode -->
       <InfoPopover v-if="compact" :text="param.ui_description"/>
     </div>
-    
+
     <!-- Validation error message -->
     <div v-if="validationError" class="text-xs text-red-600 mt-1 ml-4">
       {{ validationError }}

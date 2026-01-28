@@ -9,6 +9,8 @@ use App\Models\MRole;
 use App\Models\Plan;
 use App\Models\Event;
 use App\Services\ActivityFetcherService;
+use App\Services\EventTitleService;
+use App\Services\PdfLayoutService;
 use App\Enums\FirstProgram;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -19,10 +21,17 @@ use Illuminate\Support\Facades\DB;
 class PlanExportController extends Controller
 {
     private ActivityFetcherService $activityFetcher;
+    private EventTitleService $eventTitleService;
+    private PdfLayoutService $pdfLayoutService;
 
-    public function __construct(ActivityFetcherService $activityFetcher)
-    {
+    public function __construct(
+        ActivityFetcherService $activityFetcher,
+        EventTitleService $eventTitleService,
+        PdfLayoutService $pdfLayoutService
+    ) {
         $this->activityFetcher = $activityFetcher;
+        $this->eventTitleService = $eventTitleService;
+        $this->pdfLayoutService = $pdfLayoutService;
     }
 
     /**
@@ -63,6 +72,672 @@ class PlanExportController extends Controller
         $programs = $this->getProgramsInPlan($plan->id);
 
         return response()->json(['programs' => $programs]);
+    }
+
+    /**
+     * Get match teams for a specific plan and round
+     * Returns matches with team information for displaying in match plan modal
+     */
+    public function matchTeams(int $planId, int $round)
+    {
+        // Validate round (0 = Testrunde, 1-3 = Vorrunde 1-3)
+        if ($round < 0 || $round > 3) {
+            return response()->json(['error' => 'Ungültige Runde'], 400);
+        }
+
+        // Get matches for this plan and round, ordered by match_no
+        $matches = DB::table('match')
+            ->where('match.plan', $planId)
+            ->where('match.round', $round)
+            ->orderBy('match.match_no')
+            ->get();
+
+        // Get team_plan entries for Challenge teams (first_program = 3) to map team_number_plan to team IDs
+        $teamPlanMap = DB::table('team_plan')
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team_plan.plan', $planId)
+            ->where('team.first_program', 3) // Challenge only
+            ->select(
+                'team_plan.team_number_plan',
+                'team.id as team_id',
+                'team.name as team_name',
+                'team.team_number_hot',
+                'team_plan.noshow'
+            )
+            ->get()
+            ->keyBy('team_number_plan');
+
+        // Build match data with team information
+        $matchData = [];
+        foreach ($matches as $match) {
+            $team1 = null;
+            $team2 = null;
+
+            // Get team 1 info
+            if ($match->table_1_team > 0 && isset($teamPlanMap[$match->table_1_team])) {
+                $t1 = $teamPlanMap[$match->table_1_team];
+                $team1 = [
+                    'name' => $t1->team_name,
+                    'hot_number' => $t1->team_number_hot,
+                    'noshow' => (bool)($t1->noshow ?? false),
+                ];
+            }
+
+            // Get team 2 info
+            if ($match->table_2_team > 0 && isset($teamPlanMap[$match->table_2_team])) {
+                $t2 = $teamPlanMap[$match->table_2_team];
+                $team2 = [
+                    'name' => $t2->team_name,
+                    'hot_number' => $t2->team_number_hot,
+                    'noshow' => (bool)($t2->noshow ?? false),
+                ];
+            }
+
+            $matchData[] = [
+                'match_no' => $match->match_no,
+                'team_1' => $team1,
+                'team_2' => $team2,
+            ];
+        }
+
+        return response()->json(['matches' => $matchData]);
+    }
+
+    /**
+     * Generate PDF for Robot-Game Match-Plan (all 3 rounds)
+     */
+    public function matchPlanPdf(int $planId)
+    {
+        // Get team_plan entries for Challenge teams (first_program = 3) to map team_number_plan to team IDs
+        $teamPlanMap = DB::table('team_plan')
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team_plan.plan', $planId)
+            ->where('team.first_program', 3) // Challenge only
+            ->select(
+                'team_plan.team_number_plan',
+                'team.id as team_id',
+                'team.name as team_name',
+                'team.team_number_hot',
+                'team_plan.noshow'
+            )
+            ->get()
+            ->keyBy('team_number_plan');
+
+        // Fetch all 3 rounds (Vorrunde 1, 2, 3)
+        $roundsData = [];
+        for ($round = 1; $round <= 3; $round++) {
+            // Get matches for this round, ordered by match_no
+            $matches = DB::table('match')
+                ->where('match.plan', $planId)
+                ->where('match.round', $round)
+                ->orderBy('match.match_no')
+                ->get();
+
+            // Build match data with team information
+            $matchData = [];
+            foreach ($matches as $match) {
+                $team1 = null;
+                $team2 = null;
+
+                // Get team 1 info
+                if ($match->table_1_team > 0 && isset($teamPlanMap[$match->table_1_team])) {
+                    $t1 = $teamPlanMap[$match->table_1_team];
+                    $team1 = [
+                        'name' => $t1->team_name,
+                        'hot_number' => $t1->team_number_hot,
+                        'noshow' => (bool)($t1->noshow ?? false),
+                    ];
+                }
+
+                // Get team 2 info
+                if ($match->table_2_team > 0 && isset($teamPlanMap[$match->table_2_team])) {
+                    $t2 = $teamPlanMap[$match->table_2_team];
+                    $team2 = [
+                        'name' => $t2->team_name,
+                        'hot_number' => $t2->team_number_hot,
+                        'noshow' => (bool)($t2->noshow ?? false),
+                    ];
+                }
+
+                $matchData[] = [
+                    'match_no' => $match->match_no,
+                    'team_1' => $team1,
+                    'team_2' => $team2,
+                ];
+            }
+
+            $roundsData[$round] = $matchData;
+        }
+
+        // Get event data for header
+        $event = DB::table('event')
+            ->join('plan', 'plan.event', '=', 'event.id')
+            ->where('plan.id', $planId)
+            ->select('event.*')
+            ->first();
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        // Generate content HTML using the match-plan template
+        $contentHtml = view('pdf.match-plan', [
+            'roundsData' => $roundsData,
+        ])->render();
+
+        // Use portrait layout with same header/footer as overview plan
+        $finalHtml = $this->pdfLayoutService->renderPortraitLayout(
+            $event,
+            $contentHtml,
+            'FLOW Robot-Game Match-Plan'
+        );
+
+        // Generate PDF in portrait orientation
+        $pdf = Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'portrait');
+
+        // Get plan info for filename
+        $plan = DB::table('plan')
+            ->where('id', $planId)
+            ->select('last_change')
+            ->first();
+
+        // Format date for filename
+        $formattedDate = $plan && $plan->last_change
+            ? \Carbon\Carbon::parse($plan->last_change)
+                ->timezone('Europe/Berlin')
+                ->format('d.m.y')
+            : date('d.m.y');
+
+        $filename = "FLOW_Match-Plan_({$formattedDate}).pdf";
+
+        // Return PDF with header for filename
+        return response($pdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('X-Filename', $filename)
+            ->header('Access-Control-Expose-Headers', 'X-Filename');
+    }
+
+    /**
+     * Generate compact PDF for moderator with robot game matches
+     * Simple data-focused format: Testrunde + Runde 1-3
+     */
+    public function moderatorMatchPlanPdf(int $planId)
+    {
+        try {
+            Log::info("moderatorMatchPlanPdf called for planId: {$planId}");
+            
+            // Get team_plan entries for Challenge teams (first_program = 3) to map team_number_plan to team IDs
+        $teamPlanMap = DB::table('team_plan')
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team_plan.plan', $planId)
+            ->where('team.first_program', 3) // Challenge only
+            ->select(
+                'team_plan.team_number_plan',
+                'team.id as team_id',
+                'team.name as team_name',
+                'team.team_number_hot',
+                'team_plan.noshow'
+            )
+            ->get()
+            ->keyBy('team_number_plan');
+
+        // Get r_match activity type detail ID
+        $matchActivityTypeId = DB::table('m_activity_type_detail')
+            ->where('code', 'r_match')
+            ->value('id');
+
+        if (!$matchActivityTypeId) {
+            return response()->json(['error' => 'Match activity type not found'], 404);
+        }
+
+        // Fetch matches for rounds 0 (Testrunde), 1, 2, 3
+        $roundsData = [];
+        $roundLabels = [
+            0 => 'Testrunde',
+            1 => 'Runde 1',
+            2 => 'Runde 2',
+            3 => 'Runde 3',
+        ];
+        $roundStartTimes = []; // Store start times for chronological insertion
+
+        for ($round = 0; $round <= 3; $round++) {
+            // Get matches for this round, ordered by match_no
+            $matches = DB::table('match')
+                ->where('match.plan', $planId)
+                ->where('match.round', $round)
+                ->orderBy('match.match_no')
+                ->get();
+
+            // Get start times from activities table
+            // Join with activities where table_1/table_2 match and activity_type_detail = r_match
+            $matchData = [];
+            foreach ($matches as $match) {
+                // Find activity for this match
+                // Match on table_1, table_2, and table_1_team, table_2_team
+                // Also match on round by checking activity_group's activity_type_detail (r_round_1, r_round_2, etc.)
+                $roundActivityCodes = [
+                    0 => 'r_test_round',
+                    1 => 'r_round_1',
+                    2 => 'r_round_2',
+                    3 => 'r_round_3',
+                ];
+                $roundActivityCode = $roundActivityCodes[$round] ?? null;
+                
+                $activity = null;
+                if ($roundActivityCode) {
+                    $roundActivityTypeId = DB::table('m_activity_type_detail')
+                        ->where('code', $roundActivityCode)
+                        ->value('id');
+                    
+                    if ($roundActivityTypeId) {
+                        $activity = DB::table('activity')
+                            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                            ->where('activity_group.plan', $planId)
+                            ->where('activity_group.activity_type_detail', $roundActivityTypeId)
+                            ->where('activity.activity_type_detail', $matchActivityTypeId)
+                            ->where('activity.table_1', $match->table_1)
+                            ->where('activity.table_2', $match->table_2)
+                            ->where('activity.table_1_team', $match->table_1_team)
+                            ->where('activity.table_2_team', $match->table_2_team)
+                            ->select('activity.start as start_time')
+                            ->orderBy('activity.start')
+                            ->first();
+                    }
+                }
+
+                $startTime = $activity ? Carbon::parse($activity->start_time)->format('H:i') : '–';
+                
+                // Store earliest start time for this round
+                if ($activity && (!isset($roundStartTimes[$round]) || Carbon::parse($activity->start_time)->timestamp < $roundStartTimes[$round])) {
+                    $roundStartTimes[$round] = Carbon::parse($activity->start_time)->timestamp;
+                }
+
+                // Get team 1 info
+                $team1 = null;
+                if ($match->table_1_team > 0) {
+                    if (isset($teamPlanMap[$match->table_1_team])) {
+                        $t1 = $teamPlanMap[$match->table_1_team];
+                        $team1 = [
+                            'name' => $t1->team_name,
+                            'noshow' => (bool)($t1->noshow ?? false),
+                        ];
+                    } else {
+                        // Placeholder team
+                        $team1 = [
+                            'name' => sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $match->table_1_team),
+                            'noshow' => false,
+                        ];
+                    }
+                } else {
+                    // Empty slot - use "---" for test round, otherwise "Freiwilliges Team ohne Wertung"
+                    $team1 = [
+                        'name' => $round === 0 ? '---' : 'Freiwilliges Team ohne Wertung',
+                        'noshow' => false,
+                    ];
+                }
+
+                // Get team 2 info
+                $team2 = null;
+                if ($match->table_2_team > 0) {
+                    if (isset($teamPlanMap[$match->table_2_team])) {
+                        $t2 = $teamPlanMap[$match->table_2_team];
+                        $team2 = [
+                            'name' => $t2->team_name,
+                            'noshow' => (bool)($t2->noshow ?? false),
+                        ];
+                    } else {
+                        // Placeholder team
+                        $team2 = [
+                            'name' => sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $match->table_2_team),
+                            'noshow' => false,
+                        ];
+                    }
+                } else {
+                    // Empty slot - use "---" for test round, otherwise "Freiwilliges Team ohne Wertung"
+                    $team2 = [
+                        'name' => $round === 0 ? '---' : 'Freiwilliges Team ohne Wertung',
+                        'noshow' => false,
+                    ];
+                }
+
+                // Get table names (without "Tisch " prefix)
+                // Get event ID first
+                $eventId = DB::table('plan')->where('id', $planId)->value('event');
+                
+                $table1Name = null;
+                if ($eventId) {
+                    $table1Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $match->table_1)
+                        ->value('table_name');
+                }
+                $table1Label = $table1Name ?: (string)$match->table_1;
+
+                $table2Name = null;
+                if ($eventId) {
+                    $table2Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $match->table_2)
+                        ->value('table_name');
+                }
+                $table2Label = $table2Name ?: (string)$match->table_2;
+
+                $matchData[] = [
+                    'match_no' => $match->match_no,
+                    'start_time' => $startTime,
+                    'table_1' => $table1Label,
+                    'table_2' => $table2Label,
+                    'team_1' => $team1,
+                    'team_2' => $team2,
+                ];
+            }
+
+            $roundsData[$round] = [
+                'label' => $roundLabels[$round],
+                'matches' => $matchData,
+            ];
+        }
+
+        // Fetch final rounds from activities (r_final_16, r_final_8, r_final_4, r_final_2)
+        $finalRoundCodes = [
+            'r_final_16' => 'Achtelfinale',
+            'r_final_8' => 'Viertelfinale',
+            'r_final_4' => 'Halbfinale',
+            'r_final_2' => 'Finale',
+        ];
+
+        $eventId = DB::table('plan')->where('id', $planId)->value('event');
+        $finalRoundKey = 4; // Start after regular rounds (0-3)
+
+        foreach ($finalRoundCodes as $finalCode => $finalLabel) {
+            // Get activity type detail ID for this final round group
+            $finalGroupTypeId = DB::table('m_activity_type_detail')
+                ->where('code', $finalCode)
+                ->value('id');
+
+            if (!$finalGroupTypeId) {
+                continue;
+            }
+
+            // Get activities for this final round
+            $finalActivities = DB::table('activity')
+                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                ->where('activity_group.plan', $planId)
+                ->where('activity_group.activity_type_detail', $finalGroupTypeId)
+                ->where('activity.activity_type_detail', $matchActivityTypeId)
+                ->select(
+                    'activity.start as start_time',
+                    'activity.table_1',
+                    'activity.table_2',
+                    'activity.table_1_team',
+                    'activity.table_2_team'
+                )
+                ->orderBy('activity.start')
+                ->get();
+
+            if ($finalActivities->isEmpty()) {
+                continue;
+            }
+
+            $finalMatchData = [];
+            $finalRoundStartTime = null;
+            foreach ($finalActivities as $activity) {
+                $startTime = Carbon::parse($activity->start_time)->format('H:i');
+                
+                // Store earliest start time for this final round
+                $activityTimestamp = Carbon::parse($activity->start_time)->timestamp;
+                if ($finalRoundStartTime === null || $activityTimestamp < $finalRoundStartTime) {
+                    $finalRoundStartTime = $activityTimestamp;
+                }
+
+                // Get table names (without "Tisch " prefix)
+                $table1Name = null;
+                if ($eventId) {
+                    $table1Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $activity->table_1)
+                        ->value('table_name');
+                }
+                $table1Label = $table1Name ?: (string)$activity->table_1;
+
+                $table2Name = null;
+                if ($eventId) {
+                    $table2Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $activity->table_2)
+                        ->value('table_name');
+                }
+                $table2Label = $table2Name ?: (string)$activity->table_2;
+
+                // For final rounds, team names are empty (moderator fills in during the day)
+                $finalMatchData[] = [
+                    'start_time' => $startTime,
+                    'table_1' => $table1Label,
+                    'table_2' => $table2Label,
+                    'team_1' => [
+                        'name' => '', // Empty - moderator fills in
+                        'noshow' => false,
+                    ],
+                    'team_2' => [
+                        'name' => '', // Empty - moderator fills in
+                        'noshow' => false,
+                    ],
+                ];
+            }
+
+            // Use a key that sorts after regular rounds (4, 5, 6, 7)
+            $roundsData[$finalRoundKey] = [
+                'label' => $finalLabel,
+                'matches' => $finalMatchData,
+            ];
+            
+            // Store start time for this final round
+            if ($finalRoundStartTime !== null) {
+                $roundStartTimes[$finalRoundKey] = $finalRoundStartTime;
+            }
+            
+            $finalRoundKey++;
+        }
+
+        Log::info("moderatorMatchPlanPdf roundsData summary", [
+            'round_0_count' => count($roundsData[0]['matches'] ?? []),
+            'round_1_count' => count($roundsData[1]['matches'] ?? []),
+            'round_2_count' => count($roundsData[2]['matches'] ?? []),
+            'round_3_count' => count($roundsData[3]['matches'] ?? []),
+            'final_rounds_count' => count($roundsData) - 4,
+        ]);
+
+        // Fetch special activities (opening, research on stage, awards, inserted blocks, free blocks)
+        $specialActivityCodes = [
+            'c_opening',
+            'e_opening',
+            'g_opening',
+            'c_presentations', // Forschung auf der Bühne
+            'c_awards',
+            'e_awards',
+            'g_awards',
+            'c_inserted_block',
+            'e_inserted_block',
+            'g_inserted_block',
+        ];
+
+        $freeBlockCodes = [
+            'c_free_block',
+            'e_free_block',
+            'g_free_block',
+        ];
+
+        // Get activity type detail IDs for special activities (excluding free blocks)
+        $specialActivityTypeIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $specialActivityCodes)
+            ->select('id', 'code', 'name')
+            ->get()
+            ->keyBy('id');
+
+        // Get activity type detail IDs for free blocks
+        $freeBlockTypeIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $freeBlockCodes)
+            ->select('id', 'code', 'name')
+            ->get()
+            ->keyBy('id');
+
+        // Collect special activities (non-free-block) to insert between rounds
+        $activitiesToInsert = [];
+        if ($specialActivityTypeIds->isNotEmpty()) {
+            $specialActivityIds = $specialActivityTypeIds->keys()->toArray();
+            
+            $activities = DB::table('activity')
+                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                ->where('activity_group.plan', $planId)
+                ->whereIn('activity_group.activity_type_detail', $specialActivityIds)
+                ->select(
+                    'activity.id',
+                    'activity.start',
+                    'activity.end',
+                    'activity.activity_group',
+                    'activity.extra_block',
+                    'activity_group.activity_type_detail'
+                )
+                ->orderBy('activity.start')
+                ->get();
+
+            foreach ($activities as $activity) {
+                $typeDetailId = $activity->activity_type_detail;
+                if (isset($specialActivityTypeIds[$typeDetailId])) {
+                    $typeDetail = $specialActivityTypeIds[$typeDetailId];
+                    
+                    // For inserted blocks, try to get the name from extra_block table
+                    $activityName = $typeDetail->name;
+                    if (in_array($typeDetail->code, ['c_inserted_block', 'e_inserted_block', 'g_inserted_block']) && $activity->extra_block) {
+                        $extraBlockName = DB::table('extra_block')
+                            ->where('id', $activity->extra_block)
+                            ->value('name');
+                        
+                        if ($extraBlockName) {
+                            $activityName = $extraBlockName;
+                        }
+                    }
+                    
+                    $activitiesToInsert[] = [
+                        'name' => $activityName,
+                        'start_time' => Carbon::parse($activity->start)->format('H:i'),
+                        'end_time' => Carbon::parse($activity->end)->format('H:i'),
+                        'start_timestamp' => Carbon::parse($activity->start)->timestamp,
+                    ];
+                }
+            }
+        }
+
+        // Sort special activities chronologically for left column
+        usort($activitiesToInsert, function($a, $b) {
+            return $a['start_timestamp'] <=> $b['start_timestamp'];
+        });
+
+        // Get plan and event data (needed for date filtering)
+        $plan = Plan::findOrFail($planId);
+        $event = Event::findOrFail($plan->event);
+        
+        // Calculate event date range
+        $eventStartDate = Carbon::parse($event->date)->startOfDay();
+        $eventEndDate = Carbon::parse($event->date)->addDays($event->days - 1)->endOfDay();
+
+        // Collect free blocks separately (for right column)
+        // Filter to only include activities on event day(s)
+        $freeBlockActivities = [];
+        if ($freeBlockTypeIds->isNotEmpty()) {
+            $freeBlockIds = $freeBlockTypeIds->keys()->toArray();
+            
+            $activities = DB::table('activity')
+                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                ->where('activity_group.plan', $planId)
+                ->whereIn('activity_group.activity_type_detail', $freeBlockIds)
+                ->select(
+                    'activity.id',
+                    'activity.start',
+                    'activity.end',
+                    'activity.activity_group',
+                    'activity.extra_block',
+                    'activity_group.activity_type_detail'
+                )
+                ->orderBy('activity.start')
+                ->get();
+
+            foreach ($activities as $activity) {
+                $typeDetailId = $activity->activity_type_detail;
+                if (isset($freeBlockTypeIds[$typeDetailId])) {
+                    // Filter by event date range
+                    $activityStart = Carbon::parse($activity->start);
+                    if ($activityStart->lt($eventStartDate) || $activityStart->gt($eventEndDate)) {
+                        continue; // Skip activities outside event date range
+                    }
+                    
+                    $typeDetail = $freeBlockTypeIds[$typeDetailId];
+                    
+                    // Get name from extra_block table
+                    $activityName = $typeDetail->name;
+                    if ($activity->extra_block) {
+                        $extraBlockName = DB::table('extra_block')
+                            ->where('id', $activity->extra_block)
+                            ->value('name');
+                        
+                        if ($extraBlockName) {
+                            $activityName = $extraBlockName;
+                        }
+                    }
+                    
+                    $freeBlockActivities[] = [
+                        'name' => $activityName,
+                        'start_time' => Carbon::parse($activity->start)->format('H:i'),
+                        'end_time' => Carbon::parse($activity->end)->format('H:i'),
+                    ];
+                }
+            }
+        }
+
+        // Format timestamp like Gesamtplan
+        $eventName = $event->name;
+        $eventDate = Carbon::parse($event->date)->format('d.m.Y');
+        $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
+            ->timezone('Europe/Berlin')
+            ->format('d.m.Y H:i');
+
+        // Generate content HTML
+        Log::info("Rendering moderator-match-plan view with roundsData count: " . count($roundsData));
+        $contentHtml = view('pdf.moderator-match-plan', [
+            'roundsData' => $roundsData,
+            'scheduleActivities' => $activitiesToInsert, // Left column: Mit Moderation
+            'parallelActivities' => $freeBlockActivities, // Right column: Parallele Aktivitäten
+            'eventName' => $eventName,
+            'eventDate' => $eventDate,
+            'lastUpdated' => $lastUpdated,
+        ])->render();
+
+        Log::info("View rendered, HTML length: " . strlen($contentHtml));
+        
+        // Generate PDF in portrait orientation (simple, no fancy layout)
+        $pdf = Pdf::loadHTML($contentHtml, 'UTF-8')->setPaper('a4', 'portrait');
+
+        // Format date for filename
+        $formattedDate = Carbon::parse($plan->last_change, 'UTC')
+            ->timezone('Europe/Berlin')
+            ->format('d.m.y');
+
+        $filename = "FLOW_Moderation_({$formattedDate}).pdf";
+
+            // Return PDF with header for filename
+            Log::info("moderatorMatchPlanPdf returning PDF with filename: {$filename}");
+            return response($pdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('X-Filename', $filename)
+                ->header('X-PDF-Type', 'moderator-match-plan')
+                ->header('Access-Control-Expose-Headers', 'X-Filename, X-PDF-Type');
+        } catch (\Exception $e) {
+            Log::error("moderatorMatchPlanPdf error: " . $e->getMessage(), [
+                'planId' => $planId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'PDF generation failed: ' . $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -280,6 +955,154 @@ class PlanExportController extends Controller
 
     }
 
+    /**
+     * Generate Teamliste PDF for check-in
+     * Simple data-focused format: Explore and Challenge teams with assigned rooms
+     */
+    public function teamListPdf(int $planId)
+    {
+        try {
+            Log::info("teamListPdf called for planId: {$planId}");
+
+            // Get plan and event data
+            $plan = Plan::findOrFail($planId);
+            $event = Event::findOrFail($plan->event);
+
+            // Format timestamp like Gesamtplan
+            $eventName = $event->name;
+            $eventDate = Carbon::parse($event->date)->format('d.m.Y');
+            $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
+                ->timezone('Europe/Berlin')
+                ->format('d.m.Y H:i');
+
+            // Fetch teams with their assigned rooms and jury/gutachter group assignments
+            // Explore teams (first_program = 2)
+            $exploreTeams = DB::table('team_plan')
+                ->join('team', 'team_plan.team', '=', 'team.id')
+                ->leftJoin('room', 'team_plan.room', '=', 'room.id')
+                ->where('team_plan.plan', $planId)
+                ->where('team.first_program', 2) // Explore
+                ->select(
+                    'team.name as team_name',
+                    'team.team_number_hot',
+                    'team_plan.noshow',
+                    'team_plan.team_number_plan',
+                    'room.name as room_name'
+                )
+                ->orderBy('team.name')
+                ->get()
+                ->map(function ($team) use ($planId) {
+                    // Find Gutachter-Gruppe assignment by looking for activities with this team as jury_team
+                    $gutachterGroupNumber = null;
+                    $activity = DB::table('activity')
+                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                        ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                        ->where('activity_group.plan', $planId)
+                        ->where('m_activity_type_detail.first_program', 2) // Explore
+                        ->where('activity.jury_team', $team->team_number_plan)
+                        ->whereNotNull('activity.jury_lane')
+                        ->select('activity.jury_lane')
+                        ->first();
+                    
+                    if ($activity && $activity->jury_lane) {
+                        $gutachterGroupNumber = $activity->jury_lane;
+                    }
+                    
+                    return [
+                        'name' => $team->team_name,
+                        'hot_number' => $team->team_number_hot,
+                        'noshow' => (bool)($team->noshow ?? false),
+                        'room_name' => $team->room_name ?? '–',
+                        'group_assignment' => $gutachterGroupNumber,
+                    ];
+                })
+                ->values()
+                ->all();
+
+            // Challenge teams (first_program = 3)
+            $challengeTeams = DB::table('team_plan')
+                ->join('team', 'team_plan.team', '=', 'team.id')
+                ->leftJoin('room', 'team_plan.room', '=', 'room.id')
+                ->where('team_plan.plan', $planId)
+                ->where('team.first_program', 3) // Challenge
+                ->select(
+                    'team.name as team_name',
+                    'team.team_number_hot',
+                    'team_plan.noshow',
+                    'team_plan.team_number_plan',
+                    'room.name as room_name'
+                )
+                ->orderBy('team.name')
+                ->get()
+                ->map(function ($team) use ($planId) {
+                    // Find Jury-Gruppe assignment by looking for activities with this team as jury_team
+                    $juryGroupNumber = null;
+                    $activity = DB::table('activity')
+                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                        ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                        ->where('activity_group.plan', $planId)
+                        ->where('m_activity_type_detail.first_program', 3) // Challenge
+                        ->where('activity.jury_team', $team->team_number_plan)
+                        ->whereNotNull('activity.jury_lane')
+                        ->select('activity.jury_lane')
+                        ->first();
+                    
+                    if ($activity && $activity->jury_lane) {
+                        $juryGroupNumber = $activity->jury_lane;
+                    }
+                    
+                    return [
+                        'name' => $team->team_name,
+                        'hot_number' => $team->team_number_hot,
+                        'noshow' => (bool)($team->noshow ?? false),
+                        'room_name' => $team->room_name ?? '–',
+                        'group_assignment' => $juryGroupNumber,
+                    ];
+                })
+                ->values()
+                ->all();
+
+            Log::info("teamListPdf teams count", [
+                'explore_count' => count($exploreTeams),
+                'challenge_count' => count($challengeTeams),
+            ]);
+
+            // Generate content HTML
+            $contentHtml = view('pdf.team-list', [
+                'exploreTeams' => $exploreTeams,
+                'challengeTeams' => $challengeTeams,
+                'eventName' => $eventName,
+                'eventDate' => $eventDate,
+                'lastUpdated' => $lastUpdated,
+            ])->render();
+
+            Log::info("teamListPdf view rendered, HTML length: " . strlen($contentHtml));
+
+            // Generate PDF in portrait orientation (simple, no fancy layout)
+            $pdf = Pdf::loadHTML($contentHtml, 'UTF-8')->setPaper('a4', 'portrait');
+
+            // Format date for filename
+            $formattedDate = Carbon::parse($plan->last_change, 'UTC')
+                ->timezone('Europe/Berlin')
+                ->format('d.m.y');
+
+            $filename = "FLOW_Teamliste_({$formattedDate}).pdf";
+
+            // Return PDF with header for filename
+            Log::info("teamListPdf returning PDF with filename: {$filename}");
+            return response($pdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('X-Filename', $filename)
+                ->header('X-PDF-Type', 'team-list')
+                ->header('Access-Control-Expose-Headers', 'X-Filename, X-PDF-Type');
+        } catch (\Exception $e) {
+            Log::error("teamListPdf error: " . $e->getMessage(), [
+                'planId' => $planId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'PDF generation failed: ' . $e->getMessage()], 500);
+        }
+    }
 
     public function fullSchedulePdf(int $planId)
     {
@@ -426,6 +1249,7 @@ class PlanExportController extends Controller
                 $clone->team_name = $a->jury_team_name;
                 $clone->team_number_hot = $a->jury_team_number_hot ?? null;
                 $clone->team_id   = $a->jury_team_id ?? null;
+                $clone->team_noshow = (bool)($a->jury_team_noshow ?? false);
                 $clone->assign    = 'Jury ' . $a->lane;
                 $expanded->push($clone);
                 
@@ -435,6 +1259,7 @@ class PlanExportController extends Controller
                         'name' => $a->jury_team_name,
                         'hot'  => $a->jury_team_number_hot ?? null,
                         'id'   => $a->jury_team_id ?? null,
+                        'noshow' => (bool)($a->jury_team_noshow ?? false),
                     ]);
                 }
             }
@@ -444,6 +1269,7 @@ class PlanExportController extends Controller
                 $clone->team_name = $a->table_1_team_name;
                 $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
                 $clone->team_id   = $a->table_1_team_id ?? null;
+                $clone->team_noshow = (bool)($a->table_1_team_noshow ?? false);
                 $clone->assign    = $a->table_1_name ?? ('Tisch ' . $a->table_1);
                 $expanded->push($clone);
                 
@@ -452,6 +1278,7 @@ class PlanExportController extends Controller
                         'name' => $a->table_1_team_name,
                         'hot'  => $a->table_1_team_number_hot ?? null,
                         'id'   => $a->table_1_team_id ?? null,
+                        'noshow' => (bool)($a->table_1_team_noshow ?? false),
                     ]);
                 }
             }
@@ -461,6 +1288,7 @@ class PlanExportController extends Controller
                 $clone->team_name = $a->table_2_team_name;
                 $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
                 $clone->team_id   = $a->table_2_team_id ?? null;
+                $clone->team_noshow = (bool)($a->table_2_team_noshow ?? false);
                 $clone->assign    = $a->table_2_name ?? ('Tisch ' . $a->table_2);
                 $expanded->push($clone);
                 
@@ -469,6 +1297,7 @@ class PlanExportController extends Controller
                         'name' => $a->table_2_team_name,
                         'hot'  => $a->table_2_team_number_hot ?? null,
                         'id'   => $a->table_2_team_id ?? null,
+                        'noshow' => (bool)($a->table_2_team_noshow ?? false),
                     ]);
                 }
             }
@@ -516,10 +1345,11 @@ class PlanExportController extends Controller
         // === Schritt 5: Build team data with labels ===
         $teamData = [];
         foreach ($groups as $teamNum => $acts) {
-            $info = $teamInfo->get($teamNum, ['name' => null, 'hot' => null, 'id' => null]);
+            $info = $teamInfo->get($teamNum, ['name' => null, 'hot' => null, 'id' => null, 'noshow' => false]);
             $teamName = $info['name'];
             $teamHot = $info['hot'];
             $teamId = $info['id'];
+            $isNoshow = $info['noshow'] ?? false;
             
             // Build label: "TeamName (HotNumber) – Teambereich RoomName"
             $label = '';
@@ -552,6 +1382,7 @@ class PlanExportController extends Controller
             $teamData[] = [
                 'sortName' => $teamName ?? 'zzz', // For sorting
                 'label' => $label,
+                'is_noshow' => $isNoshow,
                 'programName' => $programName,
                 'acts' => $allActs,
             ];
@@ -577,6 +1408,7 @@ class PlanExportController extends Controller
             
             $programGroups[$programName][$role->id]['teams'][] = [
                 'teamLabel' => $td['label'],
+                'is_noshow' => $td['is_noshow'] ?? false,
                 'rows'      => $td['acts']->map($mapRow)->values()->all(),
             ];
         }
@@ -736,6 +1568,7 @@ class PlanExportController extends Controller
                 $clone->team_id    = $a->table_1_team;
                 $clone->team_name  = $a->table_1_team_name;
                 $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
+                $clone->team_noshow = (bool)($a->table_1_team_noshow ?? false);
                 $clone->assign     = $a->table_1_name ?? ('Tisch ' . $a->table_1);
                 $expanded->push($clone);
             }
@@ -745,6 +1578,7 @@ class PlanExportController extends Controller
                 $clone->team_id    = $a->table_2_team;
                 $clone->team_name  = $a->table_2_team_name;
                 $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
+                $clone->team_noshow = (bool)($a->table_2_team_noshow ?? false);
                 $clone->assign     = $a->table_2_name ?? ('Tisch ' . $a->table_2);
                 $expanded->push($clone);
             }
@@ -761,6 +1595,7 @@ class PlanExportController extends Controller
         $mapRow = function ($a) {
             // Build team label: "TeamName (HotNumber)" or placeholder
             $teamLabel = '–';
+            $isNoshow = false;
             if ($a->team_id) {
                 if ($a->team_name && $a->team_number_hot) {
                     $teamLabel = $a->team_name . ' (' . $a->team_number_hot . ')';
@@ -769,6 +1604,7 @@ class PlanExportController extends Controller
                 } else {
                     $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team_id);
                 }
+                $isNoshow = (bool)($a->team_noshow ?? false);
             }
 
             return [
@@ -777,6 +1613,7 @@ class PlanExportController extends Controller
                 'activity'  => $this->formatActivityLabel($a),
                 'is_free'   => $this->isFreeBlock($a),
                 'teamLabel' => $teamLabel,
+                'team_is_noshow' => $isNoshow,
                 'assign'    => $a->assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
             ];
@@ -819,35 +1656,92 @@ class PlanExportController extends Controller
 
         // Map-Funktion für Rows
         $mapRow = function ($a) {
+            // Check if this is a robot game match (has both table_1 and table_2)
+            $isMatch = false;
+            $matchCode = $a->group_activity_type_code ?? $a->activity_type_code ?? null;
+            if ($matchCode === 'r_match' || (int)($a->activity_type_detail_id ?? 0) === 15) {
+                // It's a match if both table_1 and table_2 are set
+                $isMatch = !empty($a->table_1) && !empty($a->table_2);
+            }
+            
             // Teamlabel bestimmen (falls es über Jury/Tables erkennbar ist)
             $teamLabel = '–';
+            $isNoshow = false;
             
-            // Check jury team first
-            if (!empty($a->jury_team_name)) {
-                if ($a->jury_team_number_hot) {
-                    $teamLabel = $a->jury_team_name . ' (' . $a->jury_team_number_hot . ')';
-                } else {
-                    $teamLabel = $a->jury_team_name;
+            if ($isMatch) {
+                // For matches: show both teams with " vs " separator
+                $team1Label = '–';
+                $team2Label = '–';
+                $team1Noshow = false;
+                $team2Noshow = false;
+                
+                // Team 1
+                if (!empty($a->table_1_team_name)) {
+                    if ($a->table_1_team_number_hot) {
+                        $team1Label = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
+                    } else {
+                        $team1Label = $a->table_1_team_name;
+                    }
+                    $team1Noshow = (bool)($a->table_1_team_noshow ?? false);
+                } elseif (!empty($a->table_1_team)) {
+                    $team1Label = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->table_1_team);
                 }
-            } elseif (!empty($a->table_1_team_name)) {
-                if ($a->table_1_team_number_hot) {
-                    $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
-                } else {
-                    $teamLabel = $a->table_1_team_name;
+                
+                // Team 2
+                if (!empty($a->table_2_team_name)) {
+                    if ($a->table_2_team_number_hot) {
+                        $team2Label = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
+                    } else {
+                        $team2Label = $a->table_2_team_name;
+                    }
+                    $team2Noshow = (bool)($a->table_2_team_noshow ?? false);
+                } elseif (!empty($a->table_2_team)) {
+                    $team2Label = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->table_2_team);
                 }
-            } elseif (!empty($a->table_2_team_name)) {
-                if ($a->table_2_team_number_hot) {
-                    $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
-                } else {
-                    $teamLabel = $a->table_2_team_name;
+                
+                // Combine both teams
+                $teamLabel = $team1Label . ' / ' . $team2Label;
+                // If either team is noshow, mark as noshow (though we can't strikethrough both in simple text)
+                $isNoshow = $team1Noshow || $team2Noshow;
+            } else {
+                // Non-match activities: original logic
+                // Check jury team first
+                if (!empty($a->jury_team_name)) {
+                    if ($a->jury_team_number_hot) {
+                        $teamLabel = $a->jury_team_name . ' (' . $a->jury_team_number_hot . ')';
+                    } else {
+                        $teamLabel = $a->jury_team_name;
+                    }
+                    $isNoshow = (bool)($a->jury_team_noshow ?? false);
+                } elseif (!empty($a->table_1_team_name)) {
+                    if ($a->table_1_team_number_hot) {
+                        $teamLabel = $a->table_1_team_name . ' (' . $a->table_1_team_number_hot . ')';
+                    } else {
+                        $teamLabel = $a->table_1_team_name;
+                    }
+                    $isNoshow = (bool)($a->table_1_team_noshow ?? false);
+                } elseif (!empty($a->table_2_team_name)) {
+                    if ($a->table_2_team_number_hot) {
+                        $teamLabel = $a->table_2_team_name . ' (' . $a->table_2_team_number_hot . ')';
+                    } else {
+                        $teamLabel = $a->table_2_team_name;
+                    }
+                    $isNoshow = (bool)($a->table_2_team_noshow ?? false);
+                } elseif (!empty($a->team)) {
+                    $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
+                    // For placeholder teams, check if we can determine noshow from jury_team_noshow
+                    $isNoshow = (bool)($a->jury_team_noshow ?? false);
                 }
-            } elseif (!empty($a->team)) {
-                $teamLabel = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $a->team);
             }
 
             // Assignment (Jury/Tisch/-)
             $assign = '–';
-            if (!empty($a->lane)) {
+            if ($isMatch) {
+                // For matches: show both tables with " / " separator
+                $table1Label = $a->table_1_name ?? ('Tisch ' . $a->table_1);
+                $table2Label = $a->table_2_name ?? ('Tisch ' . $a->table_2);
+                $assign = $table1Label . ' / ' . $table2Label;
+            } elseif (!empty($a->lane)) {
                 $assign = 'Jury ' . $a->lane;
             } elseif (!empty($a->table_1)) {
                 $assign = $a->table_1_name ?? ('Tisch ' . $a->table_1);
@@ -860,6 +1754,7 @@ class PlanExportController extends Controller
                 'end_hm'    => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                 'activity'  => $this->formatActivityLabel($a),
                 'teamLabel' => $teamLabel ?? '–',
+                'team_is_noshow' => $isNoshow,
                 'assign'    => $assign,
                 'room'      => $a->room_name ?? $a->room_type_name ?? '–',
             ];
@@ -1066,16 +1961,22 @@ class PlanExportController extends Controller
             $teamParts = [];
 
             // Hilfsfunktion für einheitliche Darstellung
-            $formatTeam = function ($name, $numHot, $numInternal) {
+            $formatTeam = function ($name, $numHot, $numInternal, $isNoshow = false) {
+                $teamName = null;
                 if (!empty($name) && !empty($numHot)) {
-                    return "{$name} ({$numHot})";
+                    $teamName = "{$name} ({$numHot})";
                 } elseif (!empty($name)) {
-                    return $name;
+                    $teamName = $name;
                 } elseif (!empty($numInternal)) {
-                    return sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $numInternal);
+                    $teamName = sprintf("T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!", $numInternal);
                 } else {
-                    return '–';
+                    $teamName = '–';
                 }
+                
+                return [
+                    'name' => $teamName,
+                    'is_noshow' => $isNoshow
+                ];
             };
 
             // Jury (Lane)
@@ -1083,7 +1984,8 @@ class PlanExportController extends Controller
                 $teamParts[] = $formatTeam(
                     $a->jury_team_name ?? null,
                     $a->jury_team_number_hot ?? null,
-                    $a->team
+                    $a->team,
+                    (bool)($a->jury_team_noshow ?? false)
                 );
             }
 
@@ -1092,7 +1994,8 @@ class PlanExportController extends Controller
                 $teamParts[] = $formatTeam(
                     $a->table_1_team_name ?? null,
                     $a->table_1_team_number_hot ?? null,
-                    $a->table_1_team
+                    $a->table_1_team,
+                    (bool)($a->table_1_team_noshow ?? false)
                 );
             }
 
@@ -1101,18 +2004,17 @@ class PlanExportController extends Controller
                 $teamParts[] = $formatTeam(
                     $a->table_2_team_name ?? null,
                     $a->table_2_team_number_hot ?? null,
-                    $a->table_2_team
+                    $a->table_2_team,
+                    (bool)($a->table_2_team_noshow ?? false)
                 );
             }
-
-            $teamDisplay = count($teamParts) ? implode(' / ', $teamParts) : '–';
 
             return [
                 'start'    => \Carbon\Carbon::parse($a->start_time)->format('H:i'),
                 'end'      => \Carbon\Carbon::parse($a->end_time)->format('H:i'),
                 'is_free'  => $this->isFreeBlock($a),
                 'activity' => $this->formatActivityLabel($a),
-                'team'     => $teamDisplay,
+                'team'     => $teamParts, // Array of team parts with name and is_noshow
                 // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
                 'is_explore'    => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
                 'is_challenge'  => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::CHALLENGE->value]),
@@ -1173,7 +2075,8 @@ if ($prepRooms->isNotEmpty()) {
             ->select(
                 'team.name as team_name',
                 'team.team_number_hot as team_number_hot',
-                'team.first_program as program'
+                'team.first_program as program',
+                'team_plan.noshow as noshow'
             )
             ->orderBy('team.team_number_hot')
             ->get();
@@ -1196,6 +2099,7 @@ if ($prepRooms->isNotEmpty()) {
                 'is_explore'   => in_array($t->program, [0, 2]),
                 'is_challenge' => in_array($t->program, [0, 3]),
                 'team_display' => trim($t->team_name . ' (' . $t->team_number_hot . ')'),
+                'team_is_noshow' => (bool)($t->noshow ?? false),
             ];
         });
 
@@ -1416,6 +2320,121 @@ if ($prepRooms->isNotEmpty()) {
                 'start_date' => $firstDate,
             ]);
             
+            // ➕ Add final round lines for Challenge teams only
+            // Check if this is a Challenge team by looking at the label
+            $isChallengeTeam = isset($page['label']) && strpos($page['label'], 'FLL Challenge') === 0;
+            
+            if ($isChallengeTeam && $page['team_number']) {
+                // Get robot game area room from any r_match activity
+                $robotGameRoomName = '–';
+                
+                // Try to get room from an actual r_match activity
+                $matchActivityTypeId = DB::table('m_activity_type_detail')
+                    ->where('code', 'r_match')
+                    ->value('id');
+                
+                if ($matchActivityTypeId) {
+                    // Get room from any r_match activity in this plan
+                    $matchActivity = DB::table('activity')
+                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                        ->where('activity_group.plan', $planId)
+                        ->where('activity.activity_type_detail', $matchActivityTypeId)
+                        ->whereNotNull('activity.room_type')
+                        ->select('activity.room_type')
+                        ->first();
+                    
+                    if ($matchActivity && $matchActivity->room_type) {
+                        $robotGameRoom = DB::table('room_type_room')
+                            ->join('room', 'room_type_room.room', '=', 'room.id')
+                            ->where('room_type_room.room_type', $matchActivity->room_type)
+                            ->where('room.event', $event->id)
+                            ->select('room.name')
+                            ->first();
+                        
+                        if ($robotGameRoom) {
+                            $robotGameRoomName = $robotGameRoom->name;
+                        }
+                    }
+                }
+                
+                // Final round codes (order matters: 16, 8, 4, 2)
+                $finalRoundCodes = ['r_final_16', 'r_final_8', 'r_final_4', 'r_final_2'];
+                
+                // matchActivityTypeId already defined above
+                if ($matchActivityTypeId) {
+                    foreach ($finalRoundCodes as $finalCode) {
+                        // Get activity type detail for this final round (to get the name)
+                        $finalGroupTypeDetail = DB::table('m_activity_type_detail')
+                            ->where('code', $finalCode)
+                            ->select('id', 'name')
+                            ->first();
+                        
+                        if (!$finalGroupTypeDetail) {
+                            continue;
+                        }
+                        
+                        // Get activity group for this final round
+                        $finalGroup = DB::table('activity_group')
+                            ->where('plan', $planId)
+                            ->where('activity_type_detail', $finalGroupTypeDetail->id)
+                            ->first();
+                        
+                        if (!$finalGroup) {
+                            continue;
+                        }
+                        
+                        // Get all match activities within this final round group
+                        $finalMatches = DB::table('activity')
+                            ->where('activity_group', $finalGroup->id)
+                            ->where('activity_type_detail', $matchActivityTypeId)
+                            ->select('start', 'end')
+                            ->orderBy('start')
+                            ->get();
+                        
+                        if ($finalMatches->isEmpty()) {
+                            continue;
+                        }
+                        
+                        // Get earliest start and latest end
+                        $earliestStart = $finalMatches->min('start');
+                        $latestEnd = $finalMatches->max('end');
+                        
+                        if ($earliestStart && $latestEnd) {
+                            $startTime = \Carbon\Carbon::parse($earliestStart)->format('H:i');
+                            $endTime = \Carbon\Carbon::parse($latestEnd)->format('H:i');
+                            $startDate = \Carbon\Carbon::parse($earliestStart);
+                            
+                            // Add final round row with label from activity_type_detail
+                            $rows[] = [
+                                'start'    => $startTime,
+                                'end'      => $endTime,
+                                'activity' => $finalGroupTypeDetail->name,
+                                'room'     => $robotGameRoomName,
+                                'start_date' => $startDate,
+                            ];
+                        }
+                    }
+                }
+                
+                // Sort rows chronologically (but keep "Teambereich" at the top)
+                if (count($rows) > 1) {
+                    $teambereichRow = array_shift($rows); // Remove first row (Teambereich)
+                    usort($rows, function($a, $b) {
+                        // Compare by start_date timestamp
+                        $dateA = $a['start_date'] ?? \Carbon\Carbon::now();
+                        $dateB = $b['start_date'] ?? \Carbon\Carbon::now();
+                        if ($dateA->timestamp !== $dateB->timestamp) {
+                            return $dateA->timestamp <=> $dateB->timestamp;
+                        }
+                        // If same date, compare by start time
+                        $timeA = $a['start'] ?? '';
+                        $timeB = $b['start'] ?? '';
+                        return strcmp($timeA, $timeB);
+                    });
+                    array_unshift($rows, $teambereichRow); // Put Teambereich back at the top
+                }
+            }
+            
             // Chunk rows uniformly (independent of day changes)
             $chunks = array_chunk($rows, $maxRowsPerPage);
             $chunkCount = count($chunks);
@@ -1423,6 +2442,7 @@ if ($prepRooms->isNotEmpty()) {
             foreach ($chunks as $chunkIndex => $chunkRows) {
                 $html .= view('pdf.content.team_schedule', [
                     'team'  => $page['label'], // z.B. "Explore 12 – RoboKids"
+                    'is_noshow' => $page['is_noshow'] ?? false,
                     'rows'  => $chunkRows,
                     'event' => $event,
                     'multi_day_event' => isset($isMultidayEvent) ? $isMultidayEvent : false,
@@ -1461,6 +2481,7 @@ if ($prepRooms->isNotEmpty()) {
         $teamNames = []; // [num => name]
         $teamHot   = []; // [num => team_number_hot]
         $teamIds   = []; // [num => actual team.id]
+        $teamNoshow = []; // [num => noshow flag]
         $teamSet   = []; // num als key
 
         foreach ($acts as $a) {
@@ -1479,6 +2500,11 @@ if ($prepRooms->isNotEmpty()) {
                 // Store actual team ID
                 if (isset($a->jury_team_id)) {
                     $teamIds[$num] = $a->jury_team_id;
+                }
+                
+                // Store noshow flag
+                if (isset($a->jury_team_noshow)) {
+                    $teamNoshow[$num] = (bool)$a->jury_team_noshow;
                 }
             }
         }
@@ -1501,6 +2527,7 @@ if ($prepRooms->isNotEmpty()) {
             // 🔹 Label nach neuer Regel
             $teamName = $teamNames[$num] ?? null;
             $teamHotNum = $teamHot[$num] ?? null;
+            $isNoshow = $teamNoshow[$num] ?? false;
 
             if ($teamName && $teamHotNum) {
                 $label = "FLL Explore {$teamName} ({$teamHotNum})";
@@ -1516,6 +2543,7 @@ if ($prepRooms->isNotEmpty()) {
                 'label' => $label,
                 'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
                 'team_number' => $num, // Plan team number for table assignment lookup
+                'is_noshow' => $isNoshow,
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -1533,6 +2561,7 @@ if ($prepRooms->isNotEmpty()) {
         $teamNames = []; // [num => name]
         $teamHot   = []; // [num => team_number_hot]
         $teamIds   = []; // [num => actual team.id]
+        $teamNoshow = []; // [num => noshow flag]
         $teamSet   = [];
 
         foreach ($acts as $a) {
@@ -1552,6 +2581,9 @@ if ($prepRooms->isNotEmpty()) {
                 if (isset($a->jury_team_id) && !isset($teamIds[$n])) {
                     $teamIds[$n] = $a->jury_team_id;
                 }
+                if (isset($a->jury_team_noshow) && !isset($teamNoshow[$n])) {
+                    $teamNoshow[$n] = (bool)$a->jury_team_noshow;
+                }
             }
 
             // Table 1
@@ -1570,6 +2602,9 @@ if ($prepRooms->isNotEmpty()) {
                 if (isset($a->table_1_team_id) && !isset($teamIds[$n])) {
                     $teamIds[$n] = $a->table_1_team_id;
                 }
+                if (isset($a->table_1_team_noshow) && !isset($teamNoshow[$n])) {
+                    $teamNoshow[$n] = (bool)$a->table_1_team_noshow;
+                }
             }
 
             // Table 2
@@ -1587,6 +2622,9 @@ if ($prepRooms->isNotEmpty()) {
                 }
                 if (isset($a->table_2_team_id) && !isset($teamIds[$n])) {
                     $teamIds[$n] = $a->table_2_team_id;
+                }
+                if (isset($a->table_2_team_noshow) && !isset($teamNoshow[$n])) {
+                    $teamNoshow[$n] = (bool)$a->table_2_team_noshow;
                 }
             }
         }
@@ -1629,6 +2667,7 @@ if ($prepRooms->isNotEmpty()) {
             // 🔹 Label-Logik wie bei Explore
             $teamName = $teamNames[$num] ?? null;
             $teamHotNum = $teamHot[$num] ?? null;
+            $isNoshow = $teamNoshow[$num] ?? false;
 
             if ($teamName && $teamHotNum) {
                 $label = "FLL Challenge {$teamName} ({$teamHotNum})";
@@ -1644,6 +2683,7 @@ if ($prepRooms->isNotEmpty()) {
                 'label' => $label,
                 'team_id' => $teamIds[$num] ?? null, // Use actual team.id, not plan number
                 'team_number' => $num, // Plan team number for table assignment lookup
+                'is_noshow' => $isNoshow,
                 'acts'  => $ownActs->concat($globalActs),
             ];
         }
@@ -1716,6 +2756,8 @@ if ($prepRooms->isNotEmpty()) {
                         $c = clone $a;
                         $c->ref_table = (int)$a->table_1;
                         $c->ref_table_name = $a->table_1_name ?? null;
+                        // Normalize team data: for table_1 clone, use table_1_team data as primary
+                        // (team display logic checks table_1_team first)
                         $expanded->push($c);
                         $made++;
                     }
@@ -1723,6 +2765,19 @@ if ($prepRooms->isNotEmpty()) {
                         $c = clone $a;
                         $c->ref_table = (int)$a->table_2;
                         $c->ref_table_name = $a->table_2_name ?? null;
+                        // Normalize team data: for table_2 clone, map table_2_team data to table_1_team
+                        // so the team display logic shows the correct team
+                        $c->table_1_team = $a->table_2_team;
+                        $c->table_1_team_name = $a->table_2_team_name ?? null;
+                        $c->table_1_team_number_hot = $a->table_2_team_number_hot ?? null;
+                        $c->table_1_team_id = $a->table_2_team_id ?? null;
+                        $c->table_1_team_noshow = (bool)($a->table_2_team_noshow ?? false);
+                        // Clear table_2_team to avoid confusion
+                        $c->table_2_team = null;
+                        $c->table_2_team_name = null;
+                        $c->table_2_team_number_hot = null;
+                        $c->table_2_team_id = null;
+                        $c->table_2_team_noshow = null;
                         $expanded->push($c);
                         $made++;
                     }
@@ -1881,20 +2936,38 @@ if ($prepRooms->isNotEmpty()) {
                     // 1) Jury
                     $val = $fmtNameHot($a->jury_team_name ?? null, $a->jury_team_number_hot ?? null)
                         ?? $fmtInternal(($a->jury_team ?? null) ?? ($a->team ?? null)); // $a->team ist Alias auf jury_team
-                    if ($val) return $val;
+                    if ($val) {
+                        return [
+                            'name' => $val,
+                            'is_noshow' => (bool)($a->jury_team_noshow ?? false)
+                        ];
+                    }
 
                     // 2) Tisch 1
                     $val = $fmtNameHot($a->table_1_team_name ?? null, $a->table_1_team_number_hot ?? null)
                         ?? $fmtInternal($a->table_1_team ?? null);
-                    if ($val) return $val;
+                    if ($val) {
+                        return [
+                            'name' => $val,
+                            'is_noshow' => (bool)($a->table_1_team_noshow ?? false)
+                        ];
+                    }
 
                     // 3) Tisch 2
                     $val = $fmtNameHot($a->table_2_team_name ?? null, $a->table_2_team_number_hot ?? null)
                         ?? $fmtInternal($a->table_2_team ?? null);
-                    if ($val) return $val;
+                    if ($val) {
+                        return [
+                            'name' => $val,
+                            'is_noshow' => (bool)($a->table_2_team_noshow ?? false)
+                        ];
+                    }
 
                     // 4) Generisch
-                    return '–';
+                    return [
+                        'name' => '–',
+                        'is_noshow' => false
+                    ];
                 })(),
                 'room'     => $a->room_name ?? '–',
                 // Add date information for day grouping
@@ -1996,7 +3069,12 @@ if ($prepRooms->isNotEmpty()) {
         $requestExplore = new \Illuminate\Http\Request();
         $requestExplore->query->set('program', 'explore');
         $exploreResponse = $teamController->index($requestExplore, $event);
-        $exploreTeams = collect($exploreResponse->getData(true));
+        $exploreData = $exploreResponse->getData(true);
+        // Handle both array format (challenge) and object format (explore with metadata)
+        $exploreTeamsArray = is_array($exploreData) && !isset($exploreData['teams']) 
+            ? $exploreData 
+            : ($exploreData['teams'] ?? []);
+        $exploreTeams = collect($exploreTeamsArray);
 
         // Log::debug('Explore Teams:', $exploreTeams->toArray());
 
@@ -2004,7 +3082,9 @@ if ($prepRooms->isNotEmpty()) {
         $requestChallenge = new \Illuminate\Http\Request();
         $requestChallenge->query->set('program', 'challenge');
         $challengeResponse = $teamController->index($requestChallenge, $event);
-        $challengeTeams = collect($challengeResponse->getData(true));
+        $challengeData = $challengeResponse->getData(true);
+        // Challenge teams are returned as direct array
+        $challengeTeams = collect($challengeData);
 
         // Log::debug('Challenge Teams:', $challengeTeams->toArray());
 
@@ -2342,15 +3422,11 @@ if ($prepRooms->isNotEmpty()) {
             ])->render();
 
             // Use portrait layout specifically for overview PDF
-            $header = $this->buildHeaderData($event);
-            $footerLogos = $this->buildFooterLogos($event->id);
-            
-            $finalHtml = view('pdf.layout_portrait', [
-                'title' => 'FLOW Übersichtsplan',
-                'header' => $header,
-                'footerLogos' => $footerLogos,
-                'contentHtml' => $contentHtml,
-            ])->render();
+            $finalHtml = $this->pdfLayoutService->renderPortraitLayout(
+                $event,
+                $contentHtml,
+                'FLOW Übersichtsplan'
+            );
 
             // Generate PDF in portrait orientation
             $pdf = Pdf::loadHTML($finalHtml, 'UTF-8')->setPaper('a4', 'portrait');
@@ -2392,123 +3468,6 @@ if ($prepRooms->isNotEmpty()) {
         }
     }
 
-    /**
-     * Build header data for PDF (copied from PdfLayoutService)
-     */
-    private function buildHeaderData(object $event): array
-    {
-        $formattedDate = '';
-        if (!empty($event->date)) {
-            try {
-                $startDate = Carbon::parse($event->date);
-                
-                // Check if this is a multi-day event
-                if (!empty($event->days) && $event->days > 1) {
-                    // Multi-day event: show date range
-                    $endDate = $startDate->copy()->addDays($event->days - 1);
-                    $formattedDate = $startDate->format('d.m') . '-' . $endDate->format('d.m.Y');
-                } else {
-                    // Single-day event: show just the date
-                    $formattedDate = $startDate->format('d.m.Y');
-                }
-            } catch (\Throwable $e) {
-                $formattedDate = (string) $event->date;
-            }
-        }
-
-        $leftLogos = [];
-        if (!empty($event->event_explore)) {
-            $leftLogos[] = $this->toDataUri(public_path('flow/fll_explore_hs.png'));
-        }
-        if (!empty($event->event_challenge)) {
-            $leftLogos[] = $this->toDataUri(public_path('flow/fll_challenge_hs.png'));
-        }
-        $leftLogos = array_values(array_filter($leftLogos));
-
-        $rightLogo = $this->toDataUri(public_path('flow/hot.png'));
-
-        // Determine competition type text dynamically
-        $competitionType = $this->getCompetitionTypeText($event);
-
-        return [
-            'leftLogos'       => $leftLogos,
-            'centerTitleTop'  => 'FIRST LEGO League ' . $competitionType,
-            'centerTitleMain' => trim(($event->name ?? '') . ' ' . $formattedDate),
-            'rightLogo'       => $rightLogo,
-        ];
-    }
-
-    /**
-     * Determine the competition type text based on event configuration
-     */
-    private function getCompetitionTypeText(object $event): string
-    {
-        $hasExplore = !empty($event->event_explore);
-        $hasChallenge = !empty($event->event_challenge);
-        $level = (int)($event->level ?? 0);
-
-        // Both Explore and Challenge Regio (level 1)
-        if ($hasExplore && $hasChallenge && $level === 1) {
-            return 'Ausstellung und Regionalwettbewerb';
-        }
-
-        // Only Explore
-        if ($hasExplore && !$hasChallenge) {
-            return 'Ausstellung';
-        }
-
-        // Only Challenge - check level
-        if ($hasChallenge && !$hasExplore) {
-            return match ($level) {
-                1 => 'Regionalwettbewerb',
-                2 => 'Qualifikationswettbewerb',
-                3 => 'Finale',
-                default => 'Wettbewerb',
-            };
-        }
-
-        // Fallback
-        return 'Wettbewerb';
-    }
-
-    /**
-     * Build footer logos for PDF (copied from PdfLayoutService)
-     */
-    private function buildFooterLogos(int $eventId): array
-    {
-        $logos = DB::table('logo')
-            ->join('event_logo', 'logo.id', '=', 'event_logo.logo')
-            ->where('event_logo.event', $eventId)
-            ->select('logo.path')
-            ->get();
-
-        $dataUris = [];
-        foreach ($logos as $logo) {
-            $path = storage_path('app/public/' . $logo->path);
-            $uri  = $this->toDataUri($path);
-            if ($uri) {
-                $dataUris[] = $uri;
-            }
-        }
-
-        return $dataUris;
-    }
-
-    /**
-     * Convert file to data URI (copied from PdfLayoutService)
-     */
-    private function toDataUri(string $path): ?string
-    {
-        if (!is_file($path)) {
-            return null;
-        }
-        $mime = mime_content_type($path) ?: 'image/png';
-        $data = @file_get_contents($path);
-        if ($data === false) {
-            return null;
-        }
-        return 'data:' . $mime . ';base64,' . base64_encode($data);
-    }
 
     /**
      * Get worker shifts for roles with differentiation_parameter

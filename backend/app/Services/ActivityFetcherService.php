@@ -48,9 +48,15 @@ class ActivityFetcherService
             });
         }
 
-        // Filter: exclude past activities (default)
+        // Filter: exclude activities outside event date range (default)
         if (!$include_past) {
+            // Lower bound: activities must start on or after event start date
             $q->whereColumn('a.start', '>=', 'e.date');
+            
+            // Upper bound: activities must start on or before event end date
+            // Event end date = e.date + (e.days - 1) days
+            // Use DATE() to compare only the date part, ignoring time
+            $q->whereRaw('DATE(a.start) <= DATE(e.date) + INTERVAL (COALESCE(e.days, 1) - 1) DAY');
         }
 
         // Group-Meta (optional)
@@ -168,13 +174,13 @@ class ActivityFetcherService
             a.extra_block as extra_block_id,
             peb.insert_point as extra_block_insert_point,
             CASE a.table_1
-                WHEN 1 THEN COALESCE(te1.table_name, "Tisch 1")
-                WHEN 3 THEN COALESCE(te3.table_name, "Tisch 3")
+                WHEN 1 THEN CONCAT("Tisch ", COALESCE(te1.table_name, "1"))
+                WHEN 3 THEN CONCAT("Tisch ", COALESCE(te3.table_name, "3"))
                 ELSE NULL
             END AS table_1_name,
             CASE a.table_2
-                WHEN 2 THEN COALESCE(te2.table_name, "Tisch 2")
-                WHEN 4 THEN COALESCE(te4.table_name, "Tisch 4")
+                WHEN 2 THEN CONCAT("Tisch ", COALESCE(te2.table_name, "2"))
+                WHEN 4 THEN CONCAT("Tisch ", COALESCE(te4.table_name, "4"))
                 ELSE NULL
             END AS table_2_name
         ';
@@ -229,6 +235,7 @@ class ActivityFetcherService
                 ag_atd.code                as group_activity_type_code,
                 a.extra_block as is_extra_block,
                 ag.activity_type_detail as activity_type_detail,
+                ag.explore_group           as group_explore_group,
                 CASE 
                     WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.description, ag_atd.description)
                     ELSE ag_atd.description
@@ -241,12 +248,15 @@ class ActivityFetcherService
                 t_j.id    as jury_team_id,
                 t_j.name  as jury_team_name,
                 t_j.team_number_hot  as jury_team_number_hot,
+                COALESCE(tp_j.noshow, false) as jury_team_noshow,
                 t_t1.id   as table_1_team_id,
                 t_t1.name as table_1_team_name,
                 t_t1.team_number_hot as table_1_team_number_hot,
+                COALESCE(tp_t1.noshow, false) as table_1_team_noshow,
                 t_t2.id   as table_2_team_id,
                 t_t2.name as table_2_team_name,
-                t_t2.team_number_hot as table_2_team_number_hot
+                t_t2.team_number_hot as table_2_team_number_hot,
+                COALESCE(tp_t2.noshow, false) as table_2_team_noshow
             ';
         }
 

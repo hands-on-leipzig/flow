@@ -573,16 +573,37 @@ class RobotGameGenerator
                     if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
                         $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
                         // Integrated Explore mode: coordinate with ExploreGenerator
-                        // Write start time for ExploreGenerator to pick up
-                        // Log::debug("RobotGameGenerator: Inserting start time for ExploreGenerator: {$this->rTime->format('H:i')}");
-                        $this->integratedExplore->startTime = $this->rTime->format('H:i');
                         
-                        // Advance rTime by the duration that Explore will use
-                        // (Duration was calculated by ExploreGenerator constructor)
-                        // Log::debug("RobotGameGenerator: Advancing rTime by {$this->integratedExplore->duration} minutes");
-                        $this->rTime->addMinutes($this->integratedExplore->duration);
-                        
-                        // Log::debug("RobotGameGenerator: rTime after advance: {$this->rTime->format('H:i')}");
+                        if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value) {
+                            // Store RG1 end time
+                            $this->integratedExplore->rg1EndTime = $this->rTime->format('H:i');
+                            
+                            // Compare with deliberation end time and use the later one
+                            $deliberationEnd = $this->integratedExplore->deliberationEndTime;
+                            if ($deliberationEnd !== null) {
+                                // Convert both to DateTime for comparison
+                                $baseDate = $this->rTime->current()->format('Y-m-d');
+                                $rg1Time = new \DateTime($baseDate . ' ' . $this->integratedExplore->rg1EndTime);
+                                $delibTime = new \DateTime($baseDate . ' ' . $deliberationEnd);
+                                
+                                // Use the later time
+                                $this->integratedExplore->startTime = ($rg1Time > $delibTime) 
+                                    ? $this->integratedExplore->rg1EndTime 
+                                    : $deliberationEnd;
+                            } else {
+                                // Fallback: use RG1 time if deliberation time not set
+                                $this->integratedExplore->startTime = $this->integratedExplore->rg1EndTime;
+                            }
+                            
+                            // For INTEGRATED_MORNING: Do NOT advance rTime here
+                            // rTime will be adjusted in PlanGeneratorCore after awards are inserted
+                            // based on the actual awards end time
+                            
+                        } else {
+                            // INTEGRATED_AFTERNOON: use RG1 time directly and advance by duration
+                            $this->integratedExplore->startTime = $this->rTime->format('H:i');
+                            $this->rTime->addMinutes($this->integratedExplore->duration);
+                        }
                         
                     } else {
                         // Skip lunch insert point if early lunch is enabled (lunch already handled at test round)

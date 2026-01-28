@@ -8,6 +8,8 @@ use App\Models\MActivityTypeDetail;
 use App\Models\OneLinkAccess;
 use App\Services\ActivityFetcherService;
 use App\Services\PdfLayoutService;
+use App\Support\PlanParameter;
+use App\Enums\ExploreMode;
 
 use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
@@ -63,19 +65,15 @@ class PublishController extends Controller
             ]);
         }
 
-        $region = DB::table('regional_partner')
-            ->where('id', $event->regional_partner)
-            ->value('region');
-
-        if (!$region) {
-            return response()->json(['error' => 'Region not found'], 404);
+        if (empty($event->name)) {
+            return response()->json(['error' => 'Event name is required'], 400);
         }
 
         switch ($event->level) {
 
             case 1:
-
-                $link = $region;
+                // Use event name directly
+                $link = $event->name;
 
                 // Prüfen, ob mehrere Regio für diesen Regionalpartner existieren
                 $eventCount = DB::table('event')
@@ -95,7 +93,17 @@ class PublishController extends Controller
                 break;
 
             case 2:
-                $link = "quali-" . $region;
+                // Find first "-" in event name, add 2 to position, use the rest
+                $dashPos = strpos($event->name, '-');
+                if ($dashPos !== false) {
+                    // Add 2 to skip the "-" and space
+                    $position = $dashPos + 2;
+                    $suffix = substr($event->name, $position);
+                    $link = "quali-" . $suffix;
+                } else {
+                    // No dash found, use full event name
+                    $link = "quali-" . $event->name;
+                }
                 break;
 
             case 3:
@@ -154,12 +162,12 @@ class PublishController extends Controller
 
                 // Update link for challenge event if it exists
                 if (!empty($event->event_challenge)) {
-                    $drahtController->updateEventLink($event->event_challenge, $link);
+                    $drahtController->updateEventLink($event->event_challenge, $displayLink);
                 }
 
                 // Update link for explore event if it exists
                 if (!empty($event->event_explore)) {
-                    $drahtController->updateEventLink($event->event_explore, $link);
+                    $drahtController->updateEventLink($event->event_explore, $displayLink);
                 }
             } catch (\Exception $e) {
                 // Log error but don't fail the link generation
@@ -226,15 +234,24 @@ class PublishController extends Controller
                 ], 404);
             }
 
+            $eventCount = $events->count();
+            
+            // Increase execution time limit for batch operation
+            // Allow ~10 seconds per event, minimum 60 seconds, maximum 600 seconds (10 minutes)
+            $estimatedTime = max(60, min(600, $eventCount * 10));
+            set_time_limit($estimatedTime);
+            ini_set('max_execution_time', $estimatedTime);
+            
             $regenerated = 0;
             $failed = 0;
             $errors = [];
 
             Log::info("Regenerating links for season {$seasonId}", [
-                'event_count' => $events->count()
+                'event_count' => $eventCount,
+                'time_limit' => $estimatedTime
             ]);
 
-            foreach ($events as $event) {
+            foreach ($events as $index => $event) {
                 try {
                     // Clear existing link and QR code to force regeneration
                     DB::table('event')
@@ -249,14 +266,20 @@ class PublishController extends Controller
                     $this->linkAndQRcode($event->id);
                     $regenerated++;
 
-                    Log::info("Regenerated link for event {$event->id} ({$event->name})");
+                    // Log progress every 10 events or on last event
+                    if (($index + 1) % 10 === 0 || ($index + 1) === $eventCount) {
+                        Log::info("Progress: {$regenerated}/{$eventCount} events regenerated for season {$seasonId}");
+                    } else {
+                        Log::info("Regenerated link for event {$event->id} ({$event->name})");
+                    }
                 } catch (\Exception $e) {
                     $failed++;
                     $errorMsg = "Failed to regenerate link for event {$event->id} ({$event->name}): " . $e->getMessage();
                     $errors[] = $errorMsg;
                     Log::error($errorMsg, [
                         'event_id' => $event->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
                     ]);
                 }
             }
@@ -266,15 +289,25 @@ class PublishController extends Controller
                 'message' => "Regenerated links for {$regenerated} events" . ($failed > 0 ? ", {$failed} failed" : ''),
                 'regenerated' => $regenerated,
                 'failed' => $failed,
-                'total' => $events->count(),
+                'total' => $eventCount,
                 'errors' => $errors
             ]);
 
-        } catch (\Exception $e) {
-            Log::error("Error regenerating links for season {$seasonId}: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            // Catch both Exception and Error (like FatalError) for better error handling
+            Log::error("Error regenerating links for season {$seasonId}: " . $e->getMessage(), [
+                'error_type' => get_class($e),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $errorMessage = $e->getMessage();
+            if (str_contains($errorMessage, 'Maximum execution time')) {
+                $errorMessage = 'Operation timed out. Please try with fewer events or increase PHP max_execution_time.';
+            }
+            
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $errorMessage
             ], 500);
         }
     }
@@ -329,14 +362,13 @@ class PublishController extends Controller
                     'registered' => count($drahtData['teams_explore'] ?? []),
                     'color_hex' => $exploreColor,
                     'list' => $level >= 1 ? array_map(function ($team) {
-                        Log::info($team);
                         return [
                             'team_number_hot' => $team['ref'] ?? null,
                             'name' => $team['name'] ?? '',
                             'organization' => $team['organization'] ?? '',
                             'location' => $team['location'] ?? ''
                         ];
-                    }, $drahtData['teams_explore'] ?? []) : [],
+                    }, array_values($drahtData['teams_explore'] ?? [])) : [],
                 ],
                 'challenge' => [
                     'capacity' => $drahtData['capacity_challenge'] ?? 0,
@@ -349,7 +381,7 @@ class PublishController extends Controller
                             'organization' => $team['organization'] ?? '',
                             'location' => $team['location'] ?? ''
                         ];
-                    }, $drahtData['teams_challenge'] ?? []) : [],
+                    }, array_values($drahtData['teams_challenge'] ?? [])) : [],
                 ],
             ],
         ];
@@ -442,9 +474,26 @@ class PublishController extends Controller
 
         // Activities laden
         $activities = $this->fetcher->fetchActivities($plan->id);
+        
+        // Add explore_group from activity table to each activity
+        $activityIds = $activities->pluck('activity_id')->toArray();
+        $activityExploreGroups = DB::table('activity')
+            ->whereIn('id', $activityIds)
+            ->pluck('explore_group', 'id')
+            ->toArray();
+        
+        $activities = $activities->map(function($activity) use ($activityExploreGroups) {
+            $activity->explore_group = $activityExploreGroups[$activity->activity_id] ?? null;
+            return $activity;
+        });
 
-        // Activity Type Detail IDs by code (cached lookup)
-        $atdIds = MActivityTypeDetail::whereIn('code', [
+        // Check if there are 2x Explore groups
+        $planParams = new PlanParameter($plan->id);
+        $eMode = (int) $planParams->get('e_mode');
+        $hasTwoExploreGroups = ($eMode === ExploreMode::HYBRID_BOTH->value || $eMode === ExploreMode::DECOUPLED_BOTH->value);
+
+        // Activity Type Details by code (cached lookup with name and sequence)
+        $atdCodes = [
             'e_briefing_coach',
             'e_briefing_judge',
             'e_opening',
@@ -456,43 +505,230 @@ class PublishController extends Controller
             'r_briefing',
             'c_opening',
             'c_awards',
-        ])->pluck('id', 'code');
+        ];
+        $atdDetails = MActivityTypeDetail::whereIn('code', $atdCodes)->get()->keyBy('code');
 
-        // Hilfsfunktion: Erste Startzeit für gegebene codes finden
-        $findStart = function ($codes) use ($activities, $atdIds) {
-            $ids = collect((array)$codes)->map(fn($code) => $atdIds[$code] ?? null)->filter();
-            $act = $activities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
-            return $act ? $act->start_time : null;
+        // Helper map: code -> id for quick lookup
+        $atdIds = $atdDetails->pluck('id', 'code')->all();
+
+        // Hilfsfunktion: Erste Startzeit und Activity Type Detail für gegebene codes finden
+        // Prefer program-specific codes over general codes when multiple are provided
+        // Optional filter by explore_group if provided
+        $findStart = function ($codes, ?int $exploreGroup = null) use ($activities, $atdIds, $atdDetails) {
+            $codeArray = (array)$codes;
+            // Sort codes to prefer program-specific (e_/c_/j_/r_) over general (g_) codes
+            usort($codeArray, function($a, $b) {
+                $aPref = str_starts_with($a, 'g_') ? 1 : 0;
+                $bPref = str_starts_with($b, 'g_') ? 1 : 0;
+                return $aPref <=> $bPref;
+            });
+            
+            $ids = collect($codeArray)->map(fn($code) => $atdIds[$code] ?? null)->filter();
+            
+            // Filter activities by explore_group if provided
+            $filteredActivities = $activities;
+            if ($exploreGroup !== null) {
+                $filteredActivities = $activities->filter(fn($a) => 
+                    ($a->explore_group ?? null) === $exploreGroup
+                );
+            }
+            
+            $act = $filteredActivities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
+            if (!$act) {
+                return null;
+            }
+            // Find which code matched this activity (use first matching code, which will be program-specific if available)
+            $matchedCode = collect($codeArray)->first(fn($code) => ($atdIds[$code] ?? null) === $act->activity_type_detail_id);
+            $atd = $matchedCode ? $atdDetails[$matchedCode] : null;
+            return [
+                'value' => $act->start_time,
+                'label' => $atd->name ?? null,
+                'sequence' => $atd->sequence ?? 0,
+            ];
         };
 
-        // Hilfsfunktion: Ende der Aktivität (end_time) für gegebene codes
-        $findEnd = function ($codes) use ($activities, $atdIds) {
-            $ids = collect((array)$codes)->map(fn($code) => $atdIds[$code] ?? null)->filter();
-            $act = $activities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
-            return $act ? $act->end_time : null;
+        // Hilfsfunktion: Ende der Aktivität (end_time) und Activity Type Detail für gegebene codes
+        // Prefer program-specific codes over general codes when multiple are provided
+        // Optional filter by explore_group if provided
+        $findEnd = function ($codes, ?int $exploreGroup = null) use ($activities, $atdIds, $atdDetails) {
+            $codeArray = (array)$codes;
+            // Sort codes to prefer program-specific (e_/c_/j_/r_) over general (g_) codes
+            usort($codeArray, function($a, $b) {
+                $aPref = str_starts_with($a, 'g_') ? 1 : 0;
+                $bPref = str_starts_with($b, 'g_') ? 1 : 0;
+                return $aPref <=> $bPref;
+            });
+            
+            $ids = collect($codeArray)->map(fn($code) => $atdIds[$code] ?? null)->filter();
+            
+            // Filter activities by explore_group if provided
+            $filteredActivities = $activities;
+            if ($exploreGroup !== null) {
+                $filteredActivities = $activities->filter(fn($a) => 
+                    ($a->explore_group ?? null) === $exploreGroup
+                );
+            }
+            
+            $act = $filteredActivities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
+            if (!$act) {
+                return null;
+            }
+            // Find which code matched this activity (use first matching code, which will be program-specific if available)
+            $matchedCode = collect($codeArray)->first(fn($code) => ($atdIds[$code] ?? null) === $act->activity_type_detail_id);
+            $atd = $matchedCode ? $atdDetails[$matchedCode] : null;
+            return [
+                'value' => $act->end_time,
+                'label' => $atd->name ?? null,
+                'sequence' => $atd->sequence ?? 0,
+            ];
         };
+
+        // Define time entries with labels and sequence for Explore
+        if ($hasTwoExploreGroups) {
+            // Handle 2x Explore: separate morning (explore_group = 1) and afternoon (explore_group = 2)
+            $exploreMorningTimes = [];
+            $teamsBriefingMorning = $findStart('e_briefing_coach', 1);
+            if ($teamsBriefingMorning && $teamsBriefingMorning['value']) {
+                $exploreMorningTimes[] = $teamsBriefingMorning;
+            }
+            $judgesBriefingMorning = $findStart('e_briefing_judge', 1);
+            if ($judgesBriefingMorning && $judgesBriefingMorning['value']) {
+                $exploreMorningTimes[] = $judgesBriefingMorning;
+            }
+            $openingMorning = $findStart(['e_opening', 'g_opening'], 1);
+            if ($openingMorning && $openingMorning['value']) {
+                $exploreMorningTimes[] = $openingMorning;
+            }
+            
+            // For morning group, calculate end time from awards start + e1_duration_awards parameter
+            $awardsStartMorning = $findStart(['e_awards', 'g_awards'], 1);
+            $endTimeAdded = false;
+            if ($awardsStartMorning && $awardsStartMorning['value']) {
+                try {
+                    $e1DurationAwards = $planParams->get('e1_duration_awards');
+                    if ($e1DurationAwards !== null && $e1DurationAwards !== '' && (int)$e1DurationAwards > 0) {
+                        $awardsStartTime = new \DateTime($awardsStartMorning['value']);
+                        $awardsStartTime->modify("+" . (int)$e1DurationAwards . " minutes");
+                        $exploreMorningTimes[] = [
+                            'value' => $awardsStartTime->format('Y-m-d H:i:s'),
+                            'label' => 'Ende ca.',
+                            'sequence' => 0,
+                        ];
+                        $endTimeAdded = true;
+                    }
+                } catch (\RuntimeException $e) {
+                    // Parameter doesn't exist, will fall through to use end_time fallback
+                } catch (\Exception $e) {
+                    // Other exception (e.g., date parsing), will fall through to use end_time fallback
+                }
+            }
+            
+            // Fallback: use awards end_time if we didn't add calculated end time
+            if (!$endTimeAdded) {
+                $endMorning = $findEnd(['e_awards', 'g_awards'], 1);
+                if ($endMorning && $endMorning['value']) {
+                    $endMorning['label'] = 'Ende ca.';
+                    $exploreMorningTimes[] = $endMorning;
+                }
+            }
+
+            $exploreAfternoonTimes = [];
+            $teamsBriefingAfternoon = $findStart('e_briefing_coach', 2);
+            if ($teamsBriefingAfternoon && $teamsBriefingAfternoon['value']) {
+                $exploreAfternoonTimes[] = $teamsBriefingAfternoon;
+            }
+            $judgesBriefingAfternoon = $findStart('e_briefing_judge', 2);
+            if ($judgesBriefingAfternoon && $judgesBriefingAfternoon['value']) {
+                $exploreAfternoonTimes[] = $judgesBriefingAfternoon;
+            }
+            $openingAfternoon = $findStart(['e_opening', 'g_opening'], 2);
+            if ($openingAfternoon && $openingAfternoon['value']) {
+                $exploreAfternoonTimes[] = $openingAfternoon;
+            }
+            $endAfternoon = $findEnd(['e_awards', 'g_awards'], 2);
+            if ($endAfternoon && $endAfternoon['value']) {
+                $endAfternoon['label'] = 'Ende ca.';
+                $exploreAfternoonTimes[] = $endAfternoon;
+            }
+
+            // Sort chronologically
+            usort($exploreMorningTimes, function($a, $b) {
+                return strtotime($a['value']) <=> strtotime($b['value']);
+            });
+            usort($exploreAfternoonTimes, function($a, $b) {
+                return strtotime($a['value']) <=> strtotime($b['value']);
+            });
+        } else {
+            // Single Explore group (explore_group is NULL or not relevant)
+            $exploreTimes = [];
+            $teamsBriefing = $findStart('e_briefing_coach');
+            if ($teamsBriefing && $teamsBriefing['value']) {
+                $exploreTimes[] = $teamsBriefing;
+            }
+            $judgesBriefing = $findStart('e_briefing_judge');
+            if ($judgesBriefing && $judgesBriefing['value']) {
+                $exploreTimes[] = $judgesBriefing;
+            }
+            $opening = $findStart(['e_opening', 'g_opening']);
+            if ($opening && $opening['value']) {
+                $exploreTimes[] = $opening;
+            }
+            $end = $findEnd(['e_awards', 'g_awards']);
+            if ($end && $end['value']) {
+                // Override label for the last entry (end time)
+                $end['label'] = 'Ende ca.';
+                $exploreTimes[] = $end;
+            }
+
+            // Sort chronologically by time value (not by sequence)
+            usort($exploreTimes, function($a, $b) {
+                return strtotime($a['value']) <=> strtotime($b['value']);
+            });
+        }
+
+        // Define time entries with labels and sequence for Challenge
+        $challengeTimes = [];
+        $teamsBriefing = $findStart('c_briefing');
+        if ($teamsBriefing && $teamsBriefing['value']) {
+            $challengeTimes[] = $teamsBriefing;
+        }
+        $judgesBriefing = $findStart('j_briefing');
+        if ($judgesBriefing && $judgesBriefing['value']) {
+            $challengeTimes[] = $judgesBriefing;
+        }
+        $refereesBriefing = $findStart('r_briefing');
+        if ($refereesBriefing && $refereesBriefing['value']) {
+            $challengeTimes[] = $refereesBriefing;
+        }
+        $opening = $findStart(['c_opening', 'g_opening']);
+        if ($opening && $opening['value']) {
+            $challengeTimes[] = $opening;
+        }
+        $end = $findEnd(['c_awards', 'g_awards']);
+        if ($end && $end['value']) {
+            // Override label for the last entry (end time)
+            $end['label'] = 'Ende ca.';
+            $challengeTimes[] = $end;
+        }
+
+        // Sort challenge times chronologically
+        usort($challengeTimes, function($a, $b) {
+            return strtotime($a['value']) <=> strtotime($b['value']);
+        });
 
         $data = [
             'plan_id' => $plan->id,
             'last_change' => $plan->last_change,
-            'explore' => [
-                'briefing' => [
-                    'teams' => $findStart('e_briefing_coach'),
-                    'judges' => $findStart('e_briefing_judge'),
-                ],
-                'opening' => $findStart(['e_opening', 'g_opening']), // spezifisch oder gemeinsam
-                'end' => $findEnd(['e_awards', 'g_awards']),     // spezifisch oder gemeinsam
-            ],
-            'challenge' => [
-                'briefing' => [
-                    'teams' => $findStart('c_briefing'),
-                    'judges' => $findStart('j_briefing'),
-                    'referees' => $findStart('r_briefing'),
-                ],
-                'opening' => $findStart(['c_opening', 'g_opening']), // spezifisch oder gemeinsam
-                'end' => $findEnd(['c_awards', 'g_awards']),     // spezifisch oder gemeinsam
-            ],
+            'challenge' => $challengeTimes,
         ];
+
+        // Add explore times based on whether there are 2 groups
+        if ($hasTwoExploreGroups) {
+            $data['explore_morning'] = $exploreMorningTimes;
+            $data['explore_afternoon'] = $exploreAfternoonTimes;
+        } else {
+            $data['explore'] = $exploreTimes;
+        }
 
         return response()->json($data);
     }
@@ -514,15 +750,20 @@ class PublishController extends Controller
             }
         }
 
+        // Get footer logos for QR PDF (logos will be rendered in content area)
+        $pdfLayoutService = app(\App\Services\PdfLayoutService::class);
+        $footerLogos = $pdfLayoutService->buildFooterLogos($event->id);
+
         // Inhalt + Layout rendern
         $contentHtml = view('pdf.content.qr_codes', [
             'event' => $event,
             'wifi' => $type === 'plan_wifi',
             'wifiPassword' => $wifiPassword,
+            'footerLogos' => $footerLogos, // Pass logos to content template
         ])->render();
 
         $layout = app(\App\Services\PdfLayoutService::class);
-        return $layout->renderLayout($event, $contentHtml, 'Event Sheet');
+        return $layout->renderLayout($event, $contentHtml, 'Event Sheet', true); // true = isQrCodePdf
     }
 
     /**

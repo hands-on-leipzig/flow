@@ -26,6 +26,10 @@ export default class FllEvent {
     drahtCapacityExplore: number
     drahtCapacityChallenge: number
 
+    // Attention status
+    needs_attention?: boolean
+    needs_attention_checked_at?: string
+
     constructor(data: any) {
         Object.assign(this, data)
         // Initialize DRAHT team counts if not provided

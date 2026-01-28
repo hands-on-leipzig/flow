@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ExtraBlock;
 use App\Models\MInsertPoint;
+use App\Models\Plan;
 use App\Enums\FirstProgram;
+use App\Services\EventAttentionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -139,6 +141,12 @@ class ExtraBlockController extends Controller
             }
         }
 
+        // Update attention status after extra block modification (affects room mapping)
+        $plan = Plan::find($planId);
+        if ($plan) {
+            app(EventAttentionService::class)->updateEventAttentionStatus($plan->event);
+        }
+
         // Return the block with regeneration flag
         return response()->json([
             'block' => $block,
@@ -200,6 +208,12 @@ class ExtraBlockController extends Controller
                 'error' => $errorMessage,
                 'details' => $details,
             ], 500);
+        }
+
+        // Update attention status after extra block deletion
+        $plan = Plan::find($planId);
+        if ($plan) {
+            app(EventAttentionService::class)->updateEventAttentionStatus($plan->event);
         }
 
         return response()->json(['message' => 'Extra block deleted']);

@@ -10,6 +10,7 @@ use App\Models\Slide;
 use App\Models\TableEvent;
 use App\Models\User;
 use App\Services\SeasonService;
+use App\Services\EventAttentionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -23,12 +24,40 @@ use Endroid\QrCode\Encoding\Encoding;
 class EventController extends Controller
 {
     // Test deployment: verifying new deployment workflow with real content change
+
+    public function index()
+    {
+        $events = Event::where('season', SeasonService::currentSeasonId());
+        $response = [];
+        foreach ($events->get() as $event) {
+            $response[$event->slug] = sprintf('%s (%s)', $event->name, $event->date);
+        }
+        return response()->json($response);
+    }
+
     public function getEvent($id)
     {
         $event = Event::with(['seasonRel', 'levelRel', 'tableNames'])->findOrFail($id);
-        $event->wifi_password = isset($event->wifi_password) ? Crypt::decryptString($event->wifi_password) : "";
+        
+        // Decrypt password before refresh (so it's preserved)
+        $decryptedPassword = isset($event->wifi_password) ? Crypt::decryptString($event->wifi_password) : "";
 
-        return response()->json($event);
+        // Lazy initialization: calculate attention status if not yet calculated
+        $attentionService = app(EventAttentionService::class);
+        $attentionService->ensureAttentionStatusCalculated($event->id);
+
+        // Reload event to get updated needs_attention values
+        $event->refresh();
+        
+        // Restore decrypted password after refresh
+        $event->wifi_password = $decryptedPassword;
+
+        // Ensure needs_attention fields are included in response
+        return response()->json([
+            ...$event->toArray(),
+            'needs_attention' => $event->needs_attention ?? false,
+            'needs_attention_checked_at' => $event->needs_attention_checked_at,
+        ]);
     }
 
     public function getEventBySlug($slug)
@@ -316,6 +345,38 @@ class EventController extends Controller
      * Geocode an address using OpenStreetMap Nominatim API
      * Proxies the request to avoid CORS issues
      */
+    /**
+     * Manually check and update attention status for an event
+     */
+    public function checkAttention(int $eventId): JsonResponse
+    {
+        $event = Event::find($eventId);
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        try {
+            $attentionService = app(EventAttentionService::class);
+            $attentionService->updateEventAttentionStatus($eventId);
+
+            // Reload event to get updated status
+            $event->refresh();
+
+            return response()->json([
+                'success' => true,
+                'needs_attention' => $event->needs_attention,
+                'needs_attention_checked_at' => $event->needs_attention_checked_at,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to check attention for event {$eventId}: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function geocodeAddress(Request $request)
     {
         $request->validate([

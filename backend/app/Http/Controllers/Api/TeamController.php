@@ -9,6 +9,7 @@ use App\Models\Team;
 use App\Models\TeamPlan;
 use App\Models\Plan;
 use App\Http\Controllers\Api\PlanController;
+use App\Services\EventAttentionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -71,8 +72,34 @@ class TeamController extends Controller
 
         $teams = $query->get();
 
-        // Log::info('Fetched teams', $teams->toArray());      
+        // If Explore teams, include e1_teams and e_mode for frontend to determine morning/afternoon split
+        if ($programName === 'explore') {
+            $plan = Plan::where('event', $event->id)->first();
+            if ($plan) {
+                $e1Teams = DB::table('plan_param_value')
+                    ->join('m_parameter', 'plan_param_value.parameter', '=', 'm_parameter.id')
+                    ->where('plan_param_value.plan', $plan->id)
+                    ->where('m_parameter.name', 'e1_teams')
+                    ->value('plan_param_value.set_value');
+                
+                $eMode = DB::table('plan_param_value')
+                    ->join('m_parameter', 'plan_param_value.parameter', '=', 'm_parameter.id')
+                    ->where('plan_param_value.plan', $plan->id)
+                    ->where('m_parameter.name', 'e_mode')
+                    ->value('plan_param_value.set_value');
+                
+                // Return object with teams and metadata for Explore
+                return response()->json([
+                    'teams' => $teams,
+                    'metadata' => [
+                        'e1_teams' => $e1Teams ? (int) $e1Teams : 0,
+                        'e_mode' => $eMode ? (int) $eMode : 0
+                    ]
+                ]);
+            }
+        }
 
+        // For Challenge or if no plan found, return teams array directly (backward compatible)
         return response()->json($teams);
     }
 
@@ -95,10 +122,12 @@ class TeamController extends Controller
             $team->save();
         }
 
+        $eventId = null;
         if (isset($data['noshow'])) {
             // Update noshow in team_plan for the current event's plan
             $event = Event::find($team->event);
             if ($event) {
+                $eventId = $event->id;
                 $plan = Plan::where('event', $event->id)->first();
                 if ($plan) {
                     TeamPlan::where('team', $team->id)
@@ -106,6 +135,13 @@ class TeamController extends Controller
                         ->update(['noshow' => $data['noshow']]);
                 }
             }
+        } else {
+            $eventId = $team->event;
+        }
+
+        // Update attention status after team modification
+        if ($eventId) {
+            app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
         }
 
         return response()->json(['message' => 'Team updated successfully', 'team' => $team]);
@@ -135,8 +171,14 @@ class TeamController extends Controller
                 TeamPlan::where('team', $team->id)
                     ->where('plan', $plan->id)
                     ->update(['noshow' => false]);
+                
+                // Renumber team_plan entries sequentially for this program
+                $this->renumberTeamPlanForProgram($plan->id, $event->id, $program->id);
             }
         }
+        
+        // Update attention status after creating new team
+        app(EventAttentionService::class)->updateEventAttentionStatus($team->event);
         
         return response()->json(['message' => 'Team created successfully', 'team' => $team]);
     }
@@ -186,6 +228,75 @@ class TeamController extends Controller
             }
         });
 
+        // Update attention status after reordering teams
+        app(EventAttentionService::class)->updateEventAttentionStatus($event->id);
+
         return response()->json(['message' => 'Team order updated successfully']);
+    }
+
+    public function destroy(Team $team)
+    {
+        try {
+            $eventId = $team->event;
+            $programId = $team->first_program;
+            
+            // Get plan before deleting team (for renumbering)
+            $plan = Plan::where('event', $eventId)->first();
+            
+            $team->delete();
+            
+            // Renumber team_plan entries sequentially for this program after deletion
+            if ($plan) {
+                $this->renumberTeamPlanForProgram($plan->id, $eventId, $programId);
+            }
+            
+            // Update attention status after deleting team
+            app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+            
+            return response()->json(['message' => 'Team deleted successfully']);
+        } catch (\Exception $e) {
+            Log::error('Error deleting team', [
+                'team_id' => $team->id,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['error' => 'Failed to delete team'], 500);
+        }
+    }
+
+    /**
+     * Renumber team_plan entries sequentially (1, 2, 3...) for a given plan and program
+     * Preserves room assignments and noshow status
+     */
+    private function renumberTeamPlanForProgram($planId, $eventId, $programId)
+    {
+        // Get all teams for this event and program
+        $teams = Team::where('event', $eventId)
+            ->where('first_program', $programId)
+            ->get();
+        
+        if ($teams->isEmpty()) {
+            return; // No teams to renumber
+        }
+        
+        // Get existing team_plan entries for these teams, ordered by current team_number_plan
+        $teamPlanEntries = TeamPlan::where('plan', $planId)
+            ->whereIn('team', $teams->pluck('id'))
+            ->orderBy('team_number_plan')
+            ->get();
+        
+        if ($teamPlanEntries->isEmpty()) {
+            return; // No team_plan entries to renumber
+        }
+        
+        // Renumber sequentially starting from 1, preserving room and noshow
+        DB::transaction(function () use ($teamPlanEntries, $planId) {
+            foreach ($teamPlanEntries as $index => $entry) {
+                TeamPlan::where('team', $entry->team)
+                    ->where('plan', $planId)
+                    ->update(['team_number_plan' => $index + 1]);
+            }
+        });
+        
+        Log::info("Renumbered team_plan entries for plan $planId, program $programId - new sequential order 1-" . count($teamPlanEntries));
     }
 }

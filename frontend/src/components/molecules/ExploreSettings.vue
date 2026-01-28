@@ -716,7 +716,10 @@ const teamsPerJuryHint2 = computed(() => {
           </RadioGroupOption>
         </RadioGroup>
         <div class="flex flex-col min-w-0 flex-1">
-          <span class="text-sm font-medium break-words">Gutachter:innen-Gruppen</span>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium break-words">Gutachter:innen-Gruppen</span>
+            <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
+          </div>
           <span class="text-xs text-gray-500 italic break-words">{{ teamsPerJuryHint1 }}</span>
         </div>
       </div>
@@ -748,7 +751,10 @@ const teamsPerJuryHint2 = computed(() => {
           </RadioGroupOption>
         </RadioGroup>
         <div class="flex flex-col min-w-0 flex-1">
-          <span class="text-sm font-medium break-words">Gutachter:innen-Gruppen</span>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium break-words">Gutachter:innen-Gruppen</span>
+            <InfoPopover :text="paramMapByName['e2_lanes']?.ui_description"/>
+          </div>
           <span class="text-xs text-gray-500 italic break-words">{{ teamsPerJuryHint2 }}</span>
         </div>
       </div>
@@ -802,7 +808,10 @@ const teamsPerJuryHint2 = computed(() => {
             <!-- zweizeiliger Block unter den Buttons -->
             <div class="basis-full mt-1">
               <div class="flex flex-col">
-                <span class="text-sm font-medium break-words">Gutacher:innen-Gruppen</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium break-words">Gutacher:innen-Gruppen</span>
+                  <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
+                </div>
                 <span class="text-xs text-gray-500 italic break-words">
                 {{ teamsPerJuryHint1 }}
               </span>
@@ -845,7 +854,10 @@ const teamsPerJuryHint2 = computed(() => {
             <!-- zweizeiliger Block unter den Buttons -->
             <div class="basis-full mt-1">
               <div class="flex flex-col">
-                <span class="text-sm font-medium break-words">Gutacher:innen-Gruppen</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium break-words">Gutacher:innen-Gruppen</span>
+                  <InfoPopover :text="paramMapByName['e2_lanes']?.ui_description"/>
+                </div>
                 <span class="text-xs text-gray-500 italic break-words">
                 {{ teamsPerJuryHint2 }}
               </span>
