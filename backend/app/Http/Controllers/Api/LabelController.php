@@ -8,6 +8,7 @@ use App\Models\Team;
 use App\Models\MSeason;
 use App\Services\PdfLayoutService;
 use App\Services\LabelPdfService;
+use App\Services\EventTitleService;
 use App\Http\Controllers\Api\DrahtController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,15 +19,18 @@ class LabelController extends Controller
 {
     private PdfLayoutService $pdfLayoutService;
     private LabelPdfService $labelPdfService;
+    private EventTitleService $eventTitleService;
     private DrahtController $drahtController;
 
     public function __construct(
         PdfLayoutService $pdfLayoutService,
         LabelPdfService $labelPdfService,
+        EventTitleService $eventTitleService,
         DrahtController $drahtController
     ) {
         $this->pdfLayoutService = $pdfLayoutService;
         $this->labelPdfService = $labelPdfService;
+        $this->eventTitleService = $eventTitleService;
         $this->drahtController = $drahtController;
     }
 
@@ -326,13 +330,20 @@ class LabelController extends Controller
                 ], 404);
             }
 
+            // Generate header text for team labels
+            $headerLeft = 'Team-Liste';
+            $headerRight = 'Sortierung: Teamname, Coach:innen > Teammitglieder, alphabetisch nach Namen';
+            
             // Generate PDF using TCPDF for precise positioning
             try {
                 $pdfData = $this->labelPdfService->generateNameTags(
                     $nameTags,
                     $seasonLogo,
                     $organizerLogos,
-                    $programLogoCache
+                    $programLogoCache,
+                    false, // showBorders
+                    $headerLeft, // headerLeft
+                    $headerRight // headerRight
                 );
                 
                 if (empty($pdfData) || strlen($pdfData) < 100) {
@@ -643,13 +654,20 @@ class LabelController extends Controller
                 return response()->json(['error' => 'No volunteers provided'], 400);
             }
             
+            // Generate header text for volunteer labels
+            $headerLeft = 'Volunteers';
+            $headerRight = 'Sortierung wie vom Veranstalter eingeben';
+            
             // Generate PDF using TCPDF for precise positioning
             try {
                 $pdfData = $this->labelPdfService->generateNameTags(
                     $nameTags,
                     $seasonLogo,
                     $organizerLogos,
-                    $programLogoCache
+                    $programLogoCache,
+                    false, // showBorders
+                    $headerLeft, // headerLeft
+                    $headerRight // headerRight
                 );
                 
                 if (empty($pdfData) || strlen($pdfData) < 100) {

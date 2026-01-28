@@ -26,6 +26,8 @@ class LabelPdfService
      * @param array $organizerLogos Array of data URIs or file paths
      * @param array $programLogoCache Array of program logos (data URIs or file paths)
      * @param bool $showBorders Show label borders for debugging (normally false)
+     * @param string|null $headerLeft Optional left text for top margin
+     * @param string|null $headerRight Optional right text for top margin
      * @return string PDF binary data
      */
     public function generateNameTags(
@@ -35,7 +37,9 @@ class LabelPdfService
         array $programLogoCache,
         // Debug option: set to `true` to draw a thin rectangle (80mm × 50mm) around each label.
         // Useful for measuring alignment against Avery L4785 / print settings.
-        bool $showBorders = false
+        bool $showBorders = false,
+        ?string $headerLeft = null,
+        ?string $headerRight = null
     ): string {
         if (empty($nameTags)) {
             throw new \InvalidArgumentException('No name tags provided');
@@ -108,6 +112,14 @@ class LabelPdfService
                 $startIdx = $page * $labelsPerPage;
                 $endIdx = min($startIdx + $labelsPerPage, $totalLabels);
                 $pageLabels = array_slice($nameTags, $startIdx, $endIdx - $startIdx);
+                
+                // Render header text in top margin (0 to 13.5mm)
+                if ($headerLeft !== null || $headerRight !== null) {
+                    $this->renderHeaderText($pdf, $headerLeft, $headerRight);
+                }
+                
+                // Render footer text in bottom margin (283.5mm to 297mm)
+                $this->renderFooterText($pdf, $page + 1, $totalPages);
                 
                 foreach ($pageLabels as $index => $nameTag) {
                     // Calculate position: column (1 or 2), row (1-5)
@@ -368,5 +380,70 @@ class LabelPdfService
         }
         
         return $imageData;
+    }
+    
+    /**
+     * Render header text in top margin (0 to 13.5mm)
+     * Uses same left/right margins as labels (17.5mm)
+     */
+    private function renderHeaderText(TCPDF $pdf, ?string $leftText, ?string $rightText): void
+    {
+        $pdf->SetFont('dejavusans', '', 8);
+        $pdf->SetTextColor(0, 0, 0); // Black color
+        
+        // Position at 6mm from top (middle of 13.5mm margin)
+        $y = 6;
+        
+        // Use same margins as labels: left 17.5mm, right 17.5mm
+        $leftMargin = 17.5;
+        $rightMargin = 17.5;
+        $contentWidth = 210 - $leftMargin - $rightMargin; // 175mm
+        
+        // Left text
+        if ($leftText !== null) {
+            $pdf->SetXY($leftMargin, $y);
+            $pdf->Cell($contentWidth, 0, $leftText, 0, 0, 'L');
+        }
+        
+        // Right text
+        if ($rightText !== null) {
+            $pdf->SetXY($leftMargin, $y);
+            $pdf->Cell($contentWidth, 0, $rightText, 0, 0, 'R');
+        }
+        
+        // Reset font size for labels
+        $pdf->SetFont('dejavusans', '', 10);
+    }
+    
+    /**
+     * Render footer text in bottom margin (283.5mm to 297mm)
+     * Uses same left/right margins as labels (17.5mm)
+     */
+    private function renderFooterText(TCPDF $pdf, int $pageNum, int $totalPages): void
+    {
+        $pdf->SetFont('dejavusans', '', 7);
+        $pdf->SetTextColor(0, 0, 0); // Black color
+        
+        // Position at 291mm from top (middle of bottom 13.5mm margin)
+        $y = 291;
+        
+        // Use same margins as labels: left 17.5mm, right 17.5mm
+        $leftMargin = 17.5;
+        $rightMargin = 17.5;
+        $contentWidth = 210 - $leftMargin - $rightMargin; // 175mm
+        
+        // Left: Page number
+        $pageText = "Seite {$pageNum} von {$totalPages}";
+        $pdf->SetXY($leftMargin, $y);
+        $pdf->Cell($contentWidth, 0, $pageText, 0, 0, 'L');
+        
+        // Right: Timestamp
+        $timestamp = now()->format('d.m.Y H:i');
+        $timestampText = "Stand {$timestamp}";
+        $pdf->SetXY($leftMargin, $y);
+        $pdf->Cell($contentWidth, 0, $timestampText, 0, 0, 'R');
+        
+        // Reset font size for labels
+        $pdf->SetFont('dejavusans', '', 10);
     }
 }
