@@ -142,8 +142,7 @@ class LabelController extends Controller
                     $nameTags,
                     $seasonLogo,
                     $organizerLogos,
-                    $programLogoCache,
-                    true // Show borders for debugging
+                    $programLogoCache
                 );
                 
                 if (empty($pdfData) || strlen($pdfData) < 100) {
@@ -440,8 +439,7 @@ class LabelController extends Controller
                     $nameTags,
                     $seasonLogo,
                     $organizerLogos,
-                    $programLogoCache,
-                    true // Show borders for debugging
+                    $programLogoCache
                 );
                 
                 if (empty($pdfData) || strlen($pdfData) < 100) {

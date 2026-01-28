@@ -25,7 +25,7 @@ class LabelPdfService
      * @param string|null $seasonLogo Data URI or file path
      * @param array $organizerLogos Array of data URIs or file paths
      * @param array $programLogoCache Array of program logos (data URIs or file paths)
-     * @param bool $showBorders Show label borders for debugging
+     * @param bool $showBorders Show label borders for debugging (normally false)
      * @return string PDF binary data
      */
     public function generateNameTags(
@@ -33,7 +33,9 @@ class LabelPdfService
         ?string $seasonLogo,
         array $organizerLogos,
         array $programLogoCache,
-        bool $showBorders = true
+        // Debug option: set to `true` to draw a thin rectangle (80mm × 50mm) around each label.
+        // Useful for measuring alignment against Avery L4785 / print settings.
+        bool $showBorders = false
     ): string {
         if (empty($nameTags)) {
             throw new \InvalidArgumentException('No name tags provided');
@@ -125,7 +127,7 @@ class LabelPdfService
                     // Row 5: 13.5 + (50+5)*4 = 233.5mm
                     $y = 13.5 + (($row - 1) * 55); // 50mm label + 5mm gap
                     
-                    // Draw label border for debugging
+                    // Draw label border for debugging (enable via $showBorders parameter)
                     if ($showBorders) {
                         $pdf->Rect($x, $y, 80, 50, 'D');
                     }
