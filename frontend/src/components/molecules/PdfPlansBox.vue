@@ -1122,8 +1122,12 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
                       <td class="px-3 py-2">{{ vol.name }}</td>
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
-                        <span v-if="vol.program === 'E'" class="text-blue-600 font-semibold">Explore</span>
-                        <span v-else-if="vol.program === 'C'" class="text-orange-600 font-semibold">Challenge</span>
+                        <img 
+                          v-if="vol.program === 'E' || vol.program === 'C'"
+                          :src="programLogoSrc(vol.program)" 
+                          :alt="programLogoAlt(vol.program)" 
+                          class="w-5 h-5 inline-block"
+                        />
                         <span v-else class="text-gray-400">–</span>
                       </td>
                     </tr>
@@ -1132,8 +1136,12 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
                       <td class="px-3 py-2">{{ vol.name }}</td>
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
-                        <span v-if="vol.program === 'E'" class="text-blue-600 font-semibold">Explore</span>
-                        <span v-else-if="vol.program === 'C'" class="text-orange-600 font-semibold">Challenge</span>
+                        <img 
+                          v-if="vol.program === 'E' || vol.program === 'C'"
+                          :src="programLogoSrc(vol.program)" 
+                          :alt="programLogoAlt(vol.program)" 
+                          class="w-5 h-5 inline-block"
+                        />
                         <span v-else class="text-gray-400">–</span>
                       </td>
                     </tr>
