@@ -20,7 +20,6 @@ const canvas = shallowRef(null);
 let fabricCanvas: StaticCanvas | null = null;
 
 onMounted(() => {
-
   fabricCanvas = new StaticCanvas(canvas.value, {
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
@@ -56,7 +55,7 @@ onUnmounted(() => {
     io.disconnect();
     io = null;
   }
-})
+});
 
 function handleResize() {
   if (!canvas.value || !fabricCanvas) return;
