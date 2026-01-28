@@ -11,6 +11,8 @@ const props = defineProps<{
   eventId: number
 }>();
 
+const emit = defineEmits<{ (e: 'next'): void}>();
+
 const { scores, error, loadScores, startAutoRefresh, stopAutoRefresh } = useScores(props.eventId);
 
 const currentIndex = ref(0);
@@ -45,22 +47,43 @@ onUnmounted(stopAutoRefresh);
 
 let autoAdvanceInterval;
 
+// Sichtbarkeit der Folie via Observer feststellen -> Auf Seite 1 beginnen
+const root = shallowRef<HTMLElement | null>(null);
+let io = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (entry.isIntersecting && entry.target === root.value) { // true -> Element aktuell in Viewport sichtbar (Folie aktiv)
+      currentIndex.value = 0;
+      startAutoAdvance();
+      return;
+    }
+  }
+  clearInterval(autoAdvanceInterval);
+}, {threshold: 0.01});
+
 onMounted(() => {
+  startAutoAdvance();
+  io.observe(root.value);
+  window.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  clearInterval(autoAdvanceInterval);
+  if (io && root.value) {
+    io.unobserve(root.value);
+    io.disconnect();
+    io = null;
+  }
+  window.removeEventListener('keydown', handleKeyDown);
+});
+
+function startAutoAdvance() {
   const secondsPerPage = props.content.secondsPerPage || 15;
   autoAdvanceInterval = setInterval(() => {
     if (!isPaused.value) {
       advancePage();
     }
   }, secondsPerPage * 1000);
-
-  // Add keydown event listener
-  window.addEventListener('keydown', handleKeyDown);
-});
-
-onUnmounted(() => {
-  clearInterval(autoAdvanceInterval);
-  window.removeEventListener('keydown', handleKeyDown);
-});
+}
 
 function getRoundToShow(rounds: RoundResponse): TeamResponse {
   if (!rounds) {
@@ -82,10 +105,15 @@ function getRoundToShow(rounds: RoundResponse): TeamResponse {
 }
 
 function advancePage() {
-  if (currentIndex.value + teamsPerPage.value > teams.value.length) {
-    currentIndex.value = 0;
+  const nextIndex = currentIndex.value + teamsPerPage.value;
+  const willWrapAround = nextIndex >= teams.value.length;
+
+  if (willWrapAround) {
+    // switch to next slide
+    clearInterval(autoAdvanceInterval);
+    emit('next')
   } else {
-    currentIndex.value = (currentIndex.value + teamsPerPage.value) % teams.value.length;
+    currentIndex.value = nextIndex;
   }
 }
 
@@ -116,7 +144,7 @@ function handleKeyDown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="relative w-full h-full overflow-hidden">
+  <div ref="root" class="relative w-full h-full overflow-hidden">
     <FabricSlideContentRenderer v-if="props.content.background"
                                 class="absolute inset-0 z-0"
                                 :content="props.content" :preview="props.preview"></FabricSlideContentRenderer>

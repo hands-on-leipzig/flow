@@ -37,20 +37,18 @@ async function fetchSlides() {
       slideshow.value = resShow;
       showSlide.value = !!slides[0];
     }
-
-    console.log(slideshow.value.transition_time);
-
-    setInterval(() => {
-      if (!slideshow.value?.slides?.length) {
-        return;
-      }
-      let i = slideKey.value + 1;
-      if (i >= slideshow.value.slides.length) {
-        i = 0;
-      }
-      slideKey.value = i;
-    }, (slideshow.value.transition_time ?? 15) * 1000);
   }
+}
+
+function nextSlide() {
+  if (!slideshow.value?.slides?.length) {
+    return;
+  }
+  let i = slideKey.value + 1;
+  if (i >= slideshow.value.slides.length) {
+    i = 0;
+  }
+  slideKey.value = i;
 }
 
 function startFetchingSlides() {
@@ -66,22 +64,8 @@ onMounted(fetchSlides)
 
 <template>
   <div v-if="showSlide" v-for="(slide, index) in slideshow?.slides" class="h-screen w-full" v-show="index === slideKey">
-    <SlideContentRenderer :slide="slide" :preview="false" :eventId="+eventId"/>
+    <SlideContentRenderer :slide="slide" :preview="false" :eventId="+props.eventId" :transitionTime="slideshow?.transition_time" @next="nextSlide"/>
   </div>
-  <!-- <footer>
-    <div>
-      <img :src="logo1_cut" alt="logo">
-    </div>
-    <div>
-      <img :src="logo2_cut" alt="logo">
-    </div>
-    <div>
-      <img :src="logo3_cut" alt="logo">
-    </div>
-    <div>
-      <img :src="logo4" alt="logo">
-    </div>
-  </footer> -->
 </template>
 
 <style scoped>
