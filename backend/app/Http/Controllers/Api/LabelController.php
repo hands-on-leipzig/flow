@@ -230,12 +230,33 @@ class LabelController extends Controller
 
                 // Create name tags for coaches first (if enabled for this program)
                 if ($includeCoaches && !empty($peopleData['coaches']) && is_array($peopleData['coaches'])) {
-                    // Sort coaches alphabetically by name
+                    // Sort coaches alphabetically by last name, then first name
                     $coaches = $peopleData['coaches'];
                     usort($coaches, function($a, $b) {
-                        $nameA = is_string($a) ? $a : ($a['name'] ?? '');
-                        $nameB = is_string($b) ? $b : ($b['name'] ?? '');
-                        return strcasecmp($nameA, $nameB);
+                        // Handle string format (full name)
+                        if (is_string($a) && is_string($b)) {
+                            return strcasecmp($a, $b);
+                        }
+                        if (is_string($a)) {
+                            $a = ['name' => $a, 'firstname' => ''];
+                        }
+                        if (is_string($b)) {
+                            $b = ['name' => $b, 'firstname' => ''];
+                        }
+                        
+                        // Sort by last name first, then first name
+                        $lastNameA = $a['name'] ?? '';
+                        $lastNameB = $b['name'] ?? '';
+                        $lastNameCompare = strcasecmp($lastNameA, $lastNameB);
+                        
+                        if ($lastNameCompare !== 0) {
+                            return $lastNameCompare;
+                        }
+                        
+                        // If last names are equal, sort by first name
+                        $firstNameA = $a['firstname'] ?? '';
+                        $firstNameB = $b['firstname'] ?? '';
+                        return strcasecmp($firstNameA, $firstNameB);
                     });
                     
                     foreach ($coaches as $coach) {
@@ -256,12 +277,33 @@ class LabelController extends Controller
 
                 // Create name tags for players (if enabled for this program)
                 if ($includePlayers && !empty($peopleData['players']) && is_array($peopleData['players'])) {
-                    // Sort players alphabetically by name
+                    // Sort players alphabetically by last name, then first name
                     $players = $peopleData['players'];
                     usort($players, function($a, $b) {
-                        $nameA = is_string($a) ? $a : ($a['name'] ?? '');
-                        $nameB = is_string($b) ? $b : ($b['name'] ?? '');
-                        return strcasecmp($nameA, $nameB);
+                        // Handle string format (full name)
+                        if (is_string($a) && is_string($b)) {
+                            return strcasecmp($a, $b);
+                        }
+                        if (is_string($a)) {
+                            $a = ['name' => $a, 'firstname' => ''];
+                        }
+                        if (is_string($b)) {
+                            $b = ['name' => $b, 'firstname' => ''];
+                        }
+                        
+                        // Sort by last name first, then first name
+                        $lastNameA = $a['name'] ?? '';
+                        $lastNameB = $b['name'] ?? '';
+                        $lastNameCompare = strcasecmp($lastNameA, $lastNameB);
+                        
+                        if ($lastNameCompare !== 0) {
+                            return $lastNameCompare;
+                        }
+                        
+                        // If last names are equal, sort by first name
+                        $firstNameA = $a['firstname'] ?? '';
+                        $firstNameB = $b['firstname'] ?? '';
+                        return strcasecmp($firstNameA, $firstNameB);
                     });
                     
                     foreach ($players as $player) {
