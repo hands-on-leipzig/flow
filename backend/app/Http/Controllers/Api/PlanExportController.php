@@ -298,6 +298,7 @@ class PlanExportController extends Controller
             2 => 'Runde 2',
             3 => 'Runde 3',
         ];
+        $roundStartTimes = []; // Store start times for chronological insertion
 
         for ($round = 0; $round <= 3; $round++) {
             // Get matches for this round, ordered by match_no
@@ -345,6 +346,11 @@ class PlanExportController extends Controller
                 }
 
                 $startTime = $activity ? Carbon::parse($activity->start_time)->format('H:i') : '–';
+                
+                // Store earliest start time for this round
+                if ($activity && (!isset($roundStartTimes[$round]) || Carbon::parse($activity->start_time)->timestamp < $roundStartTimes[$round])) {
+                    $roundStartTimes[$round] = Carbon::parse($activity->start_time)->timestamp;
+                }
 
                 // Get team 1 info
                 $team1 = null;
@@ -432,16 +438,261 @@ class PlanExportController extends Controller
             ];
         }
 
+        // Fetch final rounds from activities (r_final_16, r_final_8, r_final_4, r_final_2)
+        $finalRoundCodes = [
+            'r_final_16' => 'Achtelfinale',
+            'r_final_8' => 'Viertelfinale',
+            'r_final_4' => 'Halbfinale',
+            'r_final_2' => 'Finale',
+        ];
+
+        $eventId = DB::table('plan')->where('id', $planId)->value('event');
+        $finalRoundKey = 4; // Start after regular rounds (0-3)
+
+        foreach ($finalRoundCodes as $finalCode => $finalLabel) {
+            // Get activity type detail ID for this final round group
+            $finalGroupTypeId = DB::table('m_activity_type_detail')
+                ->where('code', $finalCode)
+                ->value('id');
+
+            if (!$finalGroupTypeId) {
+                continue;
+            }
+
+            // Get activities for this final round
+            $finalActivities = DB::table('activity')
+                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                ->where('activity_group.plan', $planId)
+                ->where('activity_group.activity_type_detail', $finalGroupTypeId)
+                ->where('activity.activity_type_detail', $matchActivityTypeId)
+                ->select(
+                    'activity.start as start_time',
+                    'activity.table_1',
+                    'activity.table_2',
+                    'activity.table_1_team',
+                    'activity.table_2_team'
+                )
+                ->orderBy('activity.start')
+                ->get();
+
+            if ($finalActivities->isEmpty()) {
+                continue;
+            }
+
+            $finalMatchData = [];
+            $finalRoundStartTime = null;
+            foreach ($finalActivities as $activity) {
+                $startTime = Carbon::parse($activity->start_time)->format('H:i');
+                
+                // Store earliest start time for this final round
+                $activityTimestamp = Carbon::parse($activity->start_time)->timestamp;
+                if ($finalRoundStartTime === null || $activityTimestamp < $finalRoundStartTime) {
+                    $finalRoundStartTime = $activityTimestamp;
+                }
+
+                // Get table names (without "Tisch " prefix)
+                $table1Name = null;
+                if ($eventId) {
+                    $table1Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $activity->table_1)
+                        ->value('table_name');
+                }
+                $table1Label = $table1Name ?: (string)$activity->table_1;
+
+                $table2Name = null;
+                if ($eventId) {
+                    $table2Name = DB::table('table_event')
+                        ->where('event', $eventId)
+                        ->where('table_number', $activity->table_2)
+                        ->value('table_name');
+                }
+                $table2Label = $table2Name ?: (string)$activity->table_2;
+
+                // For final rounds, team names are empty (moderator fills in during the day)
+                $finalMatchData[] = [
+                    'start_time' => $startTime,
+                    'table_1' => $table1Label,
+                    'table_2' => $table2Label,
+                    'team_1' => [
+                        'name' => '', // Empty - moderator fills in
+                        'noshow' => false,
+                    ],
+                    'team_2' => [
+                        'name' => '', // Empty - moderator fills in
+                        'noshow' => false,
+                    ],
+                ];
+            }
+
+            // Use a key that sorts after regular rounds (4, 5, 6, 7)
+            $roundsData[$finalRoundKey] = [
+                'label' => $finalLabel,
+                'matches' => $finalMatchData,
+            ];
+            
+            // Store start time for this final round
+            if ($finalRoundStartTime !== null) {
+                $roundStartTimes[$finalRoundKey] = $finalRoundStartTime;
+            }
+            
+            $finalRoundKey++;
+        }
+
         Log::info("moderatorMatchPlanPdf roundsData summary", [
             'round_0_count' => count($roundsData[0]['matches'] ?? []),
             'round_1_count' => count($roundsData[1]['matches'] ?? []),
             'round_2_count' => count($roundsData[2]['matches'] ?? []),
             'round_3_count' => count($roundsData[3]['matches'] ?? []),
+            'final_rounds_count' => count($roundsData) - 4,
         ]);
 
-        // Get plan and event data
+        // Fetch special activities (opening, research on stage, awards, inserted blocks, free blocks)
+        $specialActivityCodes = [
+            'c_opening',
+            'e_opening',
+            'g_opening',
+            'c_presentations', // Forschung auf der Bühne
+            'c_awards',
+            'e_awards',
+            'g_awards',
+            'c_inserted_block',
+            'e_inserted_block',
+            'g_inserted_block',
+        ];
+
+        $freeBlockCodes = [
+            'c_free_block',
+            'e_free_block',
+            'g_free_block',
+        ];
+
+        // Get activity type detail IDs for special activities (excluding free blocks)
+        $specialActivityTypeIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $specialActivityCodes)
+            ->select('id', 'code', 'name')
+            ->get()
+            ->keyBy('id');
+
+        // Get activity type detail IDs for free blocks
+        $freeBlockTypeIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $freeBlockCodes)
+            ->select('id', 'code', 'name')
+            ->get()
+            ->keyBy('id');
+
+        // Collect special activities (non-free-block) to insert between rounds
+        $activitiesToInsert = [];
+        if ($specialActivityTypeIds->isNotEmpty()) {
+            $specialActivityIds = $specialActivityTypeIds->keys()->toArray();
+            
+            $activities = DB::table('activity')
+                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                ->where('activity_group.plan', $planId)
+                ->whereIn('activity_group.activity_type_detail', $specialActivityIds)
+                ->select(
+                    'activity.id',
+                    'activity.start',
+                    'activity.end',
+                    'activity.activity_group',
+                    'activity.extra_block',
+                    'activity_group.activity_type_detail'
+                )
+                ->orderBy('activity.start')
+                ->get();
+
+            foreach ($activities as $activity) {
+                $typeDetailId = $activity->activity_type_detail;
+                if (isset($specialActivityTypeIds[$typeDetailId])) {
+                    $typeDetail = $specialActivityTypeIds[$typeDetailId];
+                    
+                    // For inserted blocks, try to get the name from extra_block table
+                    $activityName = $typeDetail->name;
+                    if (in_array($typeDetail->code, ['c_inserted_block', 'e_inserted_block', 'g_inserted_block']) && $activity->extra_block) {
+                        $extraBlockName = DB::table('extra_block')
+                            ->where('id', $activity->extra_block)
+                            ->value('name');
+                        
+                        if ($extraBlockName) {
+                            $activityName = $extraBlockName;
+                        }
+                    }
+                    
+                    $activitiesToInsert[] = [
+                        'name' => $activityName,
+                        'start_time' => Carbon::parse($activity->start)->format('H:i'),
+                        'end_time' => Carbon::parse($activity->end)->format('H:i'),
+                        'start_timestamp' => Carbon::parse($activity->start)->timestamp,
+                    ];
+                }
+            }
+        }
+
+        // Sort special activities chronologically for left column
+        usort($activitiesToInsert, function($a, $b) {
+            return $a['start_timestamp'] <=> $b['start_timestamp'];
+        });
+
+        // Get plan and event data (needed for date filtering)
         $plan = Plan::findOrFail($planId);
         $event = Event::findOrFail($plan->event);
+        
+        // Calculate event date range
+        $eventStartDate = Carbon::parse($event->date)->startOfDay();
+        $eventEndDate = Carbon::parse($event->date)->addDays($event->days - 1)->endOfDay();
+
+        // Collect free blocks separately (for right column)
+        // Filter to only include activities on event day(s)
+        $freeBlockActivities = [];
+        if ($freeBlockTypeIds->isNotEmpty()) {
+            $freeBlockIds = $freeBlockTypeIds->keys()->toArray();
+            
+            $activities = DB::table('activity')
+                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                ->where('activity_group.plan', $planId)
+                ->whereIn('activity_group.activity_type_detail', $freeBlockIds)
+                ->select(
+                    'activity.id',
+                    'activity.start',
+                    'activity.end',
+                    'activity.activity_group',
+                    'activity.extra_block',
+                    'activity_group.activity_type_detail'
+                )
+                ->orderBy('activity.start')
+                ->get();
+
+            foreach ($activities as $activity) {
+                $typeDetailId = $activity->activity_type_detail;
+                if (isset($freeBlockTypeIds[$typeDetailId])) {
+                    // Filter by event date range
+                    $activityStart = Carbon::parse($activity->start);
+                    if ($activityStart->lt($eventStartDate) || $activityStart->gt($eventEndDate)) {
+                        continue; // Skip activities outside event date range
+                    }
+                    
+                    $typeDetail = $freeBlockTypeIds[$typeDetailId];
+                    
+                    // Get name from extra_block table
+                    $activityName = $typeDetail->name;
+                    if ($activity->extra_block) {
+                        $extraBlockName = DB::table('extra_block')
+                            ->where('id', $activity->extra_block)
+                            ->value('name');
+                        
+                        if ($extraBlockName) {
+                            $activityName = $extraBlockName;
+                        }
+                    }
+                    
+                    $freeBlockActivities[] = [
+                        'name' => $activityName,
+                        'start_time' => Carbon::parse($activity->start)->format('H:i'),
+                        'end_time' => Carbon::parse($activity->end)->format('H:i'),
+                    ];
+                }
+            }
+        }
 
         // Format timestamp like Gesamtplan
         $eventName = $event->name;
@@ -454,6 +705,8 @@ class PlanExportController extends Controller
         Log::info("Rendering moderator-match-plan view with roundsData count: " . count($roundsData));
         $contentHtml = view('pdf.moderator-match-plan', [
             'roundsData' => $roundsData,
+            'scheduleActivities' => $activitiesToInsert, // Left column: Mit Moderation
+            'parallelActivities' => $freeBlockActivities, // Right column: Parallele Aktivitäten
             'eventName' => $eventName,
             'eventDate' => $eventDate,
             'lastUpdated' => $lastUpdated,
@@ -469,7 +722,7 @@ class PlanExportController extends Controller
             ->timezone('Europe/Berlin')
             ->format('d.m.y');
 
-        $filename = "FLOW_Robot-Game_kompakt_({$formattedDate}).pdf";
+        $filename = "FLOW_Moderation_({$formattedDate}).pdf";
 
             // Return PDF with header for filename
             Log::info("moderatorMatchPlanPdf returning PDF with filename: {$filename}");
@@ -722,7 +975,7 @@ class PlanExportController extends Controller
                 ->timezone('Europe/Berlin')
                 ->format('d.m.Y H:i');
 
-            // Fetch teams with their assigned rooms, grouped by program
+            // Fetch teams with their assigned rooms and jury/gutachter group assignments
             // Explore teams (first_program = 2)
             $exploreTeams = DB::table('team_plan')
                 ->join('team', 'team_plan.team', '=', 'team.id')
@@ -733,16 +986,34 @@ class PlanExportController extends Controller
                     'team.name as team_name',
                     'team.team_number_hot',
                     'team_plan.noshow',
+                    'team_plan.team_number_plan',
                     'room.name as room_name'
                 )
                 ->orderBy('team.name')
                 ->get()
-                ->map(function ($team) {
+                ->map(function ($team) use ($planId) {
+                    // Find Gutachter-Gruppe assignment by looking for activities with this team as jury_team
+                    $gutachterGroupNumber = null;
+                    $activity = DB::table('activity')
+                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                        ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                        ->where('activity_group.plan', $planId)
+                        ->where('m_activity_type_detail.first_program', 2) // Explore
+                        ->where('activity.jury_team', $team->team_number_plan)
+                        ->whereNotNull('activity.jury_lane')
+                        ->select('activity.jury_lane')
+                        ->first();
+                    
+                    if ($activity && $activity->jury_lane) {
+                        $gutachterGroupNumber = $activity->jury_lane;
+                    }
+                    
                     return [
                         'name' => $team->team_name,
                         'hot_number' => $team->team_number_hot,
                         'noshow' => (bool)($team->noshow ?? false),
                         'room_name' => $team->room_name ?? '–',
+                        'group_assignment' => $gutachterGroupNumber,
                     ];
                 })
                 ->values()
@@ -758,16 +1029,34 @@ class PlanExportController extends Controller
                     'team.name as team_name',
                     'team.team_number_hot',
                     'team_plan.noshow',
+                    'team_plan.team_number_plan',
                     'room.name as room_name'
                 )
                 ->orderBy('team.name')
                 ->get()
-                ->map(function ($team) {
+                ->map(function ($team) use ($planId) {
+                    // Find Jury-Gruppe assignment by looking for activities with this team as jury_team
+                    $juryGroupNumber = null;
+                    $activity = DB::table('activity')
+                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                        ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
+                        ->where('activity_group.plan', $planId)
+                        ->where('m_activity_type_detail.first_program', 3) // Challenge
+                        ->where('activity.jury_team', $team->team_number_plan)
+                        ->whereNotNull('activity.jury_lane')
+                        ->select('activity.jury_lane')
+                        ->first();
+                    
+                    if ($activity && $activity->jury_lane) {
+                        $juryGroupNumber = $activity->jury_lane;
+                    }
+                    
                     return [
                         'name' => $team->team_name,
                         'hot_number' => $team->team_number_hot,
                         'noshow' => (bool)($team->noshow ?? false),
                         'room_name' => $team->room_name ?? '–',
+                        'group_assignment' => $juryGroupNumber,
                     ];
                 })
                 ->values()
@@ -2030,6 +2319,121 @@ if ($prepRooms->isNotEmpty()) {
                 'room'     => $teamRoomName,
                 'start_date' => $firstDate,
             ]);
+            
+            // ➕ Add final round lines for Challenge teams only
+            // Check if this is a Challenge team by looking at the label
+            $isChallengeTeam = isset($page['label']) && strpos($page['label'], 'FLL Challenge') === 0;
+            
+            if ($isChallengeTeam && $page['team_number']) {
+                // Get robot game area room from any r_match activity
+                $robotGameRoomName = '–';
+                
+                // Try to get room from an actual r_match activity
+                $matchActivityTypeId = DB::table('m_activity_type_detail')
+                    ->where('code', 'r_match')
+                    ->value('id');
+                
+                if ($matchActivityTypeId) {
+                    // Get room from any r_match activity in this plan
+                    $matchActivity = DB::table('activity')
+                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+                        ->where('activity_group.plan', $planId)
+                        ->where('activity.activity_type_detail', $matchActivityTypeId)
+                        ->whereNotNull('activity.room_type')
+                        ->select('activity.room_type')
+                        ->first();
+                    
+                    if ($matchActivity && $matchActivity->room_type) {
+                        $robotGameRoom = DB::table('room_type_room')
+                            ->join('room', 'room_type_room.room', '=', 'room.id')
+                            ->where('room_type_room.room_type', $matchActivity->room_type)
+                            ->where('room.event', $event->id)
+                            ->select('room.name')
+                            ->first();
+                        
+                        if ($robotGameRoom) {
+                            $robotGameRoomName = $robotGameRoom->name;
+                        }
+                    }
+                }
+                
+                // Final round codes (order matters: 16, 8, 4, 2)
+                $finalRoundCodes = ['r_final_16', 'r_final_8', 'r_final_4', 'r_final_2'];
+                
+                // matchActivityTypeId already defined above
+                if ($matchActivityTypeId) {
+                    foreach ($finalRoundCodes as $finalCode) {
+                        // Get activity type detail for this final round (to get the name)
+                        $finalGroupTypeDetail = DB::table('m_activity_type_detail')
+                            ->where('code', $finalCode)
+                            ->select('id', 'name')
+                            ->first();
+                        
+                        if (!$finalGroupTypeDetail) {
+                            continue;
+                        }
+                        
+                        // Get activity group for this final round
+                        $finalGroup = DB::table('activity_group')
+                            ->where('plan', $planId)
+                            ->where('activity_type_detail', $finalGroupTypeDetail->id)
+                            ->first();
+                        
+                        if (!$finalGroup) {
+                            continue;
+                        }
+                        
+                        // Get all match activities within this final round group
+                        $finalMatches = DB::table('activity')
+                            ->where('activity_group', $finalGroup->id)
+                            ->where('activity_type_detail', $matchActivityTypeId)
+                            ->select('start', 'end')
+                            ->orderBy('start')
+                            ->get();
+                        
+                        if ($finalMatches->isEmpty()) {
+                            continue;
+                        }
+                        
+                        // Get earliest start and latest end
+                        $earliestStart = $finalMatches->min('start');
+                        $latestEnd = $finalMatches->max('end');
+                        
+                        if ($earliestStart && $latestEnd) {
+                            $startTime = \Carbon\Carbon::parse($earliestStart)->format('H:i');
+                            $endTime = \Carbon\Carbon::parse($latestEnd)->format('H:i');
+                            $startDate = \Carbon\Carbon::parse($earliestStart);
+                            
+                            // Add final round row with label from activity_type_detail
+                            $rows[] = [
+                                'start'    => $startTime,
+                                'end'      => $endTime,
+                                'activity' => $finalGroupTypeDetail->name,
+                                'room'     => $robotGameRoomName,
+                                'start_date' => $startDate,
+                            ];
+                        }
+                    }
+                }
+                
+                // Sort rows chronologically (but keep "Teambereich" at the top)
+                if (count($rows) > 1) {
+                    $teambereichRow = array_shift($rows); // Remove first row (Teambereich)
+                    usort($rows, function($a, $b) {
+                        // Compare by start_date timestamp
+                        $dateA = $a['start_date'] ?? \Carbon\Carbon::now();
+                        $dateB = $b['start_date'] ?? \Carbon\Carbon::now();
+                        if ($dateA->timestamp !== $dateB->timestamp) {
+                            return $dateA->timestamp <=> $dateB->timestamp;
+                        }
+                        // If same date, compare by start time
+                        $timeA = $a['start'] ?? '';
+                        $timeB = $b['start'] ?? '';
+                        return strcmp($timeA, $timeB);
+                    });
+                    array_unshift($rows, $teambereichRow); // Put Teambereich back at the top
+                }
+            }
             
             // Chunk rows uniformly (independent of day changes)
             $chunks = array_chunk($rows, $maxRowsPerPage);

@@ -35,6 +35,10 @@ const props = defineProps<{
   slide: Slide
 }>();
 
+const emit = defineEmits<{
+  change: []
+}>();
+
 watch(props.slide, (newSlide) => {
   paintSlide(newSlide);
 });
@@ -62,8 +66,8 @@ const availableImages = ref(standardImages);
 const availableQrCodes = ref([]);
 
 // Format program name with italic FIRST
-const formatProgramTitle = (title: string) => {
-  return title.replace(/FIRST/g, '<span class="italic">FIRST</span>')
+const formatProgramTitle = (title?: string) => {
+  return title?.replace(/FIRST/g, '<span class="italic">FIRST</span>')
 }
 
 const defaultObjectProperties = {
@@ -93,10 +97,25 @@ onMounted(() => {
   canvas.on('selection:updated', updateToolbar);
   canvas.on('selection:cleared', updateToolbar);
 
-  // Auto-save bei Änderungen
-  canvas.on('object:modified', tryAutoSave);
-  canvas.on('object:added', tryAutoSave);
-  canvas.on('object:removed', tryAutoSave);
+  // Debounce change events to avoid too frequent updates
+  let changeTimeout: NodeJS.Timeout | null = null;
+  const emitChange = () => {
+    if (changeTimeout) {
+      clearTimeout(changeTimeout);
+    }
+    changeTimeout = setTimeout(() => {
+      const json = JSON.stringify(canvas.toJSON());
+      if (props.slide) {
+        props.slide.content.background = json;
+        emit('change');
+      }
+    }, 300); // Small delay to batch rapid changes
+  };
+
+  // Emit change events for debounced auto-save in parent
+  canvas.on('object:modified', emitChange);
+  canvas.on('object:added', emitChange);
+  canvas.on('object:removed', emitChange);
 
   // Löschen
   window.addEventListener('keydown', keyListener);
@@ -105,7 +124,12 @@ onMounted(() => {
 onMounted(loadFont);
 onMounted(loadImages);
 onBeforeUnmount(() => {
-  saveJson();
+  // Save immediately on unmount - parent component will handle it
+  const json = JSON.stringify(canvas.toJSON());
+  if (props.slide) {
+    props.slide.content.background = json;
+    emit('change');
+  }
   window.removeEventListener('keydown', keyListener);
 });
 
@@ -397,17 +421,6 @@ function sendToBack() {
   if (object && canvas) {
     canvas.sendObjectToBack(object);
     canvas.requestRenderAll();
-  }
-}
-
-let lastSave = Date.now();
-const SAVE_INTERVAL = 15 * 1000;
-
-function tryAutoSave() {
-  const now = Date.now();
-  if (now - lastSave > SAVE_INTERVAL) {
-    lastSave = now;
-    saveJson();
   }
 }
 

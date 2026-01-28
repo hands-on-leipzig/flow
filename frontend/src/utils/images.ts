@@ -18,7 +18,7 @@ export function programLogoSrc(first_program: string | number) {
   if (['3', 'c', 'challenge'].includes(key)) {
     return imageUrl('/flow/fll_challenge_v.png')
   }
-  return imageUrl('/flow/first_v.png')
+  return imageUrl('/flow/first+fll_v.png')
 }
 
 export function programLogoAlt(first_program: string | number) {
@@ -26,5 +26,5 @@ export function programLogoAlt(first_program: string | number) {
 
   if (['2', 'e', 'explore'].includes(key)) return 'FIRST LEGO League Explore Logo'
   if (['3', 'c', 'challenge'].includes(key)) return 'FIRST LEGO League Challenge Logo'
-  return 'Logo unbekannt'
+  return 'FIRST LEGO League Logo'
 }
