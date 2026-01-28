@@ -297,11 +297,65 @@ async function downloadTeamListPdf() {
   }
 }
 
-// Download name tags PDF
+// --- Team Label Filters ---
+const includePlayers = ref(true)
+const includeCoaches = ref(true)
+const selectedTeamProgramIds = ref<Set<number>>(new Set())
+
+// Initialize team program selection
+watch(availableTeamPrograms, (programs) => {
+  if (programs.length > 0 && selectedTeamProgramIds.value.size === 0) {
+    selectedTeamProgramIds.value = new Set(programs.map(p => p.id))
+  }
+}, { immediate: true })
+
+// Toggle team program selection for labels
+function toggleTeamProgramForLabels(programId: number) {
+  if (selectedTeamProgramIds.value.has(programId)) {
+    selectedTeamProgramIds.value.delete(programId)
+  } else {
+    selectedTeamProgramIds.value.add(programId)
+  }
+  selectedTeamProgramIds.value = new Set(selectedTeamProgramIds.value) // Trigger reactivity
+}
+
+// Computed: at least one program selected and at least one type (players/coaches)
+const canDownloadTeamLabels = computed(() => {
+  return selectedTeamProgramIds.value.size > 0 && (includePlayers.value || includeCoaches.value)
+})
+
+// Download name tags PDF with filters
 async function downloadNameTagsPdf() {
-  if (!eventId.value) return
+  if (!eventId.value || !canDownloadTeamLabels.value) return
   
-  await downloadPdf('name-tags', `/export/name-tags/${eventId.value}`, 'Namensaufkleber.pdf')
+  const filters = {
+    include_players: includePlayers.value,
+    include_coaches: includeCoaches.value,
+    program_ids: Array.from(selectedTeamProgramIds.value)
+  }
+  
+  isDownloading.value['name-tags'] = true
+  try {
+    const response = await axios.post(
+      `/export/name-tags/${eventId.value}`,
+      filters,
+      { responseType: 'blob' }
+    )
+    
+    const filename = response.headers['x-filename'] || 'FLOW_Aufkleber_Teams.pdf'
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (error: any) {
+    console.error('Fehler beim PDF-Download (Team Labels):', error)
+    const errorMessage = error.response?.data?.message || error.message || 'Unbekannter Fehler'
+    alert('Fehler beim Erstellen des PDFs: ' + errorMessage)
+  } finally {
+    isDownloading.value['name-tags'] = false
+  }
 }
 
 // --- Volunteer Labels State ---
@@ -1065,26 +1119,102 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
       
       <!-- Namensaufkleber für Teams -->
       <div class="border-b border-gray-200 pb-3 mb-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Teams</h4>
-            <p class="text-sm text-gray-600">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
+        <div>
+          <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Teams</h4>
+          <p class="text-sm text-gray-600 mb-4">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
+          
+          <!-- Filters -->
+          <div class="mb-4">
+            <!-- Person Type Filter -->
+            <div class="mb-3">
+              <h5 class="text-sm font-semibold text-gray-700 mb-2">Personen</h5>
+              <div class="space-y-1">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <input 
+                    type="checkbox" 
+                    v-model="includePlayers"
+                    class="accent-blue-600"
+                  />
+                  <span class="text-sm">Teammitglieder</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <input 
+                    type="checkbox" 
+                    v-model="includeCoaches"
+                    class="accent-blue-600"
+                  />
+                  <span class="text-sm">Coach:innen</span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Program Filter -->
+            <div v-if="availableTeamPrograms.length > 0">
+              <h5 class="text-sm font-semibold text-gray-700 mb-2">Programme</h5>
+              <div 
+                class="grid gap-3"
+                :class="{
+                  'grid-cols-2': hasExploreTeams && hasChallengeTeams,
+                  'grid-cols-1': !hasExploreTeams || !hasChallengeTeams
+                }"
+              >
+                <!-- Explore -->
+                <div v-if="hasExploreTeams" class="bg-gray-50 rounded p-3">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      :checked="selectedTeamProgramIds.has(2)"
+                      @change="toggleTeamProgramForLabels(2)"
+                      class="accent-blue-600"
+                    />
+                    <img 
+                      :src="programLogoSrc('E')" 
+                      :alt="programLogoAlt('E')"
+                      class="w-5 h-5 flex-shrink-0"
+                    />
+                    <span class="text-sm">FIRST LEGO League Explore</span>
+                  </label>
+                </div>
+                
+                <!-- Challenge -->
+                <div v-if="hasChallengeTeams" class="bg-gray-50 rounded p-3">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      :checked="selectedTeamProgramIds.has(3)"
+                      @change="toggleTeamProgramForLabels(3)"
+                      class="accent-blue-600"
+                    />
+                    <img 
+                      :src="programLogoSrc('C')" 
+                      :alt="programLogoAlt('C')"
+                      class="w-5 h-5 flex-shrink-0"
+                    />
+                    <span class="text-sm">FIRST LEGO League Challenge</span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
-          <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-            :class="!isDownloading['name-tags'] 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
-            :disabled="isDownloading['name-tags']"
-            @click="downloadNameTagsPdf"
-          >
-            <svg v-if="isDownloading['name-tags']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
-            <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
+          
+          <!-- PDF Button -->
+          <div class="flex justify-end">
+            <button
+              class="px-4 py-2 rounded text-sm flex items-center gap-2"
+              :class="canDownloadTeamLabels && !isDownloading['name-tags']
+                ? 'bg-gray-200 hover:bg-gray-300' 
+                : 'bg-gray-100 cursor-not-allowed opacity-50'"
+              :disabled="!canDownloadTeamLabels || isDownloading['name-tags']"
+              @click="downloadNameTagsPdf"
+            >
+              <svg v-if="isDownloading['name-tags']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              </svg>
+              <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
+            </button>
+          </div>
         </div>
       </div>
 

@@ -34,9 +34,10 @@ class LabelController extends Controller
      * Generate name tag PDF for team members (Avery L4785 format)
      * 
      * @param int $eventId
+     * @param Request $request
      * @return \Illuminate\Http\Response
      */
-    public function nameTagsPdf(int $eventId)
+    public function nameTagsPdf(int $eventId, Request $request)
     {
         try {
             // Increase memory limit for PDF generation with many images
@@ -45,12 +46,30 @@ class LabelController extends Controller
             // Get event with season relationship
             $event = Event::with('seasonRel')->findOrFail($eventId);
 
-            // Get all teams for this event, sorted by program sequence (Explore first, then Challenge)
-            $teams = Team::where('event', $eventId)
+            // Get filter parameters (defaults: include all)
+            // Handle boolean conversion (may come as string "true"/"false" or boolean)
+            $includePlayers = filter_var($request->input('include_players', true), FILTER_VALIDATE_BOOLEAN);
+            $includeCoaches = filter_var($request->input('include_coaches', true), FILTER_VALIDATE_BOOLEAN);
+            $programIds = $request->input('program_ids', []);
+            
+            // Convert program IDs to integers
+            if (is_array($programIds)) {
+                $programIds = array_map('intval', $programIds);
+            } else {
+                $programIds = [];
+            }
+
+            // Get teams for this event, filtered by program if specified
+            $teamsQuery = Team::where('event', $eventId)
                 ->join('m_first_program', 'team.first_program', '=', 'm_first_program.id')
-                ->select('team.*')
-                ->orderBy('m_first_program.sequence')
-                ->get();
+                ->select('team.*');
+            
+            // Filter by program IDs if provided
+            if (!empty($programIds) && is_array($programIds)) {
+                $teamsQuery->whereIn('team.first_program', $programIds);
+            }
+            
+            $teams = $teamsQuery->orderBy('m_first_program.sequence')->get();
 
             if ($teams->isEmpty()) {
                 return response()->json(['error' => 'No teams found for this event'], 404);
@@ -99,8 +118,8 @@ class LabelController extends Controller
                 }
                 $programLogo = $programLogoCache[$program];
 
-                // Create name tags for players
-                if (!empty($peopleData['players']) && is_array($peopleData['players'])) {
+                // Create name tags for players (if enabled)
+                if ($includePlayers && !empty($peopleData['players']) && is_array($peopleData['players'])) {
                     foreach ($peopleData['players'] as $player) {
                         $nameTags[] = $this->createNameTagData(
                             $player,
@@ -113,8 +132,8 @@ class LabelController extends Controller
                     }
                 }
 
-                // Create name tags for coaches
-                if (!empty($peopleData['coaches']) && is_array($peopleData['coaches'])) {
+                // Create name tags for coaches (if enabled)
+                if ($includeCoaches && !empty($peopleData['coaches']) && is_array($peopleData['coaches'])) {
                     foreach ($peopleData['coaches'] as $coach) {
                         // Handle both object and string coach formats
                         if (is_string($coach)) {
@@ -133,7 +152,10 @@ class LabelController extends Controller
             }
 
             if (empty($nameTags)) {
-                return response()->json(['error' => 'No team members found to generate name tags'], 404);
+                return response()->json([
+                    'error' => 'No team members found to generate name tags',
+                    'message' => 'Keine Teammitglieder gefunden, die den ausgewählten Filtern entsprechen. Bitte Filter anpassen.'
+                ], 404);
             }
 
             // Generate PDF using TCPDF for precise positioning
