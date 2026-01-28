@@ -62,8 +62,8 @@ const availableImages = ref(standardImages);
 const availableQrCodes = ref([]);
 
 // Format program name with italic FIRST
-const formatProgramTitle = (title: string) => {
-  return title.replace(/FIRST/g, '<span class="italic">FIRST</span>')
+const formatProgramTitle = (title?: string) => {
+  return title?.replace(/FIRST/g, '<span class="italic">FIRST</span>')
 }
 
 const defaultObjectProperties = {
