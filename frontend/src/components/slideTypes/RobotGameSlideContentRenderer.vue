@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {RobotGameSlideContent} from '../../models/robotGameSlideContent.js';
-import {onMounted, onUnmounted, ref, computed, toRef, watch} from "vue";
+import {onMounted, onUnmounted, ref, computed, toRef, watch, shallowRef} from "vue";
 import { useScores, expectedScores, roundNames, createTeams } from '@/services/useScores';
 import type {Team, TeamResponse, RoundResponse} from "@/models/robotGameScores";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
@@ -188,6 +188,7 @@ function handleKeyDown(event: KeyboardEvent) {
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 2.5rem;
+  background-color: v-bind('props.content.tableBackgroundColor');
 }
 
 th, td {
@@ -195,8 +196,8 @@ th, td {
 }
 
 .teamName {
-  border-right: 1px solid black;
-  border-top: 1px solid black;
+  border-right: 1px solid v-bind('props.content.tableBorderColor');
+  border-top: 1px solid v-bind('props.content.tableBorderColor');
   width: auto;
 }
 
@@ -206,12 +207,12 @@ th, td {
 }
 
 td {
-  border-top: 1px solid black;
+  border-top: 1px solid v-bind('props.content.tableBorderColor');
 }
 
 tr > td:not(:last-child),
 tr > th:not(:last-child) {
-  border-right: 1px solid black;
+  border-right: 1px solid v-bind('props.content.tableBorderColor');
 }
 
 .highlight {
