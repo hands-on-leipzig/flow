@@ -6,7 +6,13 @@
     <style>
         @page {
             size: A4 portrait;
-            margin: 13.5mm 17.5mm; /* top/bottom: 13.5mm, left/right: 17.5mm */
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
@@ -15,12 +21,20 @@
             padding: 0;
         }
 
+        /* Page container - full A4 size */
+        .page {
+            width: 210mm;
+            height: 297mm;
+            position: relative;
+            page-break-after: always;
+        }
+
         /* Label container - absolute positioning for precise placement */
         .label {
             position: absolute;
             width: 80mm;
             height: 50mm;
-            padding: 5mm 2mm; /* top: 5mm, left/right: 2mm */
+            padding: 5mm 2mm 0 2mm; /* top: 5mm, left: 2mm, right: 2mm, bottom: 0 */
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -63,8 +77,14 @@
             object-fit: contain;
         }
 
-        /* Column 1 positions */
-        /* Specification: top margin 13.5mm, label height 50mm, vertical spacing 5mm */
+        /* Column 1 positions - exact calculations from specification */
+        /* Specification: 
+           - Page: 210mm × 297mm
+           - Margins: top 13.5mm, bottom 13.5mm, left 17.5mm, right 17.5mm
+           - Label: 80mm × 50mm
+           - Vertical spacing: 5mm between labels
+           - Column spacing: 15mm
+        */
         .col1-row1 { top: 13.5mm; left: 17.5mm; } /* Row 1: top margin */
         .col1-row2 { top: 68.5mm; left: 17.5mm; } /* Row 2: 13.5 + 50 + 5 = 68.5 */
         .col1-row3 { top: 123.5mm; left: 17.5mm; } /* Row 3: 13.5 + (50+5)*2 = 123.5 */
@@ -72,8 +92,7 @@
         .col1-row5 { top: 233.5mm; left: 17.5mm; } /* Row 5: 13.5 + (50+5)*4 = 233.5 */
 
         /* Column 2 positions */
-        /* Specification: left margin 17.5mm, label width 80mm, column spacing 15mm */
-        /* Column 2 left = 17.5 + 80 + 15 = 112.5mm */
+        /* Column 2 left = left margin (17.5mm) + label width (80mm) + column spacing (15mm) = 112.5mm */
         .col2-row1 { top: 13.5mm; left: 112.5mm; }
         .col2-row2 { top: 68.5mm; left: 112.5mm; }
         .col2-row3 { top: 123.5mm; left: 112.5mm; }
@@ -95,9 +114,10 @@
             $startIdx = $page * $labelsPerPage;
             $endIdx = min($startIdx + $labelsPerPage, $totalLabels);
             $pageLabels = array_slice($nameTags, $startIdx, $endIdx - $startIdx);
+            $isLastPage = ($page === $totalPages - 1);
         @endphp
 
-        <div style="page-break-after: {{ $page < $totalPages - 1 ? 'always' : 'auto' }};">
+        <div class="page" style="page-break-after: {{ $isLastPage ? 'auto' : 'always' }};">
             @foreach($pageLabels as $index => $nameTag)
                 @php
                     // Calculate position within this page (0-9 for 10 labels per page)

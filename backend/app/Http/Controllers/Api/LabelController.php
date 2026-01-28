@@ -143,8 +143,12 @@ class LabelController extends Controller
             // Clear large arrays from memory before PDF generation
             unset($nameTags, $programLogoCache, $organizerLogos);
 
-            // Generate PDF
-            $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'portrait');
+            // Generate PDF with precise settings
+            $pdf = Pdf::loadHTML($html, 'UTF-8')
+                ->setPaper('a4', 'portrait')
+                ->setOption('enable-local-file-access', true)
+                ->setOption('isHtml5ParserEnabled', true)
+                ->setOption('isRemoteEnabled', true);
             
             // Format date for filename
             $formattedDate = $event->date 
