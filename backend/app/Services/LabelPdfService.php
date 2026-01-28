@@ -26,6 +26,9 @@ class LabelPdfService
      * @param array $organizerLogos Array of data URIs or file paths
      * @param array $programLogoCache Array of program logos (data URIs or file paths)
      * @param bool $showBorders Show label borders for debugging (normally false)
+     * @param string|null $headerLeft Optional left text for top margin
+     * @param string|null $headerRight Optional right text for top margin
+     * @param int $skipOffset Number of labels to skip at the start (0-9). If > 0, first page has no header/footer.
      * @return string PDF binary data
      */
     public function generateNameTags(
@@ -35,7 +38,10 @@ class LabelPdfService
         array $programLogoCache,
         // Debug option: set to `true` to draw a thin rectangle (80mm × 50mm) around each label.
         // Useful for measuring alignment against Avery L4785 / print settings.
-        bool $showBorders = false
+        bool $showBorders = false,
+        ?string $headerLeft = null,
+        ?string $headerRight = null,
+        int $skipOffset = 0
     ): string {
         if (empty($nameTags)) {
             throw new \InvalidArgumentException('No name tags provided');
@@ -90,13 +96,23 @@ class LabelPdfService
             
             $labelsPerPage = 10; // 2 columns × 5 rows
             $totalLabels = count($nameTags);
-            $totalPages = ceil($totalLabels / $labelsPerPage);
+            
+            // Clamp skip offset between 0 and 9
+            $skipOffset = max(0, min(9, $skipOffset));
+            
+            // Calculate total pages needed
+            // First page has (10 - skipOffset) available positions
+            $firstPageCapacity = $labelsPerPage - $skipOffset;
+            $remainingLabels = max(0, $totalLabels - $firstPageCapacity);
+            $totalPages = 1 + ceil($remainingLabels / $labelsPerPage);
             
             // Add first page (font must be set before this)
             $pdf->AddPage();
             
             // Ensure font is set again after AddPage (some TCPDF versions reset it)
             $pdf->SetFont('dejavusans', '', 10);
+            
+            $labelIndex = 0; // Track which label we're processing
             
             for ($page = 0; $page < $totalPages; $page++) {
                 if ($page > 0) {
@@ -105,14 +121,43 @@ class LabelPdfService
                     $pdf->SetFont('dejavusans', '', 10);
                 }
                 
-                $startIdx = $page * $labelsPerPage;
-                $endIdx = min($startIdx + $labelsPerPage, $totalLabels);
-                $pageLabels = array_slice($nameTags, $startIdx, $endIdx - $startIdx);
+                // Determine how many labels fit on this page
+                if ($page === 0) {
+                    // First page: skip first N positions, then fill remaining
+                    $pageCapacity = $labelsPerPage - $skipOffset;
+                } else {
+                    // Subsequent pages: full capacity
+                    $pageCapacity = $labelsPerPage;
+                }
+                
+                // Get labels for this page
+                $pageLabels = array_slice($nameTags, $labelIndex, $pageCapacity);
+                
+                // Render header and footer only if skipOffset is 0 or not on first page
+                // If skipOffset > 0, first page already has labels printed, so no header/footer
+                $showHeaderFooter = ($skipOffset === 0 || $page > 0);
+                
+                if ($showHeaderFooter) {
+                    // Render header text in top margin (0 to 13.5mm)
+                    if ($headerLeft !== null || $headerRight !== null) {
+                        $this->renderHeaderText($pdf, $headerLeft, $headerRight);
+                    }
+                    
+                    // Render footer text in bottom margin (283.5mm to 297mm)
+                    $this->renderFooterText($pdf, $page + 1, $totalPages);
+                }
                 
                 foreach ($pageLabels as $index => $nameTag) {
+                    // Calculate position on the page
+                    // For first page with skipOffset > 0, add the offset to skip initial positions
+                    $positionOnPage = $index;
+                    if ($page === 0 && $skipOffset > 0) {
+                        $positionOnPage = $index + $skipOffset;
+                    }
+                    
                     // Calculate position: column (1 or 2), row (1-5)
-                    $col = ($index % 2) + 1;
-                    $row = floor($index / 2) + 1;
+                    $col = ($positionOnPage % 2) + 1;
+                    $row = floor($positionOnPage / 2) + 1;
                     
                     // Calculate X position
                     // Column 1: left margin (17.5mm)
@@ -135,6 +180,9 @@ class LabelPdfService
                     // Render label content
                     $this->renderLabel($pdf, $nameTag, $x, $y, $seasonLogo, $organizerLogos, $programLogoCache);
                 }
+                
+                // Move to next label index
+                $labelIndex += count($pageLabels);
             }
             
             // Return PDF as string
@@ -189,8 +237,10 @@ class LabelPdfService
         $labelWidth = 80;
         $labelHeight = 50;
         $paddingTop = 5;
-        $paddingLeft = 2;
-        $contentWidth = $labelWidth - ($paddingLeft * 2); // 76mm
+        $paddingLeft = 5;
+        $paddingRight = 5;
+        $paddingBottom = 5;
+        $contentWidth = $labelWidth - $paddingLeft - $paddingRight; // 70mm
         
         // Set position for content (with padding)
         // Use absolute coordinates (margins are 0, so SetXY uses absolute coords)
@@ -215,8 +265,7 @@ class LabelPdfService
         // Use MultiCell with simpler parameters
         $pdf->MultiCell($contentWidth, 6, $nameTag['team_name'], 0, 'L', false, 1);
         
-        // Logos at bottom of label - distribute horizontally
-        $logoY = $y + $labelHeight - 20; // 20mm from bottom
+        // Logos at bottom of label - positioned at bottom padding (5mm from bottom)
         $logoMaxHeight = 15;
         $logoMaxWidth = 20;
         
@@ -311,7 +360,18 @@ class LabelPdfService
         // Distribute logos evenly across available width
         $logoCount = count($logoData);
         if ($logoCount > 0) {
-            $availableWidth = $contentWidth; // 76mm
+            // Find maximum logo height to align all logos at bottom
+            $maxLogoHeight = 0;
+            foreach ($logoData as $logo) {
+                if ($logo['height'] > $maxLogoHeight) {
+                    $maxLogoHeight = $logo['height'];
+                }
+            }
+            
+            // Position logos so their bottom edges are at bottom padding (5mm from bottom)
+            $logoY = $y + $labelHeight - $paddingBottom - $maxLogoHeight;
+            
+            $availableWidth = $contentWidth; // 70mm (with 5mm padding on each side)
             $totalLogoWidth = $totalWidth;
             $remainingSpace = $availableWidth - $totalLogoWidth;
             $gapBetweenLogos = $logoCount > 1 ? $remainingSpace / ($logoCount - 1) : 0;
@@ -319,8 +379,8 @@ class LabelPdfService
             $currentX = $contentX;
             
             foreach ($logoData as $index => $logo) {
-                // Render logo
-                $pdf->Image($logo['path'], $currentX, $logoY, $logo['width'], $logo['height'], '', '', '', false, 300, '', false, false, 0);
+                // Render logo (bottom edges align at 5mm from bottom)
+                $pdf->Image($logo['path'], $currentX, $logoY + ($maxLogoHeight - $logo['height']), $logo['width'], $logo['height'], '', '', '', false, 300, '', false, false, 0);
                 
                 // Move to next position (logo width + gap)
                 $currentX += $logo['width'] + $gapBetweenLogos;
@@ -356,5 +416,70 @@ class LabelPdfService
         }
         
         return $imageData;
+    }
+    
+    /**
+     * Render header text in top margin (0 to 13.5mm)
+     * Uses same left/right margins as labels (17.5mm)
+     */
+    private function renderHeaderText(TCPDF $pdf, ?string $leftText, ?string $rightText): void
+    {
+        $pdf->SetFont('dejavusans', '', 8);
+        $pdf->SetTextColor(0, 0, 0); // Black color
+        
+        // Position at 6mm from top (middle of 13.5mm margin)
+        $y = 6;
+        
+        // Use same margins as labels: left 17.5mm, right 17.5mm
+        $leftMargin = 17.5;
+        $rightMargin = 17.5;
+        $contentWidth = 210 - $leftMargin - $rightMargin; // 175mm
+        
+        // Left text
+        if ($leftText !== null) {
+            $pdf->SetXY($leftMargin, $y);
+            $pdf->Cell($contentWidth, 0, $leftText, 0, 0, 'L');
+        }
+        
+        // Right text
+        if ($rightText !== null) {
+            $pdf->SetXY($leftMargin, $y);
+            $pdf->Cell($contentWidth, 0, $rightText, 0, 0, 'R');
+        }
+        
+        // Reset font size for labels
+        $pdf->SetFont('dejavusans', '', 10);
+    }
+    
+    /**
+     * Render footer text in bottom margin (283.5mm to 297mm)
+     * Uses same left/right margins as labels (17.5mm)
+     */
+    private function renderFooterText(TCPDF $pdf, int $pageNum, int $totalPages): void
+    {
+        $pdf->SetFont('dejavusans', '', 7);
+        $pdf->SetTextColor(0, 0, 0); // Black color
+        
+        // Position at 291mm from top (middle of bottom 13.5mm margin)
+        $y = 291;
+        
+        // Use same margins as labels: left 17.5mm, right 17.5mm
+        $leftMargin = 17.5;
+        $rightMargin = 17.5;
+        $contentWidth = 210 - $leftMargin - $rightMargin; // 175mm
+        
+        // Left: Page number
+        $pageText = "Seite {$pageNum} von {$totalPages}";
+        $pdf->SetXY($leftMargin, $y);
+        $pdf->Cell($contentWidth, 0, $pageText, 0, 0, 'L');
+        
+        // Right: Timestamp
+        $timestamp = now()->format('d.m.Y H:i');
+        $timestampText = "Stand {$timestamp}";
+        $pdf->SetXY($leftMargin, $y);
+        $pdf->Cell($contentWidth, 0, $timestampText, 0, 0, 'R');
+        
+        // Reset font size for labels
+        $pdf->SetFont('dejavusans', '', 10);
     }
 }

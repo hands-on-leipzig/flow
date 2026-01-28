@@ -8,6 +8,7 @@ use App\Models\Team;
 use App\Models\MSeason;
 use App\Services\PdfLayoutService;
 use App\Services\LabelPdfService;
+use App\Services\EventTitleService;
 use App\Http\Controllers\Api\DrahtController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,15 +19,18 @@ class LabelController extends Controller
 {
     private PdfLayoutService $pdfLayoutService;
     private LabelPdfService $labelPdfService;
+    private EventTitleService $eventTitleService;
     private DrahtController $drahtController;
 
     public function __construct(
         PdfLayoutService $pdfLayoutService,
         LabelPdfService $labelPdfService,
+        EventTitleService $eventTitleService,
         DrahtController $drahtController
     ) {
         $this->pdfLayoutService = $pdfLayoutService;
         $this->labelPdfService = $labelPdfService;
+        $this->eventTitleService = $eventTitleService;
         $this->drahtController = $drahtController;
     }
 
@@ -34,25 +38,112 @@ class LabelController extends Controller
      * Generate name tag PDF for team members (Avery L4785 format)
      * 
      * @param int $eventId
+     * @param Request $request
      * @return \Illuminate\Http\Response
      */
-    public function nameTagsPdf(int $eventId)
+    public function nameTagsPdf(int $eventId, Request $request)
     {
         try {
             // Increase memory limit for PDF generation with many images
             ini_set('memory_limit', '512M');
             
+            // Increase timeout for local installations with slow internet
+            // Check if running in local environment
+            $isLocal = app()->environment('local') || config('app.env') === 'local';
+            if ($isLocal) {
+                ini_set('max_execution_time', 600); // 10 minutes for local
+                set_time_limit(600);
+            } else {
+                ini_set('max_execution_time', 300); // 5 minutes for production
+                set_time_limit(300);
+            }
+            
             // Get event with season relationship
             $event = Event::with('seasonRel')->findOrFail($eventId);
 
-            // Get all teams for this event, sorted by program sequence (Explore first, then Challenge)
-            $teams = Team::where('event', $eventId)
-                ->join('m_first_program', 'team.first_program', '=', 'm_first_program.id')
-                ->select('team.*')
-                ->orderBy('m_first_program.sequence')
-                ->get();
+            // Get filter parameters: program_filters structure { programId: { players: bool, coaches: bool } }
+            $programFilters = $request->input('program_filters', []);
+            
+            // If no filters provided, default to including all
+            if (empty($programFilters) || !is_array($programFilters)) {
+                $programFilters = [];
+            }
+            
+            // Get skip offset (0-9) to skip labels at the start
+            $skipOffset = (int)$request->input('skip_offset', 0);
+            $skipOffset = max(0, min(9, $skipOffset)); // Clamp between 0 and 9
+            
+            // Extract program IDs from filters
+            $programIds = array_keys($programFilters);
+            $programIds = array_map('intval', $programIds);
 
-            if ($teams->isEmpty()) {
+            // Get plan for this event
+            $plan = DB::table('plan')
+                ->where('event', $eventId)
+                ->select('id')
+                ->first();
+
+            // Get c_teams parameter value if plan exists
+            $cTeams = null;
+            if ($plan) {
+                $cTeamsParamId = DB::table('m_parameter')
+                    ->where('name', 'c_teams')
+                    ->value('id');
+                
+                if ($cTeamsParamId) {
+                    $cTeams = DB::table('plan_param_value')
+                        ->where('plan', $plan->id)
+                        ->where('parameter', $cTeamsParamId)
+                        ->value('set_value');
+                    $cTeams = $cTeams ? (int)$cTeams : null;
+                }
+            }
+
+            // Get teams for this event, filtered by program and excluding noshow/overflow teams
+            $teamsQuery = DB::table('team')
+                ->join('m_first_program', 'team.first_program', '=', 'm_first_program.id')
+                ->where('team.event', $eventId)
+                ->select('team.*');
+            
+            // Filter by program IDs if provided
+            if (!empty($programIds)) {
+                $teamsQuery->whereIn('team.first_program', $programIds);
+            }
+            
+            // Join with team_plan to filter out excluded teams
+            if ($plan) {
+                $teamsQuery->leftJoin('team_plan', function($join) use ($plan) {
+                    $join->on('team.id', '=', 'team_plan.team')
+                         ->where('team_plan.plan', '=', $plan->id);
+                });
+                
+                // Exclude teams with noshow = 1
+                // Include teams that don't have a team_plan entry (not yet in plan) or noshow != 1
+                $teamsQuery->where(function($query) {
+                    $query->whereNull('team_plan.noshow')  // No team_plan entry
+                          ->orWhere('team_plan.noshow', '!=', 1);  // noshow != 1 (includes 0 and other values)
+                });
+                
+                // Exclude teams where team_number_plan > c_teams (if c_teams is set)
+                // Include teams that don't have a team_plan entry (not yet in plan)
+                if ($cTeams !== null) {
+                    $teamsQuery->where(function($query) use ($cTeams) {
+                        $query->whereNull('team_plan.team_number_plan')  // No team_plan entry
+                              ->orWhere('team_plan.team_number_plan', '<=', $cTeams);  // Within planned range
+                    });
+                }
+            }
+            
+            $teams = $teamsQuery->orderBy('m_first_program.sequence')
+                ->orderBy('team.name')
+                ->get();
+            
+            // Convert to Team models for compatibility with existing code
+            $teamModels = collect($teams)->map(function($team) {
+                return Team::find($team->id);
+            })->filter();
+
+            if ($teamModels->isEmpty()) {
                 return response()->json(['error' => 'No teams found for this event'], 404);
             }
 
@@ -68,8 +159,12 @@ class LabelController extends Controller
             
             // Cache program logos to avoid loading the same logo multiple times
             $programLogoCache = [];
+            
+            // Cache DRAHT people data per program to avoid multiple API calls
+            // Key: drahtEventId, Value: all people data for that event
+            $drahtPeopleCache = [];
 
-            foreach ($teams as $team) {
+            foreach ($teamModels as $team) {
                 // Determine program and DRAHT event ID
                 $program = $this->getProgramFromTeam($team);
                 $drahtEventId = $this->getDrahtEventId($event, $program);
@@ -82,8 +177,39 @@ class LabelController extends Controller
                     continue;
                 }
 
-                // Get team members from DRAHT
-                $peopleData = $this->getTeamPeopleFromDraht($drahtEventId, $team->team_number_hot);
+                // Fetch all people data for this DRAHT event once (cache per event)
+                if (!isset($drahtPeopleCache[$drahtEventId])) {
+                    try {
+                        $response = $this->drahtController->getPeople($drahtEventId);
+                        $statusCode = $response->getStatusCode();
+                        if ($statusCode === 200) {
+                            $allPeopleData = $response->getData(true);
+                            $drahtPeopleCache[$drahtEventId] = is_array($allPeopleData) ? $allPeopleData : [];
+                        } else {
+                            Log::warning("Failed to fetch people data from DRAHT", [
+                                'draht_event_id' => $drahtEventId,
+                                'status' => $statusCode
+                            ]);
+                            $drahtPeopleCache[$drahtEventId] = [];
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Error fetching people data from DRAHT', [
+                            'draht_event_id' => $drahtEventId,
+                            'error' => $e->getMessage()
+                        ]);
+                        $drahtPeopleCache[$drahtEventId] = [];
+                    }
+                }
+
+                // Get team members from cached DRAHT data
+                $allPeopleData = $drahtPeopleCache[$drahtEventId];
+                $peopleData = null;
+                
+                if ($team->team_number_hot && isset($allPeopleData[$team->team_number_hot])) {
+                    $peopleData = $allPeopleData[$team->team_number_hot];
+                } elseif ($team->team_number_hot && isset($allPeopleData[(string)$team->team_number_hot])) {
+                    $peopleData = $allPeopleData[(string)$team->team_number_hot];
+                }
 
                 if (!$peopleData) {
                     Log::warning("No people data found for team", [
@@ -99,23 +225,49 @@ class LabelController extends Controller
                 }
                 $programLogo = $programLogoCache[$program];
 
-                // Create name tags for players
-                if (!empty($peopleData['players']) && is_array($peopleData['players'])) {
-                    foreach ($peopleData['players'] as $player) {
-                        $nameTags[] = $this->createNameTagData(
-                            $player,
-                            $team->name,
-                            $program,
-                            $programLogo,
-                            $seasonLogo,
-                            $organizerLogos
-                        );
-                    }
+                // Get filter settings for this team's program
+                $teamProgramId = $team->first_program;
+                $includePlayers = true; // Default
+                $includeCoaches = true; // Default
+                
+                if (isset($programFilters[$teamProgramId])) {
+                    $filters = $programFilters[$teamProgramId];
+                    $includePlayers = filter_var($filters['players'] ?? true, FILTER_VALIDATE_BOOLEAN);
+                    $includeCoaches = filter_var($filters['coaches'] ?? true, FILTER_VALIDATE_BOOLEAN);
                 }
 
-                // Create name tags for coaches
-                if (!empty($peopleData['coaches']) && is_array($peopleData['coaches'])) {
-                    foreach ($peopleData['coaches'] as $coach) {
+                // Create name tags for coaches first (if enabled for this program)
+                if ($includeCoaches && !empty($peopleData['coaches']) && is_array($peopleData['coaches'])) {
+                    // Sort coaches alphabetically by last name, then first name
+                    $coaches = $peopleData['coaches'];
+                    usort($coaches, function($a, $b) {
+                        // Handle string format (full name)
+                        if (is_string($a) && is_string($b)) {
+                            return strcasecmp($a, $b);
+                        }
+                        if (is_string($a)) {
+                            $a = ['name' => $a, 'firstname' => ''];
+                        }
+                        if (is_string($b)) {
+                            $b = ['name' => $b, 'firstname' => ''];
+                        }
+                        
+                        // Sort by last name first, then first name
+                        $lastNameA = $a['name'] ?? '';
+                        $lastNameB = $b['name'] ?? '';
+                        $lastNameCompare = strcasecmp($lastNameA, $lastNameB);
+                        
+                        if ($lastNameCompare !== 0) {
+                            return $lastNameCompare;
+                        }
+                        
+                        // If last names are equal, sort by first name
+                        $firstNameA = $a['firstname'] ?? '';
+                        $firstNameB = $b['firstname'] ?? '';
+                        return strcasecmp($firstNameA, $firstNameB);
+                    });
+                    
+                    foreach ($coaches as $coach) {
                         // Handle both object and string coach formats
                         if (is_string($coach)) {
                             $coach = ['name' => $coach];
@@ -130,19 +282,73 @@ class LabelController extends Controller
                         );
                     }
                 }
+
+                // Create name tags for players (if enabled for this program)
+                if ($includePlayers && !empty($peopleData['players']) && is_array($peopleData['players'])) {
+                    // Sort players alphabetically by last name, then first name
+                    $players = $peopleData['players'];
+                    usort($players, function($a, $b) {
+                        // Handle string format (full name)
+                        if (is_string($a) && is_string($b)) {
+                            return strcasecmp($a, $b);
+                        }
+                        if (is_string($a)) {
+                            $a = ['name' => $a, 'firstname' => ''];
+                        }
+                        if (is_string($b)) {
+                            $b = ['name' => $b, 'firstname' => ''];
+                        }
+                        
+                        // Sort by last name first, then first name
+                        $lastNameA = $a['name'] ?? '';
+                        $lastNameB = $b['name'] ?? '';
+                        $lastNameCompare = strcasecmp($lastNameA, $lastNameB);
+                        
+                        if ($lastNameCompare !== 0) {
+                            return $lastNameCompare;
+                        }
+                        
+                        // If last names are equal, sort by first name
+                        $firstNameA = $a['firstname'] ?? '';
+                        $firstNameB = $b['firstname'] ?? '';
+                        return strcasecmp($firstNameA, $firstNameB);
+                    });
+                    
+                    foreach ($players as $player) {
+                        $nameTags[] = $this->createNameTagData(
+                            $player,
+                            $team->name,
+                            $program,
+                            $programLogo,
+                            $seasonLogo,
+                            $organizerLogos
+                        );
+                    }
+                }
             }
 
             if (empty($nameTags)) {
-                return response()->json(['error' => 'No team members found to generate name tags'], 404);
+                return response()->json([
+                    'error' => 'No team members found to generate name tags',
+                    'message' => 'Keine Teammitglieder gefunden, die den ausgewählten Filtern entsprechen. Bitte Filter anpassen.'
+                ], 404);
             }
 
+            // Generate header text for team labels
+            $headerLeft = 'Team-Liste';
+            $headerRight = 'Sortierung: Teamname, Coach:innen > Teammitglieder, alphabetisch nach Namen';
+            
             // Generate PDF using TCPDF for precise positioning
             try {
                 $pdfData = $this->labelPdfService->generateNameTags(
                     $nameTags,
                     $seasonLogo,
                     $organizerLogos,
-                    $programLogoCache
+                    $programLogoCache,
+                    false, // showBorders
+                    $headerLeft, // headerLeft
+                    $headerRight, // headerRight
+                    $skipOffset // skipOffset
                 );
                 
                 if (empty($pdfData) || strlen($pdfData) < 100) {
@@ -269,6 +475,7 @@ class LabelController extends Controller
 
     /**
      * Get program logo as data URI
+     * Returns Explore, Challenge, or default FLL logo if no program specified
      */
     private function getProgramLogo(?string $program): ?string
     {
@@ -277,7 +484,25 @@ class LabelController extends Controller
         } elseif ($program === 'challenge') {
             $logoPath = public_path('flow/fll_challenge_hs.png');
         } else {
-            return null;
+            // Default FLL logo when no specific program is chosen
+            // Try horizontal small version first, fallback to vertical
+            $defaultPaths = [
+                public_path('flow/first+fll_hs.png'),
+                public_path('flow/first+fll_h.png'),
+                public_path('flow/first+fll_v.png'),
+            ];
+            
+            $logoPath = null;
+            foreach ($defaultPaths as $path) {
+                if (file_exists($path)) {
+                    $logoPath = $path;
+                    break;
+                }
+            }
+            
+            if (!$logoPath) {
+                return null;
+            }
         }
 
         return $this->pdfLayoutService->toDataUri($logoPath);
@@ -392,7 +617,12 @@ class LabelController extends Controller
                 'volunteers.*.name' => 'required|string',
                 'volunteers.*.role' => 'required|string',
                 'volunteers.*.program' => 'nullable|string|in:E,C,',
+                'skip_offset' => 'nullable|integer|min:0|max:9',
             ]);
+            
+            // Get skip offset (0-9) to skip labels at the start
+            $skipOffset = (int)($validated['skip_offset'] ?? 0);
+            $skipOffset = max(0, min(9, $skipOffset)); // Clamp between 0 and 9
             
             $volunteers = $validated['volunteers'];
             
@@ -406,16 +636,17 @@ class LabelController extends Controller
             // Only use the first logo by sort_order
             $organizerLogos = $this->getFirstOrganizerLogo($eventId);
             
-            // Cache program logos
+            // Cache program logos (including default FLL logo for volunteers without program)
             $programLogoCache = [];
             $programLogoCache['explore'] = $this->getProgramLogo('explore');
             $programLogoCache['challenge'] = $this->getProgramLogo('challenge');
+            $programLogoCache['default'] = $this->getProgramLogo(null); // Default FLL logo
             
             // Convert volunteers to name tag format
             $nameTags = [];
             foreach ($volunteers as $volunteer) {
-                // Map program: E -> explore, C -> challenge, other/empty -> null
-                $program = null;
+                // Map program: E -> explore, C -> challenge, other/empty -> default
+                $program = 'default';
                 if ($volunteer['program'] === 'E') {
                     $program = 'explore';
                 } elseif ($volunteer['program'] === 'C') {
@@ -433,13 +664,21 @@ class LabelController extends Controller
                 return response()->json(['error' => 'No volunteers provided'], 400);
             }
             
+            // Generate header text for volunteer labels
+            $headerLeft = 'Volunteers';
+            $headerRight = 'Sortierung wie vom Veranstalter eingeben';
+            
             // Generate PDF using TCPDF for precise positioning
             try {
                 $pdfData = $this->labelPdfService->generateNameTags(
                     $nameTags,
                     $seasonLogo,
                     $organizerLogos,
-                    $programLogoCache
+                    $programLogoCache,
+                    false, // showBorders
+                    $headerLeft, // headerLeft
+                    $headerRight, // headerRight
+                    $skipOffset // skipOffset
                 );
                 
                 if (empty($pdfData) || strlen($pdfData) < 100) {
