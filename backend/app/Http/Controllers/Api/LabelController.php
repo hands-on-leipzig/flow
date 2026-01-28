@@ -58,9 +58,32 @@ class LabelController extends Controller
             $programIds = array_keys($programFilters);
             $programIds = array_map('intval', $programIds);
 
-            // Get teams for this event, filtered by program if specified
-            $teamsQuery = Team::where('event', $eventId)
+            // Get plan for this event
+            $plan = DB::table('plan')
+                ->where('event', $eventId)
+                ->select('id')
+                ->first();
+
+            // Get c_teams parameter value if plan exists
+            $cTeams = null;
+            if ($plan) {
+                $cTeamsParamId = DB::table('m_parameter')
+                    ->where('name', 'c_teams')
+                    ->value('id');
+                
+                if ($cTeamsParamId) {
+                    $cTeams = DB::table('plan_param_value')
+                        ->where('plan', $plan->id)
+                        ->where('parameter', $cTeamsParamId)
+                        ->value('set_value');
+                    $cTeams = $cTeams ? (int)$cTeams : null;
+                }
+            }
+
+            // Get teams for this event, filtered by program and excluding noshow/overflow teams
+            $teamsQuery = DB::table('team')
                 ->join('m_first_program', 'team.first_program', '=', 'm_first_program.id')
+                ->where('team.event', $eventId)
                 ->select('team.*');
             
             // Filter by program IDs if provided
@@ -68,9 +91,38 @@ class LabelController extends Controller
                 $teamsQuery->whereIn('team.first_program', $programIds);
             }
             
+            // Join with team_plan to filter out excluded teams
+            if ($plan) {
+                $teamsQuery->leftJoin('team_plan', function($join) use ($plan) {
+                    $join->on('team.id', '=', 'team_plan.team')
+                         ->where('team_plan.plan', '=', $plan->id);
+                });
+                
+                // Exclude teams with noshow = 1
+                // Include teams that don't have a team_plan entry (not yet in plan) or noshow != 1
+                $teamsQuery->where(function($query) {
+                    $query->whereNull('team_plan.noshow')  // No team_plan entry
+                          ->orWhere('team_plan.noshow', '!=', 1);  // noshow != 1 (includes 0 and other values)
+                });
+                
+                // Exclude teams where team_number_plan > c_teams (if c_teams is set)
+                // Include teams that don't have a team_plan entry (not yet in plan)
+                if ($cTeams !== null) {
+                    $teamsQuery->where(function($query) use ($cTeams) {
+                        $query->whereNull('team_plan.team_number_plan')  // No team_plan entry
+                              ->orWhere('team_plan.team_number_plan', '<=', $cTeams);  // Within planned range
+                    });
+                }
+            }
+            
             $teams = $teamsQuery->orderBy('m_first_program.sequence')->get();
+            
+            // Convert to Team models for compatibility with existing code
+            $teamModels = collect($teams)->map(function($team) {
+                return Team::find($team->id);
+            })->filter();
 
-            if ($teams->isEmpty()) {
+            if ($teamModels->isEmpty()) {
                 return response()->json(['error' => 'No teams found for this event'], 404);
             }
 
@@ -87,7 +139,7 @@ class LabelController extends Controller
             // Cache program logos to avoid loading the same logo multiple times
             $programLogoCache = [];
 
-            foreach ($teams as $team) {
+            foreach ($teamModels as $team) {
                 // Determine program and DRAHT event ID
                 $program = $this->getProgramFromTeam($team);
                 $drahtEventId = $this->getDrahtEventId($event, $program);
