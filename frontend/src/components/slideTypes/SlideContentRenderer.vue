@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<{
   slide: Slide,
   preview: boolean,
   eventId: number,
-  transitionTime?: number
+  defaultTransitionTime?: number
 }>(), {
   preview: false
 });
@@ -61,12 +61,8 @@ function startAdvanceTimeout() {
   if (props.preview || !useDefaultAdvance.value) {
     return;
   }
-  // TODO: Hier slide.transitionTime verwenden
-  const seconds = props.transitionTime ?? 15;
-  console.log(props.transitionTime, seconds);
-  if (!seconds || seconds <= 0) {
-    return;
-  }
+
+  const seconds = props.slide.transition_time || props.defaultTransitionTime || 15;
   advanceTimeout = setTimeout(() => {
     console.log('next slide');
     advanceTimeout = null;

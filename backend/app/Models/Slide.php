@@ -19,6 +19,7 @@ class Slide extends Model
         'order',
         'slideshow_id',
         'active',
+        'transition_time'
     ];
 
     public function slideshow(): BelongsTo

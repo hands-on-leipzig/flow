@@ -12,6 +12,7 @@ export class Slide {
     public type: string;
     public content: SlideContent;
     public active: number = 1; // 0 or 1
+    public transition_time: number = 0; // in seconds, 0 means default slideshow time
 
     constructor(data: any, content: SlideContent) {
         Object.assign(this, data);

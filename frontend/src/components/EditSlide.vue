@@ -22,16 +22,6 @@ const showIndicatorTimeoutId = ref<NodeJS.Timeout | null>(null);
 const SAVE_DELAY = 5000; // 5 seconds delay
 const SHOW_INDICATOR_DELAY = 1000; // Show "unsaved changes" after 1 second
 
-const settingsSlideTypes = ['RobotGameSlideContent', 'PublicPlanSlideContent', 'UrlSlideContent'];
-
-const hasSettings = computed<boolean>(() => {
-  if (!slide.value) {
-    return false;
-  }
-  const type = slide.value.type;
-  return settingsSlideTypes.includes(type);
-})
-
 const saveButtonText = computed(() => {
   if (isSaving.value) {
     return 'Speichere...';
@@ -196,6 +186,20 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
   updateByName('tableBackgroundColor', rgba);
 }
 
+function updateSlideDurationOverride(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const isChecked = target.checked;
+  if (isChecked) {
+    updateDuration(15);
+  } else {
+    updateDuration(0);
+  }
+}
+
+function updateDuration(value: number) {
+  slide.value.transition_time = value;
+}
+
 </script>
 
 <template>
@@ -230,10 +234,36 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
   </div>
 
   <div class="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-1">
-    <div class="rounded-xl shadow bg-white p-4 col-span-1" v-if="hasSettings">
+    <div class="rounded-xl shadow bg-white p-4 col-span-1" v-if="!!slide">
       <span class="font-semibold px-2">
         Einstellungen
       </span>
+      <!-- Eigene Anzeigezeit - Alle Slides außer Robot Game -->
+      <div v-if="slide.type !== 'RobotGameSlideContent'">
+        <div class="grid grid-cols-2 gap-2 items-center">
+          <div>
+            <label class="text-sm font-medium pl-2">Anzeigedauer überschreiben</label>
+          </div>
+          <div>
+            <input type="checkbox" :checked="slide.transition_time !== 0" @change="updateSlideDurationOverride" />
+            &nbsp;
+            <InfoPopover text="Aktivieren, um dieser Folie eine spezielle Anzeigedauer zu geben. Wenn deaktiviert, wird die Zeit pro Folie der Slideshow verwendet."/>
+          </div>
+          <div :class="{'disabled': slide.transition_time === 0}">
+            <label class="text-sm font-medium pl-2">Anzeigezeit (in Sekunden)</label>
+          </div>
+          <div :class="{'disabled': slide.transition_time === 0}">
+            <input
+                type="number"
+                min="0"
+                :value="slide.transition_time ?? 0"
+                :disabled="slide.transition_time === 0"
+                @input="updateDuration(+($event.target as HTMLInputElement).value)"
+                class="w-24 border rounded px-2 py-1"
+            />
+          </div>
+        </div>
+      </div>
       <div v-if="slide.type === 'PublicPlanSlideContent'">
         <!-- Stunden -->
         <label class="text-sm font-medium pl-2">Stunden</label>
@@ -409,5 +439,9 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
 </template>
 
 <style scoped>
-
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
 </style>

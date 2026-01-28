@@ -55,7 +55,7 @@ onUnmounted(() => {
     io.disconnect();
     io = null;
   }
-})
+});
 
 function handleResize() {
   if (!canvas.value || !fabricCanvas) return;
