@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, shallowRef} from 'vue';
+import {computed, onMounted, onUnmounted, watch} from 'vue';
 import ImageSlideContentRenderer from './ImageSlideContentRenderer.vue';
 import RobotGameSlideContentRenderer from './RobotGameSlideContentRenderer.vue';
 import {ImageSlideContent} from "../../models/imageSlideContent.js";
@@ -17,8 +17,10 @@ const props = withDefaults(defineProps<{
   preview: boolean,
   eventId: number,
   defaultTransitionTime?: number
+  visible?: boolean
 }>(), {
-  preview: false
+  preview: false,
+  visible: false,
 });
 
 // Emit: go to the next slide
@@ -45,8 +47,14 @@ const useDefaultAdvance = computed(() => {
   return !(props.slide.content instanceof RobotGameSlideContent);
 });
 
-const root = shallowRef<HTMLElement | null>(null);
-let io: IntersectionObserver | null = null;
+watch(() => props.visible, (vis) => {
+  if (vis && useDefaultAdvance.value) {
+    startAdvanceTimeout();
+  } else {
+    clearAdvanceTimeout();
+  }
+});
+
 let advanceTimeout = null;
 
 function clearAdvanceTimeout() {
@@ -64,44 +72,23 @@ function startAdvanceTimeout() {
 
   const seconds = props.slide.transition_time || props.defaultTransitionTime || 15;
   advanceTimeout = setTimeout(() => {
-    console.log('next slide');
     advanceTimeout = null;
     emit('next');
   }, seconds * 1000);
 }
 
 onMounted(() => {
-  io = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (entry.target === root.value) {
-        if (entry.isIntersecting) {
-          // visible -> start timer
-          startAdvanceTimeout();
-        } else {
-          // not visible -> stop timer
-          clearAdvanceTimeout();
-        }
-      }
-    }
-  }, { threshold: 0.01 });
-
-  if (root.value && io) {
-    io.observe(root.value);
+  if (props.visible && !props.preview && useDefaultAdvance.value) {
+    startAdvanceTimeout();
   }
 });
 
 onUnmounted(() => {
   clearAdvanceTimeout();
-  if (io && root.value) {
-    io.unobserve(root.value);
-    io.disconnect();
-    io = null;
-  }
 });
 </script>
 
 <template>
-  <div ref="root">
-    <component :is="componentName" :content="props.slide.content" :preview="props.preview" :eventId="props.eventId" @next="emit('next')"></component>
-  </div>
+  <component :is="componentName" :content="props.slide.content" :preview="props.preview" :eventId="props.eventId"
+             @next="emit('next')"></component>
 </template>

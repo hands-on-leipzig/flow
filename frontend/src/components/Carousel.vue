@@ -64,7 +64,7 @@ onMounted(fetchSlides)
 
 <template>
   <div v-if="showSlide" v-for="(slide, index) in slideshow?.slides" class="h-screen w-full" v-show="index === slideKey">
-    <SlideContentRenderer :slide="slide" :preview="false" :eventId="+props.eventId"
+    <SlideContentRenderer :slide="slide" :preview="false" :eventId="+props.eventId" :visible="index === slideKey"
                           :defaultTransitionTime="slideshow?.transition_time" @next="nextSlide"/>
   </div>
 </template>
