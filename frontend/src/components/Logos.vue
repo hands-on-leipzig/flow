@@ -513,6 +513,9 @@ onMounted(async () => {
         <h2 class="text-xl font-semibold text-gray-900 mb-4">Logos in Verwendung</h2>
         <p class="text-sm text-gray-600 mb-4">Ziehe die Logos, um die Reihenfolge zu ändern, in welcher sie im
           öffentlichen Plan erscheinen.</p>
+        <p class="text-sm text-gray-600 mb-4">
+          Das erste Logo wird für die Namensaufkleber verwendet.
+        </p>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div

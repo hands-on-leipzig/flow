@@ -563,14 +563,14 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
         class="px-4 py-2 relative"
         @click="activeTab = 'public'"
       >
-        Öffentlich
+        Pläne für alle
       </button>
       <button
         :class="activeTab === 'organisation' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
         class="px-4 py-2 ml-4 relative"
         @click="activeTab = 'organisation'"
       >
-        Organisation
+        Extra für Orga
       </button>
       <button
         :class="activeTab === 'aufkleber' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
@@ -586,7 +586,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
       Zum Aushang bzw zum Verteilen an Teams und Volunteers
     </p>
     <p v-if="activeTab === 'organisation'" class="text-sm text-blue-600 mb-4">
-      Nur für den Veranstalter – nicht für Teams oder Besucher.
+      Nur für Veranstalter – nicht für Teams oder Besucher.
     </p>
 
     <!-- Tab Content: Öffentlich -->
@@ -1047,11 +1047,22 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
           rel="noopener noreferrer"
           class="text-blue-600 underline hover:text-blue-800"
         >
-          Format Avery L4785</a>.
+          Format Avery L4785</a> formatiert.
       </p>
       <p class="text-sm text-gray-600 mb-4">
-        Jeder Aufkleber enthält den Namen der Person, den Team-Namen sowie die Logos (Programm, Saison, Veranstalter).
+        Jeder Aufkleber enthält den Namen der Person, den Team-Namen bzw. die Rolle sowie die Logos (Programm, Saison, Veranstalter).
       </p>
+      <p class="text-sm text-gray-600 mb-4">
+        Als Veranstalter-Logo wird das erste aktive aus dem
+        <a
+          href="/plan/logos"
+          class="text-blue-600 underline hover:text-blue-800"
+        >
+          View Logos
+        </a>
+        verwendet.
+      </p>
+ 
       
       <!-- Namensaufkleber für Teams -->
       <div class="border-b border-gray-200 pb-3 mb-3">
