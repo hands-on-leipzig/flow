@@ -69,6 +69,10 @@ class LabelController extends Controller
                 $programFilters = [];
             }
             
+            // Get skip offset (0-9) to skip labels at the start
+            $skipOffset = (int)$request->input('skip_offset', 0);
+            $skipOffset = max(0, min(9, $skipOffset)); // Clamp between 0 and 9
+            
             // Extract program IDs from filters
             $programIds = array_keys($programFilters);
             $programIds = array_map('intval', $programIds);
@@ -343,7 +347,8 @@ class LabelController extends Controller
                     $programLogoCache,
                     false, // showBorders
                     $headerLeft, // headerLeft
-                    $headerRight // headerRight
+                    $headerRight, // headerRight
+                    $skipOffset // skipOffset
                 );
                 
                 if (empty($pdfData) || strlen($pdfData) < 100) {
@@ -612,7 +617,12 @@ class LabelController extends Controller
                 'volunteers.*.name' => 'required|string',
                 'volunteers.*.role' => 'required|string',
                 'volunteers.*.program' => 'nullable|string|in:E,C,',
+                'skip_offset' => 'nullable|integer|min:0|max:9',
             ]);
+            
+            // Get skip offset (0-9) to skip labels at the start
+            $skipOffset = (int)($validated['skip_offset'] ?? 0);
+            $skipOffset = max(0, min(9, $skipOffset)); // Clamp between 0 and 9
             
             $volunteers = $validated['volunteers'];
             
@@ -667,7 +677,8 @@ class LabelController extends Controller
                     $programLogoCache,
                     false, // showBorders
                     $headerLeft, // headerLeft
-                    $headerRight // headerRight
+                    $headerRight, // headerRight
+                    $skipOffset // skipOffset
                 );
                 
                 if (empty($pdfData) || strlen($pdfData) < 100) {

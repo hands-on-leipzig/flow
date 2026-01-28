@@ -301,6 +301,10 @@ async function downloadTeamListPdf() {
 // Track person types per program: { programId: { players: boolean, coaches: boolean } }
 const teamLabelFilters = ref<Record<number, { players: boolean; coaches: boolean }>>({})
 
+// Skip labels offset (0-9)
+const teamLabelSkipOffset = ref(0)
+const volunteerLabelSkipOffset = ref(0)
+
 // Initialize filters for available programs
 watch(availableTeamPrograms, (programs) => {
   programs.forEach(program => {
@@ -345,7 +349,8 @@ async function downloadNameTagsPdf() {
   })
   
   const filters = {
-    program_filters: programFilters
+    program_filters: programFilters,
+    skip_offset: teamLabelSkipOffset.value
   }
   
   isDownloading.value['name-tags'] = true
@@ -447,7 +452,10 @@ async function downloadVolunteerLabelsPdf() {
   try {
     const response = await axios.post(
       `/export/volunteer-labels/${eventId.value}`,
-      { volunteers: submittedVolunteers.value },
+      { 
+        volunteers: submittedVolunteers.value,
+        skip_offset: volunteerLabelSkipOffset.value
+      },
       { responseType: 'blob' }
     )
     
@@ -1122,6 +1130,9 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
           View Logos</a>
         verwendet.
       </p>
+      <p class="text-sm text-gray-600 mb-4">
+        Mit "Überspringen" können ersten Aufkleber auf dem ersten Blatt überspringen, um teilweise bereits verwendete Blätter weiter zu nutzen und Material zu sparen.
+      </p>
  
       
       <!-- Namensaufkleber für Teams -->
@@ -1206,7 +1217,17 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
           </div>
           
           <!-- PDF Button -->
-          <div class="flex justify-end">
+          <div class="flex items-center justify-end gap-2">
+            <label class="flex items-center gap-1 text-sm text-gray-600">
+              <span class="text-xs">Überspringen:</span>
+              <input
+                type="number"
+                v-model.number="teamLabelSkipOffset"
+                min="0"
+                max="9"
+                class="w-12 border border-gray-300 rounded px-1 py-0.5 text-sm text-center"
+              />
+            </label>
             <button
               class="px-4 py-2 rounded text-sm flex items-center gap-2"
               :class="canDownloadTeamLabels && !isDownloading['name-tags']
@@ -1243,7 +1264,7 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
             <textarea
               v-model="volunteerInputText"
               @input="updateVolunteerPreview"
-              placeholder="Max Mustermann&#9;Schiedsrichter&#9;E&#10;Anna Schmidt&#9;Jurorin Forschung&#9;C&#10;..."
+              placeholder="Max Mustermann&#9;Gutachter&#9;E&#10;Anna Schmidt&#9;Schiedsrichter:in&#9;C&#10;..."
               class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono"
               rows="6"
             ></textarea>
@@ -1296,36 +1317,50 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
           </div>
           
           <!-- Action Buttons -->
-          <div class="flex gap-2 flex-wrap">
-            <button
-              @click="clearAllVolunteers"
-              class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
-              :disabled="volunteerPreview.length === 0 && submittedVolunteers.length === 0"
-            >
-              Alles Löschen
-            </button>
-            <button
-              @click="submitVolunteers"
-              class="px-4 py-2 rounded text-sm bg-green-200 hover:bg-green-300"
-              :disabled="volunteerPreview.length === 0"
-            >
-              Übernehmen
-            </button>
-            <button
-              @click="downloadVolunteerLabelsPdf"
-              class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-              :class="hasSubmittedVolunteers && !isDownloading['volunteer-labels']
-                ? 'bg-gray-200 hover:bg-gray-300' 
-                : 'bg-gray-100 cursor-not-allowed opacity-50'"
-              :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
-            >
+          <div class="flex gap-2 flex-wrap justify-between items-center">
+            <div class="flex gap-2">
+              <button
+                @click="clearAllVolunteers"
+                class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+                :disabled="volunteerPreview.length === 0 && submittedVolunteers.length === 0"
+              >
+                Alles Löschen
+              </button>
+              <button
+                @click="submitVolunteers"
+                class="px-4 py-2 rounded text-sm bg-green-200 hover:bg-green-300"
+                :disabled="volunteerPreview.length === 0"
+              >
+                Übernehmen
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="flex items-center gap-1 text-sm text-gray-600">
+                <span class="text-xs">Überspringen:</span>
+                <input
+                  type="number"
+                  v-model.number="volunteerLabelSkipOffset"
+                  min="0"
+                  max="9"
+                  class="w-12 border border-gray-300 rounded px-1 py-0.5 text-sm text-center"
+                />
+              </label>
+              <button
+                @click="downloadVolunteerLabelsPdf"
+                class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
+                :class="hasSubmittedVolunteers && !isDownloading['volunteer-labels']
+                  ? 'bg-gray-200 hover:bg-gray-300' 
+                  : 'bg-gray-100 cursor-not-allowed opacity-50'"
+                :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
+              >
               <svg v-if="isDownloading['volunteer-labels']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                 <path class="opacity-75" fill="currentColor"
                       d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
               </svg>
               <span>{{ isDownloading['volunteer-labels'] ? 'Erzeuge…' : 'PDF' }}</span>
-            </button>
+              </button>
+            </div>
           </div>
         </div>
       </div>

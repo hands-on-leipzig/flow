@@ -28,6 +28,7 @@ class LabelPdfService
      * @param bool $showBorders Show label borders for debugging (normally false)
      * @param string|null $headerLeft Optional left text for top margin
      * @param string|null $headerRight Optional right text for top margin
+     * @param int $skipOffset Number of labels to skip at the start (0-9). If > 0, first page has no header/footer.
      * @return string PDF binary data
      */
     public function generateNameTags(
@@ -39,7 +40,8 @@ class LabelPdfService
         // Useful for measuring alignment against Avery L4785 / print settings.
         bool $showBorders = false,
         ?string $headerLeft = null,
-        ?string $headerRight = null
+        ?string $headerRight = null,
+        int $skipOffset = 0
     ): string {
         if (empty($nameTags)) {
             throw new \InvalidArgumentException('No name tags provided');
@@ -94,13 +96,23 @@ class LabelPdfService
             
             $labelsPerPage = 10; // 2 columns × 5 rows
             $totalLabels = count($nameTags);
-            $totalPages = ceil($totalLabels / $labelsPerPage);
+            
+            // Clamp skip offset between 0 and 9
+            $skipOffset = max(0, min(9, $skipOffset));
+            
+            // Calculate total pages needed
+            // First page has (10 - skipOffset) available positions
+            $firstPageCapacity = $labelsPerPage - $skipOffset;
+            $remainingLabels = max(0, $totalLabels - $firstPageCapacity);
+            $totalPages = 1 + ceil($remainingLabels / $labelsPerPage);
             
             // Add first page (font must be set before this)
             $pdf->AddPage();
             
             // Ensure font is set again after AddPage (some TCPDF versions reset it)
             $pdf->SetFont('dejavusans', '', 10);
+            
+            $labelIndex = 0; // Track which label we're processing
             
             for ($page = 0; $page < $totalPages; $page++) {
                 if ($page > 0) {
@@ -109,22 +121,43 @@ class LabelPdfService
                     $pdf->SetFont('dejavusans', '', 10);
                 }
                 
-                $startIdx = $page * $labelsPerPage;
-                $endIdx = min($startIdx + $labelsPerPage, $totalLabels);
-                $pageLabels = array_slice($nameTags, $startIdx, $endIdx - $startIdx);
-                
-                // Render header text in top margin (0 to 13.5mm)
-                if ($headerLeft !== null || $headerRight !== null) {
-                    $this->renderHeaderText($pdf, $headerLeft, $headerRight);
+                // Determine how many labels fit on this page
+                if ($page === 0) {
+                    // First page: skip first N positions, then fill remaining
+                    $pageCapacity = $labelsPerPage - $skipOffset;
+                } else {
+                    // Subsequent pages: full capacity
+                    $pageCapacity = $labelsPerPage;
                 }
                 
-                // Render footer text in bottom margin (283.5mm to 297mm)
-                $this->renderFooterText($pdf, $page + 1, $totalPages);
+                // Get labels for this page
+                $pageLabels = array_slice($nameTags, $labelIndex, $pageCapacity);
+                
+                // Render header and footer only if skipOffset is 0 or not on first page
+                // If skipOffset > 0, first page already has labels printed, so no header/footer
+                $showHeaderFooter = ($skipOffset === 0 || $page > 0);
+                
+                if ($showHeaderFooter) {
+                    // Render header text in top margin (0 to 13.5mm)
+                    if ($headerLeft !== null || $headerRight !== null) {
+                        $this->renderHeaderText($pdf, $headerLeft, $headerRight);
+                    }
+                    
+                    // Render footer text in bottom margin (283.5mm to 297mm)
+                    $this->renderFooterText($pdf, $page + 1, $totalPages);
+                }
                 
                 foreach ($pageLabels as $index => $nameTag) {
+                    // Calculate position on the page
+                    // For first page with skipOffset > 0, add the offset to skip initial positions
+                    $positionOnPage = $index;
+                    if ($page === 0 && $skipOffset > 0) {
+                        $positionOnPage = $index + $skipOffset;
+                    }
+                    
                     // Calculate position: column (1 or 2), row (1-5)
-                    $col = ($index % 2) + 1;
-                    $row = floor($index / 2) + 1;
+                    $col = ($positionOnPage % 2) + 1;
+                    $row = floor($positionOnPage / 2) + 1;
                     
                     // Calculate X position
                     // Column 1: left margin (17.5mm)
@@ -147,6 +180,9 @@ class LabelPdfService
                     // Render label content
                     $this->renderLabel($pdf, $nameTag, $x, $y, $seasonLogo, $organizerLogos, $programLogoCache);
                 }
+                
+                // Move to next label index
+                $labelIndex += count($pageLabels);
             }
             
             // Return PDF as string
