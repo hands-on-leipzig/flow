@@ -34,6 +34,30 @@ const robotGameRounds = ref<RobotGamePublicRounds | null>(null);
 const carouselLink = computed(() => {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
 });
+
+function getSlideshowLink(slideshow: Slideshow) {
+  // For now, use event-based link. In the future, this will be per-slideshow
+  // e.g., `${window.location.origin}/carousel/${event.value?.id}/${slideshow.id}`
+  return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
+}
+
+function openSlideshowInNewWindow(slideshow: Slideshow) {
+  const link = getSlideshowLink(slideshow);
+  if (link) {
+    window.open(link, '_blank', 'noopener,noreferrer');
+  }
+}
+
+function copySlideshowLink(slideshow: Slideshow) {
+  const link = getSlideshowLink(slideshow);
+  if (link) {
+    copyUrl(link);
+    copiedSlideshowId.value = slideshow.id;
+    setTimeout(() => {
+      copiedSlideshowId.value = null;
+    }, 2000);
+  }
+}
 const slidesKey = ref(1);
 
 const slideType = ref("");
@@ -44,6 +68,7 @@ const editingSlideshowName = ref<string>("");
 const slideshowNameInput = ref<HTMLInputElement | null>(null);
 const creatingSlideType = ref<string | null>(null);
 const expandedSlideshows = ref<Set<number>>(new Set());
+const copiedSlideshowId = ref<number | null>(null);
 const slideTypes = [
   {value: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse', icon: 'bi-trophy'},
   {value: 'PublicPlanSlideContent', label: 'Öffentlicher Zeitplan', icon: 'bi-calendar'},
@@ -270,89 +295,6 @@ function copyUrl(url) {
       </button>
     </div>
 
-    <!-- Info Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Carousel Link -->
-      <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-        <div class="flex items-center gap-2 mb-2">
-          <i class="bi bi-link-45deg text-blue-600"></i>
-          <h3 class="font-semibold text-gray-800">Öffentliche Ansicht</h3>
-        </div>
-        <div class="flex items-center gap-2">
-          <a :href="carouselLink" target="_blank" rel="noopener noreferrer"
-             class="text-blue-600 hover:text-blue-800 underline font-medium text-sm flex-1 truncate">
-            {{ carouselLink }}
-          </a>
-          <button
-              type="button"
-              class="flex items-center gap-1 px-3 py-1.5 bg-white border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-              @click="copyUrl(carouselLink)"
-              title="Link kopieren"
-          >
-            <i class="bi bi-clipboard"></i>
-            <span class="text-xs">Kopieren</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Robot Game Rounds -->
-      <div class="bg-orange-50 rounded-lg p-4 border border-orange-200" v-if="robotGameRounds">
-        <div class="flex items-center gap-2 mb-3">
-          <i class="bi bi-trophy text-orange-600"></i>
-          <h3 class="font-semibold text-gray-800">Robot Game: Öffentliche Ergebnisse</h3>
-          <InfoPopover
-              text="Wähle aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
-        </div>
-        <div class="grid grid-cols-5 gap-2">
-          <label class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-            <input
-                type="checkbox"
-                :checked="robotGameRounds.vr1"
-                @change="updateRobotGameRounds('vr1', ($event.target as HTMLInputElement).checked)"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span class="text-sm font-medium">VR1</span>
-          </label>
-          <label class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-            <input
-                type="checkbox"
-                :checked="robotGameRounds.vr2"
-                @change="updateRobotGameRounds('vr2', ($event.target as HTMLInputElement).checked)"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span class="text-sm font-medium">VR2</span>
-          </label>
-          <label class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-            <input
-                type="checkbox"
-                :checked="robotGameRounds.vr3"
-                @change="updateRobotGameRounds('vr3', ($event.target as HTMLInputElement).checked)"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span class="text-sm font-medium">VR3</span>
-          </label>
-          <label class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-            <input
-                type="checkbox"
-                :checked="robotGameRounds.vf"
-                @change="updateRobotGameRounds('vf', ($event.target as HTMLInputElement).checked)"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span class="text-sm font-medium">VF</span>
-          </label>
-          <label class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-            <input
-                type="checkbox"
-                :checked="robotGameRounds.hf"
-                @change="updateRobotGameRounds('hf', ($event.target as HTMLInputElement).checked)"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span class="text-sm font-medium">HF</span>
-          </label>
-        </div>
-      </div>
-    </div>
-
     <!-- Slideshows -->
     <div class="space-y-4" v-if="slideshows.length > 0">
       <div v-for="(slideshow, index) in slideshows" :key="slideshow.id" 
@@ -361,10 +303,11 @@ function copyUrl(url) {
         <!-- Slideshow Header -->
         <button
             @click="toggleSlideshow(slideshow.id)"
-            class="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors"
+            class="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors text-left"
         >
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 flex-1">
             <i class="bi bi-collection-play text-xl text-gray-600"></i>
+            
             <div v-if="editingSlideshowId === slideshow.id" class="flex items-center gap-2" @click.stop>
               <input
                   type="text"
@@ -386,16 +329,42 @@ function copyUrl(url) {
                 <i class="bi bi-pencil text-sm"></i>
               </button>
             </div>
+            
             <span class="text-sm text-gray-500">({{ slideshow.slides.length }} Folie{{ slideshow.slides.length !== 1 ? 'n' : '' }})</span>
+            
+            <!-- Slideshow Actions -->
+            <div class="flex items-center gap-2 ml-2" @click.stop>
+              <button
+                  @click.stop="openSlideshowInNewWindow(slideshow)"
+                  class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  title="Slideshow in neuem Fenster öffnen"
+              >
+                <i class="bi bi-box-arrow-up-right text-xs"></i>
+                <span>Öffnen</span>
+              </button>
+              <button
+                  @click.stop="copySlideshowLink(slideshow)"
+                  :class="[
+                    'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+                    copiedSlideshowId === slideshow.id
+                      ? 'bg-green-100 border border-green-300 text-green-700'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ]"
+                  :title="copiedSlideshowId === slideshow.id ? 'Link kopiert!' : 'Link kopieren'"
+              >
+                <i :class="copiedSlideshowId === slideshow.id ? 'bi bi-check' : 'bi bi-clipboard'" class="text-xs"></i>
+                <span>{{ copiedSlideshowId === slideshow.id ? 'Kopiert!' : 'Link kopieren' }}</span>
+              </button>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <i 
-                :class="[
-                  'bi text-gray-500 transition-transform',
-                  expandedSlideshows.has(slideshow.id) ? 'bi-chevron-up' : 'bi-chevron-down'
-                ]"
-            ></i>
-          </div>
+          
+          <!-- Arrow Icon on the right -->
+          <i 
+              :class="[
+                'bi text-gray-500 transition-transform flex-shrink-0',
+                expandedSlideshows.has(slideshow.id) ? 'bi-chevron-up' : 'bi-chevron-down'
+              ]"
+          ></i>
         </button>
 
         <!-- Collapsible Content -->
@@ -441,45 +410,101 @@ function copyUrl(url) {
               </div>
             </div>
 
-            <!-- Add Slide -->
-            <div class="flex-1">
+            <!-- Robot Game Rounds -->
+            <div class="flex-1" v-if="robotGameRounds">
               <label class="block text-sm font-medium text-gray-700 mb-2">
-                <i class="bi bi-plus-square"></i> Neue Folie hinzufügen
+                <i class="bi bi-trophy"></i> Robot Game: Öffentliche Ergebnisse
+                <InfoPopover
+                    text="Wähle aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
               </label>
-              <button
-                  class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors w-full justify-center"
-                  @click="openSlideTypeModal(slideshow)">
-                <i class="bi bi-plus-circle"></i>
-                <span>Neue Folie</span>
-              </button>
+              <div class="grid grid-cols-5 gap-2">
+                <label class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
+                  <input
+                      type="checkbox"
+                      :checked="robotGameRounds.vr1"
+                      @change="updateRobotGameRounds('vr1', ($event.target as HTMLInputElement).checked)"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span class="text-sm font-medium">VR1</span>
+                </label>
+                <label class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
+                  <input
+                      type="checkbox"
+                      :checked="robotGameRounds.vr2"
+                      @change="updateRobotGameRounds('vr2', ($event.target as HTMLInputElement).checked)"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span class="text-sm font-medium">VR2</span>
+                </label>
+                <label class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
+                  <input
+                      type="checkbox"
+                      :checked="robotGameRounds.vr3"
+                      @change="updateRobotGameRounds('vr3', ($event.target as HTMLInputElement).checked)"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span class="text-sm font-medium">VR3</span>
+                </label>
+                <label class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
+                  <input
+                      type="checkbox"
+                      :checked="robotGameRounds.vf"
+                      @change="updateRobotGameRounds('vf', ($event.target as HTMLInputElement).checked)"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span class="text-sm font-medium">VF</span>
+                </label>
+                <label class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
+                  <input
+                      type="checkbox"
+                      :checked="robotGameRounds.hf"
+                      @change="updateRobotGameRounds('hf', ($event.target as HTMLInputElement).checked)"
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span class="text-sm font-medium">HF</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Slides Grid -->
         <div class="bg-gray-800 rounded-xl p-4 min-h-[200px]">
-          <div v-if="slideshow.slides.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-400">
-            <i class="bi bi-inbox text-4xl mb-3"></i>
-            <p class="text-sm">Noch keine Folien vorhanden</p>
-            <p class="text-xs mt-1">Klicken Sie auf "Neue Folie", um eine Folie hinzuzufügen</p>
-          </div>
-          <draggable 
-              v-else
-              v-model="slideshow.slides" 
-              :key="slidesKey"
-              class="flex flex-wrap gap-3" 
-              group="slides"
-              item-key="id"
-              handle=".drag-handle"
-              ghost-class="drag-ghost"
-              chosen-class="drag-chosen"
-              drag-class="drag-dragging"
-              animation="200"
-              @end="updateOrder(slideshow)">
-            <template #item="{ element }">
-              <SlideThumb :slide="element" @deleteSlide="deleteSlide(slideshow, element.id)"/>
+          <div class="flex flex-wrap gap-3">
+            <!-- New Slide Button -->
+            <button
+                class="flex flex-col items-center justify-center w-56 h-52 m-2 border-2 border-dashed border-gray-500 rounded-xl hover:border-green-500 hover:bg-gray-700 transition-all cursor-pointer group flex-shrink-0"
+                @click="openSlideTypeModal(slideshow)">
+              <i class="bi bi-plus-circle text-4xl text-gray-400 group-hover:text-green-500 mb-2 transition-colors"></i>
+              <span class="text-sm font-medium text-gray-400 group-hover:text-green-500 text-center">Neue Folie</span>
+            </button>
+            
+            <!-- Empty State (only shown when no slides) -->
+            <div v-if="slideshow.slides.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-400 flex-1 min-w-[200px]">
+              <i class="bi bi-inbox text-4xl mb-3"></i>
+              <p class="text-sm">Noch keine Folien vorhanden</p>
+            </div>
+            
+            <!-- Slides (draggable) - using contents to make items direct children of flex container -->
+            <template v-if="slideshow.slides.length > 0">
+              <draggable 
+                  v-model="slideshow.slides" 
+                  :key="slidesKey"
+                  class="contents" 
+                  group="slides"
+                  item-key="id"
+                  handle=".drag-handle"
+                  ghost-class="drag-ghost"
+                  chosen-class="drag-chosen"
+                  drag-class="drag-dragging"
+                  animation="200"
+                  @end="updateOrder(slideshow)">
+                <template #item="{ element }">
+                  <SlideThumb :slide="element" @deleteSlide="deleteSlide(slideshow, element.id)"/>
+                </template>
+              </draggable>
             </template>
-          </draggable>
+          </div>
         </div>
           </div>
         </transition>
