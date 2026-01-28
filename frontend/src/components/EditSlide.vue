@@ -37,7 +37,7 @@ const saveButtonText = computed(() => {
     return 'Speichere...';
   }
   if (hasUnsavedChanges.value) {
-    return 'Änderungen werden gespeichert...';
+    return 'Speichern';
   }
   return 'Alle Änderungen gespeichert';
 });
@@ -72,12 +72,12 @@ function scheduleSave() {
   if (showIndicatorTimeoutId.value) {
     clearTimeout(showIndicatorTimeoutId.value);
   }
-  
+
   // Show unsaved changes indicator after a delay (so it doesn't flash on every click)
   showIndicatorTimeoutId.value = setTimeout(() => {
     hasUnsavedChanges.value = true;
   }, SHOW_INDICATOR_DELAY);
-  
+
   // Schedule new save
   saveTimeoutId.value = setTimeout(() => {
     saveSlide();
@@ -86,16 +86,16 @@ function scheduleSave() {
 
 async function saveSlide() {
   if (!slide.value || isSaving.value) return;
-  
+
   // Clear indicator timeout if save happens before it shows
   if (showIndicatorTimeoutId.value) {
     clearTimeout(showIndicatorTimeoutId.value);
     showIndicatorTimeoutId.value = null;
   }
-  
+
   isSaving.value = true;
   const s = {...slide.value, content: slide.value.content.toJSON()};
-  
+
   try {
     await axios.put(`slides/${slide.value.id}`, s);
     console.log('Slide saved:', s);
@@ -203,14 +203,14 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
 
   <!-- Header -->
   <div class="flex items-center justify-between border-b pb-4 mb-6 mt-4">
-    <router-link 
-        to="/plan/presentation" 
+    <router-link
+        to="/plan/presentation"
         class="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
     >
       <i class="bi bi-arrow-left"></i>
       <span>Zurück zur Slideshow</span>
     </router-link>
-    
+
     <button
         @click="handleManualSave"
         :disabled="isSaving || !hasUnsavedChanges"
@@ -356,7 +356,8 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
                 v-model="tableBgHex"
                 @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
             />
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 px-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 px-0" viewBox="0 0 24 24" fill="currentColor"
+                 aria-hidden="true">
               <path d="M12 2.69L6 10.5c-3 4 1 11.5 6 11.5s9-7.5 6-11.5L12 2.69z"/>
             </svg>
             <input
