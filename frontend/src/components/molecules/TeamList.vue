@@ -879,8 +879,13 @@ onMounted(async () => {
               </label>
               <span v-else class="w-16"></span>
 
+              <!-- TODO check with GS how to handle name updates -->
+              <div
+                  class="flex-1 text-sm px-2 py-1">
+                {{ team.name }}
+              </div>
               <!-- Eingabefeld -->
-              <input
+              <!--<input
                   v-model="team.name"
                   :class="[
                     'editable-input flex-1 text-sm px-2 py-1 border border-transparent rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors cursor-pointer',
@@ -890,6 +895,7 @@ onMounted(async () => {
                   @blur="updateTeamName(team)"
                   @click.stop
               />
+              -->
 
               <!-- People count -->
               <span v-if="getPeopleCount(team) !== null" class="text-sm text-gray-600 space-x-2">
