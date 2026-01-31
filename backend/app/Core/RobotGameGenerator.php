@@ -433,6 +433,10 @@ class RobotGameGenerator
         // Clone so we correctly capture the start time for robot check/match
         $time = $rTime->copy();
 
+        // Write NULL for team slots when team id is 0 (e.g. final rounds)
+        $table1Team = $team1 === 0 ? null : $team1;
+        $table2Team = $team2 === 0 ? null : $team2;
+
         // With robot check → first enter check, then start match
         if ($robotCheck) {
             $this->writer->insertActivity(
@@ -442,9 +446,9 @@ class RobotGameGenerator
                 null,
                 null,
                 $table1,
-                $team1,
+                $table1Team,
                 $table2,
-                $team2
+                $table2Team
             );
 
             // Advance time
@@ -459,9 +463,9 @@ class RobotGameGenerator
             null,
             null,
             $table1,
-            $team1,
+            $table1Team,
             $table2,
-            $team2
+            $table2Team
         );
     }    
 
