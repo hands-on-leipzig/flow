@@ -225,7 +225,7 @@ function isActive(path: string) {
   return route.path.endsWith('/' + cleanPath) || route.path === '/plan/' + cleanPath
 }
 
-function goTo(tab) {
+function goTo(tab: { name: string; path: string }) {
   selectedTab.value = tab.name
   router.push(tab.path)
   // Close mobile menu after navigation
@@ -255,8 +255,8 @@ function logout() {
 
 <template>
   <div class="sticky top-0 z-50 bg-white shadow-sm border-b">
-    <!-- Desktop Navigation -->
-    <div class="hidden md:flex items-center justify-between px-3 lg:px-4 py-2">
+    <!-- Desktop Navigation (lg and up only) -->
+    <div class="hidden lg:flex items-center justify-between px-3 xl:px-4 py-2">
       <div class="flex items-center gap-4 lg:gap-8 flex-1 min-w-0">
         <div class="flex items-center gap-2 lg:gap-4 flex-shrink-0">
           <img :src="imageUrl('/flow/flow.png')" alt="Logo" class="h-6 lg:h-8 w-auto"/>
@@ -268,7 +268,6 @@ function logout() {
           <Tab
             v-for="tab in tabs"
             :key="tab.path"
-            :to="tab.path"
             class="px-4 py-2 rounded hover:bg-gray-100 relative"
             :class="{ 'bg-gray-200 font-medium': isActive(tab.path) }"
             @click="goTo(tab)"
@@ -286,7 +285,7 @@ function logout() {
     <!-- Event Selection Dropdown -->
     <Menu as="div" class="relative inline-block text-left">
       <MenuButton
-        class="group inline-flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 bg-gradient-to-r from-white to-gray-50/50 backdrop-blur-sm rounded-lg hover:from-white hover:to-white hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 min-w-[320px]"
+        class="group inline-flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 bg-gradient-to-r from-white to-gray-50/50 backdrop-blur-sm rounded-lg hover:from-white hover:to-white hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 min-w-0 w-full max-w-[320px]"
       >
         <span v-if="eventStore.selectedEvent" class="text-left flex-1 truncate">
           {{ getEventTitleShort(eventStore.selectedEvent) }}
@@ -376,7 +375,7 @@ function logout() {
             </MenuItem>
 
             <!-- "More" option for admins -->
-            <MenuItem v-if="isAdmin" v-slot="{ active }">
+            <MenuItem v-if="isAdmin" :key="'more-events'" v-slot="{ active }">
               <div class="border-t border-gray-200 mt-2 pt-2">
                 <button
                   @click="router.push({ path: '/events' })"
@@ -433,6 +432,110 @@ function logout() {
         </div>
       </MenuItems>
     </Menu>
+    </div>
+
+    <!-- Narrow / Mobile Navigation (below lg) -->
+    <div class="flex lg:hidden items-center gap-2 px-3 py-2 min-h-[48px]">
+      <Menu as="div" class="relative flex-1 min-w-0 flex">
+        <MenuButton
+          class="inline-flex items-center justify-between gap-2 w-full min-w-0 px-3 py-2.5 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+        >
+          <span v-if="eventStore.selectedEvent" class="truncate text-left flex-1 min-w-0">
+            {{ getEventTitleShort(eventStore.selectedEvent) }}
+          </span>
+          <span v-else class="text-gray-500 italic truncate text-left flex-1 min-w-0">Veranstaltung wählen...</span>
+          <svg class="w-4 h-4 flex-shrink-0 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </MenuButton>
+        <MenuItems
+          class="absolute left-1/2 -translate-x-1/2 z-50 mt-1.5 w-[calc(100vw-1.5rem)] max-w-[360px] max-h-[min(70vh,400px)] overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+        >
+            <div class="py-2">
+              <div v-if="loadingEvents" class="px-4 py-6 text-center text-sm text-gray-500">Lade...</div>
+              <div v-else-if="dropdownEvents.length === 0" class="px-4 py-6 text-center text-sm text-gray-500">Keine Veranstaltungen</div>
+              <template v-else>
+                <MenuItem
+                  v-for="event in dropdownEvents"
+                  :key="event.id"
+                  v-slot="{ active }"
+                >
+                  <button
+                    @click="selectEventFromDropdown(event, event.regional_partner_id)"
+                    :class="['w-full text-left px-4 py-3 text-sm', active ? 'bg-blue-50' : '']"
+                  >
+                    <div class="font-medium truncate">{{ event.name }}</div>
+                    <div class="text-xs text-gray-500">{{ dayjs(event.date).format('DD.MM.YYYY') }} · {{ event.regional_partner_name }}</div>
+                  </button>
+                </MenuItem>
+                <MenuItem v-if="isAdmin" :key="'more-mobile'" v-slot="{ active }">
+                  <button
+                    @click="router.push({ path: '/events' })"
+                    :class="['w-full text-left px-4 py-3 text-sm border-t border-gray-100', active ? 'bg-blue-50' : '']"
+                  >
+                    Mehr Veranstaltungen...
+                  </button>
+                </MenuItem>
+              </template>
+            </div>
+          </MenuItems>
+        </Menu>
+      <button
+        type="button"
+        class="inline-flex items-center justify-center p-2.5 rounded-lg text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 flex-shrink-0"
+        aria-label="Menü öffnen"
+        @click="toggleMobileMenu"
+      >
+        <svg v-if="!mobileMenuOpen" class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        <svg v-else class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+    <!-- Mobile menu panel -->
+    <Transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div
+        v-show="mobileMenuOpen"
+        class="lg:hidden border-t border-gray-200 bg-white px-3 py-3 shadow-inner"
+      >
+        <nav class="flex flex-col gap-1">
+          <button
+            v-for="tab in tabs"
+            :key="tab.path"
+            type="button"
+            :class="[
+              'flex items-center gap-2 px-4 py-3 rounded-lg text-left text-sm font-medium transition-colors',
+              isActive(tab.path) ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:bg-gray-100'
+            ]"
+            @click="goTo(tab)"
+          >
+            <span>{{ tab.name }}</span>
+            <span v-if="hasWarning(tab.path)" class="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" title="Offene Punkte"></span>
+          </button>
+        </nav>
+        <div class="mt-3 pt-3 border-t border-gray-200 flex flex-col gap-1">
+          <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-100 text-left" @click="openHelpModal(); mobileMenuOpen = false">
+            Hilfe
+          </button>
+          <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-100 text-left" @click="router.push({ path: '/events' }); mobileMenuOpen = false">
+            Veranstaltung wechseln
+          </button>
+          <button type="button" class="px-4 py-3 rounded-lg text-sm text-gray-700 hover:bg-gray-100 text-left" @click="logout">
+            Logout
+          </button>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Help Modal -->
     <HelpModal :show="showHelpModal" @close="closeHelpModal" />
   </div>
