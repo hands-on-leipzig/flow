@@ -118,15 +118,15 @@ watch(
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-4 lg:p-6 space-y-6">
     <div>
-      <h1 class="text-2xl font-bold" v-html="formattedEventTitle"></h1>
+      <h1 class="text-xl lg:text-2xl font-bold" v-html="formattedEventTitle"></h1>
 
-      <div class="grid grid-cols-3 gap-4 mt-4">
-        <!-- LINKE SPALTE -->
-        <div class="col-span-1 space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+        <!-- Left column: Daten, Adresse, Kontakt -->
+        <div class="lg:col-span-1 space-y-4 order-1">
           <div class="p-4 border rounded shadow">
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
                 <h3 class="font-semibold mb-2">Daten</h3>
                 <p>Datum: {{ dayjs(event?.date).format('dddd, DD.MM.YYYY') }}</p>
@@ -216,8 +216,8 @@ watch(
           </div>
         </div>
 
-        <!-- RECHTE SPALTE -->
-        <div class="col-span-2 p-4 border rounded shadow h-fit">
+        <!-- Right column: FreeBlocks -->
+        <div class="lg:col-span-2 p-4 border rounded shadow h-fit order-2">
           <h2 class="text-lg font-semibold mb-2">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
           <FreeBlocks
             :event-date="event?.date"

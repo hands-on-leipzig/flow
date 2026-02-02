@@ -76,7 +76,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div :class="['flex flex-col w-full font-sans', isPublicRoute ? 'min-h-screen' : 'h-screen', { 'px-10': !isPublicRoute }]">
+  <div :class="['flex flex-col w-full font-sans', isPublicRoute ? 'min-h-screen' : 'h-screen', { 'px-0 md:px-10': !isPublicRoute }]">
     <Navigation v-if="!isPublicRoute"/>
     <EventDayBanner v-if="!isPublicRoute"/>
 
