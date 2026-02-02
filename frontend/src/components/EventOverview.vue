@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
+import { useAuth } from '@/composables/useAuth'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
@@ -10,8 +11,10 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { getEventTitleLong, getCompetitionType, cleanEventName } from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
+const { isAdmin } = useAuth()
 const router = useRouter()
 const event = computed(() => eventStore.selectedEvent)
+const hasMultipleEvents = ref(false)
 const challengeData = ref(null)
 const exploreData = ref(null)
 const planId = ref<number | null>(null)
@@ -103,9 +106,20 @@ async function loadEventData() {
   await fetchPlanId()
 }
 
+async function fetchSelectableEventCount() {
+  try {
+    const { data } = await axios.get('/events/selectable')
+    const events = (data || []).flatMap((rp: { events?: unknown[] }) => rp.events || [])
+    hasMultipleEvents.value = events.length > 1
+  } catch {
+    hasMultipleEvents.value = false
+  }
+}
+
 onMounted(async () => {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
   await loadEventData()
+  await fetchSelectableEventCount()
 })
 
 // Watch for event changes and reload data
@@ -122,11 +136,12 @@ watch(
 <template>
   <div class="p-4 lg:p-6 space-y-6">
     <div>
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-2 w-full">
         <h1 class="text-xl lg:text-2xl font-bold" v-html="formattedEventTitle"></h1>
         <button
+          v-if="hasMultipleEvents || isAdmin"
           type="button"
-          class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex-shrink-0"
           @click="router.push({ path: '/events' })"
         >
           Veranstaltung wechseln
