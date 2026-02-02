@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import dayjs from 'dayjs'
@@ -9,6 +10,7 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { getEventTitleLong, getCompetitionType, cleanEventName } from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
+const router = useRouter()
 const event = computed(() => eventStore.selectedEvent)
 const challengeData = ref(null)
 const exploreData = ref(null)
@@ -120,7 +122,16 @@ watch(
 <template>
   <div class="p-4 lg:p-6 space-y-6">
     <div>
-      <h1 class="text-xl lg:text-2xl font-bold" v-html="formattedEventTitle"></h1>
+      <div class="flex flex-wrap items-center gap-2">
+        <h1 class="text-xl lg:text-2xl font-bold" v-html="formattedEventTitle"></h1>
+        <button
+          type="button"
+          class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          @click="router.push({ path: '/events' })"
+        >
+          Veranstaltung wechseln
+        </button>
+      </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
         <!-- Left column: Daten, Adresse, Kontakt -->
