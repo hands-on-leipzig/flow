@@ -946,7 +946,9 @@ onMounted(async () => {
                   >
                     <template v-if="typeof coach === 'object' && coach !== null">
                       <div class="flex flex-col">
-                        <span class="font-medium">{{ coach.name || 'Unbekannt' }}</span>
+                        <span class="font-medium">{{ coach.firstname || 'Unbekannt' }} {{
+                            coach.name || 'Unbekannt'
+                          }}</span>
                         <div v-if="coach.email || coach.phone"
                              class="text-xs text-gray-500 ml-2 flex flex-wrap items-center gap-2">
                           <span v-if="coach.email" class="flex items-center gap-1">
