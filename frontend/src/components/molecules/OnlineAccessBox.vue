@@ -181,26 +181,27 @@ async function regenerateLinkAndQR() {
     <h2 class="text-lg font-semibold">Online – von der Planung bis zur Veranstaltung</h2>
 
     <!-- Link + Erklärung -->
-    <div class="flex items-center gap-3">
-      <a
-        v-if="event?.link"
-        :href="event?.link"
-        target="_blank"
-        rel="noopener"
-        class="text-blue-600 underline font-medium text-base"
-      >
-        {{ event?.link }} 
-      </a>
-      <span class="text-sm text-gray-600">
-        gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
-      </span>
-      
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+      <div class="flex-1 min-w-0">
+        <a
+          v-if="event?.link"
+          :href="event?.link"
+          target="_blank"
+          rel="noopener"
+          class="text-blue-600 underline font-medium text-base break-all"
+        >
+          {{ event?.link }}
+        </a>
+        <p class="text-sm text-gray-600 mt-1">
+          gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
+        </p>
+      </div>
       <!-- Regenerate Button for Admins -->
       <button
         v-if="isAdmin && event?.id"
         @click="regenerateLinkAndQR"
         :disabled="regenerating"
-        class="ml-auto px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        class="lg:ml-auto px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 flex-shrink-0"
       >
         <svg v-if="regenerating" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -213,9 +214,9 @@ async function regenerateLinkAndQR() {
       </button>
     </div>
 
-    <div class="flex items-start gap-6">
-      <!-- Radiobuttons -->
-      <div class="flex flex-col space-y-3 max-w-xs">
+    <div class="flex flex-col lg:flex-row lg:items-start gap-6">
+      <!-- Level radios (primary on mobile) -->
+      <div class="flex flex-col space-y-3 w-full lg:max-w-xs">
         <h3 class="text-sm font-semibold mb-2">Detaillevel</h3>
         <label
           v-for="(label, idx) in levels"
@@ -244,8 +245,8 @@ async function regenerateLinkAndQR() {
         </label>
       </div>
 
-      <!-- Info-Kacheln -->
-      <div class="flex-1">
+      <!-- Level preview (hidden on mobile; checkboxes + link are more important) -->
+      <div class="hidden lg:block flex-1">
         <h3 class="text-sm font-semibold mb-2">Veröffentlichte Informationen</h3>
 
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
