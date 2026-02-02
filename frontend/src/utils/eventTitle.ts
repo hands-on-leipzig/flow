@@ -123,3 +123,13 @@ export function getEventTitleShort(event: EventForTitle | null): string {
 export function getCompetitionType(event: EventForTitle | null): string {
   return getCompetitionTypeText(event)
 }
+
+/**
+ * Get competition type for nav label (no location name).
+ * Returns: "Quali", "Regio", "Ausstellung und Regio", "Finale", "Ausstellung", etc.
+ */
+export function getAbbreviatedCompetitionType(event: EventForTitle | null): string {
+  if (!event) return ''
+  const competitionType = getCompetitionTypeText(event)
+  return abbreviateCompetitionType(competitionType)
+}

@@ -4,7 +4,10 @@ import { onMounted, ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
 import { useAuth } from '@/composables/useAuth'
-import { imageUrl } from '@/utils/images'
+import axios from 'axios'
+import dayjs from 'dayjs'
+import { imageUrl, programLogoSrc, programLogoAlt } from '@/utils/images'
+import { getAbbreviatedCompetitionType } from '@/utils/eventTitle'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
 
@@ -12,6 +15,83 @@ const eventStore = useEventStore()
 const { isAdmin, initializeUserRoles } = useAuth()
 const router = useRouter()
 const route = useRoute()
+
+// Event dropdown state
+const selectableEvents = ref<any[]>([])
+const loadingEvents = ref(false)
+const userRegionalPartners = ref<number[]>([])
+
+const showEventDropdown = computed(
+  () => (dropdownEventsFlat.value.length > 1 || isAdmin.value) && eventStore.selectedEvent
+)
+
+const dropdownEventsFlat = computed(() => {
+  if (!selectableEvents.value.length) return []
+  return selectableEvents.value.flatMap((rp: any) =>
+    (rp.events || []).map((e: any) => ({
+      ...e,
+      regional_partner_id: rp.regional_partner?.id,
+      regional_partner_name: rp.regional_partner?.name
+    }))
+  )
+})
+
+async function fetchSelectableEvents() {
+  loadingEvents.value = true
+  try {
+    const response = await axios.get('/events/selectable')
+    selectableEvents.value = response.data || []
+    if (isAdmin.value) {
+      try {
+        const rpResponse = await axios.get('/user/regional-partners')
+        if (rpResponse.data?.regional_partners) {
+          userRegionalPartners.value = rpResponse.data.regional_partners.map((rp: any) => rp.id)
+        }
+      } catch {
+        if (import.meta.env.DEV) console.debug('Failed to fetch regional partners')
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch selectable events:', error)
+  } finally {
+    loadingEvents.value = false
+  }
+}
+
+const dropdownEvents = computed(() => {
+  if (!dropdownEventsFlat.value.length) return dropdownEventsFlat.value
+  if (isAdmin.value && userRegionalPartners.value.length > 0) {
+    return dropdownEventsFlat.value.filter(
+      (e: any) => userRegionalPartners.value.includes(e.regional_partner_id)
+    )
+  }
+  return dropdownEventsFlat.value
+})
+
+async function selectEventFromDropdown(event: any, regionalPartnerId: number) {
+  try {
+    await axios.post('/user/select-event', {
+      event: event.id,
+      regional_partner: regionalPartnerId
+    })
+    await eventStore.fetchSelectedEvent()
+    if (route.path.includes('/event')) {
+      await router.replace('/event')
+    } else {
+      router.push('/event')
+    }
+  } catch (error) {
+    console.error('Failed to select event:', error)
+  }
+}
+
+function eventDropdownLabel() {
+  const ev = eventStore.selectedEvent
+  if (!ev) return 'Veranstaltung auswählen...'
+  const type = getAbbreviatedCompetitionType(ev)
+  const date = dayjs(ev.date).format('DD.MM.YY')
+  return `${type} ${date}`.trim()
+}
 
 // --- Readiness State ---
 const readiness = ref({
@@ -59,6 +139,7 @@ onMounted(async () => {
     await eventStore.fetchSelectedEvent()
   }
   await checkDataReadiness()
+  await fetchSelectableEvents()
 })
 
 // 👇 Watch: Wenn der Store-Readiness-State sich ändert → Navigation aktualisieren
@@ -83,6 +164,11 @@ watch(
       await checkDataReadiness()
     }
   }
+)
+
+watch(
+  () => eventStore.selectedEvent?.id,
+  () => fetchSelectableEvents()
 )
 
 // --- Helper für rote Punkte ---
@@ -178,6 +264,58 @@ function logout() {
         </TabList>
       </TabGroup>
     </div>
+    <!-- Event dropdown (only when multiple events or admin) -->
+    <Menu v-if="showEventDropdown" as="div" class="relative inline-block text-left flex-shrink-0">
+      <MenuButton
+        class="group inline-flex items-center justify-between gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+      >
+        <span class="text-left whitespace-nowrap">{{ eventDropdownLabel() }}</span>
+        <svg class="w-4 h-4 ml-1 flex-shrink-0 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </MenuButton>
+      <MenuItems class="absolute right-0 z-50 mt-2 origin-top-right rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none w-[380px] max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto">
+        <div class="py-2">
+          <div v-if="loadingEvents" class="px-4 py-6 text-center text-sm text-gray-500">Lade...</div>
+          <template v-else>
+            <MenuItem
+              v-for="ev in dropdownEvents"
+              :key="ev.id"
+              v-slot="{ active }"
+            >
+              <button
+                @click="selectEventFromDropdown(ev, ev.regional_partner_id)"
+                :class="[
+                  'w-full text-left px-4 py-3 transition-colors',
+                  active ? 'bg-gray-50' : '',
+                  eventStore.selectedEvent?.id === ev.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                ]"
+              >
+                <div class="flex justify-between items-start gap-2 min-w-0">
+                  <div class="flex-1 min-w-0">
+                    <div class="font-medium truncate">{{ ev.name }}</div>
+                    <div class="text-xs text-gray-500">{{ dayjs(ev.date).format('DD.MM.YY') }} · {{ ev.regional_partner_name }}</div>
+                  </div>
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <img v-if="ev.event_explore" :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5" />
+                    <img v-if="ev.event_challenge" :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5" />
+                    <span v-if="eventStore.selectedEvent?.id === ev.id" class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">✓</span>
+                  </div>
+                </div>
+              </button>
+            </MenuItem>
+            <MenuItem v-if="isAdmin" v-slot="{ active }">
+              <button
+                @click="router.push({ path: '/events' })"
+                :class="['w-full text-left px-4 py-3 text-sm border-t border-gray-100', active ? 'bg-blue-50' : 'text-blue-600 hover:bg-blue-50']"
+              >
+                Mehr Veranstaltungen...
+              </button>
+            </MenuItem>
+          </template>
+        </div>
+      </MenuItems>
+    </Menu>
     <Menu as="div" class="relative inline-block text-left">
       <MenuButton
       class="inline-flex justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
@@ -223,11 +361,37 @@ function logout() {
     </div>
 
     <!-- Narrow / Mobile Navigation (below lg) -->
-    <div class="flex lg:hidden items-center justify-between gap-2 px-3 py-2 min-h-[48px]">
+    <div class="flex lg:hidden items-center gap-2 px-3 py-2 min-h-[48px]">
       <div class="flex items-center gap-2 flex-shrink-0">
         <img :src="imageUrl('/flow/flow.png')" alt="Logo" class="h-6 w-auto"/>
         <img :src="imageUrl('/flow/hot+fll.png')" alt="Logo" class="h-6 w-auto"/>
       </div>
+      <Menu v-if="showEventDropdown" as="div" class="relative flex-1 min-w-0 flex">
+        <MenuButton class="inline-flex items-center justify-between gap-2 w-full min-w-0 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 border border-gray-200">
+          <span class="flex-1 text-left whitespace-nowrap">{{ eventDropdownLabel() }}</span>
+          <svg class="w-4 h-4 flex-shrink-0 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </MenuButton>
+        <MenuItems class="absolute left-1/2 -translate-x-1/2 z-50 mt-1.5 w-[calc(100vw-1.5rem)] max-w-[360px] max-h-[70vh] overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+          <div class="py-2">
+            <div v-if="loadingEvents" class="px-4 py-6 text-center text-sm text-gray-500">Lade...</div>
+            <template v-else>
+              <MenuItem v-for="ev in dropdownEvents" :key="ev.id" v-slot="{ active }">
+                <button @click="selectEventFromDropdown(ev, ev.regional_partner_id)" :class="['w-full text-left px-4 py-3 text-sm', active ? 'bg-gray-50' : '']">
+                  <div class="font-medium truncate">{{ ev.name }}</div>
+                  <div class="text-xs text-gray-500">{{ dayjs(ev.date).format('DD.MM.YY') }} · {{ ev.regional_partner_name }}</div>
+                </button>
+              </MenuItem>
+              <MenuItem v-if="isAdmin" v-slot="{ active }">
+                <button @click="router.push({ path: '/events' }); mobileMenuOpen = false" :class="['w-full text-left px-4 py-3 text-sm border-t border-gray-100', active ? 'bg-blue-50' : 'text-blue-600']">
+                  Mehr Veranstaltungen...
+                </button>
+              </MenuItem>
+            </template>
+          </div>
+        </MenuItems>
+      </Menu>
       <button
         type="button"
         class="inline-flex items-center justify-center p-2.5 rounded-lg text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 flex-shrink-0"
