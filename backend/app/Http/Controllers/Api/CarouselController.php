@@ -32,6 +32,17 @@ class CarouselController extends Controller
         return response()->json($slideshows);
     }
 
+    // Public Endpoint
+    public function getPublicSingleSlide($event, $slideId)
+    {
+        $slide = Slide::where('id', $slideId)
+            ->whereHas('slideshow', function ($query) use ($event) {
+                $query->where('event', $event->id);
+            })
+            ->firstOrFail();
+        return response()->json($slide);
+    }
+
     private function hasEventAccess($eventId): bool
     {
         $user = Auth::user();
