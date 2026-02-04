@@ -52,6 +52,11 @@ async function updateSlideName(slide: Slide) {
   });
 }
 
+function copySingleLink() {
+  const url = `${window.location.origin}/carousel/${event.value.id}/${props.slide.id}`;
+  navigator.clipboard.writeText(url);
+}
+
 const emit = defineEmits(['deleteSlide', 'editSlide']);
 const componentSlide = Slide.fromObject(props.slide);
 </script>
@@ -77,6 +82,11 @@ const componentSlide = Slide.fromObject(props.slide);
         >
           <i class="bi bi-pencil text-gray-700"></i>
         </router-link>
+        <button class="relative z-50 w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-lg hover:bg-red-50 transition-colors pointer-events-auto"
+                @click="copySingleLink"
+                title="Direktlink kopieren">
+          <i class="bi bi-clipboard-plus text-gray-700"></i>
+        </button>
         <button
             class="relative z-50 w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-lg hover:bg-red-50 transition-colors pointer-events-auto"
             @click.stop="confirmDelete"
