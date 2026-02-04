@@ -8,7 +8,8 @@ import {
   mdiImageArea,
   mdiQrcodePlus,
   mdiArrangeSendBackward,
-  mdiArrangeBringForward
+  mdiArrangeBringForward,
+  mdiDelete
 } from '@mdi/js';
 import {Slide} from "@/models/slide";
 import axios from "axios";
@@ -154,7 +155,9 @@ function keyListener(e: KeyboardEvent) {
   }
 
   const activeObj = canvas.getActiveObject();
-  if (!activeObj) return;
+  if (!activeObj) {
+    return;
+  }
 
   if (isEditingText()) {
     return;
@@ -168,15 +171,7 @@ function keyListener(e: KeyboardEvent) {
 
   if ((e.key === 'Delete' || e.key === 'Backspace') && canvas?.getActiveObject()) {
     e.preventDefault();
-
-    if (activeObj.get('type') === 'activeselection') {
-      activeObj.forEachObject(canvas.remove.bind(canvas));
-      canvas.discardActiveObject();
-    } else {
-      canvas.remove(activeObj);
-    }
-    updateToolbar();
-    canvas.requestRenderAll();
+    removeSelection();
     return;
   }
 }
@@ -184,6 +179,21 @@ function keyListener(e: KeyboardEvent) {
 function isEditingText() {
   const activeObj = canvas.getActiveObject();
   return activeObj?.get('type') === 'textbox' && activeObj.isEditing;
+}
+
+function removeSelection() {
+  const activeObj = canvas.getActiveObject();
+  if (!activeObj) {
+    return;
+  }
+  if (activeObj.get('type') === 'activeselection') {
+    activeObj.forEachObject(canvas.remove.bind(canvas));
+    canvas.discardActiveObject();
+  } else {
+    canvas.remove(activeObj);
+  }
+  updateToolbar();
+  canvas.requestRenderAll();
 }
 
 async function loadImages() {
@@ -510,14 +520,18 @@ async function paste() {
       <!-- Allgemeine Toolbar Vordergrund / Hintergrund -->
       <div v-if="toolbarState.object" class="ml-4 flex items-center gap-x-2">
         <button @click="bringToFront"
-                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 h-10 w-12"
+                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 h-10 w-10"
                 title="In den Vordergrund">
           <svg-icon type="mdi" :path="mdiArrangeBringForward"></svg-icon>
         </button>
         <button @click="sendToBack"
-                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 h-10 w-12"
+                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 h-10 w-10"
                 title="In den Hintergrund">
           <svg-icon type="mdi" :path="mdiArrangeSendBackward"></svg-icon>
+        </button>
+        <button @click="removeSelection"
+                class="px-2 py-1 rounded bg-red-200 hover:bg-red-300 h-10 w-10">
+          <svg-icon type="mdi" :path="mdiDelete"></svg-icon>
         </button>
       </div>
       <div v-if="toolbarState.type === 'text'" class="ml-4 mb-1 flex items-center gap-x-2">
