@@ -1,7 +1,9 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
+import { useAuth } from '@/composables/useAuth'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
@@ -9,7 +11,10 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { getEventTitleLong, getCompetitionType, cleanEventName } from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
+const { isAdmin } = useAuth()
+const router = useRouter()
 const event = computed(() => eventStore.selectedEvent)
+const hasMultipleEvents = ref(false)
 const challengeData = ref(null)
 const exploreData = ref(null)
 const planId = ref<number | null>(null)
@@ -101,9 +106,20 @@ async function loadEventData() {
   await fetchPlanId()
 }
 
+async function fetchSelectableEventCount() {
+  try {
+    const { data } = await axios.get('/events/selectable')
+    const events = (data || []).flatMap((rp: { events?: unknown[] }) => rp.events || [])
+    hasMultipleEvents.value = events.length > 1
+  } catch {
+    hasMultipleEvents.value = false
+  }
+}
+
 onMounted(async () => {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
   await loadEventData()
+  await fetchSelectableEventCount()
 })
 
 // Watch for event changes and reload data
@@ -118,15 +134,25 @@ watch(
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-4 lg:p-6 space-y-6">
     <div>
-      <h1 class="text-2xl font-bold" v-html="formattedEventTitle"></h1>
+      <div class="flex flex-wrap items-center justify-between gap-2 w-full">
+        <h1 class="text-xl lg:text-2xl font-bold" v-html="formattedEventTitle"></h1>
+        <button
+          v-if="hasMultipleEvents || isAdmin"
+          type="button"
+          class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex-shrink-0"
+          @click="router.push({ path: '/events' })"
+        >
+          Veranstaltung wechseln
+        </button>
+      </div>
 
-      <div class="grid grid-cols-3 gap-4 mt-4">
-        <!-- LINKE SPALTE -->
-        <div class="col-span-1 space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+        <!-- Left column: Daten, Adresse, Kontakt -->
+        <div class="lg:col-span-1 space-y-4 order-1">
           <div class="p-4 border rounded shadow">
-            <div class="grid grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
                 <h3 class="font-semibold mb-2">Daten</h3>
                 <p>Datum: {{ dayjs(event?.date).format('dddd, DD.MM.YYYY') }}</p>
@@ -216,8 +242,8 @@ watch(
           </div>
         </div>
 
-        <!-- RECHTE SPALTE -->
-        <div class="col-span-2 p-4 border rounded shadow h-fit">
+        <!-- Right column: FreeBlocks -->
+        <div class="lg:col-span-2 p-4 border rounded shadow h-fit order-2">
           <h2 class="text-lg font-semibold mb-2">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
           <FreeBlocks
             :event-date="event?.date"

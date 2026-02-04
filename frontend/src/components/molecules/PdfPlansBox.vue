@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
+import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { useEventStore } from '@/stores/event'
 import { usePdfExport } from '@/composables/usePdfExport'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
+
+type TabKey = 'public' | 'organisation' | 'aufkleber'
+const PDF_TABS: { key: TabKey; label: string }[] = [
+  { key: 'public', label: 'Pläne für alle' },
+  { key: 'organisation', label: 'Extra für Orga' },
+  { key: 'aufkleber', label: 'Aufkleber' },
+]
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -618,36 +626,71 @@ const eventTitleNormalized = computed(() => {
 })
 
 // Tab state
-const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
+const activeTab = ref<TabKey>('public')
+
+const currentTabLabel = computed(() =>
+  PDF_TABS.find(t => t.key === activeTab.value)?.label ?? 'Pläne für alle'
+)
 </script>
 
 <template>
   <div class="rounded-xl shadow bg-white p-6 flex flex-col">
     <h3 class="text-lg font-semibold mb-4">Drucksachen</h3>
 
-    <!-- Tabs -->
-    <div class="flex mb-4 border-b text-lg font-semibold relative">
-      <button
-        :class="activeTab === 'public' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
-        class="px-4 py-2 relative"
-        @click="activeTab = 'public'"
-      >
-        Pläne für alle
-      </button>
-      <button
-        :class="activeTab === 'organisation' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
-        class="px-4 py-2 ml-4 relative"
-        @click="activeTab = 'organisation'"
-      >
-        Extra für Orga
-      </button>
-      <button
-        :class="activeTab === 'aufkleber' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
-        class="px-4 py-2 ml-4 relative"
-        @click="activeTab = 'aufkleber'"
-      >
-        Aufkleber
-      </button>
+    <!-- Tabs: dropdown on mobile, row on desktop -->
+    <div class="mb-4 border-b border-gray-200">
+      <!-- Mobile: dropdown -->
+      <div class="lg:hidden">
+        <Menu as="div" class="relative">
+          <MenuButton
+            class="flex items-center justify-between w-full px-4 py-3 text-left text-base font-semibold text-gray-700 bg-gray-50 rounded-t-lg border border-gray-200 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+          >
+            <span>{{ currentTabLabel }}</span>
+            <svg class="w-5 h-5 text-gray-500 flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </MenuButton>
+          <MenuItems
+            class="absolute left-0 right-0 z-50 mt-0 rounded-b-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-t-0 border-gray-200"
+          >
+            <div class="py-1">
+              <MenuItem
+                v-for="tab in PDF_TABS"
+                :key="tab.key"
+                v-slot="{ active }"
+              >
+                <button
+                  type="button"
+                  :class="[
+                    'w-full text-left px-4 py-3 text-sm font-semibold',
+                    active ? 'bg-blue-50' : '',
+                    activeTab === tab.key ? 'text-blue-600' : 'text-gray-700'
+                  ]"
+                  @click="activeTab = tab.key"
+                >
+                  {{ tab.label }}
+                  <span v-if="activeTab === tab.key" class="ml-2 text-blue-600">✓</span>
+                </button>
+              </MenuItem>
+            </div>
+          </MenuItems>
+        </Menu>
+      </div>
+      <!-- Desktop: tab buttons -->
+      <div class="hidden lg:flex text-lg font-semibold relative">
+        <button
+          v-for="tab in PDF_TABS"
+          :key="tab.key"
+          type="button"
+          :class="[
+            'px-4 py-2 relative',
+            activeTab === tab.key ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600 hover:text-gray-800'
+          ]"
+          @click="activeTab = tab.key"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
     </div>
 
     <!-- Subtitle -->
@@ -776,14 +819,11 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
         Keine Rollen mit Aktivitäten im Plan vorhanden.
       </div>
 
-      <!-- Role Selector - Two columns (or single column if only one program has roles) -->
+      <!-- Role Selector: stacked on mobile, side-by-side on desktop when both programs -->
       <div 
         v-else
-        class="mt-4 grid gap-4"
-        :class="{
-          'grid-cols-2': exploreRoles.length > 0 && challengeRoles.length > 0,
-          'grid-cols-1': exploreRoles.length === 0 || challengeRoles.length === 0
-        }"
+        class="mt-4 grid gap-4 grid-cols-1"
+        :class="{ 'lg:grid-cols-2': exploreRoles.length > 0 && challengeRoles.length > 0 }"
       >
         <!-- Explore Roles -->
         <div v-if="exploreRoles.length > 0" class="bg-gray-50 rounded p-3">
@@ -898,14 +938,11 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
         Keine Teams im Plan vorhanden.
       </div>
 
-      <!-- Program Selector - Two columns (or single column if only one program has teams) -->
+      <!-- Program Selector: stacked on mobile, side-by-side on desktop when both programs -->
       <div 
         v-else
-        class="mt-4 grid gap-4"
-        :class="{
-          'grid-cols-2': hasExploreTeams && hasChallengeTeams,
-          'grid-cols-1': !hasExploreTeams || !hasChallengeTeams
-        }"
+        class="mt-4 grid gap-4 grid-cols-1"
+        :class="{ 'lg:grid-cols-2': hasExploreTeams && hasChallengeTeams }"
       >
         <!-- Explore Teams -->
         <div v-if="hasExploreTeams" class="bg-gray-50 rounded p-3">
@@ -1142,14 +1179,11 @@ const activeTab = ref<'public' | 'organisation' | 'aufkleber'>('public')
           <p class="text-sm text-gray-600 mb-4">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
           <p class="text-sm text-gray-600 mb-4">"No-Show" Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.</p>
           
-          <!-- Filters - Two columns (or single column if only one program) -->
+          <!-- Filters: stacked on mobile, side-by-side on desktop when both programs -->
           <div 
             v-if="availableTeamPrograms.length > 0"
-            class="mb-4 grid gap-4"
-            :class="{
-              'grid-cols-2': hasExploreTeams && hasChallengeTeams,
-              'grid-cols-1': !hasExploreTeams || !hasChallengeTeams
-            }"
+            class="mb-4 grid gap-4 grid-cols-1"
+            :class="{ 'lg:grid-cols-2': hasExploreTeams && hasChallengeTeams }"
           >
             <!-- Explore -->
             <div v-if="hasExploreTeams" class="bg-gray-50 rounded p-3">

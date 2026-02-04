@@ -167,6 +167,7 @@ async function addSlideshow() {
 
   const slideshow = response.data.slideshow;
   slideshows.value.push(slideshow);
+  expandedSlideshows.value.add(slideshow.id)
   loading.value = false;
 }
 
@@ -569,7 +570,7 @@ function copyUrl(url) {
     <!-- Slide Type Selection Modal -->
     <div
         v-if="showSlideTypeModal"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]"
         @click="closeSlideTypeModal"
     >
       <div class="bg-white rounded-lg p-6 max-w-2xl mx-4 w-full" @click.stop>

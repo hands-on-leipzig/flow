@@ -348,6 +348,10 @@ const showSyncPrompt = computed(() =>
     mergedTeams.value.some(t => t.status !== 'match' && t.status !== 'ignored')
 )
 
+const diffCount = computed(() =>
+    mergedTeams.value.filter(t => !['match', 'ignored'].includes(t.status)).length
+)
+
 // Computed: Get plan capacity for current program
 const planCapacity = computed(() => {
   return props.program === 'explore' ? planParams.value.e_teams : planParams.value.c_teams
@@ -810,11 +814,13 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-      <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-red-800 rounded">
+      <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-red-800 rounded flex items-center gap-3">
         Die Daten in FLOW weichen von denen der Anmeldung ab.
-        <button class="text-sm text-red-700" @click="showDiffModal = !showDiffModal">
-          Unterschiede anzeigen
-          ({{ mergedTeams.filter(t => !['match', 'ignored'].includes(t.status)).length }})
+        <button
+          class="px-3 py-1.5 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
+          @click="showDiffModal = !showDiffModal"
+        >
+          {{ diffCount }} {{ diffCount === 1 ? 'Änderung' : 'Änderungen' }} übernehmen
         </button>
       </div>
       <draggable
@@ -946,7 +952,9 @@ onMounted(async () => {
                   >
                     <template v-if="typeof coach === 'object' && coach !== null">
                       <div class="flex flex-col">
-                        <span class="font-medium">{{ coach.name || 'Unbekannt' }}</span>
+                        <span class="font-medium">{{ coach.firstname || 'Unbekannt' }} {{
+                            coach.name || 'Unbekannt'
+                          }}</span>
                         <div v-if="coach.email || coach.phone"
                              class="text-xs text-gray-500 ml-2 flex flex-wrap items-center gap-2">
                           <span v-if="coach.email" class="flex items-center gap-1">

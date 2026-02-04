@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref} from 'vue';
+import {computed, onMounted, onUnmounted, watch} from 'vue';
 import ImageSlideContentRenderer from './ImageSlideContentRenderer.vue';
 import RobotGameSlideContentRenderer from './RobotGameSlideContentRenderer.vue';
 import {ImageSlideContent} from "../../models/imageSlideContent.js";
@@ -15,10 +15,16 @@ import PublicPlanSlideContentRenderer from "@/components/slideTypes/PublicPlanSl
 const props = withDefaults(defineProps<{
   slide: Slide,
   preview: boolean,
-  eventId: number
+  eventId: number,
+  defaultTransitionTime?: number
+  visible?: boolean
 }>(), {
-  preview: false
+  preview: false,
+  visible: false,
 });
+
+// Emit: go to the next slide
+const emit = defineEmits<{ (e: 'next'): void }>();
 
 const componentName = computed(() => {
   const content = props.slide.content;
@@ -35,9 +41,54 @@ const componentName = computed(() => {
   }
   console.warn("Missing renderer for slide content type:", content);
   return null;
-})
+});
+
+const useDefaultAdvance = computed(() => {
+  return !(props.slide.content instanceof RobotGameSlideContent);
+});
+
+watch(() => props.visible, (vis) => {
+  if (vis && useDefaultAdvance.value) {
+    startAdvanceTimeout();
+  } else {
+    clearAdvanceTimeout();
+  }
+});
+
+let advanceTimeout = null;
+
+function clearAdvanceTimeout() {
+  if (advanceTimeout) {
+    clearTimeout(advanceTimeout);
+    advanceTimeout = null;
+  }
+}
+
+function startAdvanceTimeout() {
+  clearAdvanceTimeout();
+  if (props.preview || !useDefaultAdvance.value) {
+    return;
+  }
+
+  const seconds = props.slide.transition_time || props.defaultTransitionTime || 15;
+  advanceTimeout = setTimeout(() => {
+    advanceTimeout = null;
+    emit('next');
+  }, seconds * 1000);
+}
+
+onMounted(() => {
+  if (props.visible && !props.preview && useDefaultAdvance.value) {
+    startAdvanceTimeout();
+  }
+});
+
+onUnmounted(() => {
+  clearAdvanceTimeout();
+});
 </script>
 
 <template>
-  <component :is="componentName" :content="props.slide.content" :preview="props.preview" :eventId="eventId"></component>
+  <component :is="componentName" :content="props.slide.content" :preview="props.preview" :eventId="props.eventId"
+             @next="emit('next')"></component>
 </template>

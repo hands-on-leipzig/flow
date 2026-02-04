@@ -181,6 +181,7 @@ class CarouselController extends Controller
             'type',
             'content',
             'active',
+            'transition_time'
         ];
 
         if ($allowOrder) {

@@ -1,5 +1,6 @@
 <script setup>
-import {ref, watch, onMounted} from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
+import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import axios from 'axios'
 import Multiselect from '@vueform/multiselect'
 import Quality from '@/components/molecules/Quality.vue'
@@ -13,6 +14,25 @@ import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.
 import '@vueform/multiselect/themes/default.css'
 
 const activeTab = ref('statistics')
+
+// Admin menu entries (shared by sidebar and mobile dropdown)
+const adminMenuItems = [
+  { key: 'statistics', label: 'Statistiken', icon: '📊', devOnly: false },
+  { key: 'main-tables', label: 'Main Tables', icon: '📝', devOnly: true, devSuffix: '(nur Dev)' },
+  { key: 'system-news', label: 'System News', icon: '📰', devOnly: false },
+  { key: 'nowandnext', label: 'Now and Next', icon: '⏰', devOnly: false },
+  { key: 'quality', label: 'Massentest', icon: '🧪', devOnly: true, devSuffix: '(nur Dev)' },
+  { key: 'conditions', label: 'Parameter-Anzeige', icon: '📄', devOnly: false },
+  { key: 'user-regional-partners', label: 'User-Regional Partner Relations', icon: '👥', devOnly: false },
+  { key: 'sync', label: 'Draht Sync', icon: '🔁', devOnly: false },
+  { key: 'external-api', label: 'External API', icon: '🔑', devOnly: false },
+  { key: 'hilfsfunktionen', label: 'Hilfsfunktionen', icon: '🔧', devOnly: false },
+]
+
+const currentMenuLabel = computed(() => {
+  const item = adminMenuItems.find(i => i.key === activeTab.value)
+  return item ? `${item.icon} ${item.label}` : 'Admin'
+})
 
 const parameters = ref([])
 const conditions = ref([])
@@ -183,112 +203,79 @@ fetchConditions()
 </script>
 
 <template>
-  <div class="flex h-full min-h-screen">
-    <!-- Sidebar -->
-    <div v-if="!(activeTab === 'statistics' && statisticsTableOnly)" class="w-64 bg-gray-100 border-r p-4 space-y-2">
-
+  <div class="flex flex-col lg:flex-row min-h-screen">
+    <!-- Desktop sidebar (lg and up) -->
+    <aside
+      v-if="!(activeTab === 'statistics' && statisticsTableOnly)"
+      class="hidden lg:block w-64 flex-shrink-0 bg-gray-100 border-r p-4 space-y-2"
+    >
       <button
-        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-        :class="{ 'bg-white font-semibold shadow': activeTab === 'statistics' }"
-        @click="activeTab = 'statistics'"
-      >
-        📊 Statistiken
-      </button>
-
-            <button
-        class="w-full text-left px-3 py-2 rounded"
-        :class="{ 
-          'bg-white font-semibold shadow': activeTab === 'main-tables',
-          'opacity-50 cursor-not-allowed bg-gray-100': !isDevEnvironment,
-          'hover:bg-gray-200': isDevEnvironment
+        v-for="item in adminMenuItems"
+        :key="item.key"
+        type="button"
+        class="w-full text-left px-3 py-2 rounded text-sm"
+        :class="{
+          'bg-white font-semibold shadow': activeTab === item.key,
+          'opacity-50 cursor-not-allowed bg-gray-100': item.devOnly && !isDevEnvironment,
+          'hover:bg-gray-200': !item.devOnly || isDevEnvironment
         }"
-        @click="isDevEnvironment && (activeTab = 'main-tables')"
-        :disabled="!isDevEnvironment"
-        :title="!isDevEnvironment ? 'Main Tables sind nur auf Dev verfügbar' : ''"
+        :disabled="item.devOnly && !isDevEnvironment"
+        :title="item.devOnly && !isDevEnvironment ? `${item.label} ist nur auf Dev verfügbar` : ''"
+        @click="(item.devOnly ? isDevEnvironment : true) && (activeTab = item.key)"
       >
-        📝 Main Tables
-        <span v-if="!isDevEnvironment" class="ml-2 text-xs text-gray-500">(nur Dev)</span>
+        {{ item.icon }} {{ item.label }}
+        <span v-if="item.devOnly && !isDevEnvironment" class="ml-2 text-xs text-gray-500">{{ item.devSuffix }}</span>
       </button>
+    </aside>
 
-      <button
-        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-        :class="{ 'bg-white font-semibold shadow': activeTab === 'system-news' }"
-        @click="activeTab = 'system-news'"
+    <!-- Mobile: dropdown bar (below main nav) + content -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- Mobile admin menu dropdown (below nav bar) -->
+      <div
+        class="lg:hidden sticky z-40 bg-gray-100 border-b border-gray-200 shadow-sm"
+        style="top: var(--app-nav-height, 52px);"
       >
-        📰 System News
-      </button>
+        <Menu as="div" class="relative">
+          <MenuButton
+            class="flex items-center justify-between w-full px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
+          >
+            <span>{{ currentMenuLabel }}</span>
+            <svg class="w-5 h-5 text-gray-500 flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </MenuButton>
+          <MenuItems
+            class="absolute left-0 right-0 z-50 mt-0 max-h-[min(70vh,400px)] overflow-y-auto bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border-b border-gray-200"
+          >
+            <div class="py-1">
+              <MenuItem
+                v-for="item in adminMenuItems"
+                :key="item.key"
+                v-slot="{ active }"
+              >
+                <button
+                  type="button"
+                  :disabled="item.devOnly && !isDevEnvironment"
+                  :class="[
+                    'w-full text-left px-4 py-3 text-sm flex items-center gap-2',
+                    active ? 'bg-blue-50' : '',
+                    activeTab === item.key ? 'font-semibold bg-gray-100' : '',
+                    item.devOnly && !isDevEnvironment ? 'opacity-50 cursor-not-allowed' : ''
+                  ]"
+                  @click="(item.devOnly ? isDevEnvironment : true) && (activeTab = item.key)"
+                >
+                  <span>{{ item.icon }} {{ item.label }}</span>
+                  <span v-if="item.devOnly && !isDevEnvironment" class="text-xs text-gray-500">{{ item.devSuffix }}</span>
+                  <span v-if="activeTab === item.key" class="ml-auto text-blue-600">✓</span>
+                </button>
+              </MenuItem>
+            </div>
+          </MenuItems>
+        </Menu>
+      </div>
 
-      <button
-        class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-        :class="{ 'bg-white font-semibold shadow': activeTab === 'nowandnext' }"
-        @click="activeTab = 'nowandnext'"
-      >
-        ⏰ Now and Next
-      </button>
-
-      <button
-          class="w-full text-left px-3 py-2 rounded"
-          :class="{ 
-            'bg-white font-semibold shadow': activeTab === 'quality',
-            'opacity-50 cursor-not-allowed bg-gray-100': !isDevEnvironment,
-            'hover:bg-gray-200': isDevEnvironment
-          }"
-          @click="isDevEnvironment && (activeTab = 'quality')"
-          :disabled="!isDevEnvironment"
-          :title="!isDevEnvironment ? 'Massentest ist nur auf Dev verfügbar' : ''"
-        >
-        🧪 Massentest
-        <span v-if="!isDevEnvironment" class="ml-2 text-xs text-gray-500">(nur Dev)</span>
-      </button>
-
-      <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-          :class="{ 'bg-white font-semibold shadow': activeTab === 'conditions' }"
-          @click="activeTab = 'conditions'"
-      >
-        📄 Parameter-Anzeige
-      </button>
-      <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-          :class="{ 'bg-white font-semibold shadow': activeTab === 'user-regional-partners' }"
-          @click="activeTab = 'user-regional-partners'"
-      >
-        👥 User-Regional Partner Relations
-      </button>
-
-      <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-          :class="{ 'bg-white font-semibold shadow': activeTab === 'sync' }"
-          @click="activeTab = 'sync'"
-      >
-        🔁 Draht Sync
-      </button>
-
-      <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-          :class="{ 'bg-white font-semibold shadow': activeTab === 'external-api' }"
-          @click="activeTab = 'external-api'"
-      >
-        🔑 External API
-      </button>
-
-      <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-200"
-          :class="{ 'bg-white font-semibold shadow': activeTab === 'hilfsfunktionen' }"
-          @click="activeTab = 'hilfsfunktionen'"
-      >
-        🔧 Hilfsfunktionen
-      </button>
-
-
-
-
-
-
-
-    </div>
-
-    <div class="flex-1 p-6 overflow-auto">
+      <!-- Content -->
+    <div class="flex-1 p-4 lg:p-6 overflow-auto">
 
 
       <div v-if="activeTab === 'conditions'">
@@ -494,6 +481,7 @@ fetchConditions()
         </div>
       </div>
 
+    </div>
     </div>
   </div>
 </template>
