@@ -66,7 +66,8 @@ const showSlideTypeModal = ref(false);
 const currentSlideshow = ref<Slideshow | null>(null);
 const editingSlideshowId = ref<number | null>(null);
 const editingSlideshowName = ref<string>("");
-const slideshowNameInput = ref<HTMLInputElement | null>(null);
+// Array da in v-for
+const slideshowNameInput = ref<HTMLInputElement[] | null>(null);
 const creatingSlideType = ref<string | null>(null);
 const expandedSlideshows = ref<Set<number>>(new Set());
 const copiedSlideshowId = ref<number | null>(null);
@@ -186,9 +187,11 @@ async function startEditingSlideshowName(slideshow: Slideshow) {
   editingSlideshowId.value = slideshow.id;
   editingSlideshowName.value = slideshow.name;
   // Focus the input after Vue updates the DOM
-  await nextTick();
-  slideshowNameInput.value?.focus();
-  slideshowNameInput.value?.select();
+  await nextTick()
+  if (slideshowNameInput.value?.length == 1) {
+    slideshowNameInput.value[0]?.focus();
+    slideshowNameInput.value[0]?.select();
+  }
 }
 
 function cancelEditingSlideshowName() {
