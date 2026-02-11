@@ -44,7 +44,7 @@ class ChallengeGenerator
         $jLanes = $params->get('j_lanes');
         $rTables = $params->get('r_tables');
 
-        $jRounds = (int) ceil($cTeams / max(1, $jLanes));
+        $jRounds = max(4, (int) ceil($cTeams / max(1, $jLanes)));
         $params->add('j_rounds', $jRounds, 'integer');
 
         $matchesPerRound = (int) ceil($cTeams / 2);
