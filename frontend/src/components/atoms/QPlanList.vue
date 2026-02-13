@@ -23,6 +23,7 @@ const filterQ = {
 }
 
 const filterRounds = {
+  3: ref(true),
   4: ref(true),
   5: ref(true),
   6: ref(true),
@@ -329,7 +330,7 @@ async function startRerun() {
             <!-- Checkboxen -->
             <div class="flex items-center gap-2 ml-3">
               <label
-                v-for="round in [4,5,6]"
+                v-for="round in [3,4,5,6]"
                 :key="round"
                 class="flex items-center gap-1 text-sm text-gray-600"
               >

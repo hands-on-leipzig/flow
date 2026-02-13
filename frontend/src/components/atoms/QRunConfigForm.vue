@@ -116,6 +116,14 @@ const emit = defineEmits([
           <label class="flex items-center gap-1">
             <input
               type="checkbox"
+              :checked="juryRounds.rounds_3"
+              @change="emit('update:juryRounds', { ...juryRounds, rounds_3: $event.target.checked })"
+            />
+            3
+          </label>
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
               :checked="juryRounds.rounds_4"
               @change="emit('update:juryRounds', { ...juryRounds, rounds_4: $event.target.checked })"
             />
