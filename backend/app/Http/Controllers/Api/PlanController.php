@@ -396,12 +396,17 @@ class PlanController extends Controller
         $e_teams = isset($paramValues[$eTeamsParamId]) ? (int)$paramValues[$eTeamsParamId] : 0;
         $c_teams = isset($paramValues[$cTeamsParamId]) ? (int)$paramValues[$cTeamsParamId] : 0;
 
+        // Mittagessen: Explore-only, Challenge-only, or Joint depending on which programs the event has
+        $mittagessenProgram = ($e_teams > 0 && $c_teams === 0)
+            ? FirstProgram::EXPLORE->value
+            : (($c_teams > 0 && $e_teams === 0) ? FirstProgram::CHALLENGE->value : FirstProgram::JOINT->value);
+
         $start->setTime(11, 30, 0);
         $end->setTime(13, 30, 0);
 
         DB::table('extra_block')->insert([
             'plan' => $planId,
-            'first_program' => FirstProgram::JOINT->value,
+            'first_program' => $mittagessenProgram,
             'name' => 'Mittagessen',
             'description' => 'Es gibt verschiedene Gerichte für Teams, Helfer und Besucher.',
             'link' => 'https://lecker-essen.mhhm',
