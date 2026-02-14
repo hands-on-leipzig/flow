@@ -305,11 +305,13 @@ class ChallengeGenerator
                 }
 
                 // Key concept 2: teams at judging are last in CURRENT robot game round
-                // 
+                //
                 // number of matches before (MB) teams must be back from judging
                 if ($cBlock == $this->pp('j_rounds') && ($this->pp('c_teams') % $this->pp('j_lanes')) !== 0) {
-                    // not all lanes filled in last round of judging
-                    $rMB = $this->pp('r_matches_per_round') - ceil(($this->pp('c_teams') % $this->pp('j_lanes')) / 2);
+                    // Last round has partial lanes: protect as many matches as we have teams in that round
+                    // (e.g. 14 teams, 4 lanes → 2 teams in round 4 → ensure matches 4 and 5 start after judging+transfer)
+                    $teamsInLastRound = $this->pp('c_teams') % $this->pp('j_lanes');
+                    $rMB = max(0, $this->pp('r_matches_per_round') - $teamsInLastRound);
                 } else {
                     $rMB = $this->pp('r_matches_per_round') - ceil($this->pp('j_lanes') / 2);
                 }
