@@ -531,6 +531,11 @@ class ChallengeGenerator
             // Move to judges main room
             $this->jTime->addMinutes($this->pp('j_ready_deliberations'));
 
+            // If j_sync_deliberations: postpone start of deliberations to end of RG round 3 when earlier
+            if ($this->pp('j_sync_deliberations') && $this->jTime->current() < $this->rTime->current()) {
+                $this->jTime->set($this->rTime->current());
+            }
+
             // Deliberation
             $this->writer->withGroup('j_deliberations', function () {
                 $this->writer->insertActivity('j_deliberations', $this->jTime, $this->pp('j_duration_deliberations'));
