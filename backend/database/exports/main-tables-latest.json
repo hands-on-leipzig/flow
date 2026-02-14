@@ -2263,18 +2263,18 @@
         },
         {
             "id": 132,
-            "name": "j_sync_deliberations",
+            "name": "j_deliberations_flex",
             "context": "expert",
             "level": 1,
             "type": "boolean",
-            "value": "1",
+            "value": "0",
             "min": null,
             "max": null,
             "step": null,
             "first_program": 3,
             "sequence": 74,
-            "ui_label": "Beratung nicht vor Ende Runde 3",
-            "ui_description": "F\u00fcr die Pokalvergabe m\u00fcssen die drei Robot-Game-Vorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erm\u00f6glicht das."
+            "ui_label": "Beratung vor Ende Runde 3 erlauben",
+            "ui_description": "F\u00fcr die Pokalvergabe m\u00fcssen die drei Robot-Game-Vorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erlaubt das."
         }
     ],
     "m_parameter_condition": [],
@@ -6323,7 +6323,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-02-14T10:14:28.741831Z",
+        "exported_at": "2026-02-14T13:26:00.367970Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
