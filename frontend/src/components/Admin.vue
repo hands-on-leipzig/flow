@@ -21,7 +21,7 @@ const adminMenuItems = [
   { key: 'main-tables', label: 'Main Tables', icon: '📝', devOnly: true, devSuffix: '(nur Dev)' },
   { key: 'system-news', label: 'System News', icon: '📰', devOnly: false },
   { key: 'nowandnext', label: 'Now and Next', icon: '⏰', devOnly: false },
-  { key: 'quality', label: 'Massentest', icon: '🧪', devOnly: true, devSuffix: '(nur Dev)' },
+  { key: 'quality', label: 'Massentest', icon: '🧪', devOrLocalOnly: true, devSuffix: '(Dev oder lokal)' },
   { key: 'conditions', label: 'Parameter-Anzeige', icon: '📄', devOnly: false },
   { key: 'user-regional-partners', label: 'User-Regional Partner Relations', icon: '👥', devOnly: false },
   { key: 'sync', label: 'Draht Sync', icon: '🔁', devOnly: false },
@@ -34,9 +34,17 @@ const currentMenuLabel = computed(() => {
   return item ? `${item.icon} ${item.label}` : 'Admin'
 })
 
+// Tab available: devOrLocalOnly => Dev or local; devOnly => Dev only; else always
+const isTabAvailable = (item) => {
+  if (item.devOrLocalOnly) return isDevEnvironment.value || isLocal
+  if (item.devOnly) return isDevEnvironment.value
+  return true
+}
+
 const parameters = ref([])
 const conditions = ref([])
 const isDevEnvironment = ref(false)
+const isLocal = typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1')
 const seasons = ref([])
 const selectedSeason = ref(null)
 const regeneratingLinks = ref(false)
@@ -216,15 +224,15 @@ fetchConditions()
         class="w-full text-left px-3 py-2 rounded text-sm"
         :class="{
           'bg-white font-semibold shadow': activeTab === item.key,
-          'opacity-50 cursor-not-allowed bg-gray-100': item.devOnly && !isDevEnvironment,
-          'hover:bg-gray-200': !item.devOnly || isDevEnvironment
+          'opacity-50 cursor-not-allowed bg-gray-100': (item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item),
+          'hover:bg-gray-200': isTabAvailable(item)
         }"
-        :disabled="item.devOnly && !isDevEnvironment"
-        :title="item.devOnly && !isDevEnvironment ? `${item.label} ist nur auf Dev verfügbar` : ''"
-        @click="(item.devOnly ? isDevEnvironment : true) && (activeTab = item.key)"
+        :disabled="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)"
+        :title="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item) ? `${item.label} ist nur auf Dev oder lokal verfügbar` : ''"
+        @click="isTabAvailable(item) && (activeTab = item.key)"
       >
         {{ item.icon }} {{ item.label }}
-        <span v-if="item.devOnly && !isDevEnvironment" class="ml-2 text-xs text-gray-500">{{ item.devSuffix }}</span>
+        <span v-if="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)" class="ml-2 text-xs text-gray-500">{{ item.devSuffix }}</span>
       </button>
     </aside>
 
@@ -255,17 +263,17 @@ fetchConditions()
               >
                 <button
                   type="button"
-                  :disabled="item.devOnly && !isDevEnvironment"
+                  :disabled="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)"
                   :class="[
                     'w-full text-left px-4 py-3 text-sm flex items-center gap-2',
                     active ? 'bg-blue-50' : '',
                     activeTab === item.key ? 'font-semibold bg-gray-100' : '',
-                    item.devOnly && !isDevEnvironment ? 'opacity-50 cursor-not-allowed' : ''
+                    (item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item) ? 'opacity-50 cursor-not-allowed' : ''
                   ]"
-                  @click="(item.devOnly ? isDevEnvironment : true) && (activeTab = item.key)"
+                  @click="isTabAvailable(item) && (activeTab = item.key)"
                 >
                   <span>{{ item.icon }} {{ item.label }}</span>
-                  <span v-if="item.devOnly && !isDevEnvironment" class="text-xs text-gray-500">{{ item.devSuffix }}</span>
+                  <span v-if="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)" class="text-xs text-gray-500">{{ item.devSuffix }}</span>
                   <span v-if="activeTab === item.key" class="ml-auto text-blue-600">✓</span>
                 </button>
               </MenuItem>
