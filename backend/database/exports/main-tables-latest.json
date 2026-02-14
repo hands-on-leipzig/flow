@@ -847,7 +847,7 @@
             "max": "11:00",
             "step": "5",
             "first_program": null,
-            "sequence": 29,
+            "sequence": 28,
             "ui_label": "Start gemeinsame Er\u00f6ffnung",
             "ui_description": "Startzeit der gemeinsamen Er\u00f6ffnung f\u00fcr Explore und Challenge zusammen."
         },
@@ -862,7 +862,7 @@
             "max": "60",
             "step": "5",
             "first_program": null,
-            "sequence": 30,
+            "sequence": 29,
             "ui_label": "Dauer gemeinsame Er\u00f6ffnung ",
             "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
         },
@@ -877,7 +877,7 @@
             "max": "45",
             "step": "5",
             "first_program": 2,
-            "sequence": 36,
+            "sequence": 35,
             "ui_label": "Dauer Er\u00f6ffnung (Explore - Gruppe 2 )",
             "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
         },
@@ -892,7 +892,7 @@
             "max": "15:00",
             "step": "5",
             "first_program": 2,
-            "sequence": 35,
+            "sequence": 34,
             "ui_label": "Start Er\u00f6ffnung (Explore - Gruppe 2)",
             "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Explore im Nachmittag"
         },
@@ -907,7 +907,7 @@
             "max": "30",
             "step": "1",
             "first_program": 2,
-            "sequence": 16,
+            "sequence": 15,
             "ui_label": "Explore Teams",
             "ui_description": "Anzahl Explore Teams"
         },
@@ -922,7 +922,7 @@
             "max": "8",
             "step": "1",
             "first_program": 2,
-            "sequence": 17,
+            "sequence": 16,
             "ui_label": "Explore Modus",
             "ui_description": "Wenn Explore zusammen mit Challenge am selben Tag stattfindet, gibt es mehrere Varianten, wie das im Ablauf integriert wird."
         },
@@ -937,7 +937,7 @@
             "max": "60",
             "step": "5",
             "first_program": 2,
-            "sequence": 48,
+            "sequence": 47,
             "ui_label": "Dauer Coach:innen-Briefing (Vormittag)",
             "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
         },
@@ -952,7 +952,7 @@
             "max": "60",
             "step": "5",
             "first_program": 2,
-            "sequence": 50,
+            "sequence": 49,
             "ui_label": "Dauer Gutachter:innen-Briefing (Vormittag)",
             "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen die Bewertungskriterien, die Gutachter:innnen-Gruppen-Einteilung und der Zeitplan besprochen werden."
         },
@@ -967,7 +967,7 @@
             "max": "20",
             "step": "5",
             "first_program": 2,
-            "sequence": 52,
+            "sequence": 51,
             "ui_label": "Wechsel zur Er\u00f6ffnung",
             "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
         },
@@ -982,7 +982,7 @@
             "max": "45",
             "step": "5",
             "first_program": 2,
-            "sequence": 33,
+            "sequence": 32,
             "ui_label": "Dauer Er\u00f6ffnung (Explore - Gruppe 1)",
             "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
         },
@@ -997,7 +997,7 @@
             "max": "20",
             "step": "5",
             "first_program": 2,
-            "sequence": 55,
+            "sequence": 54,
             "ui_label": "Wechsel zur Begutachtung",
             "ui_description": "Nach der Er\u00f6ffnung gehen die Kinder in den Austellungsbereich. Die Guterachter:innen gehen ebenfalls zur Austellung oder in eigene R\u00e4ume, wenn das vorgesehen ist."
         },
@@ -1012,7 +1012,7 @@
             "max": "15",
             "step": "5",
             "first_program": 2,
-            "sequence": 56,
+            "sequence": 55,
             "ui_label": "Dauer Pause Gutachter:innen",
             "ui_description": "Dauer der Pause zwischen zwei Begutachtungen. In der Zeit f\u00fcr eine Begutachtgung ist schon die Zeit f\u00fcr eine Besprechung der Gutacher:innen ohne die Kinder enthalten."
         },
@@ -1042,7 +1042,7 @@
             "max": "30",
             "step": "5",
             "first_program": 2,
-            "sequence": 57,
+            "sequence": 56,
             "ui_label": "Wechsel zur Beratung",
             "ui_description": "Nach der letzter Begutachtung kommen alle Gutachter:innen zur Beratung zusammen. Diese Zeit ist f\u00fcr den n\u00f6tigen Raumwechsel."
         },
@@ -1057,7 +1057,7 @@
             "max": "",
             "step": "",
             "first_program": 3,
-            "sequence": 12,
+            "sequence": 11,
             "ui_label": "Dauer Ergebnisse",
             "ui_description": "Vor jeder Finalrunden muss bekanntgegeben werden, welche Team an welchen Tischen starten."
         },
@@ -1072,7 +1072,7 @@
             "max": "45",
             "step": "5",
             "first_program": 2,
-            "sequence": 58,
+            "sequence": 57,
             "ui_label": "Dauer Gutachter:innen-Beratung (Vormittag)",
             "ui_description": "Dauer der Explore Gutachter:innen-Beratung"
         },
@@ -1087,7 +1087,7 @@
             "max": "20",
             "step": "5",
             "first_program": 2,
-            "sequence": 60,
+            "sequence": 59,
             "ui_label": "Wechsel zur Preisverleihung",
             "ui_description": "Vor der Preisverleihung muss ggfs umger\u00e4umt werden. Dieselbe Zeit wird auch f\u00fcr Umr\u00e4umen nach der Preisverleihung verwendet."
         },
@@ -1102,7 +1102,7 @@
             "max": "45",
             "step": "5",
             "first_program": 2,
-            "sequence": 34,
+            "sequence": 33,
             "ui_label": "Dauer Preisverleihung (Explore - Gruppe 1)",
             "ui_description": "Dauer der Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. F\u00fcr die Kinder ist k\u00fcrzer besser."
         },
@@ -1117,7 +1117,7 @@
             "max": "",
             "step": "",
             "first_program": 2,
-            "sequence": 2,
+            "sequence": 1,
             "ui_label": "Dauer Gutachter:innen mit Team",
             "ui_description": "Dauer der Begutachtung mit den Kindern. "
         },
@@ -1132,7 +1132,7 @@
             "max": "",
             "step": "",
             "first_program": 2,
-            "sequence": 3,
+            "sequence": 2,
             "ui_label": "Dauer Gutachter:innen ohne Team",
             "ui_description": "Dauer der Besprechung und Bewertung ohne die Kinder. "
         },
@@ -1147,7 +1147,7 @@
             "max": "30",
             "step": "1",
             "first_program": 3,
-            "sequence": 23,
+            "sequence": 22,
             "ui_label": "Challenge Teams",
             "ui_description": "Anzahl Challenge Teams"
         },
@@ -1162,7 +1162,7 @@
             "max": null,
             "step": null,
             "first_program": 3,
-            "sequence": 24,
+            "sequence": 23,
             "ui_label": "Jury-Spuren",
             "ui_description": "Anzahl Jury-Gruppen, die parallel arbeiten. Die m\u00f6gliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Jury-Gruppen, ergeben sich vier bis sechs Runden, in denen die Teams bewertet werden."
         },
@@ -1177,7 +1177,7 @@
             "max": "4",
             "step": "2",
             "first_program": 3,
-            "sequence": 25,
+            "sequence": 24,
             "ui_label": "Robot-Game-Tische",
             "ui_description": "Anzahl Tische im Robot-Game. Die Auswahl wird passend zur Anzahl Team und Jury-Spuren angeboten. Vier Tische f\u00fchren zu k\u00fcrzeren Robot-Game-Runden. Das kann gut sein, aber auch zu Leerlauf f\u00fcr Teams und Besucher f\u00fchren. Ausserdem brauchen vier Tische mehr Platz, Material und Schiedsrichter:innen."
         },
@@ -1192,7 +1192,7 @@
             "max": "60",
             "step": "5",
             "first_program": 3,
-            "sequence": 61,
+            "sequence": 60,
             "ui_label": "Dauer Coach:innen-Briefing",
             "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Robot-Game statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
         },
@@ -1207,7 +1207,7 @@
             "max": "60",
             "step": "5",
             "first_program": 3,
-            "sequence": 63,
+            "sequence": 62,
             "ui_label": "Dauer Juror:innen-Briefing",
             "ui_description": "Das Briefing findet vor der ersten Jury-Runde statt. Darin sollen die Bewertungskriterien, die Jury-Gruppen-Einteilung und der Zeitplan besprochen werden."
         },
@@ -1222,7 +1222,7 @@
             "max": "60",
             "step": "5",
             "first_program": 3,
-            "sequence": 65,
+            "sequence": 64,
             "ui_label": "Dauer Schiedsrichter:innen-Briefing",
             "ui_description": "Das Briefing findet vor dem ersten Robot-Game statt. Darin sollen aktuelle Regel-\u00c4nderungen, die Einteilung zu den Robot-Game-Tischen und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker:innen zu diesem Briefing dazu."
         },
@@ -1237,7 +1237,7 @@
             "max": "20",
             "step": "5",
             "first_program": 3,
-            "sequence": 67,
+            "sequence": 66,
             "ui_label": "Wechsel zur Er\u00f6ffnung",
             "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
         },
@@ -1252,7 +1252,7 @@
             "max": "60",
             "step": "5",
             "first_program": 3,
-            "sequence": 27,
+            "sequence": 26,
             "ui_label": "Dauer Er\u00f6ffnung (Challenge)",
             "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
         },
@@ -1267,7 +1267,7 @@
             "max": "20",
             "step": "5",
             "first_program": 3,
-            "sequence": 71,
+            "sequence": 70,
             "ui_label": "Wechsel zu Jury",
             "ui_description": "Nach der Er\u00f6ffnung gehen die Juror:innen in ihre R\u00e4ume. Die ersten Teams machen sich bereit."
         },
@@ -1282,7 +1282,7 @@
             "max": "15",
             "step": "5",
             "first_program": 3,
-            "sequence": 72,
+            "sequence": 71,
             "ui_label": "Dauer Pause Juror:innen",
             "ui_description": "Dauer der Pause zwischen zwei Bewertungen. In der Zeit f\u00fcr eine Bewertung ist schon die Zeit f\u00fcr eine Besprechung der Juror:innen ohne die Kinder enthalten."
         },
@@ -1297,7 +1297,7 @@
             "max": "60",
             "step": "5",
             "first_program": 3,
-            "sequence": 73,
+            "sequence": 72,
             "ui_label": "Dauer Mittagspause Juror:innen",
             "ui_description": "Dauer der Mittagspause f\u00fcr Challenge Juror:innen"
         },
@@ -1342,7 +1342,7 @@
             "max": "20",
             "step": "5",
             "first_program": 3,
-            "sequence": 74,
+            "sequence": 73,
             "ui_label": "Wechsel zur Beratung",
             "ui_description": "Nach der letzter Begutachtung kommen alle Juror:innen zur Beratung zusammen. Diese Zeit ist f\u00fcr den n\u00f6tigen Raumwechsel."
         },
@@ -1432,7 +1432,7 @@
             "max": "60",
             "step": "5",
             "first_program": 3,
-            "sequence": 28,
+            "sequence": 27,
             "ui_label": "Dauer Preisverleihung (Challenge)",
             "ui_description": "Dauer der Challenge Preisverleihung. 45 Minuten sind sicher ausreichend f\u00fcr bis zu 12 Teams. F\u00fcr mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe l\u00e4nger dauert. Au\u00dferdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Ablauf l\u00e4nger dauert."
         },
@@ -1447,7 +1447,7 @@
             "max": "",
             "step": "",
             "first_program": 3,
-            "sequence": 6,
+            "sequence": 5,
             "ui_label": "Dauer Juror:innen mit Team",
             "ui_description": "Dauer von Forschung-, Roboter-Design- und Grundwerte-Bewertung mit den Kindern."
         },
@@ -1462,7 +1462,7 @@
             "max": "15",
             "step": "5",
             "first_program": 3,
-            "sequence": 7,
+            "sequence": 6,
             "ui_label": "Dauer Juror:innen ohne Team",
             "ui_description": "Dauer Besprechung und Bewertung ohne die Kinder. Darin enthalten ist auch die Zeit zum Eingeben der Ergebnisse in Online-System."
         },
@@ -1477,7 +1477,7 @@
             "max": null,
             "step": null,
             "first_program": 3,
-            "sequence": 4,
+            "sequence": 3,
             "ui_label": "Dauer Transfer",
             "ui_description": "Zeit, die ein Team mindestens zwischen zwei Aktionen hat. Aktionen sind dabei TR, RG1 bis RG3 und Jury."
         },
@@ -1492,7 +1492,7 @@
             "max": "",
             "step": "",
             "first_program": 3,
-            "sequence": 11,
+            "sequence": 10,
             "ui_label": "Dauer Forschungspr\u00e4sentation",
             "ui_description": "Dauer einer Forschungspr\u00e4senation auf der B\u00fchne."
         },
@@ -1507,7 +1507,7 @@
             "max": "",
             "step": "",
             "first_program": 3,
-            "sequence": 8,
+            "sequence": 7,
             "ui_label": "Dauer Match",
             "ui_description": "Dauer einer Robot-Game-Matches inklusive Punktevergabe durch die Schiedsrichter:innen."
         },
@@ -1522,7 +1522,7 @@
             "max": "",
             "step": "",
             "first_program": 3,
-            "sequence": 10,
+            "sequence": 9,
             "ui_label": "Dauer Versatz",
             "ui_description": "Nur f\u00fcr vier Tische: Dauer zwischen dem Start zweier Matches"
         },
@@ -1537,7 +1537,7 @@
             "max": "",
             "step": "",
             "first_program": 3,
-            "sequence": 9,
+            "sequence": 8,
             "ui_label": "Dauer Testrunde",
             "ui_description": "Dauer einer Matches in der Testrunde inklusive Dialog zwischen Schiedsrichter:innen und Team"
         },
@@ -1552,7 +1552,7 @@
             "max": null,
             "step": null,
             "first_program": 2,
-            "sequence": 19,
+            "sequence": 18,
             "ui_label": "Gutacher:innen-Spuren - Gruppe 1",
             "ui_description": "Anzahl Gutacher:innen-Gruppen die parallel arbeiten. Die m\u00f6gliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Gutachter:innen-Gruppen, ergeben sich drei bis f\u00fcnf Runden, in denen die Teams begutachtet werden."
         },
@@ -1597,7 +1597,7 @@
             "max": "30",
             "step": "5",
             "first_program": 3,
-            "sequence": 45,
+            "sequence": 44,
             "ui_label": "Dauer Schiedsrichter:innen-Debrief Tag 1",
             "ui_description": "Dauer des Debrief der Schiedsrichter:innen nach dem letzten Robot-Games des Tages"
         },
@@ -1612,7 +1612,7 @@
             "max": "60",
             "step": "5",
             "first_program": 3,
-            "sequence": 40,
+            "sequence": 39,
             "ui_label": "Live Challenge Dauer Juror:innen-Briefing ",
             "ui_description": "Dauer des Live Challenge-Briefings"
         },
@@ -1627,7 +1627,7 @@
             "max": "15:00",
             "step": "5",
             "first_program": 3,
-            "sequence": 38,
+            "sequence": 37,
             "ui_label": "Start Er\u00f6ffnung Tag 1",
             "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Live Challenge und Robot-Game-Testrunden"
         },
@@ -1642,7 +1642,7 @@
             "max": null,
             "step": null,
             "first_program": 3,
-            "sequence": 13,
+            "sequence": 12,
             "ui_label": "Live Challenge Dauer mit Team",
             "ui_description": "Dauer pro Team"
         },
@@ -1657,7 +1657,7 @@
             "max": null,
             "step": null,
             "first_program": 3,
-            "sequence": 14,
+            "sequence": 13,
             "ui_label": "Live Challenge Dauer ohne Team",
             "ui_description": "Dauer Besprechung nachdem das Team den Raum verlassen hat"
         },
@@ -1672,7 +1672,7 @@
             "max": "15",
             "step": "5",
             "first_program": 3,
-            "sequence": 15,
+            "sequence": 14,
             "ui_label": "Live Challenge Dauer kleine Pause Juror:innen",
             "ui_description": "Dauer Pause zwischen zwei Teams"
         },
@@ -1687,7 +1687,7 @@
             "max": "20",
             "step": "5",
             "first_program": 3,
-            "sequence": 43,
+            "sequence": 42,
             "ui_label": "Live Challenge Wechsel zur Auswertung",
             "ui_description": "Dauer des Wechsel von letztem Team zur Auswertung"
         },
@@ -1702,7 +1702,7 @@
             "max": "45",
             "step": "5",
             "first_program": 3,
-            "sequence": 44,
+            "sequence": 43,
             "ui_label": "Live Challenge Dauer Auswertung",
             "ui_description": "Dauer der LC-Auswertung"
         },
@@ -1732,7 +1732,7 @@
             "max": "11:00",
             "step": "5",
             "first_program": 2,
-            "sequence": 32,
+            "sequence": 31,
             "ui_label": "Start Er\u00f6ffnung (Explore-Gruppe 1)",
             "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Explore im Vormittag."
         },
@@ -1762,7 +1762,7 @@
             "max": "11:00",
             "step": "5",
             "first_program": 3,
-            "sequence": 26,
+            "sequence": 25,
             "ui_label": "Start Er\u00f6ffnung (Challenge)",
             "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Challenge."
         },
@@ -1777,7 +1777,7 @@
             "max": "90",
             "step": "5",
             "first_program": null,
-            "sequence": 31,
+            "sequence": 30,
             "ui_label": "Dauer gemeinsame Preisverleihung",
             "ui_description": "Dauer der gemeinsamen Preisverleihung f\u00fcr Explore und Challenge."
         },
@@ -1792,7 +1792,7 @@
             "max": "30",
             "step": "5",
             "first_program": 3,
-            "sequence": 39,
+            "sequence": 38,
             "ui_label": "Dauer Er\u00f6ffnung Tag 1",
             "ui_description": "Nur ein kurzes Willkommen zu Tag 1"
         },
@@ -1807,7 +1807,7 @@
             "max": "90",
             "step": "5",
             "first_program": 3,
-            "sequence": 47,
+            "sequence": 46,
             "ui_label": "Dauer Jury-Briefing Tag 1",
             "ui_description": "Optionales Meeting an Tag 1. Wenn es nicht gebraucht wird, kann Dauer auf 0 gesetzt werden."
         },
@@ -1822,7 +1822,7 @@
             "max": "20",
             "step": "5",
             "first_program": 3,
-            "sequence": 41,
+            "sequence": 40,
             "ui_label": "Wechsel zu LC \/ RG Testrunden",
             "ui_description": "Nach der Er\u00f6ffnung machen sich Juroren, Teams, und Schiedsrichter:innen bereit f\u00fcr LC und RG-Testrunden"
         },
@@ -1837,7 +1837,7 @@
             "max": "20",
             "step": "5",
             "first_program": 3,
-            "sequence": 46,
+            "sequence": 45,
             "ui_label": "Wechsel zu Jury-Briefing",
             "ui_description": "Zeit um von LC-Beratung zu Challenge-Jury-Briefing zu wechseln."
         },
@@ -1852,7 +1852,7 @@
             "max": "20",
             "step": "5",
             "first_program": 3,
-            "sequence": 70,
+            "sequence": 69,
             "ui_label": "Wechsel zum Jury-Briefing",
             "ui_description": "Zeit um nach der Er\u00f6ffnung zum Jury-Briefung zu kommen."
         },
@@ -1867,7 +1867,7 @@
             "max": "20",
             "step": "5",
             "first_program": 2,
-            "sequence": 54,
+            "sequence": 53,
             "ui_label": "Wechsel zum Briefing",
             "ui_description": "Zeit um nach der Er\u00f6ffnung zum Gutachter:innen-Briefung zu kommen."
         },
@@ -1882,7 +1882,7 @@
             "max": null,
             "step": null,
             "first_program": 3,
-            "sequence": 69,
+            "sequence": 68,
             "ui_label": "Jury-Briefing nach Er\u00f6ffnung",
             "ui_description": "Soll das Jury-Briefing erst nach der Er\u00f6ffnung stattfinden?"
         },
@@ -1897,7 +1897,7 @@
             "max": null,
             "step": null,
             "first_program": 2,
-            "sequence": 53,
+            "sequence": 52,
             "ui_label": "Gutachter:innen-Briefing nach Er\u00f6ffnung",
             "ui_description": "Soll das Gutachter:innen-Briefing erst nach der Er\u00f6ffnung stattfinden?"
         },
@@ -1942,7 +1942,7 @@
             "max": "45",
             "step": "5",
             "first_program": 2,
-            "sequence": 37,
+            "sequence": 36,
             "ui_label": "Dauer Preisverleihung (Explore-Gruppe 2)",
             "ui_description": "Dauer der Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. F\u00fcr die Kinder ist k\u00fcrzer besser."
         },
@@ -1957,7 +1957,7 @@
             "max": "30",
             "step": "1",
             "first_program": 2,
-            "sequence": 18,
+            "sequence": 17,
             "ui_label": "Explore Teams-Gruppe 1",
             "ui_description": "Anzahl Explore Teams im Vormittag"
         },
@@ -1972,7 +1972,7 @@
             "max": "30",
             "step": "1",
             "first_program": 2,
-            "sequence": 20,
+            "sequence": 19,
             "ui_label": "Explore Teams-Gruppe 2",
             "ui_description": "Anzahl Explore Teams im Nachmittag"
         },
@@ -1987,7 +1987,7 @@
             "max": "60",
             "step": "5",
             "first_program": 2,
-            "sequence": 49,
+            "sequence": 48,
             "ui_label": "Dauer Coach:innen-Briefing (Nachmittag)",
             "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
         },
@@ -2002,7 +2002,7 @@
             "max": "60",
             "step": "5",
             "first_program": 2,
-            "sequence": 51,
+            "sequence": 50,
             "ui_label": "Dauer Gutachter:innen-Briefing (Nachmittag)",
             "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen die Bewertungskriterien, die Gutachter:innnen-Gruppen-Einteilung und der Zeitplan besprochen werden."
         },
@@ -2017,7 +2017,7 @@
             "max": "45",
             "step": "5",
             "first_program": 2,
-            "sequence": 59,
+            "sequence": 58,
             "ui_label": "Dauer Gutachter:innen-Beratung (Nachmittag)",
             "ui_description": "Dauer der Explore Gutachter:innen-Beratung"
         },
@@ -2047,7 +2047,7 @@
             "max": null,
             "step": null,
             "first_program": 2,
-            "sequence": 21,
+            "sequence": 20,
             "ui_label": "Gutacher:innen-Spuren - Gruppe 2",
             "ui_description": "Anzahl Gutacher:innen-Gruppen die parallel arbeiten. Die m\u00f6gliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Gutachter:innen-Gruppen, ergeben sich drei bis f\u00fcnf Runden, in denen die Teams begutachtet werden."
         },
@@ -2107,7 +2107,7 @@
             "max": null,
             "step": null,
             "first_program": 3,
-            "sequence": 5,
+            "sequence": 4,
             "ui_label": "Jury-Kalibrierung",
             "ui_description": "UNUSED Sollen sich alle Juror:innen gemeinsam eine Team ansehen, um dann eine einheitliche Bewertung festzulegen?"
         },
@@ -2122,7 +2122,7 @@
             "max": "1",
             "step": "1",
             "first_program": 3,
-            "sequence": 22,
+            "sequence": 21,
             "ui_label": "Challenge Modus",
             "ui_description": "Findet Challenge statt oder nicht?"
         },
@@ -2152,7 +2152,7 @@
             "max": "20:00",
             "step": "5",
             "first_program": null,
-            "sequence": 62,
+            "sequence": 61,
             "ui_label": "Start Team-Party",
             "ui_description": "Startzeit der Team-Party"
         },
@@ -2167,7 +2167,7 @@
             "max": "20:00",
             "step": "5",
             "first_program": null,
-            "sequence": 66,
+            "sequence": 65,
             "ui_label": "Start Volunteer-Party",
             "ui_description": "Startzeit der Volunteer-Party"
         },
@@ -2182,7 +2182,7 @@
             "max": "240",
             "step": "15",
             "first_program": null,
-            "sequence": 64,
+            "sequence": 63,
             "ui_label": "Dauer Team-Party",
             "ui_description": "Dauer der Team-Party"
         },
@@ -2197,7 +2197,7 @@
             "max": "480",
             "step": "15",
             "first_program": null,
-            "sequence": 68,
+            "sequence": 67,
             "ui_label": "Dauer Volunteer-Party",
             "ui_description": "Dauer der Volunteer-Party"
         },
@@ -2227,7 +2227,7 @@
             "max": "30",
             "step": "5",
             "first_program": 3,
-            "sequence": 42,
+            "sequence": 41,
             "ui_label": "LC Dauer gro\u00dfe Pause Juror:innen",
             "ui_description": "Dauer Pause nach drei Teams"
         },
@@ -2260,6 +2260,21 @@
             "sequence": 81,
             "ui_label": "Fr\u00fche Mittagspause",
             "ui_description": "Die Mittagspause findet \u00fcblicherweise nach der ersten Runde Robot-Game statt. Je nach Anzahl Jury-Runde entspricht das der zweiten oder dritten Jury-Runde. Damit liegt die Pause ungef\u00e4hr in der Mitte des Plans.\nFalls n\u00f6tig kann die Pause eine Runde nach vorne gezogen werden."
+        },
+        {
+            "id": 132,
+            "name": "j_sync_deliberations",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "1",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 74,
+            "ui_label": "Beratung nicht vor Ende Runde 3",
+            "ui_description": "F\u00fcr die Pokalvergabe m\u00fcssen die drei Robot-Game-Vorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erm\u00f6glicht das."
         }
     ],
     "m_parameter_condition": [],
@@ -3061,8 +3076,8 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.",
-            "alert_level": 2
+            "note": "Empfohlene Konfiguration f\u00fcr 8 Teams",
+            "alert_level": 1
         },
         {
             "id": 2,
@@ -3071,8 +3086,8 @@
             "lanes": 2,
             "tables": 4,
             "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.",
-            "alert_level": 2
+            "note": null,
+            "alert_level": 0
         },
         {
             "id": 3,
@@ -3611,8 +3626,8 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppe umgestellt werden.",
-            "alert_level": 3
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.",
+            "alert_level": 2
         },
         {
             "id": 68,
@@ -3621,8 +3636,8 @@
             "lanes": 2,
             "tables": 4,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppe umgestellt werden.",
-            "alert_level": 3
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.",
+            "alert_level": 2
         },
         {
             "id": 69,
@@ -3631,8 +3646,8 @@
             "lanes": 3,
             "tables": 2,
             "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.",
-            "alert_level": 2
+            "note": null,
+            "alert_level": 0
         },
         {
             "id": 70,
@@ -3641,8 +3656,8 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.",
-            "alert_level": 2
+            "note": null,
+            "alert_level": 0
         },
         {
             "id": 71,
@@ -3781,8 +3796,8 @@
             "lanes": 3,
             "tables": 2,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 2 Jurygruppen umgestellt werden.",
-            "alert_level": 3
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.",
+            "alert_level": 2
         },
         {
             "id": 94,
@@ -3791,8 +3806,8 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 2 Jurygruppen umgestellt werden.",
-            "alert_level": 3
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.",
+            "alert_level": 2
         },
         {
             "id": 95,
@@ -3801,8 +3816,8 @@
             "lanes": 4,
             "tables": 4,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 3
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
+            "alert_level": 2
         },
         {
             "id": 96,
@@ -3811,8 +3826,8 @@
             "lanes": 4,
             "tables": 4,
             "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 2
+            "note": null,
+            "alert_level": 0
         },
         {
             "id": 97,
@@ -3821,8 +3836,8 @@
             "lanes": 5,
             "tables": 4,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 4 Jurygruppen umgestellt werden.",
-            "alert_level": 3
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 4 Jurygruppen umgestellt werden.",
+            "alert_level": 2
         },
         {
             "id": 98,
@@ -3831,8 +3846,8 @@
             "lanes": 5,
             "tables": 4,
             "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 4 Jurygruppen umgestellt werden.",
-            "alert_level": 2
+            "note": null,
+            "alert_level": 0
         },
         {
             "id": 99,
@@ -3931,8 +3946,8 @@
             "lanes": 4,
             "tables": 2,
             "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 2
+            "note": null,
+            "alert_level": 0
         },
         {
             "id": 109,
@@ -3951,8 +3966,8 @@
             "lanes": 4,
             "tables": 2,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 3
+            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
+            "alert_level": 2
         },
         {
             "id": 111,
@@ -3963,6 +3978,86 @@
             "calibration": null,
             "note": "F\u00fcr Cathrin :-)",
             "alert_level": null
+        },
+        {
+            "id": 112,
+            "first_program": 3,
+            "teams": 9,
+            "lanes": 3,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 2 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 113,
+            "first_program": 3,
+            "teams": 6,
+            "lanes": 2,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppe umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 114,
+            "first_program": 3,
+            "teams": 6,
+            "lanes": 2,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppe umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 115,
+            "first_program": 3,
+            "teams": 9,
+            "lanes": 3,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 2 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 116,
+            "first_program": 3,
+            "teams": 12,
+            "lanes": 4,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 117,
+            "first_program": 3,
+            "teams": 12,
+            "lanes": 4,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 118,
+            "first_program": 3,
+            "teams": 15,
+            "lanes": 5,
+            "tables": 4,
+            "calibration": 0,
+            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 4 Jurygruppen umgestellt werden.",
+            "alert_level": 3
+        },
+        {
+            "id": 119,
+            "first_program": null,
+            "teams": null,
+            "lanes": null,
+            "tables": null,
+            "calibration": null,
+            "note": null,
+            "alert_level": 3
         }
     ],
     "m_visibility": [
@@ -6228,7 +6323,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-01-15T16:21:41.993981Z",
+        "exported_at": "2026-02-14T10:14:28.741831Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
