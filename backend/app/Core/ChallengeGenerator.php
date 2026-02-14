@@ -319,6 +319,13 @@ class ChallengeGenerator
                     $rMB++;
                 }
 
+                // When the NEXT judging round has no teams (e.g. 9 teams, 3 lanes → round 4 empty),
+                // teams at judging in THIS round can appear in any RG match (rotation). Ensure the
+                // whole robot game round starts after judging+transfer so every team gets >= transfer.
+                if ($cBlock < $this->pp('j_rounds') && $this->pp('c_teams') <= $cBlock * $this->pp('j_lanes')) {
+                    $rMB = 0;
+                }
+
                 // Calculate time to START of match
                 if ($this->pp('r_tables') == 2) {
                     // matches START in sequence
