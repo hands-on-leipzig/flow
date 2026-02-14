@@ -305,11 +305,13 @@ class ChallengeGenerator
                 }
 
                 // Key concept 2: teams at judging are last in CURRENT robot game round
-                // 
+                //
                 // number of matches before (MB) teams must be back from judging
                 if ($cBlock == $this->pp('j_rounds') && ($this->pp('c_teams') % $this->pp('j_lanes')) !== 0) {
-                    // not all lanes filled in last round of judging
-                    $rMB = $this->pp('r_matches_per_round') - ceil(($this->pp('c_teams') % $this->pp('j_lanes')) / 2);
+                    // Last round has partial lanes: protect as many matches as we have teams in that round
+                    // (e.g. 14 teams, 4 lanes → 2 teams in round 4 → ensure matches 4 and 5 start after judging+transfer)
+                    $teamsInLastRound = $this->pp('c_teams') % $this->pp('j_lanes');
+                    $rMB = max(0, $this->pp('r_matches_per_round') - $teamsInLastRound);
                 } else {
                     $rMB = $this->pp('r_matches_per_round') - ceil($this->pp('j_lanes') / 2);
                 }
@@ -317,6 +319,13 @@ class ChallengeGenerator
                 // If asymmetrical match plan, one empty match is added into the test round.
                 if ($cBlock == 1 && $this->pp('r_asym') && $this->pp("j_rounds") != 4) {
                     $rMB++;
+                }
+
+                // When the NEXT judging round has no teams (e.g. 9 teams, 3 lanes → round 4 empty),
+                // teams at judging in THIS round can appear in any RG match (rotation). Ensure the
+                // whole robot game round starts after judging+transfer so every team gets >= transfer.
+                if ($cBlock < $this->pp('j_rounds') && $this->pp('c_teams') <= $cBlock * $this->pp('j_lanes')) {
+                    $rMB = 0;
                 }
 
                 // Calculate time to START of match
@@ -521,6 +530,11 @@ class ChallengeGenerator
 
             // Move to judges main room
             $this->jTime->addMinutes($this->pp('j_ready_deliberations'));
+
+            // If j_sync_deliberations: postpone start of deliberations to end of RG round 3 when earlier
+            if ($this->pp('j_sync_deliberations') && $this->jTime->current() < $this->rTime->current()) {
+                $this->jTime->set($this->rTime->current());
+            }
 
             // Deliberation
             $this->writer->withGroup('j_deliberations', function () {

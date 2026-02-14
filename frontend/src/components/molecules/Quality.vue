@@ -23,6 +23,7 @@ const tables = ref({
 })
 
 const juryRounds = ref({
+  rounds_3: true,
   rounds_4: true,
   rounds_5: true,
   rounds_6: true,

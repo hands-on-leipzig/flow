@@ -1362,6 +1362,21 @@
             "ui_description": "Dauer der Challenge Jury-Beratung"
         },
         {
+            "id": 136,
+            "name": "j_sync_deliberations",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 76,
+            "ui_label": "Beratung nach RG3",
+            "ui_description": "Wenn aktiv: Start der Jury-Beratung wird auf das Ende von Roboter-Game Runde 3 verschoben, falls die Beratung sonst früher beginnen würde."
+        },
+        {
             "id": 37,
             "name": "c_presentations",
             "context": "expert",
