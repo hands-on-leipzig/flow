@@ -106,6 +106,7 @@ class PdfLayoutService
             ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
             ->where('event_logo.event', $eventId)
             ->select('logo.path')
+            ->orderBy('event_logo.sort_order')
             ->get();
 
         $dataUris = [];

@@ -39,10 +39,7 @@ class QualityEvaluatorService
 
         Log::info('QualityEvaluatorService::generateQPlansFromSelection', [
             'q_run' => $runId,
-            'min_teams' => $selection['min_teams'] ?? 0,
-            'max_teams' => $selection['max_teams'] ?? 0,
-            'jury_lanes' => $selection['jury_lanes'] ?? [],
-            'tables' => $selection['tables'] ?? [],
+            'selection' => $selection,
         ]);
 
         // Get all allowed parameters once to be used in the loop below
