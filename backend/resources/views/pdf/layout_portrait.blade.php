@@ -81,7 +81,12 @@
 
     {{-- HEADER --}}
     <header>
-        <table>
+        <table style="table-layout: fixed; width: 100%;">
+            <colgroup>
+                <col style="width: 33%;">
+                <col style="width: 34%;">
+                <col style="width: 33%;">
+            </colgroup>
             <tr>
                 <td style="width:33%; text-align:left;">
                     @if(!empty($header['leftLogos']))
@@ -90,8 +95,8 @@
                         @endforeach
                     @endif
                 </td>
-                <td style="width:34%; text-align:center;">
-                    <div style="font-size:14px; margin-bottom:4px;">
+                <td style="width:34%; text-align:center; vertical-align:middle;">
+                    <div style="font-size:14px; margin-bottom:4px; text-align:center;">
                         @php
                             $titleTop = $header['centerTitleTop'] ?? '';
                             // Make FIRST italic and add line break after League
@@ -99,7 +104,7 @@
                         @endphp
                         {!! $titleTop !!}
                     </div>
-                    <div style="font-size:18px; font-weight:bold;">
+                    <div style="font-size:18px; font-weight:bold; white-space:nowrap; text-align:center; width:100%;">
                         {{ $header['centerTitleMain'] ?? '' }}
                     </div>
                 </td>
