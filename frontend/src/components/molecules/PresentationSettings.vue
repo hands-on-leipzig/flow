@@ -62,12 +62,18 @@ const expandedSlideshows = ref<Set<number>>(new Set());
 const copiedSlideshowId = ref<number | null>(null);
 const isDragging = ref(false);
 const draggedSlideId = ref<number | null>(null);
-const slideTypes = [
-  {value: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse', icon: 'bi-trophy'},
-  {value: 'PublicPlanSlideContent', label: 'Öffentlicher Zeitplan', icon: 'bi-calendar'},
-  {value: 'UrlSlideContent', label: 'Externer Inhalt (URL)', icon: 'bi-link-45deg'},
-  {value: 'FabricSlideContent', label: 'Eigener Inhalt', icon: 'bi-pencil-square'},
+const publicPlanChoices = [
+  {slide: 'PublicPlanSlideContent', label: 'Jetzt laufende Programmpunkte', icon: 'bi-clock'},
+  {slide: 'PublicPlanNextSlideContent', label: 'Kommende Programmpunkte', icon: 'bi-calendar-event'},
 ];
+const slideTypes = [
+  {slide: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse', icon: 'bi-trophy'},
+  {subModal: publicPlanChoices, label: 'Öffentlicher Zeitplan', icon: 'bi-calendar'},
+  {slide: 'UrlSlideContent', label: 'Externer Inhalt (URL)', icon: 'bi-link-45deg'},
+  {slide: 'FabricSlideContent', label: 'Eigener Inhalt', icon: 'bi-pencil-square'},
+];
+
+const addSliceChoices = ref(null);
 
 onMounted(loadSlideshows);
 onMounted(fetchPlanId);
@@ -115,16 +121,16 @@ function onDragStart(event: any) {
 async function onDragEnd(slideshow: Slideshow) {
   // Wait for animation to complete
   await new Promise(resolve => setTimeout(resolve, 250));
-  
+
   isDragging.value = false;
   draggedSlideId.value = null;
-  
+
   // Wait for DOM to settle
   await nextTick();
-  
+
   // Get the current order from the slideshow (v-model should have updated it)
   const slideIds = slideshow.slides.map(slide => slide.id);
-  
+
   console.log('Updating order:', slideIds);
 
   savingToast?.value?.show();
@@ -221,6 +227,7 @@ function handleSlideshowNameKeydown(event: KeyboardEvent, slideshow: Slideshow) 
 
 function openSlideTypeModal(slideshow: Slideshow) {
   currentSlideshow.value = slideshow;
+  addSliceChoices.value = slideTypes;
   showSlideTypeModal.value = true;
 }
 
@@ -229,7 +236,12 @@ function closeSlideTypeModal() {
   showSlideTypeModal.value = false;
   currentSlideshow.value = null;
   slideType.value = "";
+  addSliceChoices.value = null;
   creatingSlideType.value = null;
+}
+
+function changeSlideChoices(value) {
+  addSliceChoices.value = value;
 }
 
 async function addSlide(selectedType: string) {
@@ -241,9 +253,12 @@ async function addSlide(selectedType: string) {
 
   let newSlide = Slide.createNewSlide(selectedType);
 
-  // TODO
+  // TODO move this to the server
   if (selectedType === 'PublicPlanSlideContent') {
-    newSlide.name = 'Öffentlicher Zeitplan';
+    newSlide.name = 'Zeitplan - Jetzt';
+    newSlide.content.planId = planId.value;
+  } else if (selectedType == "PublicPlanNextSlideContent") {
+    newSlide.name = "Zeitplan - Als nächstes";
     newSlide.content.planId = planId.value;
   } else if (selectedType === 'RobotGameSlideContent') {
     newSlide.name = 'Robot-Game-Ergebnisse';
@@ -446,8 +461,8 @@ function copyUrl(url) {
                       @start="onDragStart"
                       @end="onDragEnd(slideshow)">
                     <template #item="{ element }">
-                      <SlideThumb 
-                          :slide="element" 
+                      <SlideThumb
+                          :slide="element"
                           :class="{ 'opacity-0': draggedSlideId === element.id && isDragging }"
                           @deleteSlide="deleteSlide(slideshow, element.id)"/>
                     </template>
@@ -464,7 +479,6 @@ function copyUrl(url) {
     <div v-else-if="!loading" class="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
       <i class="bi bi-slides text-5xl text-gray-400 mb-4"></i>
       <p class="text-gray-600 font-medium mb-2">Noch keine Slideshow vorhanden</p>
-      <p class="text-sm text-gray-500 mb-4">Erstellen Sie eine Slideshow, um Präsentationsfolien hinzuzufügen</p>
       <button
           class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           :disabled="loading || !planId || !event?.id"
@@ -476,7 +490,8 @@ function copyUrl(url) {
 
     <!-- Loading State -->
     <div v-else class="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-      <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+      <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+           viewBox="0 0 24 24" aria-hidden="true">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
       </svg>
@@ -501,40 +516,42 @@ function copyUrl(url) {
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-          <button
-              v-for="type of slideTypes"
-              :key="type.value"
-              @click="addSlide(type.value)"
-              :disabled="!!creatingSlideType"
-              :class="[
-                'flex flex-col items-center justify-center p-6 border-2 rounded-lg transition-all relative',
-                creatingSlideType === type.value
+          <template
+              v-for="type of addSliceChoices"
+              :key="type.slide">
+            <button
+                @click="type.slide ? addSlide(type.slide) : changeSlideChoices(type.subModal)"
+                :disabled="!!creatingSlideType"
+                :class="[
+                    'p-6 flex flex-col items-center justify-center border-2 rounded-lg transition-all relative',
+                creatingSlideType === type.slide
                   ? 'border-blue-500 bg-blue-50 cursor-wait'
                   : creatingSlideType
                   ? 'border-gray-200 opacity-50 cursor-not-allowed'
                   : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50 cursor-pointer group'
               ]"
-          >
-            <div v-if="creatingSlideType === type.value"
-                 class="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-75 rounded-lg">
-              <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-              </svg>
-            </div>
-            <i :class="[
+            >
+              <div v-if="creatingSlideType === type.slide"
+                   class="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-75 rounded-lg">
+                <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+              </div>
+              <i :class="[
               `bi ${type.icon} text-4xl mb-3 transition-colors`,
-              creatingSlideType === type.value
+              creatingSlideType === type.slide
                 ? 'text-blue-600'
                 : 'text-gray-600 group-hover:text-blue-600'
             ]"></i>
-            <span :class="[
+              <span :class="[
               'text-sm font-medium text-center',
-              creatingSlideType === type.value
+              creatingSlideType === type.slide
                 ? 'text-blue-700'
                 : 'text-gray-700 group-hover:text-blue-700'
             ]">{{ type.label }}</span>
-          </button>
+            </button>
+          </template>
         </div>
 
         <div class="mt-6 flex justify-end">

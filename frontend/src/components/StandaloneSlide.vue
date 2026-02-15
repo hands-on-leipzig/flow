@@ -5,8 +5,8 @@ import {Slide} from "@/models/slide";
 import axios from "axios";
 
 const props = defineProps<{
-  eventId: number,
-  slideId: number
+  eventId: number | string,
+  slideId: number | string
 }>();
 
 const slide = ref(null)

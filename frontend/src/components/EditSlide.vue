@@ -215,6 +215,8 @@ function updateDuration(value: number) {
       <span>Zurück zur Slideshow</span>
     </router-link>
 
+    <span v-if="!!slide" class="font-bold">{{slide.name}}</span>
+
     <button
         @click="handleManualSave"
         :disabled="isSaving || !hasUnsavedChanges"
@@ -245,9 +247,9 @@ function updateDuration(value: number) {
             <label class="text-sm font-medium pl-2">Anzeigedauer überschreiben</label>
           </div>
           <div>
-            <input type="checkbox" :checked="slide.transition_time !== 0" @change="updateSlideDurationOverride" />
-            &nbsp;
-            <InfoPopover text="Aktivieren, um dieser Folie eine spezielle Anzeigedauer zu geben. Wenn deaktiviert, wird die Zeit pro Folie der Slideshow verwendet."/>
+            <input type="checkbox" :checked="slide.transition_time !== 0" @change="updateSlideDurationOverride"/>
+            <InfoPopover
+                text="Aktivieren, um dieser Folie eine spezielle Anzeigedauer zu geben. Wenn deaktiviert, wird die Zeit pro Folie der Slideshow verwendet."/>
           </div>
           <div :class="{'disabled': slide.transition_time === 0}">
             <label class="text-sm font-medium pl-2">Anzeigezeit (in Sekunden)</label>
@@ -264,19 +266,25 @@ function updateDuration(value: number) {
           </div>
         </div>
       </div>
-      <div v-if="slide.type === 'PublicPlanSlideContent'">
-        <!-- Stunden -->
-        <label class="text-sm font-medium pl-2">Stunden</label>
-        <InfoPopover text="Anzahl Stunden, auf die vorausgeblickt werden soll."/>
-        &nbsp;
-        <input
-            class="mt-1 w-32 border rounded px-2 py-1"
-            type="number"
-            min="1"
-            max="12"
-            :value="slide.content.hours"
-            @input="updateByName('hours', Number(($event.target as HTMLInputElement).value || 0))"
-        />
+      <div v-if="slide.type === 'PublicPlanSlideContent' || slide.type === 'PublicPlanNextSlideContent'">
+        <!-- Interval - nur next -->
+        <div v-if="slide.type === 'PublicPlanNextSlideContent'" class="grid grid-cols-2 gap-2 py-1 items-center">
+          <div>
+            <label class="text-sm font-medium pl-2">Minuten</label>
+            <InfoPopover text="Wie weit soll in die Zukunft vorausgeblickt werden?"/>
+          </div>
+          <div>
+            <input
+                class="mt-1 w-24 border rounded px-2 py-1"
+                type="number"
+                min="1"
+                max="120"
+                :value="slide.content.interval"
+                @input="updateByName('interval', Number(($event.target as HTMLInputElement).value || 0))"
+            />
+          </div>
+        </div>
+
         <!-- Inhalte Anzeigen (Rolle) -->
         <div class="grid grid-cols-1 gap-2 mb-4">
           <div class="rounded-lg border px-2 py-2 transition hover:border-gray-400">

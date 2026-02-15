@@ -3,8 +3,6 @@ import {SlideContent} from "./slideContent";
 export class PublicPlanSlideContent extends SlideContent {
 
     public planId: number;
-    // Wie viele Stunden nach vorne soll geschaut werden
-    public hours: number = 2;
 
     // 14: Besucher Allgemein
     // 6: Besucher Challenge
@@ -20,7 +18,6 @@ export class PublicPlanSlideContent extends SlideContent {
         return {
             type: "PublicPlanSlideContent",
             planId: this.planId,
-            hours: this.hours,
             role: this.role,
             background: this.background
         };
