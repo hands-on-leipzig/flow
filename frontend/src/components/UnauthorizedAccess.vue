@@ -65,13 +65,14 @@ import keycloak from '@/keycloak.js'
 
 function logout() {
   localStorage.removeItem('kc_token')
-  if (keycloak.authenticated) {
-    keycloak.logout({
-      redirectUri: window.location.origin
-    })
-  } else {
-    window.location.reload()
-  }
+  sessionStorage.removeItem('unauthorized_error')
+
+  const redirectUri = window.location.origin
+  const logoutUrl = keycloak.createLogoutUrl({ redirectUri })
+
+  // Always redirect to the Keycloak logout endpoint so SSO session is ended,
+  // even when keycloak.authenticated is false on this public route.
+  window.location.href = logoutUrl
 }
 </script>
 
