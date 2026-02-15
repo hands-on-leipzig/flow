@@ -575,7 +575,6 @@ function copyUrl(url) {
     <div v-else-if="!loading" class="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
       <i class="bi bi-slides text-5xl text-gray-400 mb-4"></i>
       <p class="text-gray-600 font-medium mb-2">Noch keine Slideshow vorhanden</p>
-      <p class="text-sm text-gray-500 mb-4">Erstellen Sie eine Slideshow, um Präsentationsfolien hinzuzufügen</p>
       <button
           class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           :disabled="loading || !planId || !event?.id"

@@ -13,13 +13,26 @@ class SlideGeneratorService
     {
     }
 
-    public function generatePublicPlanSlide($planId, $slideshowId)
+    public function generatePublicPlanSlide($planId, $slideshowId, $next = false, $order = 0)
     {
-        $content = '{ "background": ' . $this->generateDefaultBackground()
+        $type = $next ? 'PublicPlanNextSlideContent' : 'PublicPlanSlideContent';
+        $text = $next ? 'Als nächstes' : 'Aktuell läuft';
+        $name = $next ? 'Zeitplan - Als nächstes' : 'Zeitplan - Jetzt';
+        $content = '{ "background": ' . $this->generatePublicPlanBackground($text)
             . ', "planId": ' . $planId
             . '}';
 
-        return $this->createSlide('Zeitplan - Jetzt', $slideshowId, 'PublicPlanSlideContent', $content, 0);
+        return $this->createSlide($name, $slideshowId, $type, $content, $order);
+    }
+
+    public function generatePublicPlanBackground($textContent)
+    {
+        $background = "{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage
+            . ",\"objects\":[{\"type\":\"Textbox\",\"version\":\"6.7.1\",\"left\":150,\"top\":15,\"width\":500,\"height\":40,"
+            . "\"fontSize\":30,\"fontFamily\":\"Uniform\",\"textAlign\":\"center\",\"text\":\"" . $textContent . "\"}]"
+            . "}";
+
+        return json_encode($background);
     }
 
     public function generateDefaultBackground()
@@ -27,10 +40,10 @@ class SlideGeneratorService
         return json_encode("{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage . "}");
     }
 
-    public function generateQRCodeSlide($eventId, $slideshowId)
+    public function generateQRCodeSlide($eventId, $slideshowId, $order)
     {
         $content = '{"background": ' . $this->generateQRCodeSlideBackground($eventId) . '}';
-        return $this->createSlide('Zeitplan-QR-Code', $slideshowId, 'FabricSlideContent', $content, 1);
+        return $this->createSlide('QR-Code zum Zeitplan', $slideshowId, 'FabricSlideContent', $content, $order);
     }
 
     private function generateQRCodeSlideBackground($eventId)
@@ -44,9 +57,9 @@ class SlideGeneratorService
         return json_encode($qrCodeSlideBackground);
     }
 
-    public function generateRobotGameResultsSlide($slideshowId, $order = 2)
+    public function generateRobotGameResultsSlide($slideshowId, $order)
     {
-        $content = '{"background": ' . $this->generateStandardBackground() . '}';
+        $content = '{"background": ' . $this->generateDefaultBackground() . '}';
         return $this->createSlide("Robot-Game Ergebnisse", $slideshowId, 'RobotGameSlideContent', $content, $order);
     }
 

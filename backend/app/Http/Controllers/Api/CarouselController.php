@@ -220,11 +220,13 @@ class CarouselController extends Controller
                 'transition_time' => 5,
             ]);
 
-            $slide1 = $this->slideGeneratorService->generatePublicPlanSlide($planId, $slideshow->id);
-            $slide2 = $this->slideGeneratorService->generateQRCodeSlide($eventId, $slideshow->id);
-            $slide3 = $this->slideGeneratorService->generateRobotGameResultsSlide($slideshow->id);
+            $slides = [];
+            $slides[] = $this->slideGeneratorService->generatePublicPlanSlide($planId, $slideshow->id);
+            $slides[] = $this->slideGeneratorService->generatePublicPlanSlide($planId, $slideshow->id, true, 1);
+            $slides[] = $this->slideGeneratorService->generateQRCodeSlide($eventId, $slideshow->id, 2);
+            $slides[] = $this->slideGeneratorService->generateRobotGameResultsSlide($slideshow->id, 3);
 
-            $slideshow->slides = [$slide1, $slide2, $slide3];
+            $slideshow->slides = $slides;
 
             return response()->json(['success' => true, 'slideshow' => $slideshow]);
         } catch (Exception $e) {
