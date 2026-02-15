@@ -15,7 +15,8 @@ const props = withDefaults(
 const {result} = usePlanActionWithPolling(
     {
       planId: props.content.planId,
-      role: props.content.role
+      role: props.content.role,
+      room: props.content.room,
     },
     'now',
     5 * 60 * 1000

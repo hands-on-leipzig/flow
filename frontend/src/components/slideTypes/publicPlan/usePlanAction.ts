@@ -6,6 +6,7 @@ export type PlanActionEndpoint = 'now' | 'next';
 export interface PlanActionContent {
   planId: number;
   role: number;
+  room: number;
   interval?: number; // Only used for "next", ignored for "now"
 }
 
@@ -16,6 +17,7 @@ export function buildRequestParameters(content: PlanActionContent) {
   return {
     point_in_time: `${hours}:${minutes}`,
     role: content.role,
+    room: content.room,
     interval: content.interval, // Only for "next", ignored for "now"
   };
 }

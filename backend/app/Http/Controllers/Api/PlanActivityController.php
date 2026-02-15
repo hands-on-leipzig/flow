@@ -89,6 +89,10 @@ public function actionNow(int $planId, Request $req): JsonResponse
 
         $roles = [(int)$role];
 
+        // Filter auf RaumId. Wenn != 0 werden nur Aktivitäten in diesem Raum zurückgegeben
+        $roomId = (int) $req->query('room', 0);
+        $rooms = $roomId == 0 ? [] : [(int)$roomId];
+
         // Activities laden
         $rows = $this->activities->fetchActivities(
             $planId,
@@ -97,7 +101,8 @@ public function actionNow(int $planId, Request $req): JsonResponse
             includeGroupMeta: true,
             includeActivityMeta: true,
             includeTeamNames: true,
-            freeBlocks: true
+            freeBlocks: true,
+            rooms: $rooms
         );
 
         return [$pivot, $rows];
