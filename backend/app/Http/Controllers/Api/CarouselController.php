@@ -171,10 +171,10 @@ class CarouselController extends Controller
         $providedContent = $data['content'] ?? null;
         if ($providedContent) {
             $providedContent = json_decode($providedContent, true);
-            $providedContent['background'] = json_decode($this->slideGeneratorService->generateStandardBackground());
+            $providedContent['background'] = json_decode($this->slideGeneratorService->generateDefaultBackground());
             $data['content'] = json_encode($providedContent);
         } else {
-            $data['content'] = '{"background": ' . $this->slideGeneratorService->generateStandardBackground() . '}';
+            $data['content'] = '{"background": ' . $this->slideGeneratorService->generateDefaultBackground() . '}';
         }
         $data['slideshow_id'] = $slideshowId;
 

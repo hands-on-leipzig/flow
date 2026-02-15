@@ -15,14 +15,14 @@ class SlideGeneratorService
 
     public function generatePublicPlanSlide($planId, $slideshowId)
     {
-        $content = '{ "background": ' . $this->generateStandardBackground()
+        $content = '{ "background": ' . $this->generateDefaultBackground()
             . ', "planId": ' . $planId
             . '}';
 
-        return $this->createSlide('Öffentlicher Zeitplan', $slideshowId, 'PublicPlanSlideContent', $content, 0);
+        return $this->createSlide('Zeitplan - Jetzt', $slideshowId, 'PublicPlanSlideContent', $content, 0);
     }
 
-    public function generateStandardBackground()
+    public function generateDefaultBackground()
     {
         return json_encode("{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage . "}");
     }
