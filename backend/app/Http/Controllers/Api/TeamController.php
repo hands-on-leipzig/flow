@@ -117,13 +117,10 @@ class TeamController extends Controller
             return response()->json(['error' => 'Team not found'], 404);
         }
 
-        // TODO check with GS how to handle name updates
-        /*
         if (isset($data['name'])) {
             $team->name = $data['name'];
             $team->save();
         }
-        */
 
         $eventId = null;
         if (isset($data['noshow'])) {
