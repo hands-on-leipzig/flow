@@ -15,8 +15,7 @@ class SlideGeneratorService
 
     public function generatePublicPlanSlide($planId, $slideshowId)
     {
-        $content = '{ "hours": 2'
-            . ', "background": ' . $this->generateStandardBackground()
+        $content = '{ "background": ' . $this->generateStandardBackground()
             . ', "planId": ' . $planId
             . '}';
 

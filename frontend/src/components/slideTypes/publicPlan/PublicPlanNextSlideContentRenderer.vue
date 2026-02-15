@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import {PublicPlanSlideContent} from '@/models/publicPlanSlideContent';
+import {PublicPlanNextSlideContent} from '@/models/publicPlanNextSlideContent';
 import FabricSlideContentRenderer from '@/components/slideTypes/FabricSlideContentRenderer.vue';
 import PublicPlanTable from '@/components/slideTypes/publicPlan/PublicPlanTable.vue';
 import {usePlanActionWithPolling} from './usePlanAction';
 
 const props = withDefaults(
     defineProps<{
-      content: PublicPlanSlideContent;
+      content: PublicPlanNextSlideContent;
       preview: boolean;
     }>(),
     {preview: false}
@@ -15,9 +15,10 @@ const props = withDefaults(
 const {result} = usePlanActionWithPolling(
     {
       planId: props.content.planId,
-      role: props.content.role
+      role: props.content.role,
+      interval: props.content.interval,
     },
-    'now',
+    'next',
     5 * 60 * 1000
 );
 </script>
@@ -47,6 +48,7 @@ const {result} = usePlanActionWithPolling(
 </template>
 
 <style scoped>
+
 .result {
   width: 100%;
   height: 100%;
