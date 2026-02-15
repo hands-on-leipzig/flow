@@ -10,7 +10,7 @@ import UrlSlideContentRenderer from "./UrlSlideContentRenderer.vue";
 import {FabricSlideContent} from "../../models/fabricSlideContent.js";
 import FabricSlideContentRenderer from "./FabricSlideContentRenderer.vue";
 import {PublicPlanSlideContent} from "@/models/publicPlanSlideContent";
-import PublicPlanSlideContentRenderer from "@/components/slideTypes/PublicPlanSlideContentRenderer.vue";
+import PublicPlanSlideContentRenderer from "@/components/slideTypes/publicPlan/PublicPlanSlideContentRenderer.vue";
 
 const props = withDefaults(defineProps<{
   slide: Slide,
