@@ -27,6 +27,7 @@ import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
 import ScoreViewer from "@/components/ScoreViewer.vue";
 import {useEventStore} from "@/stores/event";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
+import { registerSW } from 'virtual:pwa-register'
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
@@ -142,6 +143,8 @@ router.beforeEach(async (to, from, next) => {
 });
 
 const app = createApp(App)
+
+registerSW({ immediate: true })
 
 axios.defaults.baseURL = '/api'
 axios.defaults.withCredentials = true

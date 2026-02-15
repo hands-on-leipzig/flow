@@ -24,6 +24,9 @@ const userRegionalPartners = ref<number[]>([])
 const showEventDropdown = computed(
     () => (dropdownEventsFlat.value.length > 1 || isAdmin.value) && eventStore.selectedEvent
 )
+const eventSearchQuery = ref('')
+const eventSearchInputDesktop = ref<HTMLInputElement | null>(null)
+const eventSearchInputMobilePanel = ref<HTMLInputElement | null>(null)
 
 const dropdownEventsFlat = computed(() => {
   if (!selectableEvents.value.length) return []
@@ -68,6 +71,18 @@ const dropdownEvents = computed(() => {
   return dropdownEventsFlat.value
 })
 
+const filteredDropdownEvents = computed(() => {
+  const query = eventSearchQuery.value.trim().toLowerCase()
+  if (!query) return dropdownEvents.value
+
+  return dropdownEvents.value.filter((ev: any) => {
+    const name = ev.name?.toLowerCase() || ''
+    const regionalPartner = ev.regional_partner_name?.toLowerCase() || ''
+    const date = dayjs(ev.date).format('DD.MM.YY').toLowerCase()
+    return name.includes(query) || regionalPartner.includes(query) || date.includes(query)
+  })
+})
+
 async function selectEventFromDropdown(event: any, regionalPartnerId: number) {
   try {
     await axios.post('/user/select-event', {
@@ -91,6 +106,25 @@ function eventDropdownLabel() {
   const type = getAbbreviatedCompetitionType(ev)
   const date = dayjs(ev.date).format('DD.MM.YY')
   return `${type} ${date}`.trim()
+}
+
+function focusSearchAfterDropdownOpen(event: MouseEvent, variant: 'desktop' | 'mobilePanel') {
+  if (!isAdmin.value) return
+  const trigger = event.currentTarget as HTMLElement | null
+  if (!trigger) return
+
+  const tryFocus = () => {
+    if (trigger.getAttribute('aria-expanded') !== 'true') return
+    const input =
+        variant === 'desktop'
+            ? eventSearchInputDesktop.value
+            : eventSearchInputMobilePanel.value
+    if (!input) return
+    input.focus()
+    input.setSelectionRange(0, input.value.length)
+  }
+
+  ;[0, 40, 120, 220].forEach((ms) => setTimeout(tryFocus, ms))
 }
 
 // --- Readiness State ---
@@ -169,6 +203,15 @@ watch(
 watch(
     () => eventStore.selectedEvent?.id,
     () => fetchSelectableEvents()
+)
+
+watch(
+    () => showEventDropdown.value,
+    (isVisible) => {
+      if (!isVisible) {
+        eventSearchQuery.value = ''
+      }
+    }
 )
 
 // --- Helper für rote Punkte ---
@@ -267,22 +310,35 @@ function logout() {
       <!-- Event dropdown (only when multiple events or admin) -->
       <Menu v-if="showEventDropdown" as="div" class="relative inline-block text-left flex-shrink-0">
         <MenuButton
-            class="group inline-flex items-center justify-between gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+            @click="focusSearchAfterDropdownOpen($event, 'desktop')"
+            class="group inline-flex items-center justify-between gap-2 px-1 py-1.5 text-sm font-medium text-gray-700 bg-transparent border-0 border-b border-gray-300 hover:border-gray-500 focus:outline-none focus:ring-0 focus:border-blue-500 transition-colors"
         >
           <span class="text-left whitespace-nowrap">{{ eventDropdownLabel() }}</span>
-          <svg class="w-4 h-4 ml-1 flex-shrink-0 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+          <svg class="w-4 h-4 ml-1 flex-shrink-0 text-gray-500 group-hover:text-gray-700 transition-colors" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd"
                   d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                   clip-rule="evenodd"/>
           </svg>
         </MenuButton>
         <MenuItems
-            class="absolute right-0 z-50 mt-2 origin-top-right rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none w-[380px] max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto">
+            class="absolute right-0 z-50 mt-2 origin-top-right rounded-xl bg-white shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none w-[380px] max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto">
           <div class="py-2">
+            <div v-if="isAdmin" class="px-3 pb-2">
+              <input
+                  ref="eventSearchInputDesktop"
+                  v-model="eventSearchQuery"
+                  type="text"
+                  placeholder="Veranstaltung suchen..."
+                  class="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
             <div v-if="loadingEvents" class="px-4 py-6 text-center text-sm text-gray-500">Lade...</div>
+            <div v-else-if="filteredDropdownEvents.length === 0" class="px-4 py-6 text-center text-sm text-gray-500">
+              Keine Veranstaltungen gefunden.
+            </div>
             <template v-else>
               <MenuItem
-                  v-for="ev in dropdownEvents"
+                  v-for="ev in filteredDropdownEvents"
                   :key="ev.id"
                   v-slot="{ active }"
               >
@@ -367,43 +423,9 @@ function logout() {
         <img :src="imageUrl('/flow/flow.png')" alt="Logo" class="h-6 w-auto"/>
         <img :src="imageUrl('/flow/hot+fll.png')" alt="Logo" class="h-6 w-auto"/>
       </div>
-      <Menu v-if="showEventDropdown" as="div" class="relative flex-1 min-w-0 flex">
-        <MenuButton
-            class="inline-flex items-center justify-between gap-2 w-full min-w-0 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 border border-gray-200">
-          <span class="flex-1 text-left whitespace-nowrap">{{ eventDropdownLabel() }}</span>
-          <svg class="w-4 h-4 flex-shrink-0 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  clip-rule="evenodd"/>
-          </svg>
-        </MenuButton>
-        <MenuItems
-            class="absolute left-1/2 -translate-x-1/2 z-50 mt-1.5 w-[calc(100vw-1.5rem)] max-w-[360px] max-h-[70vh] overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-          <div class="py-2">
-            <div v-if="loadingEvents" class="px-4 py-6 text-center text-sm text-gray-500">Lade...</div>
-            <template v-else>
-              <MenuItem v-for="ev in dropdownEvents" :key="ev.id" v-slot="{ active }">
-                <button @click="selectEventFromDropdown(ev, ev.regional_partner_id)"
-                        :class="['w-full text-left px-4 py-3 text-sm', active ? 'bg-gray-50' : '']">
-                  <div class="font-medium truncate">{{ ev.name }}</div>
-                  <div class="text-xs text-gray-500">{{ dayjs(ev.date).format('DD.MM.YY') }} ·
-                    {{ ev.regional_partner_name }}
-                  </div>
-                </button>
-              </MenuItem>
-              <MenuItem v-if="isAdmin" v-slot="{ active }">
-                <button @click="router.push({ path: '/events' }); mobileMenuOpen = false"
-                        :class="['w-full text-left px-4 py-3 text-sm border-t border-gray-100', active ? 'bg-blue-50' : 'text-blue-600']">
-                  Mehr Veranstaltungen...
-                </button>
-              </MenuItem>
-            </template>
-          </div>
-        </MenuItems>
-      </Menu>
       <button
           type="button"
-          class="inline-flex items-center justify-center p-2.5 rounded-lg text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 flex-shrink-0"
+          class="ml-auto inline-flex items-center justify-center p-2.5 rounded-lg text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 flex-shrink-0"
           aria-label="Menü öffnen"
           @click="toggleMobileMenu"
       >
@@ -428,6 +450,53 @@ function logout() {
           v-show="mobileMenuOpen"
           class="lg:hidden border-t border-gray-200 bg-white px-3 py-3 shadow-inner"
       >
+        <Menu v-if="showEventDropdown" as="div" class="relative mb-3 pb-3 border-b border-gray-200">
+          <MenuButton
+              @click="focusSearchAfterDropdownOpen($event, 'mobilePanel')"
+              class="group inline-flex items-center justify-between gap-2 w-full min-w-0 px-1 py-2 text-sm font-medium text-gray-700 bg-transparent border-0 border-b border-gray-300 hover:border-gray-500 focus:outline-none focus:ring-0 focus:border-blue-500 transition-colors">
+            <span class="flex-1 text-left whitespace-nowrap">{{ eventDropdownLabel() }}</span>
+            <svg class="w-4 h-4 flex-shrink-0 text-gray-500 group-hover:text-gray-700 transition-colors" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clip-rule="evenodd"/>
+            </svg>
+          </MenuButton>
+          <MenuItems
+              class="mt-2 w-full max-h-[60vh] overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+            <div class="py-2">
+              <div v-if="isAdmin" class="px-3 pb-2">
+                <input
+                    ref="eventSearchInputMobilePanel"
+                    v-model="eventSearchQuery"
+                    type="text"
+                    placeholder="Veranstaltung suchen..."
+                    class="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div v-if="loadingEvents" class="px-4 py-6 text-center text-sm text-gray-500">Lade...</div>
+              <div v-else-if="filteredDropdownEvents.length === 0" class="px-4 py-6 text-center text-sm text-gray-500">
+                Keine Veranstaltungen gefunden.
+              </div>
+              <template v-else>
+                <MenuItem v-for="ev in filteredDropdownEvents" :key="ev.id" v-slot="{ active }">
+                  <button @click="selectEventFromDropdown(ev, ev.regional_partner_id); mobileMenuOpen = false"
+                          :class="['w-full text-left px-4 py-3 text-sm', active ? 'bg-gray-50' : '']">
+                    <div class="font-medium truncate">{{ ev.name }}</div>
+                    <div class="text-xs text-gray-500">{{ dayjs(ev.date).format('DD.MM.YY') }} ·
+                      {{ ev.regional_partner_name }}
+                    </div>
+                  </button>
+                </MenuItem>
+                <MenuItem v-if="isAdmin" v-slot="{ active }">
+                  <button @click="router.push({ path: '/events' }); mobileMenuOpen = false"
+                          :class="['w-full text-left px-4 py-3 text-sm border-t border-gray-100', active ? 'bg-blue-50' : 'text-blue-600']">
+                    Mehr Veranstaltungen...
+                  </button>
+                </MenuItem>
+              </template>
+            </div>
+          </MenuItems>
+        </Menu>
         <nav class="flex flex-col gap-1">
           <button
               v-for="tab in tabs"
