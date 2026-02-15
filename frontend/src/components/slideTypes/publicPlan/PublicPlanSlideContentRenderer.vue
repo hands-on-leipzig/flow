@@ -115,9 +115,9 @@ onMounted(() => {
                                 class="absolute inset-0 z-0"
                                 :content="props.content" :preview="props.preview"></FabricSlideContentRenderer>
 
-    <div class="z-10 relative" :class="{ 'preview': props.preview }">
+    <div class="z-10 relative w-full h-full min-h-0 overflow-hidden" :class="{ 'preview': props.preview }">
       <div v-if="result" class="result">
-        <div class="flex flex-row items-center justify-center"
+        <div class="flex flex-row items-center justify-center w-full h-full min-h-0"
              :class="{ 'min-h-screen': !props.preview, 'min-h-100': props.preview }">
           <PublicPlanTable :result="result"/>
         </div>

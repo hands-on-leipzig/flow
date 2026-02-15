@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
-import {formatTimeOnly} from '@/utils/dateTimeFormat';
-import {programLogoAlt, programLogoSrc} from "@/utils/images";
+import { computed, nextTick, ref, watch } from 'vue';
+import { formatTimeOnly } from '@/utils/dateTimeFormat';
+import { programLogoAlt, programLogoSrc } from '@/utils/images';
+import { useScaleToFit } from '@/composables/useScaleToFit';
 
 const props = withDefaults(defineProps<{
   result: any;
@@ -12,7 +13,10 @@ const props = withDefaults(defineProps<{
 
 const containerRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
-const scaleFactor = ref(1);
+const { scaleFactor, updateScale } = useScaleToFit(containerRef, contentRef, {
+  safetyMargin: 0.02,
+  observe: 'both',
+});
 
 // This should be used in the future as a scaling preview, currently unused.
 function getDemoData() {
@@ -284,44 +288,10 @@ function description(a: any, group: any): string {
   return a?.meta?.description ?? group?.group_meta?.description ?? '';
 }
 
-// TODO does not work perfectly
-function updateScale() {
-  const container = containerRef.value;
-  const content = contentRef.value;
-  const hasContent = (groups.value?.length ?? 0) > 0;
-  if (!container || !content || !hasContent) {
-    scaleFactor.value = 1;
-    return;
-  }
-  const cw = container.clientWidth;
-  const ch = container.clientHeight;
-  const contentW = content.offsetWidth;
-  const contentH = content.offsetHeight;
-  if (contentW <= 0 || contentH <= 0) {
-    scaleFactor.value = 1;
-    return;
-  }
-  scaleFactor.value = Math.min(cw / contentW, ch / contentH, 1);
-}
-
-let resizeObserver: ResizeObserver | null = null;
-
-onMounted(() => {
-  updateScale();
-  resizeObserver = new ResizeObserver(() => updateScale());
-  if (containerRef.value) {
-    resizeObserver.observe(containerRef.value);
-  }
-});
-
-onUnmounted(() => {
-  resizeObserver?.disconnect();
-});
-
 watch(
-    () => props.result,
-    () => setTimeout(updateScale, 0),
-    {deep: true}
+  () => props.result,
+  () => nextTick(updateScale),
+  { deep: true }
 );
 </script>
 
