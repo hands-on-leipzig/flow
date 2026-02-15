@@ -9,17 +9,8 @@ import {mdiContentCopy} from '@mdi/js';
 import {Slideshow} from "@/models/slideshow";
 import axios from "axios";
 import {Slide} from "@/models/slide";
-import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import SavingToast from "@/components/atoms/SavingToast.vue";
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue";
-
-type RobotGamePublicRounds = {
-  vr1: boolean;
-  vr2: boolean;
-  vr3: boolean;
-  vf: boolean;
-  hf: boolean;
-};
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
@@ -28,8 +19,6 @@ const loading = ref(true);
 const planId = ref<number | null>(null);
 const slideshows = ref<Slideshow[]>([]);
 const savingToast = ref(null);
-
-const robotGameRounds = ref<RobotGamePublicRounds | null>(null);
 
 const carouselLink = computed(() => {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
@@ -81,7 +70,6 @@ const slideTypes = [
 ];
 
 onMounted(loadSlideshows);
-onMounted(getPublicRobotGameRounds);
 onMounted(fetchPlanId);
 
 async function loadSlideshows() {
@@ -280,29 +268,6 @@ async function addSlide(selectedType: string) {
   }
 }
 
-async function getPublicRobotGameRounds() {
-  try {
-    const response = await axios.get('/contao/rounds/' + event.value?.id);
-    robotGameRounds.value = response.data;
-  } catch (error) {
-    console.error('Error fetching rounds:', error);
-  }
-}
-
-async function updateRobotGameRounds(round, value) {
-  robotGameRounds.value[round] = value;
-  savingToast?.value?.show();
-  await pushPublicRobotGameRoundsUpdate();
-}
-
-async function pushPublicRobotGameRoundsUpdate() {
-  try {
-    await axios.put('/contao/rounds/' + event.value?.id, robotGameRounds.value);
-  } catch (e) {
-    console.error('Error updating rounds:', e);
-  }
-}
-
 function copyUrl(url) {
   navigator.clipboard.writeText(url);
 }
@@ -406,7 +371,7 @@ function copyUrl(url) {
           <div v-if="expandedSlideshows.has(slideshow.id)" class="px-5 pb-5">
             <!-- Settings Row -->
             <div class="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+              <div class="grid grid-cols-1 gap-4 items-end">
                 <!-- Transition Time -->
                 <div class="flex-1">
                   <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -441,67 +406,6 @@ function copyUrl(url) {
                         {{ preset }}s
                       </button>
                     </div>
-                  </div>
-                </div>
-
-                <!-- Robot Game Rounds -->
-                <div class="flex-1" v-if="robotGameRounds">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="bi bi-trophy"></i> Robot Game: Öffentliche Ergebnisse
-                    <InfoPopover
-                        text="Wähle aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
-                  </label>
-                  <div class="grid grid-cols-5 gap-2">
-                    <label
-                        class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-                      <input
-                          type="checkbox"
-                          :checked="robotGameRounds.vr1"
-                          @change="updateRobotGameRounds('vr1', ($event.target as HTMLInputElement).checked)"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span class="text-sm font-medium">VR1</span>
-                    </label>
-                    <label
-                        class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-                      <input
-                          type="checkbox"
-                          :checked="robotGameRounds.vr2"
-                          @change="updateRobotGameRounds('vr2', ($event.target as HTMLInputElement).checked)"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span class="text-sm font-medium">VR2</span>
-                    </label>
-                    <label
-                        class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-                      <input
-                          type="checkbox"
-                          :checked="robotGameRounds.vr3"
-                          @change="updateRobotGameRounds('vr3', ($event.target as HTMLInputElement).checked)"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span class="text-sm font-medium">VR3</span>
-                    </label>
-                    <label
-                        class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-                      <input
-                          type="checkbox"
-                          :checked="robotGameRounds.vf"
-                          @change="updateRobotGameRounds('vf', ($event.target as HTMLInputElement).checked)"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span class="text-sm font-medium">VF</span>
-                    </label>
-                    <label
-                        class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-                      <input
-                          type="checkbox"
-                          :checked="robotGameRounds.hf"
-                          @change="updateRobotGameRounds('hf', ($event.target as HTMLInputElement).checked)"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span class="text-sm font-medium">HF</span>
-                    </label>
                   </div>
                 </div>
               </div>

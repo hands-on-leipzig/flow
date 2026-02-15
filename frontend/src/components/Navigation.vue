@@ -114,15 +114,15 @@ function focusSearchAfterDropdownOpen(event: MouseEvent, variant: 'desktop' | 'm
   if (!trigger) return
 
   const tryFocus = () => {
-    if (trigger.getAttribute('aria-expanded') !== 'true') return
-    const input =
-        variant === 'desktop'
-            ? eventSearchInputDesktop.value
-            : eventSearchInputMobilePanel.value
-    if (!input) return
-    input.focus()
-    input.setSelectionRange(0, input.value.length)
-  }
+        if (trigger.getAttribute('aria-expanded') !== 'true') return
+        const input =
+            variant === 'desktop'
+                ? eventSearchInputDesktop.value
+                : eventSearchInputMobilePanel.value
+        if (!input) return
+        input.focus()
+        input.setSelectionRange(0, input.value.length)
+      }
 
   ;[0, 40, 120, 220].forEach((ms) => setTimeout(tryFocus, ms))
 }
@@ -161,10 +161,14 @@ const tabs = computed(() => {
     {name: 'Teams', path: '/teams'},
     {name: 'Räume', path: '/rooms'},
     {name: 'Logos', path: '/logos'},
-    {name: 'Veröffentlichung', path: '/publish'},
+    {name: 'Vorbereitung', path: '/publish'},
+    {name: 'Live-Betrieb', path: '/live'},
   ]
   return allTabs
 })
+const liveTabPath = '/live'
+const planningTabs = computed(() => tabs.value.filter((tab) => tab.path !== liveTabPath))
+const isLiveTabActive = computed(() => isActive(liveTabPath))
 
 // --- Lifecycle ---
 onMounted(async () => {
@@ -288,7 +292,53 @@ function logout() {
           <img :src="imageUrl('/flow/hot+fll.png')" alt="Logo" class="h-6 lg:h-8 w-auto"/>
         </div>
 
-        <TabGroup v-model="selectedTab" as="div">
+        <div v-if="isLiveTabActive" class="flex items-center gap-2 min-w-0">
+          <div class="group flex items-center min-w-0">
+            <div
+                class="overflow-hidden max-w-[260px] opacity-100 pointer-events-auto group-hover:max-w-0 group-hover:opacity-0 group-hover:pointer-events-none transition-all duration-250 ease-out"
+            >
+              <button
+                  type="button"
+                  class="inline-flex items-center gap-2 px-4 py-2 rounded bg-gray-200 text-gray-900 font-medium hover:bg-gray-300 transition-colors whitespace-nowrap"
+                  @click="goTo({ name: 'Veranstaltung', path: '/event' })"
+              >
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                <span>Zurück zu Planung</span>
+              </button>
+            </div>
+
+            <div
+                class="flex items-center gap-2 max-w-0 opacity-0 overflow-hidden pointer-events-none group-hover:max-w-[980px] group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 ease-out min-w-0"
+            >
+              <button
+                  v-for="tab in planningTabs"
+                  :key="tab.path"
+                  type="button"
+                  class="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200 relative whitespace-nowrap"
+                  :class="{ 'bg-gray-200 font-medium text-gray-900': isActive(tab.path) }"
+                  @click="goTo(tab)"
+              >
+                {{ tab.name }}
+                <span
+                    v-if="hasWarning(tab.path)"
+                    class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+                    title="Achtung: Es gibt offene Punkte in diesem Bereich"
+                ></span>
+              </button>
+            </div>
+          </div>
+
+          <button
+              type="button"
+              class="px-4 py-2 rounded bg-gray-200 font-medium text-gray-900"
+              @click="goTo({ name: 'Live-Betrieb', path: '/live' })"
+          >
+            am Tag
+          </button>
+        </div>
+        <TabGroup v-else v-model="selectedTab" as="div">
           <TabList class="flex space-x-2">
             <Tab
                 v-for="tab in tabs"
@@ -314,7 +364,8 @@ function logout() {
             class="group inline-flex items-center justify-between gap-2 px-1 py-1.5 text-sm font-medium text-gray-700 bg-transparent border-0 border-b border-gray-300 hover:border-gray-500 focus:outline-none focus:ring-0 focus:border-blue-500 transition-colors"
         >
           <span class="text-left whitespace-nowrap">{{ eventDropdownLabel() }}</span>
-          <svg class="w-4 h-4 ml-1 flex-shrink-0 text-gray-500 group-hover:text-gray-700 transition-colors" fill="currentColor" viewBox="0 0 20 20">
+          <svg class="w-4 h-4 ml-1 flex-shrink-0 text-gray-500 group-hover:text-gray-700 transition-colors"
+               fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd"
                   d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                   clip-rule="evenodd"/>
@@ -455,7 +506,8 @@ function logout() {
               @click="focusSearchAfterDropdownOpen($event, 'mobilePanel')"
               class="group inline-flex items-center justify-between gap-2 w-full min-w-0 px-1 py-2 text-sm font-medium text-gray-700 bg-transparent border-0 border-b border-gray-300 hover:border-gray-500 focus:outline-none focus:ring-0 focus:border-blue-500 transition-colors">
             <span class="flex-1 text-left whitespace-nowrap">{{ eventDropdownLabel() }}</span>
-            <svg class="w-4 h-4 flex-shrink-0 text-gray-500 group-hover:text-gray-700 transition-colors" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-4 h-4 flex-shrink-0 text-gray-500 group-hover:text-gray-700 transition-colors"
+                 fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd"
                     d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                     clip-rule="evenodd"/>
@@ -498,20 +550,38 @@ function logout() {
           </MenuItems>
         </Menu>
         <nav class="flex flex-col gap-1">
-          <button
-              v-for="tab in tabs"
-              :key="tab.path"
-              type="button"
-              :class="[
-              'flex items-center gap-2 px-4 py-3 rounded-lg text-left text-sm font-medium transition-colors',
-              isActive(tab.path) ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:bg-gray-100'
-            ]"
-              @click="goTo(tab)"
-          >
-            <span>{{ tab.name }}</span>
-            <span v-if="hasWarning(tab.path)" class="w-2 h-2 bg-red-500 rounded-full flex-shrink-0"
-                  title="Offene Punkte"></span>
-          </button>
+          <template v-if="isLiveTabActive">
+            <button
+                type="button"
+                class="w-full px-4 py-3 rounded-lg text-left text-sm font-medium bg-gray-200 text-gray-900"
+                @click="goTo({ name: 'Live-Betrieb', path: '/live' })"
+            >
+              am Tag
+            </button>
+            <button
+                type="button"
+                class="w-full px-4 py-3 rounded-lg text-left text-sm font-medium bg-gray-200 text-gray-900 hover:bg-gray-300"
+                @click="goTo({ name: 'Veranstaltung', path: '/event' })"
+            >
+              Zurück zu Planung
+            </button>
+          </template>
+          <template v-else>
+            <button
+                v-for="tab in tabs"
+                :key="tab.path"
+                type="button"
+                :class="[
+                'flex items-center gap-2 px-4 py-3 rounded-lg text-left text-sm font-medium transition-colors',
+                isActive(tab.path) ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:bg-gray-100'
+              ]"
+                @click="goTo(tab)"
+            >
+              <span>{{ tab.name }}</span>
+              <span v-if="hasWarning(tab.path)" class="w-2 h-2 bg-red-500 rounded-full flex-shrink-0"
+                    title="Offene Punkte"></span>
+            </button>
+          </template>
         </nav>
         <div class="mt-3 pt-3 border-t border-gray-200 flex flex-col gap-1">
           <button v-if="isAdmin" type="button"
