@@ -55,7 +55,7 @@ function getDemoData() {
               "room_type_id": 45,
               "room_type_name": "Er\u00f6ffnung Challenge",
               "room_id": null,
-              "room_name": null
+              "room_name": "Großer Saal"
             }
           }
         }
@@ -71,8 +71,8 @@ function getDemoData() {
         "activities": {
           "4466": {
             "activity_id": 4466,
-            "start_time": "2026-01-24 15:05:00",
-            "end_time": "2026-01-24 15:15:00",
+            "start_time": "2026-01-24 09:45:00",
+            "end_time": "2026-01-24 09:50:00",
             "activity_name": "Match",
             "meta": {
               "name": "Robot-Game Match",
@@ -92,12 +92,12 @@ function getDemoData() {
             "team_name": null,
             "table_1_team_name": "JFG B\u00e4ren",
             "table_2_team_name": "WHG - Robotics",
-            "room": {"room_type_id": 1, "room_type_name": "Robot-Game-Bereich", "room_id": null, "room_name": null}
+            "room": {"room_type_id": 1, "room_type_name": "Robot-Game-Bereich", "room_id": null, "room_name": "Großer Saal"}
           },
           "4467": {
             "activity_id": 4467,
-            "start_time": "2026-01-24 15:10:00",
-            "end_time": "2026-01-24 15:20:00",
+            "start_time": "2026-01-24 09:50:00",
+            "end_time": "2026-01-24 09:55:00",
             "activity_name": "Match",
             "meta": {
               "name": "Robot-Game Match",
@@ -117,7 +117,7 @@ function getDemoData() {
             "team_name": null,
             "table_1_team_name": "Unbrickables",
             "table_2_team_name": "AFR",
-            "room": {"room_type_id": 1, "room_type_name": "Robot-Game-Bereich", "room_id": null, "room_name": null}
+            "room": {"room_type_id": 1, "room_type_name": "Robot-Game-Bereich", "room_id": null, "room_name": "Großer Saal"}
           }
         }
       }, {
@@ -131,8 +131,8 @@ function getDemoData() {
         "activities": {
           "4473": {
             "activity_id": 4473,
-            "start_time": "2026-01-24 15:10:00",
-            "end_time": "2026-01-24 15:45:00",
+            "start_time": "2026-01-24 09:50:00",
+            "end_time": "2026-01-24 10:30:00",
             "activity_name": "Mit Team",
             "meta": {
               "name": "Jurygespr\u00e4ch",
@@ -152,12 +152,12 @@ function getDemoData() {
             "team_name": "RoHoKi",
             "table_1_team_name": null,
             "table_2_team_name": null,
-            "room": {"room_type_id": 2, "room_type_name": "Jury 1", "room_id": null, "room_name": null}
+            "room": {"room_type_id": 2, "room_type_name": "Jury 1", "room_id": null, "room_name": "Garching"}
           },
           "4474": {
             "activity_id": 4474,
-            "start_time": "2026-01-24 15:10:00",
-            "end_time": "2026-01-24 15:45:00",
+            "start_time": "2026-01-24 09:50:00",
+            "end_time": "2026-01-24 10:30:00",
             "activity_name": "Mit Team",
             "meta": {
               "name": "Jurygespr\u00e4ch",
@@ -177,12 +177,12 @@ function getDemoData() {
             "team_name": "RoboRo",
             "table_1_team_name": null,
             "table_2_team_name": null,
-            "room": {"room_type_id": 3, "room_type_name": "Jury 2", "room_id": null, "room_name": null}
+            "room": {"room_type_id": 3, "room_type_name": "Jury 2", "room_id": null, "room_name": "B.123"}
           },
           "4475": {
             "activity_id": 4475,
-            "start_time": "2026-01-24 15:10:00",
-            "end_time": "2026-01-24 15:45:00",
+            "start_time": "2026-01-24 09:50:00",
+            "end_time": "2026-01-24 10:30:00",
             "activity_name": "Mit Team",
             "meta": {
               "name": "Jurygespr\u00e4ch",
@@ -202,12 +202,12 @@ function getDemoData() {
             "team_name": "PaRaMeRoS",
             "table_1_team_name": null,
             "table_2_team_name": null,
-            "room": {"room_type_id": 4, "room_type_name": "Jury 3", "room_id": null, "room_name": null}
+            "room": {"room_type_id": 4, "room_type_name": "Jury 3", "room_id": null, "room_name": "A.101"}
           },
           "4476": {
             "activity_id": 4476,
-            "start_time": "2026-01-24 15:10:00",
-            "end_time": "2026-01-24 15:45:00",
+            "start_time": "2026-01-24 09:50:00",
+            "end_time": "2026-01-24 10:30:00",
             "activity_name": "Mit Team",
             "meta": {
               "name": "Jurygespr\u00e4ch",
@@ -227,7 +227,7 @@ function getDemoData() {
             "team_name": "SOMZ Robotics",
             "table_1_team_name": null,
             "table_2_team_name": null,
-            "room": {"room_type_id": 5, "room_type_name": "Jury 4", "room_id": null, "room_name": null}
+            "room": {"room_type_id": 5, "room_type_name": "Jury 4", "room_id": null, "room_name": "Z.102"}
           }
         }
       }
@@ -254,9 +254,9 @@ const groups = computed(() => {
 
 function roomLabel(a: any): string {
   const r = a?.room;
-  if (r?.room_type_name) return r.room_type_name;
   if (r?.room_name) return r.room_name;
   if (a?.room_name) return a.room_name;
+  if (r?.room_type_name) return r.room_type_name;
   return '';
 }
 
