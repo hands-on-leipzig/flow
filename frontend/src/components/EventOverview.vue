@@ -1,17 +1,17 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import {computed, onMounted, ref, watch} from 'vue'
+import {useRouter} from 'vue-router'
 import axios from 'axios'
-import { useEventStore } from '@/stores/event'
-import { useAuth } from '@/composables/useAuth'
+import {useEventStore} from '@/stores/event'
+import {useAuth} from '@/composables/useAuth'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
-import { programLogoSrc, programLogoAlt } from '@/utils/images'
-import { getEventTitleLong, getCompetitionType, cleanEventName } from '@/utils/eventTitle'
+import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {getEventTitleLong, getCompetitionType, cleanEventName} from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
-const { isAdmin } = useAuth()
+const {isAdmin} = useAuth()
 const router = useRouter()
 const event = computed(() => eventStore.selectedEvent)
 const hasMultipleEvents = ref(false)
@@ -21,8 +21,8 @@ const planId = ref<number | null>(null)
 
 // Team statistics
 const teamStats = ref({
-  explore: { capacity: 0, registered: 0 },
-  challenge: { capacity: 0, registered: 0 },
+  explore: {capacity: 0, registered: 0},
+  challenge: {capacity: 0, registered: 0},
 })
 
 // --- Visibility toggles ---
@@ -49,21 +49,21 @@ const competitionType = computed(() => getCompetitionType(event.value))
 // Format title with italic FIRST and blue event name for display
 const formattedEventTitle = computed(() => {
   if (!eventTitleLong.value) return ''
-  
+
   const title = eventTitleLong.value
   // Use cleaned event name to match what's actually in the title
   const cleanedEventName = cleanEventName(event.value)
-  
+
   if (!cleanedEventName) {
     // Just format FIRST in italics
     return title.replace('FIRST', '<em>FIRST</em>')
   }
-  
+
   // Split title: "FIRST LEGO League [competitionType] [cleanedEventName]"
   // We want: <em>FIRST</em> LEGO League [competitionType] <br> <span class="text-blue-600">[cleanedEventName]</span>
   const withoutEventName = title.replace(new RegExp(` ${cleanedEventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '')
   const formatted = withoutEventName.replace('FIRST', '<em>FIRST</em>')
-  return `${formatted}<br><span class="text-blue-600">${cleanedEventName}</span>`
+  return `${formatted} <span class="text-blue-600">${cleanedEventName}</span>`
 })
 
 async function fetchPlanId() {
@@ -82,7 +82,7 @@ async function fetchPlanId() {
 
 async function loadEventData() {
   if (!event.value?.id) return
-  
+
   const drahtData = await axios.get(`/events/${event.value.id}/draht-data`)
 
   exploreData.value = drahtData.data.event_explore
@@ -108,7 +108,7 @@ async function loadEventData() {
 
 async function fetchSelectableEventCount() {
   try {
-    const { data } = await axios.get('/events/selectable')
+    const {data} = await axios.get('/events/selectable')
     const events = (data || []).flatMap((rp: { events?: unknown[] }) => rp.events || [])
     hasMultipleEvents.value = events.length > 1
   } catch {
@@ -124,12 +124,12 @@ onMounted(async () => {
 
 // Watch for event changes and reload data
 watch(
-  () => event.value?.id,
-  async (newEventId, oldEventId) => {
-    if (newEventId && newEventId !== oldEventId) {
-      await loadEventData()
+    () => event.value?.id,
+    async (newEventId, oldEventId) => {
+      if (newEventId && newEventId !== oldEventId) {
+        await loadEventData()
+      }
     }
-  }
 )
 </script>
 
@@ -138,14 +138,6 @@ watch(
     <div>
       <div class="flex flex-wrap items-center justify-between gap-2 w-full">
         <h1 class="text-xl lg:text-2xl font-bold" v-html="formattedEventTitle"></h1>
-        <button
-          v-if="hasMultipleEvents || isAdmin"
-          type="button"
-          class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex-shrink-0"
-          @click="router.push({ path: '/events' })"
-        >
-          Veranstaltung wechseln
-        </button>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
@@ -156,7 +148,8 @@ watch(
               <div>
                 <h3 class="font-semibold mb-2">Daten</h3>
                 <p>Datum: {{ dayjs(event?.date).format('dddd, DD.MM.YYYY') }}</p>
-                <p v-if="event?.days > 1">bis: {{ dayjs(event?.date).add(event?.days - 1, 'day').format('dddd, DD.MM.YYYY') }}</p>
+                <p v-if="event?.days > 1">bis:
+                  {{ dayjs(event?.date).add(event?.days - 1, 'day').format('dddd, DD.MM.YYYY') }}</p>
                 <p>Art: {{ event?.level_rel.name }}</p>
                 <p>Saison: {{ event?.season_rel.name }}</p>
               </div>
@@ -164,10 +157,10 @@ watch(
               <!-- Teamstatistik -->
               <div>
                 <div
-                  v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0"
-                  class="flex items-start gap-2 mb-3"
+                    v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0"
+                    class="flex items-start gap-2 mb-3"
                 >
-                  <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-10 h-10 flex-shrink-0" />
+                  <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-10 h-10 flex-shrink-0"/>
                   <div class="flex-1">
                     <span class="font-medium block">
                       {{ teamStats.explore.registered }} von {{ teamStats.explore.capacity }} Teams
@@ -177,10 +170,10 @@ watch(
                 </div>
 
                 <div
-                  v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0"
-                  class="flex items-start gap-2"
+                    v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0"
+                    class="flex items-start gap-2"
                 >
-                  <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-10 h-10 flex-shrink-0" />
+                  <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-10 h-10 flex-shrink-0"/>
                   <div class="flex-1">
                     <span class="font-medium block">
                       {{ teamStats.challenge.registered }} von {{ teamStats.challenge.capacity }} Teams
@@ -190,13 +183,13 @@ watch(
                 </div>
 
                 <div
-                  v-if="
+                    v-if="
                     teamStats.explore.capacity === 0 &&
                     teamStats.explore.registered === 0 &&
                     teamStats.challenge.capacity === 0 &&
                     teamStats.challenge.registered === 0
                   "
-                  class="text-gray-500 text-xs"
+                    class="text-gray-500 text-xs"
                 >
                   Keine Team-Daten verfügbar
                 </div>
@@ -208,11 +201,11 @@ watch(
             <h3 class="font-semibold mb-2">Adresse</h3>
             <p class="mb-3">{{ event?.address }}</p>
             <EventMap
-              v-if="event?.address && event?.id"
-              :address="event.address"
-              :event-id="event.id"
-              :event-name="event.name"
-              :show-q-r-code="false"
+                v-if="event?.address && event?.id"
+                :address="event.address"
+                :event-id="event.id"
+                :event-name="event.name"
+                :show-q-r-code="false"
             />
           </div>
 
@@ -220,9 +213,9 @@ watch(
             <h3 class="text-lg font-semibold mb-4">Kontakt</h3>
             <div class="grid gap-4">
               <div
-                v-for="(person, index) in event?.contact"
-                :key="index"
-                class="p-3 border rounded-md bg-gray-50 shadow-sm"
+                  v-for="(person, index) in event?.contact"
+                  :key="index"
+                  class="p-3 border rounded-md bg-gray-50 shadow-sm"
               >
                 <div class="flex items-center justify-between mb-1">
                   <span class="font-semibold text-blue-800 text-sm">{{ person.contact }}</span>
@@ -231,7 +224,7 @@ watch(
                 <div class="text-sm text-gray-700 flex items-center gap-1">
                   <svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                     <path
-                      d="M2.94 5.5a1.5 1.5 0 011.5-1.5h11.12a1.5 1.5 0 011.5 1.5v9a1.5 1.5 0 01-1.5 1.5H4.44a1.5 1.5 0 01-1.5-1.5v-9zm1.62.4v.28l5.5 3.44 5.5-3.44v-.28H4.56zm0 1.48v6.12h10.88V7.38L10 10.75 4.56 7.38z"
+                        d="M2.94 5.5a1.5 1.5 0 011.5-1.5h11.12a1.5 1.5 0 011.5 1.5v9a1.5 1.5 0 01-1.5 1.5H4.44a1.5 1.5 0 01-1.5-1.5v-9zm1.62.4v.28l5.5 3.44 5.5-3.44v-.28H4.56zm0 1.48v6.12h10.88V7.38L10 10.75 4.56 7.38z"
                     />
                   </svg>
                   {{ person.contact_email }}
@@ -246,11 +239,11 @@ watch(
         <div class="lg:col-span-2 p-4 border rounded shadow h-fit order-2">
           <h2 class="text-lg font-semibold mb-2">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
           <FreeBlocks
-            :event-date="event?.date"
-            :event-days="event?.days"
-            :plan-id="planId"
-            :show-challenge="showChallenge"
-            :show-explore="showExplore"
+              :event-date="event?.date"
+              :event-days="event?.days"
+              :plan-id="planId"
+              :show-challenge="showChallenge"
+              :show-explore="showExplore"
           />
         </div>
       </div>
