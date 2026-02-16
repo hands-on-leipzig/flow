@@ -423,14 +423,14 @@ class ContaoController extends Controller
             ->get();
 
 
-        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups, 'code', $code, 'teams' => $teams, 'activities' => $activities, 'activities_updated' => $activities_new];
+        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups, 'code' => $code, 'teams' => $teams, 'activities' => $activities, 'activities_updated' => $activities_new];
     }
 
     public function writeRoundsEndpoint(Request $request)
     {
         $round = $request->query('round');
-        $eventId = $request->query('event');
-        $planId = $request->query('plan');
+        $eventId = (int) $request->query('event');
+        $planId = (int) $request->query('plan');
         $tournamentId = $this->getTournamentId($eventId);
 
         Log::info("writeRoundsEndpoint called with round={$round}, eventId={$eventId}, planId={$planId}, tournamentId={$tournamentId}");
