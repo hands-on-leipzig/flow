@@ -385,8 +385,9 @@ class ContaoController extends Controller
         $activities = DB::table('activity', 'a')
             ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
             ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+            ->join('plan as p', 'ag.plan', '=', 'p.id')
             ->where('atd.code', $code)
-            ->where('ag.plan', $planId)
+            ->where('p.event', $eventId)
             ->get();
 
         $teams = [];
@@ -414,16 +415,7 @@ class ContaoController extends Controller
                     ]);
             }
         }
-
-        $activities_new = DB::table('activity', 'a')
-            ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
-            ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
-            ->where('atd.code', $code)
-            ->where('ag.plan', $planId)
-            ->get();
-
-
-        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups, 'code' => $code, 'teams' => $teams, 'activities' => $activities, 'activities_updated' => $activities_new];
+        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups, 'code' => $code, 'teams' => $teams, 'activities' => $activities];
     }
 
     public function writeRoundsEndpoint(Request $request)
