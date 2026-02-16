@@ -407,7 +407,15 @@ class ContaoController extends Controller
             }
         }
 
-        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups];
+        $activities_new = DB::table('activity', 'a')
+            ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+            ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+            ->where('atd.code', $code)
+            ->where('ag.plan', $planId)
+            ->get();
+
+
+        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups, 'activities_updated' => $activities_new];
     }
 
     public function writeRoundsEndpoint(Request $request)
