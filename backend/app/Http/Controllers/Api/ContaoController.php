@@ -361,7 +361,8 @@ class ContaoController extends Controller
             ->where('team.team_number_hot', $hotId)
             ->where('team.first_program', 3) // Challenge (TODO: nicht hardcoden!)
             ->where('tp.plan', $planId)
-            ->select('tp.team_number_plan as id');
+            ->select('tp.team_number_plan as id')
+            ->get();
     }
 
     private function roundToCode($round)
@@ -405,7 +406,7 @@ class ContaoController extends Controller
 
             $teams[] = $teamA;
             $teams[] = $teamB;
-/*
+
             if (isset($teamA->id) && $teamA->id > 0 && isset($teamB->id) && $teamB->id > 0) {
                 Log::info("Mapping matchup for round {$round}: Team A HOT ID {$matchup->aid} -> Team ID {$teamA->id}, Team B HOT ID {$matchup->bid} -> Team ID {$teamB->id}");
                 DB::table('activity')
@@ -415,7 +416,6 @@ class ContaoController extends Controller
                         'table_2_team' => $teamB->id,
                     ]);
             }
-*/
         }
         return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups, 'code' => $code, 'teams' => $teams, 'activities' => $activities];
     }
