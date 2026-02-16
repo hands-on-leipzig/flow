@@ -428,7 +428,12 @@ class ContaoController extends Controller
 
         Log::info("writeRoundsEndpoint called with round={$round}, eventId={$eventId}, planId={$planId}, tournamentId={$tournamentId}");
 
-        return $this->writeMatchupsToSchedule($round, $tournamentId, $eventId, $planId);
+        try {
+            return $this->writeMatchupsToSchedule($round, $tournamentId, $eventId, $planId);
+        } catch (Exception $e) {
+            Log::error('Error in writeRoundsEndpoint: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Failed to write rounds to schedule', 'error' => $e->getMessage()], 500);
+        }
     }
     /**
      * Get tournament ID for an event
