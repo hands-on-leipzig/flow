@@ -373,6 +373,7 @@ class ContaoController extends Controller
             'af' => 'r_final_16',
             'vf' => 'r_final_8',
             'hf' => 'r_final_4',
+            'f' => 'r_final_2',
             default => throw new Exception("Unknown round type: {$round}"),
         };
     }
