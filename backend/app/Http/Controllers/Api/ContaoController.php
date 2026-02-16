@@ -362,7 +362,7 @@ class ContaoController extends Controller
             ->where('team.first_program', 3) // Challenge (TODO: nicht hardcoden!)
             ->where('tp.plan', $planId)
             ->select('tp.team_number_plan as id')
-            ->get();
+            ->firstOrFail();
     }
 
     private function roundToCode($round)
