@@ -348,7 +348,7 @@ class ContaoController extends Controller
             ->join('hot_teams as tb', 'm.team_b', '=', 'tb.id')
             ->where('t.region', $tournamentId)
             ->where('r.type', $round)
-            ->select('ta.team_name as aname', 'ta.dolibarrId as aid', 'tb.team_name as bname', 'tb.dolibarrId as bid')
+            ->select('ta.team_name as aname', 'ta.dolibarrId as adbid', 'ta.team_id as aid', 'tb.team_name as bname', 'tb.dolibarrId as bdbid', 'tb.team_id as bid')
             ->orderBy('m.id', 'asc')
             ->get();
     }
