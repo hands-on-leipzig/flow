@@ -399,8 +399,8 @@ class ContaoController extends Controller
             $matchup = $matchups[$i];
             $activity = $activities[$i];
 
-            $teamA = $this->findTeamByHotId($matchup->team_a, $eventId, $planId);
-            $teamB = $this->findTeamByHotId($matchup->team_b, $eventId, $planId);
+            $teamA = $this->findTeamByHotId($matchup->aid, $eventId, $planId);
+            $teamB = $this->findTeamByHotId($matchup->bid, $eventId, $planId);
 
             $teams[] = $teamA;
             $teams[] = $teamB;
