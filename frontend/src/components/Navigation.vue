@@ -162,7 +162,7 @@ const tabs = computed(() => {
     {name: 'Räume', path: '/rooms'},
     {name: 'Logos', path: '/logos'},
     {name: 'Vorbereitung', path: '/publish'},
-    {name: 'Live-Betrieb', path: '/live'},
+    {name: 'am Tag', path: '/live'},
   ]
   return allTabs
 })
@@ -333,7 +333,7 @@ function logout() {
           <button
               type="button"
               class="px-4 py-2 rounded bg-gray-200 font-medium text-gray-900"
-              @click="goTo({ name: 'Live-Betrieb', path: '/live' })"
+              @click="goTo({ name: 'am Tag', path: '/live' })"
           >
             am Tag
           </button>
@@ -554,7 +554,7 @@ function logout() {
             <button
                 type="button"
                 class="w-full px-4 py-3 rounded-lg text-left text-sm font-medium bg-gray-200 text-gray-900"
-                @click="goTo({ name: 'Live-Betrieb', path: '/live' })"
+                @click="goTo({ name: 'am Tag', path: '/live' })"
             >
               am Tag
             </button>

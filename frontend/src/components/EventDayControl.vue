@@ -35,7 +35,7 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <div class="flex items-center gap-2">
-            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">{{ event?.name || 'Live-Betrieb' }}</h1>
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">{{ event?.name || 'am Tag' }}</h1>
             <i
                 v-if="!loadingPublicationLevel && isHighestPublicationLevel"
                 class="bi bi-check-circle-fill text-green-600 text-base flex-shrink-0"
