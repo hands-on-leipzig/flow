@@ -338,6 +338,89 @@ class ContaoController extends Controller
         }
     }
 
+    private function getMatchups($round, $tournamentId)
+    {
+        return DB::connection('contao')
+            ->table('hot_round as r')
+            ->join('hot_tournament as t', 'r.tournament', '=', 't.id')
+            ->join('hot_match as m', 'm.round', '=', 'r.id')
+            ->join('hot_teams as ta', 'm.team_a', '=', 'ta.id')
+            ->join('hot_teams as tb', 'm.team_b', '=', 'tb.id')
+            ->where('t.region', $tournamentId)
+            ->where('r.type', $round)
+            ->select('ta.team_name as aname', 'ta.dolibarrId as aid', 'tb.team_name as bname', 'tb.dolibarrId as bid')
+            ->orderBy('m.id', 'asc')
+            ->get();
+    }
+
+    private function findTeamByHotId($hotId, $eventId, $planId)
+    {
+        return DB::table('team')
+            ->join('team_plan as tp', 'team.id', '=', 'tp.team')
+            ->where('team.event', $eventId)
+            ->where('team.team_number_hot', $hotId)
+            ->where('team.first_program', 3) // Challenge (TODO: nicht hardcoden!)
+            ->where('tp.plan', $planId)
+            ->select('tp.team_number_plan as id');
+    }
+
+    private function roundToCode($round)
+    {
+        return match ($round) {
+            'vr1' => 'r_round_1',
+            'vr2' => 'r_round_2',
+            'vr3' => 'r_round_3',
+            'af' => 'r_final_16',
+            'vf' => 'r_final_8',
+            'hf' => 'r_final_4',
+            default => throw new Exception("Unknown round type: {$round}"),
+        };
+    }
+
+    private function writeMatchupsToSchedule($round, $tournamentId, $eventId, $planId)
+    {
+        $matchups = $this->getMatchups($round, $tournamentId);
+
+        $code = $this->roundToCode($round);
+        $activities = DB::table('activity', 'a')
+            ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+            ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+            ->where('atd.code', $code)
+            ->where('ag.plan', $planId)
+            ->get();
+
+        for ($i = 0; $i < count($activities); $i++) {
+            $matchup = $matchups[$i];
+            $activity = $activities[$i];
+
+            $teamA = $this->findTeamByHotId($matchup->team_a, $eventId, $planId);
+            $teamB = $this->findTeamByHotId($matchup->team_b, $eventId, $planId);
+
+            if (isset($teamA->id) && $teamA->id > 0 && isset($teamB->id) && $teamB->id > 0) {
+                Log::info("Mapping matchup for round {$round}: Team A HOT ID {$matchup->aid} -> Team ID {$teamA->id}, Team B HOT ID {$matchup->bid} -> Team ID {$teamB->id}");
+                DB::table('activity')
+                    ->where('id', $activity->id)
+                    ->update([
+                        'table_1_team' => $teamA->id,
+                        'table_2_team' => $teamB->id,
+                    ]);
+            }
+        }
+
+        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups];
+    }
+
+    public function writeRoundsEndpoint(Request $request)
+    {
+        $round = $request->query('round');
+        $eventId = $request->query('event');
+        $planId = $request->query('plan');
+        $tournamentId = $this->getTournamentId($eventId);
+
+        Log::info("writeRoundsEndpoint called with round={$round}, eventId={$eventId}, planId={$planId}, tournamentId={$tournamentId}");
+
+        return $this->writeMatchupsToSchedule($round, $tournamentId, $eventId, $planId);
+    }
     /**
      * Get tournament ID for an event
      */
