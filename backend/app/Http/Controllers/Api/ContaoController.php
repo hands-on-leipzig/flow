@@ -389,12 +389,20 @@ class ContaoController extends Controller
             ->where('ag.plan', $planId)
             ->get();
 
+        $teams = [];
+
         for ($i = 0; $i < count($activities); $i++) {
+            if ($i >= count($matchups)) {
+                break;
+            }
             $matchup = $matchups[$i];
             $activity = $activities[$i];
 
             $teamA = $this->findTeamByHotId($matchup->team_a, $eventId, $planId);
             $teamB = $this->findTeamByHotId($matchup->team_b, $eventId, $planId);
+
+            $teams[] = $teamA;
+            $teams[] = $teamB;
 
             if (isset($teamA->id) && $teamA->id > 0 && isset($teamB->id) && $teamB->id > 0) {
                 Log::info("Mapping matchup for round {$round}: Team A HOT ID {$matchup->aid} -> Team ID {$teamA->id}, Team B HOT ID {$matchup->bid} -> Team ID {$teamB->id}");
@@ -415,7 +423,7 @@ class ContaoController extends Controller
             ->get();
 
 
-        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups, 'activities_updated' => $activities_new];
+        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups, 'code', $code, 'teams' => $teams, 'activities' => $activities, 'activities_updated' => $activities_new];
     }
 
     public function writeRoundsEndpoint(Request $request)
