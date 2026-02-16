@@ -353,14 +353,13 @@ class ContaoController extends Controller
             ->get();
     }
 
-    private function findTeamByHotId($hotId, $eventId, $planId)
+    private function findTeamByHotId($hotId, $eventId)
     {
         return DB::table('team')
             ->join('team_plan as tp', 'team.id', '=', 'tp.team')
             ->where('team.event', $eventId)
             ->where('team.team_number_hot', $hotId)
             ->where('team.first_program', 3) // Challenge (TODO: nicht hardcoden!)
-            ->where('tp.plan', $planId)
             ->select('tp.team_number_plan as id')
             ->firstOrFail();
     }
@@ -378,7 +377,7 @@ class ContaoController extends Controller
         };
     }
 
-    private function writeMatchupsToSchedule($round, $tournamentId, $eventId, $planId)
+    private function writeMatchupsToSchedule($round, $tournamentId, $eventId)
     {
         $matchups = $this->getMatchups($round, $tournamentId);
 
@@ -392,7 +391,10 @@ class ContaoController extends Controller
             ->select('a.id', 'atd.code')
             ->get();
 
-        $teams = [];
+        if (count($activities) != count($matchups) || count($activities) == 0 || count($matchups) == 0) {
+            Log::warning("Mismatch between number of activities and matchups for round {$round}: " . count($activities) . " activities vs " . count($matchups) . " matchups. Nothing will be done");
+            return ['status' => 'error', 'message' => "Mismatch between number of activities and matchups for round {$round}: " . count($activities) . " activities vs " . count($matchups) . " matchups. Nothing will be done"];
+        }
 
         for ($i = 0; $i < count($activities); $i++) {
             if ($i >= count($matchups)) {
@@ -401,14 +403,11 @@ class ContaoController extends Controller
             $matchup = $matchups[$i];
             $activity = $activities[$i];
 
-            $teamA = $this->findTeamByHotId($matchup->aid, $eventId, $planId);
-            $teamB = $this->findTeamByHotId($matchup->bid, $eventId, $planId);
-
-            $teams[] = $teamA;
-            $teams[] = $teamB;
+            $teamA = $this->findTeamByHotId($matchup->aid, $eventId);
+            $teamB = $this->findTeamByHotId($matchup->bid, $eventId);
 
             if (isset($teamA->id) && $teamA->id > 0 && isset($teamB->id) && $teamB->id > 0) {
-                Log::info("Mapping matchup for round {$round}: Team A HOT ID {$matchup->aid} -> Team ID {$teamA->id}, Team B HOT ID {$matchup->bid} -> Team ID {$teamB->id}");
+                Log::info("Inserting teams into activity {$activity->id}: Team A {$matchup->aid} -> {$teamA->id}, Team B {$matchup->bid} -> {$teamB->id}");
                 DB::table('activity')
                     ->where('id', $activity->id)
                     ->update([
@@ -417,20 +416,19 @@ class ContaoController extends Controller
                     ]);
             }
         }
-        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups, 'code' => $code, 'teams' => $teams, 'activities' => $activities];
+        return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule"];
     }
 
     public function writeRoundsEndpoint(Request $request)
     {
         $round = $request->query('round');
         $eventId = (int) $request->query('event');
-        $planId = (int) $request->query('plan');
         $tournamentId = $this->getTournamentId($eventId);
 
-        Log::info("writeRoundsEndpoint called with round={$round}, eventId={$eventId}, planId={$planId}, tournamentId={$tournamentId}");
+        Log::info("writeRoundsEndpoint called with round={$round}, eventId={$eventId}}, tournamentId={$tournamentId}");
 
         try {
-            return $this->writeMatchupsToSchedule($round, $tournamentId, $eventId, $planId);
+            return $this->writeMatchupsToSchedule($round, $tournamentId, $eventId);
         } catch (Exception $e) {
             Log::error('Error in writeRoundsEndpoint: ' . $e->getMessage());
             return response()->json(['status' => 'error', 'message' => 'Failed to write rounds to schedule', 'error' => $e->getMessage()], 500);

@@ -52,7 +52,6 @@ const cleaningLogos = ref(false)
 
 // New refs for Contao update parameters and loading state
 const contaoEventId = ref(null)
-const contaoPlanId = ref(null)
 const contaoRound = ref('')
 const updatingMatchSchedule = ref(false)
 
@@ -216,12 +215,9 @@ const updateMatchSchedule = async () => {
   try {
     const params = {}
     if (contaoEventId.value !== null && contaoEventId.value !== '') params.event = contaoEventId.value
-    if (contaoPlanId.value !== null && contaoPlanId.value !== '') params.plan = contaoPlanId.value
     if (contaoRound.value && String(contaoRound.value).trim() !== '') params.round = contaoRound.value
 
-    const response = await axios.put('/contao/write-rounds', null, { params })
-
-    console.log(response.data);
+    await axios.put('/contao/write-rounds', null, { params })
   } catch (error) {
     console.log('Fehler beim Aktualisieren des Spielplans: ' + (error.response?.data?.message || error.message))
   } finally {
@@ -415,11 +411,11 @@ fetchConditions()
             </p>
             <div class="flex items-center gap-2">
               <input v-model.number="contaoEventId" type="number" placeholder="Event ID" class="px-3 py-2 border rounded w-36" />
-              <input v-model.number="contaoPlanId" type="number" placeholder="Plan ID" class="px-3 py-2 border rounded w-36" />
               <select v-model="contaoRound" class="px-3 py-2 border rounded w-36">
                 <option value="af">AF</option>
                 <option value="vf">VF</option>
                 <option value="hf">HF</option>
+                <option value="f">F</option>
               </select>
               <button
                 class="px-6 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
