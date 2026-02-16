@@ -145,7 +145,60 @@ onMounted(async () => {
   <div class="p-3 border rounded shadow">
     <h2 class="text-lg font-semibold mb-3">Zeiten</h2>
 
-    <div class="p-2">
+    <!-- Mobile: stack all time fields vertically -->
+    <div class="p-2 md:hidden space-y-3">
+      <div
+          v-for="col in visibleColumns"
+          :key="`mobile_${col}`"
+          class="border rounded-lg p-3"
+      >
+        <div class="flex items-center gap-2 mb-3">
+          <img :src="columnIcons[col]" :alt="columnLabels[col]" class="w-8 h-8 flex-shrink-0 object-contain">
+          <span class="text-sm font-medium text-gray-700">{{ columnLabels[col] }}</span>
+        </div>
+
+        <div class="space-y-2">
+          <div v-if="isFieldEditable(getFieldPrefix(col), 'start_opening') && cellParam(getFieldPrefix(col), 'start_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'start_opening').id]">
+            <div class="text-xs font-medium text-gray-500 mb-1">Beginn Eröffnung</div>
+            <ParameterField
+                :disabled="disabledMap[cellParam(getFieldPrefix(col), 'start_opening').id]"
+                :horizontal="false"
+                :with-label="false"
+                :compact="true"
+                :param="cellParam(getFieldPrefix(col), 'start_opening')"
+                @update="updateParam"
+            />
+          </div>
+
+          <div v-if="isFieldEditable(getFieldPrefix(col), 'duration_opening') && cellParam(getFieldPrefix(col), 'duration_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_opening').id]">
+            <div class="text-xs font-medium text-gray-500 mb-1">Dauer Eröffnung</div>
+            <ParameterField
+                :disabled="disabledMap[cellParam(getFieldPrefix(col), 'duration_opening').id]"
+                :horizontal="false"
+                :with-label="false"
+                :compact="true"
+                :param="cellParam(getFieldPrefix(col), 'duration_opening')"
+                @update="updateParam"
+            />
+          </div>
+
+          <div v-if="isFieldEditable(getFieldPrefix(col), 'duration_awards') && cellParam(getFieldPrefix(col), 'duration_awards') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_awards').id]">
+            <div class="text-xs font-medium text-gray-500 mb-1">Dauer Preisverleihung</div>
+            <ParameterField
+                :disabled="disabledMap[cellParam(getFieldPrefix(col), 'duration_awards').id]"
+                :horizontal="false"
+                :with-label="false"
+                :compact="true"
+                :param="cellParam(getFieldPrefix(col), 'duration_awards')"
+                @update="updateParam"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop/tablet: existing table layout -->
+    <div class="p-2 hidden md:block">
       <table class="text-xs w-full" style="table-layout: fixed">
         <thead>
           <tr>

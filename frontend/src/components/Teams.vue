@@ -55,14 +55,14 @@ onMounted(async () => {
     <LoaderFlow/>
     <LoaderText/>
   </div>
-  <div v-else class="grid grid-cols-2 gap-4 mt-4">
+  <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
     <!-- Explore -->
     <div v-if="event?.drahtCapacityExplore > 0">
       <TeamList :remoteTeams="exploreTeamsDraht" program="explore"/>
     </div>
 
     <!-- Challenge -->
-    <div v-if="event?.drahtCapacityChallenge > 0" class="col-start-2">
+    <div v-if="event?.drahtCapacityChallenge > 0">
       <TeamList :remoteTeams="challengeTeamsDraht" program="challenge"/>
     </div>
   </div>

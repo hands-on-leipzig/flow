@@ -28,7 +28,7 @@ import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
 import ScoreViewer from "@/components/ScoreViewer.vue";
 import {useEventStore} from "@/stores/event";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
-import { registerSW } from 'virtual:pwa-register'
+import {registerSW} from 'virtual:pwa-register'
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
@@ -69,7 +69,7 @@ const routes = [
     {path: '/presentation', redirect: '/plan/presentation'},
     {path: '/preview/:planId', redirect: to => `/plan/preview/${to.params.planId}`},
     {path: '/editSlide/:slideId', redirect: to => `/plan/editSlide/${to.params.slideId}`},
-    
+
     // Public slug-based routes (must be after all specific routes)
     {path: '/:slug', component: PublicEvent, props: true, meta: {public: true}},
     // Unauthorized access route
@@ -104,7 +104,7 @@ router.beforeEach(async (to, from, next) => {
         next();
         return;
     }
-    
+
     // Handle authentication
     if (!keycloak.authenticated) {
         try {
@@ -131,44 +131,44 @@ router.beforeEach(async (to, from, next) => {
             return;
         }
     }
-    
+
     // Ensure token is in localStorage - even if already authenticated
     // This is needed because the token might not be in localStorage from a previous session
     if (keycloak.authenticated && keycloak.token) {
         localStorage.setItem('kc_token', keycloak.token);
     }
-    
+
     // Check if event is selected for non-public routes
     // Skip check for the events selection page itself
     if (to.path !== '/plan/events' && to.path !== '/events' && to.path.startsWith('/plan')) {
         // Use the store - pinia is already active
         const eventStore = useEventStore();
-        
+
         // Try to fetch selected event if not already loaded
         if (!eventStore.selectedEvent) {
             await eventStore.fetchSelectedEvent();
         }
-        
+
         // If still no event selected, redirect to event selection page
         if (!eventStore.selectedEvent) {
             next('/plan/events');
             return;
         }
 
-        // Day-of default view: on first load, open Live-Betrieb instead of Veranstaltung
+        // Day-of default view: on first load, open am Tag instead of Veranstaltung
         const isInitialNavigation = from.matched.length === 0
         if (isInitialNavigation && to.path === '/plan/event' && isTodayWithinEvent(eventStore.selectedEvent)) {
             next('/plan/live')
             return
         }
     }
-    
+
     next();
 });
 
 const app = createApp(App)
 
-registerSW({ immediate: true })
+registerSW({immediate: true})
 
 axios.defaults.baseURL = '/api'
 axios.defaults.withCredentials = true
@@ -194,7 +194,7 @@ axios.interceptors.response.use(
             // Store error message for display
             const errorMessage = error.response.data?.error || 'Zugriff verweigert'
             sessionStorage.setItem('unauthorized_error', errorMessage)
-            
+
             // Only redirect if not already on unauthorized page
             if (window.location.pathname !== '/unauthorized') {
                 // Redirect to unauthorized page

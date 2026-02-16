@@ -777,9 +777,9 @@ onMounted(async () => {
 <template>
   <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
 
-  <div class="overflow-y-auto max-h-[80vh] lg:max-h-none mx-4">
+  <div class="overflow-y-auto max-h-[80vh] lg:max-h-none mx-2 sm:mx-4">
     <div class="p-4 border rounded shadow">
-      <div class="flex items-center gap-2 mb-2">
+      <div class="flex items-start sm:items-center gap-2 mb-2">
         <img
             :alt="programLogoAlt(program)"
             :src="programLogoSrc(program)"
@@ -789,7 +789,7 @@ onMounted(async () => {
           <h3 class="text-lg font-semibold capitalize">
             <span class="italic">FIRST</span> LEGO League {{ program }}
           </h3>
-          <div class="text-sm text-gray-500 flex items-center gap-3">
+          <div class="text-sm text-gray-500 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <span>
               <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Plan für: {{
                   program === 'explore' ? planParams.e_teams : planParams.c_teams
@@ -814,7 +814,7 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-      <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-red-800 rounded flex items-center gap-3">
+      <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-red-800 rounded flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
         Die Daten in FLOW weichen von denen der Anmeldung ab.
         <button
           class="px-3 py-1.5 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
@@ -837,7 +837,7 @@ onMounted(async () => {
           <div>
             <li
                 :class="[
-                  'rounded px-3 py-2 mb-1 flex justify-between items-center gap-2 transition-opacity cursor-pointer',
+                  'rounded px-3 py-1.5 md:py-2 mb-1 flex flex-wrap md:flex-nowrap justify-between items-center gap-2 transition-opacity cursor-pointer',
                   (teamsBeyondCapacity && index >= planCapacity) 
                     ? 'bg-yellow-100 text-red-800' 
                     : 'bg-gray-50',
@@ -856,39 +856,94 @@ onMounted(async () => {
                 @click="toggleTeamExpansion(team)"
             >
               <!-- Drag-Handle -->
-              <span class="drag-handle cursor-move text-gray-500" @click.stop><IconDraggable/></span>
+              <span class="drag-handle cursor-move text-gray-500 self-center" @click.stop><IconDraggable/></span>
 
-              <!-- Neue Positionsspalte (Txx) - empty if beyond capacity -->
-              <span v-if="!teamsBeyondCapacity || index < planCapacity"
+              <!-- Mobile: zweizeilig, linksbündig -->
+              <div class="flex-1 min-w-0 md:hidden grid grid-cols-[3rem_minmax(0,1fr)] gap-x-2 gap-y-0 items-start">
+                <div class="flex flex-col leading-4">
+                  <span
+                      v-if="!teamsBeyondCapacity || index < planCapacity"
+                      :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-black'"
+                      class="text-sm"
+                  >
+                    T{{ String(index + 1).padStart(2, '0') }}
+                  </span>
+                  <span v-else class="text-sm text-red-800">–</span>
+                  <span
+                      :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-gray-500'"
+                      class="text-sm"
+                  >
+                    {{ team.team_number_hot ? String(team.team_number_hot).padStart(4, '0') : '0000' }}
+                  </span>
+                </div>
+
+                <div
+                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-gray-900'"
+                    class="text-sm truncate leading-tight"
+                >
+                  {{ team.name }}
+                </div>
+
+                <div class="col-start-2 flex items-center justify-between -mt-1">
+                  <label
+                      v-if="!(teamsBeyondCapacity && index >= planCapacity)"
+                      class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer"
+                      @click.stop
+                  >
+                    <input
+                        v-model="team.noshow"
+                        class="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        type="checkbox"
+                        @change="updateTeamNoshow(team)"
+                    />
+                    <span class="text-xs">No-show</span>
+                  </label>
+                  <span v-else class="text-xs text-gray-400">No-show</span>
+                  <span class="text-gray-500 text-sm">
+                    {{ isTeamExpanded(team) ? '▼' : '▶' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Desktop: einzeilig -->
+              <div class="hidden md:flex flex-1 min-w-0 items-center gap-3">
+                <span
+                    v-if="!teamsBeyondCapacity || index < planCapacity"
                     :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-black'"
-                    class="w-8 text-right text-sm">T{{
-                  String(index + 1).padStart(2, '0')
-                }}</span>
-              <span v-else class="w-8 text-right text-sm text-red-800">–</span>
-
-              <!-- Teamnummer (grau) -->
-              <span :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-gray-500'"
-                    class="text-sm w-12">{{
-                  team.team_number_hot || '–'
-                }}</span>
-
-              <!-- No-Show Checkbox (hidden for teams beyond capacity) -->
-              <label v-if="!(teamsBeyondCapacity && index >= planCapacity)"
-                     class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer" @click.stop>
-                <input
-                    v-model="team.noshow"
-                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    type="checkbox"
-                    @change="updateTeamNoshow(team)"
-                />
-                <span class="text-xs">No-Show</span>
-              </label>
-              <span v-else class="w-16"></span>
-
-              <!-- TODO check with GS how to handle name updates -->
-              <div
-                  class="flex-1 text-sm px-2 py-1">
-                {{ team.name }}
+                    class="w-8 text-right text-sm"
+                >
+                  T{{ String(index + 1).padStart(2, '0') }}
+                </span>
+                <span v-else class="w-8 text-right text-sm text-red-800">–</span>
+                <span
+                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-gray-500'"
+                    class="text-sm w-12"
+                >
+                  {{ team.team_number_hot || '–' }}
+                </span>
+                <span
+                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-gray-900'"
+                    class="flex-1 text-sm truncate"
+                >
+                  {{ team.name }}
+                </span>
+                <label
+                    v-if="!(teamsBeyondCapacity && index >= planCapacity)"
+                    class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer"
+                    @click.stop
+                >
+                  <input
+                      v-model="team.noshow"
+                      class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      type="checkbox"
+                      @change="updateTeamNoshow(team)"
+                  />
+                  <span class="text-xs">No-show</span>
+                </label>
+                <span v-else class="text-xs text-gray-400">No-show</span>
+                <span class="text-gray-500 text-sm">
+                  {{ isTeamExpanded(team) ? '▼' : '▶' }}
+                </span>
               </div>
               <!-- Eingabefeld -->
               <!--<input
@@ -903,16 +958,6 @@ onMounted(async () => {
               />
               -->
 
-              <!-- People count -->
-              <span v-if="getPeopleCount(team) !== null" class="text-sm text-gray-600 space-x-2">
-                {{ getPeopleCount(team) }} <i class="bi bi-person-fill"></i>
-              </span>
-              <span v-else class="text-sm text-gray-400">–</span>
-
-              <!-- Expand/Collapse icon -->
-              <span class="text-gray-500 text-sm">
-                {{ isTeamExpanded(team) ? '▼' : '▶' }}
-              </span>
             </li>
             <!-- Expanded players and coaches list -->
             <div v-if="isTeamExpanded(team) && getTeamPeopleData(team)" class="ml-8 mb-2 bg-gray-100 rounded p-3">
@@ -1001,7 +1046,7 @@ onMounted(async () => {
       <!-- Placeholder rows for plan > enrolled -->
       <template v-for="placeholder in placeholderRows" :key="placeholder.id">
         <li
-            class="bg-yellow-100 border border-yellow-300 text-red-800 rounded px-3 py-2 mb-1 flex justify-between items-center gap-2"
+            class="bg-yellow-100 border border-yellow-300 text-red-800 rounded px-3 py-2 mb-1 flex flex-wrap md:flex-nowrap justify-between items-center gap-2"
         >
           <!-- Empty space for drag handle -->
           <span class="w-6"></span>
@@ -1013,7 +1058,7 @@ onMounted(async () => {
           <span class="text-sm w-12 text-red-800">–</span>
 
           <!-- Placeholder text -->
-          <span class="flex-1 text-sm text-red-800 italic">Fehlendes Team</span>
+          <span class="w-full md:w-auto md:flex-1 text-sm text-red-800 italic order-last md:order-none">Fehlendes Team</span>
 
           <!-- Empty space for checkbox -->
           <span class="w-16"></span>
@@ -1027,8 +1072,8 @@ onMounted(async () => {
 
       <!-- Totals and Download buttons -->
       <div v-if="Object.keys(peopleData).length > 0" class="mt-4 pt-4 border-t border-gray-300">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+          <div class="flex items-center gap-4 min-w-0">
             <div class="text-sm">
               <span class="font-semibold">Gesamt:</span>
               <span class="ml-2">{{ totalPlayers }} {{ totalPlayers === 1 ? 'Mitglied' : 'Mitglieder' }}</span>
@@ -1038,7 +1083,7 @@ onMounted(async () => {
               <span class="ml-2 font-semibold">{{ totalCoaches + totalPlayers }} Personen</span>
             </div>
           </div>
-          <div class="flex gap-2">
+          <div class="hidden md:flex gap-2">
             <button
                 class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                 @click="downloadJSON"
@@ -1058,6 +1103,31 @@ onMounted(async () => {
               Download XML
             </button>
           </div>
+          <details class="md:hidden">
+            <summary class="cursor-pointer select-none text-sm font-medium text-gray-700">
+              Downloads anzeigen
+            </summary>
+            <div class="mt-2 flex flex-col gap-2">
+              <button
+                  class="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  @click="downloadJSON"
+              >
+                Download JSON
+              </button>
+              <button
+                  class="w-full px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                  @click="downloadCSV"
+              >
+                Download CSV
+              </button>
+              <button
+                  class="w-full px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                  @click="downloadXML"
+              >
+                Download XML
+              </button>
+            </div>
+          </details>
         </div>
       </div>
     </div>
