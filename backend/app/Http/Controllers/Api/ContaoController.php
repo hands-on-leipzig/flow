@@ -384,10 +384,11 @@ class ContaoController extends Controller
         $code = $this->roundToCode($round);
         $activities = DB::table('activity', 'a')
             ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
-            ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+            ->join('m_activity_type_detail as atd', 'ag.activity_type_detail', '=', 'atd.id')
             ->join('plan as p', 'ag.plan', '=', 'p.id')
-            // ->where('atd.code', $code)
+            ->where('atd.code', $code)
             ->where('p.event', $eventId)
+            ->select('a.id', 'atd.code')
             ->get();
 
         $teams = [];
