@@ -386,7 +386,7 @@ class ContaoController extends Controller
             ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
             ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
             ->join('plan as p', 'ag.plan', '=', 'p.id')
-            ->where('atd.code', $code)
+            // ->where('atd.code', $code)
             ->where('p.event', $eventId)
             ->get();
 
@@ -404,7 +404,7 @@ class ContaoController extends Controller
 
             $teams[] = $teamA;
             $teams[] = $teamB;
-
+/*
             if (isset($teamA->id) && $teamA->id > 0 && isset($teamB->id) && $teamB->id > 0) {
                 Log::info("Mapping matchup for round {$round}: Team A HOT ID {$matchup->aid} -> Team ID {$teamA->id}, Team B HOT ID {$matchup->bid} -> Team ID {$teamB->id}");
                 DB::table('activity')
@@ -414,6 +414,7 @@ class ContaoController extends Controller
                         'table_2_team' => $teamB->id,
                     ]);
             }
+*/
         }
         return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule", 'matchups' => $matchups, 'code' => $code, 'teams' => $teams, 'activities' => $activities];
     }
