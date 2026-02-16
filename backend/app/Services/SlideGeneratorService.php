@@ -51,8 +51,11 @@ class SlideGeneratorService
         $qrCode = $this->publishController->linkAndQRcode($eventId)->getData()->qrcode;
 
         $qrCodeSlideBackground = "{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage
-            . ",\"objects\":[{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":290,\"top\":135,\"width\":320,\"height\":320,\"scaleX\":0.7031,\"scaleY\":0.7031,\"src\":\"" . $qrCode . "\"}]"
-            . "}";
+            . ",\"objects\":["
+            . "{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":290,\"top\":135,\"width\":320,\"height\":320,\"scaleX\":0.7031,\"scaleY\":0.7031,\"src\":\"" . $qrCode . "\"},"
+            . "{\"type\":\"Textbox\",\"version\":\"6.7.1\",\"left\":290,\"top\":370,\"width\":220,\"height\":30,"
+            . "\"fontSize\":25,\"fontFamily\":\"Uniform\",\"textAlign\":\"center\",\"text\":\"zum Zeitplan\"}"
+            . "]}";
 
         return json_encode($qrCodeSlideBackground);
     }
