@@ -50,6 +50,12 @@ const selectedSeason = ref(null)
 const regeneratingLinks = ref(false)
 const cleaningLogos = ref(false)
 
+// New refs for Contao update parameters and loading state
+const contaoEventId = ref(null)
+const contaoPlanId = ref(null)
+const contaoRound = ref('')
+const updatingMatchSchedule = ref(false)
+
 // Toggle for "Nur Tabelle" mode in Statistics
 const statisticsTableOnly = ref(false)
 
@@ -205,6 +211,23 @@ const cleanupOrphanedLogos = async () => {
   }
 }
 
+const updateMatchSchedule = async () => {
+  updatingMatchSchedule.value = true
+  try {
+    const params = {}
+    if (contaoEventId.value !== null && contaoEventId.value !== '') params.event = contaoEventId.value
+    if (contaoPlanId.value !== null && contaoPlanId.value !== '') params.plan = contaoPlanId.value
+    if (contaoRound.value && String(contaoRound.value).trim() !== '') params.round = contaoRound.value
+
+    const response = await axios.put('/contao/write-rounds', null, { params })
+
+    console.log(response.data);
+  } catch (error) {
+    console.log('Fehler beim Aktualisieren des Spielplans: ' + (error.response?.data?.message || error.message))
+  } finally {
+    updatingMatchSchedule.value = false
+  }
+}
 
 fetchParameters()
 fetchConditions()
@@ -382,6 +405,30 @@ fetchConditions()
             >
               🔁 Events synchronisieren
             </button>
+          </div>
+
+          <!-- Temporary for testing: Update match schedule from Contao -->
+          <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <h3 class="text-lg font-semibold mb-2">Teams in Finalrunden aus Contao laden</h3>
+            <p class="text-gray-600 mb-4">
+              Dieser Button ist hier, damit man die Funktion gut auf dev testen kann. Kommt bald wieder weg :)
+            </p>
+            <div class="flex items-center gap-2">
+              <input v-model.number="contaoEventId" type="number" placeholder="Event ID" class="px-3 py-2 border rounded w-36" />
+              <input v-model.number="contaoPlanId" type="number" placeholder="Plan ID" class="px-3 py-2 border rounded w-36" />
+              <select v-model="contaoRound" class="px-3 py-2 border rounded w-36">
+                <option value="af">AF</option>
+                <option value="vf">VF</option>
+                <option value="hf">HF</option>
+              </select>
+              <button
+                class="px-6 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="updatingMatchSchedule"
+                @click="updateMatchSchedule"
+              >
+                {{ updatingMatchSchedule ? '⏳ Aktualisiere...' : '🔁 Spielplan aktualisieren' }}
+              </button>
+            </div>
           </div>
           
         </div>
