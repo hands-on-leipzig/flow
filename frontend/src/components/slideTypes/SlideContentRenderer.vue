@@ -9,8 +9,10 @@ import {UrlSlideContent} from "../../models/urlSlideContent.js";
 import UrlSlideContentRenderer from "./UrlSlideContentRenderer.vue";
 import {FabricSlideContent} from "../../models/fabricSlideContent.js";
 import FabricSlideContentRenderer from "./FabricSlideContentRenderer.vue";
-import {PublicPlanSlideContent} from "@/models/publicPlanSlideContent";
-import PublicPlanSlideContentRenderer from "@/components/slideTypes/PublicPlanSlideContentRenderer.vue";
+import { PublicPlanSlideContent } from '@/models/publicPlanSlideContent';
+import { PublicPlanNextSlideContent } from '@/models/publicPlanNextSlideContent';
+import PublicPlanSlideContentRenderer from '@/components/slideTypes/publicPlan/PublicPlanSlideContentRenderer.vue';
+import PublicPlanNextSlideContentRenderer from '@/components/slideTypes/publicPlan/PublicPlanNextSlideContentRenderer.vue';
 
 const props = withDefaults(defineProps<{
   slide: Slide,
@@ -38,6 +40,8 @@ const componentName = computed(() => {
     return FabricSlideContentRenderer;
   } else if (content instanceof PublicPlanSlideContent) {
     return PublicPlanSlideContentRenderer;
+  } else if (content instanceof PublicPlanNextSlideContent) {
+    return PublicPlanNextSlideContentRenderer;
   }
   console.warn("Missing renderer for slide content type:", content);
   return null;

@@ -13,6 +13,7 @@ import 'dayjs/locale/de';
 import Rooms from "@/components/Rooms.vue";
 import EventOverview from "@/components/EventOverview.vue";
 import PublishControl from "@/components/PublishControl.vue";
+import EventDayControl from "@/components/EventDayControl.vue";
 // Admin is lazy-loaded - only loads when /admin route is accessed
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
@@ -27,6 +28,7 @@ import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
 import ScoreViewer from "@/components/ScoreViewer.vue";
 import {useEventStore} from "@/stores/event";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
+import {registerSW} from 'virtual:pwa-register'
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
@@ -44,6 +46,7 @@ const routes = [
             {path: 'events', component: SelectEvent},
             {path: 'rooms', component: Rooms},
             {path: 'publish', component: PublishControl},
+            {path: 'live', component: EventDayControl},
             // Lazy-load Admin component - only loads when route is accessed
             // This significantly reduces initial bundle size since most users are not admins
             {path: 'admin', component: () => import('@/components/Admin.vue')},
@@ -60,11 +63,13 @@ const routes = [
     {path: '/events', redirect: '/plan/events'},
     {path: '/rooms', redirect: '/plan/rooms'},
     {path: '/publish', redirect: '/plan/publish'},
+    {path: '/event-day', redirect: '/plan/live'},
+    {path: '/live', redirect: '/plan/live'},
     {path: '/admin', redirect: '/plan/admin'},
     {path: '/presentation', redirect: '/plan/presentation'},
     {path: '/preview/:planId', redirect: to => `/plan/preview/${to.params.planId}`},
     {path: '/editSlide/:slideId', redirect: to => `/plan/editSlide/${to.params.slideId}`},
-    
+
     // Public slug-based routes (must be after all specific routes)
     {path: '/:slug', component: PublicEvent, props: true, meta: {public: true}},
     // Unauthorized access route
@@ -80,13 +85,26 @@ const router = createRouter({
 const pinia = createPinia()
 setActivePinia(pinia)
 
+function isTodayWithinEvent(event) {
+    if (!event?.date) return false
+
+    const start = dayjs(event.date).startOf('day')
+    if (!start.isValid()) return false
+
+    const eventDays = Math.max(Number(event.days || 1), 1)
+    const end = start.add(eventDays - 1, 'day').endOf('day')
+    const now = dayjs()
+
+    return !now.isBefore(start) && !now.isAfter(end)
+}
+
 router.beforeEach(async (to, from, next) => {
     // Allow public routes (including unauthorized page)
     if (to.meta?.public || to.path === '/unauthorized') {
         next();
         return;
     }
-    
+
     // Handle authentication
     if (!keycloak.authenticated) {
         try {
@@ -113,35 +131,44 @@ router.beforeEach(async (to, from, next) => {
             return;
         }
     }
-    
+
     // Ensure token is in localStorage - even if already authenticated
     // This is needed because the token might not be in localStorage from a previous session
     if (keycloak.authenticated && keycloak.token) {
         localStorage.setItem('kc_token', keycloak.token);
     }
-    
+
     // Check if event is selected for non-public routes
     // Skip check for the events selection page itself
     if (to.path !== '/plan/events' && to.path !== '/events' && to.path.startsWith('/plan')) {
         // Use the store - pinia is already active
         const eventStore = useEventStore();
-        
+
         // Try to fetch selected event if not already loaded
         if (!eventStore.selectedEvent) {
             await eventStore.fetchSelectedEvent();
         }
-        
+
         // If still no event selected, redirect to event selection page
         if (!eventStore.selectedEvent) {
             next('/plan/events');
             return;
         }
+
+        // Day-of default view: on first load, open am Tag instead of Veranstaltung
+        const isInitialNavigation = from.matched.length === 0
+        if (isInitialNavigation && to.path === '/plan/event' && isTodayWithinEvent(eventStore.selectedEvent)) {
+            next('/plan/live')
+            return
+        }
     }
-    
+
     next();
 });
 
 const app = createApp(App)
+
+registerSW({immediate: true})
 
 axios.defaults.baseURL = '/api'
 axios.defaults.withCredentials = true
@@ -167,7 +194,7 @@ axios.interceptors.response.use(
             // Store error message for display
             const errorMessage = error.response.data?.error || 'Zugriff verweigert'
             sessionStorage.setItem('unauthorized_error', errorMessage)
-            
+
             // Only redirect if not already on unauthorized page
             if (window.location.pathname !== '/unauthorized') {
                 // Redirect to unauthorized page

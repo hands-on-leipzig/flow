@@ -47,11 +47,32 @@
           </a>
         </p>
       </div>
+
+      <button
+          type="button"
+          @click="logout"
+          class="mt-6 inline-flex items-center justify-center px-4 py-2 rounded-md bg-gray-800 text-white text-sm font-medium hover:bg-gray-900 transition-colors"
+      >
+        Logout
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import {imageUrl} from '@/utils/images'
+import keycloak from '@/keycloak.js'
+
+function logout() {
+  localStorage.removeItem('kc_token')
+  sessionStorage.removeItem('unauthorized_error')
+
+  const redirectUri = window.location.origin
+  const logoutUrl = keycloak.createLogoutUrl({ redirectUri })
+
+  // Always redirect to the Keycloak logout endpoint so SSO session is ended,
+  // even when keycloak.authenticated is false on this public route.
+  window.location.href = logoutUrl
+}
 </script>
 

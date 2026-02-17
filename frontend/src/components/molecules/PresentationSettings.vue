@@ -9,17 +9,8 @@ import {mdiContentCopy} from '@mdi/js';
 import {Slideshow} from "@/models/slideshow";
 import axios from "axios";
 import {Slide} from "@/models/slide";
-import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import SavingToast from "@/components/atoms/SavingToast.vue";
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue";
-
-type RobotGamePublicRounds = {
-  vr1: boolean;
-  vr2: boolean;
-  vr3: boolean;
-  vf: boolean;
-  hf: boolean;
-};
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
@@ -28,8 +19,6 @@ const loading = ref(true);
 const planId = ref<number | null>(null);
 const slideshows = ref<Slideshow[]>([]);
 const savingToast = ref(null);
-
-const robotGameRounds = ref<RobotGamePublicRounds | null>(null);
 
 const carouselLink = computed(() => {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
@@ -73,15 +62,20 @@ const expandedSlideshows = ref<Set<number>>(new Set());
 const copiedSlideshowId = ref<number | null>(null);
 const isDragging = ref(false);
 const draggedSlideId = ref<number | null>(null);
+const publicPlanChoices = [
+  {slide: 'PublicPlanSlideContent', label: 'Jetzt laufende Programmpunkte', icon: 'bi-clock'},
+  {slide: 'PublicPlanNextSlideContent', label: 'Kommende Programmpunkte', icon: 'bi-calendar-event'},
+];
 const slideTypes = [
-  {value: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse', icon: 'bi-trophy'},
-  {value: 'PublicPlanSlideContent', label: 'Öffentlicher Zeitplan', icon: 'bi-calendar'},
-  {value: 'UrlSlideContent', label: 'Externer Inhalt (URL)', icon: 'bi-link-45deg'},
-  {value: 'FabricSlideContent', label: 'Eigener Inhalt', icon: 'bi-pencil-square'},
+  {slide: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse', icon: 'bi-trophy'},
+  {subModal: publicPlanChoices, label: 'Öffentlicher Zeitplan', icon: 'bi-calendar'},
+  {slide: 'UrlSlideContent', label: 'Externer Inhalt (URL)', icon: 'bi-link-45deg'},
+  {slide: 'FabricSlideContent', label: 'Eigener Inhalt', icon: 'bi-pencil-square'},
 ];
 
+const addSliceChoices = ref(null);
+
 onMounted(loadSlideshows);
-onMounted(getPublicRobotGameRounds);
 onMounted(fetchPlanId);
 
 async function loadSlideshows() {
@@ -127,16 +121,16 @@ function onDragStart(event: any) {
 async function onDragEnd(slideshow: Slideshow) {
   // Wait for animation to complete
   await new Promise(resolve => setTimeout(resolve, 250));
-  
+
   isDragging.value = false;
   draggedSlideId.value = null;
-  
+
   // Wait for DOM to settle
   await nextTick();
-  
+
   // Get the current order from the slideshow (v-model should have updated it)
   const slideIds = slideshow.slides.map(slide => slide.id);
-  
+
   console.log('Updating order:', slideIds);
 
   savingToast?.value?.show();
@@ -233,6 +227,7 @@ function handleSlideshowNameKeydown(event: KeyboardEvent, slideshow: Slideshow) 
 
 function openSlideTypeModal(slideshow: Slideshow) {
   currentSlideshow.value = slideshow;
+  addSliceChoices.value = slideTypes;
   showSlideTypeModal.value = true;
 }
 
@@ -241,7 +236,12 @@ function closeSlideTypeModal() {
   showSlideTypeModal.value = false;
   currentSlideshow.value = null;
   slideType.value = "";
+  addSliceChoices.value = null;
   creatingSlideType.value = null;
+}
+
+function changeSlideChoices(value) {
+  addSliceChoices.value = value;
 }
 
 async function addSlide(selectedType: string) {
@@ -253,9 +253,12 @@ async function addSlide(selectedType: string) {
 
   let newSlide = Slide.createNewSlide(selectedType);
 
-  // TODO
+  // TODO move this to the server
   if (selectedType === 'PublicPlanSlideContent') {
-    newSlide.name = 'Öffentlicher Zeitplan';
+    newSlide.name = 'Zeitplan - Jetzt';
+    newSlide.content.planId = planId.value;
+  } else if (selectedType == "PublicPlanNextSlideContent") {
+    newSlide.name = "Zeitplan - Als nächstes";
     newSlide.content.planId = planId.value;
   } else if (selectedType === 'RobotGameSlideContent') {
     newSlide.name = 'Robot-Game-Ergebnisse';
@@ -277,29 +280,6 @@ async function addSlide(selectedType: string) {
   } catch (e) {
     console.error(e);
     creatingSlideType.value = null;
-  }
-}
-
-async function getPublicRobotGameRounds() {
-  try {
-    const response = await axios.get('/contao/rounds/' + event.value?.id);
-    robotGameRounds.value = response.data;
-  } catch (error) {
-    console.error('Error fetching rounds:', error);
-  }
-}
-
-async function updateRobotGameRounds(round, value) {
-  robotGameRounds.value[round] = value;
-  savingToast?.value?.show();
-  await pushPublicRobotGameRoundsUpdate();
-}
-
-async function pushPublicRobotGameRoundsUpdate() {
-  try {
-    await axios.put('/contao/rounds/' + event.value?.id, robotGameRounds.value);
-  } catch (e) {
-    console.error('Error updating rounds:', e);
   }
 }
 
@@ -406,7 +386,7 @@ function copyUrl(url) {
           <div v-if="expandedSlideshows.has(slideshow.id)" class="px-5 pb-5">
             <!-- Settings Row -->
             <div class="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+              <div class="grid grid-cols-1 gap-4 items-end">
                 <!-- Transition Time -->
                 <div class="flex-1">
                   <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -441,67 +421,6 @@ function copyUrl(url) {
                         {{ preset }}s
                       </button>
                     </div>
-                  </div>
-                </div>
-
-                <!-- Robot Game Rounds -->
-                <div class="flex-1" v-if="robotGameRounds">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="bi bi-trophy"></i> Robot Game: Öffentliche Ergebnisse
-                    <InfoPopover
-                        text="Wähle aus, welche Ergebnisse öffentlich sichtbar sein sollen. Falls eine Wettbewerbsphase noch läuft oder später (z.B. auf der Bühne) veröffentlicht werden soll, sollte diese hier nicht ausgewählt werden."/>
-                  </label>
-                  <div class="grid grid-cols-5 gap-2">
-                    <label
-                        class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-                      <input
-                          type="checkbox"
-                          :checked="robotGameRounds.vr1"
-                          @change="updateRobotGameRounds('vr1', ($event.target as HTMLInputElement).checked)"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span class="text-sm font-medium">VR1</span>
-                    </label>
-                    <label
-                        class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-                      <input
-                          type="checkbox"
-                          :checked="robotGameRounds.vr2"
-                          @change="updateRobotGameRounds('vr2', ($event.target as HTMLInputElement).checked)"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span class="text-sm font-medium">VR2</span>
-                    </label>
-                    <label
-                        class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-                      <input
-                          type="checkbox"
-                          :checked="robotGameRounds.vr3"
-                          @change="updateRobotGameRounds('vr3', ($event.target as HTMLInputElement).checked)"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span class="text-sm font-medium">VR3</span>
-                    </label>
-                    <label
-                        class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-                      <input
-                          type="checkbox"
-                          :checked="robotGameRounds.vf"
-                          @change="updateRobotGameRounds('vf', ($event.target as HTMLInputElement).checked)"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span class="text-sm font-medium">VF</span>
-                    </label>
-                    <label
-                        class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-orange-200 hover:bg-orange-100 cursor-pointer transition-colors">
-                      <input
-                          type="checkbox"
-                          :checked="robotGameRounds.hf"
-                          @change="updateRobotGameRounds('hf', ($event.target as HTMLInputElement).checked)"
-                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span class="text-sm font-medium">HF</span>
-                    </label>
                   </div>
                 </div>
               </div>
@@ -542,8 +461,8 @@ function copyUrl(url) {
                       @start="onDragStart"
                       @end="onDragEnd(slideshow)">
                     <template #item="{ element }">
-                      <SlideThumb 
-                          :slide="element" 
+                      <SlideThumb
+                          :slide="element"
                           :class="{ 'opacity-0': draggedSlideId === element.id && isDragging }"
                           @deleteSlide="deleteSlide(slideshow, element.id)"/>
                     </template>
@@ -560,7 +479,6 @@ function copyUrl(url) {
     <div v-else-if="!loading" class="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
       <i class="bi bi-slides text-5xl text-gray-400 mb-4"></i>
       <p class="text-gray-600 font-medium mb-2">Noch keine Slideshow vorhanden</p>
-      <p class="text-sm text-gray-500 mb-4">Erstellen Sie eine Slideshow, um Präsentationsfolien hinzuzufügen</p>
       <button
           class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           :disabled="loading || !planId || !event?.id"
@@ -572,7 +490,8 @@ function copyUrl(url) {
 
     <!-- Loading State -->
     <div v-else class="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-      <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+      <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+           viewBox="0 0 24 24" aria-hidden="true">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
       </svg>
@@ -597,40 +516,42 @@ function copyUrl(url) {
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-          <button
-              v-for="type of slideTypes"
-              :key="type.value"
-              @click="addSlide(type.value)"
-              :disabled="!!creatingSlideType"
-              :class="[
-                'flex flex-col items-center justify-center p-6 border-2 rounded-lg transition-all relative',
-                creatingSlideType === type.value
+          <template
+              v-for="type of addSliceChoices"
+              :key="type.slide">
+            <button
+                @click="type.slide ? addSlide(type.slide) : changeSlideChoices(type.subModal)"
+                :disabled="!!creatingSlideType"
+                :class="[
+                    'p-6 flex flex-col items-center justify-center border-2 rounded-lg transition-all relative',
+                creatingSlideType === type.slide
                   ? 'border-blue-500 bg-blue-50 cursor-wait'
                   : creatingSlideType
                   ? 'border-gray-200 opacity-50 cursor-not-allowed'
                   : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50 cursor-pointer group'
               ]"
-          >
-            <div v-if="creatingSlideType === type.value"
-                 class="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-75 rounded-lg">
-              <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-              </svg>
-            </div>
-            <i :class="[
+            >
+              <div v-if="creatingSlideType === type.slide"
+                   class="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-75 rounded-lg">
+                <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+              </div>
+              <i :class="[
               `bi ${type.icon} text-4xl mb-3 transition-colors`,
-              creatingSlideType === type.value
+              creatingSlideType === type.slide
                 ? 'text-blue-600'
                 : 'text-gray-600 group-hover:text-blue-600'
             ]"></i>
-            <span :class="[
+              <span :class="[
               'text-sm font-medium text-center',
-              creatingSlideType === type.value
+              creatingSlideType === type.slide
                 ? 'text-blue-700'
                 : 'text-gray-700 group-hover:text-blue-700'
             ]">{{ type.label }}</span>
-          </button>
+            </button>
+          </template>
         </div>
 
         <div class="mt-6 flex justify-end">
