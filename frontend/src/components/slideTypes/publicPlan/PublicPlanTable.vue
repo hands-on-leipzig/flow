@@ -345,11 +345,11 @@ watch(
                 <tbody>
                 <tr>
                   <td>{{ tableName(a, 1) }}</td>
-                  <td>{{ tableName(a, 2) }}</td>
+                  <td class="text-right">{{ tableName(a, 2) }}</td>
                 </tr>
                 <tr>
                   <td>{{ teamLabel(a.table_1_team_name) }}</td>
-                  <td>{{ teamLabel(a.table_2_team_name) }}</td>
+                  <td class="text-right">{{ teamLabel(a.table_2_team_name) }}</td>
                 </tr>
                 </tbody>
               </table>
@@ -505,11 +505,5 @@ watch(
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-}
-
-.audience-empty {
-  padding: 0.75rem 1rem;
-  font-size: clamp(0.9rem, 2vw, 1rem);
-  color: #94a3b8;
 }
 </style>
