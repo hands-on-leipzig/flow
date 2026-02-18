@@ -538,7 +538,7 @@ const updateTableName = async () => {
 </script>
 
 <template>
-  <div class="h-screen p-3 md:p-6 flex flex-col space-y-3 md:space-y-5 overflow-y-auto">
+  <div class="h-screen px-0 py-2 md:p-6 flex flex-col space-y-3 md:space-y-5 overflow-y-auto">
     <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600">
       <LoaderFlow/>
       <LoaderText/>
@@ -565,9 +565,9 @@ const updateTableName = async () => {
     </div>
 
 
-    <div class="bg-white border rounded-lg shadow">
+    <div class="bg-white border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none shadow-sm">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base"
+          class="w-full text-left px-3 md:px-4 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base border-b border-gray-200"
           @click="toggle('general')"
       >
         Allgemein
@@ -607,9 +607,9 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="bg-white border rounded-lg shadow">
+    <div class="bg-white border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none shadow-sm">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base"
+          class="w-full text-left px-3 md:px-4 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base border-b border-gray-200"
           @click="toggle('expert')"
       >
         Expertenparameter
@@ -617,9 +617,9 @@ const updateTableName = async () => {
       </button>
       <transition name="fade">
         <div v-if="openGroup === 'expert'" class="p-3 md:p-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-h-[400px] md:max-h-[600px] overflow-y-auto">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 max-h-none md:max-h-[600px] overflow-y-visible md:overflow-y-auto overflow-x-hidden">
             <!-- Left column: Explore or turned off message -->
-            <div>
+            <div class="w-full min-w-0">
               <div class="flex items-center gap-2 mb-2">
                 <img
                     :src="programLogoSrc('E')"
@@ -653,7 +653,7 @@ const updateTableName = async () => {
             </div>
 
             <!-- Right column: Challenge or turned off message -->
-            <div>
+            <div class="w-full min-w-0">
               <div class="flex items-center gap-2 mb-2">
                 <img
                     :src="programLogoSrc('C')"
@@ -715,9 +715,9 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="bg-white border rounded-lg shadow" v-if="selectedEvent?.level === 3">
+    <div class="bg-white border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none shadow-sm" v-if="selectedEvent?.level === 3">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base"
+          class="w-full text-left px-3 md:px-4 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base border-b border-gray-200"
           @click="toggle('finals')"
       >
         Finalparameter
@@ -758,9 +758,9 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div v-if="showChallenge" class="bg-white border rounded-lg shadow">
+    <div v-if="showChallenge" class="bg-white border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none shadow-sm">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base"
+          class="w-full text-left px-3 md:px-4 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base border-b border-gray-200"
           @click="toggle('extras')"
       >
         Zusatzblöcke
@@ -818,9 +818,9 @@ const updateTableName = async () => {
     </div>
     </template>
     <!-- Mobile Preview Toggle -->
-    <div class="md:hidden bg-white border rounded-lg shadow">
+    <div class="md:hidden bg-white border-b border-x-0 border-t-0 rounded-none shadow-sm">
       <button
-          class="w-full text-left px-3 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center text-sm"
+          class="w-full text-left px-3 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm border-b border-gray-200"
           @click="toggle('preview')"
       >
         Vorschau

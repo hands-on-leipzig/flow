@@ -224,20 +224,22 @@ const isDefaultValue = computed(() => {
 
 <template>
   <div
-      class="flex items-center px-4 py-1 space-x-4 w-full hover:bg-gray-50 transition-colors duration-150 rounded"
-      :class="{ 
-        'flex-col items-start space-x-0 space-y-1': !horizontal,
-        'px-2 py-1': compact
-      }"
+      class="px-4 py-1 w-full max-w-full hover:bg-gray-50 transition-colors duration-150 rounded"
+      :class="[
+        compact ? 'px-2 py-1' : '',
+        horizontal
+          ? 'flex flex-col items-start space-y-1 md:flex-row md:items-center md:space-y-0 md:space-x-4'
+          : 'flex flex-col items-start space-y-1'
+      ]"
   >
-    <div v-if="withLabel && !compact" class="flex items-center min-w-[25rem]">
-      <span class="font-medium">{{ param.ui_label }}</span>
+    <div v-if="withLabel && !compact" class="flex items-center w-full min-w-0 md:min-w-[25rem]">
+      <span class="font-medium break-words">{{ param.ui_label }}</span>
       <InfoPopover :text="param.ui_description"/>
     </div>
 
-    <div class="flex items-center gap-1">
+    <div class="flex items-center gap-1 w-full md:w-auto">
       <!-- Number inputs with default value overlay -->
-      <div v-if="param.type === 'integer' || param.type === 'decimal'" class="relative">
+      <div v-if="param.type === 'integer' || param.type === 'decimal'" class="relative w-full md:w-auto">
         <input
             type="number"
             :min="param.min"
@@ -247,7 +249,7 @@ const isDefaultValue = computed(() => {
             @change="emitChange"
             @input="validateValue(localValue, param)"
             :disabled="disabled"
-            class="w-24 border rounded px-2 py-1 pr-8 text-sm shadow-sm"
+            class="w-full md:w-24 border rounded px-2 py-1 pr-8 text-sm shadow-sm"
             :class="{ 
               'opacity-50 cursor-not-allowed': disabled,
               'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled,
@@ -267,8 +269,8 @@ const isDefaultValue = computed(() => {
       </div>
 
       <!-- Boolean inputs - Fancy toggle -->
-      <div v-else-if="param.type === 'boolean'" class="flex items-center justify-center">
-        <div class="relative flex border border-gray-300 rounded overflow-hidden w-24"
+      <div v-else-if="param.type === 'boolean'" class="flex items-center justify-start w-full md:w-auto">
+        <div class="relative flex border border-gray-300 rounded overflow-hidden w-full md:w-24"
              :class="{
                'border-gray-300': isDefaultValue,
                'border-orange-500': !isDefaultValue,
@@ -312,13 +314,13 @@ const isDefaultValue = computed(() => {
       </div>
 
       <!-- Date inputs with default value overlay -->
-      <div v-else-if="param.type === 'date'" class="relative">
+      <div v-else-if="param.type === 'date'" class="relative w-full md:w-auto">
         <input
             type="date"
             v-model="localValue"
             @change="emitChange"
             :disabled="disabled"
-            class="w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
+            class="w-full md:w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
             :class="{ 
               'opacity-50 cursor-not-allowed': disabled,
               'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
@@ -331,7 +333,7 @@ const isDefaultValue = computed(() => {
       </div>
 
       <!-- Time inputs with custom time picker -->
-      <div v-else-if="param.type === 'time'" class="relative flex items-center gap-2">
+      <div v-else-if="param.type === 'time'" class="relative flex items-center gap-2 w-full md:w-auto flex-wrap">
         <div
             class="inline-block"
             :class="{
@@ -362,13 +364,13 @@ const isDefaultValue = computed(() => {
       </div>
 
       <!-- Text inputs with default value overlay -->
-      <div v-else class="relative">
+      <div v-else class="relative w-full md:w-auto">
         <input
             type="text"
             v-model="localValue"
             @change="emitChange"
             :disabled="disabled"
-            class="w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
+            class="w-full md:w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
             :class="{ 
               'opacity-50 cursor-not-allowed': disabled,
               'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
@@ -385,7 +387,7 @@ const isDefaultValue = computed(() => {
     </div>
 
     <!-- Validation error message -->
-    <div v-if="validationError" class="text-xs text-red-600 mt-1 ml-4">
+    <div v-if="validationError" class="text-xs text-red-600 mt-1 ml-0 md:ml-4">
       {{ validationError }}
     </div>
   </div>
