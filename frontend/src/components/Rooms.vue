@@ -601,6 +601,58 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 const activeTab = ref('activities')
 
+// --- Mobile tap-to-assign ---
+const showAssignModal = ref(false)
+const selectedAssignable = ref(null)
+
+const isBulkModeEnabled = (groupId) => {
+  if (groupId === 'explore-morning') return bulkModeExploreMorning.value
+  if (groupId === 'explore-afternoon') return bulkModeExploreAfternoon.value
+  if (groupId === 'explore') return bulkModeExplore.value
+  if (groupId === 'challenge') return bulkModeChallenge.value
+  return false
+}
+
+const buildProxyItem = (groupId) => {
+  if (groupId === 'explore-morning') {
+    return {key: PROXY_EXPLORE_MORNING_KEY, type: 'team-proxy', name: 'Alle Explore Vormittag Teams', first_program: 2, program: groupId}
+  }
+  if (groupId === 'explore-afternoon') {
+    return {key: PROXY_EXPLORE_AFTERNOON_KEY, type: 'team-proxy', name: 'Alle Explore Nachmittag Teams', first_program: 2, program: groupId}
+  }
+  if (groupId === 'explore') {
+    return {key: PROXY_EXPLORE_KEY, type: 'team-proxy', name: 'Alle Explore Teams', first_program: 2, program: groupId}
+  }
+  if (groupId === 'challenge') {
+    return {key: PROXY_CHALLENGE_KEY, type: 'team-proxy', name: 'Alle Challenge Teams', first_program: 3, program: groupId}
+  }
+  return null
+}
+
+const getUnassignedItems = (category, group) => {
+  if (category.type === 'team' && isBulkModeEnabled(group.id)) {
+    const proxy = buildProxyItem(group.id)
+    return proxy && !assignments.value[proxy.key] ? [proxy] : []
+  }
+  return group.items.filter(i => !assignments.value[i.key])
+}
+
+const openAssignModal = (item) => {
+  selectedAssignable.value = item
+  showAssignModal.value = true
+}
+
+const closeAssignModal = () => {
+  selectedAssignable.value = null
+  showAssignModal.value = false
+}
+
+const assignSelectedToRoom = async (roomId) => {
+  if (!selectedAssignable.value?.key) return
+  await assignItemToRoom(selectedAssignable.value.key, roomId)
+  closeAssignModal()
+}
+
 // --- Bulk Team Assignment Feature ---
 const bulkModeExplore = ref(false)
 const bulkModeExploreMorning = ref(false) // Bulk mode for Explore Vormittag
@@ -1025,11 +1077,109 @@ const showChallengeTeams = computed(() => {
       <LoaderFlow/>
       <LoaderText/>
     </div>
-    <div v-else class="grid grid-cols-4 gap-6 p-6">
+    <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 p-3 md:p-6">
       <!-- 🟢 Räume: Erste 3 Spalten -->
-      <div class="col-span-3">
-        <h2 class="text-xl font-bold mb-4">Räume</h2>
-        <div class="grid grid-cols-3 gap-4">
+      <div class="lg:col-span-3 order-2 lg:order-1">
+        <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">Räume</h2>
+        <!-- Mobile: tap-first room list (no drag/drop) -->
+        <div class="md:hidden space-y-3">
+          <div
+              v-for="room in rooms"
+              :key="`mobile-room-${room.id}`"
+              class="p-3 border rounded bg-white shadow-sm"
+          >
+            <div class="flex items-center gap-2 mb-2">
+              <input
+                  v-model="room.name"
+                  class="text-sm font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
+                  @blur="updateRoom(room)"
+              />
+              <button
+                  class="text-lg hover:text-red-800"
+                  title="Raum löschen"
+                  @click="askDeleteRoom(room)"
+              >
+                <i style="color: grey;" class="bi bi-trash-fill"></i>
+              </button>
+            </div>
+
+            <div class="mb-2 flex items-center gap-2">
+              <input
+                  v-model="room.navigation_instruction"
+                  class="text-xs border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
+                  placeholder="z. B. 2. Etage rechts"
+                  @blur="updateRoom(room)"
+              />
+              <div
+                  :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                  class="cursor-pointer"
+                  @click="toggleAccessibility(room)"
+              >
+                <img
+                    :alt="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
+                    :src="room.is_accessible ? '/flow/accessible_yes.png' : '/flow/accessible_no.png'"
+                    class="w-6 h-6"
+                />
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-1 min-h-[36px] border rounded p-1 bg-gray-50">
+              <div v-for="element in getItemsInRoom(room.id)" :key="`mobile-assigned-${element.key}`" class="flex items-center">
+                <span
+                    v-if="element.type === 'activity'"
+                    :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
+                    class="text-[11px] px-2 py-1 rounded-full flex items-center gap-1 font-medium"
+                >
+                  <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
+                  {{ element.name }}
+                  <button class="ml-1 text-sm text-gray-500 hover:text-black" @click.stop="unassignItemFromRoom(element.key)">✖</button>
+                </span>
+                <span
+                    v-else
+                    class="flex items-center border rounded-md text-[11px] bg-white shadow-sm"
+                >
+                  <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
+                  <span class="px-2 py-1 flex items-center gap-1">
+                    <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
+                    {{ element.number ? `${element.number} | ` : '' }}{{ element.name }}
+                  </span>
+                  <button class="ml-1 text-sm text-gray-500 hover:text-black pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div
+              ref="newRoomCardRef"
+              class="p-3 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+          >
+            <div class="mb-2">
+              <input
+                  ref="newRoomInput"
+                  v-model="newRoomName"
+                  :disabled="isSaving"
+                  class="text-sm font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
+                  placeholder="Neuer Raum z.B. A2.03"
+                  @keyup.enter="createRoom"
+              />
+            </div>
+            <transition name="fade">
+              <div v-if="newRoomName.trim().length > 0">
+                <input
+                    ref="newRoomNoteInput"
+                    v-model="newRoomNote"
+                    :disabled="isSaving"
+                    class="text-xs border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                    placeholder="Navigationshinweis"
+                    @keyup.enter="createRoom"
+                />
+              </div>
+            </transition>
+          </div>
+        </div>
+
+        <!-- Desktop: drag/drop rooms -->
+        <div class="hidden md:grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
           <draggable
               v-model="rooms"
               class="contents"
@@ -1045,14 +1195,14 @@ const showChallengeTeams = computed(() => {
                 'opacity-50': isDraggingRoom,
                 'shadow-lg': isDraggingRoom
               }"
-                  class="p-4 mb-2 border rounded bg-white shadow cursor-move hover:shadow-md transition-shadow"
+                  class="p-3 md:p-4 mb-2 border rounded bg-white shadow-sm md:shadow cursor-move hover:shadow-md transition-shadow"
               >
                 <!-- Line 1: Drag handle, Room name, Delete icon -->
                 <div class="flex items-center gap-2 mb-2">
                   <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
                   <input
                       v-model="room.name"
-                      class="text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
+                      class="text-sm md:text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
                       @blur="updateRoom(room)"
                   />
                   <button
@@ -1068,7 +1218,7 @@ const showChallengeTeams = computed(() => {
                 <div class="mb-2 flex items-center gap-2">
                   <input
                       v-model="room.navigation_instruction"
-                      class="text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
+                      class="text-xs md:text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
                       placeholder="z. B. 2. Etage rechts"
                       @blur="updateRoom(room)"
                   />
@@ -1092,7 +1242,7 @@ const showChallengeTeams = computed(() => {
                   'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
                   'bg-gray-50': !isDragging && dragOverRoomId !== room.id
                 }"
-                    class="flex flex-wrap gap-1 min-h-[40px] border rounded p-1 transition-colors"
+                    class="flex flex-wrap gap-1 min-h-[36px] border rounded p-1 transition-colors"
                 >
                   <draggable
                       :list="getItemsInRoom(room.id)"
@@ -1111,7 +1261,7 @@ const showChallengeTeams = computed(() => {
                         <span
                             v-if="element.type === 'activity'"
                             :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
-                            class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
+                            class="text-[11px] md:text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
                         >
                           <img
                               v-if="programLogoSrc(element.first_program)"
@@ -1131,7 +1281,7 @@ const showChallengeTeams = computed(() => {
                         <!-- Team Proxy -->
                         <span
                             v-else-if="element.type === 'team-proxy'"
-                            class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+                            class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
                         >
                           <span
                               :style="{ backgroundColor: getProgramColor(element) }"
@@ -1157,7 +1307,7 @@ const showChallengeTeams = computed(() => {
                         <!-- Team -->
                         <span
                             v-else
-                            class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+                            class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
                         >
                           <span
                               :style="{ backgroundColor: getProgramColor(element) }"
@@ -1195,14 +1345,14 @@ const showChallengeTeams = computed(() => {
           <!-- 🟩 Neuer Raum (always visible, outside draggable) -->
           <div
               ref="newRoomCardRef"
-              class="p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+              class="p-3 md:p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
           >
             <div class="mb-2">
               <input
                   ref="newRoomInput"
                   v-model="newRoomName"
                   :disabled="isSaving"
-                  class="text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
+                  class="text-sm md:text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
                   placeholder="Neuer Raum z.B. A2.03"
                   @keyup.enter="createRoom"
               />
@@ -1216,7 +1366,7 @@ const showChallengeTeams = computed(() => {
                     ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
-                    class="text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                    class="text-xs md:text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
                     placeholder="Navigationshinweis"
                     @keyup.enter="createRoom"
                 />
@@ -1230,11 +1380,11 @@ const showChallengeTeams = computed(() => {
       </div>
 
       <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->
-      <div class="col-span-1">
-        <div class="flex mb-4 border-b text-xl font-bold relative">
+      <div class="lg:col-span-1 order-1 lg:order-2">
+        <div class="flex mb-3 md:mb-4 border-b text-base md:text-xl font-bold relative">
           <button
               :class="activeTab === 'activities' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
-              class="px-4 py-2 relative"
+              class="px-3 md:px-4 py-2 relative"
               @click="activeTab = 'activities'"
           >
             Aktivitäten
@@ -1247,7 +1397,7 @@ const showChallengeTeams = computed(() => {
 
           <button
               :class="activeTab === 'teams' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
-              class="px-4 py-2 ml-4 relative"
+              class="px-3 md:px-4 py-2 ml-2 md:ml-4 relative"
               @click="activeTab = 'teams'"
           >
             Teams
@@ -1271,9 +1421,9 @@ const showChallengeTeams = computed(() => {
                   (group.id === 'explore-morning' && showExploreTeams && hasTwoExploreGroups) ||
                   (group.id === 'explore-afternoon' && showExploreTeams && hasTwoExploreGroups) ||
                   (group.id === 'challenge' && showChallengeTeams)"
-                class="mb-6 bg-gray-50 border rounded-lg p-4 shadow"
+                class="mb-4 md:mb-6 bg-gray-50 border rounded-lg p-3 md:p-4 shadow-sm"
             >
-              <div class="text-lg font-semibold text-black mb-3 flex items-center gap-2">
+              <div class="text-base md:text-lg font-semibold text-black mb-2 md:mb-3 flex items-center gap-2">
                 <img
                     v-if="group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
                     :alt="programLogoAlt('E')"
@@ -1291,7 +1441,7 @@ const showChallengeTeams = computed(() => {
 
               <!-- Bulk mode checkbox for teams -->
               <div v-if="category.type === 'team'" class="mb-2">
-                <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <label class="flex items-center gap-2 text-xs md:text-sm text-gray-700 cursor-pointer">
                   <input
                       :checked="group.id === 'explore-morning' ? bulkModeExploreMorning :
                           group.id === 'explore-afternoon' ? bulkModeExploreAfternoon :
@@ -1305,7 +1455,47 @@ const showChallengeTeams = computed(() => {
                 </label>
               </div>
 
+              <!-- Mobile: tap-to-assign chips -->
+              <div class="md:hidden flex flex-wrap gap-1.5">
+                <template v-for="element in getUnassignedItems(category, group)" :key="`mobile-unassigned-${element.key}`">
+                  <button
+                      v-if="element.type === 'activity'"
+                      type="button"
+                      :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
+                      class="text-[11px] px-2 py-1 rounded-full flex items-center gap-1 font-medium"
+                      @click="openAssignModal(element)"
+                  >
+                    <img
+                        v-if="programLogoSrc(element.first_program)"
+                        :alt="programLogoAlt(element.first_program)"
+                        :src="programLogoSrc(element.first_program)"
+                        class="w-3 h-3 flex-shrink-0"
+                    />
+                    {{ element.name }}
+                  </button>
+                  <button
+                      v-else
+                      type="button"
+                      class="flex items-center border rounded-md text-[11px] bg-white shadow-sm"
+                      @click="openAssignModal(element)"
+                  >
+                    <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
+                    <span class="px-2 py-1 flex items-center gap-1.5">
+                      <img
+                          v-if="programLogoSrc(element.first_program)"
+                          :alt="programLogoAlt(element.first_program)"
+                          :src="programLogoSrc(element.first_program)"
+                          class="w-3 h-3 flex-shrink-0"
+                      />
+                      <span class="text-gray-600">{{ element.number ? `${element.number} | ` : '' }}{{ element.name }}</span>
+                    </span>
+                  </button>
+                </template>
+              </div>
+
+              <!-- Desktop: drag/drop chips -->
               <draggable
+                  class="hidden md:flex flex-wrap gap-1.5 md:gap-2"
                   :list="category.type === 'team' && (
                     (group.id === 'explore-morning' && bulkModeExploreMorning) ||
                     (group.id === 'explore-afternoon' && bulkModeExploreAfternoon) ||
@@ -1340,7 +1530,6 @@ const showChallengeTeams = computed(() => {
                   }].filter(p => !assignments[p.key])
                 })()
               : group.items.filter(i => !assignments[i.key])"
-                  class="flex flex-wrap gap-2"
                   group="assignables"
                   item-key="key"
                   @end="isDragging = false"
@@ -1355,7 +1544,7 @@ const showChallengeTeams = computed(() => {
                   border: '2px solid ' + getProgramColor(element),
                   backgroundColor: '#fff'
                 }"
-                  class="text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
+                  class="text-[11px] md:text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
               >
                 <img
                     v-if="programLogoSrc(element.first_program)"
@@ -1368,7 +1557,7 @@ const showChallengeTeams = computed(() => {
 
                   <span
                       v-else-if="element.type === 'team-proxy'"
-                      class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+                      class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
                   >
                 <span
                     :style="{ backgroundColor: getProgramColor(element) }"
@@ -1387,7 +1576,7 @@ const showChallengeTeams = computed(() => {
 
                   <span
                       v-else-if="element.type === 'team'"
-                      class="flex items-center border rounded-md text-xs bg-white shadow-sm cursor-move"
+                      class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
                   >
               <span
                   :style="{ backgroundColor: getProgramColor(element) }"
@@ -1427,5 +1616,30 @@ const showChallengeTeams = computed(() => {
         @cancel="cancelDeleteRoom"
         @confirm="confirmDeleteRoom"
     />
+
+    <!-- Mobile tap-to-assign modal -->
+    <div v-if="showAssignModal && selectedAssignable" class="fixed inset-0 z-50 bg-black/40 flex items-end md:hidden" @click="closeAssignModal">
+      <div class="w-full bg-white rounded-t-xl p-4 max-h-[70vh] overflow-y-auto" @click.stop>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold text-gray-900">Zu Raum zuweisen</h3>
+          <button class="text-gray-500 hover:text-gray-700" @click="closeAssignModal">✕</button>
+        </div>
+        <div class="text-xs text-gray-600 mb-3 truncate">
+          {{ selectedAssignable.name }}
+        </div>
+        <div class="space-y-2">
+          <button
+              v-for="room in rooms"
+              :key="`assign-room-${room.id}`"
+              type="button"
+              class="w-full text-left px-3 py-2 border rounded hover:bg-gray-50"
+              @click="assignSelectedToRoom(room.id)"
+          >
+            <div class="font-medium text-sm">{{ room.name || 'Unbenannter Raum' }}</div>
+            <div v-if="room.navigation_instruction" class="text-xs text-gray-500">{{ room.navigation_instruction }}</div>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
