@@ -13,13 +13,14 @@ class ActivityFetcherService
      */
     public function fetchActivities(
         int $plan,
-        array $roles = [],                
+        array $roles = [],
         bool $includeRooms = false,
         bool $includeGroupMeta = false,
         bool $includeActivityMeta = false,
         bool $includeTeamNames = false,
         bool $freeBlocks = true,
-        bool $include_past = false
+        bool $include_past = false,
+        array $rooms = [], // optionaler Filter: nur Aktivitäten in diesen Räumen (IDs), empty = alle Räume
         ) {
 
         $q = DB::table('activity as a')
@@ -28,7 +29,7 @@ class ActivityFetcherService
             ->leftJoin('m_first_program as fp', 'atd.first_program', '=', 'fp.id')
             ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
             ->join('plan as p', 'p.id', '=', 'ag.plan')
-            ->join('event as e', 'e.id', '=', 'p.event') 
+            ->join('event as e', 'e.id', '=', 'p.event')
             ->where('ag.plan', $plan);
 
         // Rollen-Filter (optional)
@@ -52,7 +53,7 @@ class ActivityFetcherService
         if (!$include_past) {
             // Lower bound: activities must start on or after event start date
             $q->whereColumn('a.start', '>=', 'e.date');
-            
+
             // Upper bound: activities must start on or before event end date
             // Event end date = e.date + (e.days - 1) days
             // Use DATE() to compare only the date part, ignoring time
@@ -67,7 +68,7 @@ class ActivityFetcherService
         }
 
         // Rooms (optional)
-        if ($includeRooms) {
+        if ($includeRooms || !empty($rooms)) {
             $q->leftJoin('m_room_type as rt_room', 'a.room_type', '=', 'rt_room.id')
             ->leftJoin('room_type_room as rtr', function ($j) {
                 $j->on('rtr.room_type', '=', 'a.room_type')
@@ -82,6 +83,12 @@ class ActivityFetcherService
                         ->on('r.event', '=', 'p.event');
                     });
             });
+
+            if (!empty($rooms)) {
+                $q->where(function ($sub) use ($rooms) {
+                    $sub->whereIn('r.id', $rooms);
+                });
+            }
         }
 
         // Team-Namen (optional): team_plan → team
@@ -137,7 +144,7 @@ class ActivityFetcherService
                 ->on('t_t2.first_program', '=', 'atd.first_program');
             });
         }
-        
+
         // Table-Names (Override aus table_event)
         $q->leftJoin('table_event as te1', function($j) {
             $j->on('te1.event', '=', 'p.event')

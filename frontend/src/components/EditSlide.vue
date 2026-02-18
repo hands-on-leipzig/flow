@@ -7,13 +7,19 @@ import {Slide} from "@/models/slide";
 import FabricEditor from "@/components/FabricEditor.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import SavingToast from "@/components/atoms/SavingToast.vue";
+import {useEventStore} from "../stores/event";
 
 const router = useRouter();
 const props = defineProps<{
   slideId: Number,
 }>();
 
+const eventStore = useEventStore();
+const event = computed(() => eventStore.selectedEvent);
+
 const slide = ref<Slide | null>(null);
+const rooms = ref([]);
+
 const savingToast = ref(null);
 const hasUnsavedChanges = ref(false);
 const isSaving = ref(false);
@@ -32,7 +38,12 @@ const saveButtonText = computed(() => {
   return 'Alle Änderungen gespeichert';
 });
 
-onMounted(loadSlide);
+onMounted(async () => {
+  await loadSlide();
+  if (slide.value.type === 'PublicPlanSlideContent' || slide.value.type === 'PublicPlanNextSlideContent') {
+    await loadRooms();
+  }
+});
 onBeforeUnmount(() => {
   // Save any pending changes before leaving
   if (saveTimeoutId.value) {
@@ -52,6 +63,11 @@ async function loadSlide() {
     slide.value = Slide.fromObject(response.data);
   }
   return null;
+}
+
+async function loadRooms() {
+  const {data: roomsData} = await axios.get(`/events/${event.value.id}/rooms`)
+  rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
 }
 
 function scheduleSave() {
@@ -215,7 +231,7 @@ function updateDuration(value: number) {
       <span>Zurück zur Slideshow</span>
     </router-link>
 
-    <span v-if="!!slide" class="font-bold">{{slide.name}}</span>
+    <span v-if="!!slide" class="font-bold">{{ slide.name }}</span>
 
     <button
         @click="handleManualSave"
@@ -282,6 +298,21 @@ function updateDuration(value: number) {
                 :value="slide.content.interval"
                 @input="updateByName('interval', Number(($event.target as HTMLInputElement).value || 0))"
             />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 py-1 items-center">
+          <!-- Raum -->
+          <div>
+            <label class="text-sm font-medium pl-2">Raum</label>
+            <InfoPopover
+                text="Der Raum, dessen Plan angezeigt werden soll. Bei 'Alle Räume' werden alle Aktivitäten der Veranstaltung angezeigt."/>
+          </div>
+          <div>
+            <select class="mt-1 w-full border rounded px-2 py-1" :value="slide.content.room"
+                    @change="updateByName('room', Number($event.target.value))">
+              <option :value="0">Alle Räume</option>
+              <option v-for="room in rooms" :key="room.id" :value="room.id">{{ room.name }}</option>
+            </select>
           </div>
         </div>
 

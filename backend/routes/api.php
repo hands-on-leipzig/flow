@@ -45,8 +45,8 @@ Route::get('/profile', function (Illuminate\Http\Request $request) {
 // Public routes (no authentication required)
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);
 Route::get('/carousel/{event}/slide/{slide}', [CarouselController::class, 'getPublicSingleSlide']);
-Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?point_in_time=YYYY-MM-DD HH:mm
-Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?interval=15&point_in_time=...
+Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?room=24&point_in_time=YYYY-MM-DD HH:mm
+Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?room=24&interval=15&point_in_time=...
 Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
 Route::get('/events', [EventController::class, 'index']); // Get list of current events
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information

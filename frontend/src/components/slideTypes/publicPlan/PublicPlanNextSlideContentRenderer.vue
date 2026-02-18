@@ -16,6 +16,7 @@ const {result} = usePlanActionWithPolling(
     {
       planId: props.content.planId,
       role: props.content.role,
+      room: props.content.room,
       interval: props.content.interval,
     },
     'next',
