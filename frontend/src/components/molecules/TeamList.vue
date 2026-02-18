@@ -124,20 +124,23 @@ const mergedTeams = computed(() => {
   }
 
   // Step 1: Match teams by team_number_hot (when both have valid numbers)
+  // Keep arrays per number so duplicate FLOW teams are not overwritten.
   const localMapByNumber = new Map()
   const drahtMapByNumber = new Map()
 
   localTeams.value.forEach(t => {
     const num = normalizeTeamNumber(t.team_number_hot)
     if (num != null) {
-      localMapByNumber.set(num, t)
+      if (!localMapByNumber.has(num)) localMapByNumber.set(num, [])
+      localMapByNumber.get(num).push(t)
     }
   })
 
   props.remoteTeams.forEach(t => {
     const num = normalizeTeamNumber(t.number)
     if (num != null) {
-      drahtMapByNumber.set(num, t)
+      if (!drahtMapByNumber.has(num)) drahtMapByNumber.set(num, [])
+      drahtMapByNumber.get(num).push(t)
     }
   })
 
@@ -152,26 +155,32 @@ const mergedTeams = computed(() => {
     if (num != null) allNumbers.add(num)
   })
 
-  // Match by number
+  // Match by number with cardinality support (1:1, 1:n, n:1)
   allNumbers.forEach(number => {
-    const local = localMapByNumber.get(number)
-    const draht = drahtMapByNumber.get(number)
+    const locals = localMapByNumber.get(number) || []
+    const drahts = drahtMapByNumber.get(number) || []
+    const maxLen = Math.max(locals.length, drahts.length)
 
-    let status = 'match'
-    if (ignoredTeamNumbers.value.has(number)) {
-      status = 'ignored'
-    } else if (local && draht) {
-      status = local.name !== draht.name ? 'conflict' : 'match'
-    } else if (draht && !local) {
-      status = 'new'
-    } else if (local && !draht) {
-      status = 'missing'
+    for (let i = 0; i < maxLen; i++) {
+      const local = locals[i] || null
+      const draht = drahts[i] || null
+
+      let status = 'match'
+      if (ignoredTeamNumbers.value.has(number)) {
+        status = 'ignored'
+      } else if (local && draht) {
+        status = local.name !== draht.name ? 'conflict' : 'match'
+      } else if (draht && !local) {
+        status = 'new'
+      } else if (local && !draht) {
+        status = 'missing'
+      }
+
+      if (local?.id != null) processedLocalIds.add(local.id)
+      if (draht?.id != null) processedDrahtIds.add(draht.id)
+
+      result.push({number, local, draht, status})
     }
-
-    if (local) processedLocalIds.add(local.id)
-    if (draht) processedDrahtIds.add(draht.id)
-
-    result.push({number, local, draht, status})
   })
 
   // Step 2: Match teams without team_number_hot by name
@@ -1147,7 +1156,7 @@ onMounted(async () => {
         <div class="space-y-4">
           <div
               v-for="team in mergedTeams.filter(t => t.status !== 'match' && t.status !== 'ignored')"
-              :key="team.number"
+              :key="`${team.number ?? 'no-number'}-${team.local?.id ?? 'no-local'}-${team.draht?.id ?? team.draht?.name ?? 'no-draht'}`"
               :class="{
       'border-yellow-400': team.status === 'conflict',
       'border-green-500': team.status === 'new',
