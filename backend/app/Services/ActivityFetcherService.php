@@ -86,8 +86,7 @@ class ActivityFetcherService
 
             if (!empty($rooms)) {
                 $q->where(function ($sub) use ($rooms) {
-                    $sub->whereIn('r.id', $rooms)
-                        ->orWhereIn('peb.room', $rooms);
+                    $sub->whereIn('r.id', $rooms);
                 });
             }
         }
