@@ -48,6 +48,14 @@ export default defineConfig(({mode}) => {
                 workbox: {
                     globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
                     navigateFallback: 'index.html',
+                    // Do not rewrite backend/public endpoints to SPA shell.
+                    // This keeps /output/zeitplan.cgi and similar routes working.
+                    navigateFallbackDenylist: [
+                        /^\/output\//,
+                        /^\/api\//,
+                        /^\/schedule\//,
+                        /^\/slug-handler\.php/,
+                    ],
                     cleanupOutdatedCaches: true,
                     clientsClaim: true,
                     skipWaiting: true
