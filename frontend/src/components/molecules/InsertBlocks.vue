@@ -350,7 +350,121 @@ defineExpose({
         Diese Blöcke verändern direkt die Zeiten im Robot-Game. Die Jury-Runden werden davon nur indirekt beeinflusst. 
       </p>
     </div>
-    <div class="overflow-x-auto">
+    <!-- Mobile: card layout -->
+    <div class="md:hidden">
+      <div v-if="visibleInsertPoints.length" class="divide-y divide-gray-100">
+        <div v-for="p in visibleInsertPoints" :key="`mobile_${p.id}`" class="px-4 py-3 space-y-3">
+          <div class="flex items-start justify-between gap-3">
+            <label class="inline-flex items-start space-x-3 min-w-0">
+              <ToggleSwitch
+                  :model-value="isPointEnabled(p.id)"
+                  @update:modelValue="togglePoint(p, $event)"
+              />
+              <span class="text-gray-900 min-w-0">
+                <span class="font-medium break-words">{{ p.ui_label }}</span>
+                <InfoPopover v-if="p.ui_description" :text="p.ui_description"/>
+              </span>
+            </label>
+            <img
+                :src="programLogoSrc(p.first_program)"
+                :alt="programLogoAlt(p.first_program)"
+                class="w-6 h-6 flex-shrink-0"
+            />
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-[11px] text-gray-500 mb-1">Davor</label>
+              <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.buffer_before ?? ''"
+                     :class="['w-full border rounded px-2 py-1 text-center text-sm',
+                              isBlockEditable(p.id)
+                                ? 'bg-white border-gray-300'
+                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                     min="5"
+                     step="5"
+                     type="number"
+                     @blur="onFixedNumBlur(p.id, 'buffer_before', $event)"
+                     @input="onFixedNumInput(p.id, 'buffer_before', $event)"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] text-gray-500 mb-1">Dauer</label>
+              <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.duration ?? ''"
+                     :class="['w-full border rounded px-2 py-1 text-center text-sm',
+                              isBlockEditable(p.id)
+                                ? 'bg-white border-gray-300'
+                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                     min="5"
+                     step="5"
+                     type="number"
+                     @blur="onFixedNumBlur(p.id, 'duration', $event)"
+                     @input="onFixedNumInput(p.id, 'duration', $event)"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] text-gray-500 mb-1">Danach</label>
+              <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.buffer_after ?? ''"
+                     :class="['w-full border rounded px-2 py-1 text-center text-sm',
+                              isBlockEditable(p.id)
+                                ? 'bg-white border-gray-300'
+                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                     min="5"
+                     step="5"
+                     type="number"
+                     @blur="onFixedNumBlur(p.id, 'buffer_after', $event)"
+                     @input="onFixedNumInput(p.id, 'buffer_after', $event)"
+              />
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div>
+              <label class="block text-[11px] text-gray-500 mb-1">Titel</label>
+              <input :disabled="!isBlockEditable(p.id)"
+                     :value="fixedByPoint[p.id]?.name ?? ''"
+                     :class="['w-full border rounded px-2 py-1 text-sm',
+                              isBlockEditable(p.id)
+                                ? 'bg-white border-gray-300'
+                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                     type="text"
+                     @blur="onFixedTextBlur(p.id, 'name', $event)"
+                     @input="onFixedTextInput(p.id, 'name', $event)"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] text-gray-500 mb-1">Beschreibung</label>
+              <input :disabled="!isBlockEditable(p.id)"
+                     :value="fixedByPoint[p.id]?.description ?? ''"
+                     :class="['w-full border rounded px-2 py-1 text-sm',
+                              isBlockEditable(p.id)
+                                ? 'bg-white border-gray-300'
+                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                     type="text"
+                     @blur="onFixedTextBlur(p.id, 'description', $event)"
+                     @input="onFixedTextInput(p.id, 'description', $event)"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] text-gray-500 mb-1">Link</label>
+              <input :disabled="!isBlockEditable(p.id)"
+                     :value="fixedByPoint[p.id]?.link ?? ''"
+                     :class="['w-full border rounded px-2 py-1 text-sm',
+                              isBlockEditable(p.id)
+                                ? 'bg-white border-gray-300'
+                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                     type="text"
+                     @blur="onFixedTextBlur(p.id, 'link', $event)"
+                     @input="onFixedTextInput(p.id, 'link', $event)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="px-4 py-6 text-gray-500 text-center text-sm">Keine Einfügepunkte für dieses Level.</div>
+    </div>
+
+    <!-- Desktop: table layout -->
+    <div class="hidden md:block overflow-x-auto">
       <table class="min-w-full text-sm">
         <thead>
         <tr class="text-gray-500 text-xs uppercase tracking-wide">
