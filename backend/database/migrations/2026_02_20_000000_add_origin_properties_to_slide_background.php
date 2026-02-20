@@ -25,7 +25,7 @@ class AddOriginPropertiesToSlideBackground extends Migration
             }
         }
 
-        // Alle Image-Objekte in objects[]
+        // Alle Objekte in objects[]
         if (array_key_exists('objects', $background) && is_array($background['objects'])) {
             foreach ($background['objects'] as $idx => $obj) {
                 if (!is_array($obj)) {
