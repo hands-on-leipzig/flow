@@ -7,7 +7,7 @@ use App\Models\Slide;
 
 class SlideGeneratorService
 {
-    private string $defaultBackgroundImage = "\"backgroundImage\":{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":0,\"top\":-3.3333,\"width\":1920,\"height\":1096,\"scaleX\":0.4167,\"scaleY\":0.4167,\"src\":\"/background.png\"}";
+    private string $defaultBackgroundImage = "\"backgroundImage\":{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":0,\"top\":-3.3333,\"width\":1920,\"height\":1096,\"scaleX\":0.4167,\"scaleY\":0.4167,\"originX\":\"left\",\"originY\":\"top\",\"src\":\"/background.png\"}";
 
     public function __construct(private readonly PublishController $publishController)
     {
@@ -29,7 +29,7 @@ class SlideGeneratorService
     {
         $background = "{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage
             . ",\"objects\":[{\"type\":\"Textbox\",\"version\":\"6.7.1\",\"left\":150,\"top\":15,\"width\":500,\"height\":40,"
-            . "\"fontSize\":30,\"fontFamily\":\"Uniform\",\"textAlign\":\"center\",\"text\":\"" . $textContent . "\"}]"
+            . "\"fontSize\":30,\"fontFamily\":\"Uniform\",\"textAlign\":\"center\",\"originX\":\"left\",\"originY\":\"top\",\"text\":\"" . $textContent . "\"}]"
             . "}";
 
         return json_encode($background);
@@ -52,9 +52,9 @@ class SlideGeneratorService
 
         $qrCodeSlideBackground = "{\"version\":\"6.7.1\"," . $this->defaultBackgroundImage
             . ",\"objects\":["
-            . "{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":290,\"top\":135,\"width\":320,\"height\":320,\"scaleX\":0.7031,\"scaleY\":0.7031,\"src\":\"" . $qrCode . "\"},"
+            . "{\"type\":\"Image\",\"version\":\"6.7.1\",\"left\":290,\"top\":135,\"width\":320,\"height\":320,\"scaleX\":0.7031,\"scaleY\":0.7031,\"originX\":\"left\",\"originY\":\"top\",\"src\":\"" . $qrCode . "\"},"
             . "{\"type\":\"Textbox\",\"version\":\"6.7.1\",\"left\":290,\"top\":370,\"width\":220,\"height\":30,"
-            . "\"fontSize\":25,\"fontFamily\":\"Uniform\",\"textAlign\":\"center\",\"text\":\"zum Zeitplan\"}"
+            . "\"fontSize\":25,\"fontFamily\":\"Uniform\",\"textAlign\":\"center\",\"originX\":\"left\",\"originY\":\"top\",\"text\":\"zum Zeitplan\"}"
             . "]}";
 
         return json_encode($qrCodeSlideBackground);
