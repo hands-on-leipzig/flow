@@ -10,32 +10,8 @@ const props = defineProps<{
   round?: string,
   paginatedTeams?: Team[],
   content: RobotGameSlideContent,
-  // box?: { left?: number; top?: number; scaleX?: number; scaleY?: number; }
   demo?: boolean
 }>();
-
-/*const boxStyle = computed(() => {
-  // % unit viel besser weil Skalierung über Fenster erlaubt. -> Umwandlung Farbric -> % nötig.
-  const unit = '%';
-  const x = props.box?.left ?? 0;
-  const y = props.box?.top ?? 0;
-  const w = props.box?.scaleX ?? 100;
-  const h = props.box?.scaleY ?? 100;
-  return {
-    position: 'absolute',
-    left: `${x}${unit}`,
-    top: `${y}${unit}`,
-    width: `${w}${unit}`,
-    height: `${h}${unit}`,
-    boxSizing: 'border-box',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    justifyContent: 'flex-start',
-    padding: '0.5rem'
-  } as Record<string, string>;
-}); */
 
 const wrapperRef = ref<HTMLElement | null>(null);
 const titleRef = ref<HTMLElement | null>(null);
@@ -77,8 +53,6 @@ async function adjustFontSize() {
   let high = MAX_FONT;
   let best = MIN_FONT;
 
-  let i = 0;
-
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
     // apply mid font
@@ -90,10 +64,6 @@ async function adjustFontSize() {
     const rect = tableRef.value.getBoundingClientRect();
     const fitsHeight = rect.height <= availableHeight + 1;
     const fitsWidth = rect.width <= availableWidth + 1;
-
-    console.log(rect.width, availableWidth);
-    console.log(i, mid, fitsHeight, fitsWidth);
-    i++;
 
     if (fitsHeight && fitsWidth) {
       best = mid; // mid fits, try bigger
