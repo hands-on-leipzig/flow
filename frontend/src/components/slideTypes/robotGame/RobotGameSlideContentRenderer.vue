@@ -35,6 +35,9 @@ watch(() => scores.value, (newScores) => {
   }
 });
 const paginatedTeams = computed(() => {
+  if (!teams.value?.length) {
+    return [];
+  }
   return teams.value.slice(currentIndex.value, currentIndex.value + teamsPerPage.value);
 });
 
@@ -112,7 +115,8 @@ function advancePage() {
   if (willWrapAround) {
     // switch to next slide
     clearInterval(autoAdvanceInterval);
-    emit('next')
+    emit('next');
+    currentIndex.value = 0;
   } else {
     currentIndex.value = nextIndex;
   }

@@ -83,7 +83,6 @@ watch(() => [props.paginatedTeams], () => {
 }, {deep: true});
 
 onMounted(() => {
-
   nextTick(adjustFontSize);
   if (window.ResizeObserver) {
     ro = new ResizeObserver(() => {
@@ -126,9 +125,9 @@ onUnmounted(() => {
           <tr>
             <th class="text-left w-auto">Team</th>
             <template v-if="round === 'VR'">
-              <th class="cell w-12 min-w-[130px]">R I</th>
-              <th class="cell w-12 min-w-[130px]">R II</th>
-              <th class="cell w-12 min-w-[130px]">R III</th>
+              <th class="cell w-12 min-w-[120px]">R I</th>
+              <th class="cell w-12 min-w-[120px]">R II</th>
+              <th class="cell w-12 min-w-[120px]">R III</th>
             </template>
             <template v-else>
               <th class="cell w-12 min-w-[130px]">Score</th>

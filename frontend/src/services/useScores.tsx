@@ -509,7 +509,7 @@ export function getDemoData() {
         }
     };
 
-    return createTeams(scores["VR"], "VR");
+    return createTeams(scores["rounds"]["VR"], "VR");
 }
 
 export function useScores(eventId: number) {
