@@ -167,15 +167,8 @@ class CarouselController extends Controller
         $this->hasEventAccessOrThrow($slideshow->event);
 
         $data = $this->onlySlide($request, true);
-        // Hintergrund hinzufügen, aber content nicht überschreiben
-        $providedContent = $data['content'] ?? null;
-        if ($providedContent) {
-            $providedContent = json_decode($providedContent, true);
-            $providedContent['background'] = $this->slideGeneratorService->generateDefaultBackground();
-            $data['content'] = json_encode($providedContent);
-        } else {
-            $data['content'] = json_encode(['background' => $this->slideGeneratorService->generateDefaultBackground()]);
-        }
+
+        $data = $this->setDefaultValuesForNewSlide($data);
         $data['slideshow_id'] = $slideshowId;
 
         // TODO Input-Validierung (Type korrekt, etc.)
@@ -200,6 +193,38 @@ class CarouselController extends Controller
         }
 
         return $request->only($fields);
+    }
+
+    private function setDefaultValuesForNewSlide($slide)
+    {
+        $providedContent = $slide['content'] ?? null;
+        if ($providedContent) {
+            $providedContent = json_decode($providedContent, true);
+        } else {
+            $providedContent = [];
+        }
+
+        $type = $slide['type'];
+        if ($type == 'PublicPlanSlideContent') {
+            $slide['name'] = 'Zeitplan - Jetzt';
+            $providedContent['background'] = $this->slideGeneratorService->generatePublicPlanBackground(false);
+        } else if ($type == "PublicPlanNextSlideContent") {
+            $slide['name'] = "Zeitplan - Als nächstes";
+            $providedContent['background'] = $this->slideGeneratorService->generatePublicPlanBackground(false);
+        } else if ($type === 'RobotGameSlideContent') {
+            $slide['name'] = 'Robot-Game-Ergebnisse';
+        } else if ($type === 'UrlSlideContent') {
+            $slide['name'] = 'Externer Inhalt';
+        } else if ($type === 'FabricSlideContent') {
+            $slide['name'] = 'Eigener Inhalt';
+        }
+
+        if (!array_key_exists('background', $providedContent)) {
+            $providedContent['background'] = $this->slideGeneratorService->generateDefaultBackground();
+        }
+
+        $slide['content'] = json_encode($providedContent);
+        return $slide;
     }
 
     public function generateSlideshow(Request $request, $event)

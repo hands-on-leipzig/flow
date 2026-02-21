@@ -30,18 +30,24 @@ class SlideGeneratorService
     public function generatePublicPlanSlide($planId, $slideshowId, $next = false, $order = 0)
     {
         $type = $next ? 'PublicPlanNextSlideContent' : 'PublicPlanSlideContent';
-        $text = $next ? 'Als nächstes' : 'Aktuell läuft';
         $name = $next ? 'Zeitplan - Als nächstes' : 'Zeitplan - Jetzt';
 
         $contentArray = [
-            'background' => $this->generatePublicPlanBackground($text),
+            'background' => $this->generatePublicPlanBackground($next),
             'planId' => (int)$planId,
         ];
 
         return $this->createSlide($name, $slideshowId, $type, json_encode($contentArray), $order);
     }
 
-    private function generatePublicPlanBackground(string $textContent): array
+    public function generatePublicPlanBackground(bool $next): array
+    {
+        $text = $next ? 'Als nächstes' : 'Aktuell läuft';
+        return $this->_generatePublicPlanBackground($text);
+
+    }
+
+    private function _generatePublicPlanBackground(string $textContent): array
     {
         $background = $this->generateDefaultBackground();
 
