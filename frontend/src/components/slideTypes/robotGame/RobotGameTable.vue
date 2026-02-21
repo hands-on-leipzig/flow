@@ -125,25 +125,25 @@ onUnmounted(() => {
           <tr>
             <th class="text-left w-auto">Team</th>
             <template v-if="round === 'VR'">
-              <th class="cell w-12 min-w-[120px]">R I</th>
-              <th class="cell w-12 min-w-[120px]">R II</th>
-              <th class="cell w-12 min-w-[120px]">R III</th>
+              <th class="cell scoreCell">R I</th>
+              <th class="cell scoreCell">R II</th>
+              <th class="cell scoreCell">R III</th>
             </template>
             <template v-else>
-              <th class="cell w-12 min-w-[130px]">Score</th>
+              <th class="cell scoreCellLarge">Score</th>
             </template>
-            <th class="cell w-12 min-w-[130px]">Rank</th>
+            <th class="cell rankCell">Rank</th>
           </tr>
           </thead>
           <tbody>
           <tr v-for="team in teams" :key="team.id">
             <td class="teamName w-auto">{{ team.name }}</td>
             <template v-for="(score, index) in team.scores" :key="index">
-              <td class="cell w-12 min-w-[130px]" :class="{ highlight: score.highlight }">
+              <td class="cell scoreCellLarge" :class="{ highlight: score.highlight }">
                 {{ score.points }}
               </td>
             </template>
-            <td class="cell w-12 min-w-[130px]">{{ team.rank }}</td>
+            <td class="cell rankCell">{{ team.rank }}</td>
           </tr>
           </tbody>
         </table>
@@ -188,7 +188,7 @@ onUnmounted(() => {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: var(--table-font-size);
+  font-size: var(--table-font-size, 16px);
   background-color: v-bind('props.content.tableBackgroundColor');
   color: v-bind('props.content.textColor');
 }
@@ -207,6 +207,22 @@ th, td {
 
 .cell {
   text-align: center;
+}
+
+.scoreCell {
+  width: 120px;
+  min-width: 120px;
+}
+
+.scoreCellLarge {
+  width: 130px;
+  min-width: 130px;
+}
+
+.rankCell {
+  width: 120px;
+  min-width: 120px;
+  font-weight: 600;
 }
 
 td {
