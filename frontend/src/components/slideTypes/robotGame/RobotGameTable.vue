@@ -210,18 +210,18 @@ th, td {
 }
 
 .scoreCell {
-  width: 3rem;
+  width: 120px;
   min-width: 120px;
 }
 
 .scoreCellLarge {
-  width: 3rem;
+  width: 130px;
   min-width: 130px;
 }
 
 .rankCell {
-  width: 3rem;
-  min-width: 130px;
+  width: 120px;
+  min-width: 120px;
   font-weight: 600;
 }
 
