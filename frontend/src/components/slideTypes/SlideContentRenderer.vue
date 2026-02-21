@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, watch} from 'vue';
 import ImageSlideContentRenderer from './ImageSlideContentRenderer.vue';
-import RobotGameSlideContentRenderer from './RobotGameSlideContentRenderer.vue';
+import RobotGameSlideContentRenderer from './robotGame/RobotGameSlideContentRenderer.vue';
 import {ImageSlideContent} from "../../models/imageSlideContent.js";
 import {Slide} from "../../models/slide.js";
 import {RobotGameSlideContent} from "../../models/robotGameSlideContent.js";
