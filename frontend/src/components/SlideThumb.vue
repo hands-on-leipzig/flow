@@ -14,6 +14,7 @@ const props = defineProps<{
 }>();
 
 const showDeleteModal = ref(false);
+const loadingDelete = ref(false);
 
 function confirmDelete() {
   showDeleteModal.value = true;
@@ -21,13 +22,16 @@ function confirmDelete() {
 
 async function deleteSlide() {
   try {
+    loadingDelete.value = true;
     const response = await axios.delete(`/slides/${props.slide.id}`);
     if (response.status === 200) {
       emit('deleteSlide')
     }
-    showDeleteModal.value = false;
   } catch (error) {
     console.error("Error deleting slide:", error);
+  } finally {
+    showDeleteModal.value = false;
+    loadingDelete.value = false;
   }
 }
 
@@ -152,6 +156,7 @@ const componentSlide = Slide.fromObject(props.slide);
         type="danger"
         confirm-text="Löschen"
         cancel-text="Abbrechen"
+        :disable-confirm-button="loadingDelete"
         @confirm="deleteSlide"
         @cancel="cancelDelete"
     />
