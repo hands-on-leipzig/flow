@@ -781,11 +781,10 @@ onMounted(async () => {
       </div>
 
       <!-- Event Logos Footer - at the very bottom -->
-      <div class="bg-[#F78B1F] py-6 md:py-8 mt-8 md:mt-12 shadow-2xl">
+      <div v-if="eventLogos.length > 0" class="bg-[#F78B1F] py-6 md:py-8 mt-8 md:mt-12 shadow-2xl">
         <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
           <!-- Event Logos -->
-          <div v-if="eventLogos.length > 0"
-               class="flex flex-wrap items-center justify-center gap-4 md:gap-6 lg:gap-8 mb-6 md:mb-8">
+          <div class="flex flex-wrap items-center justify-center gap-4 md:gap-6 lg:gap-8 mb-6 md:mb-8">
             <a
                 v-for="logo in eventLogos"
                 :key="logo.id"
