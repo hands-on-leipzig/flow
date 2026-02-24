@@ -404,16 +404,26 @@ class ContaoController extends Controller
             $matchup = $matchups[$i];
             $activity = $activities[$i];
 
-            $teamA = $this->findTeamByHotId($matchup->aid, $eventId);
-            $teamB = $this->findTeamByHotId($matchup->bid, $eventId);
+            $teamA = null;
+            $teamB = null;
+            try {
+                $teamA = $this->findTeamByHotId($matchup->aid, $eventId);
+            } catch (Exception $e) {
+                Log::warning("Failed to find team for HOT ID {$matchup->aid} for event {$eventId}: " . $e->getMessage());
+            }
+            try {
+                $teamB = $this->findTeamByHotId($matchup->bid, $eventId);
+            } catch (Exception $e) {
+                Log::warning("Failed to find team for HOT ID {$matchup->bid} for event {$eventId}: " . $e->getMessage());
+            }
 
             if (isset($teamA->id) && $teamA->id > 0 && isset($teamB->id) && $teamB->id > 0) {
                 Log::info("Inserting teams into activity {$activity->id}: Team A {$matchup->aid} -> {$teamA->id}, Team B {$matchup->bid} -> {$teamB->id}");
                 DB::table('activity')
                     ->where('id', $activity->id)
                     ->update([
-                        'table_1_team' => $teamA->id,
-                        'table_2_team' => $teamB->id,
+                        'table_1_team' => $teamA?->id,
+                        'table_2_team' => $teamB?->id,
                     ]);
             }
         }
@@ -432,7 +442,7 @@ class ContaoController extends Controller
             return $this->writeMatchupsToSchedule($round, $tournamentId, $eventId);
         } catch (Exception $e) {
             Log::error('Error in writeRoundsEndpoint: ' . $e->getMessage());
-            return response()->json(['status' => 'error', 'message' => 'Failed to write rounds to schedule', 'error' => $e->getMessage()], 500);
+            return response()->json(['status' => 'error', 'message' => 'Failed to write rounds to schedule', 'error' => $e->getMessage(), 'file' => $e->getFile(), 'code' => $e->getCode(), 'trace' => $e->getTraceAsString()], 500);
         }
     }
     /**
