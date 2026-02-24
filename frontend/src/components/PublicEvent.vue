@@ -389,25 +389,6 @@ onMounted(async () => {
           scrolling="auto"
           style="margin: 0; padding: 0; border: none; width: 100%;"
       ></iframe>
-      <!-- Event Logos Footer for Level 4 -->
-      <div v-if="eventLogos.length > 0" class="bg-white border-t border-gray-200 py-3 md:py-4 px-3 md:px-4">
-        <div class="flex flex-wrap items-center justify-center gap-3 md:gap-4 lg:gap-6 max-w-7xl mx-auto">
-          <a
-              v-for="logo in eventLogos"
-              :key="logo.id"
-              :href="logo.link || '#'"
-              :rel="logo.link ? 'noopener noreferrer' : ''"
-              :target="logo.link ? '_blank' : '_self'"
-              class="flex items-center justify-center hover:opacity-80 transition-opacity"
-          >
-            <img
-                :alt="logo.title || 'Logo'"
-                :src="logo.url"
-                class="h-8 md:h-10 lg:h-12 max-w-24 md:max-w-28 lg:max-w-32 object-contain"
-            />
-          </a>
-        </div>
-      </div>
     </div>
 
     <!-- Event Content (hidden when level 4 is active) -->
@@ -799,31 +780,30 @@ onMounted(async () => {
         </div>
       </div>
 
-    </div>
-
-
-    <!-- Event Logos Footer - at the very bottom -->
-    <div class="bg-[#F78B1F] py-6 md:py-8 mt-8 md:mt-12 shadow-2xl">
-      <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-        <!-- Event Logos -->
-        <div v-if="eventLogos.length > 0"
-             class="flex flex-wrap items-center justify-center gap-4 md:gap-6 lg:gap-8 mb-6 md:mb-8">
-          <a
-              v-for="logo in eventLogos"
-              :key="logo.id"
-              :href="logo.link || '#'"
-              :rel="logo.link ? 'noopener noreferrer' : ''"
-              :target="logo.link ? '_blank' : '_self'"
-              class="flex items-center justify-center bg-white rounded-lg md:rounded-xl p-2 md:p-3 lg:p-4 shadow-md md:shadow-lg hover:shadow-xl hover:scale-105 md:hover:scale-110 transition-all transform"
-          >
-            <img
-                :alt="logo.title || 'Logo'"
-                :src="logo.url"
-                class="h-10 md:h-12 lg:h-14 max-w-24 md:max-w-32 lg:max-w-36 object-contain"
-            />
-          </a>
+      <!-- Event Logos Footer - at the very bottom -->
+      <div class="bg-[#F78B1F] py-6 md:py-8 mt-8 md:mt-12 shadow-2xl">
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <!-- Event Logos -->
+          <div v-if="eventLogos.length > 0"
+               class="flex flex-wrap items-center justify-center gap-4 md:gap-6 lg:gap-8 mb-6 md:mb-8">
+            <a
+                v-for="logo in eventLogos"
+                :key="logo.id"
+                :href="logo.link || '#'"
+                :rel="logo.link ? 'noopener noreferrer' : ''"
+                :target="logo.link ? '_blank' : '_self'"
+                class="flex items-center justify-center bg-white rounded-lg md:rounded-xl p-2 md:p-3 lg:p-4 shadow-md md:shadow-lg hover:shadow-xl hover:scale-105 md:hover:scale-110 transition-all transform"
+            >
+              <img
+                  :alt="logo.title || 'Logo'"
+                  :src="logo.url"
+                  class="h-10 md:h-12 lg:h-14 max-w-24 md:max-w-32 lg:max-w-36 object-contain"
+              />
+            </a>
+          </div>
         </div>
       </div>
-    </div>
+
+    </div> <!-- End of Event Content (lvl 1-3) -->
   </div>
 </template>
