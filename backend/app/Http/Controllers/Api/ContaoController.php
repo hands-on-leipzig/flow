@@ -145,6 +145,8 @@ class ContaoController extends Controller
      */
     private function getRoundsToShow($eventId, $tournamentId): object
     {
+        $expectedRounds = ['vr1', 'vr2', 'vr3', 'vf', 'hf'];
+
         // 1) Get manually published rounds from the database
         $settings = DB::table('contao_public_rounds')->where('event_id', $eventId)->first();
 
@@ -163,20 +165,37 @@ class ContaoController extends Controller
             return $settings;
         } else if ($completed && !$settings) {
             // Einstellung in DB speichern
+            // 1 = public, null= private und nicht gesetzt, 0=private und vom RP überschrieben
+            $converted = [];
+            foreach ($expectedRounds as $r) {
+                $converted[$r] = (!empty($completed[$r]) && $completed[$r] === true) ? 1 : null;
+            }
+
             DB::table('contao_public_rounds')->updateOrInsert(
                 ['event_id' => $eventId],
-                $completed
+                $converted
             );
-            return (object)$completed;
+            return (object)$converted;
         } else if ($completed && $settings) {
             // Merge mit manuellen Einstellungen
-            $merged = [
-                'vr1' => ($settings->vr1 || $completed['vr1']) ? 1 : 0,
-                'vr2' => ($settings->vr2 || $completed['vr2']) ? 1 : 0,
-                'vr3' => ($settings->vr3 || $completed['vr3']) ? 1 : 0,
-                'vf' => ($settings->vf || $completed['vf']) ? 1 : 0,
-                'hf' => ($settings->hf || $completed['hf']) ? 1 : 0,
-            ];
+            $merged = [];
+            foreach ($expectedRounds as $r) {
+                $dbVal = property_exists($settings, $r) ? $settings->{$r} : null;
+
+                $comp = isset($completed[$r]) && (bool)$completed[$r];
+
+                // 0 = von RP manuell auf versteckt gesetzt, bleibt versteckt
+                if ($dbVal === 0) {
+                    $merged[$r] = 0;
+                } elseif ($dbVal === null) {
+                    // nicht manuell gesetzt -> darf automatisch veröffentlicht werden
+                    $merged[$r] = $comp ? 1 : null;
+                } elseif ($dbVal === 1) {
+                    $merged[$r] = 1;
+                } else {
+                    $merged[$r] = $comp ? 1 : null;
+                }
+            }
 
             DB::table('contao_public_rounds')->updateOrInsert(
                 ['event_id' => $eventId],
@@ -285,7 +304,7 @@ class ContaoController extends Controller
             'vr1' => ($vrResult['vr1'] ?? 0 > 0.6) && ($vrResult['vr2'] ?? 0 > 0.3),
             'vr2' => ($vrResult['vr2'] ?? 0 > 0.6) && ($vrResult['vr3'] ?? 0 > 0.3),
             'vr3' => ($vrResult['vr3'] ?? 0 > 0.6) && (($progress['VF'] ?? 0 > 0.3) || ($progress['HF'] ?? 0 > 0.3)),
-            'vf' => ($progress['VF'] ?? 0 > 0.6) & ($progress['HF'] ?? 0 > 0.3),
+            'vf' => ($progress['VF'] ?? 0 > 0.6) && ($progress['HF'] ?? 0 > 0.3),
             'hf' => false,
         ];
     }
@@ -317,13 +336,13 @@ class ContaoController extends Controller
                 return response()->json(['error' => 'Event not found'], 404);
             }
 
-            // In 0/1 umwandeln für die Datenbank
+            // In 0/1/null umwandeln für die Datenbank
             $payload = [
-                'vr1' => isset($validated['vr1']) ? (int)$validated['vr1'] : 0,
-                'vr2' => isset($validated['vr2']) ? (int)$validated['vr2'] : 0,
-                'vr3' => isset($validated['vr3']) ? (int)$validated['vr3'] : 0,
-                'vf' => isset($validated['vf']) ? (int)$validated['vf'] : 0,
-                'hf' => isset($validated['hf']) ? (int)$validated['hf'] : 0,
+                'vr1' => isset($validated['vr1']) ? (int)$validated['vr1'] : null,
+                'vr2' => isset($validated['vr2']) ? (int)$validated['vr2'] : null,
+                'vr3' => isset($validated['vr3']) ? (int)$validated['vr3'] : null,
+                'vf' => isset($validated['vf']) ? (int)$validated['vf'] : null,
+                'hf' => isset($validated['hf']) ? (int)$validated['hf'] : null,
             ];
 
             DB::table('contao_public_rounds')->updateOrInsert(
@@ -331,7 +350,7 @@ class ContaoController extends Controller
                 $payload
             );
 
-            return response()->json(['status' => 'ok']);
+            return response()->json(['status' => 'ok', 'values' => $payload]);
         } catch (Exception $e) {
             Log::error('Contao saveRoundsToShow error: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to save rounds_to_show'], 500);
