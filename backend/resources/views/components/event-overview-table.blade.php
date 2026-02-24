@@ -165,8 +165,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                 $timeLabel = $isFullHour ? $slot->format('H:i') : '';
                                 $slotTime = $slot->format('H:i');
                             @endphp
-                            
-                            <tr class="time-row">
+
+                            <tr class="time-row" style="{{ !$isPdf ? 'height: 24px;' : '' }}">
                                 @if($isFullHour)
                                     <td rowspan="6" class="time-cell" style="{{ !$isPdf ? 'height: 24px;' : '' }}">{{ $timeLabel }}</td>
                                 @endif
