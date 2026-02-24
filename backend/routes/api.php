@@ -59,11 +59,12 @@ Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']);
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);
     Route::get('/score', [ContaoController::class, 'getScore']);
-    // For testing: manually trigger round write
-    Route::put('/write-rounds', [ContaoController::class, 'writeRoundsEndpoint']);
 });
 
 Route::middleware(['keycloak'])->group(function () {
+    // For testing: manually trigger round write
+    Route::put('/contao/write-rounds', [ContaoController::class, 'writeRoundsEndpoint']);
+
     Route::get('/environment', function () {
         return response()->json([
             'environment' => app()->environment(),
