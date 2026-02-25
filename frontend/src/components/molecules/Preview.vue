@@ -247,7 +247,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           >Räume</button>
         </div>
 
-        <div class="ml-3 text-xs text-gray-500">
+        <div v-if="view === 'roles' || view === 'teams' || view === 'rooms'" class="ml-3 text-xs text-gray-500">
           Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
         </div>
       </div>
