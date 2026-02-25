@@ -32,7 +32,6 @@ class CheckContaoRoundsToPublish extends Command
                 ->whereRaw('? BETWEEN date AND DATE_ADD(date, INTERVAL (days - 1) DAY)', [$today])
                 ->pluck('id')
                 ->unique()
-                ->filter()
                 ->all();
 
             $this->log?->info('Events found for today', ['count' => count($eventIds)]);
@@ -41,7 +40,9 @@ class CheckContaoRoundsToPublish extends Command
                 try {
                     $tournamentId = $this->contaoService->getTournamentId($eventId);
                     $previous = $this->contaoService->readRoundsToShow($eventId);
+                    $this->log?->info('Previous rounds for event', ['event' => $eventId, 'previous' => $previous]);
                     $result = $this->contaoService->updateRoundsToShow($eventId, $tournamentId);
+                    $this->log?->info('Updated rounds for event', ['event' => $eventId, 'result' => $result]);
 
                     // Teamnamen für nächste Runde aktualisieren
                     $this->contaoService->updateAllMatchups($previous, $result, $tournamentId, $eventId);
@@ -59,4 +60,3 @@ class CheckContaoRoundsToPublish extends Command
         }
     }
 }
-
