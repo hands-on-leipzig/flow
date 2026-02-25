@@ -29,7 +29,7 @@ class ContaoController extends Controller
                 return response()->json(['error' => 'event_id parameter is required'], 400);
             }
 
-            $tournamentId = $this->getTournamentId($eventId);
+            $tournamentId = $this->contaoService->getTournamentId($eventId);
 
             if (!$tournamentId) {
                 return response()->json(['error' => "No Contao ID found for event {$eventId}. Please set contao_id_challenge or contao_id_explore."], 404);
@@ -54,11 +54,13 @@ class ContaoController extends Controller
 
     public function getRoundsToShowEndpoint(Request $request, $eventId): JsonResponse
     {
-        $tournamentId = $this->getTournamentId($eventId);
+        $tournamentId = $this->contaoService->getTournamentId($eventId);
         if (!$tournamentId) {
             return response()->json(['error' => "No Contao ID found for event {$eventId}. Please set contao_id_challenge or contao_id_explore."], 404);
         }
-        $roundsToShow = $this->contaoService->getRoundsToShow($eventId, $tournamentId);
+        $previous = $this->contaoService->readRoundsToShow($eventId);
+        $roundsToShow = $this->contaoService->updateRoundsToShow($eventId, $tournamentId);
+        $this->contaoService->updateAllMatchups($previous, $roundsToShow, $tournamentId, $eventId);
         return response()->json($roundsToShow);
     }
 
@@ -104,7 +106,7 @@ class ContaoController extends Controller
     {
         $round = $request->query('round');
         $eventId = (int) $request->query('event');
-        $tournamentId = $this->getTournamentId($eventId);
+        $tournamentId = $this->contaoService->getTournamentId($eventId);
 
         Log::info("writeRoundsEndpoint called with round={$round}, eventId={$eventId}}, tournamentId={$tournamentId}");
 
@@ -115,30 +117,6 @@ class ContaoController extends Controller
             Log::error('Error in writeRoundsEndpoint: ' . $e->getMessage());
             return response()->json(['status' => 'error', 'message' => 'Failed to write rounds to schedule', 'error' => $e->getMessage(), 'file' => $e->getFile(), 'code' => $e->getCode(), 'trace' => $e->getTraceAsString()], 500);
         }
-    }
-    /**
-     * Get tournament ID for an event
-     */
-    private function getTournamentId($eventId)
-    {
-        // Get the event and check for Contao IDs
-        $event = DB::table('event')->where('id', $eventId)->first();
-
-        if (!$event) {
-            return null;
-        }
-
-        // Use contao_id_challenge if available, otherwise fall back to contao_id_explore
-        if ($event->contao_id_challenge) {
-            return $event->contao_id_challenge;
-        }
-
-        if ($event->contao_id_explore) {
-            return $event->contao_id_explore;
-        }
-
-        // Fallback: return the event_id as tournament_id (for backward compatibility)
-        return $eventId;
     }
 
     /**

@@ -9,10 +9,34 @@ use Illuminate\Support\Facades\Log;
 
 class ContaoService
 {
+    /**
+     * Get tournament ID for an event
+     */
+    public function getTournamentId($eventId)
+    {
+        // Get the event and check for Contao IDs
+        $event = DB::table('event')->where('id', $eventId)->first();
+
+        if (!$event) {
+            return null;
+        }
+
+        // Use contao_id_challenge if available, otherwise fall back to contao_id_explore
+        if ($event->contao_id_challenge) {
+            return $event->contao_id_challenge;
+        }
+
+        if ($event->contao_id_explore) {
+            return $event->contao_id_explore;
+        }
+
+        // Fallback: return the event_id as tournament_id (for backward compatibility)
+        return $eventId;
+    }
 
     public function getScores($eventId, $tournamentId): JsonResponse
     {
-        $roundShowSetting = $this->getRoundsToShow($eventId, $tournamentId);
+        $roundShowSetting = $this->readRoundsToShow($eventId);
 
         // Get tournament data
         $tournament = DB::connection('contao')
@@ -109,14 +133,24 @@ class ContaoService
     }
 
     /**
-     * Get rounds to show setting for an event
+     * Read the rounds to show setting for an event from the database
      */
-    public function getRoundsToShow($eventId, $tournamentId): object
+    public function readRoundsToShow($eventId): object
+    {
+        return DB::table('contao_public_rounds')->where('event_id', $eventId)->first();
+
+    }
+
+    /**
+     * Get and update rounds to show setting for an event
+     * Checks the round state in contao
+     */
+    public function updateRoundsToShow($eventId, $tournamentId): object
     {
         $expectedRounds = ['vr1', 'vr2', 'vr3', 'vf', 'hf'];
 
         // 1) Get manually published rounds from the database
-        $settings = DB::table('contao_public_rounds')->where('event_id', $eventId)->first();
+        $settings = $this->readRoundsToShow($eventId);
 
         if (!$tournamentId && $settings) {
             return $settings;
@@ -367,6 +401,32 @@ class ContaoService
             }
         }
         return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule"];
+    }
+
+    /**
+     * Prüft welche Runden jetzt sichtbar sind, die vorher nicht sichtbar waren, und aktualisiert die Paarungen im Zeitplan entsprechend.
+     */
+    public function updateAllMatchups($previousRounds, $newRounds, $tournamentId, $eventId)
+    {
+        if (!$previousRounds->vr3 && $newRounds->vr3) {
+            Log::info('VR3 round is now visible for event', ['event' => $eventId]);
+            // AF, VF oder HF könnte jetzt folgen
+            // $this->contaoService->writeMatchupsToSchedule('af', $tournamentId, $eventId);
+            $this->writeMatchupsToSchedule('vf', $tournamentId, $eventId);
+            $this->writeMatchupsToSchedule('hf', $tournamentId, $eventId);
+        }
+        /*if (!$previousRounds->af && $newRounds->af) {
+            Log::info('AF round is now visible for event', ['event' => $eventId]);
+            $this->contaoService->writeMatchupsToSchedule('vf', $tournamentId, $eventId);
+        }*/
+        if (!$previousRounds->vf && $newRounds->vf) {
+            Log::info('VF round is now visible for event', ['event' => $eventId]);
+            $this->writeMatchupsToSchedule('hf', $tournamentId, $eventId);
+        }
+        if (!$previousRounds->hf && $newRounds->hf) {
+            Log::info('HF round is now visible for event', ['event' => $eventId]);
+            $this->writeMatchupsToSchedule('f', $tournamentId, $eventId);
+        }
     }
 
 }
