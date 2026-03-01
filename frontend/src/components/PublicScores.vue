@@ -35,7 +35,7 @@ onMounted(() => {
     <div v-if="!scores && !error" class="text-gray-500 text-center">Lade...</div>
 
     <div v-if="scores && scores.rounds" class="flex flex-col md:flex-row md:space-x-6">
-      <div v-for="key in Object.keys(scores.rounds)" :key="key" class="mb-4 md:mb-0 md:flex-1">
+      <div v-for="(_, key) in scores.rounds" :key="key" class="mb-4 md:mb-0 md:flex-1">
         <div class="flex items-center justify-between mb-2 px-2">
           <div class="font-semibold text-lg">{{ roundNames[key] || key }}</div>
         </div>
