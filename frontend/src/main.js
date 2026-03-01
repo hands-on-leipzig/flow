@@ -25,7 +25,7 @@ import PresentationSettings from "@/components/molecules/PresentationSettings.vu
 import PublicEvent from "@/components/PublicEvent.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
 import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
-import ScoreViewer from "@/components/ScoreViewer.vue";
+import PublicScores from "@/components/PublicScores.vue";
 import {useEventStore} from "@/stores/event";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
@@ -33,7 +33,7 @@ import {registerSW} from 'virtual:pwa-register'
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
     {path: '/carousel/:eventId/:slideId', component: StandaloneSlide, props: true, meta: {public: true}},
-    {path: '/scores/:eventId', component: ScoreViewer, props: true, meta: {public: true}},
+    {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
     {
         path: '/plan',
         component: PlanLayout,
