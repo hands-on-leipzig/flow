@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {RobotGameSlideContent} from '../../../models/robotGameSlideContent.js';
-import {onMounted, onUnmounted, ref, computed, toRef, watch, shallowRef} from "vue";
+import {onMounted, onUnmounted, ref, computed, toRef, watch, shallowRef, defineExpose} from "vue";
 import {useScores, createTeams} from '@/services/useScores';
 import type {TeamResponse, RoundResponse} from "@/models/robotGameScores";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
@@ -47,7 +47,24 @@ onMounted(() => {
     startAutoRefresh();
   }
 });
+
+onMounted(() => {
+  startAutoAdvance();
+  io.observe(root.value);
+  window.addEventListener('keydown', handleKeyDown);
+});
+
 onUnmounted(stopAutoRefresh);
+
+onUnmounted(() => {
+  clearInterval(autoAdvanceInterval);
+  if (io && root.value) {
+    io.unobserve(root.value);
+    io.disconnect();
+    io = null;
+  }
+  window.removeEventListener('keydown', handleKeyDown);
+});
 
 let autoAdvanceInterval;
 
@@ -63,22 +80,6 @@ let io = new IntersectionObserver((entries) => {
   }
   clearInterval(autoAdvanceInterval);
 }, {threshold: 0.01});
-
-onMounted(() => {
-  startAutoAdvance();
-  io.observe(root.value);
-  window.addEventListener('keydown', handleKeyDown);
-});
-
-onUnmounted(() => {
-  clearInterval(autoAdvanceInterval);
-  if (io && root.value) {
-    io.unobserve(root.value);
-    io.disconnect();
-    io = null;
-  }
-  window.removeEventListener('keydown', handleKeyDown);
-});
 
 function startAutoAdvance() {
   const secondsPerPage = props.content.secondsPerPage || 15;
@@ -140,12 +141,27 @@ function handleKeyDown(event: KeyboardEvent) {
   if (event.key === 'Enter') {
     console.log('pausing');
     isPaused.value = !isPaused.value;
-  } else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
-    advancePage();
-  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
-    previousPage();
   }
 }
+
+function handleArrow(direction: 'left' | 'right'): boolean {
+  if (direction === 'right') {
+    const nextIndex = currentIndex.value + teamsPerPage.value;
+    if (nextIndex < teams.value.length) {
+      advancePage();
+      return true;
+    }
+    return false; // let Carousel go to the next slide
+  } else {
+    if (currentIndex.value > 0) {
+      previousPage();
+      return true;
+    }
+    return false; // let Carousel go to previous slide
+  }
+}
+
+defineExpose({handleArrow});
 </script>
 
 <template>

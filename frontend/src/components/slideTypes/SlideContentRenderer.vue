@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, watch} from 'vue';
+import {computed, onMounted, onUnmounted, watch, ref, defineExpose} from 'vue';
 import ImageSlideContentRenderer from './ImageSlideContentRenderer.vue';
 import RobotGameSlideContentRenderer from './robotGame/RobotGameSlideContentRenderer.vue';
 import {ImageSlideContent} from "../../models/imageSlideContent.js";
@@ -9,10 +9,11 @@ import {UrlSlideContent} from "../../models/urlSlideContent.js";
 import UrlSlideContentRenderer from "./UrlSlideContentRenderer.vue";
 import {FabricSlideContent} from "../../models/fabricSlideContent.js";
 import FabricSlideContentRenderer from "./FabricSlideContentRenderer.vue";
-import { PublicPlanSlideContent } from '@/models/publicPlanSlideContent';
-import { PublicPlanNextSlideContent } from '@/models/publicPlanNextSlideContent';
+import {PublicPlanSlideContent} from '@/models/publicPlanSlideContent';
+import {PublicPlanNextSlideContent} from '@/models/publicPlanNextSlideContent';
 import PublicPlanSlideContentRenderer from '@/components/slideTypes/publicPlan/PublicPlanSlideContentRenderer.vue';
-import PublicPlanNextSlideContentRenderer from '@/components/slideTypes/publicPlan/PublicPlanNextSlideContentRenderer.vue';
+import PublicPlanNextSlideContentRenderer
+  from '@/components/slideTypes/publicPlan/PublicPlanNextSlideContentRenderer.vue';
 
 const props = withDefaults(defineProps<{
   slide: Slide,
@@ -27,6 +28,8 @@ const props = withDefaults(defineProps<{
 
 // Emit: go to the next slide
 const emit = defineEmits<{ (e: 'next'): void }>();
+
+const renderer = ref(null);
 
 const componentName = computed(() => {
   const content = props.slide.content;
@@ -59,7 +62,16 @@ watch(() => props.visible, (vis) => {
   }
 });
 
-let advanceTimeout = null;
+function handleArrow(direction: 'left' | 'right'): boolean {
+  if (renderer.value?.handleArrow) {
+    return renderer.value.handleArrow(direction);
+  }
+  return false;
+}
+
+defineExpose({handleArrow});
+
+let advanceTimeout: any = null;
 
 function clearAdvanceTimeout() {
   if (advanceTimeout) {
@@ -93,6 +105,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <component :is="componentName" :content="props.slide.content" :preview="props.preview" :eventId="props.eventId"
+  <component ref="renderer" :is="componentName" :content="props.slide.content" :preview="props.preview"
+             :eventId="props.eventId"
              @next="emit('next')"></component>
 </template>
