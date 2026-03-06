@@ -3,6 +3,7 @@ import {onMounted, ref} from "vue";
 import SlideContentRenderer from "./slideTypes/SlideContentRenderer.vue";
 import {Slide} from "@/models/slide";
 import axios from "axios";
+import {useAutoHideCursor} from "../composables/useAutoHideCursor";
 
 const props = defineProps<{
   eventId: number | string,
@@ -11,6 +12,9 @@ const props = defineProps<{
 
 const slide = ref(null)
 const showSlide = ref(false)
+
+const container = ref(null);
+useAutoHideCursor(container, 3000);
 
 async function fetchSlide() {
   const response = await axios.get(`/carousel/${props.eventId}/slide/${props.slideId}`);
@@ -32,10 +36,13 @@ onMounted(fetchSlide)
 </script>
 
 <template>
-  <div v-if="showSlide" class="h-screen w-full">
+  <div v-if="showSlide" class="h-screen w-full" ref="container">
     <SlideContentRenderer :slide="slide" :preview="false" :eventId="+props.eventId" :visible="true"/>
   </div>
 </template>
 
 <style scoped>
+.hide-cursor {
+  cursor: none;
+}
 </style>

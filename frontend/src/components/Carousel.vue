@@ -3,6 +3,7 @@ import {onMounted, onUnmounted, ref} from "vue";
 import SlideContentRenderer from "./slideTypes/SlideContentRenderer.vue";
 import {Slide} from "../models/slide.js";
 import axios from "axios";
+import {useAutoHideCursor} from "../composables/useAutoHideCursor";
 
 // TODO Socket injector
 /*
@@ -22,7 +23,11 @@ const props = defineProps<{
 let slideshow = ref(null)
 let showSlide = ref(false)
 let slideKey = ref(0)
+
+const container = ref<HTMLElement>(null);
 const renderers = ref([]);
+
+useAutoHideCursor(container, 3000);
 
 async function fetchSlides() {
   const response = await axios.get(`/carousel/${props.eventId}/slideshows`);
@@ -97,9 +102,9 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
 </script>
 
 <template>
-  <div v-if="showSlide" v-for="(slide, index) in slideshow?.slides" :key="index" class="h-screen w-full"
-       v-show="index === slideKey">
+  <div v-if="showSlide" ref="container" id="container" class="h-screen w-full">
     <SlideContentRenderer
+        v-for="(slide, index) in slideshow?.slides" :key="index" v-show="index === slideKey"
         ref="renderers"
         :slide="slide" :preview="false" :eventId="+props.eventId" :visible="index === slideKey"
         :defaultTransitionTime="slideshow?.transition_time" @next="nextSlide"/>
@@ -107,6 +112,10 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
 </template>
 
 <style scoped>
+.hide-cursor {
+  cursor: none;
+}
+
 footer {
   background-color: white;
   width: 100%;
