@@ -48,7 +48,23 @@ onMounted(() => {
   }
 });
 
+onMounted(() => {
+  startAutoAdvance();
+  io.observe(root.value);
+  window.addEventListener('keydown', handleKeyDown);
+});
+
 onUnmounted(stopAutoRefresh);
+
+onUnmounted(() => {
+  clearInterval(autoAdvanceInterval);
+  if (io && root.value) {
+    io.unobserve(root.value);
+    io.disconnect();
+    io = null;
+  }
+  window.removeEventListener('keydown', handleKeyDown);
+});
 
 let autoAdvanceInterval;
 
@@ -64,20 +80,6 @@ let io = new IntersectionObserver((entries) => {
   }
   clearInterval(autoAdvanceInterval);
 }, {threshold: 0.01});
-
-onMounted(() => {
-  startAutoAdvance();
-  io.observe(root.value);
-});
-
-onUnmounted(() => {
-  clearInterval(autoAdvanceInterval);
-  if (io && root.value) {
-    io.unobserve(root.value);
-    io.disconnect();
-    io = null;
-  }
-});
 
 function startAutoAdvance() {
   const secondsPerPage = props.content.secondsPerPage || 15;
@@ -139,14 +141,9 @@ function handleKeyDown(event: KeyboardEvent) {
   if (event.key === 'Enter') {
     console.log('pausing');
     isPaused.value = !isPaused.value;
-  } else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
-    advancePage();
-  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
-    previousPage();
   }
 }
 
-// Expose a method for Carousel to delegate arrow keys. Returns true if handled here.
 function handleArrow(direction: 'left' | 'right'): boolean {
   if (direction === 'right') {
     const nextIndex = currentIndex.value + teamsPerPage.value;
