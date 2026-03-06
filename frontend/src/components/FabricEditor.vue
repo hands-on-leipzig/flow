@@ -40,10 +40,6 @@ const emit = defineEmits<{
   change: []
 }>();
 
-watch(props.slide, (newSlide) => {
-  paintSlide(newSlide);
-});
-
 const canvasEl = shallowRef(null);
 let canvas: Canvas;
 
