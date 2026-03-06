@@ -38,7 +38,7 @@ class EventController extends Controller
     public function getEvent($id)
     {
         $event = Event::with(['seasonRel', 'levelRel', 'tableNames'])->findOrFail($id);
-        
+
         // Decrypt password before refresh (so it's preserved)
         $decryptedPassword = isset($event->wifi_password) ? Crypt::decryptString($event->wifi_password) : "";
 
@@ -48,7 +48,7 @@ class EventController extends Controller
 
         // Reload event to get updated needs_attention values
         $event->refresh();
-        
+
         // Restore decrypted password after refresh
         $event->wifi_password = $decryptedPassword;
 
@@ -58,6 +58,28 @@ class EventController extends Controller
             'needs_attention' => $event->needs_attention ?? false,
             'needs_attention_checked_at' => $event->needs_attention_checked_at,
         ]);
+    }
+
+    // Convert an event to an array containing only public information (e.g. no wifi_password)
+    function eventPublicInformationArray($event): array
+    {
+        return [
+            'id' => $event->id,
+            'name' => $event->name,
+            'slug' => $event->slug,
+            'date' => $event->date,
+            'days' => $event->days,
+            'event_explore' => $event->event_explore,
+            'event_challenge' => $event->event_challenge,
+            'link' => $event->link,
+            'qrcode' => $event->qrcode ? 'data:image/png;base64,' . $event->qrcode : null,
+            'season' => $event->season,
+            'level' => $event->level,
+            'regional_partner' => $event->regional_partner,
+            'seasonRel' => $event->seasonRel,
+            'levelRel' => $event->levelRel,
+            'regionalPartnerRel' => $event->regionalPartner,
+        ];
     }
 
     public function getEventBySlug($slug)
@@ -75,25 +97,31 @@ class EventController extends Controller
             $event->load(['seasonRel', 'levelRel', 'regionalPartner']);
 
             // Return only public information (no sensitive data like wifi_password)
-            return response()->json([
-                'id' => $event->id,
-                'name' => $event->name,
-                'slug' => $event->slug,
-                'date' => $event->date,
-                'days' => $event->days,
-                'event_explore' => $event->event_explore,
-                'event_challenge' => $event->event_challenge,
-                'link' => $event->link,
-                'qrcode' => $event->qrcode ? 'data:image/png;base64,' . $event->qrcode : null,
-                'season' => $event->season,
-                'level' => $event->level,
-                'regional_partner' => $event->regional_partner,
-                'seasonRel' => $event->seasonRel,
-                'levelRel' => $event->levelRel,
-                'regionalPartnerRel' => $event->regionalPartner,
-            ]);
+            return response()->json($this->eventPublicInformationArray($event));
         } catch (\Exception $e) {
             Log::error('Error in getEventBySlug: ' . $e->getMessage());
+            return response()->json(['error' => 'Internal server error'], 500);
+        }
+    }
+
+    public function getPublicEventById($eventId)
+    {
+        try {
+            $event = Event::where('id', $eventId)
+                ->where('season', SeasonService::currentSeasonId())
+                ->first();
+
+            if (!$event) {
+                return response()->json(['error' => 'Event not found'], 404);
+            }
+
+            // Load relationships separately to avoid potential issues
+            $event->load(['seasonRel', 'levelRel', 'regionalPartner']);
+
+            // Return only public information (no sensitive data like wifi_password)
+            return response()->json($this->eventPublicInformationArray($event));
+        } catch (\Exception $e) {
+            Log::error('Error in getPublicEventById: ' . $e->getMessage());
             return response()->json(['error' => 'Internal server error'], 500);
         }
     }
