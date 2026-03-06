@@ -80,7 +80,9 @@ onMounted(() => {
     <Navigation v-if="!isPublicRoute"/>
     <EventDayBanner v-if="!isPublicRoute"/>
 
-    <router-view :class="['shadow-lg', isPublicRoute ? 'flex-grow' : 'flex-1']"/>
+    <div :class="['shadow-lg', isPublicRoute ? 'flex-grow' : 'flex-1']">
+      <router-view/>
+    </div>
 
     <!-- News Modal -->
     <NewsModal 
