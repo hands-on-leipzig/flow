@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {RobotGameSlideContent} from '../../../models/robotGameSlideContent.js';
-import {onMounted, onUnmounted, ref, computed, toRef, watch, shallowRef} from "vue";
+import {onMounted, onUnmounted, ref, computed, toRef, watch, shallowRef, defineExpose} from "vue";
 import {useScores, createTeams} from '@/services/useScores';
 import type {TeamResponse, RoundResponse} from "@/models/robotGameScores";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
@@ -47,6 +47,7 @@ onMounted(() => {
     startAutoRefresh();
   }
 });
+
 onUnmounted(stopAutoRefresh);
 
 let autoAdvanceInterval;
@@ -67,7 +68,6 @@ let io = new IntersectionObserver((entries) => {
 onMounted(() => {
   startAutoAdvance();
   io.observe(root.value);
-  window.addEventListener('keydown', handleKeyDown);
 });
 
 onUnmounted(() => {
@@ -77,7 +77,6 @@ onUnmounted(() => {
     io.disconnect();
     io = null;
   }
-  window.removeEventListener('keydown', handleKeyDown);
 });
 
 function startAutoAdvance() {
@@ -146,6 +145,26 @@ function handleKeyDown(event: KeyboardEvent) {
     previousPage();
   }
 }
+
+// Expose a method for Carousel to delegate arrow keys. Returns true if handled here.
+function handleArrow(direction: 'left' | 'right'): boolean {
+  if (direction === 'right') {
+    const nextIndex = currentIndex.value + teamsPerPage.value;
+    if (nextIndex < teams.value.length) {
+      advancePage();
+      return true;
+    }
+    return false; // let Carousel go to the next slide
+  } else {
+    if (currentIndex.value > 0) {
+      previousPage();
+      return true;
+    }
+    return false; // let Carousel go to previous slide
+  }
+}
+
+defineExpose({handleArrow});
 </script>
 
 <template>
