@@ -40,9 +40,12 @@
   </div>
  
 
-<div class="row row-cols-2 row-cols-md-4 g-2" id="navigation" style="padding-top:10px; padding-bottom:10px">
+<div class="row row-cols-2 row-cols-md-5 g-2" id="navigation" style="padding-top:10px; padding-bottom:10px">
     <div class="col text-center">
         <a class="btn btn-secondary w-100" href="zeitplan.cgi?plan=<!--zeitplan:plan-->&brief=yes&role=14" role="button">Übersichtsplan</a>
+    </div>
+    <div class="col text-center">
+        <button type="button" class="btn btn-secondary" onclick="get_meine_rolle()">meine Rolle</button>
     </div>
     <div class="col text-center">
         <button type="button" class="btn btn-secondary w-100" data-bs-toggle="modal" data-bs-target="#modal_qrcode">
@@ -67,7 +70,6 @@
         <p style="text-align:center; font-size:clamp(35px, 10vw, 90px); font-weight:bold; color:#24355C">
             <!--zeitplan:role-->
             <button type="button" class="btn btn-secondary" onclick="set_meine_rolle()">als meine Rolle speichern</button>
-            <button type="button" class="btn btn-secondary" onclick="get_meine_rolle()">meine Rolle</button>
         </p>
     </div>
 </div>
@@ -110,14 +112,5 @@
         localStorage.setItem("team", "<!--zeitplan:team-->");
         localStorage.setItem("lane", "<!--zeitplan:lane-->");
         localStorage.setItem("table", "<!--zeitplan:table-->");
-    }
-
-    function get_meine_rolle() {
-        const role = localStorage.getItem("role") || "";
-        const team = localStorage.getItem("team") || "";
-        const lane = localStorage.getItem("lane") || "";
-        const table = localStorage.getItem("table") || "";
-    
-        window.location.href = "zeitplan.cgi?plan=<!--zeitplan:plan-->&brief=no&expired=yes&now=&role="+role+"&team="+team+"&lane="+lane+"&table="+table+"&export=";
     }
 </script>
