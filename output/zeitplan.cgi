@@ -610,6 +610,11 @@ sub get_zeitplan {
     
     $template =~ s/<!--zeitplan:plan-->/$params->{plan}/eg;
 
+    $template =~ s/<!--zeitplan:role_id-->/$params->{role}/eg;
+    $template =~ s/<!--zeitplan:team-->/$params->{team}/eg;
+    $template =~ s/<!--zeitplan:lane-->/$params->{lane}/eg;
+    $template =~ s/<!--zeitplan:table-->/$params->{table}/eg;
+
     $template =~ s/<!--zeitplan:qrcode-->/$plan_metadata{qrcode}/eg;
 
     $template =~ s/<!--zeitplan:hours-->/$params->{hours}/eg;
