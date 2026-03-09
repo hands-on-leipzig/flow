@@ -3,7 +3,7 @@ import {ref, computed, onMounted, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import {programLogoSrc, programLogoAlt, imageUrl} from '@/utils/images'
-import {formatTimeOnly} from '@/utils/dateTimeFormat'
+import { formatTimeOnly } from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 
 const route = useRoute()
@@ -102,7 +102,7 @@ const loadEvent = async () => {
   }
 }
 
-// Format date to show only date part
+// Format date to show only date part (long format for main event date)
 const formatDateOnly = (dateString) => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -114,6 +114,53 @@ const formatDateOnly = (dateString) => {
   })
 }
 
+// Get YYYY-MM-DD in local time for day comparison
+function toLocalDateString(dateInput) {
+  if (!dateInput) return ''
+  const d = new Date(dateInput)
+  if (isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// Short weekday (e.g. "Mo.", "Di.") for time display
+function formatShortWeekday(dateInput) {
+  if (!dateInput) return ''
+  const d = new Date(dateInput)
+  if (isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(d)
+}
+
+// True if the plan has important times on more than one day
+function eventSpansMultipleDays(plan) {
+  if (!plan) return false
+  const dates = new Set()
+  const add = (arr) => {
+    if (!Array.isArray(arr)) return
+    arr.forEach((item) => {
+      if (item?.value) dates.add(toLocalDateString(item.value))
+    })
+  }
+  add(plan.explore_morning)
+  add(plan.explore_afternoon)
+  add(plan.explore)
+  add(plan.challenge)
+  return dates.size > 1
+}
+
+// When event spans multiple days: show short weekday for every time; otherwise time only
+function getTimeDisplay(isoDateTime, showWeekday) {
+  if (!isoDateTime) return ''
+  const timeOnly = formatTimeOnly(isoDateTime, true)
+  if (showWeekday) {
+    const wd = formatShortWeekday(isoDateTime)
+    return wd ? `${wd}, ${timeOnly}` : timeOnly
+  }
+  return timeOnly
+}
+
 // Get timeline items for Explore morning group, sorted chronologically
 const getExploreMorningTimelineItems = () => {
   const plan = scheduleInfo.value?.plan
@@ -121,6 +168,7 @@ const getExploreMorningTimelineItems = () => {
     return []
   }
 
+  const showWeekday = eventSpansMultipleDays(scheduleInfo.value?.plan)
   // Map backend format to frontend format
   return plan.explore_morning.map(item => {
     const timestamp = new Date(item.value).getTime()
@@ -133,6 +181,7 @@ const getExploreMorningTimelineItems = () => {
 
     return {
       time: formatTimeOnly(item.value, true),
+      timeDisplay: getTimeDisplay(item.value, showWeekday),
       label: item.label || '',
       type: type,
       timestamp: timestamp,
@@ -148,6 +197,7 @@ const getExploreAfternoonTimelineItems = () => {
     return []
   }
 
+  const showWeekday = eventSpansMultipleDays(scheduleInfo.value?.plan)
   // Map backend format to frontend format
   return plan.explore_afternoon.map(item => {
     const timestamp = new Date(item.value).getTime()
@@ -160,6 +210,7 @@ const getExploreAfternoonTimelineItems = () => {
 
     return {
       time: formatTimeOnly(item.value, true),
+      timeDisplay: getTimeDisplay(item.value, showWeekday),
       label: item.label || '',
       type: type,
       timestamp: timestamp,
@@ -175,6 +226,7 @@ const getExploreSingleTimelineItems = () => {
     return []
   }
 
+  const showWeekday = eventSpansMultipleDays(scheduleInfo.value?.plan)
   // Map backend format to frontend format
   return plan.explore.map(item => {
     const timestamp = new Date(item.value).getTime()
@@ -187,6 +239,7 @@ const getExploreSingleTimelineItems = () => {
 
     return {
       time: formatTimeOnly(item.value, true),
+      timeDisplay: getTimeDisplay(item.value, showWeekday),
       label: item.label || '',
       type: type,
       timestamp: timestamp,
@@ -215,6 +268,7 @@ const getChallengeTimelineItems = () => {
   const plan = scheduleInfo.value?.plan
   if (!plan?.challenge || !Array.isArray(plan.challenge) || plan.challenge.length === 0) return []
 
+  const showWeekday = eventSpansMultipleDays(scheduleInfo.value?.plan)
   // Backend returns challenge as an array of {value, label, sequence}
   // Map backend format to frontend format
   return plan.challenge.map(item => {
@@ -228,6 +282,7 @@ const getChallengeTimelineItems = () => {
 
     return {
       time: formatTimeOnly(item.value, true),
+      timeDisplay: getTimeDisplay(item.value, showWeekday),
       label: item.label || '',
       type: type,
       timestamp: timestamp,
@@ -450,7 +505,7 @@ onMounted(async () => {
                         <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
                             item.label
                           }}</span>
-                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.timeDisplay }}</span>
                       </div>
                       <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
                     </div>
@@ -489,7 +544,7 @@ onMounted(async () => {
                         <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
                             item.label
                           }}</span>
-                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.timeDisplay }}</span>
                       </div>
                       <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
                     </div>
@@ -528,7 +583,7 @@ onMounted(async () => {
                         <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
                             item.label
                           }}</span>
-                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.timeDisplay }}</span>
                       </div>
                       <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
                     </div>
@@ -568,7 +623,7 @@ onMounted(async () => {
                   <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-red-200">
                     <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
                       <span class="text-xs font-semibold text-red-700 uppercase tracking-wide">{{ item.label }}</span>
-                      <span class="text-base md:text-lg font-bold text-red-800">{{ item.time }}</span>
+                      <span class="text-base md:text-lg font-bold text-red-800">{{ item.timeDisplay }}</span>
                     </div>
                     <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
                   </div>
