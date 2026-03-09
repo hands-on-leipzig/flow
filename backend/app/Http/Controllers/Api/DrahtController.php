@@ -297,12 +297,12 @@ class DrahtController extends Controller
                             $existingTeams = Team::where('event', $event->id)
                                 ->get()
                                 ->keyBy('team_number_hot');
-                            
+
                             $processedTeamNumbers = [];
-                            
+
                             foreach ($eventData['teams'] as $teamData) {
                                 $teamNumberHot = $teamData['team_number_hot'] ?? null;
-                                
+
                                 if ($teamNumberHot === null) {
                                     Log::warning('Skipping team without team_number_hot', [
                                         'event_id' => $event->id,
@@ -310,11 +310,11 @@ class DrahtController extends Controller
                                     ]);
                                     continue;
                                 }
-                                
+
                                 $processedTeamNumbers[] = $teamNumberHot;
-                                
+
                                 $existingTeam = $existingTeams->get($teamNumberHot);
-                                
+
                                 if ($existingTeam) {
                                     $existingTeam->update([
                                         'name' => $teamData['name'],
@@ -333,21 +333,21 @@ class DrahtController extends Controller
                                     ]);
                                 }
                             }
-                            
+
                             $teamsToDelete = Team::where('event', $event->id)
                                 ->whereNotIn('team_number_hot', $processedTeamNumbers)
                                 ->whereDoesntHave('teamPlans')
                                 ->get();
-                            
+
                             foreach ($teamsToDelete as $teamToDelete) {
                                 $teamToDelete->delete();
                             }
-                            
+
                             $teamsWithPlans = Team::where('event', $event->id)
                                 ->whereNotIn('team_number_hot', $processedTeamNumbers)
                                 ->whereHas('teamPlans')
                                 ->get();
-                            
+
                             if ($teamsWithPlans->isNotEmpty()) {
                                 Log::warning('Teams not deleted because they have team_plan entries', [
                                     'event_id' => $event->id,
@@ -597,6 +597,43 @@ class DrahtController extends Controller
         } catch (\Exception $e) {
             Log::error("Exception while fetching people data from DRAHT API", [
                 'draht_event_id' => $drahtEventId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'error' => 'Internal server error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get coordinates of all the teams of a given event
+     *
+     * @param int $event
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getTeamsCoordinates(Event $event)
+    {
+        try {
+            $response = $this->makeDrahtCall("/handson/teams/{$event->event_challenge}/locations");
+
+            if (!$response->ok()) {
+                Log::error("Failed to fetch teams locations from DRAHT API", [
+                    'event_id' => $event->id,
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return response()->json([
+                    'error' => 'Failed to fetch teams locations from DRAHT API',
+                    'status' => $response->status()
+                ], $response->status());
+            }
+            $locations = $response->json();
+            return response()->json($locations);
+        } catch (\Exception $e) {
+            Log::error("Failed to fetch teams locations from DRAHT API", [
+                'event_id' => $event->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
