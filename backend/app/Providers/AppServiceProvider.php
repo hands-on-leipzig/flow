@@ -23,9 +23,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $maxTime = (int) config('app.max_execution_time', 30);
-        if ($maxTime > 0) {
-            set_time_limit($maxTime);
+        if (app()->runningInConsole()) {
+            set_time_limit(0);
+        } else {
+            $maxTime = (int) config('app.max_execution_time', 30);
+            if ($maxTime > 0) {
+                set_time_limit($maxTime);
+            }
         }
 
         // Explicit model binding for Event model
