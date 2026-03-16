@@ -125,4 +125,17 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Max Execution Time (seconds)
+    |--------------------------------------------------------------------------
+    |
+    | PHP max_execution_time for web requests. Increase in local/.env for
+    | long-running operations (e.g. plan generation). Default 30 keeps PHP
+    | default; set e.g. 300 or 600 for local development.
+    |
+    */
+
+    'max_execution_time' => env('MAX_EXECUTION_TIME', 30),
+
 ];
