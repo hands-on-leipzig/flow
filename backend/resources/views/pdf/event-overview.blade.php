@@ -92,7 +92,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $columnColors = [
             'Explore' => '#27ae60',
             'Challenge' => '#e74c3c', 
-            'Live-Challenge' => '#8e44ad',
+            'Live Challenge' => '#8e44ad',
             'Robot-Game' => '#f39c12',
             'Allgemein' => '#95a5a6'
         ];
@@ -109,7 +109,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $actualHtmlColumns += 2; // Merged cell (Allgemein-3 + Challenge)
             } elseif ($columnName === 'Robot-Game') {
                 $actualHtmlColumns += 1; // Single column
-            } elseif ($columnName === 'Live-Challenge') {
+            } elseif ($columnName === 'Live Challenge') {
                 $actualHtmlColumns += 1; // Single column
             }
             // Skip Explore and Challenge as they are merged
@@ -125,7 +125,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $hasAllgemein3 = in_array('Allgemein-3', $columnNames);
         $hasChallenge = in_array('Challenge', $columnNames);
         $hasRobotGame = in_array('Robot-Game', $columnNames);
-        $hasLiveChallenge = in_array('Live-Challenge', $columnNames);
+        $hasLiveChallenge = in_array('Live Challenge', $columnNames);
         
         // Count columns for each merged group
         $exploreColumns = 0;
@@ -167,7 +167,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 }
             } elseif ($columnName === 'Allgemein-3') {
                 if ($hasAllgemein3 && $challengeColumns > 1) {
-                    // Merged cell for Allgemein-3 + Challenge + Robot-Game + Live-Challenge
+                    // Merged cell for Allgemein-3 + Challenge + Robot-Game + Live Challenge
                     $headerContent = '<img src="file://' . public_path('flow/fll_challenge_h.png') . '" style="height: 20px; width: auto;">';
                     $contentHtml .= '
                         <th colspan="' . $challengeColumns . '" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
@@ -198,8 +198,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     $contentHtml .= '
                         <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
                 }
-            } elseif ($columnName === 'Live-Challenge') {
-                // Live-Challenge gets text only if not merged with other columns
+            } elseif ($columnName === 'Live Challenge') {
+                // Live Challenge gets text only if not merged with other columns
                 if (!$hasAllgemein3 && !$hasChallenge && !$hasRobotGame) {
                     $headerContent = htmlspecialchars($displayName);
                     $contentHtml .= '
@@ -301,7 +301,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $columnColors = [
                     'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
                     'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
-                    'Live-Challenge' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
+                    'Live Challenge' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
                     'Robot-Game' => ['bg' => '#fef5e7', 'border' => '#f39c12'],
                     'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']
                 ];
