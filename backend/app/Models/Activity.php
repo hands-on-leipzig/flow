@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Activity extends Model
 {
@@ -22,6 +23,7 @@ class Activity extends Model
         'table_2_team',
         'activity_type_detail',
         'extra_block',
+        'slot_team',
         'explore_group',
     ];
 
@@ -35,5 +37,10 @@ class Activity extends Model
     public function detail()
     {
         return $this->belongsTo(MActivityTypeDetail::class, 'activity_type_detail');
+    }
+
+    public function slotTeam(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'slot_team');
     }
 }

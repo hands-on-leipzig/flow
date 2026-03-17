@@ -37,9 +37,10 @@ class FreeBlockGenerator
         
         try {
             
-            // Load ExtraBlocks with fixed times for this plan
+            // Load ExtraBlocks with fixed times for this plan (type = free only)
             $blocks = ExtraBlock::where('plan', $this->planId)
             ->where('active', true)
+            ->where('type', 'free')
             ->whereNotNull('start')
             ->get(['id', 'first_program', 'start', 'end']);
 

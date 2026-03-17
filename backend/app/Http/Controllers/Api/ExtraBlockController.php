@@ -77,11 +77,19 @@ class ExtraBlockController extends Controller
             'end' => 'nullable|date|after_or_equal:start',
             'room' => 'nullable|integer|exists:room,id',
             'active' => 'nullable|boolean',
+            'type' => 'nullable|string|in:inserted,free,slot',
             'skip_regeneration' => 'nullable|boolean', // New flag to skip regeneration
         ]);
 
         // Ensure plan is set from route param
         $validated['plan'] = $planId;
+
+        // Set type from request or infer: inserted if insert_point set, else free
+        if (!isset($validated['type']) || $validated['type'] === '') {
+            $validated['type'] = isset($validated['insert_point']) && $validated['insert_point'] !== null
+                ? 'inserted'
+                : 'free';
+        }
 
         // Check if this is a timing-related update
         $skipRegeneration = $validated['skip_regeneration'] ?? false;
