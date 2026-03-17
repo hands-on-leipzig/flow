@@ -476,7 +476,7 @@ const inputTitle =
           <div class="lg:col-span-2">
             <p class="text-sm text-gray-700">
               Alle bisherigen Slots werden aus dem Plan entfernt. Dann werden die Zuordnungen für
-              alle aktiven Slot-Blöcke in den Plan eingefügt.
+              alle aktiven Aktivitäten pro Team in den Plan eingefügt.
             </p>
             <p class="text-sm text-red-700 mt-2">
               Dabei wird <strong>nicht</strong> überprüft, ob das zu zeitlichen Konflikten für Teams führt!
@@ -486,14 +486,14 @@ const inputTitle =
 
         <p v-if="applyError" class="mt-2 text-sm text-red-600">{{ applyError }}</p>
         <p v-else-if="applyResult" class="mt-2 text-sm text-green-700">
-          OK: {{ applyResult.removed_activities }} Aktivitäten / {{ applyResult.removed_groups }} Gruppen entfernt ·
-          {{ applyResult.created_activities }} Aktivitäten / {{ applyResult.created_groups }} Gruppen erstellt
+          OK: entfernt {{ applyResult.removed_groups }} Groups / {{ applyResult.removed_activities }} Activities.
+          erstellt: {{ applyResult.created_groups }} Groups / {{ applyResult.created_activities }} Activities
         </p>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
       <div class="lg:col-span-1 min-w-0">
-        <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">Slot-Blöcke</h2>
+        <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">Aktivitäten pro Team</h2>
         <p v-if="errorMsg" class="text-sm text-red-600 mb-2">{{ errorMsg }}</p>
 
         <div class="space-y-3 md:space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
@@ -625,11 +625,11 @@ const inputTitle =
                 v-model="newSlotName"
                 :disabled="isSavingNew"
                 :class="inputTitle + ' w-full'"
-                placeholder="Neuer Slot-Block"
+                placeholder="Neu Aktivität pro Team"
                 @keyup.enter="createNewSlotBlock"
               />
               <p v-if="!newSlotName.trim()" class="text-xs text-gray-500 mt-1">
-                Kurzer Name für den Zusatzblock (z. B. Interview, Foto).
+                Titel der Aktivität (z.B. Führung, Mittagessen, Interview, …)
               </p>
             </div>
             <transition name="fade">
@@ -709,7 +709,11 @@ const inputTitle =
       >
         <div class="mb-3 md:mb-4 border-b border-gray-200 pb-2">
           <h2 class="text-base md:text-xl font-bold text-gray-900">
-            {{ selectedBlock ? selectedBlock.name : 'Teams' }}
+            {{
+              selectedBlock
+                ? `${selectedBlock.name} - Zuordnung der Teams`
+                : 'Teams'
+            }}
           </h2>
         </div>
 
