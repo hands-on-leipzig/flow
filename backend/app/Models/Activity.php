@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Activity extends Model
 {
     protected $table = 'activity';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -22,6 +23,7 @@ class Activity extends Model
         'table_2_team',
         'activity_type_detail',
         'extra_block',
+        'slot_team', // team_number_plan (same semantics as jury_team / table_*_team)
         'explore_group',
     ];
 

@@ -18,9 +18,34 @@ npm install
 
 ### Compile and Hot-Reload for Development
 
+**Laravel must be running first** — Vite only serves the Vue app; `/api/*`, `/flow/*`, etc. are proxied to the backend (default **port 8000**).
+
+Terminal 1 (backend):
+
+```sh
+cd ../backend && php artisan serve
+```
+
+Terminal 2 (frontend):
+
 ```sh
 npm run dev
 ```
+
+Optional: `frontend/.env.local` — if the API runs elsewhere, set:
+
+```env
+VITE_FILES_BASE_URL=http://127.0.0.1:8000
+```
+
+(Must match the URL you use for `artisan serve`.)
+
+#### Vite proxy errors (`ECONNREFUSED` / `ECONNRESET`)
+
+| Message | Meaning |
+|--------|---------|
+| **connect ECONNREFUSED 127.0.0.1:8000** | Backend not running or wrong port — start `php artisan serve` (or fix `VITE_FILES_BASE_URL`). |
+| **read ECONNRESET** | Backend dropped the connection (restart, crash, or stop/start). Wait until Laravel is up, then refresh the app. |
 
 ### Compile and Minify for Production
 

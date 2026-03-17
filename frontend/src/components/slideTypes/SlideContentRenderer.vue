@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, watch, ref, defineExpose} from 'vue';
+import {computed, onMounted, onUnmounted, watch, ref} from 'vue';
 import ImageSlideContentRenderer from './ImageSlideContentRenderer.vue';
 import RobotGameSlideContentRenderer from './robotGame/RobotGameSlideContentRenderer.vue';
 import {ImageSlideContent} from "../../models/imageSlideContent.js";

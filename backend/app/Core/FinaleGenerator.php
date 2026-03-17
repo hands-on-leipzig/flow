@@ -430,21 +430,21 @@ class FinaleGenerator
         // Coach briefing (c_briefing)
         $this->writer->withGroup('c_briefing', function () use ($openingStart) {
             $cursor = new TimeCursor($openingStart);
-            $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening'));
+            $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening_day_1'));
             $this->writer->insertActivity('c_briefing', $cursor, $this->pp('c_duration_briefing'));
         });
 
         // Robot Game referee briefing (r_briefing)
         $this->writer->withGroup('r_briefing', function () use ($openingStart) {
             $cursor = new TimeCursor($openingStart);
-            $cursor->subMinutes($this->pp('r_duration_briefing') + $this->pp('c_ready_opening'));
+            $cursor->subMinutes($this->pp('r_duration_briefing') + $this->pp('c_ready_opening_day_1'));
             $this->writer->insertActivity('r_briefing', $cursor, $this->pp('r_duration_briefing'));
         });
 
         // Live Challenge judge briefing (lc_briefing)
         $this->writer->withGroup('lc_briefing', function () use ($openingStart) {
             $cursor = new TimeCursor($openingStart);
-            $cursor->subMinutes($this->pp('lc_duration_briefing') + $this->pp('c_ready_opening'));
+            $cursor->subMinutes($this->pp('lc_duration_briefing') + $this->pp('c_ready_opening_day_1'));
             $this->writer->insertActivity('lc_briefing', $cursor, $this->pp('lc_duration_briefing'));
         });
     }

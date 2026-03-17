@@ -158,6 +158,7 @@ const tabs = computed(() => {
   const allTabs = [
     {name: 'Veranstaltung', path: '/event'},
     {name: 'Ablauf', path: '/schedule'},
+    {name: 'Slots', path: '/slots'},
     {name: 'Teams', path: '/teams'},
     {name: 'Räume', path: '/rooms'},
     {name: 'Logos', path: '/logos'},

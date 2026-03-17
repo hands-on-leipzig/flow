@@ -1113,7 +1113,7 @@ sub get_detailplan {
 
                     if ($activity_activity_type_detail_id == 17 || $activity_activity_type_detail_id == 18 || $activity_activity_type_detail_id == 42 || $activity_activity_type_detail_id == 43) {
                         # Jury (Challenge) / 17 + 18 (17 mit Team, 18 Bewertung)
-                        # auch Live-Challenge / 42 + 43 (42 mit Team, 43 ohne Team)
+                        # auch Live Challenge / 42 + 43 (42 mit Team, 43 ohne Team)
                         # Rolle = Challenge-Team = 3
                         if ($params->{role} == 3) {
                             # wenn Rolle = Team, dann nur die Jurygruppe (lane) ausgeben
@@ -1699,7 +1699,7 @@ sub get_auswahl {
     }
 
     if ($event_level != 3) {
-        $where_live_challenge_jury = "and m_role.id != 16"; # Rolle Live-Challenge-Jury ausblenden, wenn kein Finale (level=3)
+        $where_live_challenge_jury = "and m_role.id != 16"; # Rolle Live Challenge-Jury ausblenden, wenn kein Finale (level=3)
     }
     ##########################################################################################
     # Ende ob Explore und/oder Challenge bzw. welcher Level

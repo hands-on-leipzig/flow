@@ -47,6 +47,7 @@ const routes = [
             {path: 'rooms', component: Rooms},
             {path: 'publish', component: PublishControl},
             {path: 'live', component: EventDayControl},
+            {path: 'slots', component: () => import('@/components/Slots.vue')},
             // Lazy-load Admin component - only loads when route is accessed
             // This significantly reduces initial bundle size since most users are not admins
             {path: 'admin', component: () => import('@/components/Admin.vue')},
@@ -58,6 +59,7 @@ const routes = [
     // Redirect old routes to new plan/ prefixed routes
     {path: '/event', redirect: '/plan/event'},
     {path: '/schedule', redirect: '/plan/schedule'},
+    {path: '/slots', redirect: '/plan/slots'},
     {path: '/teams', redirect: '/plan/teams'},
     {path: '/logos', redirect: '/plan/logos'},
     {path: '/events', redirect: '/plan/events'},

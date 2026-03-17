@@ -4,43 +4,39 @@ use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
-use App\Models\Event;
 use App\Http\Controllers\Api\ExtraBlockController;
-use App\Http\Controllers\Api\LogoController;
-use App\Http\Controllers\Api\ParameterController;
-use App\Http\Controllers\Api\PlanController;
-use App\Http\Controllers\Api\PlanGeneratorController;
-use App\Http\Controllers\Api\PlanPreviewController;
-use App\Http\Controllers\Api\PlanActivityController;
-use App\Http\Controllers\Api\PlanRoomTypeController;
-use App\Http\Controllers\Api\MParameterController;
-use App\Http\Controllers\Api\PlanParameterController;
-use App\Http\Controllers\Api\RoomController;
-use App\Http\Controllers\Api\TeamController;
-use App\Http\Controllers\Api\StatisticController;
-use App\Http\Controllers\Api\UserRegionalPartnerController;
-use App\Http\Controllers\Api\MainTablesController;
-use App\Http\Controllers\Api\QualityController;
-use App\Http\Controllers\Api\PublishController;
-use App\Http\Controllers\Api\PlanExportController;
 use App\Http\Controllers\Api\LabelController;
-use App\Http\Controllers\Api\VisibilityController;
+use App\Http\Controllers\Api\LogoController;
+use App\Http\Controllers\Api\MainTablesController;
+use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\NewsController;
-
+use App\Http\Controllers\Api\ParameterController;
+use App\Http\Controllers\Api\PlanActivityController;
+use App\Http\Controllers\Api\PlanController;
+use App\Http\Controllers\Api\PlanExportController;
+use App\Http\Controllers\Api\PlanGeneratorController;
+use App\Http\Controllers\Api\PlanParameterController;
+use App\Http\Controllers\Api\PlanPreviewController;
+use App\Http\Controllers\Api\PlanRoomTypeController;
+use App\Http\Controllers\Api\PublishController;
+use App\Http\Controllers\Api\QualityController;
+use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\StatisticController;
+use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\UserRegionalPartnerController;
+use App\Http\Controllers\Api\VisibilityController;
+use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/ping', fn() => ['pong' => true]);
-
+Route::get('/ping', fn () => ['pong' => true]);
 
 Route::get('/profile', function (Illuminate\Http\Request $request) {
     return response()->json([
         'user' => $request->get('jwt'),
     ]);
 });
-
 
 // Public routes (no authentication required)
 Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPublicSlideshowForEvent']);
@@ -56,7 +52,6 @@ Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']);
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
 Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']); // Public one-link access logging
 
-
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);
     Route::get('/score', [ContaoController::class, 'getScore']);
@@ -71,14 +66,14 @@ Route::middleware(['keycloak'])->group(function () {
             'environment' => app()->environment(),
             'is_dev' => app()->environment('local'),
             'is_test' => app()->environment('staging', 'testing'),
-            'is_prod' => app()->environment('production')
+            'is_prod' => app()->environment('production'),
         ]);
     });
 
-    Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
+    Route::get('/user', fn (Request $r) => $r->input('keycloak_user'));
     Route::get('/user/regional-partners', function (Request $request) {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['regional_partners' => []]);
         }
 
@@ -92,11 +87,12 @@ Route::middleware(['keycloak'])->group(function () {
     });
     Route::get('/user/selected-event', function (Request $request) {
         $eventId = $request->user()?->selection_event;
-        if (!$eventId) {
+        if (! $eventId) {
             return response()->json(['selected_event' => null]);
         }
 
-        $controller = new EventController();
+        $controller = new EventController;
+
         return $controller->getEvent($eventId);
     });
 
@@ -132,7 +128,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/{planId}/activities', [PlanPreviewController::class, 'previewActivities']);
     });
 
-
     // PlanActivity controller
     Route::prefix('plans')->group(function () {
         Route::get('/{planId}/room-types', [PlanRoomTypeController::class, 'listRoomTypes']);
@@ -154,13 +149,19 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/plans/{id}/non-default-parameters', [PlanParameterController::class, 'getNonDefaultParameter']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
 
-
     // ExtraBlock controller
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
-    // Route::get('/plans/{id}/extra-blocks-with-room-types', [ExtraBlockController::class, 'getBlocksForPlanWithRoomTypes']); kann weg Thomas 2024-10-07
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::get('/insert-points', [ExtraBlockController::class, 'getInsertPoints']);
     Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
+
+    Route::post('/plans/{planId}/extra-blocks/slot/apply-to-plan', [ExtraBlockController::class, 'slotApplyToPlan']);
+    Route::get('/plans/{planId}/extra-blocks/slot', [ExtraBlockController::class, 'slotIndex']);
+    Route::post('/plans/{planId}/extra-blocks/slot', [ExtraBlockController::class, 'slotStore']);
+    Route::get('/plans/{planId}/extra-blocks/slot/{extraBlock}/teams', [ExtraBlockController::class, 'slotTeamAssignments']);
+    Route::patch('/plans/{planId}/extra-blocks/slot/{extraBlock}/teams/{team}', [ExtraBlockController::class, 'slotUpdateTeamStart']);
+    Route::put('/plans/{planId}/extra-blocks/slot/{extraBlock}', [ExtraBlockController::class, 'slotUpdate']);
+    Route::delete('/plans/{planId}/extra-blocks/slot/{extraBlock}', [ExtraBlockController::class, 'slotDestroy']);
 
     // Event controller
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
@@ -201,7 +202,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/{logo}/toggle-event', [LogoController::class, 'toggleEvent']);
         Route::post('/update-sort-order', [LogoController::class, 'updateSortOrder']);
     });
-
 
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);
     Route::get('/events/{event}/draht-data', [DrahtController::class, 'show']);
@@ -294,7 +294,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::match(['get', 'post'], '/name-tags/{eventId}', [LabelController::class, 'nameTagsPdf']);
         Route::post('/volunteer-labels/{eventId}', [LabelController::class, 'volunteerLabelsPdf']);
     });
-
 
     // Quality controller
     Route::prefix('quality')->group(function () {
