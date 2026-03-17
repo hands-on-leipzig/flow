@@ -451,6 +451,7 @@ const inputTitle =
                     max="480"
                     step="5"
                     :disabled="!block.active"
+                    inputmode="none"
                     class="w-[4.25rem] text-sm text-center border border-gray-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
                     title="Nur mit Pfeiltasten oder Klick auf ▲▼ ändern (5-Min-Schritte)"
                     @click.stop
@@ -540,6 +541,7 @@ const inputTitle =
                       max="480"
                       step="5"
                       :disabled="isSavingNew"
+                      inputmode="none"
                       class="w-[4.25rem] text-sm text-center border border-gray-300 rounded px-1 py-0.5"
                       @keydown="onDurationKeydown"
                       @paste.prevent
