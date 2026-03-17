@@ -96,7 +96,9 @@ watch(() => props.planId, v => {
 async function loadBlocks() {
   const pid = props.planId
   if (!pid) return
-  const {data} = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`)
+  const {data} = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`, {
+    params: {type: 'free'},
+  })
   const loadedBlocks = Array.isArray(data) ? data : []
 
   // Sort by date first, then start time (ascending - earliest first)

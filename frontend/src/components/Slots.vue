@@ -101,7 +101,7 @@ async function applySlotsToPlan() {
   applyError.value = null
   applyResult.value = null
   try {
-    const {data} = await axios.post(`/plans/${planId.value}/slot-blocks/apply-to-plan`)
+    const {data} = await axios.post(`/plans/${planId.value}/extra-blocks/slot/apply-to-plan`)
     applyResult.value = data
   } catch (e: any) {
     applyError.value = e?.response?.data?.message || e?.message || 'Übernahme fehlgeschlagen'
@@ -190,7 +190,7 @@ async function loadBlocks() {
   if (!planId.value) return
   errorMsg.value = null
   const {data} = await axios.get<Record<string, unknown>[]>(
-    `/plans/${planId.value}/slot-blocks`
+    `/plans/${planId.value}/extra-blocks/slot`
   )
   const rows = Array.isArray(data) ? data : []
   blocks.value = rows.map((row) => mapApiToSlot(row))
@@ -199,7 +199,7 @@ async function loadBlocks() {
       const desired = blocks.value[i]?.duration
       if (desired == null || Number(row.duration) === desired) return
       try {
-        await axios.put(`/plans/${planId.value}/slot-blocks/${row.id}`, {
+        await axios.put(`/plans/${planId.value}/extra-blocks/slot/${row.id}`, {
           duration: desired,
         })
       } catch {
@@ -222,7 +222,7 @@ async function loadTeams() {
   loadingTeams.value = true
   try {
     const {data} = await axios.get<{ teams: TeamRow[] }>(
-      `/plans/${planId.value}/slot-blocks/${selectedId.value}/teams`
+      `/plans/${planId.value}/extra-blocks/slot/${selectedId.value}/teams`
     )
     teams.value = data?.teams ?? []
   } finally {
@@ -313,7 +313,7 @@ async function createNewSlotBlock() {
   errorMsg.value = null
   try {
     const {data} = await axios.post<Record<string, unknown>>(
-      `/plans/${planId.value}/slot-blocks`,
+      `/plans/${planId.value}/extra-blocks/slot`,
       {
         name: newSlotName.value.trim(),
         description: newSlotDescription.value.trim() || null,
@@ -384,7 +384,7 @@ async function patchBlock(block: SlotBlock, patch: Record<string, unknown>) {
   errorMsg.value = null
   try {
     const {data} = await axios.put<Record<string, unknown>>(
-      `/plans/${planId.value}/slot-blocks/${block.id}`,
+      `/plans/${planId.value}/extra-blocks/slot/${block.id}`,
       patch
     )
     const mapped = mapApiToSlot(data)
@@ -409,7 +409,7 @@ async function confirmDelete() {
   const b = blockToDelete.value
   if (!b || !planId.value) return
   try {
-    await axios.delete(`/plans/${planId.value}/slot-blocks/${b.id}`)
+    await axios.delete(`/plans/${planId.value}/extra-blocks/slot/${b.id}`)
     blockToDelete.value = null
     if (selectedId.value === b.id) selectedId.value = null
     await loadBlocks()
@@ -430,7 +430,7 @@ async function onTeamStartChange(row: TeamRow, value: string) {
   const start = value ? datetimeLocalToDb(value) : null
   try {
     const {data} = await axios.patch(
-      `/plans/${planId.value}/slot-blocks/${selectedId.value}/teams/${row.team_id}`,
+      `/plans/${planId.value}/extra-blocks/slot/${selectedId.value}/teams/${row.team_id}`,
       {start}
     )
     row.start = data.start

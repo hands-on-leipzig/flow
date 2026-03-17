@@ -177,7 +177,9 @@ async function loadInsertPoints() {
 async function loadBlocks() {
   const pid = props.planId
   if (pid == null) return
-  const {data} = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`)
+  const {data} = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`, {
+    params: {type: 'inserted'},
+  })
   const rows = Array.isArray(data) ? data : []
   blocks.value.splice(0, blocks.value.length, ...rows)
 }
