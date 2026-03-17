@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\PlanExportController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\NewsController;
+use App\Http\Controllers\Api\SlotBlockController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -161,6 +162,13 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::get('/insert-points', [ExtraBlockController::class, 'getInsertPoints']);
     Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
+
+    Route::get('/plans/{planId}/slot-blocks', [SlotBlockController::class, 'index']);
+    Route::post('/plans/{planId}/slot-blocks', [SlotBlockController::class, 'store']);
+    Route::put('/plans/{planId}/slot-blocks/{extraBlock}', [SlotBlockController::class, 'update']);
+    Route::delete('/plans/{planId}/slot-blocks/{extraBlock}', [SlotBlockController::class, 'destroy']);
+    Route::get('/plans/{planId}/slot-blocks/{extraBlock}/teams', [SlotBlockController::class, 'teamAssignments']);
+    Route::patch('/plans/{planId}/slot-blocks/{extraBlock}/teams/{team}', [SlotBlockController::class, 'updateTeamStart']);
 
     // Event controller
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
