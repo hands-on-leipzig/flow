@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import {useEventStore} from '@/stores/event'
@@ -33,13 +33,23 @@ const event = computed(() => eventStore.selectedEvent)
 const planId = ref<number | null>(null)
 const loading = ref(true)
 const blocks = ref<SlotBlock[]>([])
-const draftBlock = ref<SlotBlock | null>(null)
 const selectedId = ref<number | null>(null)
 const teams = ref<TeamRow[]>([])
 const loadingTeams = ref(false)
 const savingBlockId = ref<number | null>(null)
 const blockToDelete = ref<SlotBlock | null>(null)
 const errorMsg = ref<string | null>(null)
+
+const newSlotName = ref('')
+const newSlotDescription = ref('')
+const newSlotLink = ref('')
+const newSlotDuration = ref(30)
+const newForExplore = ref(true)
+const newForChallenge = ref(true)
+const newSlotCardRef = ref<HTMLElement | null>(null)
+const newSlotInput = ref<HTMLInputElement | null>(null)
+const isCreatingSlot = ref(false)
+const isSavingNew = ref(false)
 
 const selectedBlock = computed(() => blocks.value.find((b) => b.id === selectedId.value) ?? null)
 
@@ -86,6 +96,59 @@ async function loadTeams() {
   }
 }
 
+function canCreateNewSlot() {
+  const nameOk = newSlotName.value.trim().length > 0
+  const flagsOk = newForExplore.value || newForChallenge.value
+  const durOk = Number(newSlotDuration.value) >= 1
+  return nameOk && flagsOk && durOk
+}
+
+async function createNewSlotBlock() {
+  if (!planId.value || isCreatingSlot.value) return
+  if (!canCreateNewSlot()) return
+
+  isCreatingSlot.value = true
+  isSavingNew.value = true
+  errorMsg.value = null
+  try {
+    const {data} = await axios.post<SlotBlock>(`/plans/${planId.value}/slot-blocks`, {
+      name: newSlotName.value.trim(),
+      description: newSlotDescription.value.trim() || null,
+      link: newSlotLink.value.trim() || null,
+      duration: Math.max(1, Number(newSlotDuration.value) || 1),
+      for_explore: newForExplore.value,
+      for_challenge: newForChallenge.value,
+    })
+    newSlotName.value = ''
+    newSlotDescription.value = ''
+    newSlotLink.value = ''
+    newSlotDuration.value = 30
+    newForExplore.value = true
+    newForChallenge.value = true
+    await loadBlocks()
+    selectedId.value = data.id
+    await nextTick()
+    newSlotInput.value?.focus()
+  } catch (e: any) {
+    const d = e?.response?.data
+    errorMsg.value =
+      (d?.errors && Object.values(d.errors).flat().join(' ')) ||
+      d?.message ||
+      e?.message ||
+      'Anlegen fehlgeschlagen'
+  } finally {
+    isCreatingSlot.value = false
+    isSavingNew.value = false
+  }
+}
+
+function handleClickOutside(e: MouseEvent) {
+  const el = newSlotCardRef.value
+  if (el && !el.contains(e.target as Node)) {
+    if (newSlotName.value.trim()) createNewSlotBlock()
+  }
+}
+
 onMounted(async () => {
   loading.value = true
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
@@ -93,6 +156,11 @@ onMounted(async () => {
   if (planId.value) await loadBlocks()
   await loadTeams()
   loading.value = false
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 
 watch(planId, async (id) => {
@@ -105,62 +173,6 @@ watch(planId, async (id) => {
 watch(selectedId, () => {
   loadTeams()
 })
-
-function startDraft() {
-  draftBlock.value = {
-    id: -1,
-    name: '',
-    description: '',
-    link: '',
-    duration: 30,
-    for_explore: true,
-    for_challenge: true,
-  }
-  selectedId.value = null
-  teams.value = []
-  errorMsg.value = null
-}
-
-function cancelDraft() {
-  draftBlock.value = null
-  errorMsg.value = null
-  if (!selectedId.value && blocks.value.length) selectedId.value = blocks.value[0].id
-}
-
-function canCreateDraft(b: SlotBlock) {
-  const nameOk = (b.name || '').trim().length > 0
-  const flagsOk = !!b.for_explore || !!b.for_challenge
-  const durOk = Number(b.duration) >= 1
-  return nameOk && flagsOk && durOk
-}
-
-async function maybeCreateDraft() {
-  const b = draftBlock.value
-  if (!b || !planId.value) return
-  if (!canCreateDraft(b)) return
-
-  errorMsg.value = null
-  try {
-    const {data} = await axios.post<SlotBlock>(`/plans/${planId.value}/slot-blocks`, {
-      name: b.name.trim(),
-      description: b.description || null,
-      link: b.link || null,
-      duration: Math.max(1, Number(b.duration) || 1),
-      for_explore: !!b.for_explore,
-      for_challenge: !!b.for_challenge,
-    })
-    draftBlock.value = null
-    await loadBlocks()
-    selectedId.value = data.id
-  } catch (e: any) {
-    const d = e?.response?.data
-    errorMsg.value =
-      (d?.errors && Object.values(d.errors).flat().join(' ')) ||
-      d?.message ||
-      e?.message ||
-      'Anlegen fehlgeschlagen'
-  }
-}
 
 async function patchBlock(block: SlotBlock, patch: Partial<SlotBlock>) {
   if (!planId.value) return
@@ -232,246 +244,237 @@ async function onTeamStartChange(row: TeamRow, value: string) {
   }
 }
 
+const inputUnderline =
+  'border-b border-gray-300 w-full focus:outline-none focus:border-blue-500'
+const inputTitle =
+  'text-sm md:text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500'
 </script>
 
 <template>
-  <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
-    <LoaderFlow/>
-    <LoaderText/>
-  </div>
-  <div v-else-if="!planId" class="p-6 text-gray-600">Kein Plan für diese Veranstaltung.</div>
-  <div v-else class="flex flex-col lg:flex-row mt-4 min-h-[480px] rounded-xl border border-gray-200 bg-white overflow-hidden">
-    <!-- Left: ~1/3 slot block maintenance -->
-    <div class="w-full lg:w-1/3 flex flex-col min-w-0 bg-gray-50/60">
-      <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-200 bg-white">
-        <h2 class="text-base font-semibold text-gray-900">Slot-Blöcke</h2>
-        <button
-          type="button"
-          class="px-3 py-1.5 text-sm font-medium rounded-md bg-gray-900 text-white hover:bg-gray-800"
-          @click="startDraft"
-        >
-          + Neu
-        </button>
-      </div>
-      <p v-if="errorMsg" class="text-sm text-red-600">{{ errorMsg }}</p>
-      <div class="flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-240px)] px-4 py-3">
-        <div
-          v-if="draftBlock"
-          class="rounded-lg border-2 border-dashed border-gray-300 bg-white shadow-sm p-4"
-        >
-          <div class="flex justify-between items-start gap-2 mb-2">
-            <input
-              v-model="draftBlock.name"
-              class="flex-1 min-w-0 text-sm font-medium border border-gray-200 rounded px-2 py-1"
-              placeholder="Name"
-              @blur="maybeCreateDraft"
-            />
-            <div class="flex items-center gap-1 flex-shrink-0">
+  <div>
+    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
+      <LoaderFlow/>
+      <LoaderText/>
+    </div>
+    <div v-else-if="!planId" class="p-3 md:p-6 text-gray-600">Kein Plan für diese Veranstaltung.</div>
+    <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 p-3 md:p-6">
+      <!-- Slot-Blöcke (~wie Räume links) -->
+      <div class="lg:col-span-1 min-w-0">
+        <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">Slot-Blöcke</h2>
+        <p v-if="errorMsg" class="text-sm text-red-600 mb-2">{{ errorMsg }}</p>
+
+        <div class="space-y-3 md:space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+          <div
+            v-for="block in blocks"
+            :key="block.id"
+            class="p-3 md:p-4 mb-2 border rounded bg-white shadow-sm md:shadow transition-shadow cursor-pointer"
+            :class="
+              selectedId === block.id
+                ? 'ring-2 ring-blue-500 border-blue-400 shadow-md'
+                : 'hover:shadow-md'
+            "
+            @click="selectedId = block.id"
+          >
+            <div class="flex items-center gap-2 mb-2">
+              <input
+                v-model="block.name"
+                :class="inputTitle"
+                placeholder="Name"
+                @click.stop
+                @blur="patchBlock(block, { name: block.name.trim() })"
+              />
               <button
                 type="button"
-                class="px-2 py-1 text-xs font-medium rounded border border-gray-200 text-gray-700 hover:bg-gray-50"
-                title="Abbrechen"
-                @click="cancelDraft"
+                class="text-lg hover:text-red-800 flex-shrink-0"
+                title="Slot-Block löschen"
+                @click.stop="blockToDelete = block"
               >
-                Abbrechen
+                <i style="color: grey" class="bi bi-trash-fill"/>
               </button>
             </div>
-          </div>
-          <textarea
-            v-model="draftBlock.description"
-            rows="2"
-            class="w-full text-xs border border-gray-200 rounded px-2 py-1 mb-2"
-            placeholder="Beschreibung"
-            @blur="maybeCreateDraft"
-          />
-          <input
-            v-model="draftBlock.link"
-            type="url"
-            class="w-full text-xs border border-gray-200 rounded px-2 py-1 mb-2"
-            placeholder="Link"
-            @blur="maybeCreateDraft"
-          />
-          <div class="flex items-center gap-2 mb-2">
-            <label class="text-xs text-gray-600 whitespace-nowrap">Dauer (Min.)</label>
             <input
-              v-model.number="draftBlock.duration"
-              type="number"
-              min="1"
-              class="w-20 text-sm border border-gray-200 rounded px-2 py-1"
-              @change="maybeCreateDraft"
+              v-model="block.description"
+              type="text"
+              :class="inputUnderline + ' text-xs md:text-sm text-gray-700 mb-2'"
+              placeholder="Beschreibung"
+              @click.stop
+              @blur="patchBlock(block, { description: block.description || null })"
             />
-          </div>
-          <div class="flex flex-wrap gap-4 text-xs">
-            <div class="flex items-center gap-2">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5"/>
-              <ToggleSwitch
-                :model-value="draftBlock.for_explore"
-                @update:model-value="
-                  (v: boolean) => {
-                    draftBlock!.for_explore = v
-                    maybeCreateDraft()
-                  }
-                "
+            <input
+              v-model="block.link"
+              type="url"
+              :class="inputUnderline + ' text-xs md:text-sm text-gray-700 mb-2'"
+              placeholder="Link (URL)"
+              @click.stop
+              @blur="patchBlock(block, { link: block.link || null })"
+            />
+            <div class="mb-2 flex flex-wrap items-center gap-3">
+              <label class="text-xs text-gray-600 whitespace-nowrap">Dauer (Min.)</label>
+              <input
+                v-model.number="block.duration"
+                type="number"
+                min="1"
+                class="w-16 text-sm border-b border-gray-300 focus:outline-none focus:border-blue-500"
+                @click.stop
+                @change="patchBlock(block, { duration: Math.max(1, Number(block.duration) || 1) })"
               />
+              <div class="flex flex-wrap gap-4 text-xs items-center" @click.stop>
+                <div class="flex items-center gap-2">
+                  <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5"/>
+                  <ToggleSwitch
+                    :model-value="block.for_explore"
+                    @update:model-value="
+                      (v: boolean) => {
+                        block.for_explore = v
+                        patchBlock(block, { for_explore: v })
+                      }
+                    "
+                  />
+                </div>
+                <div class="flex items-center gap-2">
+                  <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5"/>
+                  <ToggleSwitch
+                    :model-value="block.for_challenge"
+                    @update:model-value="
+                      (v: boolean) => {
+                        block.for_challenge = v
+                        patchBlock(block, { for_challenge: v })
+                      }
+                    "
+                  />
+                </div>
+              </div>
             </div>
-            <div class="flex items-center gap-2">
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5"/>
-              <ToggleSwitch
-                :model-value="draftBlock.for_challenge"
-                @update:model-value="
-                  (v: boolean) => {
-                    draftBlock!.for_challenge = v
-                    maybeCreateDraft()
-                  }
-                "
-              />
-            </div>
+            <div v-if="savingBlockId === block.id" class="text-xs text-gray-500">Speichern…</div>
           </div>
-          <p class="text-xs text-gray-500 mt-3">
-            Wird automatisch angelegt, sobald Name gesetzt ist (und E oder C aktiv ist).
+
+          <!-- Neuer Slot-Block (wie „Neuer Raum“) -->
+          <div
+            ref="newSlotCardRef"
+            class="p-3 md:p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+            @click.stop
+          >
+            <div class="mb-2">
+              <input
+                ref="newSlotInput"
+                v-model="newSlotName"
+                :disabled="isSavingNew"
+                :class="inputTitle + ' w-full'"
+                placeholder="Neuer Slot-Block"
+                @keyup.enter="createNewSlotBlock"
+              />
+              <p v-if="!newSlotName.trim()" class="text-xs text-gray-500 mt-1">
+                Kurzer Name für den Zusatzblock (z. B. Interview, Foto).
+              </p>
+            </div>
+            <transition name="fade">
+              <div v-if="newSlotName.trim().length > 0" class="space-y-2">
+                <input
+                  v-model="newSlotDescription"
+                  :disabled="isSavingNew"
+                  type="text"
+                  :class="inputUnderline + ' text-xs md:text-sm text-gray-700'"
+                  placeholder="Beschreibung"
+                  @keyup.enter="createNewSlotBlock"
+                />
+                <input
+                  v-model="newSlotLink"
+                  :disabled="isSavingNew"
+                  type="url"
+                  :class="inputUnderline + ' text-xs md:text-sm text-gray-700'"
+                  placeholder="Link (URL)"
+                  @keyup.enter="createNewSlotBlock"
+                />
+                <div class="flex flex-wrap items-center gap-3">
+                  <label class="text-xs text-gray-600">Dauer (Min.)</label>
+                  <input
+                    v-model.number="newSlotDuration"
+                    :disabled="isSavingNew"
+                    type="number"
+                    min="1"
+                    class="w-16 text-sm border-b border-gray-300 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div class="flex flex-wrap gap-4 text-xs items-center pt-1">
+                  <div class="flex items-center gap-2">
+                    <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5"/>
+                    <ToggleSwitch v-model="newForExplore"/>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5"/>
+                    <ToggleSwitch v-model="newForChallenge"/>
+                  </div>
+                </div>
+                <p class="text-xs text-gray-500">
+                  Klick außerhalb oder Enter legt den Block an (mindestens Explore oder Challenge).
+                </p>
+              </div>
+            </transition>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teams (rechte Spalte, Typo wie Räume → Aktivitäten) -->
+      <div class="lg:col-span-2 min-w-0">
+        <div class="mb-3 md:mb-4 border-b border-gray-200 pb-2">
+          <h2 class="text-base md:text-xl font-bold text-gray-900">
+            {{ selectedBlock ? selectedBlock.name : 'Teams' }}
+          </h2>
+          <p v-if="selectedBlock" class="text-xs md:text-sm text-gray-500 font-normal mt-1">
+            Startzeit pro Team (team_plan) — nur Start editierbar
           </p>
         </div>
-        <div
-          v-for="block in blocks"
-          :key="block.id"
-          class="rounded-lg border shadow-sm p-4 cursor-pointer transition-colors"
-          :class="
-            selectedId === block.id
-              ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-200'
-              : 'border-gray-200 bg-white hover:border-gray-300'
-          "
-          @click="selectedId = block.id"
-        >
-          <div class="flex justify-between items-start gap-2 mb-2">
-            <input
-              v-model="block.name"
-              class="flex-1 min-w-0 text-sm font-medium border border-gray-200 rounded px-2 py-1"
-              placeholder="Name"
-              @click.stop
-              @blur="patchBlock(block, { name: block.name.trim() })"
-            />
-            <button
-              type="button"
-              class="p-1 text-gray-400 hover:text-red-600 flex-shrink-0"
-              title="Löschen"
-              @click.stop="blockToDelete = block"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
-            </button>
-          </div>
-          <textarea
-            v-model="block.description"
-            rows="2"
-            class="w-full text-xs border border-gray-200 rounded px-2 py-1 mb-2"
-            placeholder="Beschreibung"
-            @click.stop
-            @blur="patchBlock(block, { description: block.description || null })"
-          />
-          <input
-            v-model="block.link"
-            type="url"
-            class="w-full text-xs border border-gray-200 rounded px-2 py-1 mb-2"
-            placeholder="Link"
-            @click.stop
-            @blur="patchBlock(block, { link: block.link || null })"
-          />
-          <div class="flex items-center gap-2 mb-2">
-            <label class="text-xs text-gray-600 whitespace-nowrap">Dauer (Min.)</label>
-            <input
-              v-model.number="block.duration"
-              type="number"
-              min="1"
-              class="w-20 text-sm border border-gray-200 rounded px-2 py-1"
-              @click.stop
-              @change="patchBlock(block, { duration: Math.max(1, Number(block.duration) || 1) })"
-            />
-          </div>
-          <div class="flex flex-wrap gap-4 text-xs" @click.stop>
-            <div class="flex items-center gap-2">
-              <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5"/>
-              <ToggleSwitch
-                :model-value="block.for_explore"
-                @update:model-value="
-                  (v: boolean) => {
-                    block.for_explore = v
-                    patchBlock(block, { for_explore: v })
-                  }
-                "
-              />
-            </div>
-            <div class="flex items-center gap-2">
-              <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5"/>
-              <ToggleSwitch
-                :model-value="block.for_challenge"
-                @update:model-value="
-                  (v: boolean) => {
-                    block.for_challenge = v
-                    patchBlock(block, { for_challenge: v })
-                  }
-                "
-              />
-            </div>
-          </div>
-          <div v-if="savingBlockId === block.id" class="text-xs text-gray-500 mt-2">Speichern…</div>
-        </div>
-        <p v-if="!blocks.length" class="text-sm text-gray-500">Noch keine Slot-Blöcke. „+ Neu“ zum Anlegen.</p>
-      </div>
-    </div>
 
-    <!-- Right: ~2/3 team assignments -->
-    <div class="w-full lg:flex-1 lg:min-w-0 border-t lg:border-t-0 lg:border-l-2 border-gray-200 bg-white px-4 py-3">
-      <template v-if="selectedBlock">
-        <h2 class="text-base font-semibold text-gray-900 mb-1">{{ selectedBlock.name }}</h2>
-        <p class="text-sm text-gray-500 mb-4">Startzeit pro Team (aus team_plan)</p>
-        <div v-if="loadingTeams" class="flex items-center gap-2 text-gray-500 py-8">
-          <LoaderFlow class="scale-75"/>
-          <span class="text-sm">Lade Teams…</span>
-        </div>
-        <div v-else class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-          <table class="min-w-full text-sm">
-            <thead class="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th class="text-left px-3 py-2 font-medium text-gray-700">Start</th>
-                <th class="text-center px-2 py-2 w-12"></th>
-                <th class="text-left px-3 py-2 font-medium text-gray-700">Plan-Nr.</th>
-                <th class="text-left px-3 py-2 font-medium text-gray-700">HoT-ID</th>
-                <th class="text-left px-3 py-2 font-medium text-gray-700">Team</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="row in teams"
-                :key="row.team_id"
-                class="border-b border-gray-100 hover:bg-gray-50/80"
-              >
-                <td class="px-3 py-2 align-middle">
-                  <input
-                    type="datetime-local"
-                    class="border border-gray-200 rounded px-2 py-1 text-sm w-[180px] max-w-full"
-                    :value="toDatetimeLocal(row.start)"
-                    @change="onTeamStartChange(row, ($event.target as HTMLInputElement).value)"
-                  />
-                </td>
-                <td class="px-2 py-2 text-center">
-                  <img
-                    :src="programIcon(row.first_program).src"
-                    :alt="programIcon(row.first_program).alt"
-                    class="w-6 h-6 mx-auto"
-                  />
-                </td>
-                <td class="px-3 py-2 text-gray-800">{{ row.team_number_plan ?? '–' }}</td>
-                <td class="px-3 py-2 text-gray-800">{{ row.team_number_hot ?? '–' }}</td>
-                <td class="px-3 py-2 text-gray-900">{{ row.team_name }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <p v-if="!teams.length" class="p-6 text-sm text-gray-500 text-center">Keine Teams im Plan für diesen Slot-Typ.</p>
-        </div>
-      </template>
-      <p v-else class="text-gray-500 text-sm">Links einen Slot-Block wählen.</p>
+        <template v-if="selectedBlock">
+          <div v-if="loadingTeams" class="flex items-center gap-2 text-gray-500 py-8">
+            <LoaderFlow class="scale-75"/>
+            <span class="text-sm">Lade Teams…</span>
+          </div>
+          <div v-else class="overflow-x-auto border rounded bg-white shadow-sm">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th class="text-left px-3 py-2 font-medium text-gray-700">Start</th>
+                  <th class="text-center px-2 py-2 w-12"></th>
+                  <th class="text-left px-3 py-2 font-medium text-gray-700">Plan-Nr.</th>
+                  <th class="text-left px-3 py-2 font-medium text-gray-700">HoT-ID</th>
+                  <th class="text-left px-3 py-2 font-medium text-gray-700">Team</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in teams"
+                  :key="row.team_id"
+                  class="border-b border-gray-100 hover:bg-gray-50/80"
+                >
+                  <td class="px-3 py-2 align-middle">
+                    <input
+                      type="datetime-local"
+                      class="text-sm border-b border-gray-300 bg-transparent py-0.5 w-[180px] max-w-full focus:outline-none focus:border-blue-500"
+                      :value="toDatetimeLocal(row.start)"
+                      @change="onTeamStartChange(row, ($event.target as HTMLInputElement).value)"
+                    />
+                  </td>
+                  <td class="px-2 py-2 text-center">
+                    <img
+                      :src="programIcon(row.first_program).src"
+                      :alt="programIcon(row.first_program).alt"
+                      class="w-6 h-6 mx-auto"
+                    />
+                  </td>
+                  <td class="px-3 py-2 text-gray-800">{{ row.team_number_plan ?? '–' }}</td>
+                  <td class="px-3 py-2 text-gray-800">{{ row.team_number_hot ?? '–' }}</td>
+                  <td class="px-3 py-2 text-gray-900">{{ row.team_name }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="!teams.length" class="p-6 text-sm text-gray-500 text-center">
+              Keine Teams im Plan für diesen Slot-Typ.
+            </p>
+          </div>
+        </template>
+        <p v-else class="text-sm text-gray-500">Links einen Slot-Block auswählen.</p>
+      </div>
     </div>
 
     <ConfirmationModal
@@ -486,3 +489,14 @@ async function onTeamStartChange(row: TeamRow, value: string) {
     />
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
