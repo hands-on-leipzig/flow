@@ -50,7 +50,11 @@ class ExtraBlock extends Model
         return $this->belongsTo(MInsertPoint::class, 'insert_point');
     }
 
-    public function room()
+    /**
+     * Assigned physical room (FK column is also named `room`).
+     * Do not name this relationship `room()` — it shadows the FK attribute and breaks BelongsTo.
+     */
+    public function assignedRoom()
     {
         return $this->belongsTo(Room::class, 'room');
     }

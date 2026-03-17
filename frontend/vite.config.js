@@ -72,7 +72,7 @@ export default defineConfig(({mode}) => {
             },
         },
 
-        // Proxy configuration to forward requests to the backend server
+        // Proxy → Laravel (VITE_FILES_BASE_URL or http://localhost:8000). Backend must be running.
         server: {
             port: 5173,
             proxy: {
@@ -80,26 +80,31 @@ export default defineConfig(({mode}) => {
                 '^/schedule/.*': {
                     target: serverURL,
                     changeOrigin: true,
+                    timeout: 120_000,
                 },
                 // API-Endpunkte
                 '^/api/.*': {
                     target: serverURL,
                     changeOrigin: true,
+                    timeout: 120_000,
                 },
                 // Slug handler for event routing
                 '^/slug-handler.php': {
                     target: serverURL,
                     changeOrigin: true,
+                    timeout: 120_000,
                 },
                 // Output directory (zeitplan.cgi)
                 '^/output/.*': {
                     target: serverURL,
                     changeOrigin: true,
+                    timeout: 120_000,
                 },
                 // Public images
                 '^/flow/.*': {
                     target: serverURL,
                     changeOrigin: true,
+                    timeout: 120_000,
                 }
                 // Event slugs are now handled by Vue Router, not proxied to backend
                 // The backend slug-handler.php is no longer needed for frontend routing

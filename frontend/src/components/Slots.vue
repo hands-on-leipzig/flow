@@ -9,14 +9,15 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 
+/** 0 = beide, 2 = Explore, 3 = Challenge — wie Freie Blöcke */
 type SlotBlock = {
   id: number
   name: string
   description: string
   link: string
   duration: number
-  for_explore: boolean
-  for_challenge: boolean
+  first_program: number
+  active: boolean
 }
 
 type TeamRow = {
@@ -26,6 +27,43 @@ type TeamRow = {
   team_name: string
   first_program: number
   start: string | null
+}
+
+function normalizeDurationMinutes(d: number): number {
+  const n = Math.round(Number(d) / 5) * 5
+  return Math.min(480, Math.max(5, n || 5))
+}
+
+function firstProgramFromFlags(fe: boolean, fc: boolean): number {
+  if (fe && fc) return 0
+  if (fe) return 2
+  if (fc) return 3
+  return 0
+}
+
+function flagsFromFirstProgram(fp: number): { for_explore: boolean; for_challenge: boolean } {
+  const p = Number(fp)
+  if (p === 0) return {for_explore: true, for_challenge: true}
+  if (p === 2) return {for_explore: true, for_challenge: false}
+  if (p === 3) return {for_explore: false, for_challenge: true}
+  return {for_explore: true, for_challenge: true}
+}
+
+function mapApiToSlot(b: Record<string, unknown>): SlotBlock {
+  const fe = !!b.for_explore
+  const fc = !!b.for_challenge
+  const raw = Number(b.duration)
+  const dur =
+    Number.isFinite(raw) && raw > 0 ? normalizeDurationMinutes(raw) : 30
+  return {
+    id: Number(b.id),
+    name: String(b.name ?? ''),
+    description: (b.description as string) ?? '',
+    link: (b.link as string) ?? '',
+    duration: dur,
+    first_program: firstProgramFromFlags(fe, fc),
+    active: b.active !== false,
+  }
 }
 
 const eventStore = useEventStore()
@@ -44,8 +82,7 @@ const newSlotName = ref('')
 const newSlotDescription = ref('')
 const newSlotLink = ref('')
 const newSlotDuration = ref(30)
-const newForExplore = ref(true)
-const newForChallenge = ref(true)
+const newFirstProgram = ref(0)
 const newSlotCardRef = ref<HTMLElement | null>(null)
 const newSlotInput = ref<HTMLInputElement | null>(null)
 const isCreatingSlot = ref(false)
@@ -67,12 +104,24 @@ async function loadPlan() {
 async function loadBlocks() {
   if (!planId.value) return
   errorMsg.value = null
-  const {data} = await axios.get<SlotBlock[]>(`/plans/${planId.value}/slot-blocks`)
-  blocks.value = (Array.isArray(data) ? data : []).map((b) => ({
-    ...b,
-    description: b.description ?? '',
-    link: b.link ?? '',
-  }))
+  const {data} = await axios.get<Record<string, unknown>[]>(
+    `/plans/${planId.value}/slot-blocks`
+  )
+  const rows = Array.isArray(data) ? data : []
+  blocks.value = rows.map((row) => mapApiToSlot(row))
+  await Promise.all(
+    rows.map(async (row, i) => {
+      const desired = blocks.value[i]?.duration
+      if (desired == null || Number(row.duration) === desired) return
+      try {
+        await axios.put(`/plans/${planId.value}/slot-blocks/${row.id}`, {
+          duration: desired,
+        })
+      } catch {
+        /* ignore */
+      }
+    })
+  )
   if (selectedId.value && !blocks.value.some((b) => b.id === selectedId.value)) {
     selectedId.value = blocks.value[0]?.id ?? null
   } else if (!selectedId.value && blocks.value.length) {
@@ -96,37 +145,107 @@ async function loadTeams() {
   }
 }
 
+/** Nur Pfeiltasten / Tab — Dauer nur in 5-Min-Schritten per Spinner */
+function onDurationKeydown(e: KeyboardEvent) {
+  const ok = [
+    'Tab',
+    'ArrowUp',
+    'ArrowDown',
+    'ArrowLeft',
+    'ArrowRight',
+    'Home',
+    'End',
+    'Enter',
+  ].includes(e.key)
+  if (e.metaKey || e.ctrlKey || e.altKey) return
+  if (!ok && e.key.length === 1) e.preventDefault()
+}
+
+function onDurationInputBlock(block: SlotBlock, el: HTMLInputElement) {
+  const v = normalizeDurationMinutes(Number(el.value) || 5)
+  if (v === block.duration) return
+  block.duration = v
+  patchBlock(block, {duration: v})
+}
+
+function onNewDurationChange(el: HTMLInputElement) {
+  newSlotDuration.value = normalizeDurationMinutes(Number(el.value) || 5)
+  el.value = String(newSlotDuration.value)
+}
+
+/** Gleiche Logik wie FreeBlocks.vue toggleProgram */
+function toggleProgramBlock(block: SlotBlock, program: 2 | 3) {
+  if (!block.active) return
+  let fp = block.first_program
+  if (program === 2) {
+    if (fp === 2) fp = 3
+    else if (fp === 3) fp = 0
+    else if (fp === 0) fp = 3
+    else fp = 2
+  } else {
+    if (fp === 3) fp = 2
+    else if (fp === 2) fp = 0
+    else if (fp === 0) fp = 2
+    else fp = 3
+  }
+  block.first_program = fp
+  const {for_explore, for_challenge} = flagsFromFirstProgram(fp)
+  patchBlock(block, {for_explore, for_challenge})
+}
+
+function toggleProgramNew(program: 2 | 3) {
+  let fp = newFirstProgram.value
+  if (program === 2) {
+    if (fp === 2) fp = 3
+    else if (fp === 3) fp = 0
+    else if (fp === 0) fp = 3
+    else fp = 2
+  } else {
+    if (fp === 3) fp = 2
+    else if (fp === 2) fp = 0
+    else if (fp === 0) fp = 2
+    else fp = 3
+  }
+  newFirstProgram.value = fp
+}
+
+function toggleActiveBlock(block: SlotBlock, active: boolean) {
+  block.active = active
+  patchBlock(block, {active})
+}
+
 function canCreateNewSlot() {
-  const nameOk = newSlotName.value.trim().length > 0
-  const flagsOk = newForExplore.value || newForChallenge.value
-  const durOk = Number(newSlotDuration.value) >= 1
-  return nameOk && flagsOk && durOk
+  return newSlotName.value.trim().length > 0
 }
 
 async function createNewSlotBlock() {
   if (!planId.value || isCreatingSlot.value) return
   if (!canCreateNewSlot()) return
 
+  const {for_explore, for_challenge} = flagsFromFirstProgram(newFirstProgram.value)
   isCreatingSlot.value = true
   isSavingNew.value = true
   errorMsg.value = null
   try {
-    const {data} = await axios.post<SlotBlock>(`/plans/${planId.value}/slot-blocks`, {
-      name: newSlotName.value.trim(),
-      description: newSlotDescription.value.trim() || null,
-      link: newSlotLink.value.trim() || null,
-      duration: Math.max(1, Number(newSlotDuration.value) || 1),
-      for_explore: newForExplore.value,
-      for_challenge: newForChallenge.value,
-    })
+    const {data} = await axios.post<Record<string, unknown>>(
+      `/plans/${planId.value}/slot-blocks`,
+      {
+        name: newSlotName.value.trim(),
+        description: newSlotDescription.value.trim() || null,
+        link: newSlotLink.value.trim() || null,
+        duration: normalizeDurationMinutes(newSlotDuration.value),
+        for_explore,
+        for_challenge,
+        active: true,
+      }
+    )
     newSlotName.value = ''
     newSlotDescription.value = ''
     newSlotLink.value = ''
     newSlotDuration.value = 30
-    newForExplore.value = true
-    newForChallenge.value = true
+    newFirstProgram.value = 0
     await loadBlocks()
-    selectedId.value = data.id
+    selectedId.value = Number(data.id)
     await nextTick()
     newSlotInput.value?.focus()
   } catch (e: any) {
@@ -174,23 +293,19 @@ watch(selectedId, () => {
   loadTeams()
 })
 
-async function patchBlock(block: SlotBlock, patch: Partial<SlotBlock>) {
+async function patchBlock(block: SlotBlock, patch: Record<string, unknown>) {
   if (!planId.value) return
   savingBlockId.value = block.id
   errorMsg.value = null
   try {
-    const {data} = await axios.put<SlotBlock>(
+    const {data} = await axios.put<Record<string, unknown>>(
       `/plans/${planId.value}/slot-blocks/${block.id}`,
       patch
     )
+    const mapped = mapApiToSlot(data)
     const i = blocks.value.findIndex((b) => b.id === block.id)
     if (i >= 0) {
-      blocks.value[i] = {
-        ...blocks.value[i],
-        ...data,
-        description: data.description ?? '',
-        link: data.link ?? '',
-      }
+      blocks.value[i] = {...blocks.value[i], ...mapped}
     }
     blocks.value = [...blocks.value].sort((a, b) =>
       (a.name || '').localeCompare(b.name || '', 'de', {sensitivity: 'base'})
@@ -258,7 +373,6 @@ const inputTitle =
     </div>
     <div v-else-if="!planId" class="p-3 md:p-6 text-gray-600">Kein Plan für diese Veranstaltung.</div>
     <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 p-3 md:p-6">
-      <!-- Slot-Blöcke (~wie Räume links) -->
       <div class="lg:col-span-1 min-w-0">
         <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">Slot-Blöcke</h2>
         <p v-if="errorMsg" class="text-sm text-red-600 mb-2">{{ errorMsg }}</p>
@@ -267,88 +381,119 @@ const inputTitle =
           <div
             v-for="block in blocks"
             :key="block.id"
-            class="p-3 md:p-4 mb-2 border rounded bg-white shadow-sm md:shadow transition-shadow cursor-pointer"
-            :class="
-              selectedId === block.id
-                ? 'ring-2 ring-blue-500 border-blue-400 shadow-md'
-                : 'hover:shadow-md'
-            "
+            class="p-3 md:p-4 mb-2 border rounded shadow-sm md:shadow transition-all duration-200 cursor-pointer flex gap-3"
+            :class="[
+              selectedId === block.id ? 'ring-2 ring-blue-500 border-blue-400 shadow-md' : 'hover:shadow-md',
+              block.active ? 'bg-white border-gray-200' : 'opacity-60 bg-gray-50 border-gray-200',
+            ]"
             @click="selectedId = block.id"
           >
-            <div class="flex items-center gap-2 mb-2">
-              <input
-                v-model="block.name"
-                :class="inputTitle"
-                placeholder="Name"
-                @click.stop
-                @blur="patchBlock(block, { name: block.name.trim() })"
+            <div class="flex flex-col items-center gap-2 flex-shrink-0 pt-0.5" @click.stop>
+              <ToggleSwitch
+                :model-value="block.active"
+                @update:model-value="toggleActiveBlock(block, $event)"
               />
               <button
                 type="button"
-                class="text-lg hover:text-red-800 flex-shrink-0"
+                class="text-lg hover:text-red-800"
                 title="Slot-Block löschen"
-                @click.stop="blockToDelete = block"
+                @click="blockToDelete = block"
               >
                 <i style="color: grey" class="bi bi-trash-fill"/>
               </button>
             </div>
-            <input
-              v-model="block.description"
-              type="text"
-              :class="inputUnderline + ' text-xs md:text-sm text-gray-700 mb-2'"
-              placeholder="Beschreibung"
-              @click.stop
-              @blur="patchBlock(block, { description: block.description || null })"
-            />
-            <input
-              v-model="block.link"
-              type="url"
-              :class="inputUnderline + ' text-xs md:text-sm text-gray-700 mb-2'"
-              placeholder="Link (URL)"
-              @click.stop
-              @blur="patchBlock(block, { link: block.link || null })"
-            />
-            <div class="mb-2 flex flex-wrap items-center gap-3">
-              <label class="text-xs text-gray-600 whitespace-nowrap">Dauer (Min.)</label>
+            <div class="flex-1 min-w-0">
               <input
-                v-model.number="block.duration"
-                type="number"
-                min="1"
-                class="w-16 text-sm border-b border-gray-300 focus:outline-none focus:border-blue-500"
+                v-model="block.name"
+                :disabled="!block.active"
+                :class="[
+                  inputTitle,
+                  'w-full mb-2',
+                  !block.active ? 'text-gray-400 cursor-not-allowed' : '',
+                ]"
+                placeholder="Name"
                 @click.stop
-                @change="patchBlock(block, { duration: Math.max(1, Number(block.duration) || 1) })"
+                @blur="block.active && patchBlock(block, { name: block.name.trim() })"
               />
-              <div class="flex flex-wrap gap-4 text-xs items-center" @click.stop>
+              <input
+                v-model="block.description"
+                type="text"
+                :disabled="!block.active"
+                :class="[
+                  inputUnderline,
+                  'text-xs md:text-sm text-gray-700 mb-2',
+                  !block.active ? 'text-gray-400 cursor-not-allowed' : '',
+                ]"
+                placeholder="Beschreibung"
+                @click.stop
+                @blur="block.active && patchBlock(block, { description: block.description || null })"
+              />
+              <input
+                v-model="block.link"
+                type="url"
+                :disabled="!block.active"
+                :class="[
+                  inputUnderline,
+                  'text-xs md:text-sm text-gray-700 mb-2',
+                  !block.active ? 'text-gray-400 cursor-not-allowed' : '',
+                ]"
+                placeholder="Link (URL)"
+                @click.stop
+                @blur="block.active && patchBlock(block, { link: block.link || null })"
+              />
+              <div class="flex flex-wrap items-center gap-4 mb-1">
                 <div class="flex items-center gap-2">
-                  <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5"/>
-                  <ToggleSwitch
-                    :model-value="block.for_explore"
-                    @update:model-value="
-                      (v: boolean) => {
-                        block.for_explore = v
-                        patchBlock(block, { for_explore: v })
-                      }
-                    "
+                  <span class="text-xs text-gray-600 whitespace-nowrap">Dauer (Min.)</span>
+                  <input
+                    type="number"
+                    :value="block.duration"
+                    min="5"
+                    max="480"
+                    step="5"
+                    :disabled="!block.active"
+                    class="w-[4.25rem] text-sm text-center border border-gray-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                    title="Nur mit Pfeiltasten oder Klick auf ▲▼ ändern (5-Min-Schritte)"
+                    @click.stop
+                    @keydown="onDurationKeydown"
+                    @paste.prevent
+                    @input="onDurationInputBlock(block, $event.target as HTMLInputElement)"
                   />
                 </div>
-                <div class="flex items-center gap-2">
-                  <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5"/>
-                  <ToggleSwitch
-                    :model-value="block.for_challenge"
-                    @update:model-value="
-                      (v: boolean) => {
-                        block.for_challenge = v
-                        patchBlock(block, { for_challenge: v })
-                      }
-                    "
+                <div class="flex justify-center gap-1">
+                  <img
+                    :src="programLogoSrc('E')"
+                    :alt="programLogoAlt('E')"
+                    :class="[
+                      'w-8 h-8 transition-all duration-200',
+                      !block.active
+                        ? 'opacity-30 grayscale cursor-not-allowed'
+                        : block.first_program === 2 || block.first_program === 0
+                          ? 'opacity-100 cursor-pointer hover:scale-110'
+                          : 'opacity-30 grayscale cursor-pointer hover:scale-110',
+                    ]"
+                    title="FIRST LEGO League Explore"
+                    @click.stop="toggleProgramBlock(block, 2)"
+                  />
+                  <img
+                    :src="programLogoSrc('C')"
+                    :alt="programLogoAlt('C')"
+                    :class="[
+                      'w-8 h-8 transition-all duration-200',
+                      !block.active
+                        ? 'opacity-30 grayscale cursor-not-allowed'
+                        : block.first_program === 3 || block.first_program === 0
+                          ? 'opacity-100 cursor-pointer hover:scale-110'
+                          : 'opacity-30 grayscale cursor-pointer hover:scale-110',
+                    ]"
+                    title="FIRST LEGO League Challenge"
+                    @click.stop="toggleProgramBlock(block, 3)"
                   />
                 </div>
               </div>
+              <div v-if="savingBlockId === block.id" class="text-xs text-gray-500">Speichern…</div>
             </div>
-            <div v-if="savingBlockId === block.id" class="text-xs text-gray-500">Speichern…</div>
           </div>
 
-          <!-- Neuer Slot-Block (wie „Neuer Raum“) -->
           <div
             ref="newSlotCardRef"
             class="p-3 md:p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
@@ -385,28 +530,51 @@ const inputTitle =
                   placeholder="Link (URL)"
                   @keyup.enter="createNewSlotBlock"
                 />
-                <div class="flex flex-wrap items-center gap-3">
-                  <label class="text-xs text-gray-600">Dauer (Min.)</label>
-                  <input
-                    v-model.number="newSlotDuration"
-                    :disabled="isSavingNew"
-                    type="number"
-                    min="1"
-                    class="w-16 text-sm border-b border-gray-300 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div class="flex flex-wrap gap-4 text-xs items-center pt-1">
+                <div class="flex flex-wrap items-center gap-4">
                   <div class="flex items-center gap-2">
-                    <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5"/>
-                    <ToggleSwitch v-model="newForExplore"/>
+                    <span class="text-xs text-gray-600">Dauer (Min.)</span>
+                    <input
+                      type="number"
+                      :value="newSlotDuration"
+                      min="5"
+                      max="480"
+                      step="5"
+                      :disabled="isSavingNew"
+                      class="w-[4.25rem] text-sm text-center border border-gray-300 rounded px-1 py-0.5"
+                      @keydown="onDurationKeydown"
+                      @paste.prevent
+                      @input="onNewDurationChange($event.target as HTMLInputElement)"
+                    />
                   </div>
-                  <div class="flex items-center gap-2">
-                    <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5"/>
-                    <ToggleSwitch v-model="newForChallenge"/>
+                  <div class="flex gap-1">
+                    <img
+                      :src="programLogoSrc('E')"
+                      :alt="programLogoAlt('E')"
+                      :class="[
+                        'w-8 h-8 transition-all cursor-pointer',
+                        newFirstProgram === 2 || newFirstProgram === 0
+                          ? 'opacity-100 hover:scale-110'
+                          : 'opacity-30 grayscale hover:scale-110',
+                      ]"
+                      title="Explore"
+                      @click="toggleProgramNew(2)"
+                    />
+                    <img
+                      :src="programLogoSrc('C')"
+                      :alt="programLogoAlt('C')"
+                      :class="[
+                        'w-8 h-8 transition-all cursor-pointer',
+                        newFirstProgram === 3 || newFirstProgram === 0
+                          ? 'opacity-100 hover:scale-110'
+                          : 'opacity-30 grayscale hover:scale-110',
+                      ]"
+                      title="Challenge"
+                      @click="toggleProgramNew(3)"
+                    />
                   </div>
                 </div>
                 <p class="text-xs text-gray-500">
-                  Klick außerhalb oder Enter legt den Block an (mindestens Explore oder Challenge).
+                  Klick außerhalb oder Enter legt den Block an.
                 </p>
               </div>
             </transition>
@@ -414,14 +582,17 @@ const inputTitle =
         </div>
       </div>
 
-      <!-- Teams (rechte Spalte, Typo wie Räume → Aktivitäten) -->
-      <div class="lg:col-span-2 min-w-0">
+      <div
+        class="lg:col-span-2 min-w-0"
+        :class="selectedBlock && !selectedBlock.active ? 'opacity-60' : ''"
+      >
         <div class="mb-3 md:mb-4 border-b border-gray-200 pb-2">
           <h2 class="text-base md:text-xl font-bold text-gray-900">
             {{ selectedBlock ? selectedBlock.name : 'Teams' }}
           </h2>
           <p v-if="selectedBlock" class="text-xs md:text-sm text-gray-500 font-normal mt-1">
-            Startzeit pro Team (team_plan) — nur Start editierbar
+            <template v-if="!selectedBlock.active">Block ist inaktiv — Startzeiten nicht editierbar.</template>
+            <template v-else>Startzeit pro Team (team_plan) — nur Start editierbar</template>
           </p>
         </div>
 
@@ -450,7 +621,8 @@ const inputTitle =
                   <td class="px-3 py-2 align-middle">
                     <input
                       type="datetime-local"
-                      class="text-sm border-b border-gray-300 bg-transparent py-0.5 w-[180px] max-w-full focus:outline-none focus:border-blue-500"
+                      :disabled="!selectedBlock.active"
+                      class="text-sm border-b border-gray-300 bg-transparent py-0.5 w-[180px] max-w-full focus:outline-none focus:border-blue-500 disabled:text-gray-400 disabled:cursor-not-allowed"
                       :value="toDatetimeLocal(row.start)"
                       @change="onTeamStartChange(row, ($event.target as HTMLInputElement).value)"
                     />

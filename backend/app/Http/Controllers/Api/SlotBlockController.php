@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\FirstProgram;
 use App\Http\Controllers\Controller;
 use App\Models\ExtraBlock;
 use App\Models\Plan;
 use App\Models\SlotBlockTeam;
-use App\Enums\FirstProgram;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -90,9 +90,14 @@ class SlotBlockController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'link' => 'nullable|string|max:500',
-            'duration' => 'required|integer|min:1',
+            'duration' => ['required', 'integer', 'min:5', 'max:480', function (string $attribute, mixed $value, \Closure $fail): void {
+                if ((int) $value % 5 !== 0) {
+                    $fail('Dauer nur in 5-Minuten-Schritten.');
+                }
+            }],
             'for_explore' => 'required|boolean',
             'for_challenge' => 'required|boolean',
+            'active' => 'sometimes|boolean',
         ]);
 
         $firstProgram = $this->firstProgramFromFlags(
@@ -111,7 +116,7 @@ class SlotBlockController extends Controller
             'insert_point' => null,
             'start' => null,
             'end' => null,
-            'active' => true,
+            'active' => array_key_exists('active', $validated) ? (bool) $validated['active'] : true,
         ]);
 
         return response()->json([
@@ -137,9 +142,14 @@ class SlotBlockController extends Controller
             'name' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
             'link' => 'nullable|string|max:500',
-            'duration' => 'sometimes|integer|min:1',
+            'duration' => ['sometimes', 'integer', 'min:5', 'max:480', function (string $attribute, mixed $value, \Closure $fail): void {
+                if ((int) $value % 5 !== 0) {
+                    $fail('Dauer nur in 5-Minuten-Schritten.');
+                }
+            }],
             'for_explore' => 'sometimes|boolean',
             'for_challenge' => 'sometimes|boolean',
+            'active' => 'sometimes|boolean',
         ]);
 
         if (array_key_exists('for_explore', $validated) || array_key_exists('for_challenge', $validated)) {
@@ -247,14 +257,14 @@ class SlotBlockController extends Controller
             ->where('plan', $planId)
             ->where('team', $team)
             ->first();
-        if (!$tp) {
+        if (! $tp) {
             abort(404, 'Team not in plan');
         }
 
         $t = DB::table('team')->where('id', $team)->first();
         $fp = (int) $block->first_program;
         if ($fp === FirstProgram::EXPLORE->value) {
-            if (!in_array((int) $t->first_program, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)) {
+            if (! in_array((int) $t->first_program, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)) {
                 abort(422, 'Team not applicable for this slot block');
             }
         } elseif ($fp === FirstProgram::CHALLENGE->value) {
