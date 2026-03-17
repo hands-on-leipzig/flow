@@ -89,6 +89,25 @@ const isSavingNew = ref(false)
 
 const selectedBlock = computed(() => blocks.value.find((b) => b.id === selectedId.value) ?? null)
 
+const applying = ref(false)
+const applyError = ref<string | null>(null)
+const applyResult = ref<{ removed_activities: number; removed_groups: number; created_groups: number; created_activities: number } | null>(null)
+
+async function applySlotsToPlan() {
+  if (!planId.value || applying.value) return
+  applying.value = true
+  applyError.value = null
+  applyResult.value = null
+  try {
+    const {data} = await axios.post(`/plans/${planId.value}/slot-blocks/apply-to-plan`)
+    applyResult.value = data
+  } catch (e: any) {
+    applyError.value = e?.response?.data?.message || e?.message || 'Übernahme fehlgeschlagen'
+  } finally {
+    applying.value = false
+  }
+}
+
 function programIcon(fp: number): { src: string; alt: string } {
   if (fp === 3) return {src: programLogoSrc('C'), alt: programLogoAlt('C')}
   return {src: programLogoSrc('E'), alt: programLogoAlt('E')}
@@ -438,7 +457,39 @@ const inputTitle =
       <LoaderText/>
     </div>
     <div v-else-if="!planId" class="p-3 md:p-6 text-gray-600">Kein Plan für diese Veranstaltung.</div>
-    <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 p-3 md:p-6">
+    <div v-else class="p-3 md:p-6">
+      <div class="mb-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-6 items-start">
+          <div class="lg:col-span-1">
+            <button
+              type="button"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg py-4 rounded-xl shadow disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="applying"
+              @click="applySlotsToPlan"
+            >
+              <span v-if="!applying">Slots in den Plan übernehmen</span>
+              <span v-else>Übernehme…</span>
+            </button>
+          </div>
+          <div class="lg:col-span-2">
+            <p class="text-sm text-gray-700">
+              Alle bisherigen Slots werden aus dem Plan entfernt. Dann werden die Zuordnungen für
+              alle aktiven Slot-Blöcke in den Plan eingefügt.
+            </p>
+            <p class="text-sm text-red-700 mt-2">
+              Dabei wird <strong>nicht</strong> überprüft, ob das zu zeitlichen Konflikten für Teams führt!
+            </p>
+          </div>
+        </div>
+
+        <p v-if="applyError" class="mt-2 text-sm text-red-600">{{ applyError }}</p>
+        <p v-else-if="applyResult" class="mt-2 text-sm text-green-700">
+          OK: {{ applyResult.removed_activities }} Aktivitäten / {{ applyResult.removed_groups }} Gruppen entfernt ·
+          {{ applyResult.created_activities }} Aktivitäten / {{ applyResult.created_groups }} Gruppen erstellt
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
       <div class="lg:col-span-1 min-w-0">
         <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">Slot-Blöcke</h2>
         <p v-if="errorMsg" class="text-sm text-red-600 mb-2">{{ errorMsg }}</p>
@@ -731,6 +782,7 @@ const inputTitle =
         </template>
         <p v-else class="text-sm text-gray-500">Links einen Slot-Block auswählen.</p>
       </div>
+    </div>
     </div>
 
     <ConfirmationModal

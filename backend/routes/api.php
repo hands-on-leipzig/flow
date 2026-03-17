@@ -169,6 +169,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::delete('/plans/{planId}/slot-blocks/{extraBlock}', [SlotBlockController::class, 'destroy']);
     Route::get('/plans/{planId}/slot-blocks/{extraBlock}/teams', [SlotBlockController::class, 'teamAssignments']);
     Route::patch('/plans/{planId}/slot-blocks/{extraBlock}/teams/{team}', [SlotBlockController::class, 'updateTeamStart']);
+    Route::post('/plans/{planId}/slot-blocks/apply-to-plan', [SlotBlockController::class, 'applyToPlan']);
 
     // Event controller
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
