@@ -227,7 +227,12 @@ class SlotBlockController extends Controller
                     'team_number_hot' => $r->team_number_hot,
                     'team_name' => $r->team_name,
                     'first_program' => (int) $r->first_program,
-                    'start' => $r->slot_start ? \Carbon\Carbon::parse($r->slot_start)->toIso8601String() : null,
+                    // Naive wall time — no ISO/Z to avoid client TZ/DST shifts
+                    'start' => $r->slot_start
+                        ? (is_string($r->slot_start)
+                            ? $r->slot_start
+                            : \Carbon\Carbon::parse($r->slot_start)->format('Y-m-d H:i:s'))
+                        : null,
                 ];
             });
 
@@ -240,10 +245,28 @@ class SlotBlockController extends Controller
         $this->assertSlotBlock($block, $planId);
 
         $validated = $request->validate([
-            'start' => 'nullable|date',
+            // Key must be sent (null/'' = clear); value is naive wall time, no TZ
+            'start' => [
+                'present',
+                'nullable',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+                    if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/', $value)) {
+                        $fail('Ungültiges Start-Datum (erwartet YYYY-MM-DD HH:mm:ss).');
+                    }
+                },
+            ],
         ]);
 
-        $startVal = $validated['start'] ?? null;
+        $startRaw = $validated['start'];
+        $startVal = $startRaw !== null && $startRaw !== ''
+            ? preg_replace('/T/', ' ', (string) $startRaw, 1)
+            : null;
+        if ($startVal !== null && strlen($startVal) === 16) {
+            $startVal .= ':00';
+        }
         if ($startVal === '' || $startVal === null) {
             SlotBlockTeam::query()
                 ->where('extra_block', $extraBlock)
@@ -280,9 +303,13 @@ class SlotBlockController extends Controller
 
         $row = SlotBlockTeam::where('extra_block', $extraBlock)->where('team', $team)->first();
 
+        $startOut = $row->start instanceof \Carbon\Carbon
+            ? $row->start->format('Y-m-d H:i:s')
+            : (string) $row->getRawOriginal('start');
+
         return response()->json([
             'team_id' => $team,
-            'start' => $row->start->toIso8601String(),
+            'start' => $startOut,
         ]);
     }
 }

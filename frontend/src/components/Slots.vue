@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
-import dayjs from 'dayjs'
 import {useEventStore} from '@/stores/event'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
@@ -93,6 +92,71 @@ const selectedBlock = computed(() => blocks.value.find((b) => b.id === selectedI
 function programIcon(fp: number): { src: string; alt: string } {
   if (fp === 3) return {src: programLogoSrc('C'), alt: programLogoAlt('C')}
   return {src: programLogoSrc('E'), alt: programLogoAlt('E')}
+}
+
+const editingTeamId = ref<number | null>(null)
+const editingStartLocal = ref<string>('') // YYYY-MM-DDTHH:mm
+
+function eventBaseDateYmd(): string {
+  const d = (event.value as {date?: string} | undefined)?.date
+  if (d == null || d === '') {
+    const t = new Date()
+    const y = t.getFullYear()
+    const m = String(t.getMonth() + 1).padStart(2, '0')
+    const day = String(t.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+  const m = String(d).match(/(\d{4}-\d{2}-\d{2})/)
+  return m ? m[1] : String(d).slice(0, 10)
+}
+
+/** API / DB "YYYY-MM-DD HH:mm:ss" or similar → datetime-local value (no TZ math) */
+function wallTimeToDatetimeLocal(s: string | null): string {
+  if (!s || typeof s !== 'string') return ''
+  const m = s.trim().match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/)
+  return m ? `${m[1]}T${m[2]}:${m[3]}` : ''
+}
+
+/** datetime-local → DB string */
+function datetimeLocalToDb(value: string): string | null {
+  const v = value?.trim()
+  if (!v) return null
+  const m = v.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/)
+  if (!m) return null
+  return `${m[1]} ${m[2]}:${m[3]}:${m[4] ?? '00'}`
+}
+
+function wallTimeSortKey(s: string | null): string {
+  if (!s) return ''
+  const m = String(s).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/)
+  if (!m) return s
+  return `${m[1]}${m[2]}${m[3]}${m[4] ?? '00'}`
+}
+
+function defaultStartLocal(): string {
+  return `${eventBaseDateYmd()}T09:00`
+}
+
+function beginEditStart(row: TeamRow) {
+  if (!selectedBlock.value?.active) return
+  // If not assigned yet: immediately create assignment with event date @ 09:00
+  // (requirement: initial set must be persisted right away).
+  if (!row.start) {
+    const initial = defaultStartLocal()
+    editingTeamId.value = row.team_id
+    editingStartLocal.value = initial
+    onTeamStartChange(row, initial)
+    return
+  }
+  editingTeamId.value = row.team_id
+  editingStartLocal.value = wallTimeToDatetimeLocal(row.start)
+}
+
+function cancelEditStart(row: TeamRow) {
+  if (editingTeamId.value === row.team_id) {
+    editingTeamId.value = null
+    editingStartLocal.value = ''
+  }
 }
 
 async function loadPlan() {
@@ -334,25 +398,27 @@ async function confirmDelete() {
   }
 }
 
-function toDatetimeLocal(iso: string | null): string {
-  if (!iso) return ''
-  return dayjs(iso).format('YYYY-MM-DDTHH:mm')
+/** Plan team number as T01, T09, … (min. two digits) */
+function formatPlanTeamNo(n: number | null | undefined): string {
+  if (n == null || n === undefined || !Number.isFinite(Number(n))) return '–'
+  return `T${String(Math.floor(Number(n))).padStart(2, '0')}`
 }
 
 async function onTeamStartChange(row: TeamRow, value: string) {
   if (!planId.value || !selectedId.value) return
-  const start = value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : null
+  const start = value ? datetimeLocalToDb(value) : null
   try {
     const {data} = await axios.patch(
       `/plans/${planId.value}/slot-blocks/${selectedId.value}/teams/${row.team_id}`,
       {start}
     )
     row.start = data.start
+    cancelEditStart(row)
     teams.value = [...teams.value].sort((a, b) => {
       if (!a.start && !b.start) return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
       if (!a.start) return 1
       if (!b.start) return -1
-      return dayjs(a.start).valueOf() - dayjs(b.start).valueOf()
+      return wallTimeSortKey(a.start).localeCompare(wallTimeSortKey(b.start))
     })
   } catch {
     await loadTeams()
@@ -592,10 +658,6 @@ const inputTitle =
           <h2 class="text-base md:text-xl font-bold text-gray-900">
             {{ selectedBlock ? selectedBlock.name : 'Teams' }}
           </h2>
-          <p v-if="selectedBlock" class="text-xs md:text-sm text-gray-500 font-normal mt-1">
-            <template v-if="!selectedBlock.active">Block ist inaktiv — Startzeiten nicht editierbar.</template>
-            <template v-else>Startzeit pro Team (team_plan) — nur Start editierbar</template>
-          </p>
         </div>
 
         <template v-if="selectedBlock">
@@ -605,15 +667,6 @@ const inputTitle =
           </div>
           <div v-else class="overflow-x-auto border rounded bg-white shadow-sm">
             <table class="min-w-full text-sm">
-              <thead class="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th class="text-left px-3 py-2 font-medium text-gray-700">Start</th>
-                  <th class="text-center px-2 py-2 w-12"></th>
-                  <th class="text-left px-3 py-2 font-medium text-gray-700">Plan-Nr.</th>
-                  <th class="text-left px-3 py-2 font-medium text-gray-700">HoT-ID</th>
-                  <th class="text-left px-3 py-2 font-medium text-gray-700">Team</th>
-                </tr>
-              </thead>
               <tbody>
                 <tr
                   v-for="row in teams"
@@ -621,13 +674,42 @@ const inputTitle =
                   class="border-b border-gray-100 hover:bg-gray-50/80"
                 >
                   <td class="px-3 py-2 align-middle">
-                    <input
-                      type="datetime-local"
-                      :disabled="!selectedBlock.active"
-                      class="text-sm border-b border-gray-300 bg-transparent py-0.5 w-[180px] max-w-full focus:outline-none focus:border-blue-500 disabled:text-gray-400 disabled:cursor-not-allowed"
-                      :value="toDatetimeLocal(row.start)"
-                      @change="onTeamStartChange(row, ($event.target as HTMLInputElement).value)"
-                    />
+                    <div class="flex items-center gap-2">
+                      <button
+                        v-if="!row.start && editingTeamId !== row.team_id"
+                        type="button"
+                        class="w-[180px] max-w-full text-left px-2 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 text-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        :disabled="!selectedBlock.active"
+                        title="Startzeit setzen"
+                        @click="beginEditStart(row)"
+                      >
+                        <span class="inline-flex items-center gap-2">
+                          <i class="bi bi-clock"></i>
+                          <span class="text-sm">Start setzen…</span>
+                        </span>
+                      </button>
+
+                      <input
+                        v-else
+                        type="datetime-local"
+                        :disabled="!selectedBlock.active"
+                        class="text-sm border-b border-gray-300 bg-transparent py-0.5 w-[180px] max-w-full focus:outline-none focus:border-blue-500 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        :value="editingTeamId === row.team_id ? editingStartLocal : wallTimeToDatetimeLocal(row.start)"
+                        @change="onTeamStartChange(row, ($event.target as HTMLInputElement).value)"
+                        @blur="!row.start && cancelEditStart(row)"
+                      />
+
+                      <button
+                        v-if="row.start"
+                        type="button"
+                        class="text-lg hover:text-red-800 disabled:text-gray-300 disabled:cursor-not-allowed"
+                        :disabled="!selectedBlock.active"
+                        title="Zuweisung entfernen"
+                        @click="onTeamStartChange(row, '')"
+                      >
+                        <i class="bi bi-trash-fill"></i>
+                      </button>
+                    </div>
                   </td>
                   <td class="px-2 py-2 text-center">
                     <img
@@ -636,7 +718,7 @@ const inputTitle =
                       class="w-6 h-6 mx-auto"
                     />
                   </td>
-                  <td class="px-3 py-2 text-gray-800">{{ row.team_number_plan ?? '–' }}</td>
+                  <td class="px-3 py-2 text-gray-800 font-medium tabular-nums">{{ formatPlanTeamNo(row.team_number_plan) }}</td>
                   <td class="px-3 py-2 text-gray-800">{{ row.team_number_hot ?? '–' }}</td>
                   <td class="px-3 py-2 text-gray-900">{{ row.team_name }}</td>
                 </tr>
