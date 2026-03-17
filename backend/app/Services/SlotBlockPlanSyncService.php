@@ -93,7 +93,10 @@ class SlotBlockPlanSyncService
                     $q->where('t.first_program', FirstProgram::CHALLENGE->value);
                 }
 
-                $rows = $q->select(['sbt.team as team_id', 'sbt.start as start'])
+                $rows = $q->select([
+                    'tp.team_number_plan as team_number_plan',
+                    'sbt.start as start',
+                ])
                     ->orderBy('sbt.start')
                     ->get();
 
@@ -102,6 +105,11 @@ class SlotBlockPlanSyncService
 
                 $insert = [];
                 foreach ($rows as $r) {
+                    $teamNo = (int) ($r->team_number_plan ?? 0);
+                    if ($teamNo <= 0) {
+                        continue;
+                    }
+
                     $startStr = is_string($r->start) ? $r->start : (string) $r->start;
                     $startStr = preg_replace('/T/', ' ', $startStr, 1);
                     if (strlen($startStr) === 16) {
@@ -120,7 +128,7 @@ class SlotBlockPlanSyncService
                         'start' => $startDt->format('Y-m-d H:i:s'),
                         'end' => $endDt->format('Y-m-d H:i:s'),
                         'extra_block' => (int) $block->id,
-                        'slot_team' => (int) $r->team_id,
+                        'slot_team' => $teamNo,
                         'explore_group' => null,
                     ];
                 }

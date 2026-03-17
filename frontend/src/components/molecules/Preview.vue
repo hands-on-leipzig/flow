@@ -89,6 +89,7 @@ type ActivityRow = {
   table_2_team: number|null
   table_1: number|null
   table_2: number|null
+  slot_team?: number | null
   room_type_name: string
 }
 type ActivityGroup = {
@@ -475,6 +476,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
                   <th class="px-2 py-1 text-left">Table 2 Team</th>
                   <th class="px-2 py-1 text-left">Table 1</th>
                   <th class="px-2 py-1 text-left">Table 2</th>
+                  <th class="px-2 py-1 text-left">Slot Team</th>
                   <th class="px-2 py-1 text-left">Room Type</th>
                   <th v-if="hasExploreGroups" class="px-2 py-1 text-left">Gruppe</th>
                 </tr>
@@ -492,6 +494,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
                   <td class="px-2 py-1">{{ a.table_2_team ?? '' }}</td>
                   <td class="px-2 py-1">{{ a.table_1 ?? '' }}</td>
                   <td class="px-2 py-1">{{ a.table_2 ?? '' }}</td>
+                  <td class="px-2 py-1">{{ a.slot_team ?? '' }}</td>
                   <td class="px-2 py-1">{{ a.room_type_name || '' }}</td>
                   <td v-if="hasExploreGroups" class="px-2 py-1">{{ formatExploreGroup(group.explore_group) }}</td>
                 </tr>

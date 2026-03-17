@@ -3,11 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Activity extends Model
 {
     protected $table = 'activity';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -23,7 +23,7 @@ class Activity extends Model
         'table_2_team',
         'activity_type_detail',
         'extra_block',
-        'slot_team',
+        'slot_team', // team_number_plan (same semantics as jury_team / table_*_team)
         'explore_group',
     ];
 
@@ -37,10 +37,5 @@ class Activity extends Model
     public function detail()
     {
         return $this->belongsTo(MActivityTypeDetail::class, 'activity_type_detail');
-    }
-
-    public function slotTeam(): BelongsTo
-    {
-        return $this->belongsTo(Team::class, 'slot_team');
     }
 }
