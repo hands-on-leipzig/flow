@@ -6,6 +6,7 @@ import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
+import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 
 /** 0 = beide, 2 = Explore, 3 = Challenge — wie Freie Blöcke */
@@ -92,6 +93,7 @@ const selectedBlock = computed(() => blocks.value.find((b) => b.id === selectedI
 const applying = ref(false)
 const applyError = ref<string | null>(null)
 const applyResult = ref<{ removed_activities: number; removed_groups: number; created_groups: number; created_activities: number } | null>(null)
+const applyToast = ref<InstanceType<typeof ScheduleToast> | null>(null)
 
 async function applySlotsToPlan() {
   if (!planId.value || applying.value) return
@@ -794,6 +796,13 @@ const inputTitle =
       cancel-text="Abbrechen"
       @confirm="confirmDelete"
       @cancel="blockToDelete = null"
+    />
+
+    <ScheduleToast
+      ref="applyToast"
+      :is-generating="applying"
+      :countdown="null"
+      message="Slots werden übernommen..."
     />
   </div>
 </template>

@@ -2,24 +2,22 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\FirstProgram;
 use App\Http\Controllers\Controller;
 use App\Models\ExtraBlock;
 use App\Models\MInsertPoint;
 use App\Models\Plan;
-use App\Enums\FirstProgram;
 use App\Services\EventAttentionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
-use App\Http\Controllers\Api\PlanGeneratorController;
 
 class ExtraBlockController extends Controller
 {
     public function getInsertPoints(Request $request)
     {
         $eventLevel = $request->query('level');
-        
+
         // If event level is provided, filter insert points by level
         if ($eventLevel !== null) {
             $insert_points = MInsertPoint::where('level', '<=', $eventLevel)->get();
@@ -27,7 +25,7 @@ class ExtraBlockController extends Controller
             // No level provided, return all insert points
             $insert_points = MInsertPoint::all();
         }
-        
+
         return response()->json($insert_points);
     }
 
@@ -35,6 +33,7 @@ class ExtraBlockController extends Controller
     {
         $blocks = ExtraBlock::query()
             ->where('plan', $planId)
+            ->where('type', '!=', 'slot')
             ->orderBy('insert_point')
             ->orderBy('start')
             ->get();
@@ -60,9 +59,9 @@ class ExtraBlockController extends Controller
             FirstProgram::JOINT->value,
             FirstProgram::DISCOVER->value,
             FirstProgram::EXPLORE->value,
-            FirstProgram::CHALLENGE->value
+            FirstProgram::CHALLENGE->value,
         ]);
-        
+
         $validated = $request->validate([
             'id' => 'nullable|integer|exists:extra_block,id',
             'first_program' => "nullable|integer|in:{$allowedPrograms}",
@@ -85,7 +84,7 @@ class ExtraBlockController extends Controller
         $validated['plan'] = $planId;
 
         // Set type from request or infer: inserted if insert_point set, else free
-        if (!isset($validated['type']) || $validated['type'] === '') {
+        if (! isset($validated['type']) || $validated['type'] === '') {
             $validated['type'] = isset($validated['insert_point']) && $validated['insert_point'] !== null
                 ? 'inserted'
                 : 'free';
@@ -101,11 +100,11 @@ class ExtraBlockController extends Controller
             $validated
         );
 
-        if (!$skipRegeneration) {
+        if (! $skipRegeneration) {
             try {
                 $generator = app(PlanGeneratorController::class);
                 $response = $generator->generateLite($planId);
-                
+
                 // Check if the response indicates an error
                 if ($response->getStatusCode() !== 200) {
                     $responseData = $response->getData(true);
@@ -114,6 +113,7 @@ class ExtraBlockController extends Controller
                         'error' => $responseData['error'] ?? 'Unknown error',
                         'details' => $responseData['details'] ?? null,
                     ]);
+
                     // Return error response to frontend
                     return response()->json([
                         'block' => $block,
@@ -123,22 +123,22 @@ class ExtraBlockController extends Controller
                     ], $response->getStatusCode());
                 }
             } catch (\Throwable $e) {
-                Log::error("Fehler bei der Regeneration des Plans {$planId}: " . $e->getMessage(), [
+                Log::error("Fehler bei der Regeneration des Plans {$planId}: ".$e->getMessage(), [
                     'trace' => $e->getTraceAsString(),
                 ]);
-                
+
                 // Extract meaningful error message
                 $errorMessage = 'Fehler bei der Lite-Generierung';
                 $details = $e->getMessage();
-                
+
                 if (str_contains($e->getMessage(), "Parameter '")) {
                     $errorMessage = 'Ungültiger Parameterwert';
-                } elseif (str_contains($e->getMessage(), "not found") || str_contains($e->getMessage(), "existiert nicht")) {
+                } elseif (str_contains($e->getMessage(), 'not found') || str_contains($e->getMessage(), 'existiert nicht')) {
                     $errorMessage = 'Fehlende Daten';
-                } elseif (str_contains($e->getMessage(), "FreeBlockGenerator") || str_contains($e->getMessage(), "freien Aktivitäten")) {
+                } elseif (str_contains($e->getMessage(), 'FreeBlockGenerator') || str_contains($e->getMessage(), 'freien Aktivitäten')) {
                     $errorMessage = 'Fehler beim Einfügen der freien Blöcke';
                 }
-                
+
                 // Return error response to frontend
                 return response()->json([
                     'block' => $block,
@@ -158,7 +158,7 @@ class ExtraBlockController extends Controller
         // Return the block with regeneration flag
         return response()->json([
             'block' => $block,
-            'skip_regeneration' => $skipRegeneration
+            'skip_regeneration' => $skipRegeneration,
         ]);
     }
 
@@ -177,7 +177,7 @@ class ExtraBlockController extends Controller
         try {
             $generator = app(PlanGeneratorController::class);
             $response = $generator->generateLite($planId);
-            
+
             // Check if the response indicates an error
             if ($response->getStatusCode() !== 200) {
                 $responseData = $response->getData(true);
@@ -186,6 +186,7 @@ class ExtraBlockController extends Controller
                     'error' => $responseData['error'] ?? 'Unknown error',
                     'details' => $responseData['details'] ?? null,
                 ]);
+
                 // Return error response to frontend
                 return response()->json([
                     'message' => 'Extra block deleted',
@@ -194,22 +195,22 @@ class ExtraBlockController extends Controller
                 ], $response->getStatusCode());
             }
         } catch (\Throwable $e) {
-            Log::error("Fehler bei der Regeneration des Plans {$planId} nach Block-Löschung: " . $e->getMessage(), [
+            Log::error("Fehler bei der Regeneration des Plans {$planId} nach Block-Löschung: ".$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             // Extract meaningful error message
             $errorMessage = 'Fehler bei der Lite-Generierung';
             $details = $e->getMessage();
-            
+
             if (str_contains($e->getMessage(), "Parameter '")) {
                 $errorMessage = 'Ungültiger Parameterwert';
-            } elseif (str_contains($e->getMessage(), "not found") || str_contains($e->getMessage(), "existiert nicht")) {
+            } elseif (str_contains($e->getMessage(), 'not found') || str_contains($e->getMessage(), 'existiert nicht')) {
                 $errorMessage = 'Fehlende Daten';
-            } elseif (str_contains($e->getMessage(), "FreeBlockGenerator") || str_contains($e->getMessage(), "freien Aktivitäten")) {
+            } elseif (str_contains($e->getMessage(), 'FreeBlockGenerator') || str_contains($e->getMessage(), 'freien Aktivitäten')) {
                 $errorMessage = 'Fehler beim Einfügen der freien Blöcke';
             }
-            
+
             // Return error response to frontend
             return response()->json([
                 'message' => 'Extra block deleted',
