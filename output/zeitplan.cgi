@@ -908,13 +908,20 @@ sub get_detailplan {
                                                                          )
                                        )
                                     or (m_activity_type_detail.id=16 and (activity.table_1_team=$params->{team} or activity.table_2_team=$params->{team}))
-                                    or (m_activity_type_detail.id!=1 and m_activity_type_detail.id!=15 and m_activity_type_detail.id!=17 and m_activity_type_detail.id!=42 and m_activity_type_detail.id!=16 and isnull(activity.jury_team))
+                                    or (m_activity_type_detail.id=64 and activity.slot_team=$params->{team})
+                                    or (m_activity_type_detail.id=65 and activity.slot_team=$params->{team})
+                                    or (m_activity_type_detail.id!=1 and m_activity_type_detail.id!=15 and m_activity_type_detail.id!=17 and m_activity_type_detail.id!=42 and m_activity_type_detail.id!=16 and m_activity_type_detail.id!=64 and m_activity_type_detail.id!=65 and isnull(activity.jury_team))
                                 )";
+                                # Frage: wird and isnull(activity.jury_team) in der letzten Zeile ueberhaupt benoetigt? sollte bei != 1 und != 17 doch gar nicht relevant sein?
+                                # spaeter mal pruefen/optimieren!
+                                #
                                 # 1 = Begutachtung (EXPLORE)
                                 # 17 = Präsentation und Fragen (Jury)
                                 # 42 = LC mit Team
                                 # 15 = Match (Robot-Game)
                                 # 16 = Robot-Check (Robot-Game)
+                                # 64 = Extra Block -> Slot = Explore
+                                # 65 = Extra Block -> Slot = Challenge
             }
             else {
                 $where_team = "";
@@ -1067,8 +1074,11 @@ sub get_detailplan {
                     }
 
 
-                    if ($activity_activity_type_detail_id == 47 || $activity_activity_type_detail_id == 48 || $activity_activity_type_detail_id == 49 || $activity_activity_type_detail_id == 50 || $activity_activity_type_detail_id == 51 || $activity_activity_type_detail_id == 52) {
-                        # eingeschobener (47,48,49) oder freier Block (50,51,52)
+                    if (   $activity_activity_type_detail_id == 47 || $activity_activity_type_detail_id == 48 || $activity_activity_type_detail_id == 49
+                        || $activity_activity_type_detail_id == 50 || $activity_activity_type_detail_id == 51 || $activity_activity_type_detail_id == 52
+                        || $activity_activity_type_detail_id == 63 || $activity_activity_type_detail_id == 64 || $activity_activity_type_detail_id == 65
+                       ) {
+                        # eingeschobener (47,48,49) oder freier Block (50,51,52) oder Slot-Block (63, 64, 65)
                         $activity_activity_type_detail_name = $activity_extra_block_name;
 
                         # auch den Titel der Activity-Group ($activity_group_activity_type_detail_name) in diesem Fall auf $activity_extra_block_name setzen
@@ -1113,7 +1123,7 @@ sub get_detailplan {
 
                     if ($activity_activity_type_detail_id == 17 || $activity_activity_type_detail_id == 18 || $activity_activity_type_detail_id == 42 || $activity_activity_type_detail_id == 43) {
                         # Jury (Challenge) / 17 + 18 (17 mit Team, 18 Bewertung)
-                        # auch Live Challenge / 42 + 43 (42 mit Team, 43 ohne Team)
+                        # auch Live-Challenge / 42 + 43 (42 mit Team, 43 ohne Team)
                         # Rolle = Challenge-Team = 3
                         if ($params->{role} == 3) {
                             # wenn Rolle = Team, dann nur die Jurygruppe (lane) ausgeben
@@ -1297,8 +1307,11 @@ sub get_detailplan {
                             }
                         }
                     }
-                    elsif ($activity_activity_type_detail_id == 47 || $activity_activity_type_detail_id == 48 || $activity_activity_type_detail_id == 49 || $activity_activity_type_detail_id == 50 || $activity_activity_type_detail_id == 51 || $activity_activity_type_detail_id == 52) {
-                        # eingeschobener (47,48,49) oder freier Block (50,51,52)
+                    elsif (   $activity_activity_type_detail_id == 47 || $activity_activity_type_detail_id == 48 || $activity_activity_type_detail_id == 49
+                           || $activity_activity_type_detail_id == 50 || $activity_activity_type_detail_id == 51 || $activity_activity_type_detail_id == 52
+                           || $activity_activity_type_detail_id == 63 || $activity_activity_type_detail_id == 64 || $activity_activity_type_detail_id == 65
+                          ) {
+                        # eingeschobener (47,48,49) oder freier Block (50,51,52) oder Slot-Block (63, 64, 65)
                         # nichts zu $activity_item ergaenzen
                         #$activity_item .= "";
                         $xml_activity_titel = "";
@@ -1699,7 +1712,7 @@ sub get_auswahl {
     }
 
     if ($event_level != 3) {
-        $where_live_challenge_jury = "and m_role.id != 16"; # Rolle Live Challenge-Jury ausblenden, wenn kein Finale (level=3)
+        $where_live_challenge_jury = "and m_role.id != 16"; # Rolle Live-Challenge-Jury ausblenden, wenn kein Finale (level=3)
     }
     ##########################################################################################
     # Ende ob Explore und/oder Challenge bzw. welcher Level
