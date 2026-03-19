@@ -437,7 +437,11 @@ class ExtraBlockController extends Controller
                 ];
             });
 
-        return response()->json(['teams' => $rows]);
+        return response()->json([
+            'teams' => $rows,
+            'e_duration_transfer' => $eTransfer,
+            'c_duration_transfer' => $cTransfer,
+        ]);
     }
 
     public function slotUpdateTeamStart(UpdateSlotTeamStartRequest $request, int $planId, int $extraBlock, int $team): JsonResponse

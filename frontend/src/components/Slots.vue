@@ -96,6 +96,8 @@ const applying = ref(false)
 const applyError = ref<string | null>(null)
 const applyResult = ref<{ removed_activities: number; removed_groups: number; created_groups: number; created_activities: number } | null>(null)
 const applyToast = ref<InstanceType<typeof ScheduleToast> | null>(null)
+const eDurationTransfer = ref<number>(0)
+const cDurationTransfer = ref<number>(0)
 
 async function applySlotsToPlan() {
   if (!planId.value || applying.value) return
@@ -223,10 +225,12 @@ async function loadTeams() {
   }
   loadingTeams.value = true
   try {
-    const {data} = await axios.get<{ teams: TeamRow[] }>(
+    const {data} = await axios.get<{ teams: TeamRow[]; e_duration_transfer?: number; c_duration_transfer?: number }>(
       `/plans/${planId.value}/extra-blocks/slot/${selectedId.value}/teams`
     )
     teams.value = data?.teams ?? []
+    eDurationTransfer.value = Number(data?.e_duration_transfer ?? 0) || 0
+    cDurationTransfer.value = Number(data?.c_duration_transfer ?? 0) || 0
   } finally {
     loadingTeams.value = false
   }
@@ -359,7 +363,9 @@ onMounted(async () => {
   loading.value = true
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
   await loadPlan()
-  if (planId.value) await loadBlocks()
+  if (planId.value) {
+    await loadBlocks()
+  }
   await loadTeams()
   loading.value = false
   document.addEventListener('click', handleClickOutside)
@@ -493,13 +499,13 @@ const inputTitle =
               :disabled="applying"
               @click="applySlotsToPlan"
             >
-              <span v-if="!applying">Slots in den Plan übernehmen</span>
+              <span v-if="!applying">Zuordnungen in den Plan übernehmen</span>
               <span v-else>Übernehme…</span>
             </button>
           </div>
           <div class="lg:col-span-2">
             <p class="text-sm text-gray-700">
-              Alle bisherigen Slots werden aus dem Plan entfernt. Dann werden die Zuordnungen für
+              Alle bisherigen Zuordnungen werden aus dem Plan entfernt. Dann werden die Zuordnungen für
               alle aktiven Aktivitäten pro Team in den Plan eingefügt.
             </p>
             <p class="text-sm text-red-700 mt-2">
@@ -745,11 +751,11 @@ const inputTitle =
           <div class="mb-2 text-xs text-gray-600 flex flex-wrap items-center gap-4">
             <span class="inline-flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-              Kollision
+              Konflikt mit anderer Aktivität des Team
             </span>
             <span class="inline-flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
-              Abstand &lt; Transferzeit
+              Abstand zu anderer Aktivität kleiner als Transferzeit (E:{{ eDurationTransfer }} Min, C: {{ cDurationTransfer }} Min)
             </span>
             <span class="inline-flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
