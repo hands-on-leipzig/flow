@@ -383,7 +383,15 @@ watch(planId, async (id) => {
 })
 
 watch(selectedId, () => {
-  loadTeams()
+  if (!selectedId.value || !planId.value) {
+    loadTeams()
+    return
+  }
+
+  // Keep collision checks on fresh plan activities when switching slot blocks.
+  applySlotsToPlan().finally(() => {
+    loadTeams()
+  })
 })
 
 async function patchBlock(block: SlotBlock, patch: Record<string, unknown>) {
@@ -857,7 +865,7 @@ const inputTitle =
       ref="applyToast"
       :is-generating="applying"
       :countdown="null"
-      message="Slots werden übernommen..."
+      message="Plan wird aktualisiert"
     />
   </div>
 </template>
