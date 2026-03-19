@@ -1323,14 +1323,22 @@ sub get_detailplan {
                         # 65 = Slot Challenge
                         # wird der Teamname angezeigt, fuer welchen der Slot definiert wurde
                         if ($activity_activity_type_detail_id == 64) {
-                            $team_name_output = get_team_name({team_number_plan=>$activity_slot_team, team_first_program=>2, team_hash_ref=>\%team});
-                            $activity_item .= qq{<a href="zeitplan.cgi?plan=$params->{plan}&brief=no&expired=$params->{expired}&now=$params->{now}&role=3&team=$activity_slot_team" class="teamlink">$team_name_output</a>};
-                            $xml_activity_detail = qq{Team $team_name_output};
+                            # Explore
+                            if ($params->{role} != 8) {
+                                # Explore-Team selbst sieht seinen Namen nicht nochmal im Slot
+                                $team_name_output = get_team_name({team_number_plan=>$activity_slot_team, team_first_program=>2, team_hash_ref=>\%team});
+                                $activity_item .= qq{<a href="zeitplan.cgi?plan=$params->{plan}&brief=no&expired=$params->{expired}&now=$params->{now}&role=8&team=$activity_slot_team" class="teamlink">$team_name_output</a>};
+                                $xml_activity_detail = qq{Team $team_name_output};
+                            }
                         }
                         elsif ($activity_activity_type_detail_id == 65) {
-                            $team_name_output = get_team_name({team_number_plan=>$activity_slot_team, team_first_program=>3, team_hash_ref=>\%team});
-                            $activity_item .= qq{<a href="zeitplan.cgi?plan=$params->{plan}&brief=no&expired=$params->{expired}&now=$params->{now}&role=3&team=$activity_slot_team" class="teamlink">$team_name_output</a>};
-                            $xml_activity_detail = qq{Team $team_name_output};
+                            # Challenge
+                            if ($params->{role} != 3) {
+                                # Challenge-Team selbst sieht seinen Namen nicht nochmal im Slot
+                                $team_name_output = get_team_name({team_number_plan=>$activity_slot_team, team_first_program=>3, team_hash_ref=>\%team});
+                                $activity_item .= qq{<a href="zeitplan.cgi?plan=$params->{plan}&brief=no&expired=$params->{expired}&now=$params->{now}&role=3&team=$activity_slot_team" class="teamlink">$team_name_output</a>};
+                                $xml_activity_detail = qq{Team $team_name_output};
+                            }
                         }
                         else {
                             $team_name_output = "";
