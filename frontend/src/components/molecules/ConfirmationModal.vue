@@ -37,7 +37,8 @@
           <button
             @click="handleConfirm"
             class="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2"
-            :class="confirmButtonClass"
+            :class="[confirmButtonClass, disableConfirmButton ? 'opacity-50 cursor-not-allowed' : '']"
+            :disabled="disableConfirmButton"
           >
             {{ confirmText }}
           </button>
@@ -79,6 +80,10 @@ const props = defineProps({
   closeOnBackdrop: {
     type: Boolean,
     default: true
+  },
+  disableConfirmButton: {
+    type: Boolean,
+    default: false
   }
 })
 

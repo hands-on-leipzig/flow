@@ -610,6 +610,11 @@ sub get_zeitplan {
     
     $template =~ s/<!--zeitplan:plan-->/$params->{plan}/eg;
 
+    $template =~ s/<!--zeitplan:role_id-->/$params->{role}/eg;
+    $template =~ s/<!--zeitplan:team-->/$params->{team}/eg;
+    $template =~ s/<!--zeitplan:lane-->/$params->{lane}/eg;
+    $template =~ s/<!--zeitplan:table-->/$params->{table}/eg;
+
     $template =~ s/<!--zeitplan:qrcode-->/$plan_metadata{qrcode}/eg;
 
     $template =~ s/<!--zeitplan:hours-->/$params->{hours}/eg;
@@ -780,6 +785,8 @@ sub get_detailplan {
     my $activity_extra_block_room_name = "";
     my $activity_extra_block_room_navigation_instruction = "";
 
+    my $activity_slot_team = "";
+
     my $zeitplan_item = "";
     my $activity_item = "";
     my $activity_item_list = "";
@@ -903,13 +910,20 @@ sub get_detailplan {
                                                                          )
                                        )
                                     or (m_activity_type_detail.id=16 and (activity.table_1_team=$params->{team} or activity.table_2_team=$params->{team}))
-                                    or (m_activity_type_detail.id!=1 and m_activity_type_detail.id!=15 and m_activity_type_detail.id!=17 and m_activity_type_detail.id!=42 and m_activity_type_detail.id!=16 and isnull(activity.jury_team))
+                                    or (m_activity_type_detail.id=64 and activity.slot_team=$params->{team})
+                                    or (m_activity_type_detail.id=65 and activity.slot_team=$params->{team})
+                                    or (m_activity_type_detail.id!=1 and m_activity_type_detail.id!=15 and m_activity_type_detail.id!=17 and m_activity_type_detail.id!=42 and m_activity_type_detail.id!=16 and m_activity_type_detail.id!=64 and m_activity_type_detail.id!=65 and isnull(activity.jury_team))
                                 )";
+                                # Frage: wird and isnull(activity.jury_team) in der letzten Zeile ueberhaupt benoetigt? sollte bei != 1 und != 17 doch gar nicht relevant sein?
+                                # spaeter mal pruefen/optimieren!
+                                #
                                 # 1 = Begutachtung (EXPLORE)
                                 # 17 = Präsentation und Fragen (Jury)
                                 # 42 = LC mit Team
                                 # 15 = Match (Robot-Game)
                                 # 16 = Robot-Check (Robot-Game)
+                                # 64 = Extra Block -> Slot = Explore
+                                # 65 = Extra Block -> Slot = Challenge
             }
             else {
                 $where_team = "";
@@ -989,7 +1003,8 @@ sub get_detailplan {
             extra_block.link,
             extra_block_room.name,
             extra_block_room.navigation_instruction,
-            activity.id
+            activity.id,
+            activity.slot_team
             from activity
             join m_activity_type_detail on activity.activity_type_detail=m_activity_type_detail.id
             join m_activity_type on m_activity_type_detail.activity_type=m_activity_type.id
@@ -1054,6 +1069,8 @@ sub get_detailplan {
 
                     $activity_id = $row_activities[27];
 
+                    $activity_slot_team = $row_activities[28];
+
                     if ($activity_room_type_name eq "") {
                         $activity_room_type_name = "nicht spezifiziert";
                     }
@@ -1062,8 +1079,11 @@ sub get_detailplan {
                     }
 
 
-                    if ($activity_activity_type_detail_id == 47 || $activity_activity_type_detail_id == 48 || $activity_activity_type_detail_id == 49 || $activity_activity_type_detail_id == 50 || $activity_activity_type_detail_id == 51 || $activity_activity_type_detail_id == 52) {
-                        # eingeschobener (47,48,49) oder freier Block (50,51,52)
+                    if (   $activity_activity_type_detail_id == 47 || $activity_activity_type_detail_id == 48 || $activity_activity_type_detail_id == 49
+                        || $activity_activity_type_detail_id == 50 || $activity_activity_type_detail_id == 51 || $activity_activity_type_detail_id == 52
+                        || $activity_activity_type_detail_id == 63 || $activity_activity_type_detail_id == 64 || $activity_activity_type_detail_id == 65
+                       ) {
+                        # eingeschobener (47,48,49) oder freier Block (50,51,52) oder Slot-Block (63, 64, 65)
                         $activity_activity_type_detail_name = $activity_extra_block_name;
 
                         # auch den Titel der Activity-Group ($activity_group_activity_type_detail_name) in diesem Fall auf $activity_extra_block_name setzen
@@ -1292,19 +1312,51 @@ sub get_detailplan {
                             }
                         }
                     }
-                    elsif ($activity_activity_type_detail_id == 47 || $activity_activity_type_detail_id == 48 || $activity_activity_type_detail_id == 49 || $activity_activity_type_detail_id == 50 || $activity_activity_type_detail_id == 51 || $activity_activity_type_detail_id == 52) {
-                        # eingeschobener (47,48,49) oder freier Block (50,51,52)
-                        # nichts zu $activity_item ergaenzen
+                    elsif (   $activity_activity_type_detail_id == 47 || $activity_activity_type_detail_id == 48 || $activity_activity_type_detail_id == 49
+                           || $activity_activity_type_detail_id == 50 || $activity_activity_type_detail_id == 51 || $activity_activity_type_detail_id == 52
+                           || $activity_activity_type_detail_id == 63 || $activity_activity_type_detail_id == 64 || $activity_activity_type_detail_id == 65
+                          ) {
+                        # eingeschobener (47,48,49) oder freier Block (50,51,52) oder Slot-Block (63, 64, 65)
+
+                        # bei 64 = Slot Explore
+                        # bzw.
+                        # 65 = Slot Challenge
+                        # wird der Teamname angezeigt, fuer welchen der Slot definiert wurde
+                        if ($activity_activity_type_detail_id == 64) {
+                            # Explore
+                            if ($params->{role} != 8) {
+                                # Explore-Team selbst sieht seinen Namen nicht nochmal im Slot
+                                $team_name_output = get_team_name({team_number_plan=>$activity_slot_team, team_first_program=>2, team_hash_ref=>\%team});
+                                $activity_item .= qq{<a href="zeitplan.cgi?plan=$params->{plan}&brief=no&expired=$params->{expired}&now=$params->{now}&role=8&team=$activity_slot_team" class="teamlink">$team_name_output</a>};
+                                $xml_activity_detail = qq{$team_name_output};
+                            }
+                        }
+                        elsif ($activity_activity_type_detail_id == 65) {
+                            # Challenge
+                            if ($params->{role} != 3) {
+                                # Challenge-Team selbst sieht seinen Namen nicht nochmal im Slot
+                                $team_name_output = get_team_name({team_number_plan=>$activity_slot_team, team_first_program=>3, team_hash_ref=>\%team});
+                                $activity_item .= qq{<a href="zeitplan.cgi?plan=$params->{plan}&brief=no&expired=$params->{expired}&now=$params->{now}&role=3&team=$activity_slot_team" class="teamlink">$team_name_output</a>};
+                                $xml_activity_detail = qq{$team_name_output};
+                            }
+                        }
+                        else {
+                            $team_name_output = "";
+                            $xml_activity_detail = "";
+                        }
+
+                        # nichts weiter zu $activity_item ergaenzen
                         #$activity_item .= "";
                         $xml_activity_titel = "";
                         # oder: ?
                         #$xml_activity_titel = $activity_extra_block_name;
-                        $xml_activity_detail = "";
+
 
                         # Description kommt in diesem Fall aus dem extra_block, daher die description aus activity_type_detail ueberschreiben
                         $activity_group_activity_type_detail_description = $activity_extra_block_description;
                         # Ebenso ein etwaiger Link
                         $activity_group_activity_type_detail_link = $activity_extra_block_link;
+
                     }
                     # Raum noch fuer extra_block anpassen!
                     $activity_item .= qq{<br><i class="bi-geo"></i> $activity_room_name $activity_room_navigation_instruction};

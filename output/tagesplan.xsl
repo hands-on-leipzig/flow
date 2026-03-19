@@ -297,7 +297,7 @@
                                         <xsl:when test="topic='Allgemein'">
                                             <xsl:value-of select="'888888'"/>
                                         </xsl:when>
-                                        <xsl:when test="topic='Challenge' or topic='Robot-Game' or topic='Live-Challenge'">
+                                        <xsl:when test="topic='Challenge' or topic='Robot-Game' or topic='Live Challenge'">
                                             <xsl:value-of select="'ED1C24'"/>
                                         </xsl:when>
                                         <xsl:when test="topic='Explore'">
@@ -309,12 +309,12 @@
                                     </xsl:choose>
                                 </xsl:variable>
                                 
-                                <xsl:if test="number=1 or (topic!=../column[number=number(current()/number)-1]/topic and not((topic='Challenge' or topic='Robot-Game' or topic='Live-Challenge') and (../column[number=number(current()/number)-1]/topic='Challenge' or ../column[number=number(current()/number)-1]/topic='Robot-Game' or ../column[number=number(current()/number)-1]/topic='Live-Challenge')))">
+                                <xsl:if test="number=1 or (topic!=../column[number=number(current()/number)-1]/topic and not((topic='Challenge' or topic='Robot-Game' or topic='Live Challenge') and (../column[number=number(current()/number)-1]/topic='Challenge' or ../column[number=number(current()/number)-1]/topic='Robot-Game' or ../column[number=number(current()/number)-1]/topic='Live Challenge')))">
 
                                     <!-- für Sonderfälle bzgl. zusammengefassten Spalten etc. -->
                                     <xsl:variable name="spaltenueberschrift_breite_cm">
                                         <xsl:choose>
-                                            <xsl:when test="topic=../column[number=number(current()/number)+1]/topic or ((topic='Challenge' or topic='Robot-Game' or topic='Live-Challenge') and (../column[number=number(current()/number)+1]/topic='Challenge' or ../column[number=number(current()/number)+1]/topic='Robot-Game' or ../column[number=number(current()/number)+1]/topic='Live-Challenge'))">
+                                            <xsl:when test="topic=../column[number=number(current()/number)+1]/topic or ((topic='Challenge' or topic='Robot-Game' or topic='Live Challenge') and (../column[number=number(current()/number)+1]/topic='Challenge' or ../column[number=number(current()/number)+1]/topic='Robot-Game' or ../column[number=number(current()/number)+1]/topic='Live Challenge'))">
                                                 <xsl:value-of select="$spaltenbreite_cm + $abstand_zwischen_spalten_cm + $spaltenbreite_cm"/>
                                             </xsl:when>
                                             <xsl:otherwise>
@@ -332,7 +332,7 @@
                                                 <xsl:when test="topic='Allgemein'">
                                                     <fo:block><fo:external-graphic src="logos/FLL_column_heading.png" content-height="{$spaltenueberschrift_content_hoehe_cm}cm" vertical-align="middle"/></fo:block>
                                                 </xsl:when>
-                                                <xsl:when test="topic='Challenge' or topic='Robot-Game' or topic='Live-Challenge'">
+                                                <xsl:when test="topic='Challenge' or topic='Robot-Game' or topic='Live Challenge'">
                                                     <fo:block><fo:external-graphic src="logos/FLL_Challenge_column_heading.png" content-height="{$spaltenueberschrift_content_hoehe_cm}cm" vertical-align="middle"/></fo:block>
                                                 </xsl:when>
                                                 <xsl:when test="topic='Explore'">

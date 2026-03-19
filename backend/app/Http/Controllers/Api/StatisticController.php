@@ -202,13 +202,11 @@ class StatisticController extends Controller
         }
 
         // Extra-Block-Stats abrufen (separate free and inserted blocks)
-        // Free blocks: have start/end times, no insert_point
+        // Free blocks: type = free
         $freeBlockStatsRaw = DB::table('extra_block')
             ->whereIn('plan', $planIds)
             ->where('active', 1)
-            ->whereNotNull('start')
-            ->whereNotNull('end')
-            ->whereNull('insert_point')
+            ->where('type', 'free')
             ->select(
                 'plan',
                 DB::raw('COUNT(*) as count')
@@ -217,11 +215,11 @@ class StatisticController extends Controller
             ->get()
             ->keyBy('plan');
 
-        // Inserted blocks: have insert_point, no start/end times
+        // Inserted blocks: type = inserted
         $insertedBlockStatsRaw = DB::table('extra_block')
             ->whereIn('plan', $planIds)
             ->where('active', 1)
-            ->whereNotNull('insert_point')
+            ->where('type', 'inserted')
             ->select(
                 'plan',
                 DB::raw('COUNT(*) as count')
@@ -1233,13 +1231,11 @@ class StatisticController extends Controller
             )
             ->first();
 
-        // Free blocks: have start/end times, no insert_point
+        // Free blocks: type = free
         $freeBlocks = DB::table('extra_block')
             ->where('plan', $planId)
             ->where('active', 1)
-            ->whereNotNull('start')
-            ->whereNotNull('end')
-            ->whereNull('insert_point')
+            ->where('type', 'free')
             ->select(
                 'id',
                 'name',
@@ -1258,12 +1254,12 @@ class StatisticController extends Controller
                 ];
             });
 
-        // Inserted blocks: have insert_point, no start/end times
+        // Inserted blocks: type = inserted
         $insertedBlocks = DB::table('extra_block as eb')
             ->join('m_insert_point as mip', 'eb.insert_point', '=', 'mip.id')
             ->where('eb.plan', $planId)
             ->where('eb.active', 1)
-            ->whereNotNull('eb.insert_point')
+            ->where('eb.type', 'inserted')
             ->select(
                 'eb.id',
                 'eb.name',

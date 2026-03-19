@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import {RobotGameSlideContent} from '../../models/robotGameSlideContent.js';
+import {RobotGameSlideContent} from '../../../models/robotGameSlideContent.js';
 import {onMounted, onUnmounted, ref, computed, toRef, watch, shallowRef} from "vue";
-import { useScores, expectedScores, roundNames, createTeams } from '@/services/useScores';
-import type {Team, TeamResponse, RoundResponse} from "@/models/robotGameScores";
+import {useScores, createTeams} from '@/services/useScores';
+import type {TeamResponse, RoundResponse} from "@/models/robotGameScores";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
+import RobotGameTable from "./RobotGameTable.vue";
 
 const props = defineProps<{
   content: RobotGameSlideContent,
@@ -11,9 +12,9 @@ const props = defineProps<{
   eventId: number
 }>();
 
-const emit = defineEmits<{ (e: 'next'): void}>();
+const emit = defineEmits<{ (e: 'next'): void }>();
 
-const { scores, error, loadScores, startAutoRefresh, stopAutoRefresh } = useScores(props.eventId);
+const {scores, error, loadScores, startAutoRefresh, stopAutoRefresh} = useScores(props.eventId);
 
 const currentIndex = ref(0);
 const isPaused = ref(false);
@@ -34,6 +35,9 @@ watch(() => scores.value, (newScores) => {
   }
 });
 const paginatedTeams = computed(() => {
+  if (!teams.value?.length) {
+    return [];
+  }
   return teams.value.slice(currentIndex.value, currentIndex.value + teamsPerPage.value);
 });
 
@@ -43,7 +47,24 @@ onMounted(() => {
     startAutoRefresh();
   }
 });
+
+onMounted(() => {
+  startAutoAdvance();
+  io.observe(root.value);
+  window.addEventListener('keydown', handleKeyDown);
+});
+
 onUnmounted(stopAutoRefresh);
+
+onUnmounted(() => {
+  clearInterval(autoAdvanceInterval);
+  if (io && root.value) {
+    io.unobserve(root.value);
+    io.disconnect();
+    io = null;
+  }
+  window.removeEventListener('keydown', handleKeyDown);
+});
 
 let autoAdvanceInterval;
 
@@ -59,22 +80,6 @@ let io = new IntersectionObserver((entries) => {
   }
   clearInterval(autoAdvanceInterval);
 }, {threshold: 0.01});
-
-onMounted(() => {
-  startAutoAdvance();
-  io.observe(root.value);
-  window.addEventListener('keydown', handleKeyDown);
-});
-
-onUnmounted(() => {
-  clearInterval(autoAdvanceInterval);
-  if (io && root.value) {
-    io.unobserve(root.value);
-    io.disconnect();
-    io = null;
-  }
-  window.removeEventListener('keydown', handleKeyDown);
-});
 
 function startAutoAdvance() {
   const secondsPerPage = props.content.secondsPerPage || 15;
@@ -111,7 +116,8 @@ function advancePage() {
   if (willWrapAround) {
     // switch to next slide
     clearInterval(autoAdvanceInterval);
-    emit('next')
+    emit('next');
+    currentIndex.value = 0;
   } else {
     currentIndex.value = nextIndex;
   }
@@ -135,12 +141,27 @@ function handleKeyDown(event: KeyboardEvent) {
   if (event.key === 'Enter') {
     console.log('pausing');
     isPaused.value = !isPaused.value;
-  } else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
-    advancePage();
-  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
-    previousPage();
   }
 }
+
+function handleArrow(direction: 'left' | 'right'): boolean {
+  if (direction === 'right') {
+    const nextIndex = currentIndex.value + teamsPerPage.value;
+    if (nextIndex < teams.value.length) {
+      advancePage();
+      return true;
+    }
+    return false; // let Carousel go to the next slide
+  } else {
+    if (currentIndex.value > 0) {
+      previousPage();
+      return true;
+    }
+    return false; // let Carousel go to previous slide
+  }
+}
+
+defineExpose({handleArrow});
 </script>
 
 <template>
@@ -150,42 +171,8 @@ function handleKeyDown(event: KeyboardEvent) {
                                 :content="props.content" :preview="props.preview"></FabricSlideContentRenderer>
 
     <div class="slide-container" :class="{ 'preview': props.preview }">
-      <h1 class="slide-title">
-        ERGEBNISSE {{ round ? roundNames[round].toUpperCase() : '' }}: {{ scores?.name?.toUpperCase() }}
-      </h1>
-
-      <div v-if="!round" class="scores flex items-center justify-center">
-        <span>Keine Ergebnisse verfügbar.</span>
-      </div>
-      <div v-if="round">
-        <table class="scores">
-          <thead>
-          <tr>
-            <th>Team</th>
-            <template v-if="round === 'VR'">
-              <th class="cell">R I</th>
-              <th class="cell">R II</th>
-              <th class="cell">R III</th>
-            </template>
-            <template v-else>
-              <th class="cell">Score</th>
-            </template>
-            <th class="cell">Rank</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="team in paginatedTeams" :key="team.id">
-            <td class="teamName">{{ team.name }}</td>
-            <template v-for="(score, index) in team.scores" :key="index">
-              <td class="cell" :class="{ highlight: score.highlight }">
-                {{ score.points }}
-              </td>
-            </template>
-            <td class="cell">{{ team.rank }}</td>
-          </tr>
-          </tbody>
-        </table>
-      </div>
+      <RobotGameTable :name="scores?.name?.toUpperCase()" :paginatedTeams="paginatedTeams" :round="round"
+                      :content="content"></RobotGameTable>
     </div>
   </div>
 </template>
@@ -193,58 +180,16 @@ function handleKeyDown(event: KeyboardEvent) {
 <style scoped>
 
 .slide-container {
+  width: 100%;
   height: 100%;
+  min-height: 0;
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: start;
+  align-items: stretch;
   background-size: cover;
   background-position: center;
-  padding: 5em;
+  padding: 2em;
   color: v-bind('props.content.textColor');
-}
-
-.slide-title {
-  font-size: 2.5rem;
-  font-weight: bold;
-  padding: 0 1rem 3rem 1rem;
-}
-
-.scores {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  font-size: 2.5rem;
-  background-color: v-bind('props.content.tableBackgroundColor');
-}
-
-th, td {
-  padding: 0.5rem 1rem 0.5rem 1rem;
-}
-
-.teamName {
-  border-right: 1px solid v-bind('props.content.tableBorderColor');
-  border-top: 1px solid v-bind('props.content.tableBorderColor');
-  width: auto;
-}
-
-.cell {
-  width: 9rem;
-  text-align: center;
-}
-
-td {
-  border-top: 1px solid v-bind('props.content.tableBorderColor');
-}
-
-tr > td:not(:last-child),
-tr > th:not(:last-child) {
-  border-right: 1px solid v-bind('props.content.tableBorderColor');
-}
-
-.highlight {
-  background-color: v-bind('props.content.highlightColor');
 }
 
 .preview {

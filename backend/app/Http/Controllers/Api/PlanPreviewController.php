@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\PreviewMatrixService;
 use App\Services\ActivityFetcherService;
-use App\Http\Controllers\Api\PlanExportController;
+use App\Services\PreviewMatrixService;
 use Illuminate\Support\Facades\DB;
-
 
 class PlanPreviewController extends Controller
 {
@@ -23,13 +21,13 @@ class PlanPreviewController extends Controller
             ->where('preview_matrix', 1)
             ->pluck('id')
             ->toArray();
-            
+
         $data = $this->planExport->getEventOverviewData($planId, $previewRoles, false);
-        
+
         // Return the data in the same format as other preview methods
         return response()->json([
             'html' => view('preview.event-overview', $data)->render(),
-            'success' => true
+            'success' => true,
         ]);
     }
 
@@ -58,6 +56,7 @@ class PlanPreviewController extends Controller
         }
 
         $matrix = $builder->buildTeamsMatrix($activities);
+
         return response()->json($matrix);
     }
 
@@ -74,7 +73,7 @@ class PlanPreviewController extends Controller
         }
 
         return response()->json($builder->buildRoomsMatrix($activities));
-}
+    }
 
     public function previewRoles(int $plan, PreviewMatrixService $builder)
     {
@@ -82,7 +81,7 @@ class PlanPreviewController extends Controller
         $roles = DB::table('m_role')
             ->whereNotNull('first_program')
             ->where('preview_matrix', 1)
-            ->whereIn('differentiation_parameter', ['lane','table'])
+            ->whereIn('differentiation_parameter', ['lane', 'table'])
             ->orderBy('first_program')
             ->orderBy('sequence')
             ->get();
@@ -94,10 +93,11 @@ class PlanPreviewController extends Controller
         );
 
         if ($activities->isEmpty()) {
-            return [ ['key' => 'time', 'title' => 'Zeit'] ];
+            return [['key' => 'time', 'title' => 'Zeit']];
         }
 
         $matrix = $builder->buildRolesMatrix($activities, $roles);
+
         return response()->json($matrix);
     }
 
@@ -114,11 +114,11 @@ class PlanPreviewController extends Controller
             ->where('m_activity_type_detail.first_program', 3)
             ->exists();
 
-        if (!$hasChallenge) {
+        if (! $hasChallenge) {
             return response()->json([
                 'has_challenge' => false,
                 'rounds' => [],
-                'team_summary' => []
+                'team_summary' => [],
             ]);
         }
 
@@ -140,7 +140,7 @@ class PlanPreviewController extends Controller
         $rounds = [];
         foreach ([0, 1, 2, 3] as $roundNum) {
             $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
-            
+
             if ($roundMatches->isEmpty()) {
                 continue;
             }
@@ -157,22 +157,26 @@ class PlanPreviewController extends Controller
                         'table_2' => $match->table_2,
                         'table_2_team' => $match->table_2_team,
                     ];
-                })->toArray()
+                })->toArray(),
             ];
         }
 
         // Calculate team diversity metrics (Q2 and Q3)
         // Only use rounds 1-3 (robot game rounds, not test round)
         $robotGameMatches = $matches->whereIn('round', [1, 2, 3]);
-        
+
         // Get all unique teams from matches
         $allTeams = collect();
         foreach ($robotGameMatches as $match) {
-            if ($match->table_1_team > 0) $allTeams->push($match->table_1_team);
-            if ($match->table_2_team > 0) $allTeams->push($match->table_2_team);
+            if ($match->table_1_team > 0) {
+                $allTeams->push($match->table_1_team);
+            }
+            if ($match->table_2_team > 0) {
+                $allTeams->push($match->table_2_team);
+            }
         }
         $uniqueTeams = $allTeams->unique()->sort()->values();
-        
+
         $teamSummary = [];
         foreach ($uniqueTeams as $team) {
             $teamMatches = $robotGameMatches->filter(function ($match) use ($team) {
@@ -197,14 +201,14 @@ class PlanPreviewController extends Controller
             $teamSummary[] = [
                 'team' => $team,
                 'different_tables' => count(array_unique($tables)),
-                'different_opponents' => count(array_unique($opponents))
+                'different_opponents' => count(array_unique($opponents)),
             ];
         }
 
         return response()->json([
             'has_challenge' => true,
             'rounds' => $rounds,
-            'team_summary' => $teamSummary
+            'team_summary' => $teamSummary,
         ]);
     }
 
@@ -217,7 +221,7 @@ class PlanPreviewController extends Controller
         $jwt = request()->attributes->get('jwt');
         $roles = $jwt['resource_access']->flow->roles ?? [];
 
-        if (!in_array('flow-admin', $roles) && !in_array('flow_admin', $roles)) {
+        if (! in_array('flow-admin', $roles) && ! in_array('flow_admin', $roles)) {
             return response()->json(['error' => 'Forbidden - admin role required'], 403);
         }
 
@@ -237,18 +241,18 @@ class PlanPreviewController extends Controller
         foreach ($activities as $activity) {
             $groupId = $activity->activity_group_id;
             $activityId = $activity->activity_id;
-            
-            if (!isset($groups[$groupId])) {
+
+            if (! isset($groups[$groupId])) {
                 $groups[$groupId] = [
                     'activity_group_id' => $groupId,
                     'activity_group_name' => $activity->group_atd_name ?? 'Unknown Group',
                     'explore_group' => $activity->group_explore_group ?? null,
-                    'activities' => []
+                    'activities' => [],
                 ];
             }
-            
+
             // Check if activity already exists (handle duplicates from room joins)
-            if (!isset($groups[$groupId]['activities'][$activityId])) {
+            if (! isset($groups[$groupId]['activities'][$activityId])) {
                 $groups[$groupId]['activities'][$activityId] = [
                     'activity_id' => $activity->activity_id,
                     'start_time' => $activity->start_time,
@@ -261,11 +265,12 @@ class PlanPreviewController extends Controller
                     'table_2_team' => $activity->table_2_team,
                     'table_1' => $activity->table_1,
                     'table_2' => $activity->table_2,
+                    'slot_team' => $activity->slot_team !== null && $activity->slot_team !== '' ? (int) $activity->slot_team : null,
                     'room_type_name' => $activity->room_type_name ?? '',
                 ];
             } else {
                 // Update room info if current row has better room data
-                if (empty($groups[$groupId]['activities'][$activityId]['room_type_name']) && !empty($activity->room_type_name)) {
+                if (empty($groups[$groupId]['activities'][$activityId]['room_type_name']) && ! empty($activity->room_type_name)) {
                     $groups[$groupId]['activities'][$activityId]['room_type_name'] = $activity->room_type_name;
                 }
             }
@@ -275,10 +280,9 @@ class PlanPreviewController extends Controller
         foreach ($groups as &$group) {
             $group['activities'] = array_values($group['activities']);
         }
-        
+
         return response()->json([
-            'groups' => array_values($groups)
+            'groups' => array_values($groups),
         ]);
     }
-
 }

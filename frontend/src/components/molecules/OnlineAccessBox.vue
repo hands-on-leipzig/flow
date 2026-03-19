@@ -5,7 +5,53 @@ import { useEventStore } from '@/stores/event'
 import { useAuth } from '@/composables/useAuth'
 import { imageUrl, programLogoSrc, programLogoAlt } from '@/utils/images'
 import { formatTimeOnly, formatDateOnly } from '@/utils/dateTimeFormat'
-import SavingToast from "@/components/atoms/SavingToast.vue";
+import SavingToast from "@/components/atoms/SavingToast.vue"
+
+// --- Time display with short weekday when event spans multiple days (same as PublicEvent) ---
+function toLocalDateString(dateInput: string | null | undefined): string {
+  if (!dateInput) return ''
+  const d = new Date(dateInput)
+  if (isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function formatShortWeekday(dateInput: string | null | undefined): string {
+  if (!dateInput) return ''
+  const d = new Date(dateInput)
+  if (isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(d)
+}
+
+function eventSpansMultipleDays(plan: any): boolean {
+  if (!plan) return false
+  const dates = new Set<string>()
+  const add = (arr: any[] | undefined) => {
+    if (!Array.isArray(arr)) return
+    arr.forEach((item: any) => {
+      if (item?.value) dates.add(toLocalDateString(item.value))
+    })
+  }
+  add(plan.explore_morning)
+  add(plan.explore_afternoon)
+  add(plan.explore)
+  add(plan.challenge)
+  return dates.size > 1
+}
+
+function getTimeDisplay(isoDateTime: string | null | undefined, showWeekday: boolean): string {
+  if (!isoDateTime) return ''
+  const timeOnly = formatTimeOnly(isoDateTime, true)
+  if (showWeekday) {
+    const wd = formatShortWeekday(isoDateTime)
+    return wd ? `${wd}, ${timeOnly}` : timeOnly
+  }
+  return timeOnly
+}
+
+const previewShowWeekday = computed(() => eventSpansMultipleDays(scheduleInfo.value?.plan))
 
 // Store + Selected Event (autark)
 const eventStore = useEventStore()
@@ -360,7 +406,7 @@ async function regenerateLinkAndQR() {
                     <div class="space-y-1 text-xs">
                       <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore_morning" :key="timeIdx" class="flex justify-between">
                         <span class="text-gray-600">{{ timeEntry.label }}</span>
-                        <span class="font-medium">{{ formatTimeOnly(timeEntry.value, true) }}</span>
+                        <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
                       </div>
                     </div>
                   </div>
@@ -377,7 +423,7 @@ async function regenerateLinkAndQR() {
                     <div class="space-y-1 text-xs">
                       <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore_afternoon" :key="timeIdx" class="flex justify-between">
                         <span class="text-gray-600">{{ timeEntry.label }}</span>
-                        <span class="font-medium">{{ formatTimeOnly(timeEntry.value, true) }}</span>
+                        <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
                       </div>
                     </div>
                   </div>
@@ -396,7 +442,7 @@ async function regenerateLinkAndQR() {
                   <div class="space-y-1 text-xs">
                     <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore" :key="timeIdx" class="flex justify-between">
                       <span class="text-gray-600">{{ timeEntry.label }}</span>
-                      <span class="font-medium">{{ formatTimeOnly(timeEntry.value, true) }}</span>
+                      <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
                     </div>
                   </div>
                 </div>
@@ -414,7 +460,7 @@ async function regenerateLinkAndQR() {
                   <div class="space-y-1 text-xs">
                     <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.challenge" :key="timeIdx" class="flex justify-between">
                       <span class="text-gray-600">{{ timeEntry.label }}</span>
-                      <span class="font-medium">{{ formatTimeOnly(timeEntry.value, true) }}</span>
+                      <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
                     </div>
                   </div>
                 </div>

@@ -25,7 +25,7 @@ import PresentationSettings from "@/components/molecules/PresentationSettings.vu
 import PublicEvent from "@/components/PublicEvent.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
 import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
-import ScoreViewer from "@/components/ScoreViewer.vue";
+import PublicScores from "@/components/PublicScores.vue";
 import {useEventStore} from "@/stores/event";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
@@ -33,7 +33,7 @@ import {registerSW} from 'virtual:pwa-register'
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
     {path: '/carousel/:eventId/:slideId', component: StandaloneSlide, props: true, meta: {public: true}},
-    {path: '/scores/:eventId', component: ScoreViewer, props: true, meta: {public: true}},
+    {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
     {
         path: '/plan',
         component: PlanLayout,
@@ -47,6 +47,7 @@ const routes = [
             {path: 'rooms', component: Rooms},
             {path: 'publish', component: PublishControl},
             {path: 'live', component: EventDayControl},
+            {path: 'slots', component: () => import('@/components/Slots.vue')},
             // Lazy-load Admin component - only loads when route is accessed
             // This significantly reduces initial bundle size since most users are not admins
             {path: 'admin', component: () => import('@/components/Admin.vue')},
@@ -58,6 +59,7 @@ const routes = [
     // Redirect old routes to new plan/ prefixed routes
     {path: '/event', redirect: '/plan/event'},
     {path: '/schedule', redirect: '/plan/schedule'},
+    {path: '/slots', redirect: '/plan/slots'},
     {path: '/teams', redirect: '/plan/teams'},
     {path: '/logos', redirect: '/plan/logos'},
     {path: '/events', redirect: '/plan/events'},

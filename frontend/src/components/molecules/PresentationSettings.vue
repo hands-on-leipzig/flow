@@ -253,19 +253,8 @@ async function addSlide(selectedType: string) {
 
   let newSlide = Slide.createNewSlide(selectedType);
 
-  // TODO move this to the server
-  if (selectedType === 'PublicPlanSlideContent') {
-    newSlide.name = 'Zeitplan - Jetzt';
+  if (selectedType === 'PublicPlanSlideContent' || selectedType == "PublicPlanNextSlideContent") {
     newSlide.content.planId = planId.value;
-  } else if (selectedType == "PublicPlanNextSlideContent") {
-    newSlide.name = "Zeitplan - Als nächstes";
-    newSlide.content.planId = planId.value;
-  } else if (selectedType === 'RobotGameSlideContent') {
-    newSlide.name = 'Robot-Game-Ergebnisse';
-  } else if (selectedType === 'UrlSlideContent') {
-    newSlide.name = 'Externer Inhalt';
-  } else if (selectedType === 'FabricSlideContent') {
-    newSlide.name = 'Eigener Inhalt';
   }
 
   const content = JSON.stringify(newSlide.content.toJSON());

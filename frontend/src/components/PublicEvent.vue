@@ -3,7 +3,7 @@ import {ref, computed, onMounted, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import {programLogoSrc, programLogoAlt, imageUrl} from '@/utils/images'
-import {formatTimeOnly} from '@/utils/dateTimeFormat'
+import { formatTimeOnly } from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 
 const route = useRoute()
@@ -102,7 +102,7 @@ const loadEvent = async () => {
   }
 }
 
-// Format date to show only date part
+// Format date to show only date part (long format for main event date)
 const formatDateOnly = (dateString) => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -114,6 +114,53 @@ const formatDateOnly = (dateString) => {
   })
 }
 
+// Get YYYY-MM-DD in local time for day comparison
+function toLocalDateString(dateInput) {
+  if (!dateInput) return ''
+  const d = new Date(dateInput)
+  if (isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// Short weekday (e.g. "Mo.", "Di.") for time display
+function formatShortWeekday(dateInput) {
+  if (!dateInput) return ''
+  const d = new Date(dateInput)
+  if (isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(d)
+}
+
+// True if the plan has important times on more than one day
+function eventSpansMultipleDays(plan) {
+  if (!plan) return false
+  const dates = new Set()
+  const add = (arr) => {
+    if (!Array.isArray(arr)) return
+    arr.forEach((item) => {
+      if (item?.value) dates.add(toLocalDateString(item.value))
+    })
+  }
+  add(plan.explore_morning)
+  add(plan.explore_afternoon)
+  add(plan.explore)
+  add(plan.challenge)
+  return dates.size > 1
+}
+
+// When event spans multiple days: show short weekday for every time; otherwise time only
+function getTimeDisplay(isoDateTime, showWeekday) {
+  if (!isoDateTime) return ''
+  const timeOnly = formatTimeOnly(isoDateTime, true)
+  if (showWeekday) {
+    const wd = formatShortWeekday(isoDateTime)
+    return wd ? `${wd}, ${timeOnly}` : timeOnly
+  }
+  return timeOnly
+}
+
 // Get timeline items for Explore morning group, sorted chronologically
 const getExploreMorningTimelineItems = () => {
   const plan = scheduleInfo.value?.plan
@@ -121,6 +168,7 @@ const getExploreMorningTimelineItems = () => {
     return []
   }
 
+  const showWeekday = eventSpansMultipleDays(scheduleInfo.value?.plan)
   // Map backend format to frontend format
   return plan.explore_morning.map(item => {
     const timestamp = new Date(item.value).getTime()
@@ -133,6 +181,7 @@ const getExploreMorningTimelineItems = () => {
 
     return {
       time: formatTimeOnly(item.value, true),
+      timeDisplay: getTimeDisplay(item.value, showWeekday),
       label: item.label || '',
       type: type,
       timestamp: timestamp,
@@ -148,6 +197,7 @@ const getExploreAfternoonTimelineItems = () => {
     return []
   }
 
+  const showWeekday = eventSpansMultipleDays(scheduleInfo.value?.plan)
   // Map backend format to frontend format
   return plan.explore_afternoon.map(item => {
     const timestamp = new Date(item.value).getTime()
@@ -160,6 +210,7 @@ const getExploreAfternoonTimelineItems = () => {
 
     return {
       time: formatTimeOnly(item.value, true),
+      timeDisplay: getTimeDisplay(item.value, showWeekday),
       label: item.label || '',
       type: type,
       timestamp: timestamp,
@@ -175,6 +226,7 @@ const getExploreSingleTimelineItems = () => {
     return []
   }
 
+  const showWeekday = eventSpansMultipleDays(scheduleInfo.value?.plan)
   // Map backend format to frontend format
   return plan.explore.map(item => {
     const timestamp = new Date(item.value).getTime()
@@ -187,6 +239,7 @@ const getExploreSingleTimelineItems = () => {
 
     return {
       time: formatTimeOnly(item.value, true),
+      timeDisplay: getTimeDisplay(item.value, showWeekday),
       label: item.label || '',
       type: type,
       timestamp: timestamp,
@@ -215,6 +268,7 @@ const getChallengeTimelineItems = () => {
   const plan = scheduleInfo.value?.plan
   if (!plan?.challenge || !Array.isArray(plan.challenge) || plan.challenge.length === 0) return []
 
+  const showWeekday = eventSpansMultipleDays(scheduleInfo.value?.plan)
   // Backend returns challenge as an array of {value, label, sequence}
   // Map backend format to frontend format
   return plan.challenge.map(item => {
@@ -228,6 +282,7 @@ const getChallengeTimelineItems = () => {
 
     return {
       time: formatTimeOnly(item.value, true),
+      timeDisplay: getTimeDisplay(item.value, showWeekday),
       label: item.label || '',
       type: type,
       timestamp: timestamp,
@@ -389,25 +444,6 @@ onMounted(async () => {
           scrolling="auto"
           style="margin: 0; padding: 0; border: none; width: 100%;"
       ></iframe>
-      <!-- Event Logos Footer for Level 4 -->
-      <div v-if="eventLogos.length > 0" class="bg-white border-t border-gray-200 py-3 md:py-4 px-3 md:px-4">
-        <div class="flex flex-wrap items-center justify-center gap-3 md:gap-4 lg:gap-6 max-w-7xl mx-auto">
-          <a
-              v-for="logo in eventLogos"
-              :key="logo.id"
-              :href="logo.link || '#'"
-              :rel="logo.link ? 'noopener noreferrer' : ''"
-              :target="logo.link ? '_blank' : '_self'"
-              class="flex items-center justify-center hover:opacity-80 transition-opacity"
-          >
-            <img
-                :alt="logo.title || 'Logo'"
-                :src="logo.url"
-                class="h-8 md:h-10 lg:h-12 max-w-24 md:max-w-28 lg:max-w-32 object-contain"
-            />
-          </a>
-        </div>
-      </div>
     </div>
 
     <!-- Event Content (hidden when level 4 is active) -->
@@ -469,7 +505,7 @@ onMounted(async () => {
                         <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
                             item.label
                           }}</span>
-                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.timeDisplay }}</span>
                       </div>
                       <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
                     </div>
@@ -508,7 +544,7 @@ onMounted(async () => {
                         <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
                             item.label
                           }}</span>
-                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.timeDisplay }}</span>
                       </div>
                       <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
                     </div>
@@ -547,7 +583,7 @@ onMounted(async () => {
                         <span class="text-xs font-semibold text-green-700 uppercase tracking-wide">{{
                             item.label
                           }}</span>
-                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.time }}</span>
+                        <span class="text-base md:text-lg font-bold text-green-800">{{ item.timeDisplay }}</span>
                       </div>
                       <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
                     </div>
@@ -587,7 +623,7 @@ onMounted(async () => {
                   <div class="bg-white rounded-md md:rounded-lg p-2 md:p-3 shadow-sm border border-red-200">
                     <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
                       <span class="text-xs font-semibold text-red-700 uppercase tracking-wide">{{ item.label }}</span>
-                      <span class="text-base md:text-lg font-bold text-red-800">{{ item.time }}</span>
+                      <span class="text-base md:text-lg font-bold text-red-800">{{ item.timeDisplay }}</span>
                     </div>
                     <div v-if="item.description" class="text-xs text-gray-600 mt-1">{{ item.description }}</div>
                   </div>
@@ -799,31 +835,29 @@ onMounted(async () => {
         </div>
       </div>
 
-    </div>
-
-
-    <!-- Event Logos Footer - at the very bottom -->
-    <div class="bg-[#F78B1F] py-6 md:py-8 mt-8 md:mt-12 shadow-2xl">
-      <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-        <!-- Event Logos -->
-        <div v-if="eventLogos.length > 0"
-             class="flex flex-wrap items-center justify-center gap-4 md:gap-6 lg:gap-8 mb-6 md:mb-8">
-          <a
-              v-for="logo in eventLogos"
-              :key="logo.id"
-              :href="logo.link || '#'"
-              :rel="logo.link ? 'noopener noreferrer' : ''"
-              :target="logo.link ? '_blank' : '_self'"
-              class="flex items-center justify-center bg-white rounded-lg md:rounded-xl p-2 md:p-3 lg:p-4 shadow-md md:shadow-lg hover:shadow-xl hover:scale-105 md:hover:scale-110 transition-all transform"
-          >
-            <img
-                :alt="logo.title || 'Logo'"
-                :src="logo.url"
-                class="h-10 md:h-12 lg:h-14 max-w-24 md:max-w-32 lg:max-w-36 object-contain"
-            />
-          </a>
+      <!-- Event Logos Footer - at the very bottom -->
+      <div v-if="eventLogos.length > 0" class="bg-[#F78B1F] py-6 md:py-8 mt-8 md:mt-12 shadow-2xl">
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <!-- Event Logos -->
+          <div class="flex flex-wrap items-center justify-center gap-4 md:gap-6 lg:gap-8 mb-6 md:mb-8">
+            <a
+                v-for="logo in eventLogos"
+                :key="logo.id"
+                :href="logo.link || '#'"
+                :rel="logo.link ? 'noopener noreferrer' : ''"
+                :target="logo.link ? '_blank' : '_self'"
+                class="flex items-center justify-center bg-white rounded-lg md:rounded-xl p-2 md:p-3 lg:p-4 shadow-md md:shadow-lg hover:shadow-xl hover:scale-105 md:hover:scale-110 transition-all transform"
+            >
+              <img
+                  :alt="logo.title || 'Logo'"
+                  :src="logo.url"
+                  class="h-10 md:h-12 lg:h-14 max-w-24 md:max-w-32 lg:max-w-36 object-contain"
+              />
+            </a>
+          </div>
         </div>
       </div>
-    </div>
+
+    </div> <!-- End of Event Content (lvl 1-3) -->
   </div>
 </template>

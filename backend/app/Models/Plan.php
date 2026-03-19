@@ -40,5 +40,9 @@ class Plan extends Model
         return $this->hasOne(QPlan::class, 'plan');
     }
 
+    public function extraBlocks()
+    {
+        return $this->hasMany(ExtraBlock::class, 'plan');
+    }
 }
 

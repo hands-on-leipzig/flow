@@ -4,7 +4,7 @@
             "id": 1,
             "name": "Robot-Game",
             "sequence": 220,
-            "description": "",
+            "description": null,
             "first_program": 3,
             "overview_plan_column": "Robot-Game"
         },
@@ -12,7 +12,7 @@
             "id": 2,
             "name": "Jury",
             "sequence": 210,
-            "description": "",
+            "description": null,
             "first_program": 3,
             "overview_plan_column": "Challenge"
         },
@@ -20,7 +20,7 @@
             "id": 3,
             "name": "Begutachtung",
             "sequence": 120,
-            "description": "",
+            "description": null,
             "first_program": 2,
             "overview_plan_column": "Explore"
         },
@@ -28,7 +28,7 @@
             "id": 4,
             "name": "Mittagspause",
             "sequence": 130,
-            "description": "",
+            "description": null,
             "first_program": 3,
             "overview_plan_column": ""
         },
@@ -36,7 +36,7 @@
             "id": 5,
             "name": "Er\u00f6ffnung Challenge",
             "sequence": 200,
-            "description": "",
+            "description": null,
             "first_program": 3,
             "overview_plan_column": "Challenge"
         },
@@ -44,7 +44,7 @@
             "id": 6,
             "name": "Preisverleihung Challenge",
             "sequence": 250,
-            "description": "",
+            "description": null,
             "first_program": 3,
             "overview_plan_column": "Challenge"
         },
@@ -52,7 +52,7 @@
             "id": 7,
             "name": "Orga",
             "sequence": 0,
-            "description": "",
+            "description": null,
             "first_program": null,
             "overview_plan_column": ""
         },
@@ -60,15 +60,15 @@
             "id": 8,
             "name": "Live Challenge",
             "sequence": 255,
-            "description": "",
+            "description": null,
             "first_program": 3,
             "overview_plan_column": "Live-Challenge"
         },
         {
             "id": 9,
             "name": "Zusatzblock",
-            "sequence": 255,
-            "description": "",
+            "sequence": 60,
+            "description": null,
             "first_program": null,
             "overview_plan_column": ""
         },
@@ -76,7 +76,7 @@
             "id": 10,
             "name": "Er\u00f6ffnung Explore",
             "sequence": 110,
-            "description": "",
+            "description": null,
             "first_program": 2,
             "overview_plan_column": "Explore"
         },
@@ -84,14 +84,14 @@
             "id": 11,
             "name": "Preisverleihung Explore",
             "sequence": 150,
-            "description": "",
+            "description": null,
             "first_program": 2,
             "overview_plan_column": "Explore"
         },
         {
             "id": 12,
             "name": "Er\u00f6ffnung",
-            "sequence": 0,
+            "sequence": 10,
             "description": null,
             "first_program": null,
             "overview_plan_column": "Allgemein"
@@ -99,7 +99,7 @@
         {
             "id": 13,
             "name": "Preisverleihung",
-            "sequence": 0,
+            "sequence": 50,
             "description": null,
             "first_program": null,
             "overview_plan_column": "Allgemein"
@@ -115,7 +115,7 @@
         {
             "id": 15,
             "name": "Zusatzblock Challenge",
-            "sequence": 0,
+            "sequence": 255,
             "description": null,
             "first_program": 3,
             "overview_plan_column": ""
@@ -123,7 +123,7 @@
         {
             "id": 16,
             "name": "Forschung auf der B\u00fchne",
-            "sequence": 0,
+            "sequence": 40,
             "description": null,
             "first_program": 3,
             "overview_plan_column": "Allgemein"
@@ -131,10 +131,18 @@
         {
             "id": 17,
             "name": "Ausstellung",
-            "sequence": 0,
+            "sequence": 30,
             "description": null,
             "first_program": 2,
             "overview_plan_column": "Allgemein"
+        },
+        {
+            "id": 18,
+            "name": "Zusatzblock Explore",
+            "sequence": 160,
+            "description": null,
+            "first_program": 2,
+            "overview_plan_column": null
         }
     ],
     "m_activity_type_detail": [
@@ -592,7 +600,7 @@
             "description": "",
             "link": null,
             "link_text": null,
-            "activity_type": 9
+            "activity_type": 18
         },
         {
             "id": 49,
@@ -628,7 +636,7 @@
             "description": "",
             "link": null,
             "link_text": null,
-            "activity_type": 9
+            "activity_type": 18
         },
         {
             "id": 52,
@@ -640,7 +648,7 @@
             "description": "",
             "link": null,
             "link_text": null,
-            "activity_type": 9
+            "activity_type": 15
         },
         {
             "id": 54,
@@ -713,6 +721,42 @@
             "link": null,
             "link_text": null,
             "activity_type": 17
+        },
+        {
+            "id": 63,
+            "name": "Slot Block",
+            "code": "g_slot_block",
+            "name_preview": null,
+            "sequence": 30,
+            "first_program": null,
+            "description": null,
+            "link": null,
+            "link_text": null,
+            "activity_type": 9
+        },
+        {
+            "id": 64,
+            "name": "Slot Block Explore",
+            "code": "e_slot_block",
+            "name_preview": null,
+            "sequence": 90,
+            "first_program": 2,
+            "description": "",
+            "link": null,
+            "link_text": null,
+            "activity_type": 18
+        },
+        {
+            "id": 65,
+            "name": "Slot Block Challenge",
+            "code": "c_slot_block",
+            "name_preview": null,
+            "sequence": 81,
+            "first_program": 3,
+            "description": "",
+            "link": null,
+            "link_text": null,
+            "activity_type": 15
         }
     ],
     "m_first_program": [
@@ -1028,7 +1072,7 @@
             "step": null,
             "first_program": 3,
             "sequence": 85,
-            "ui_label": "Check Achtelfinale",
+            "ui_label": "Robot-Check Achtelfinale",
             "ui_description": "Gibt es einen Check vor jedem Match? Der Robot-Check erleichtert den Schiedsrichter:innen die Arbeit, kostet aber Zeit extra. "
         },
         {
@@ -1704,7 +1748,7 @@
             "first_program": 3,
             "sequence": 43,
             "ui_label": "Live Challenge Dauer Auswertung",
-            "ui_description": "Dauer der LC-Auswertung"
+            "ui_description": "Dauer der Live Challenge-Auswertung"
         },
         {
             "id": 92,
@@ -2147,7 +2191,7 @@
             "context": "input",
             "level": 3,
             "type": "time",
-            "value": "18:00",
+            "value": "18:30",
             "min": "17:00",
             "max": "20:00",
             "step": "5",
@@ -2162,7 +2206,7 @@
             "context": "input",
             "level": 3,
             "type": "time",
-            "value": "19:00",
+            "value": "18:30",
             "min": "17:00",
             "max": "20:00",
             "step": "5",
@@ -2192,8 +2236,8 @@
             "context": "input",
             "level": 3,
             "type": "integer",
-            "value": "180",
-            "min": "60",
+            "value": "300",
+            "min": "120",
             "max": "480",
             "step": "15",
             "first_program": null,
@@ -2275,6 +2319,36 @@
             "sequence": 74,
             "ui_label": "Beratung vor Ende Runde 3 erlauben",
             "ui_description": "F\u00fcr die Pokalvergabe m\u00fcssen die drei Robot-Game-Vorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erlaubt das."
+        },
+        {
+            "id": 133,
+            "name": "c_ready_opening_day_1",
+            "context": "expert",
+            "level": 3,
+            "type": "integer",
+            "value": "30",
+            "min": "5",
+            "max": "60",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 37,
+            "ui_label": "Wechsel zur Er\u00f6ffnung Tag 1",
+            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
+        },
+        {
+            "id": 134,
+            "name": "e_duration_transfer",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 3,
+            "sequence": 3,
+            "ui_label": "Dauer Transfer",
+            "ui_description": "Zeit, die ein Team mindestens zwischen zwei Aktionen hat. "
         }
     ],
     "m_parameter_condition": [],
@@ -6320,10 +6394,65 @@
             "id": 865,
             "activity_type_detail": 62,
             "role": 19
+        },
+        {
+            "id": 884,
+            "activity_type_detail": 63,
+            "role": 1
+        },
+        {
+            "id": 883,
+            "activity_type_detail": 63,
+            "role": 3
+        },
+        {
+            "id": 882,
+            "activity_type_detail": 63,
+            "role": 7
+        },
+        {
+            "id": 881,
+            "activity_type_detail": 63,
+            "role": 8
+        },
+        {
+            "id": 885,
+            "activity_type_detail": 63,
+            "role": 15
+        },
+        {
+            "id": 880,
+            "activity_type_detail": 64,
+            "role": 7
+        },
+        {
+            "id": 879,
+            "activity_type_detail": 64,
+            "role": 8
+        },
+        {
+            "id": 889,
+            "activity_type_detail": 64,
+            "role": 15
+        },
+        {
+            "id": 887,
+            "activity_type_detail": 65,
+            "role": 1
+        },
+        {
+            "id": 886,
+            "activity_type_detail": 65,
+            "role": 3
+        },
+        {
+            "id": 888,
+            "activity_type_detail": 65,
+            "role": 15
         }
     ],
     "_metadata": {
-        "exported_at": "2026-02-14T13:26:00.367970Z",
+        "exported_at": "2026-03-19T12:13:12.279300Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
