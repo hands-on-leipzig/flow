@@ -785,6 +785,8 @@ sub get_detailplan {
     my $activity_extra_block_room_name = "";
     my $activity_extra_block_room_navigation_instruction = "";
 
+    my $activity_slot_team = "";
+
     my $zeitplan_item = "";
     my $activity_item = "";
     my $activity_item_list = "";
@@ -1001,7 +1003,8 @@ sub get_detailplan {
             extra_block.link,
             extra_block_room.name,
             extra_block_room.navigation_instruction,
-            activity.id
+            activity.id,
+            activity.slot_team
             from activity
             join m_activity_type_detail on activity.activity_type_detail=m_activity_type_detail.id
             join m_activity_type on m_activity_type_detail.activity_type=m_activity_type.id
@@ -1065,6 +1068,8 @@ sub get_detailplan {
                     $activity_extra_block_room_navigation_instruction = $row_activities[26];
 
                     $activity_id = $row_activities[27];
+
+                    $activity_slot_team = $row_activities[28];
 
                     if ($activity_room_type_name eq "") {
                         $activity_room_type_name = "nicht spezifiziert";
@@ -1312,17 +1317,38 @@ sub get_detailplan {
                            || $activity_activity_type_detail_id == 63 || $activity_activity_type_detail_id == 64 || $activity_activity_type_detail_id == 65
                           ) {
                         # eingeschobener (47,48,49) oder freier Block (50,51,52) oder Slot-Block (63, 64, 65)
-                        # nichts zu $activity_item ergaenzen
+
+                        # bei 64 = Slot Explore
+                        # bzw.
+                        # 65 = Slot Challenge
+                        # wird der Teamname angezeigt, fuer welchen der Slot definiert wurde
+                        if ($activity_activity_type_detail_id == 64) {
+                            $team_name_output = get_team_name({team_number_plan=>$activity_slot_team, team_first_program=>2, team_hash_ref=>\%team});
+                            $activity_item .= qq{<a href="zeitplan.cgi?plan=$params->{plan}&brief=no&expired=$params->{expired}&now=$params->{now}&role=3&team=$activity_slot_team" class="teamlink">$team_name_output</a>};
+                            $xml_activity_detail = qq{Team $team_name_output};
+                        }
+                        elsif ($activity_activity_type_detail_id == 65) {
+                            $team_name_output = get_team_name({team_number_plan=>$activity_slot_team, team_first_program=>3, team_hash_ref=>\%team});
+                            $activity_item .= qq{<a href="zeitplan.cgi?plan=$params->{plan}&brief=no&expired=$params->{expired}&now=$params->{now}&role=3&team=$activity_slot_team" class="teamlink">$team_name_output</a>};
+                            $xml_activity_detail = qq{Team $team_name_output};
+                        }
+                        else {
+                            $team_name_output = "";
+                            $xml_activity_detail = "";
+                        }
+
+                        # nichts weiter zu $activity_item ergaenzen
                         #$activity_item .= "";
                         $xml_activity_titel = "";
                         # oder: ?
                         #$xml_activity_titel = $activity_extra_block_name;
-                        $xml_activity_detail = "";
+
 
                         # Description kommt in diesem Fall aus dem extra_block, daher die description aus activity_type_detail ueberschreiben
                         $activity_group_activity_type_detail_description = $activity_extra_block_description;
                         # Ebenso ein etwaiger Link
                         $activity_group_activity_type_detail_link = $activity_extra_block_link;
+
                     }
                     # Raum noch fuer extra_block anpassen!
                     $activity_item .= qq{<br><i class="bi-geo"></i> $activity_room_name $activity_room_navigation_instruction};
