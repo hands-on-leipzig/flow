@@ -751,7 +751,7 @@ const inputTitle =
           <div class="mb-2 text-xs text-gray-600 flex flex-wrap items-center gap-4">
             <span class="inline-flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-              Konflikt mit anderer Aktivität des Team
+              Konflikt mit anderer Aktivität des Teams
             </span>
             <span class="inline-flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>

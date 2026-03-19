@@ -526,6 +526,13 @@ class ExtraBlockController extends Controller
             : $cTransfer;
     }
 
+    private function visibilityRoleForProgram(int $teamFirstProgram): int
+    {
+        return in_array($teamFirstProgram, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)
+            ? 8 // Explore teams
+            : 3; // Challenge teams
+    }
+
     /**
      * @return array{status: string, min_gap_minutes: ?int}
      */
@@ -549,6 +556,12 @@ class ExtraBlockController extends Controller
             ->join('m_activity_type_detail as atd', 'atd.id', '=', 'a.activity_type_detail')
             ->where('ag.plan', $planId)
             ->where('atd.first_program', $teamFirstProgram)
+            ->whereExists(function ($q) use ($teamFirstProgram) {
+                $q->select(DB::raw(1))
+                    ->from('m_visibility as mv')
+                    ->whereColumn('mv.activity_type_detail', 'atd.id')
+                    ->where('mv.role', $this->visibilityRoleForProgram($teamFirstProgram));
+            })
             ->where(function ($q) use ($teamNumberPlan) {
                 $q->where('a.jury_team', $teamNumberPlan)
                     ->orWhere('a.table_1_team', $teamNumberPlan)
