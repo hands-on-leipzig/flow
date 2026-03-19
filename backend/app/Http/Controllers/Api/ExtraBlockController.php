@@ -14,6 +14,7 @@ use App\Models\SlotBlockTeam;
 use App\Services\EventAttentionService;
 use App\Services\ExtraBlockCleanupService;
 use App\Services\SlotBlockPlanSyncService;
+use App\Support\PlanParameter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -371,6 +372,9 @@ class ExtraBlockController extends Controller
     {
         $block = ExtraBlock::where('plan', $planId)->findOrFail($extraBlock);
         $this->assertSlotBlock($block, $planId);
+        $params = PlanParameter::load($planId);
+        $eTransfer = (int) $params->get('e_duration_transfer');
+        $cTransfer = (int) $params->get('c_duration_transfer');
 
         $fp = (int) $block->first_program;
 
@@ -400,18 +404,36 @@ class ExtraBlockController extends Controller
             ->orderBy('sbt.start')
             ->orderBy('tp.team_number_plan')
             ->get()
-            ->map(function ($r) {
+            ->map(function ($r) use ($planId, $extraBlock, $block, $eTransfer, $cTransfer) {
+                $start = $r->slot_start
+                    ? (is_string($r->slot_start)
+                        ? $r->slot_start
+                        : \Carbon\Carbon::parse($r->slot_start)->format('Y-m-d H:i:s'))
+                    : null;
+
+                $collision = null;
+                if ($start !== null && $r->team_number_plan !== null) {
+                    $transfer = $this->transferDurationForProgram((int) $r->first_program, $eTransfer, $cTransfer);
+                    $collision = $this->evaluateTeamCollisionForSlot(
+                        $planId,
+                        (int) $r->team_number_plan,
+                        (int) $r->first_program,
+                        $start,
+                        (int) $block->duration,
+                        $transfer,
+                        $extraBlock
+                    );
+                }
+
                 return [
                     'team_id' => (int) $r->team_id,
                     'team_number_plan' => $r->team_number_plan,
                     'team_number_hot' => $r->team_number_hot,
                     'team_name' => $r->team_name,
                     'first_program' => (int) $r->first_program,
-                    'start' => $r->slot_start
-                        ? (is_string($r->slot_start)
-                            ? $r->slot_start
-                            : \Carbon\Carbon::parse($r->slot_start)->format('Y-m-d H:i:s'))
-                        : null,
+                    'start' => $start,
+                    'collision_status' => $collision['status'] ?? null,
+                    'collision_gap_minutes' => $collision['min_gap_minutes'] ?? null,
                 ];
             });
 
@@ -471,10 +493,113 @@ class ExtraBlockController extends Controller
             ? $row->start->format('Y-m-d H:i:s')
             : (string) $row->getRawOriginal('start');
 
+        $params = PlanParameter::load($planId);
+        $eTransfer = (int) $params->get('e_duration_transfer');
+        $cTransfer = (int) $params->get('c_duration_transfer');
+        $transfer = $this->transferDurationForProgram((int) $t->first_program, $eTransfer, $cTransfer);
+        $collision = $this->evaluateTeamCollisionForSlot(
+            $planId,
+            (int) $tp->team_number_plan,
+            (int) $t->first_program,
+            $startOut,
+            (int) $block->duration,
+            $transfer,
+            $extraBlock
+        );
+
         return response()->json([
             'team_id' => $team,
             'start' => $startOut,
+            'collision_status' => $collision['status'],
+            'collision_gap_minutes' => $collision['min_gap_minutes'],
         ]);
+    }
+
+    private function transferDurationForProgram(int $teamFirstProgram, int $eTransfer, int $cTransfer): int
+    {
+        return in_array($teamFirstProgram, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)
+            ? $eTransfer
+            : $cTransfer;
+    }
+
+    /**
+     * @return array{status: string, min_gap_minutes: ?int}
+     */
+    private function evaluateTeamCollisionForSlot(
+        int $planId,
+        int $teamNumberPlan,
+        int $teamFirstProgram,
+        string $slotStart,
+        int $slotDurationMinutes,
+        int $transferMinutes,
+        int $extraBlockId
+    ): array {
+        $slotStartDt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $slotStart, new \DateTimeZone('UTC'));
+        if (! $slotStartDt) {
+            return ['status' => 'green', 'min_gap_minutes' => null];
+        }
+        $slotEndDt = $slotStartDt->modify('+'.$slotDurationMinutes.' minutes');
+
+        $rows = DB::table('activity as a')
+            ->join('activity_group as ag', 'ag.id', '=', 'a.activity_group')
+            ->join('m_activity_type_detail as atd', 'atd.id', '=', 'a.activity_type_detail')
+            ->where('ag.plan', $planId)
+            ->where('atd.first_program', $teamFirstProgram)
+            ->where(function ($q) use ($teamNumberPlan) {
+                $q->where('a.jury_team', $teamNumberPlan)
+                    ->orWhere('a.table_1_team', $teamNumberPlan)
+                    ->orWhere('a.table_2_team', $teamNumberPlan)
+                    ->orWhere('a.slot_team', $teamNumberPlan);
+            })
+            ->where(function ($q) use ($extraBlockId) {
+                $q->whereNull('a.extra_block')
+                    ->orWhere('a.extra_block', '!=', $extraBlockId);
+            })
+            ->select(['a.start', 'a.end'])
+            ->get();
+
+        $minGap = null;
+
+        foreach ($rows as $row) {
+            $aStart = is_string($row->start) ? $row->start : (string) $row->start;
+            $aEnd = is_string($row->end) ? $row->end : (string) $row->end;
+            $aStart = preg_replace('/T/', ' ', $aStart, 1);
+            $aEnd = preg_replace('/T/', ' ', $aEnd, 1);
+            if (strlen($aStart) === 16) {
+                $aStart .= ':00';
+            }
+            if (strlen($aEnd) === 16) {
+                $aEnd .= ':00';
+            }
+
+            $actStartDt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $aStart, new \DateTimeZone('UTC'));
+            $actEndDt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $aEnd, new \DateTimeZone('UTC'));
+            if (! $actStartDt || ! $actEndDt) {
+                continue;
+            }
+
+            // Overlap: [slotStart, slotEnd) intersects [actStart, actEnd)
+            if ($slotStartDt < $actEndDt && $slotEndDt > $actStartDt) {
+                return ['status' => 'red', 'min_gap_minutes' => 0];
+            }
+
+            $gap = null;
+            if ($slotEndDt <= $actStartDt) {
+                $gap = (int) floor(($actStartDt->getTimestamp() - $slotEndDt->getTimestamp()) / 60);
+            } elseif ($actEndDt <= $slotStartDt) {
+                $gap = (int) floor(($slotStartDt->getTimestamp() - $actEndDt->getTimestamp()) / 60);
+            }
+
+            if ($gap !== null && ($minGap === null || $gap < $minGap)) {
+                $minGap = $gap;
+            }
+        }
+
+        if ($minGap !== null && $minGap < $transferMinutes) {
+            return ['status' => 'yellow', 'min_gap_minutes' => $minGap];
+        }
+
+        return ['status' => 'green', 'min_gap_minutes' => $minGap];
     }
 
     private function assertSlotBlock(ExtraBlock $block, int $planId): void
