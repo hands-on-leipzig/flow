@@ -1328,7 +1328,7 @@ sub get_detailplan {
                                 # Explore-Team selbst sieht seinen Namen nicht nochmal im Slot
                                 $team_name_output = get_team_name({team_number_plan=>$activity_slot_team, team_first_program=>2, team_hash_ref=>\%team});
                                 $activity_item .= qq{<a href="zeitplan.cgi?plan=$params->{plan}&brief=no&expired=$params->{expired}&now=$params->{now}&role=8&team=$activity_slot_team" class="teamlink">$team_name_output</a>};
-                                $xml_activity_detail = qq{Team $team_name_output};
+                                $xml_activity_detail = qq{$team_name_output};
                             }
                         }
                         elsif ($activity_activity_type_detail_id == 65) {
@@ -1337,7 +1337,7 @@ sub get_detailplan {
                                 # Challenge-Team selbst sieht seinen Namen nicht nochmal im Slot
                                 $team_name_output = get_team_name({team_number_plan=>$activity_slot_team, team_first_program=>3, team_hash_ref=>\%team});
                                 $activity_item .= qq{<a href="zeitplan.cgi?plan=$params->{plan}&brief=no&expired=$params->{expired}&now=$params->{now}&role=3&team=$activity_slot_team" class="teamlink">$team_name_output</a>};
-                                $xml_activity_detail = qq{Team $team_name_output};
+                                $xml_activity_detail = qq{$team_name_output};
                             }
                         }
                         else {
