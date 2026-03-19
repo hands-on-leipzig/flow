@@ -27,6 +27,8 @@ type TeamRow = {
   team_name: string
   first_program: number
   start: string | null
+  collision_status?: 'red' | 'yellow' | 'green' | null
+  collision_gap_minutes?: number | null
 }
 
 function normalizeDurationMinutes(d: number): number {
@@ -94,6 +96,8 @@ const applying = ref(false)
 const applyError = ref<string | null>(null)
 const applyResult = ref<{ removed_activities: number; removed_groups: number; created_groups: number; created_activities: number } | null>(null)
 const applyToast = ref<InstanceType<typeof ScheduleToast> | null>(null)
+const eDurationTransfer = ref<number>(0)
+const cDurationTransfer = ref<number>(0)
 
 async function applySlotsToPlan() {
   if (!planId.value || applying.value) return
@@ -221,10 +225,12 @@ async function loadTeams() {
   }
   loadingTeams.value = true
   try {
-    const {data} = await axios.get<{ teams: TeamRow[] }>(
+    const {data} = await axios.get<{ teams: TeamRow[]; e_duration_transfer?: number; c_duration_transfer?: number }>(
       `/plans/${planId.value}/extra-blocks/slot/${selectedId.value}/teams`
     )
     teams.value = data?.teams ?? []
+    eDurationTransfer.value = Number(data?.e_duration_transfer ?? 0) || 0
+    cDurationTransfer.value = Number(data?.c_duration_transfer ?? 0) || 0
   } finally {
     loadingTeams.value = false
   }
@@ -357,7 +363,9 @@ onMounted(async () => {
   loading.value = true
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
   await loadPlan()
-  if (planId.value) await loadBlocks()
+  if (planId.value) {
+    await loadBlocks()
+  }
   await loadTeams()
   loading.value = false
   document.addEventListener('click', handleClickOutside)
@@ -375,7 +383,15 @@ watch(planId, async (id) => {
 })
 
 watch(selectedId, () => {
-  loadTeams()
+  if (!selectedId.value || !planId.value) {
+    loadTeams()
+    return
+  }
+
+  // Keep collision checks on fresh plan activities when switching slot blocks.
+  applySlotsToPlan().finally(() => {
+    loadTeams()
+  })
 })
 
 async function patchBlock(block: SlotBlock, patch: Record<string, unknown>) {
@@ -425,6 +441,26 @@ function formatPlanTeamNo(n: number | null | undefined): string {
   return `T${String(Math.floor(Number(n))).padStart(2, '0')}`
 }
 
+function collisionDotClass(status: TeamRow['collision_status']): string {
+  if (status === 'red') return 'bg-red-500'
+  if (status === 'yellow') return 'bg-yellow-400'
+  if (status === 'green') return 'bg-green-500'
+  return 'bg-gray-300'
+}
+
+function collisionTitle(row: TeamRow): string {
+  if (!row.start) return 'Keine Startzeit zugewiesen'
+  if (row.collision_status === 'red') return 'Kollision: Überschneidung mit anderer Aktivität'
+  if (row.collision_status === 'yellow') {
+    if (row.collision_gap_minutes != null) {
+      return `Knapp: Abstand nur ${row.collision_gap_minutes} Min (unter Transferzeit)`
+    }
+    return 'Knapp: Abstand unter Transferzeit'
+  }
+  if (row.collision_status === 'green') return 'OK: Keine Kollision, Transferzeit eingehalten'
+  return 'Prüfung ausstehend'
+}
+
 async function onTeamStartChange(row: TeamRow, value: string) {
   if (!planId.value || !selectedId.value) return
   const start = value ? datetimeLocalToDb(value) : null
@@ -434,6 +470,8 @@ async function onTeamStartChange(row: TeamRow, value: string) {
       {start}
     )
     row.start = data.start
+    row.collision_status = data.collision_status ?? null
+    row.collision_gap_minutes = data.collision_gap_minutes ?? null
     cancelEditStart(row)
     teams.value = [...teams.value].sort((a, b) => {
       if (!a.start && !b.start) return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
@@ -469,13 +507,13 @@ const inputTitle =
               :disabled="applying"
               @click="applySlotsToPlan"
             >
-              <span v-if="!applying">Slots in den Plan übernehmen</span>
+              <span v-if="!applying">Zuordnungen in den Plan übernehmen</span>
               <span v-else>Übernehme…</span>
             </button>
           </div>
           <div class="lg:col-span-2">
             <p class="text-sm text-gray-700">
-              Alle bisherigen Slots werden aus dem Plan entfernt. Dann werden die Zuordnungen für
+              Alle bisherigen Zuordnungen werden aus dem Plan entfernt. Dann werden die Zuordnungen für
               alle aktiven Aktivitäten pro Team in den Plan eingefügt.
             </p>
             <p class="text-sm text-red-700 mt-2">
@@ -718,6 +756,20 @@ const inputTitle =
         </div>
 
         <template v-if="selectedBlock">
+          <div class="mb-2 text-xs text-gray-600 flex flex-wrap items-center gap-4">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+              Konflikt mit anderer Aktivität des Teams
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+              Abstand zu anderer Aktivität kleiner als Transferzeit (E:{{ eDurationTransfer }} Min, C: {{ cDurationTransfer }} Min)
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+              OK
+            </span>
+          </div>
           <div v-if="loadingTeams" class="flex items-center gap-2 text-gray-500 py-8">
             <LoaderFlow class="scale-75"/>
             <span class="text-sm">Lade Teams…</span>
@@ -766,6 +818,13 @@ const inputTitle =
                       >
                         <i class="bi bi-trash-fill"></i>
                       </button>
+
+                      <span
+                        v-if="row.start"
+                        class="w-3 h-3 rounded-full inline-block"
+                        :class="collisionDotClass(row.collision_status ?? null)"
+                        :title="collisionTitle(row)"
+                      ></span>
                     </div>
                   </td>
                   <td class="px-2 py-2 text-center">
@@ -806,7 +865,7 @@ const inputTitle =
       ref="applyToast"
       :is-generating="applying"
       :countdown="null"
-      message="Slots werden übernommen..."
+      message="Plan wird aktualisiert"
     />
   </div>
 </template>
