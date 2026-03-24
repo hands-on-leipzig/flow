@@ -45,6 +45,7 @@ Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'action
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?room=24&interval=15&point_in_time=...
 Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
 Route::get('/events/public/{id}', [EventController::class, 'getPublicEventById']); // Public event lookup by id
+Route::get('/events/{event}/team-coordinates', [DrahtController::class, 'getTeamsCoordinates']);
 Route::get('/events', [EventController::class, 'index']); // Get list of current events
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
@@ -192,7 +193,6 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);
     Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
     Route::delete('/teams/{team}', [TeamController::class, 'destroy']);
-    Route::get('/events/{event}/team-coordinates', [DrahtController::class, 'getTeamsCoordinates']);
 
     Route::prefix('logos')->group(function () {
         Route::get('/', [LogoController::class, 'index']);
