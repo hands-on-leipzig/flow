@@ -414,6 +414,7 @@ class PlanController extends Controller
             'end' => $end,
             'room' => null,
             'active' => 1,
+            'type' => 'free',
         ]);
 
         $start->setTime(9, 0, 0);
@@ -429,6 +430,7 @@ class PlanController extends Controller
             'end' => $end,
             'room' => null,
             'active' => 0,
+            'type' => 'free',
         ]);
 
         $start->setTime(8, 0, 0);
@@ -444,6 +446,7 @@ class PlanController extends Controller
             'end' => $end,
             'room' => null,
             'active' => $e_teams > 0 ? 1 : 0,
+            'type' => 'free',
         ]);
 
         DB::table('extra_block')->insert([
@@ -456,6 +459,7 @@ class PlanController extends Controller
             'end' => $end,
             'room' => null,
             'active' => $c_teams > 0 ? 1 : 0,
+            'type' => 'free',
         ]);
 
 

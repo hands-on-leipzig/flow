@@ -1,4 +1,5 @@
 <?php
+
 // app/Services/ActivityFetcherService.php
 
 namespace App\Services;
@@ -21,7 +22,7 @@ class ActivityFetcherService
         bool $freeBlocks = true,
         bool $include_past = false,
         array $rooms = [], // optionaler Filter: nur Aktivitäten in diesen Räumen (IDs), empty = alle Räume
-        ) {
+    ) {
 
         $q = DB::table('activity as a')
             ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
@@ -30,10 +31,18 @@ class ActivityFetcherService
             ->leftJoin('extra_block as peb', 'a.extra_block', '=', 'peb.id')
             ->join('plan as p', 'p.id', '=', 'ag.plan')
             ->join('event as e', 'e.id', '=', 'p.event')
+            ->leftJoin('team_plan as tp_slot', function ($j) {
+                $j->on('tp_slot.plan', '=', 'p.id')
+                    ->on('tp_slot.team_number_plan', '=', 'a.slot_team');
+            })
+            ->leftJoin('team as t_slot', function ($j) {
+                $j->on('t_slot.id', '=', 'tp_slot.team')
+                    ->on('t_slot.event', '=', 'p.event');
+            })
             ->where('ag.plan', $plan);
 
         // Rollen-Filter (optional)
-        if (!empty($roles)) {
+        if (! empty($roles)) {
             $q->whereIn('atd.id', function ($sub) use ($roles) {
                 $sub->select('activity_type_detail')
                     ->from('m_visibility')
@@ -42,7 +51,7 @@ class ActivityFetcherService
         }
 
         // Free-Blocks filtern (optional)
-        if (!$freeBlocks) {
+        if (! $freeBlocks) {
             $q->where(function ($sub) {
                 $sub->whereNull('a.extra_block')   // normale Activities
                     ->orWhereNotNull('peb.insert_point'); // Extra-Blocks mit insert_point
@@ -50,7 +59,7 @@ class ActivityFetcherService
         }
 
         // Filter: exclude activities outside event date range (default)
-        if (!$include_past) {
+        if (! $include_past) {
             // Lower bound: activities must start on or after event start date
             $q->whereColumn('a.start', '>=', 'e.date');
 
@@ -63,28 +72,28 @@ class ActivityFetcherService
         // Group-Meta (optional)
         if ($includeGroupMeta) {
             $q->leftJoin('m_activity_type_detail as ag_atd', 'ag_atd.id', '=', 'ag.activity_type_detail')
-            ->leftJoin('m_first_program as ag_fp', 'ag_fp.id', '=', 'ag_atd.first_program')
-            ->leftJoin('m_activity_type as ag_at', 'ag_at.id', '=', 'ag_atd.activity_type');
+                ->leftJoin('m_first_program as ag_fp', 'ag_fp.id', '=', 'ag_atd.first_program')
+                ->leftJoin('m_activity_type as ag_at', 'ag_at.id', '=', 'ag_atd.activity_type');
         }
 
         // Rooms (optional)
-        if ($includeRooms || !empty($rooms)) {
+        if ($includeRooms || ! empty($rooms)) {
             $q->leftJoin('m_room_type as rt_room', 'a.room_type', '=', 'rt_room.id')
-            ->leftJoin('room_type_room as rtr', function ($j) {
-                $j->on('rtr.room_type', '=', 'a.room_type')
-                    ->on('rtr.event', '=', 'p.event');
-            })
-            ->leftJoin('room as r', function ($j) {
-                // (r.id = rtr.room AND r.event = p.event) OR (r.id = peb.room AND r.event = p.event)
-                $j->on('r.id', '=', 'rtr.room')
-                    ->on('r.event', '=', 'p.event')
-                    ->orOn(function ($or) {
-                        $or->on('r.id', '=', 'peb.room')
-                        ->on('r.event', '=', 'p.event');
-                    });
-            });
+                ->leftJoin('room_type_room as rtr', function ($j) {
+                    $j->on('rtr.room_type', '=', 'a.room_type')
+                        ->on('rtr.event', '=', 'p.event');
+                })
+                ->leftJoin('room as r', function ($j) {
+                    // (r.id = rtr.room AND r.event = p.event) OR (r.id = peb.room AND r.event = p.event)
+                    $j->on('r.id', '=', 'rtr.room')
+                        ->on('r.event', '=', 'p.event')
+                        ->orOn(function ($or) {
+                            $or->on('r.id', '=', 'peb.room')
+                                ->on('r.event', '=', 'p.event');
+                        });
+                });
 
-            if (!empty($rooms)) {
+            if (! empty($rooms)) {
                 $q->where(function ($sub) use ($rooms) {
                     $sub->whereIn('r.id', $rooms);
                 });
@@ -94,73 +103,73 @@ class ActivityFetcherService
         // Team-Namen (optional): team_plan → team
         if ($includeTeamNames) {
             // Jury-Team
-            $q->leftJoin('team_plan as tp_j', function($j) {
+            $q->leftJoin('team_plan as tp_j', function ($j) {
                 $j->on('tp_j.plan', '=', 'p.id')
-                ->on('tp_j.team_number_plan', '=', 'a.jury_team')
-                ->whereExists(function ($sub) {
-                    $sub->select(DB::raw(1))
-                        ->from('team as tx')
-                        ->whereColumn('tx.id', 'tp_j.team')
-                        ->whereColumn('tx.event', 'p.event')
-                        ->whereColumn('tx.first_program', 'atd.first_program');
-                });
-            })->leftJoin('team as t_j', function($j) {
+                    ->on('tp_j.team_number_plan', '=', 'a.jury_team')
+                    ->whereExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('team as tx')
+                            ->whereColumn('tx.id', 'tp_j.team')
+                            ->whereColumn('tx.event', 'p.event')
+                            ->whereColumn('tx.first_program', 'atd.first_program');
+                    });
+            })->leftJoin('team as t_j', function ($j) {
                 $j->on('t_j.id', '=', 'tp_j.team')
-                ->on('t_j.event', '=', 'p.event')
-                ->on('t_j.first_program', '=', 'atd.first_program');
+                    ->on('t_j.event', '=', 'p.event')
+                    ->on('t_j.first_program', '=', 'atd.first_program');
             });
 
             // Table 1
-            $q->leftJoin('team_plan as tp_t1', function($j) {
+            $q->leftJoin('team_plan as tp_t1', function ($j) {
                 $j->on('tp_t1.plan', '=', 'p.id')
-                ->on('tp_t1.team_number_plan', '=', 'a.table_1_team')
-                ->whereExists(function ($sub) {
-                    $sub->select(DB::raw(1))
-                        ->from('team as tx1')
-                        ->whereColumn('tx1.id', 'tp_t1.team')
-                        ->whereColumn('tx1.event', 'p.event')
-                        ->whereColumn('tx1.first_program', 'atd.first_program');
-                });
-            })->leftJoin('team as t_t1', function($j) {
+                    ->on('tp_t1.team_number_plan', '=', 'a.table_1_team')
+                    ->whereExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('team as tx1')
+                            ->whereColumn('tx1.id', 'tp_t1.team')
+                            ->whereColumn('tx1.event', 'p.event')
+                            ->whereColumn('tx1.first_program', 'atd.first_program');
+                    });
+            })->leftJoin('team as t_t1', function ($j) {
                 $j->on('t_t1.id', '=', 'tp_t1.team')
-                ->on('t_t1.event', '=', 'p.event')
-                ->on('t_t1.first_program', '=', 'atd.first_program');
+                    ->on('t_t1.event', '=', 'p.event')
+                    ->on('t_t1.first_program', '=', 'atd.first_program');
             });
 
             // Table 2
-            $q->leftJoin('team_plan as tp_t2', function($j) {
+            $q->leftJoin('team_plan as tp_t2', function ($j) {
                 $j->on('tp_t2.plan', '=', 'p.id')
-                ->on('tp_t2.team_number_plan', '=', 'a.table_2_team')
-                ->whereExists(function ($sub) {
-                    $sub->select(DB::raw(1))
-                        ->from('team as tx2')
-                        ->whereColumn('tx2.id', 'tp_t2.team')
-                        ->whereColumn('tx2.event', 'p.event')
-                        ->whereColumn('tx2.first_program', 'atd.first_program');
-                });
-            })->leftJoin('team as t_t2', function($j) {
+                    ->on('tp_t2.team_number_plan', '=', 'a.table_2_team')
+                    ->whereExists(function ($sub) {
+                        $sub->select(DB::raw(1))
+                            ->from('team as tx2')
+                            ->whereColumn('tx2.id', 'tp_t2.team')
+                            ->whereColumn('tx2.event', 'p.event')
+                            ->whereColumn('tx2.first_program', 'atd.first_program');
+                    });
+            })->leftJoin('team as t_t2', function ($j) {
                 $j->on('t_t2.id', '=', 'tp_t2.team')
-                ->on('t_t2.event', '=', 'p.event')
-                ->on('t_t2.first_program', '=', 'atd.first_program');
+                    ->on('t_t2.event', '=', 'p.event')
+                    ->on('t_t2.first_program', '=', 'atd.first_program');
             });
         }
 
         // Table-Names (Override aus table_event)
-        $q->leftJoin('table_event as te1', function($j) {
+        $q->leftJoin('table_event as te1', function ($j) {
             $j->on('te1.event', '=', 'p.event')
-               ->where('te1.table_number', 1);
+                ->where('te1.table_number', 1);
         });
-        $q->leftJoin('table_event as te2', function($j) {
+        $q->leftJoin('table_event as te2', function ($j) {
             $j->on('te2.event', '=', 'p.event')
-               ->where('te2.table_number', 2);
+                ->where('te2.table_number', 2);
         });
-        $q->leftJoin('table_event as te3', function($j) {
+        $q->leftJoin('table_event as te3', function ($j) {
             $j->on('te3.event', '=', 'p.event')
-               ->where('te3.table_number', 3);
+                ->where('te3.table_number', 3);
         });
-        $q->leftJoin('table_event as te4', function($j) {
+        $q->leftJoin('table_event as te4', function ($j) {
             $j->on('te4.event', '=', 'p.event')
-               ->where('te4.table_number', 4);
+                ->where('te4.table_number', 4);
         });
 
         // Basisselektion
@@ -189,7 +198,8 @@ class ActivityFetcherService
                 WHEN 2 THEN CONCAT("Tisch ", COALESCE(te2.table_name, "2"))
                 WHEN 4 THEN CONCAT("Tisch ", COALESCE(te4.table_name, "4"))
                 ELSE NULL
-            END AS table_2_name
+            END AS table_2_name,
+            a.slot_team as slot_team
         ';
 
         if ($includeRooms) {
@@ -270,8 +280,8 @@ class ActivityFetcherService
         // vor dem finalen orderBy einbauen:
         $q->leftJoinSub(
             DB::table('activity')
-            ->select('activity_group', DB::raw('MIN(start) as group_first_start'))
-            ->groupBy('activity_group'),
+                ->select('activity_group', DB::raw('MIN(start) as group_first_start'))
+                ->groupBy('activity_group'),
             'ag_min',
             'ag_min.activity_group',
             '=',
@@ -280,9 +290,8 @@ class ActivityFetcherService
 
         // sortieren: erst Gruppenstart, dann Activity-Start
         $q->orderBy('ag_min.group_first_start')
-        ->orderBy('a.start');
+            ->orderBy('a.start');
 
         return $q->selectRaw($select)->get();
     }
-
 }

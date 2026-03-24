@@ -29,4 +29,12 @@ class Team extends Model
     {
         return $this->hasMany(TeamPlan::class, 'team');
     }
+
+    /**
+     * Slot-block assignments (planner-assigned start times per slot block).
+     */
+    public function slotBlockTeams()
+    {
+        return $this->hasMany(SlotBlockTeam::class, 'team');
+    }
 }

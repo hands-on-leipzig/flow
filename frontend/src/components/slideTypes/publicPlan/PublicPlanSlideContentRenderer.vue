@@ -8,6 +8,7 @@ const props = withDefaults(
     defineProps<{
       content: PublicPlanSlideContent;
       preview: boolean;
+      eventId: number;
     }>(),
     {preview: false}
 );
@@ -17,6 +18,7 @@ const {result} = usePlanActionWithPolling(
       planId: props.content.planId,
       role: props.content.role,
       room: props.content.room,
+      eventId: props.eventId
     },
     'now',
     5 * 60 * 1000

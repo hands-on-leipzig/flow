@@ -217,6 +217,10 @@ class CarouselController extends Controller
             $slide['name'] = 'Externer Inhalt';
         } else if ($type === 'FabricSlideContent') {
             $slide['name'] = 'Eigener Inhalt';
+        } else if ($type === 'TeamsMapSlideContent') {
+            $slide['name'] = 'Karte aller Teams';
+        } else if ($type === 'TeamsTableSlideContent') {
+            $slide['name'] = 'Alle Teams';
         }
 
         if (!array_key_exists('background', $providedContent)) {

@@ -66,11 +66,17 @@ const publicPlanChoices = [
   {slide: 'PublicPlanSlideContent', label: 'Jetzt laufende Programmpunkte', icon: 'bi-clock'},
   {slide: 'PublicPlanNextSlideContent', label: 'Kommende Programmpunkte', icon: 'bi-calendar-event'},
 ];
+const teamsChoices = [
+  {slide: 'TeamsMapSlideContent', label: 'Karte aller Teams', icon: 'bi-geo-alt'},
+  {slide: 'TeamsTableSlideContent', label: 'Tabelle aller Teams', icon: 'bi-table'},
+];
+
 const slideTypes = [
   {slide: 'RobotGameSlideContent', label: 'Robot-Game-Ergebnisse', icon: 'bi-trophy'},
   {subModal: publicPlanChoices, label: 'Öffentlicher Zeitplan', icon: 'bi-calendar'},
   {slide: 'UrlSlideContent', label: 'Externer Inhalt (URL)', icon: 'bi-link-45deg'},
   {slide: 'FabricSlideContent', label: 'Eigener Inhalt', icon: 'bi-pencil-square'},
+  {subModal: teamsChoices, label: 'Inhalte zu den Teams', icon: 'bi-people'}
 ];
 
 const addSliceChoices = ref(null);

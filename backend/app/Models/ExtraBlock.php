@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ExtraBlock extends Model
 {
@@ -27,6 +28,7 @@ class ExtraBlock extends Model
         'end',
         'room',
         'active',
+        'type',
     ];
 
     protected $casts = [
@@ -48,8 +50,20 @@ class ExtraBlock extends Model
         return $this->belongsTo(MInsertPoint::class, 'insert_point');
     }
 
-    public function room()
+    /**
+     * Assigned physical room (FK column is also named `room`).
+     * Do not name this relationship `room()` — it shadows the FK attribute and breaks BelongsTo.
+     */
+    public function assignedRoom()
     {
         return $this->belongsTo(Room::class, 'room');
+    }
+
+    /**
+     * Team start-time assignments for slot blocks (type = slot).
+     */
+    public function slotBlockTeams(): HasMany
+    {
+        return $this->hasMany(SlotBlockTeam::class, 'extra_block');
     }
 }

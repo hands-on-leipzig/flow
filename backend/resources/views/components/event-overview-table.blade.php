@@ -69,7 +69,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                 $hasAllgemein3 = in_array('Allgemein-3', $columnNames);
                                 $hasChallenge = in_array('Challenge', $columnNames);
                                 $hasRobotGame = in_array('Robot-Game', $columnNames);
-                                $hasLiveChallenge = in_array('Live-Challenge', $columnNames);
+                                $hasLiveChallenge = in_array('Live Challenge', $columnNames);
                                 
                                 // Count columns for each merged group
                                 $exploreColumns = 0;
@@ -131,7 +131,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if(!$hasAllgemein3 && !$hasChallenge && !$hasLiveChallenge)
                                         <th class="column-header">{{ $columnName }}</th>
                                     @endif
-                                @elseif($columnName === 'Live-Challenge' && $hasLiveChallenge)
+                                @elseif($columnName === 'Live Challenge' && $hasLiveChallenge)
                                     @if(!$hasAllgemein3 && !$hasChallenge && !$hasRobotGame)
                                         <th class="column-header">{{ $columnName }}</th>
                                     @endif
@@ -218,7 +218,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                             $columnColors = [
                                                 'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
                                                 'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
-                                                'Live-Challenge' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
+                                                'Live Challenge' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
                                                 'Robot-Game' => ['bg' => '#fef5e7', 'border' => '#f39c12'],
                                                 'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']
                                             ];

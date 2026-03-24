@@ -2839,7 +2839,7 @@ if ($prepRooms->isNotEmpty()) {
         $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
         $challengeRefGrouped  = $distributeGeneric($challengeRefActs, 'table', 'FLL Challenge Schiedsrichter:innen ');
         $challengeCheckGrouped= $distributeGeneric($challengeCheckActs, 'table', 'FLL Challenge Robot-Check für ');
-        $liveChallengeGrouped = $distributeGeneric($liveChallengeActs, 'lane', 'Live-Challenge Jury-Gruppe');
+        $liveChallengeGrouped = $distributeGeneric($liveChallengeActs, 'lane', 'Live Challenge Jury-Gruppe');
 
         // === Zusammenführen mit Rollen-Metadaten ===
         $sections = collect();
@@ -3228,7 +3228,7 @@ if ($prepRooms->isNotEmpty()) {
                     'Allgemein-3' => 3,
                     'Challenge' => 4,
                     'Robot-Game' => 5,
-                    'Live-Challenge' => 6
+                    'Live Challenge' => 6
                 ];
                 
                 return $customOrder[$columnName] ?? 999;

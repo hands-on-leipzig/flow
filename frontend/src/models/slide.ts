@@ -5,6 +5,8 @@ import {UrlSlideContent} from "./urlSlideContent";
 import {FabricSlideContent} from "./fabricSlideContent";
 import {PublicPlanSlideContent} from './publicPlanSlideContent';
 import {PublicPlanNextSlideContent} from './publicPlanNextSlideContent';
+import {TeamsMapSlideContent} from "./teamsMapSlideContent";
+import {TeamsTableSlideContent} from "./teamsTableSlideContent";
 
 export class Slide {
 
@@ -45,6 +47,10 @@ export class Slide {
                 return new PublicPlanSlideContent(content);
             case "PublicPlanNextSlideContent":
                 return new PublicPlanNextSlideContent(content);
+            case "TeamsMapSlideContent":
+                return new TeamsMapSlideContent(content);
+            case "TeamsTableSlideContent":
+                return new TeamsTableSlideContent(content);
             default:
                 console.error("Unknown slide content type: " + data.type);
                 return null;

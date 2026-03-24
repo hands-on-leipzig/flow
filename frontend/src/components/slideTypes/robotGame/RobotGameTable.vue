@@ -2,7 +2,8 @@
 import type {Team} from "@/models/robotGameScores";
 import {getDemoData, roundNames} from '@/services/useScores';
 import {RobotGameSlideContent} from "@/models/robotGameSlideContent";
-import {computed, nextTick, onMounted, onUnmounted, ref, watch} from "vue";
+import {computed, nextTick, ref, watch} from "vue";
+import {useTableFontResize} from "@/composables/useTableFontResize";
 
 
 const props = defineProps<{
@@ -18,8 +19,6 @@ const titleRef = ref<HTMLElement | null>(null);
 const shortTitleRef = ref<HTMLElement | null>(null);
 const tableRef = ref<HTMLTableElement | null>(null);
 
-let ro: ResizeObserver | null = null;
-
 const teams = computed(() => {
   if (props.paginatedTeams) {
     return props.paginatedTeams;
@@ -29,79 +28,33 @@ const teams = computed(() => {
   }
 });
 
-async function adjustFontSize() {
-  if (!wrapperRef.value || !tableRef.value) {
-    return;
-  }
-
-  const wrapperRect = wrapperRef.value.getBoundingClientRect();
-  let titleRect = titleRef.value?.getBoundingClientRect();
-  if (!titleRect || titleRect.height === 0) {
-    titleRect = shortTitleRef.value?.getBoundingClientRect() ?? { height: 0 } as DOMRect;
-  }
-
-  // Platz für Tabelle: Wrapper minus Titel minus kleiner Puffer
-  const availableHeight = Math.max(0, wrapperRect.height - titleRect.height - 12);
-  const availableWidth = Math.max(0, wrapperRect.width);
-
-  // Grenzen
-  const MIN_FONT = 8;
-  const MAX_FONT = 40;
-
-  // Binary search for the largest font that fits both width and height
-  let low = MIN_FONT;
-  let high = MAX_FONT;
-  let best = MIN_FONT;
-
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
-    // apply mid font
-    wrapperRef.value.style.setProperty('--table-font-size', `${mid}px`);
-    // wait for DOM to update with new font
-    // (use two ticks to be extra safe with rendering in complex layouts)
-    await nextTick();
-
-    const rect = tableRef.value.getBoundingClientRect();
-    const fitsHeight = rect.height <= availableHeight + 1;
-    const fitsWidth = rect.width <= availableWidth + 1;
-
-    if (fitsHeight && fitsWidth) {
-      best = mid; // mid fits, try bigger
-      low = mid + 1;
-    } else {
-      // mid does not fit, try smaller
-      high = mid - 1;
+const {adjustFontSize} = useTableFontResize({
+  wrapperRef,
+  tableRef,
+  minFont: 8,
+  maxFont: 40,
+  getAvailableSize: () => {
+    const wrapperRect = wrapperRef.value?.getBoundingClientRect();
+    if (!wrapperRect) {
+      return {width: 0, height: 0};
     }
-  }
 
-  // set best found font
-  wrapperRef.value.style.setProperty('--table-font-size', `${best}px`);
-}
+    let titleRect = titleRef.value?.getBoundingClientRect();
+    if (!titleRect || titleRect.height === 0) {
+      titleRect = shortTitleRef.value?.getBoundingClientRect() ?? ({height: 0} as DOMRect);
+    }
+
+    return {
+      width: Math.max(0, wrapperRect.width),
+      height: Math.max(0, wrapperRect.height - titleRect.height - 12)
+    };
+  }
+});
 
 watch(() => [props.paginatedTeams], () => {
   nextTick(adjustFontSize);
 }, {deep: true});
 
-onMounted(() => {
-  nextTick(adjustFontSize);
-  if (window.ResizeObserver) {
-    ro = new ResizeObserver(() => {
-      nextTick(adjustFontSize);
-    });
-    if (wrapperRef.value) ro.observe(wrapperRef.value);
-  } else {
-    window.addEventListener('resize', adjustFontSize);
-  }
-});
-
-onUnmounted(() => {
-  if (ro && wrapperRef.value) {
-    ro.unobserve(wrapperRef.value);
-    ro = null;
-  } else {
-    window.removeEventListener('resize', adjustFontSize);
-  }
-})
 
 </script>
 

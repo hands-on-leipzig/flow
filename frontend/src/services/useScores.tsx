@@ -54,8 +54,9 @@ export function createTeams(category: TeamResponse, round: string): Team[] {
         const team = {...category[id], id: +id};
         const scores = sortScores(team);
         const maxScore = scores[0];
+        const hasSecondRound = scores.length > 1 && scores[0] > 0 && scores[1] > 0;
         team.scores = team.scores.map((score: any) => {
-            score.highlight = +score.points === maxScore && maxScore > 0 && scores.length > 1;
+            score.highlight = +score.points === maxScore && maxScore > 0 && hasSecondRound;
             return score;
         });
         // Add extra scores if necessary
