@@ -110,6 +110,6 @@ onUnmounted(() => {
 
 <template>
   <component ref="renderer" :is="componentName" :content="props.slide.content" :preview="props.preview"
-             :eventId="props.eventId"
+             :eventId="props.eventId" :visible="props.visible"
              @next="emit('next')"></component>
 </template>
