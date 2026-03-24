@@ -260,7 +260,7 @@ async function addSlide(selectedType: string) {
 
   let newSlide = Slide.createNewSlide(selectedType);
 
-  if (selectedType === 'PublicPlanSlideContent' || selectedType == "PublicPlanNextSlideContent") {
+  if (selectedType === 'PublicPlanSlideContent' || selectedType === 'PublicPlanNextSlideContent' || selectedType === 'PublicPlanNextEventSlideContent') {
     newSlide.content.planId = planId.value;
   }
 
