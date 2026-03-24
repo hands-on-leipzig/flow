@@ -5,6 +5,7 @@ import {TeamsTableSlideContent} from "../../../models/teamsTableSlideContent";
 import {useMultiPageTable} from "@/composables/useMultiPageTable";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
 import {useTableFontResize} from "@/composables/useTableFontResize";
+import {programLogoAlt, programLogoSrc} from "../../../utils/images";
 
 const props = withDefaults(defineProps<{
   content: TeamsTableSlideContent,
@@ -67,6 +68,8 @@ async function fetchTeams() {
     }
   } catch (error) {
     console.error("Error fetching teams:", error);
+    /*teams.value = [{category: 'Explore', name: 'Test', location: "Testhausen", organization: "Test-Gymnasium"},
+      {category: 'Challenge', name: 'PaRaMeRoS', location: "Pullach im Isartal", organization: "Erzbischöfliche Pater-Rupert-Mayer Realschule"}];*/
   }
 }
 
@@ -123,7 +126,15 @@ defineExpose({handleArrow});
             <td colspan="4" class="teams-empty">Keine Teams vorhanden</td>
           </tr>
           <tr v-for="(team, index) in paginatedItems" :key="`${team.category}-${team.name}-${index}`">
-            <td>{{ team.category }}</td>
+            <td class="program-cell">
+              <div class="program-icon-box">
+                <img
+                  :src="programLogoSrc(team.category === 'Explore' ? 'E' : 'C', 'h')"
+                  :alt="programLogoAlt(team.category === 'Explore' ? 'E' : 'C')"
+                  class="audience-program-icon"
+                />
+              </div>
+            </td>
             <td>{{ team.name }}</td>
             <td>{{ team.organization }}</td>
             <td>{{ team.location }}</td>
@@ -158,13 +169,34 @@ defineExpose({handleArrow});
   border: 1px solid black;
   padding: 0.5rem 0.6rem;
   text-align: left;
+}
+
+.program-cell {
+  position: relative;
+  width: 4.5em;
+  min-width: 4.5em;
+}
+
+.program-icon-box {
+  position: absolute;
+  inset: 0.25rem 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .teams-empty {
   text-align: center;
   opacity: 0.9;
+}
+
+.audience-program-icon {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+  object-fit: contain;
 }
 </style>
