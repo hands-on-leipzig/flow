@@ -14,6 +14,8 @@ import {PublicPlanNextSlideContent} from '@/models/publicPlanNextSlideContent';
 import PublicPlanSlideContentRenderer from '@/components/slideTypes/publicPlan/PublicPlanSlideContentRenderer.vue';
 import PublicPlanNextSlideContentRenderer
   from '@/components/slideTypes/publicPlan/PublicPlanNextSlideContentRenderer.vue';
+import {TeamsMapSlideContent} from "../../models/teamsMapSlideContent";
+import TeamsMapSlideContentRenderer from "./TeamsMapSlideContentRenderer.vue";
 
 const props = withDefaults(defineProps<{
   slide: Slide,
@@ -45,6 +47,8 @@ const componentName = computed(() => {
     return PublicPlanSlideContentRenderer;
   } else if (content instanceof PublicPlanNextSlideContent) {
     return PublicPlanNextSlideContentRenderer;
+  } else if (content instanceof TeamsMapSlideContent) {
+    return TeamsMapSlideContentRenderer;
   }
   console.warn("Missing renderer for slide content type:", content);
   return null;

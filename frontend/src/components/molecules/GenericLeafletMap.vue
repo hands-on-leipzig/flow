@@ -33,6 +33,10 @@ const props = defineProps({
   maxZoom: {
     type: Number,
     default: 19
+  },
+  staticMap: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -41,6 +45,8 @@ const emit = defineEmits(['map-ready', 'map-error'])
 const containerRef = ref(null)
 const mapInstance = ref(null)
 const markerLayer = ref(null)
+let resizeObserver = null
+let resizeRaf = null
 
 const mapStyle = computed(() => ({
   height: props.height,
@@ -151,7 +157,19 @@ const ensureMap = async () => {
       return
     }
 
-    mapInstance.value = L.map(containerRef.value).setView([0, 0], 2)
+    mapInstance.value = L.map(containerRef.value, {
+      zoomControl: !props.staticMap,
+      attributionControl: !props.staticMap,
+      dragging: !props.staticMap,
+      touchZoom: !props.staticMap,
+      scrollWheelZoom: !props.staticMap,
+      doubleClickZoom: !props.staticMap,
+      boxZoom: !props.staticMap,
+      keyboard: !props.staticMap,
+      zoomAnimation: !props.staticMap,
+      fadeAnimation: !props.staticMap,
+      markerZoomAnimation: !props.staticMap
+    }).setView([0, 0], 2)
     L.tileLayer(props.tileLayerUrl, {
       attribution: props.tileAttribution,
       maxZoom: props.maxZoom
@@ -162,6 +180,23 @@ const ensureMap = async () => {
     emit('map-ready', mapInstance.value)
   } catch (error) {
     emit('map-error', error)
+  }
+}
+
+const rerenderMap = async () => {
+  if (!mapInstance.value) {
+    await ensureMap()
+  }
+
+  if (!mapInstance.value) {
+    return
+  }
+
+  mapInstance.value.invalidateSize()
+
+  const L = window.L
+  if (L) {
+    renderMarkers(L)
   }
 }
 
@@ -179,9 +214,43 @@ watch(validMarkers, async () => {
 
 onMounted(async () => {
   await ensureMap()
+
+  if (typeof ResizeObserver !== 'undefined' && containerRef.value) {
+    resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) {
+        return
+      }
+
+      const { width, height } = entry.contentRect
+      if (width <= 0 || height <= 0) {
+        return
+      }
+
+      if (resizeRaf) {
+        cancelAnimationFrame(resizeRaf)
+      }
+
+      resizeRaf = requestAnimationFrame(() => {
+        rerenderMap()
+      })
+    })
+
+    resizeObserver.observe(containerRef.value)
+  }
 })
 
 onBeforeUnmount(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+
+  if (resizeRaf) {
+    cancelAnimationFrame(resizeRaf)
+    resizeRaf = null
+  }
+
   if (mapInstance.value) {
     mapInstance.value.remove()
     mapInstance.value = null
@@ -191,7 +260,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="w-full h-full relative" :style="mapStyle">
-    <div ref="containerRef" class="w-full h-full"></div>
+    <div ref="containerRef" class="w-full h-full" :class="{ 'pointer-events-none': staticMap }"></div>
 
     <div v-if="isLoading || validMarkers.length === 0" class="absolute inset-0 flex items-center justify-center bg-gray-100">
       <p class="text-gray-500 text-sm">Karte wird geladen...</p>
