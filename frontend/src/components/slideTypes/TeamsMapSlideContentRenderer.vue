@@ -18,7 +18,7 @@ const coordinates = ref(null);
 async function loadCoordinates() {
   try {
     const response = await axios.get(`events/${props.eventId}/team-coordinates`);
-    coordinates.value = response.data.map(team => ({lat: team.coord.lat, long: team.coord.long, popup: team.name}));
+    coordinates.value = response.data.map(team => ({lat: team.coord.lat, lon: team.coord.lon, popup: team.name}));
   } catch (e) {
     console.error(e);
   }
