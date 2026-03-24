@@ -65,6 +65,7 @@ const draggedSlideId = ref<number | null>(null);
 const publicPlanChoices = [
   {slide: 'PublicPlanSlideContent', label: 'Jetzt laufende Programmpunkte', icon: 'bi-clock'},
   {slide: 'PublicPlanNextSlideContent', label: 'Kommende Programmpunkte', icon: 'bi-calendar-event'},
+  {slide: 'PublicPlanNextEventSlideContent', label: 'Nächster Programmpunkt (groß)', icon: 'bi-alphabet-uppercase'},
 ];
 const teamsChoices = [
   {slide: 'TeamsMapSlideContent', label: 'Karte aller Teams', icon: 'bi-geo-alt'},

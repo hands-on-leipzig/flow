@@ -7,6 +7,7 @@ import {PublicPlanSlideContent} from './publicPlanSlideContent';
 import {PublicPlanNextSlideContent} from './publicPlanNextSlideContent';
 import {TeamsMapSlideContent} from "./teamsMapSlideContent";
 import {TeamsTableSlideContent} from "./teamsTableSlideContent";
+import {PublicPlanNextEventSlideContent} from "./publicPlanNextEventSlideContent";
 
 export class Slide {
 
@@ -47,6 +48,8 @@ export class Slide {
                 return new PublicPlanSlideContent(content);
             case "PublicPlanNextSlideContent":
                 return new PublicPlanNextSlideContent(content);
+            case "PublicPlanNextEventSlideContent":
+                return new PublicPlanNextEventSlideContent(content);
             case "TeamsMapSlideContent":
                 return new TeamsMapSlideContent(content);
             case "TeamsTableSlideContent":
