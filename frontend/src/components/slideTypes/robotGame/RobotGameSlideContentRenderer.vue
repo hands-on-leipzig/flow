@@ -1,26 +1,40 @@
 <script setup lang="ts">
 import {RobotGameSlideContent} from '../../../models/robotGameSlideContent.js';
-import {onMounted, onUnmounted, ref, computed, toRef, watch, shallowRef} from "vue";
+import {onMounted, onUnmounted, ref, computed, watch} from "vue";
 import {useScores, createTeams} from '@/services/useScores';
 import type {TeamResponse, RoundResponse} from "@/models/robotGameScores";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
 import RobotGameTable from "./RobotGameTable.vue";
+import {useMultiPageTable} from "@/composables/useMultiPageTable";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   content: RobotGameSlideContent,
   preview: boolean,
-  eventId: number
-}>();
+  eventId: number,
+  visible?: boolean
+}>(), {
+  visible: false
+});
 
 const emit = defineEmits<{ (e: 'next'): void }>();
 
-const {scores, error, loadScores, startAutoRefresh, stopAutoRefresh} = useScores(props.eventId);
+const {scores, loadScores, startAutoRefresh, stopAutoRefresh} = useScores(props.eventId);
 
-const currentIndex = ref(0);
 const isPaused = ref(false);
-const teamsPerPage = toRef(props.content, 'teamsPerPage') || ref(8);
+const teamsPerPage = computed(() => props.content.teamsPerPage || 8);
+const secondsPerPage = computed(() => props.content.secondsPerPage || 15);
+const isActive = computed(() => !!props.visible && !props.preview);
 const round = ref<string | undefined>(undefined);
 const teams = ref([]);
+
+const {paginatedItems, handleArrow} = useMultiPageTable({
+  items: teams,
+  pageSize: teamsPerPage,
+  secondsPerPage,
+  isActive,
+  isPaused,
+  onAutoEnd: () => emit('next')
+});
 
 watch(() => scores.value, (newScores) => {
   if (newScores) {
@@ -34,13 +48,6 @@ watch(() => scores.value, (newScores) => {
     round.value = undefined;
   }
 });
-const paginatedTeams = computed(() => {
-  if (!teams.value?.length) {
-    return [];
-  }
-  return teams.value.slice(currentIndex.value, currentIndex.value + teamsPerPage.value);
-});
-
 onMounted(loadScores);
 onMounted(() => {
   if (!props.preview) {
@@ -49,46 +56,14 @@ onMounted(() => {
 });
 
 onMounted(() => {
-  startAutoAdvance();
-  io.observe(root.value);
   window.addEventListener('keydown', handleKeyDown);
 });
 
 onUnmounted(stopAutoRefresh);
 
 onUnmounted(() => {
-  clearInterval(autoAdvanceInterval);
-  if (io && root.value) {
-    io.unobserve(root.value);
-    io.disconnect();
-    io = null;
-  }
   window.removeEventListener('keydown', handleKeyDown);
 });
-
-let autoAdvanceInterval;
-
-// Sichtbarkeit der Folie via Observer feststellen -> Auf Seite 1 beginnen
-const root = shallowRef<HTMLElement | null>(null);
-let io = new IntersectionObserver((entries) => {
-  for (const entry of entries) {
-    if (entry.isIntersecting && entry.target === root.value) { // true -> Element aktuell in Viewport sichtbar (Folie aktiv)
-      currentIndex.value = 0;
-      startAutoAdvance();
-      return;
-    }
-  }
-  clearInterval(autoAdvanceInterval);
-}, {threshold: 0.01});
-
-function startAutoAdvance() {
-  const secondsPerPage = props.content.secondsPerPage || 15;
-  autoAdvanceInterval = setInterval(() => {
-    if (!isPaused.value) {
-      advancePage();
-    }
-  }, secondsPerPage * 1000);
-}
 
 function getRoundToShow(rounds: RoundResponse): TeamResponse {
   if (!rounds) {
@@ -109,55 +84,12 @@ function getRoundToShow(rounds: RoundResponse): TeamResponse {
   return undefined;
 }
 
-function advancePage() {
-  const nextIndex = currentIndex.value + teamsPerPage.value;
-  const willWrapAround = nextIndex >= teams.value.length;
-
-  if (willWrapAround) {
-    // switch to next slide
-    clearInterval(autoAdvanceInterval);
-    emit('next');
-    currentIndex.value = 0;
-  } else {
-    currentIndex.value = nextIndex;
-  }
-}
-
-// Previous page function
-function previousPage() {
-  if (currentIndex.value === 0) {
-    const teamsLastPage = teams.value.length % teamsPerPage.value;
-    if (teamsLastPage === 0) {
-      currentIndex.value = teams.value.length - teamsPerPage.value;
-    } else {
-      currentIndex.value = teams.value.length - teamsLastPage;
-    }
-  } else {
-    currentIndex.value = Math.max(currentIndex.value - teamsPerPage.value, 0);
-  }
-}
-
 function handleKeyDown(event: KeyboardEvent) {
-  if (event.key === 'Enter') {
-    console.log('pausing');
-    isPaused.value = !isPaused.value;
+  if (!props.visible) {
+    return;
   }
-}
-
-function handleArrow(direction: 'left' | 'right'): boolean {
-  if (direction === 'right') {
-    const nextIndex = currentIndex.value + teamsPerPage.value;
-    if (nextIndex < teams.value.length) {
-      advancePage();
-      return true;
-    }
-    return false; // let Carousel go to the next slide
-  } else {
-    if (currentIndex.value > 0) {
-      previousPage();
-      return true;
-    }
-    return false; // let Carousel go to previous slide
+  if (event.key === 'Enter') {
+    isPaused.value = !isPaused.value;
   }
 }
 
@@ -165,13 +97,13 @@ defineExpose({handleArrow});
 </script>
 
 <template>
-  <div ref="root" class="relative w-full h-full overflow-hidden">
+  <div class="relative w-full h-full overflow-hidden">
     <FabricSlideContentRenderer v-if="props.content.background"
                                 class="absolute inset-0 z-0"
                                 :content="props.content" :preview="props.preview"></FabricSlideContentRenderer>
 
     <div class="slide-container" :class="{ 'preview': props.preview }">
-      <RobotGameTable :name="scores?.name?.toUpperCase()" :paginatedTeams="paginatedTeams" :round="round"
+      <RobotGameTable :name="scores?.name?.toUpperCase()" :paginatedTeams="paginatedItems" :round="round"
                       :content="content"></RobotGameTable>
     </div>
   </div>

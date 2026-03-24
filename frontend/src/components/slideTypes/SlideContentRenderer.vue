@@ -15,7 +15,9 @@ import PublicPlanSlideContentRenderer from '@/components/slideTypes/publicPlan/P
 import PublicPlanNextSlideContentRenderer
   from '@/components/slideTypes/publicPlan/PublicPlanNextSlideContentRenderer.vue';
 import {TeamsMapSlideContent} from "../../models/teamsMapSlideContent";
-import TeamsMapSlideContentRenderer from "./TeamsMapSlideContentRenderer.vue";
+import TeamsMapSlideContentRenderer from "./teams/TeamsMapSlideContentRenderer.vue";
+import {TeamsTableSlideContent} from "../../models/teamsTableSlideContent";
+import TeamsTableSlideContentRenderer from "./teams/TeamsTableSlideContentRenderer.vue";
 
 const props = withDefaults(defineProps<{
   slide: Slide,
@@ -49,13 +51,16 @@ const componentName = computed(() => {
     return PublicPlanNextSlideContentRenderer;
   } else if (content instanceof TeamsMapSlideContent) {
     return TeamsMapSlideContentRenderer;
+  } else if (content instanceof TeamsTableSlideContent) {
+    return TeamsTableSlideContentRenderer;
   }
   console.warn("Missing renderer for slide content type:", content);
   return null;
 });
 
 const useDefaultAdvance = computed(() => {
-  return !(props.slide.content instanceof RobotGameSlideContent);
+  return !(props.slide.content instanceof RobotGameSlideContent)
+      && !(props.slide.content instanceof TeamsTableSlideContent);
 });
 
 watch(() => props.visible, (vis) => {
@@ -110,6 +115,6 @@ onUnmounted(() => {
 
 <template>
   <component ref="renderer" :is="componentName" :content="props.slide.content" :preview="props.preview"
-             :eventId="props.eventId"
+             :eventId="props.eventId" :visible="props.visible"
              @next="emit('next')"></component>
 </template>
