@@ -71,6 +71,7 @@ const slideTypes = [
   {subModal: publicPlanChoices, label: 'Öffentlicher Zeitplan', icon: 'bi-calendar'},
   {slide: 'UrlSlideContent', label: 'Externer Inhalt (URL)', icon: 'bi-link-45deg'},
   {slide: 'FabricSlideContent', label: 'Eigener Inhalt', icon: 'bi-pencil-square'},
+  {slide: 'TeamsMapSlideContent', label: 'Karte aller Teams', icon: 'bi-geo-alt'}
 ];
 
 const addSliceChoices = ref(null);

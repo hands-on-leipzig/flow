@@ -44,7 +44,7 @@ onMounted(loadCoordinates)
     <GenericLeafletMap
         v-if="coordinates"
         :markers="coordinates"
-        :height="props.preview ? '134px' : '100vh'"
+        :height="props.preview ? '9rem' : '100vh'"
         :hideControls="true"
         :static-map="true"
         class="relative z-10 w-full h-full">
