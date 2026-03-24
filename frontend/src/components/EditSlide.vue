@@ -38,9 +38,11 @@ const saveButtonText = computed(() => {
   return 'Alle Änderungen gespeichert';
 });
 
+const shouldLoadRooms = ['PublicPlanSlideContent', 'PublicPlanNextSlideContent', 'PublicPlanNextEventSlideContent'];
+
 onMounted(async () => {
   await loadSlide();
-  if (slide.value.type === 'PublicPlanSlideContent' || slide.value.type === 'PublicPlanNextSlideContent') {
+  if (shouldLoadRooms.includes(slide.value.type)) {
     await loadRooms();
   }
 });
@@ -282,9 +284,9 @@ function updateDuration(value: number) {
           </div>
         </div>
       </div>
-      <div v-if="slide.type === 'PublicPlanSlideContent' || slide.type === 'PublicPlanNextSlideContent'">
+      <div v-if="slide.type === 'PublicPlanSlideContent' || slide.type === 'PublicPlanNextSlideContent' || slide.type === 'PublicPlanNextEventSlideContent'">
         <!-- Interval - nur next -->
-        <div v-if="slide.type === 'PublicPlanNextSlideContent'" class="grid grid-cols-2 gap-2 py-1 items-center">
+        <div v-if="slide.type === 'PublicPlanNextSlideContent' || slide.type === 'PublicPlanNextEventSlideContent'" class="grid grid-cols-2 gap-2 py-1 items-center">
           <div>
             <label class="text-sm font-medium pl-2">Minuten</label>
             <InfoPopover text="Wie weit soll in die Zukunft vorausgeblickt werden?"/>
