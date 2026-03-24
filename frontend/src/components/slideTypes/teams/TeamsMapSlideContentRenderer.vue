@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import {TeamsMapSlideContent} from "../../models/teamsMapSlideContent";
+import {TeamsMapSlideContent} from "../../../models/teamsMapSlideContent";
 import {onMounted, ref} from "vue";
 import axios from "axios";
-import FabricSlideContentRenderer from "./FabricSlideContentRenderer.vue";
-import GenericLeafletMap from "../molecules/GenericLeafletMap.vue";
+import FabricSlideContentRenderer from "../FabricSlideContentRenderer.vue";
+import GenericLeafletMap from "../../molecules/GenericLeafletMap.vue";
 
 const props = withDefaults(defineProps<{
   content: TeamsMapSlideContent,
