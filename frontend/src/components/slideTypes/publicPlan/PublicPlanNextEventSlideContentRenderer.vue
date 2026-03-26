@@ -42,7 +42,7 @@ const nextEvent = computed(() => {
 
   return {
     startTime: activity.start_time,
-    name: activity.group_meta?.name || activity.activity_name || 'Unbekannt'
+    name: firstGroup.name || activity.activity_name || 'Unbekannt'
   };
 });
 
@@ -61,10 +61,7 @@ const nextEvent = computed(() => {
           Als nächstes folgt
         </div>
         <div class="font-semibold">
-          {{ formatTimeOnly(nextEvent.startTime) }}
-        </div>
-        <div class="text-2xl md:text-4xl mt-4 md:mt-6">
-          {{ nextEvent.name }}
+          {{ formatTimeOnly(nextEvent.startTime) }} {{ nextEvent.name }}
         </div>
       </div>
       <div v-else class="text-center opacity-70">
