@@ -42,7 +42,7 @@ const nextEvent = computed(() => {
 
   return {
     startTime: activity.start_time,
-    name: firstGroup.name || activity.activity_name || 'Unbekannt'
+    name: firstGroup.group_meta.name || activity.activity_name || 'Unbekannt'
   };
 });
 
