@@ -145,6 +145,24 @@ function rowEditKey(row: TeamRow): string {
   return `${row.first_program}:${row.team_number_plan ?? 0}`
 }
 
+function compareTeamRows(a: TeamRow, b: TeamRow): number {
+  if (!a.start && !b.start) {
+    if ((a.first_program ?? 0) !== (b.first_program ?? 0)) {
+      return (a.first_program ?? 0) - (b.first_program ?? 0)
+    }
+    return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
+  }
+  if (!a.start) return 1
+  if (!b.start) return -1
+
+  const timeCmp = wallTimeSortKey(a.start).localeCompare(wallTimeSortKey(b.start))
+  if (timeCmp !== 0) return timeCmp
+  if ((a.first_program ?? 0) !== (b.first_program ?? 0)) {
+    return (a.first_program ?? 0) - (b.first_program ?? 0)
+  }
+  return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
+}
+
 function eventBaseDateYmd(): string {
   const d = (event.value as {date?: string} | undefined)?.date
   if (d == null || d === '') {
@@ -568,12 +586,7 @@ async function onTeamStartChange(row: TeamRow, value: string) {
     if (tooltipOpenKey.value === key) {
       await openTooltip(row)
     }
-    teams.value = [...teams.value].sort((a, b) => {
-      if (!a.start && !b.start) return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
-      if (!a.start) return 1
-      if (!b.start) return -1
-      return wallTimeSortKey(a.start).localeCompare(wallTimeSortKey(b.start))
-    })
+    teams.value = [...teams.value].sort(compareTeamRows)
   } catch {
     await loadTeams()
   }
