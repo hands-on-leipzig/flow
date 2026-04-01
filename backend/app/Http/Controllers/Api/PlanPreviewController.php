@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\ActivityFetcherService;
 use App\Services\PreviewMatrixService;
+use App\Support\PlanParameter;
 use Illuminate\Support\Facades\DB;
 
 class PlanPreviewController extends Controller
@@ -106,6 +107,8 @@ class PlanPreviewController extends Controller
      */
     public function previewRobotGame(int $plan)
     {
+        $isTwoDayEvent = (bool) (new PlanParameter($plan))->get('g_finale');
+
         // Check if Challenge exists in this plan
         $hasChallenge = DB::table('activity')
             ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
@@ -129,36 +132,98 @@ class PlanPreviewController extends Controller
             ->orderBy('match_no')
             ->get();
 
-        // Group by round
-        $roundNames = [
-            0 => 'Testrunde',
-            1 => 'Runde 1',
-            2 => 'Runde 2',
-            3 => 'Runde 3',
-        ];
-
         $rounds = [];
-        foreach ([0, 1, 2, 3] as $roundNum) {
-            $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
+        if ($isTwoDayEvent) {
+            // Two-day finals: test rounds are stored in day-1 activity groups (r_test_round), not match.round=0.
+            $rTestRoundGroupAtdId = DB::table('m_activity_type_detail')->where('code', 'r_test_round')->value('id');
+            $rMatchAtdId = DB::table('m_activity_type_detail')->where('code', 'r_match')->value('id');
 
-            if ($roundMatches->isEmpty()) {
-                continue;
+            $testRoundActivities = DB::table('activity as a')
+                ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+                ->where('ag.plan', $plan)
+                ->where('ag.activity_type_detail', $rTestRoundGroupAtdId)
+                ->where('a.activity_type_detail', $rMatchAtdId)
+                ->orderBy('a.start')
+                ->orderBy('a.id')
+                ->get([
+                    'a.id',
+                    'a.activity_group',
+                    'a.table_1',
+                    'a.table_1_team',
+                    'a.table_2',
+                    'a.table_2_team',
+                ]);
+
+            $groupedTestRounds = $testRoundActivities->groupBy('activity_group')->values();
+            foreach ($groupedTestRounds as $idx => $groupMatches) {
+                $rounds[] = [
+                    'round' => null,
+                    'name' => 'Testrunde ' . ($idx + 1),
+                    'matches' => $groupMatches->values()->map(function ($match, $matchIdx) {
+                        return [
+                            'match_id' => $match->id,
+                            'match_no' => $matchIdx + 1,
+                            'table_1' => $match->table_1,
+                            'table_1_team' => $match->table_1_team,
+                            'table_2' => $match->table_2,
+                            'table_2_team' => $match->table_2_team,
+                        ];
+                    })->toArray(),
+                ];
             }
 
-            $rounds[] = [
-                'round' => $roundNum,
-                'name' => $roundNames[$roundNum],
-                'matches' => $roundMatches->map(function ($match) {
-                    return [
-                        'match_id' => $match->id,
-                        'match_no' => $match->match_no,
-                        'table_1' => $match->table_1,
-                        'table_1_team' => $match->table_1_team,
-                        'table_2' => $match->table_2,
-                        'table_2_team' => $match->table_2_team,
-                    ];
-                })->toArray(),
+            foreach ([1, 2, 3] as $roundNum) {
+                $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
+                if ($roundMatches->isEmpty()) {
+                    continue;
+                }
+
+                $rounds[] = [
+                    'round' => $roundNum,
+                    'name' => 'Runde ' . $roundNum,
+                    'matches' => $roundMatches->map(function ($match) {
+                        return [
+                            'match_id' => $match->id,
+                            'match_no' => $match->match_no,
+                            'table_1' => $match->table_1,
+                            'table_1_team' => $match->table_1_team,
+                            'table_2' => $match->table_2,
+                            'table_2_team' => $match->table_2_team,
+                        ];
+                    })->toArray(),
+                ];
+            }
+        } else {
+            // One-day events (unchanged): round 0 is the single test round.
+            $roundNames = [
+                0 => 'Testrunde',
+                1 => 'Runde 1',
+                2 => 'Runde 2',
+                3 => 'Runde 3',
             ];
+
+            foreach ([0, 1, 2, 3] as $roundNum) {
+                $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
+
+                if ($roundMatches->isEmpty()) {
+                    continue;
+                }
+
+                $rounds[] = [
+                    'round' => $roundNum,
+                    'name' => $roundNames[$roundNum],
+                    'matches' => $roundMatches->map(function ($match) {
+                        return [
+                            'match_id' => $match->id,
+                            'match_no' => $match->match_no,
+                            'table_1' => $match->table_1,
+                            'table_1_team' => $match->table_1_team,
+                            'table_2' => $match->table_2,
+                            'table_2_team' => $match->table_2_team,
+                        ];
+                    })->toArray(),
+                ];
+            }
         }
 
         // Calculate team diversity metrics (Q2 and Q3)
