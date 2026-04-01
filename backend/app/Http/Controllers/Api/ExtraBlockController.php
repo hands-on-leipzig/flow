@@ -605,7 +605,9 @@ class ExtraBlockController extends Controller
                 : (string) $assignment->getRawOriginal('start');
         }
 
-        $rows = DB::table('activity as a')
+        $slotDate = $slotStart ? substr($slotStart, 0, 10) : null;
+
+        $query = DB::table('activity as a')
             ->join('activity_group as ag', 'ag.id', '=', 'a.activity_group')
             ->join('m_activity_type_detail as atd', 'atd.id', '=', 'a.activity_type_detail')
             ->leftJoin('extra_block as eb', 'eb.id', '=', 'a.extra_block')
@@ -627,7 +629,13 @@ class ExtraBlockController extends Controller
             ->where(function ($q) use ($extraBlock) {
                 $q->whereNull('a.extra_block')
                     ->orWhere('a.extra_block', '!=', $extraBlock);
-            })
+            });
+
+        if ($slotDate !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/', $slotDate)) {
+            $query->whereDate('a.start', $slotDate);
+        }
+
+        $rows = $query
             ->select([
                 'a.id',
                 'a.start',
@@ -682,6 +690,7 @@ class ExtraBlockController extends Controller
             'first_program' => $programId,
             'team_number_plan' => $teamNumberPlan,
             'slot_start' => $slotStart,
+            'slot_date' => $slotDate,
             'slot_duration' => (int) $block->duration,
             'transfer_minutes' => $transfer,
             'activities' => $rows,

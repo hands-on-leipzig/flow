@@ -41,6 +41,12 @@ type TeamActivityLine = {
   gap_minutes: number | null
 }
 
+type TeamActivityTooltipData = {
+  slot_start: string | null
+  slot_date: string | null
+  activities: TeamActivityLine[]
+}
+
 function normalizeDurationMinutes(d: number): number {
   const n = Math.round(Number(d) / 5) * 5
   return Math.min(480, Math.max(5, n || 5))
@@ -110,7 +116,7 @@ const eDurationTransfer = ref<number>(0)
 const cDurationTransfer = ref<number>(0)
 const tooltipOpenKey = ref<string | null>(null)
 const tooltipLoadingKey = ref<string | null>(null)
-const tooltipActivities = ref<Record<string, TeamActivityLine[]>>({})
+const tooltipActivities = ref<Record<string, TeamActivityTooltipData>>({})
 
 async function applySlotsToPlan() {
   if (!planId.value || applying.value) return
@@ -489,23 +495,38 @@ async function openTooltip(row: TeamRow) {
 
   tooltipLoadingKey.value = key
   try {
-    const {data} = await axios.get<{ activities: TeamActivityLine[] }>(
+    const {data} = await axios.get<TeamActivityTooltipData>(
       `/plans/${planId.value}/extra-blocks/slot/${selectedId.value}/teams/${row.first_program}/${row.team_number_plan}/activities`
     )
     tooltipActivities.value = {
       ...tooltipActivities.value,
-      [key]: data?.activities ?? [],
+      [key]: {
+        slot_start: data?.slot_start ?? null,
+        slot_date: data?.slot_date ?? null,
+        activities: data?.activities ?? [],
+      },
     }
   } catch {
     tooltipActivities.value = {
       ...tooltipActivities.value,
-      [key]: [],
+      [key]: {
+        slot_start: null,
+        slot_date: null,
+        activities: [],
+      },
     }
   } finally {
     if (tooltipLoadingKey.value === key) {
       tooltipLoadingKey.value = null
     }
   }
+}
+
+function formatTooltipDate(slotDate: string | null): string {
+  if (!slotDate) return 'ohne Datum'
+  const m = String(slotDate).match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return String(slotDate)
+  return `${m[3]}.${m[2]}.${m[1]}`
 }
 
 function closeTooltip(row: TeamRow) {
@@ -935,15 +956,15 @@ const inputTitle =
                         class="absolute z-30 mt-2 w-[24rem] max-w-[70vw] rounded-lg border border-gray-200 bg-white shadow-xl p-3"
                       >
                         <p class="text-xs font-semibold text-gray-800 mb-2">
-                          Team-spezifische Aktivitäten
+                          Team-spezifische Aktivitäten · {{ formatTooltipDate(tooltipActivities[row.row_key]?.slot_date ?? null) }}
                         </p>
                         <p v-if="tooltipLoadingKey === row.row_key" class="text-xs text-gray-500">Lade...</p>
-                        <p v-else-if="!(tooltipActivities[row.row_key]?.length)" class="text-xs text-gray-500">
+                        <p v-else-if="!(tooltipActivities[row.row_key]?.activities?.length)" class="text-xs text-gray-500">
                           Keine team-spezifischen Aktivitäten gefunden.
                         </p>
                         <ul v-else class="space-y-1.5">
                           <li
-                            v-for="act in tooltipActivities[row.row_key]"
+                            v-for="act in tooltipActivities[row.row_key].activities"
                             :key="act.id"
                             class="text-xs leading-snug"
                             :class="lineStatusClass(act.status)"
