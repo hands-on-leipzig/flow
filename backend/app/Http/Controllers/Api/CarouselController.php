@@ -211,12 +211,18 @@ class CarouselController extends Controller
         } else if ($type == "PublicPlanNextSlideContent") {
             $slide['name'] = "Zeitplan - Als nächstes";
             $providedContent['background'] = $this->slideGeneratorService->generatePublicPlanBackground(false);
+        } else if ($type == "PublicPlanNextEventSlideContent") {
+            $slide['name'] = "Zeitplan - Nächstes Event";
         } else if ($type === 'RobotGameSlideContent') {
             $slide['name'] = 'Robot-Game-Ergebnisse';
         } else if ($type === 'UrlSlideContent') {
             $slide['name'] = 'Externer Inhalt';
         } else if ($type === 'FabricSlideContent') {
             $slide['name'] = 'Eigener Inhalt';
+        } else if ($type === 'TeamsMapSlideContent') {
+            $slide['name'] = 'Karte aller Teams';
+        } else if ($type === 'TeamsTableSlideContent') {
+            $slide['name'] = 'Alle Teams';
         }
 
         if (!array_key_exists('background', $providedContent)) {

@@ -14,6 +14,12 @@ import {PublicPlanNextSlideContent} from '@/models/publicPlanNextSlideContent';
 import PublicPlanSlideContentRenderer from '@/components/slideTypes/publicPlan/PublicPlanSlideContentRenderer.vue';
 import PublicPlanNextSlideContentRenderer
   from '@/components/slideTypes/publicPlan/PublicPlanNextSlideContentRenderer.vue';
+import {TeamsMapSlideContent} from "../../models/teamsMapSlideContent";
+import TeamsMapSlideContentRenderer from "./teams/TeamsMapSlideContentRenderer.vue";
+import {TeamsTableSlideContent} from "../../models/teamsTableSlideContent";
+import TeamsTableSlideContentRenderer from "./teams/TeamsTableSlideContentRenderer.vue";
+import {PublicPlanNextEventSlideContent} from "../../models/publicPlanNextEventSlideContent";
+import PublicPlanNextEventSlideContentRenderer from "./publicPlan/PublicPlanNextEventSlideContentRenderer.vue";
 
 const props = withDefaults(defineProps<{
   slide: Slide,
@@ -45,13 +51,20 @@ const componentName = computed(() => {
     return PublicPlanSlideContentRenderer;
   } else if (content instanceof PublicPlanNextSlideContent) {
     return PublicPlanNextSlideContentRenderer;
+  } else if (content instanceof PublicPlanNextEventSlideContent) {
+    return PublicPlanNextEventSlideContentRenderer;
+  } else if (content instanceof TeamsMapSlideContent) {
+    return TeamsMapSlideContentRenderer;
+  } else if (content instanceof TeamsTableSlideContent) {
+    return TeamsTableSlideContentRenderer;
   }
   console.warn("Missing renderer for slide content type:", content);
   return null;
 });
 
 const useDefaultAdvance = computed(() => {
-  return !(props.slide.content instanceof RobotGameSlideContent);
+  return !(props.slide.content instanceof RobotGameSlideContent)
+      && !(props.slide.content instanceof TeamsTableSlideContent);
 });
 
 watch(() => props.visible, (vis) => {
@@ -106,6 +119,6 @@ onUnmounted(() => {
 
 <template>
   <component ref="renderer" :is="componentName" :content="props.slide.content" :preview="props.preview"
-             :eventId="props.eventId"
+             :eventId="props.eventId" :visible="props.visible"
              @next="emit('next')"></component>
 </template>

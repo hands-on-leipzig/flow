@@ -13,7 +13,8 @@ class SlotBlockTeam extends Model
 
     protected $fillable = [
         'extra_block',
-        'team',
+        'team_number_plan',
+        'first_program',
         'start',
     ];
 
@@ -26,8 +27,4 @@ class SlotBlockTeam extends Model
         return $this->belongsTo(ExtraBlock::class, 'extra_block');
     }
 
-    public function team(): BelongsTo
-    {
-        return $this->belongsTo(Team::class, 'team');
-    }
 }

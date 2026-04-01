@@ -368,7 +368,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
         <div v-else class="flex flex-col gap-6">
           <!-- Match plan by rounds -->
-          <div class="flex flex-row gap-4 overflow-x-auto">
+          <div class="flex flex-row gap-4">
             <div
               v-for="round in robotGameData.rounds"
               :key="round.round"

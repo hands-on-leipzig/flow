@@ -1,7 +1,8 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, nextTick, Teleport } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick, Teleport } from 'vue'
 import axios from 'axios'
 import QRCode from 'qrcode'
+import GenericLeafletMap from './GenericLeafletMap.vue'
 
 const props = defineProps({
   address: {
@@ -23,7 +24,7 @@ const props = defineProps({
 })
 
 const mapCoordinates = ref(null)
-const mapInstance = ref(null)
+const isResolvingAddress = ref(false)
 const showMapMenu = ref(false)
 const showQRCodeModal = ref(false)
 const copySuccessMessage = ref('')
@@ -32,6 +33,7 @@ const mapMenuButton = ref(null)
 const menuPosition = ref({top: '0px', left: '0px'})
 const usedAddress = ref(null)
 const fullAddress = ref(null)
+let geocodeRequestId = 0
 
 // Check if device is Apple (iOS/macOS)
 const isAppleDevice = ref(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent))
@@ -109,46 +111,23 @@ const geocodeAddress = async (address) => {
   }
 }
 
-// Initialize map with Leaflet
-const initializeMap = async (address) => {
-  if (!address) return
+const resolveAddressCoordinates = async (address) => {
+  fullAddress.value = address || null
+  usedAddress.value = null
+  mapCoordinates.value = null
 
-  // Remove existing map if it exists
-  if (mapInstance.value) {
-    mapInstance.value.remove()
-    mapInstance.value = null
+  if (!address) {
+    isResolvingAddress.value = false
+    return
   }
 
-  // Load Leaflet CSS and JS if not already loaded
-  if (!window.L) {
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-    document.head.appendChild(link)
+  const requestId = ++geocodeRequestId
+  isResolvingAddress.value = true
 
-    const script = document.createElement('script')
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-    script.onload = () => {
-      // Wait a bit for Leaflet to initialize
-      setTimeout(() => createMap(address), 100)
-    }
-    document.body.appendChild(script)
-  } else {
-    createMap(address)
-  }
-}
-
-const createMap = async (address) => {
-  if (!window.L) return
-
-  // Store full address
-  fullAddress.value = address
-
-  // Try geocoding with full address first
   let coords = await geocodeAddress(address)
   let addressUsed = address
 
-  // If full address fails, try with stripped German address
+  // Retry with stripped street/city format if full address cannot be resolved.
   if (!coords) {
     const strippedAddress = extractGermanAddress(address)
     if (strippedAddress && strippedAddress !== address) {
@@ -160,48 +139,37 @@ const createMap = async (address) => {
     }
   }
 
+  if (requestId !== geocodeRequestId) {
+    return
+  }
+
   if (!coords) {
     console.error('Failed to geocode address after retries')
+    isResolvingAddress.value = false
     return
   }
 
   // Track which address was used
   usedAddress.value = addressUsed
   mapCoordinates.value = coords
-
-  // Wait for DOM to be ready
-  await new Promise(resolve => setTimeout(resolve, 100))
-
-  const mapId = `map-${props.eventId}`
-  const mapElement = document.getElementById(mapId)
-  if (!mapElement) return
-
-  // Create map
-  const map = window.L.map(mapId).setView([coords.lat, coords.lon], 15)
-  mapInstance.value = map
-
-  // Add OpenStreetMap tiles
-  window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19
-  }).addTo(map)
-
-  // Add marker with the address that was actually used
-  window.L.marker([coords.lat, coords.lon])
-      .addTo(map)
-      .bindPopup(fullAddress.value) // Show full address in popup
-      .openPopup()
+  isResolvingAddress.value = false
 }
+
+const mapMarkers = computed(() => {
+  if (!mapCoordinates.value || !fullAddress.value) {
+    return []
+  }
+
+  return [{
+    lat: mapCoordinates.value.lat,
+    lon: mapCoordinates.value.lon,
+    popup: fullAddress.value
+  }]
+})
 
 // Watch for address changes to initialize map
 watch(() => props.address, async (newAddress) => {
-  if (newAddress && props.eventId) {
-    await nextTick()
-    // Wait a bit for DOM to render
-    setTimeout(() => {
-      initializeMap(newAddress)
-    }, 300)
-  }
+  await resolveAddressCoordinates(newAddress)
 }, {immediate: true})
 
 onMounted(() => {
@@ -405,10 +373,6 @@ watch(showMapMenu, async (newVal) => {
 
 // Cleanup map on unmount
 onBeforeUnmount(() => {
-  if (mapInstance.value) {
-    mapInstance.value.remove()
-    mapInstance.value = null
-  }
   if (copySuccessTimeout) {
     clearTimeout(copySuccessTimeout)
   }
@@ -432,10 +396,12 @@ onBeforeUnmount(() => {
     <!-- OpenStreetMap Map -->
     <div class="rounded-lg overflow-hidden border-2 border-gray-300 shadow-lg relative"
          style="height: 250px; min-height: 250px;">
-      <div v-if="!mapCoordinates" class="w-full h-full flex items-center justify-center bg-gray-100">
-        <p class="text-gray-500 text-sm">Karte wird geladen...</p>
-      </div>
-      <div v-else :id="'map-' + eventId" class="w-full h-full"></div>
+      <GenericLeafletMap
+        :markers="mapMarkers"
+        :is-loading="isResolvingAddress"
+        height="250px"
+        min-height="250px"
+      />
 
       <!-- Map Options Menu Button (inside map container, upper right corner) -->
       <div v-if="mapCoordinates" class="absolute top-2 right-2 z-[1000]">
