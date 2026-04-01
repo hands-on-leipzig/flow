@@ -273,13 +273,6 @@ class FinaleGenerator
             $matchNumber++;
             $duration = $this->pp('r_duration_test_match');
 
-            // Skip empty matches (both teams = 0)
-            if ($match->table_1_team == 0 && $match->table_2_team == 0) {
-                // Still advance time for empty matches
-                $this->advanceTimeForTestMatch($trTime, $matchNumber, $duration);
-                continue;
-            }
-
             // Clone time for this match
             $time = $trTime->copy();
 
