@@ -1927,6 +1927,18 @@ class PlanExportController extends Controller
             ->orderBy('name')
             ->get();
 
+        $slotTeamMap = DB::table('team_plan as tp')
+            ->leftJoin('team as t', 't.id', '=', 'tp.team')
+            ->where('tp.plan', $planId)
+            ->select([
+                'tp.team_number_plan',
+                'tp.noshow',
+                't.name as team_name',
+                't.team_number_hot',
+                't.first_program',
+            ])
+            ->get();
+
         $roomEntries = collect();
 
         foreach ($orderedRooms as $room) {
@@ -1989,7 +2001,7 @@ class PlanExportController extends Controller
                 ['end_time', 'asc'],
             ]);
 
-            $rows = $acts->map(function ($a) {
+            $rows = $acts->map(function ($a) use ($slotTeamMap) {
                 $teamParts = [];
 
                 // Hilfsfunktion für einheitliche Darstellung
@@ -2038,6 +2050,32 @@ class PlanExportController extends Controller
                         $a->table_2_team_number_hot ?? null,
                         $a->table_2_team,
                         (bool) ($a->table_2_team_noshow ?? false)
+                    );
+                }
+
+                // Slot fallback (activity.slot_team stores team_number_plan)
+                if (empty($teamParts) && ! empty($a->slot_team)) {
+                    $slotNo = (int) $a->slot_team;
+                    $programId = (int) ($a->activity_first_program_id ?? 0);
+
+                    $slotTeam = $slotTeamMap->first(function ($t) use ($slotNo, $programId) {
+                        if ((int) ($t->team_number_plan ?? 0) !== $slotNo) {
+                            return false;
+                        }
+
+                        $fp = (int) ($t->first_program ?? 0);
+                        if ($programId === FirstProgram::CHALLENGE->value) {
+                            return $fp === FirstProgram::CHALLENGE->value || $fp === 0;
+                        }
+
+                        return in_array($fp, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value, 0], true);
+                    });
+
+                    $teamParts[] = $formatTeam(
+                        $slotTeam->team_name ?? null,
+                        $slotTeam->team_number_hot ?? null,
+                        $slotNo,
+                        (bool) ($slotTeam->noshow ?? false)
                     );
                 }
 
