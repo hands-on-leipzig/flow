@@ -608,8 +608,16 @@ class ExtraBlockController extends Controller
         $rows = DB::table('activity as a')
             ->join('activity_group as ag', 'ag.id', '=', 'a.activity_group')
             ->join('m_activity_type_detail as atd', 'atd.id', '=', 'a.activity_type_detail')
+            ->leftJoin('extra_block as eb', 'eb.id', '=', 'a.extra_block')
             ->where('ag.plan', $planId)
             ->where('atd.first_program', $programId)
+            ->whereExists(function ($q) use ($programId) {
+                $roleId = $programId === FirstProgram::CHALLENGE->value ? 3 : 8;
+                $q->select(DB::raw(1))
+                    ->from('m_visibility as mv')
+                    ->whereColumn('mv.activity_type_detail', 'atd.id')
+                    ->where('mv.role', $roleId);
+            })
             ->where(function ($q) use ($teamNumberPlan) {
                 $q->where('a.jury_team', $teamNumberPlan)
                     ->orWhere('a.table_1_team', $teamNumberPlan)
@@ -626,6 +634,7 @@ class ExtraBlockController extends Controller
                 'a.end',
                 'atd.name as activity_name',
                 'atd.code as activity_code',
+                'eb.name as extra_block_name',
             ])
             ->orderBy('a.start')
             ->orderBy('a.end')
@@ -660,7 +669,9 @@ class ExtraBlockController extends Controller
                     'id' => (int) $row->id,
                     'start' => $start,
                     'end' => $end,
-                    'label' => $row->activity_name ?: $row->activity_code,
+                    'label' => str_contains((string) ($row->activity_code ?? ''), '_slot_block')
+                        ? ((string) ($row->extra_block_name ?? '') !== '' ? $row->extra_block_name : ($row->activity_name ?: $row->activity_code))
+                        : ($row->activity_name ?: $row->activity_code),
                     'status' => $status,
                     'gap_minutes' => $gap,
                 ];
