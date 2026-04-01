@@ -1859,7 +1859,9 @@ class PlanExportController extends Controller
 
     public function roomSchedulePdf(int $planId, $maxRowsPerPage = 16)
     {
-        $activities = app(\App\Services\ActivityFetcherService::class)
+        $fetcher = app(\App\Services\ActivityFetcherService::class);
+
+        $activities = $fetcher
             ->fetchActivities(
                 $planId,
                 [6, 10, 14],   // Rollen: Publikum E, C und generisch
@@ -1870,8 +1872,31 @@ class PlanExportController extends Controller
                 true           // freeBlocks
             );
 
+        // Room PDF baseline is visitor visibility. Add assigned slot activities explicitly,
+        // even when they are not visible for visitor roles.
+        $slotActivities = collect($fetcher->fetchActivities(
+            $planId,
+            [],            // no visibility filter
+            true,          // includeRooms
+            true,          // includeGroupMeta
+            true,          // includeActivityMeta (activity_type_code)
+            true,          // includeTeamNames
+            true           // freeBlocks
+        ))->filter(function ($a) {
+            $code = (string) ($a->activity_type_code ?? '');
+
+            return in_array($code, ['e_slot_block', 'c_slot_block', 'g_slot_block'], true);
+        });
+
+        $activities = collect($activities)
+            ->concat($slotActivities)
+            ->unique(function ($a) {
+                return (int) ($a->activity_id ?? 0);
+            })
+            ->values();
+
         // Nur Aktivitäten mit echtem Raum
-        $activities = collect($activities)->filter(fn ($a) => ! empty($a->room_name) || ! empty($a->room_id));
+        $activities = $activities->filter(fn ($a) => ! empty($a->room_name) || ! empty($a->room_id));
 
         // Gruppieren nach Raum
         $grouped = $activities->groupBy(function ($a) {
