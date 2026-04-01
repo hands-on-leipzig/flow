@@ -225,7 +225,10 @@ class FinaleGenerator
             });
 
             // Add break between rounds
-            if ($round == 1 || $round == 2 || $round == 4) {
+            if ($round == 1) {
+                // Increase gap between LC round 1 and 2 by +5 minutes
+                $lcTime->addMinutes($this->pp('lc_duration_break_short') + 5);
+            } elseif ($round == 2 || $round == 4) {
                 $lcTime->addMinutes($this->pp('lc_duration_break_short'));
             } elseif ($round == 3) {
                 $lcTime->addMinutes($this->pp('lc_duration_break_long'));
