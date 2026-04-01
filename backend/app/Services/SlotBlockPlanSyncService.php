@@ -107,21 +107,12 @@ class SlotBlockPlanSyncService
                     $createdGroups++;
 
                     $q = DB::table('slot_block_team as sbt')
-                        ->join('team_plan as tp', function ($j) use ($planId) {
-                            $j->on('tp.team', '=', 'sbt.team')->where('tp.plan', '=', $planId);
-                        })
-                        ->join('team as t', 't.id', '=', 'sbt.team')
                         ->where('sbt.extra_block', (int) $block->id)
+                        ->where('sbt.first_program', $targetProgram)
                         ->whereNotNull('sbt.start');
 
-                    if ($targetProgram === FirstProgram::EXPLORE->value) {
-                        $q->whereIn('t.first_program', [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value]);
-                    } elseif ($targetProgram === FirstProgram::CHALLENGE->value) {
-                        $q->where('t.first_program', FirstProgram::CHALLENGE->value);
-                    }
-
                     $rows = $q->select([
-                        'tp.team_number_plan as team_number_plan',
+                        'sbt.team_number_plan as team_number_plan',
                         'sbt.start as start',
                     ])
                         ->orderBy('sbt.start')

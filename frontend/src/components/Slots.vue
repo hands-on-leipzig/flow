@@ -21,7 +21,8 @@ type SlotBlock = {
 }
 
 type TeamRow = {
-  team_id: number
+  row_key: string
+  team_id: number | null
   team_number_plan: number | null
   team_number_hot: string | null
   team_name: string
@@ -119,8 +120,12 @@ function programIcon(fp: number): { src: string; alt: string } {
   return {src: programLogoSrc('E'), alt: programLogoAlt('E')}
 }
 
-const editingTeamId = ref<number | null>(null)
+const editingTeamId = ref<string | null>(null)
 const editingStartLocal = ref<string>('') // YYYY-MM-DDTHH:mm
+
+function rowEditKey(row: TeamRow): string {
+  return `${row.first_program}:${row.team_number_plan ?? 0}`
+}
 
 function eventBaseDateYmd(): string {
   const d = (event.value as {date?: string} | undefined)?.date
@@ -168,17 +173,17 @@ function beginEditStart(row: TeamRow) {
   // (requirement: initial set must be persisted right away).
   if (!row.start) {
     const initial = defaultStartLocal()
-    editingTeamId.value = row.team_id
+    editingTeamId.value = rowEditKey(row)
     editingStartLocal.value = initial
     onTeamStartChange(row, initial)
     return
   }
-  editingTeamId.value = row.team_id
+  editingTeamId.value = rowEditKey(row)
   editingStartLocal.value = wallTimeToDatetimeLocal(row.start)
 }
 
 function cancelEditStart(row: TeamRow) {
-  if (editingTeamId.value === row.team_id) {
+  if (editingTeamId.value === rowEditKey(row)) {
     editingTeamId.value = null
     editingStartLocal.value = ''
   }
@@ -466,7 +471,7 @@ async function onTeamStartChange(row: TeamRow, value: string) {
   const start = value ? datetimeLocalToDb(value) : null
   try {
     const {data} = await axios.patch(
-      `/plans/${planId.value}/extra-blocks/slot/${selectedId.value}/teams/${row.team_id}`,
+      `/plans/${planId.value}/extra-blocks/slot/${selectedId.value}/teams/${row.first_program}/${row.team_number_plan}`,
       {start}
     )
     row.start = data.start
@@ -786,13 +791,13 @@ const inputTitle =
               <tbody>
                 <tr
                   v-for="row in teams"
-                  :key="row.team_id"
+                  :key="row.row_key"
                   class="border-b border-gray-100 hover:bg-gray-50/80"
                 >
                   <td class="px-3 py-2 align-middle">
                     <div class="flex items-center gap-2">
                       <button
-                        v-if="!row.start && editingTeamId !== row.team_id"
+                        v-if="!row.start && editingTeamId !== rowEditKey(row)"
                         type="button"
                         class="w-[180px] max-w-full text-left px-2 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 text-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                         :disabled="!selectedBlock.active"
@@ -810,7 +815,7 @@ const inputTitle =
                         type="datetime-local"
                         :disabled="!selectedBlock.active"
                         class="text-sm border-b border-gray-300 bg-transparent py-0.5 w-[180px] max-w-full focus:outline-none focus:border-blue-500 disabled:text-gray-400 disabled:cursor-not-allowed"
-                        :value="editingTeamId === row.team_id ? editingStartLocal : wallTimeToDatetimeLocal(row.start)"
+                        :value="editingTeamId === rowEditKey(row) ? editingStartLocal : wallTimeToDatetimeLocal(row.start)"
                         @change="onTeamStartChange(row, ($event.target as HTMLInputElement).value)"
                         @blur="!row.start && cancelEditStart(row)"
                       />
