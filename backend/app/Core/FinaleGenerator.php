@@ -143,6 +143,9 @@ class FinaleGenerator
             ->orderBy('match_no')
             ->get();
 
+        // Track TR1 end so TR2 can be scheduled independently from LC timing.
+        $tr1EndTime = null;
+
         // 5 rounds of LC with test rounds interleaved
         for ($round = 1; $round <= 5; $round++) {
             $startTeam = ($round - 1) * 5; // Round 1: 0, Round 2: 5, Round 3: 10, etc.
@@ -153,10 +156,24 @@ class FinaleGenerator
             // === GENERATE TEST ROUND if this is round 1 or 4 ===
             if ($round == 1 && $round1Matches->isNotEmpty()) {
                 // TR1 parallel to LC Round 1
-                $this->insertTestRound(1, $round1Matches, $lcRoundStartTime);
+                $tr1EndTime = $this->insertTestRound(1, $round1Matches, $lcRoundStartTime);
             } elseif ($round == 4 && $round2Matches->isNotEmpty()) {
-                // TR2 parallel to LC Round 4
-                $tr2EndTime = $this->insertTestRound(2, $round2Matches, $lcRoundStartTime);
+                // TR2 is independent of LC timing:
+                // start after TR1 plus one long break.
+                $tr2StartTime = $tr1EndTime ? clone $tr1EndTime : clone $lcRoundStartTime;
+                if ($tr1EndTime) {
+                    $gapMinutes = max(0, (int)$this->pp('lc_duration_break_long') - (int)$this->pp('r_duration_robot_check'));
+                    $tr2StartTime->add(new \DateInterval('PT' . $gapMinutes . 'M'));
+                }
+
+                // If TR2 has one extra match on tables 1+2, add a virtual empty match on 3+4
+                // before rotation so pairing stays balanced.
+                $tr2BaseMatches = $this->normalizeTr2MatchesForRotation($round2Matches);
+
+                // Rotation for TR2 test order (move first 2 matches to end).
+                // Keep real match payload unchanged (teams/tables stay with their match).
+                $tr2RotatedMatches = $this->rotateMatches($tr2BaseMatches, 2);
+                $tr2EndTime = $this->insertTestRound(2, $tr2RotatedMatches, $tr2StartTime);
                 
                 // After TR2: Referee break and debrief
                 $this->generateRefereeDebriefAfterTR2($tr2EndTime);
@@ -332,6 +349,42 @@ class FinaleGenerator
         Log::info("FinaleGenerator: Referee debrief after TR2 complete", [
             'plan_id' => $this->pp('g_plan'),
         ]);
+    }
+
+    /**
+     * Rotate a match list by moving the first N matches to the end.
+     * Match contents remain untouched; only sequence changes.
+     */
+    private function rotateMatches($matches, int $count)
+    {
+        $total = $matches->count();
+        if ($total <= 1 || $count <= 0 || $total <= $count) {
+            return $matches;
+        }
+
+        return $matches->slice($count)->values()->concat($matches->slice(0, $count)->values());
+    }
+
+    /**
+     * For TR2 rotation, ensure an even number of matches by adding one virtual empty
+     * match on tables 3+4 when needed (one extra match on tables 1+2).
+     */
+    private function normalizeTr2MatchesForRotation($matches)
+    {
+        $normalized = $matches->values();
+        if ($normalized->count() % 2 === 0) {
+            return $normalized;
+        }
+
+        $normalized->push((object) [
+            'id' => null,
+            'table_1' => 3,
+            'table_1_team' => 0,
+            'table_2' => 4,
+            'table_2_team' => 0,
+        ]);
+
+        return $normalized;
     }
 
     /**
