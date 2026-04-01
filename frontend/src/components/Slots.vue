@@ -775,7 +775,14 @@ const inputTitle =
             <span class="text-sm">Lade Teams…</span>
           </div>
           <div v-else class="overflow-x-auto border rounded bg-white shadow-sm">
-            <table class="min-w-full text-sm">
+            <table class="w-full table-fixed text-sm">
+              <colgroup>
+                <col class="w-[220px]" />
+                <col class="w-[42px]" />
+                <col class="w-[68px]" />
+                <col class="w-[72px]" />
+                <col />
+              </colgroup>
               <tbody>
                 <tr
                   v-for="row in teams"

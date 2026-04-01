@@ -17,15 +17,23 @@
     @endif
     {!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($cleanTitle, $is_noshow ?? false) !!}
 </h2>
-@if(!empty($multi_day_event) && !empty($page_date))
-    <div style="background-color: #34495e; color: white; padding: 6px 10px; margin: 0 0 8px 0; font-size: 14px; border-radius: 3px;">
-        {{ $page_date->locale('de')->isoFormat('dddd, DD.MM.YYYY') }}
-    </div>
-@endif
 <table style="width:100%; border-collapse:collapse;">
     <tr valign="top">
         {{-- Linke Spalte: Tabelle --}}
         <td style="width:83.333%; padding-right:20px;">
+            @php
+                $tableDate = null;
+                if (!empty($page_date)) {
+                    $tableDate = $page_date;
+                } elseif (!empty($rows) && !empty($rows[0]['start_date'])) {
+                    $tableDate = $rows[0]['start_date'];
+                }
+            @endphp
+            @if(!empty($multi_day_event) && !empty($tableDate))
+                <div style="background-color: #34495e; color: white; padding: 8px 12px; margin: 0 0 10px 0; font-size: 16px; border-radius: 3px;">
+                    {{ $tableDate->locale('de')->isoFormat('dddd, DD.MM.YYYY') }}
+                </div>
+            @endif
             <table style="width:100%; border-collapse:collapse; font-size:13px;">
                 <thead>
                     <tr style="background-color:#f5f5f5;">
