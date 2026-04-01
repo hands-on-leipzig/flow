@@ -32,6 +32,15 @@ type TeamRow = {
   collision_gap_minutes?: number | null
 }
 
+type TeamActivityLine = {
+  id: number
+  start: string
+  end: string
+  label: string
+  status: 'red' | 'yellow' | 'green' | null
+  gap_minutes: number | null
+}
+
 function normalizeDurationMinutes(d: number): number {
   const n = Math.round(Number(d) / 5) * 5
   return Math.min(480, Math.max(5, n || 5))
@@ -99,6 +108,9 @@ const applyResult = ref<{ removed_activities: number; removed_groups: number; cr
 const applyToast = ref<InstanceType<typeof ScheduleToast> | null>(null)
 const eDurationTransfer = ref<number>(0)
 const cDurationTransfer = ref<number>(0)
+const tooltipOpenKey = ref<string | null>(null)
+const tooltipLoadingKey = ref<string | null>(null)
+const tooltipActivities = ref<Record<string, TeamActivityLine[]>>({})
 
 async function applySlotsToPlan() {
   if (!planId.value || applying.value) return
@@ -395,6 +407,9 @@ watch(selectedId, () => {
 
   // Keep collision checks on fresh plan activities when switching slot blocks.
   applySlotsToPlan().finally(() => {
+    tooltipActivities.value = {}
+    tooltipOpenKey.value = null
+    tooltipLoadingKey.value = null
     loadTeams()
   })
 })
@@ -451,6 +466,52 @@ function collisionDotClass(status: TeamRow['collision_status']): string {
   if (status === 'yellow') return 'bg-yellow-400'
   if (status === 'green') return 'bg-green-500'
   return 'bg-gray-300'
+}
+
+function lineStatusClass(status: TeamActivityLine['status']): string {
+  if (status === 'red') return 'text-red-700'
+  if (status === 'yellow') return 'text-yellow-700'
+  if (status === 'green') return 'text-green-700'
+  return 'text-gray-700'
+}
+
+function wallTimeHm(s: string | null): string {
+  if (!s) return '--:--'
+  const m = String(s).match(/^\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/)
+  return m ? `${m[1]}:${m[2]}` : String(s).slice(11, 16)
+}
+
+async function openTooltip(row: TeamRow) {
+  if (!planId.value || !selectedId.value) return
+  const key = row.row_key
+  tooltipOpenKey.value = key
+  if (tooltipActivities.value[key]) return
+
+  tooltipLoadingKey.value = key
+  try {
+    const {data} = await axios.get<{ activities: TeamActivityLine[] }>(
+      `/plans/${planId.value}/extra-blocks/slot/${selectedId.value}/teams/${row.first_program}/${row.team_number_plan}/activities`
+    )
+    tooltipActivities.value = {
+      ...tooltipActivities.value,
+      [key]: data?.activities ?? [],
+    }
+  } catch {
+    tooltipActivities.value = {
+      ...tooltipActivities.value,
+      [key]: [],
+    }
+  } finally {
+    if (tooltipLoadingKey.value === key) {
+      tooltipLoadingKey.value = null
+    }
+  }
+}
+
+function closeTooltip(row: TeamRow) {
+  if (tooltipOpenKey.value === row.row_key) {
+    tooltipOpenKey.value = null
+  }
 }
 
 function collisionTitle(row: TeamRow): string {
@@ -846,7 +907,46 @@ const inputTitle =
                       class="w-6 h-6 mx-auto"
                     />
                   </td>
-                  <td class="px-3 py-2 text-gray-800 font-medium tabular-nums">{{ formatPlanTeamNo(row.team_number_plan) }}</td>
+                  <td class="px-3 py-2 text-gray-800 font-medium tabular-nums">
+                    <div
+                      class="relative inline-block"
+                      @mouseenter="openTooltip(row)"
+                      @mouseleave="closeTooltip(row)"
+                    >
+                      <button
+                        type="button"
+                        class="underline decoration-dotted underline-offset-2 hover:text-blue-700"
+                        @focus="openTooltip(row)"
+                        @blur="closeTooltip(row)"
+                      >
+                        {{ formatPlanTeamNo(row.team_number_plan) }}
+                      </button>
+
+                      <div
+                        v-if="tooltipOpenKey === row.row_key"
+                        class="absolute z-30 mt-2 w-[24rem] max-w-[70vw] rounded-lg border border-gray-200 bg-white shadow-xl p-3"
+                      >
+                        <p class="text-xs font-semibold text-gray-800 mb-2">
+                          Team-spezifische Aktivitäten
+                        </p>
+                        <p v-if="tooltipLoadingKey === row.row_key" class="text-xs text-gray-500">Lade...</p>
+                        <p v-else-if="!(tooltipActivities[row.row_key]?.length)" class="text-xs text-gray-500">
+                          Keine team-spezifischen Aktivitäten gefunden.
+                        </p>
+                        <ul v-else class="space-y-1.5 max-h-64 overflow-y-auto">
+                          <li
+                            v-for="act in tooltipActivities[row.row_key]"
+                            :key="act.id"
+                            class="text-xs leading-snug"
+                            :class="lineStatusClass(act.status)"
+                          >
+                            <span class="font-mono">{{ wallTimeHm(act.start) }}-{{ wallTimeHm(act.end) }}</span>
+                            <span> · {{ act.label }}</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </td>
                   <td class="px-3 py-2 text-gray-800">{{ row.team_number_hot ?? '–' }}</td>
                   <td class="px-3 py-2 text-gray-900">{{ row.team_name }}</td>
                 </tr>

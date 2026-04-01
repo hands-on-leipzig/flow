@@ -566,6 +566,117 @@ class ExtraBlockController extends Controller
         ]);
     }
 
+    public function slotTeamActivities(int $planId, int $extraBlock, int $programId, int $teamNumberPlan): JsonResponse
+    {
+        $block = ExtraBlock::where('plan', $planId)->findOrFail($extraBlock);
+        $this->assertSlotBlock($block, $planId);
+
+        if (! in_array($programId, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value], true)) {
+            abort(422, 'Invalid program for slot assignment');
+        }
+        if (! $this->blockAllowsProgram((int) $block->first_program, $programId)) {
+            abort(422, 'Program not applicable for this slot block');
+        }
+
+        $params = PlanParameter::load($planId);
+        $maxTeams = $programId === FirstProgram::CHALLENGE->value
+            ? (int) $params->get('c_teams')
+            : (int) $params->get('e_teams');
+        if ($teamNumberPlan < 1 || $teamNumberPlan > $maxTeams) {
+            abort(422, 'Team number out of configured plan range');
+        }
+
+        $transfer = $this->transferDurationForProgram(
+            $programId,
+            (int) $params->get('e_duration_transfer'),
+            (int) $params->get('c_duration_transfer')
+        );
+
+        $assignment = SlotBlockTeam::query()
+            ->where('extra_block', $extraBlock)
+            ->where('first_program', $programId)
+            ->where('team_number_plan', $teamNumberPlan)
+            ->first();
+
+        $slotStart = null;
+        if ($assignment?->start) {
+            $slotStart = $assignment->start instanceof \Carbon\Carbon
+                ? $assignment->start->format('Y-m-d H:i:s')
+                : (string) $assignment->getRawOriginal('start');
+        }
+
+        $rows = DB::table('activity as a')
+            ->join('activity_group as ag', 'ag.id', '=', 'a.activity_group')
+            ->join('m_activity_type_detail as atd', 'atd.id', '=', 'a.activity_type_detail')
+            ->where('ag.plan', $planId)
+            ->where('atd.first_program', $programId)
+            ->where(function ($q) use ($teamNumberPlan) {
+                $q->where('a.jury_team', $teamNumberPlan)
+                    ->orWhere('a.table_1_team', $teamNumberPlan)
+                    ->orWhere('a.table_2_team', $teamNumberPlan)
+                    ->orWhere('a.slot_team', $teamNumberPlan);
+            })
+            ->where(function ($q) use ($extraBlock) {
+                $q->whereNull('a.extra_block')
+                    ->orWhere('a.extra_block', '!=', $extraBlock);
+            })
+            ->select([
+                'a.id',
+                'a.start',
+                'a.end',
+                'atd.name as activity_name',
+                'atd.code as activity_code',
+            ])
+            ->orderBy('a.start')
+            ->orderBy('a.end')
+            ->get()
+            ->map(function ($row) use ($slotStart, $block, $transfer) {
+                $start = is_string($row->start) ? $row->start : (string) $row->start;
+                $end = is_string($row->end) ? $row->end : (string) $row->end;
+                $start = preg_replace('/T/', ' ', $start, 1);
+                $end = preg_replace('/T/', ' ', $end, 1);
+                if (strlen($start) === 16) {
+                    $start .= ':00';
+                }
+                if (strlen($end) === 16) {
+                    $end .= ':00';
+                }
+
+                $status = null;
+                $gap = null;
+                if ($slotStart !== null) {
+                    $comparison = $this->classifyActivityAgainstSlot(
+                        $slotStart,
+                        (int) $block->duration,
+                        $transfer,
+                        $start,
+                        $end
+                    );
+                    $status = $comparison['status'];
+                    $gap = $comparison['gap_minutes'];
+                }
+
+                return [
+                    'id' => (int) $row->id,
+                    'start' => $start,
+                    'end' => $end,
+                    'label' => $row->activity_name ?: $row->activity_code,
+                    'status' => $status,
+                    'gap_minutes' => $gap,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'first_program' => $programId,
+            'team_number_plan' => $teamNumberPlan,
+            'slot_start' => $slotStart,
+            'slot_duration' => (int) $block->duration,
+            'transfer_minutes' => $transfer,
+            'activities' => $rows,
+        ]);
+    }
+
     private function blockAllowsProgram(int $blockFirstProgram, int $programId): bool
     {
         if ($blockFirstProgram === FirstProgram::JOINT->value) {
@@ -604,6 +715,42 @@ class ExtraBlockController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * @return array{status: string, gap_minutes: ?int}
+     */
+    private function classifyActivityAgainstSlot(
+        string $slotStart,
+        int $slotDurationMinutes,
+        int $transferMinutes,
+        string $activityStart,
+        string $activityEnd
+    ): array {
+        $slotStartDt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $slotStart);
+        $actStartDt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $activityStart);
+        $actEndDt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $activityEnd);
+        if (! $slotStartDt || ! $actStartDt || ! $actEndDt) {
+            return ['status' => 'green', 'gap_minutes' => null];
+        }
+        $slotEndDt = $slotStartDt->modify('+'.$slotDurationMinutes.' minutes');
+
+        if ($slotStartDt < $actEndDt && $slotEndDt > $actStartDt) {
+            return ['status' => 'red', 'gap_minutes' => 0];
+        }
+
+        $gap = null;
+        if ($slotEndDt <= $actStartDt) {
+            $gap = (int) floor(($actStartDt->getTimestamp() - $slotEndDt->getTimestamp()) / 60);
+        } elseif ($actEndDt <= $slotStartDt) {
+            $gap = (int) floor(($slotStartDt->getTimestamp() - $actEndDt->getTimestamp()) / 60);
+        }
+
+        if ($gap !== null && $gap < $transferMinutes) {
+            return ['status' => 'yellow', 'gap_minutes' => $gap];
+        }
+
+        return ['status' => 'green', 'gap_minutes' => $gap];
     }
 
     private function transferDurationForProgram(int $teamFirstProgram, int $eTransfer, int $cTransfer): int
