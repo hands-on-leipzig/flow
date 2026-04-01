@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import axios from 'axios'
 
 const props = defineProps({
@@ -39,18 +39,25 @@ const minRequiredTables = () => Math.min(3, details.value?.r_tables ?? 3)
 const warnClassTables = (val) => val < minRequiredTables() ? 'text-yellow-500 font-semibold' : 'text-gray-300'
 const iconTables = (val) => val < minRequiredTables() ? '⚠️' : '✓'
 
-const matchesByRound = (round) => {
-  const filtered = details.value?.matches?.filter(m => m.round === round) ?? []
-  // Sort by match_no to ensure chronological order
-  return filtered.sort((a, b) => a.match_no - b.match_no)
-}
-
 const formatTeam = (teamNum) => {
   // Format team display: Team 0 = '–' (volunteer/BYE), null/undefined = empty, others = number
   if (teamNum === null || teamNum === undefined) return ''
   if (teamNum === 0) return '–'
   return String(teamNum)
 }
+
+const matchPlanColumns = computed(() => {
+  if (Array.isArray(details.value?.match_plan_rounds) && details.value.match_plan_rounds.length > 0) {
+    return details.value.match_plan_rounds
+  }
+
+  return [
+    { key: '0', label: 'Testrunde', matches: [] },
+    { key: '1', label: 'Runde 1', matches: [] },
+    { key: '2', label: 'Runde 2', matches: [] },
+    { key: '3', label: 'Runde 3', matches: [] },
+  ]
+})
 </script>
 
 <template>
@@ -152,12 +159,12 @@ const formatTeam = (teamNum) => {
           <div class="text-sm font-semibold text-gray-600 mb-1">Matchplan</div>
           <div class="flex flex-row gap-4">
             <div
-              v-for="round in [0,1,2,3]"
-              :key="round"
+              v-for="col in matchPlanColumns"
+              :key="`${col.key}-${col.label}`"
               class="min-w-max"
             >
               <div class="text-sm font-semibold text-gray-600 mb-1">
-                {{ ['Testrunde', 'Runde 1', 'Runde 2', 'Runde 3'][round] }}
+                {{ col.label }}
               </div>
               <table class="table-auto text-sm border-collapse">
                 <thead class="bg-gray-100">
@@ -170,7 +177,7 @@ const formatTeam = (teamNum) => {
                 </thead>
                 <tbody>
                   <tr
-                    v-for="match in matchesByRound(round)"
+                    v-for="match in col.matches"
                     :key="match.id"
                     class="border-t"
                   >
