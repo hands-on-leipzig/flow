@@ -529,6 +529,7 @@ function collisionTitle(row: TeamRow): string {
 
 async function onTeamStartChange(row: TeamRow, value: string) {
   if (!planId.value || !selectedId.value) return
+  const key = row.row_key
   const start = value ? datetimeLocalToDb(value) : null
   try {
     const {data} = await axios.patch(
@@ -539,6 +540,13 @@ async function onTeamStartChange(row: TeamRow, value: string) {
     row.collision_status = data.collision_status ?? null
     row.collision_gap_minutes = data.collision_gap_minutes ?? null
     cancelEditStart(row)
+    // Recalculate tooltip line colors for this row against the updated slot time.
+    tooltipActivities.value = Object.fromEntries(
+      Object.entries(tooltipActivities.value).filter(([k]) => k !== key)
+    )
+    if (tooltipOpenKey.value === key) {
+      await openTooltip(row)
+    }
     teams.value = [...teams.value].sort((a, b) => {
       if (!a.start && !b.start) return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
       if (!a.start) return 1
@@ -933,7 +941,7 @@ const inputTitle =
                         <p v-else-if="!(tooltipActivities[row.row_key]?.length)" class="text-xs text-gray-500">
                           Keine team-spezifischen Aktivitäten gefunden.
                         </p>
-                        <ul v-else class="space-y-1.5 max-h-64 overflow-y-auto">
+                        <ul v-else class="space-y-1.5">
                           <li
                             v-for="act in tooltipActivities[row.row_key]"
                             :key="act.id"
