@@ -2559,6 +2559,10 @@ class PlanExportController extends Controller
      */
     private function buildExploreTeamPages(\Illuminate\Support\Collection $acts): array
     {
+        $acts = $acts
+            ->unique(fn ($a) => (int) ($a->activity_id ?? 0))
+            ->values();
+
         // Teamnummern + Namen + IDs sammeln
         $teamNames = []; // [num => name]
         $teamHot = []; // [num => team_number_hot]
@@ -2589,6 +2593,14 @@ class PlanExportController extends Controller
                     $teamNoshow[$num] = (bool) $a->jury_team_noshow;
                 }
             }
+
+            // Slot assignment (stored as team_number_plan)
+            if (! is_null($a->slot_team)) {
+                $num = (int) $a->slot_team;
+                if ($num > 0) {
+                    $teamSet[$num] = true;
+                }
+            }
         }
 
         if (empty($teamSet)) {
@@ -2596,7 +2608,7 @@ class PlanExportController extends Controller
         }
 
         // Globale Acts (ohne Teamnummer)
-        $globalActs = $acts->filter(fn ($a) => is_null($a->team));
+        $globalActs = $acts->filter(fn ($a) => is_null($a->team) && is_null($a->slot_team));
 
         // Pro Team: eigene + globale Acts
         $pages = [];
@@ -2613,7 +2625,10 @@ class PlanExportController extends Controller
         });
 
         foreach ($teamNums as $num) {
-            $ownActs = $acts->filter(fn ($a) => ! is_null($a->team) && (int) $a->team === $num);
+            $ownActs = $acts->filter(function ($a) use ($num) {
+                return (! is_null($a->team) && (int) $a->team === $num)
+                    || (! is_null($a->slot_team) && (int) $a->slot_team === $num);
+            });
 
             // 🔹 Label nach neuer Regel
             $teamName = $teamNames[$num] ?? null;
@@ -2649,6 +2664,10 @@ class PlanExportController extends Controller
      */
     private function buildChallengeTeamPages(\Illuminate\Support\Collection $acts): array
     {
+        $acts = $acts
+            ->unique(fn ($a) => (int) ($a->activity_id ?? 0))
+            ->values();
+
         $teamNames = []; // [num => name]
         $teamHot = []; // [num => team_number_hot]
         $teamIds = []; // [num => actual team.id]
@@ -2674,6 +2693,14 @@ class PlanExportController extends Controller
                 }
                 if (isset($a->jury_team_noshow) && ! isset($teamNoshow[$n])) {
                     $teamNoshow[$n] = (bool) $a->jury_team_noshow;
+                }
+            }
+
+            // Slot assignment (stored as team_number_plan)
+            if (! is_null($a->slot_team)) {
+                $n = (int) $a->slot_team;
+                if ($n > 0) {
+                    $teamSet[$n] = true;
                 }
             }
 
@@ -2732,7 +2759,7 @@ class PlanExportController extends Controller
 
         // 🔸 Globale Acts: kein Team, UND kein Match / kein Check
         $globalActs = $acts->filter(function ($a) use ($matchCheckIds) {
-            $hasNoTeam = is_null($a->team) && is_null($a->table_1_team) && is_null($a->table_2_team);
+            $hasNoTeam = is_null($a->team) && is_null($a->table_1_team) && is_null($a->table_2_team) && is_null($a->slot_team);
 
             // Wenn kein Team → prüfen, ob Activity-Typ einer der Match-/Check-Typen ist
             $isMatchOrCheck = in_array($a->activity_type_detail_id, $matchCheckIds);
@@ -2761,7 +2788,8 @@ class PlanExportController extends Controller
             $ownActs = $acts->filter(function ($a) use ($num) {
                 return (! is_null($a->team) && (int) $a->team === $num)
                     || (! is_null($a->table_1_team) && (int) $a->table_1_team === $num)
-                    || (! is_null($a->table_2_team) && (int) $a->table_2_team === $num);
+                    || (! is_null($a->table_2_team) && (int) $a->table_2_team === $num)
+                    || (! is_null($a->slot_team) && (int) $a->slot_team === $num);
             });
 
             // 🔹 Label-Logik wie bei Explore
