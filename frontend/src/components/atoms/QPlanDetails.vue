@@ -58,6 +58,13 @@ const matchPlanColumns = computed(() => {
     { key: '3', label: 'Runde 3', matches: [] },
   ]
 })
+
+const transferRows = computed(() => {
+  if (details.value?.is_two_day_event && Array.isArray(details.value?.transfer_summary)) {
+    return details.value.transfer_summary
+  }
+  return details.value?.teams ?? []
+})
 </script>
 
 <template>
@@ -74,32 +81,50 @@ const matchPlanColumns = computed(() => {
               <tr>
                 <th class="px-2 py-1 text-left">Team</th>
                 <th class="px-2 py-1">Tr.</th>
-                <th class="px-2 py-1">1→2</th>
-                <th class="px-2 py-1">2→3</th>
-                <th class="px-2 py-1">3→4</th>
-                <th class="px-2 py-1">4→5</th>
-                <th class="px-2 py-1">Δ</th>
+                <template v-if="details.is_two_day_event">
+                  <th class="px-2 py-1">T1 1→2</th>
+                  <th class="px-2 py-1">T1 2→3</th>
+                  <th class="px-2 py-1">T2 1→2</th>
+                  <th class="px-2 py-1">T2 2→3</th>
+                  <th class="px-2 py-1">T2 3→4</th>
+                </template>
+                <template v-else>
+                  <th class="px-2 py-1">1→2</th>
+                  <th class="px-2 py-1">2→3</th>
+                  <th class="px-2 py-1">3→4</th>
+                  <th class="px-2 py-1">4→5</th>
+                </template>
+                <th v-if="!details.is_two_day_event" class="px-2 py-1">Δ</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="team in details.teams" :key="team.id" class="border-t">
+              <tr v-for="team in transferRows" :key="team.id ?? team.team" class="border-t">
                 <td class="px-2 py-1">{{ team.team }}</td>
                 <td class="text-center">
                   <span :class="okClass(team.q1_ok)">{{ okIcon(team.q1_ok) }}</span>
                 </td>
-                <td class="text-center" :class="team.q1_transition_1_2 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
-                  {{ team.q1_transition_1_2 }}
-                </td>
-                <td class="text-center" :class="team.q1_transition_2_3 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
-                  {{ team.q1_transition_2_3 }}
-                </td>
-                <td class="text-center" :class="team.q1_transition_3_4 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
-                  {{ team.q1_transition_3_4 }}
-                </td>
-                <td class="text-center" :class="team.q1_transition_4_5 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
-                  {{ team.q1_transition_4_5 }}
-                </td>
-                <td class="text-center">{{ team.q5_idle_avg?.toFixed(2) ?? '–' }}</td>
+                <template v-if="details.is_two_day_event">
+                  <td class="text-center" :class="team.day1_1_2 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">{{ team.day1_1_2 }}</td>
+                  <td class="text-center" :class="team.day1_2_3 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">{{ team.day1_2_3 }}</td>
+                  <td class="text-center" :class="team.day2_1_2 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">{{ team.day2_1_2 }}</td>
+                  <td class="text-center" :class="team.day2_2_3 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">{{ team.day2_2_3 }}</td>
+                  <td class="text-center" :class="team.day2_3_4 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">{{ team.day2_3_4 }}</td>
+                </template>
+                <template v-else>
+                  <td class="text-center" :class="team.q1_transition_1_2 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
+                    {{ team.q1_transition_1_2 }}
+                  </td>
+                  <td class="text-center" :class="team.q1_transition_2_3 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
+                    {{ team.q1_transition_2_3 }}
+                  </td>
+                  <td class="text-center" :class="team.q1_transition_3_4 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
+                    {{ team.q1_transition_3_4 }}
+                  </td>
+                  <td class="text-center" :class="team.q1_transition_4_5 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
+                    {{ team.q1_transition_4_5 }}
+                  </td>
+                </template>
+                <td v-if="!details.is_two_day_event" class="text-center">{{ team.q5_idle_avg?.toFixed(2) ?? '–' }}</td>
               </tr>
             </tbody>
           </table>
