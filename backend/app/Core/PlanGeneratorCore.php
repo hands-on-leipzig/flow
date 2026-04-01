@@ -2,26 +2,18 @@
 
 namespace App\Core;
 
-use DateTime;
-use Illuminate\Support\Facades\Log;
-
-use App\Core\ActivityWriter;
-use App\Core\ChallengeGenerator;
-use App\Core\ExploreGenerator;
-use App\Core\FreeBlockGenerator;
-use App\Core\FinaleGenerator;
-use App\Core\TimeCursor;
-
+use App\Enums\ExploreMode;
+use App\Support\IntegratedExploreState;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
-use App\Support\IntegratedExploreState;
-use App\Enums\ExploreMode;
+use Illuminate\Support\Facades\Log;
 
 class PlanGeneratorCore
 {
     private ActivityWriter $writer;
 
     private ChallengeGenerator $challenge;
+
     private ExploreGenerator $explore;
 
     // Shared state for integrated Explore mode
@@ -33,23 +25,22 @@ class PlanGeneratorCore
     {
         $this->writer = new ActivityWriter($planId, $params);
         $this->params = $params;
-        $this->integratedExplore = new IntegratedExploreState();
+        $this->integratedExplore = new IntegratedExploreState;
     }
 
     public static function generate(int $planId): void
     {
         Log::info("PlanGeneratorCore: Start generation for plan {$planId}");
-        
+
         $params = PlanParameter::load($planId);
         $instance = new self($planId, $params);
-        
+
         try {
-                $instance->generateByMode();
-            } catch (\Throwable $e) {
-                Log::error("Plan generation failed: {$e->getMessage()}", ['plan_id' => $planId]);
-                throw $e;
-            }
-        
+            $instance->generateByMode();
+        } catch (\Throwable $e) {
+            Log::error("Plan generation failed: {$e->getMessage()}", ['plan_id' => $planId]);
+            throw $e;
+        }
 
         // -----------------------------------------------------------------------------------
         // Add all free blocks.
@@ -57,6 +48,11 @@ class PlanGeneratorCore
         // -----------------------------------------------------------------------------------
 
         (new FreeBlockGenerator($instance->writer, $instance->params))->insertFreeActivities();
+
+        // Re-materialize slot-based activities after full regeneration.
+        // Full generation rebuilds all activity groups, so slot assignments
+        // must be re-applied from slot_block_team to activity rows.
+        app(\App\Services\SlotBlockPlanSyncService::class)->applyToPlan($planId);
 
         Log::info("PlanGeneratorCore: Finished generation for plan {$planId}");
     }
@@ -68,6 +64,7 @@ class PlanGeneratorCore
             // Finale event - delegate to FinaleGenerator for complete 2-day generation
             $finale = new FinaleGenerator($this->writer, $this->params);
             $finale->generate();
+
             return;
         }
 
@@ -88,19 +85,19 @@ class PlanGeneratorCore
 
         if ($cMode == 1) {
             // Challenge present - instantiate ChallengeGenerator
-        $this->challenge = new ChallengeGenerator(
-            $this->writer,
+            $this->challenge = new ChallengeGenerator(
+                $this->writer,
                 $this->params,
                 $this->integratedExplore
             );
-            
+
             if ($eMode == ExploreMode::NONE->value) {
                 // Challenge only
                 $this->challenge->openingsAndBriefings();
                 $this->challenge->main();
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards();
-                
+
             } elseif ($eMode == ExploreMode::INTEGRATED_MORNING->value) {
                 // Challenge + Explore integrated morning
                 $this->explore = new ExploreGenerator(
@@ -108,16 +105,16 @@ class PlanGeneratorCore
                     $this->params,
                     $this->integratedExplore
                 );
-                        
+
                 $this->challenge->openingsAndBriefings(true);
                 $this->explore->openingsAndBriefings(1);
                 $this->explore->judgingAndDeliberations(1);
-                
+
                 // Define callback to insert awards and adjust rTime after RG1, before RG2
-                $afterRG1Callback = function(TimeCursor $rTime) {
+                $afterRG1Callback = function (TimeCursor $rTime) {
                     // Insert Explore awards at the synchronized start time
                     $awardsEndTime = $this->explore->integratedActivity(1, $rTime);
-                    
+
                     if ($awardsEndTime !== null) {
                         // Set rTime to awards end time + e_ready_awards buffer
                         // This ensures RG2 starts after awards are complete
@@ -125,12 +122,12 @@ class PlanGeneratorCore
                         $rTime->addMinutes($this->pp('e_ready_awards'));
                     }
                 };
-                
+
                 $this->challenge->main(true, $afterRG1Callback);
-                
+
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards();
-                
+
             } elseif ($eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
                 // Challenge + Explore integrated afternoon
                 $this->explore = new ExploreGenerator(
@@ -138,11 +135,11 @@ class PlanGeneratorCore
                     $this->params,
                     $this->integratedExplore
                 );
-                
+
                 $this->challenge->openingsAndBriefings();
                 $this->challenge->main(true);
                 $this->explore->integratedActivity(2);
-                $this->explore->judgingAndDeliberations(2);                
+                $this->explore->judgingAndDeliberations(2);
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards(true);
 
@@ -153,10 +150,10 @@ class PlanGeneratorCore
                     $this->params,
                     $this->integratedExplore
                 );
-                
+
                 $this->challenge->openingsAndBriefings(true);
-                $this->challenge->main();           
-                
+                $this->challenge->main();
+
                 $this->explore->openingsAndBriefings(1);
                 $this->explore->judgingAndDeliberations(1);
                 $this->explore->awards(1); // awards
@@ -164,16 +161,16 @@ class PlanGeneratorCore
                 $this->challenge->robotGameFinals();
                 $this->challenge->awards(true);
 
-                $this->explore->integratedActivity(2); // openings and briefings 
-                $this->explore->judgingAndDeliberations(2);                
-                
+                $this->explore->integratedActivity(2); // openings and briefings
+                $this->explore->judgingAndDeliberations(2);
+
             } elseif (in_array($eMode, [
-                ExploreMode::DECOUPLED_MORNING->value, 
-                ExploreMode::DECOUPLED_AFTERNOON->value, 
-                ExploreMode::DECOUPLED_BOTH->value
+                ExploreMode::DECOUPLED_MORNING->value,
+                ExploreMode::DECOUPLED_AFTERNOON->value,
+                ExploreMode::DECOUPLED_BOTH->value,
             ])) {
                 // Challenge + Explore decoupled
-                
+
                 $this->explore = new ExploreGenerator(
                     $this->writer,
                     $this->params,
@@ -186,14 +183,14 @@ class PlanGeneratorCore
                 $this->challenge->awards();
 
                 if ($eMode == ExploreMode::DECOUPLED_MORNING->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
-    
+
                     $this->explore->openingsAndBriefings(1);
                     $this->explore->judgingAndDeliberations(1);
                     $this->explore->awards(1);
                 }
 
                 if ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
-                    
+
                     $this->explore->openingsAndBriefings(2);
                     $this->explore->judgingAndDeliberations(2);
                     $this->explore->awards(2);
@@ -205,17 +202,18 @@ class PlanGeneratorCore
             // No Challenge - check if Explore is enabled
             if ($eMode == ExploreMode::NONE->value) {
                 // Both programs disabled - nothing to generate
-                Log::warning("PlanGeneratorCore: Both programs disabled (e_mode=0, c_mode=0) - generating empty plan");
+                Log::warning('PlanGeneratorCore: Both programs disabled (e_mode=0, c_mode=0) - generating empty plan');
+
                 return;
             }
-            
+
             // Explore only
             $this->explore = new ExploreGenerator(
                 $this->writer,
                 $this->params,
                 $this->integratedExplore
             );
-            
+
             // Handle different Explore modes
             if ($eMode == ExploreMode::DECOUPLED_MORNING->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
                 // Morning session (group 1)
@@ -223,7 +221,7 @@ class PlanGeneratorCore
                 $this->explore->judgingAndDeliberations(1);
                 $this->explore->awards(1);
             }
-            
+
             if ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
                 // Afternoon session (group 2)
                 $this->explore->openingsAndBriefings(2);
