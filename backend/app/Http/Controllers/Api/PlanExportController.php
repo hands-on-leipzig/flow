@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ExploreMode;
 use App\Enums\FirstProgram;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
@@ -2211,6 +2212,7 @@ class PlanExportController extends Controller
     public function teamSchedulePdf(int $planId, array $programIds = [], $maxRowsPerPage = 16)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
+        $exploreGrouping = $this->getExploreGroupingConfig($planId);
 
         // If no program IDs provided, use both (backward compatibility)
         if (empty($programIds)) {
@@ -2231,7 +2233,11 @@ class PlanExportController extends Controller
                 true,  // includeTeamNames (jury_team_name, table_*_team_name)
                 true   // freeBlocks
             ));
-            $explorePages = $this->buildExploreTeamPages($exploreActs);
+            $explorePages = $this->buildExploreTeamPages(
+                $exploreActs,
+                (bool) $exploreGrouping['has_two_groups'],
+                (int) $exploreGrouping['e1_teams']
+            );
         }
 
         // 2) Challenge (Role 3) - only if program 3 selected
@@ -2557,7 +2563,7 @@ class PlanExportController extends Controller
      * Globale Acts = `team === null` → jedem Explore-Team hinzufügen.
      * Ergebnis: Array von Seiten ['label' => string, 'acts' => Collection], nach Teamnummer sortiert.
      */
-    private function buildExploreTeamPages(\Illuminate\Support\Collection $acts): array
+    private function buildExploreTeamPages(\Illuminate\Support\Collection $acts, bool $hasTwoGroups = false, int $e1Teams = 0): array
     {
         $acts = $acts
             ->unique(fn ($a) => (int) ($a->activity_id ?? 0))
@@ -2608,7 +2614,7 @@ class PlanExportController extends Controller
         }
 
         // Globale Acts (ohne Teamnummer)
-        $globalActs = $acts->filter(fn ($a) => is_null($a->team) && is_null($a->slot_team));
+        $globalActsAll = $acts->filter(fn ($a) => is_null($a->team) && is_null($a->slot_team));
 
         // Pro Team: eigene + globale Acts
         $pages = [];
@@ -2629,6 +2635,21 @@ class PlanExportController extends Controller
                 return (! is_null($a->team) && (int) $a->team === $num)
                     || (! is_null($a->slot_team) && (int) $a->slot_team === $num);
             });
+            $globalActs = $globalActsAll;
+
+            if ($hasTwoGroups && $e1Teams > 0) {
+                $teamGroup = ((int) $num <= $e1Teams) ? 1 : 2;
+                $ownActs = $ownActs->filter(function ($a) use ($teamGroup) {
+                    $g = isset($a->group_explore_group) ? (int) $a->group_explore_group : null;
+
+                    return $g === null || $g === $teamGroup;
+                });
+                $globalActs = $globalActsAll->filter(function ($a) use ($teamGroup) {
+                    $g = isset($a->group_explore_group) ? (int) $a->group_explore_group : null;
+
+                    return $g === null || $g === $teamGroup;
+                });
+            }
 
             // 🔹 Label nach neuer Regel
             $teamName = $teamNames[$num] ?? null;
@@ -2822,6 +2843,7 @@ class PlanExportController extends Controller
     public function roleSchedulePdf(int $planId, array $roleIds = [], $maxRowsPerPage = 16)
     {
         $fetcher = app(\App\Services\ActivityFetcherService::class);
+        $exploreGrouping = $this->getExploreGroupingConfig($planId);
 
         // If no role IDs provided, use default set (backward compatibility)
         if (empty($roleIds)) {
@@ -2964,7 +2986,20 @@ class PlanExportController extends Controller
         };
 
         // === Gruppieren & Duplizieren ===
-        $exploreGrouped = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutachter:innen-Gruppe');
+        if ((bool) $exploreGrouping['has_two_groups']) {
+            $exploreGrouped1 = $distributeGeneric(
+                $exploreActs->filter(fn ($a) => ! isset($a->group_explore_group) || $a->group_explore_group === null || (int) $a->group_explore_group === 1),
+                'lane',
+                'FLL Explore Gruppe 1 Gutachter:innen-Gruppe'
+            );
+            $exploreGrouped2 = $distributeGeneric(
+                $exploreActs->filter(fn ($a) => ! isset($a->group_explore_group) || $a->group_explore_group === null || (int) $a->group_explore_group === 2),
+                'lane',
+                'FLL Explore Gruppe 2 Gutachter:innen-Gruppe'
+            );
+        } else {
+            $exploreGrouped = $distributeGeneric($exploreActs, 'lane', 'FLL Explore Gutachter:innen-Gruppe');
+        }
         $challengeJuryGrouped = $distributeGeneric($challengeJuryActs, 'lane', 'FLL Challenge Jury-Gruppe');
         $challengeRefGrouped = $distributeGeneric($challengeRefActs, 'table', 'FLL Challenge Schiedsrichter:innen ');
         $challengeCheckGrouped = $distributeGeneric($challengeCheckActs, 'table', 'FLL Challenge Robot-Check für ');
@@ -2991,7 +3026,12 @@ class PlanExportController extends Controller
             }
         };
 
-        $appendSections($exploreGrouped, 9);
+        if ((bool) $exploreGrouping['has_two_groups']) {
+            $appendSections($exploreGrouped1, 9);
+            $appendSections($exploreGrouped2, 9);
+        } else {
+            $appendSections($exploreGrouped, 9);
+        }
         $appendSections($challengeJuryGrouped, 4);
         $appendSections($challengeRefGrouped, 5);
         $appendSections($challengeCheckGrouped, 11);
@@ -3958,5 +3998,30 @@ class PlanExportController extends Controller
         $detailId = (int) ($activity->activity_type_detail_id ?? $activity->activity_type_group ?? 0);
 
         return in_array($detailId, $freeIds, true);
+    }
+
+    /**
+     * @return array{has_two_groups: bool, e1_teams: int}
+     */
+    private function getExploreGroupingConfig(int $planId): array
+    {
+        $rows = DB::table('m_parameter as mp')
+            ->leftJoin('plan_param_value as ppv', function ($j) use ($planId) {
+                $j->on('ppv.parameter', '=', 'mp.id')
+                    ->where('ppv.plan', '=', $planId);
+            })
+            ->whereIn('mp.name', ['e_mode', 'e1_teams'])
+            ->select('mp.name', DB::raw('COALESCE(ppv.set_value, mp.value) as value'))
+            ->get()
+            ->keyBy('name');
+
+        $eMode = (int) ($rows['e_mode']->value ?? 0);
+        $e1Teams = (int) ($rows['e1_teams']->value ?? 0);
+        $hasTwoGroups = in_array($eMode, [ExploreMode::DECOUPLED_BOTH->value, ExploreMode::HYBRID_BOTH->value], true);
+
+        return [
+            'has_two_groups' => $hasTwoGroups,
+            'e1_teams' => $e1Teams,
+        ];
     }
 }
