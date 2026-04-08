@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\Log;
 
 class PlanExportController extends Controller
 {
+    private const PDF_ACTIVITY_LABEL_MAX_LENGTH = 40;
+
     private ActivityFetcherService $activityFetcher;
 
     private EventTitleService $eventTitleService;
@@ -3844,11 +3846,23 @@ class PlanExportController extends Controller
                 ->toArray();
         }
 
-        if ($code && isset($roundLabels[$code])) {
-            return $roundLabels[$code];
+        $label = ($code && isset($roundLabels[$code])) ? $roundLabels[$code] : $base;
+
+        return $this->truncatePdfActivityLabel((string) $label);
+    }
+
+    private function truncatePdfActivityLabel(string $label): string
+    {
+        $max = self::PDF_ACTIVITY_LABEL_MAX_LENGTH;
+        if ($max <= 0) {
+            return $label;
         }
 
-        return $base;
+        if (mb_strlen($label) <= $max) {
+            return $label;
+        }
+
+        return mb_substr($label, 0, $max).'...';
     }
 
     private function isFreeBlock($activity): bool
