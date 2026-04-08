@@ -284,7 +284,7 @@ class PlanExportController extends Controller
             $moderatorActivities = collect($this->activityFetcher->fetchActivities(
                 $planId,
                 [13],  // Moderator role
-                false, // includeRooms
+                true,  // includeRooms
                 true,  // includeGroupMeta
                 true,  // includeActivityMeta
                 true,  // includeTeamNames
@@ -419,6 +419,7 @@ class PlanExportController extends Controller
                         'name' => $a->activity_atd_name ?? $a->activity_name ?? '–',
                         'start_time' => Carbon::parse($a->start_time)->format('H:i'),
                         'end_time' => Carbon::parse($a->end_time)->format('H:i'),
+                        'room' => $a->room_name ?? '–',
                         'start_timestamp' => Carbon::parse($a->start_time)->timestamp,
                     ];
                 })
@@ -440,6 +441,7 @@ class PlanExportController extends Controller
                         'name' => $a->activity_atd_name ?? $a->activity_name ?? '–',
                         'start_time' => Carbon::parse($a->start_time)->format('H:i'),
                         'end_time' => Carbon::parse($a->end_time)->format('H:i'),
+                        'room' => $a->room_name ?? '–',
                         'start_timestamp' => Carbon::parse($a->start_time)->timestamp,
                     ];
                 })
@@ -2535,7 +2537,7 @@ class PlanExportController extends Controller
                 }
             }
 
-            // Chunk rows uniformly (independent of day changes)
+            // Chunk rows uniformly (same behavior as room/role PDFs).
             $chunks = array_chunk($rows, $maxRowsPerPage);
             $chunkCount = count($chunks);
 

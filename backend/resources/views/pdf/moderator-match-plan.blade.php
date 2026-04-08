@@ -134,7 +134,7 @@
                         @foreach(($scheduleActivitiesDay1 ?? []) as $activity)
                             <div class="special-activity">
                                 <div class="special-activity-header">{{ e($activity['name']) }}</div>
-                                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
+                                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }} | {{ e($activity['room'] ?? '–') }}</div>
                             </div>
                         @endforeach
                     </td>
@@ -143,7 +143,7 @@
                         @foreach(($parallelActivitiesDay1 ?? []) as $activity)
                             <div class="special-activity">
                                 <div class="special-activity-header">{{ e($activity['name']) }}</div>
-                                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
+                                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }} | {{ e($activity['room'] ?? '–') }}</div>
                             </div>
                         @endforeach
                     </td>
@@ -195,7 +195,7 @@
                         @foreach(($scheduleActivitiesDay2 ?? []) as $activity)
                             <div class="special-activity">
                                 <div class="special-activity-header">{{ e($activity['name']) }}</div>
-                                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
+                                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }} | {{ e($activity['room'] ?? '–') }}</div>
                             </div>
                         @endforeach
                     </td>
@@ -204,7 +204,7 @@
                         @foreach(($parallelActivitiesDay2 ?? []) as $activity)
                             <div class="special-activity">
                                 <div class="special-activity-header">{{ e($activity['name']) }}</div>
-                                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
+                                <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }} | {{ e($activity['room'] ?? '–') }}</div>
                             </div>
                         @endforeach
                     </td>
@@ -250,7 +250,7 @@
                             @foreach($scheduleActivities as $activity)
                                 <div class="special-activity">
                                     <div class="special-activity-header">{{ e($activity['name']) }}</div>
-                                    <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
+                                    <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }} | {{ e($activity['room'] ?? '–') }}</div>
                                 </div>
                             @endforeach
                         @endif
@@ -261,7 +261,7 @@
                             @foreach($parallelActivities as $activity)
                                 <div class="special-activity">
                                     <div class="special-activity-header">{{ e($activity['name']) }}</div>
-                                    <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }}</div>
+                                    <div class="special-activity-time">{{ $activity['start_time'] }} – {{ $activity['end_time'] }} | {{ e($activity['room'] ?? '–') }}</div>
                                 </div>
                             @endforeach
                         @endif
