@@ -1063,7 +1063,7 @@
         {
             "id": 14,
             "name": "r_robot_check_16",
-            "context": "expert",
+            "context": "protected",
             "level": 3,
             "type": "boolean",
             "value": "1",
@@ -2248,7 +2248,7 @@
         {
             "id": 128,
             "name": "r_final_16",
-            "context": "expert",
+            "context": "protected",
             "level": 3,
             "type": "boolean",
             "value": "0",
@@ -6452,7 +6452,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-04-08T10:59:35.210265Z",
+        "exported_at": "2026-04-08T13:42:09.988740Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
