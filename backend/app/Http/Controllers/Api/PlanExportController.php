@@ -1025,6 +1025,7 @@ class PlanExportController extends Controller
                 ->join('slot_block_team as sbt', 'sbt.extra_block', '=', 'eb.id')
                 ->where('eb.plan', $planId)
                 ->where('eb.type', 'slot')
+                ->where('eb.active', true)
                 ->whereNotNull('sbt.start')
                 ->select(
                     'eb.id as slot_id',
@@ -1070,6 +1071,7 @@ class PlanExportController extends Controller
                                 'team_label' => $label,
                                 'team_noshow' => (bool) ($r->team_noshow ?? false),
                                 'team_number_plan' => $planNo,
+                                'first_program' => (int) ($r->first_program ?? 0),
                             ];
                         })
                         ->sortBy([
@@ -1082,6 +1084,7 @@ class PlanExportController extends Controller
                     return [
                         'slot_id' => (int) $first->slot_id,
                         'slot_name' => (string) ($first->slot_name ?? 'Slot'),
+                        'slot_duration' => (int) ($first->slot_duration ?? 0),
                         'assignments' => $assignments,
                     ];
                 })
