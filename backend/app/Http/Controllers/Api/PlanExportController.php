@@ -979,6 +979,9 @@ class PlanExportController extends Controller
             $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
                 ->timezone('Europe/Berlin')
                 ->format('d.m.Y H:i');
+            $isTwoDayEvent = (int) ($event->days ?? 1) > 1;
+            $day1Date = Carbon::parse($event->date)->locale('de')->isoFormat('dd, DD.MM.YYYY');
+            $day2Date = Carbon::parse($event->date)->addDay()->locale('de')->isoFormat('dd, DD.MM.YYYY');
             $exploreGrouping = $this->getExploreGroupingConfig($planId);
 
             // Fetch teams with their assigned rooms and jury/gutachter group assignments
@@ -1097,6 +1100,9 @@ class PlanExportController extends Controller
                 'challengeTeams' => $challengeTeams,
                 'eventName' => $eventName,
                 'eventDate' => $eventDate,
+                'isTwoDayEvent' => $isTwoDayEvent,
+                'day1Date' => $day1Date,
+                'day2Date' => $day2Date,
                 'lastUpdated' => $lastUpdated,
             ])->render();
 
