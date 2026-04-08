@@ -426,6 +426,7 @@ class PlanExportController extends Controller
                     $matchData[] = [
                         'match_no' => $match->match_no,
                         'start_time' => $startTime,
+                        'start_timestamp' => $activity ? Carbon::parse($activity->start_time)->timestamp : null,
                         'table_1' => $table1Label,
                         'table_2' => $table2Label,
                         'team_1' => $team1,
@@ -513,6 +514,7 @@ class PlanExportController extends Controller
                     // For final rounds, team names are empty (moderator fills in during the day)
                     $finalMatchData[] = [
                         'start_time' => $startTime,
+                        'start_timestamp' => $activityTimestamp,
                         'table_1' => $table1Label,
                         'table_2' => $table2Label,
                         'team_1' => [
@@ -690,6 +692,7 @@ class PlanExportController extends Controller
                             'name' => $activityName,
                             'start_time' => Carbon::parse($activity->start)->format('H:i'),
                             'end_time' => Carbon::parse($activity->end)->format('H:i'),
+                            'start_timestamp' => Carbon::parse($activity->start)->timestamp,
                         ];
                     }
                 }
@@ -701,15 +704,84 @@ class PlanExportController extends Controller
             $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
                 ->timezone('Europe/Berlin')
                 ->format('d.m.Y H:i');
+            $isTwoDayEvent = (int) ($event->days ?? 1) > 1;
+            $day1Date = Carbon::parse($event->date)->locale('de')->isoFormat('dd, DD.MM.YYYY');
+            $day2Date = Carbon::parse($event->date)->addDay()->locale('de')->isoFormat('dd, DD.MM.YYYY');
+
+            // Split content by day for two-day events (keep one-day unchanged)
+            $scheduleActivitiesDay1 = $activitiesToInsert;
+            $scheduleActivitiesDay2 = [];
+            $parallelActivitiesDay1 = $freeBlockActivities;
+            $parallelActivitiesDay2 = [];
+            $roundsDataDay1 = $roundsData;
+            $roundsDataDay2 = [];
+            if ($isTwoDayEvent) {
+                $day2StartTs = Carbon::parse($event->date)->addDay()->startOfDay()->timestamp;
+
+                $belongsToDay2 = function ($timestamp) use ($day2StartTs): bool {
+                    if (empty($timestamp)) {
+                        return false;
+                    }
+
+                    return (int) $timestamp >= $day2StartTs;
+                };
+
+                $scheduleActivitiesDay1 = [];
+                $scheduleActivitiesDay2 = [];
+                foreach ($activitiesToInsert as $a) {
+                    if ($belongsToDay2($a['start_timestamp'] ?? null)) {
+                        $scheduleActivitiesDay2[] = $a;
+                    } else {
+                        $scheduleActivitiesDay1[] = $a;
+                    }
+                }
+
+                $parallelActivitiesDay1 = [];
+                $parallelActivitiesDay2 = [];
+                foreach ($freeBlockActivities as $a) {
+                    if ($belongsToDay2($a['start_timestamp'] ?? null)) {
+                        $parallelActivitiesDay2[] = $a;
+                    } else {
+                        $parallelActivitiesDay1[] = $a;
+                    }
+                }
+
+                $roundsDataDay1 = [];
+                $roundsDataDay2 = [];
+                foreach ($roundsData as $roundKey => $roundData) {
+                    $roundTs = $roundStartTimes[$roundKey] ?? null;
+                    if ($roundTs === null && ! empty($roundData['matches'])) {
+                        $roundTs = collect($roundData['matches'])
+                            ->pluck('start_timestamp')
+                            ->filter()
+                            ->min();
+                    }
+
+                    if ($belongsToDay2($roundTs)) {
+                        $roundsDataDay2[$roundKey] = $roundData;
+                    } else {
+                        $roundsDataDay1[$roundKey] = $roundData;
+                    }
+                }
+            }
 
             // Generate content HTML
             Log::info('Rendering moderator-match-plan view with roundsData count: '.count($roundsData));
             $contentHtml = view('pdf.moderator-match-plan', [
                 'roundsData' => $roundsData,
+                'roundsDataDay1' => $roundsDataDay1,
+                'roundsDataDay2' => $roundsDataDay2,
                 'scheduleActivities' => $activitiesToInsert, // Left column: Mit Moderation
+                'scheduleActivitiesDay1' => $scheduleActivitiesDay1,
+                'scheduleActivitiesDay2' => $scheduleActivitiesDay2,
                 'parallelActivities' => $freeBlockActivities, // Right column: Parallele Aktivitäten
+                'parallelActivitiesDay1' => $parallelActivitiesDay1,
+                'parallelActivitiesDay2' => $parallelActivitiesDay2,
                 'eventName' => $eventName,
                 'eventDate' => $eventDate,
+                'isTwoDayEvent' => $isTwoDayEvent,
+                'day1Date' => $day1Date,
+                'day2Date' => $day2Date,
                 'lastUpdated' => $lastUpdated,
             ])->render();
 
