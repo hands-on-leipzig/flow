@@ -1026,6 +1026,10 @@ class PlanExportController extends Controller
             // Mirror slot apply source-of-truth: slot_block_team rows with start set.
             $rows = DB::table('extra_block as eb')
                 ->join('slot_block_team as sbt', 'sbt.extra_block', '=', 'eb.id')
+                ->leftJoin('room as r', function ($join) use ($event) {
+                    $join->on('r.id', '=', 'eb.room')
+                        ->where('r.event', '=', $event->id);
+                })
                 ->where('eb.plan', $planId)
                 ->where('eb.type', 'slot')
                 ->where('eb.active', true)
@@ -1035,6 +1039,7 @@ class PlanExportController extends Controller
                     'eb.name as slot_name',
                     'eb.duration as slot_duration',
                     'eb.active as slot_active',
+                    'r.name as slot_room',
                     'sbt.start as start_time',
                     'sbt.team_number_plan',
                     'sbt.first_program'
@@ -1088,6 +1093,7 @@ class PlanExportController extends Controller
                         'slot_id' => (int) $first->slot_id,
                         'slot_name' => (string) ($first->slot_name ?? 'Slot'),
                         'slot_duration' => (int) ($first->slot_duration ?? 0),
+                        'slot_room' => (string) ($first->slot_room ?? '–'),
                         'assignments' => $assignments,
                     ];
                 })

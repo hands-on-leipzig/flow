@@ -38,7 +38,7 @@
             <div class="section">
                 <div class="section-header">{{ $slot['slot_name'] ?? 'Slot' }}</div>
                 <p style="margin: -4px 0 10px 0; font-size: 10px; color: #555;">
-                    Dauer: {{ (int) ($slot['slot_duration'] ?? 0) }} Min
+                    {{ (int) ($slot['slot_duration'] ?? 0) }} Min | {{ e($slot['slot_room'] ?? '–') }}
                 </p>
 
             @php
