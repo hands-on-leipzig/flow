@@ -276,6 +276,34 @@ async function downloadModeratorMatchPlanPdf() {
   }
 }
 
+// Download slot assignments PDF
+async function downloadSlotAssignmentsPdf() {
+  if (!eventId.value) return
+  
+  isDownloading.value['slot-assignments'] = true
+  try {
+    const planResponse = await axios.get(`/plans/event/${eventId.value}`)
+    const planId = planResponse.data.id
+
+    const response = await axios.get(
+      `/export/slot-assignments/${planId}`,
+      { responseType: 'blob' }
+    )
+
+    const filename = response.headers['x-filename'] || 'Slot-Zuordnung.pdf'
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+    window.URL.revokeObjectURL(link.href)
+  } catch (error) {
+    console.error('Fehler beim PDF-Download (Slot-Zuordnung):', error)
+  } finally {
+    isDownloading.value['slot-assignments'] = false
+  }
+}
+
 // Download team list PDF
 async function downloadTeamListPdf() {
   if (!eventId.value) return
@@ -1069,7 +1097,32 @@ const currentTabLabel = computed(() =>
         </div>
       </div>
 
-      <!-- 3. Match-Plan für SCORE -->
+      <!-- 3. Slot-Zuordnung -->
+      <div class="border-b border-gray-200 pb-3 mb-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-base font-semibold text-gray-800">Slot-Zuordnung</h4>
+            <p class="text-sm text-gray-600">Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.</p>
+          </div>
+          <button
+            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
+            :class="!isDownloading['slot-assignments'] 
+              ? 'bg-gray-200 hover:bg-gray-300' 
+              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            :disabled="isDownloading['slot-assignments']"
+            @click="downloadSlotAssignmentsPdf"
+          >
+            <svg v-if="isDownloading['slot-assignments']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading['slot-assignments'] ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. Match-Plan für SCORE -->
       <div v-if="hasChallengeTeams || event?.event_challenge" class="border-b border-gray-200 pb-3 mb-3">
         <div class="mb-2">
           <h4 class="text-base font-semibold text-gray-800">Match-Plan für SCORE</h4>
@@ -1114,7 +1167,7 @@ const currentTabLabel = computed(() =>
         </div>
       </div>
 
-      <!-- 4. Gesamtplan -->
+      <!-- 5. Gesamtplan -->
       <div class="border-b border-gray-200 pb-3 mb-3">
         <div class="flex items-center justify-between">
           <div>

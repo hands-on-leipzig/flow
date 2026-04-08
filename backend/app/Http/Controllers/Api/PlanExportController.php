@@ -985,6 +985,139 @@ class PlanExportController extends Controller
         }
     }
 
+    public function slotAssignmentsPdf(int $planId)
+    {
+        try {
+            $plan = Plan::findOrFail($planId);
+            $event = Event::findOrFail($plan->event);
+
+            $eventName = $event->name;
+            $eventDate = Carbon::parse($event->date)->format('d.m.Y');
+            $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
+                ->timezone('Europe/Berlin')
+                ->format('d.m.Y H:i');
+
+            // Program-aware team lookup (same normalization as slot assignment endpoint)
+            $teamLookup = DB::table('team_plan as tp')
+                ->join('team as t', 't.id', '=', 'tp.team')
+                ->where('tp.plan', $planId)
+                ->where('t.event', $event->id)
+                ->select([
+                    'tp.team_number_plan',
+                    'tp.noshow',
+                    't.name as team_name',
+                    't.team_number_hot',
+                    't.first_program',
+                ])
+                ->get()
+                ->groupBy(function ($row) {
+                    $fp = (int) $row->first_program;
+                    $program = $fp === FirstProgram::CHALLENGE->value
+                        ? FirstProgram::CHALLENGE->value
+                        : FirstProgram::EXPLORE->value;
+
+                    return $program.':'.((int) $row->team_number_plan);
+                })
+                ->map(fn ($rows) => $rows->first());
+
+            // Mirror slot apply source-of-truth: slot_block_team rows with start set.
+            $rows = DB::table('extra_block as eb')
+                ->join('slot_block_team as sbt', 'sbt.extra_block', '=', 'eb.id')
+                ->where('eb.plan', $planId)
+                ->where('eb.type', 'slot')
+                ->whereNotNull('sbt.start')
+                ->select(
+                    'eb.id as slot_id',
+                    'eb.name as slot_name',
+                    'eb.duration as slot_duration',
+                    'eb.active as slot_active',
+                    'sbt.start as start_time',
+                    'sbt.team_number_plan',
+                    'sbt.first_program'
+                )
+                ->orderBy('eb.id')
+                ->orderBy('sbt.start')
+                ->orderBy('sbt.team_number_plan')
+                ->get()
+                ->map(function ($r) use ($teamLookup) {
+                    $key = ((int) $r->first_program).':'.((int) $r->team_number_plan);
+                    $lookup = $teamLookup->get($key);
+                    $r->team_name = $lookup->team_name ?? null;
+                    $r->team_number_hot = $lookup->team_number_hot ?? null;
+                    $r->team_noshow = (bool) ($lookup->noshow ?? false);
+
+                    return $r;
+                });
+
+            $slots = collect($rows)
+                ->groupBy('slot_id')
+                ->map(function ($group) {
+                    $first = $group->first();
+                    $assignments = collect($group)
+                        ->filter(fn ($r) => ! is_null($r->team_number_plan))
+                        ->map(function ($r) {
+                            $planNo = (int) ($r->team_number_plan ?? 0);
+                            $label = ! empty($r->team_name)
+                                ? $r->team_name.(! empty($r->team_number_hot) ? ' ('.$r->team_number_hot.')' : '')
+                                : ($planNo > 0
+                                    ? sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', $planNo)
+                                    : '–');
+                            $dt = ! empty($r->start_time) ? Carbon::parse($r->start_time) : null;
+
+                            return [
+                                'start_time' => $dt ? $dt->format('H:i') : '–',
+                                'start_date' => $dt,
+                                'team_label' => $label,
+                                'team_noshow' => (bool) ($r->team_noshow ?? false),
+                                'team_number_plan' => $planNo,
+                            ];
+                        })
+                        ->sortBy([
+                            ['start_date', 'asc'],
+                            ['team_number_plan', 'asc'],
+                        ])
+                        ->values()
+                        ->all();
+
+                    return [
+                        'slot_id' => (int) $first->slot_id,
+                        'slot_name' => (string) ($first->slot_name ?? 'Slot'),
+                        'assignments' => $assignments,
+                    ];
+                })
+                ->sortBy('slot_id')
+                ->values()
+                ->all();
+
+            $contentHtml = view('pdf.slot-assignments', [
+                'slots' => $slots,
+                'eventName' => $eventName,
+                'eventDate' => $eventDate,
+                'lastUpdated' => $lastUpdated,
+            ])->render();
+
+            $pdf = Pdf::loadHTML($contentHtml, 'UTF-8')->setPaper('a4', 'portrait');
+
+            $formattedDate = Carbon::parse($plan->last_change, 'UTC')
+                ->timezone('Europe/Berlin')
+                ->format('d.m.y');
+            $filename = "FLOW_Slot-Zuordnung_({$formattedDate}).pdf";
+
+            return response($pdf->output(), 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('X-Filename', $filename)
+                ->header('X-PDF-Type', 'slot-assignments')
+                ->header('Access-Control-Expose-Headers', 'X-Filename, X-PDF-Type');
+        } catch (\Exception $e) {
+            Log::error('slotAssignmentsPdf error: '.$e->getMessage(), [
+                'planId' => $planId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json(['error' => 'PDF generation failed: '.$e->getMessage()], 500);
+        }
+    }
+
     public function fullSchedulePdf(int $planId)
     {
         Log::info("Starte PDF-Export für Plan $planId");
