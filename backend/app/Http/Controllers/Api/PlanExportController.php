@@ -996,6 +996,7 @@ class PlanExportController extends Controller
             $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
                 ->timezone('Europe/Berlin')
                 ->format('d.m.Y H:i');
+            $isTwoDayEvent = (int) ($event->days ?? 1) > 1;
 
             // Program-aware team lookup (same normalization as slot assignment endpoint)
             $teamLookup = DB::table('team_plan as tp')
@@ -1096,6 +1097,7 @@ class PlanExportController extends Controller
                 'slots' => $slots,
                 'eventName' => $eventName,
                 'eventDate' => $eventDate,
+                'isTwoDayEvent' => $isTwoDayEvent,
                 'lastUpdated' => $lastUpdated,
             ])->render();
 

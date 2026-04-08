@@ -33,7 +33,7 @@
         }
 
         .section {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .section-header {
@@ -70,6 +70,16 @@
         .noshow {
             text-decoration: line-through;
         }
+
+        .day-header {
+            background-color: #34495e;
+            color: #fff;
+            padding: 8px 12px;
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -80,7 +90,7 @@
 
     @if(!empty($isTwoDayEvent))
         <div class="section">
-            <div class="section-header">Tag 1 ({{ $day1Date ?? $eventDate }}) - FIRST LEGO League Challenge</div>
+            <div class="day-header">Tag 1 ({{ $day1Date ?? $eventDate }}) - FIRST LEGO League Challenge</div>
             <table>
                 <thead>
                     <tr>
@@ -114,9 +124,13 @@
         </div>
 
         <div style="page-break-before: always;"></div>
+        <div class="header">
+            <h1>{{ $eventName }} – {{ ($isTwoDayEvent ?? false) ? (($day1Date ?? $eventDate) . ' / ' . ($day2Date ?? $eventDate)) : $eventDate }}</h1>
+            <p>Letzte Änderung: {{ $lastUpdated }}</p>
+        </div>
 
         <div class="section">
-            <div class="section-header">Tag 2 ({{ $day2Date ?? $eventDate }}) - FIRST LEGO League Explore</div>
+            <div class="day-header">Tag 2 ({{ $day2Date ?? $eventDate }}) - FIRST LEGO League Explore</div>
             @if(!empty($exploreHasTwoGroups))
                 <div class="section-header">Vormittag</div>
                 <table>

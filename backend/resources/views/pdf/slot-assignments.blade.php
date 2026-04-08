@@ -20,17 +20,26 @@
     </style>
 </head>
 <body>
-    @foreach(($slots ?? []) as $slotIndex => $slot)
+    @if(empty($slots ?? []))
         <div class="header">
             <h1>{{ $eventName }} – {{ $eventDate }}</h1>
             <p>Letzte Änderung: {{ $lastUpdated }}</p>
         </div>
-
         <div class="section">
-            <div class="section-header">{{ $slot['slot_name'] ?? 'Slot' }}</div>
-            <p style="margin: -4px 0 10px 0; font-size: 10px; color: #555;">
-                Dauer: {{ (int) ($slot['slot_duration'] ?? 0) }} Min
-            </p>
+            <p>Keine aktiven Slots vorhanden.</p>
+        </div>
+    @else
+        @foreach(($slots ?? []) as $slotIndex => $slot)
+            <div class="header">
+                <h1>{{ $eventName }} – {{ $eventDate }}</h1>
+                <p>Letzte Änderung: {{ $lastUpdated }}</p>
+            </div>
+
+            <div class="section">
+                <div class="section-header">{{ $slot['slot_name'] ?? 'Slot' }}</div>
+                <p style="margin: -4px 0 10px 0; font-size: 10px; color: #555;">
+                    Dauer: {{ (int) ($slot['slot_duration'] ?? 0) }} Min
+                </p>
 
             @php
                 $assignmentsByDay = [];
@@ -46,46 +55,49 @@
                 }
             @endphp
 
-            @if(empty($slot['assignments']))
-                <p>Keine Zuordnungen vorhanden.</p>
-            @else
-                @foreach($assignmentsByDay as $dayKey => $dayData)
-                    @if($dayKey === 'unscheduled')
-                        <div class="day-header">Ohne Startzeit</div>
-                    @elseif(!empty($dayData['date']))
-                        <div class="day-header">{{ $dayData['date']->locale('de')->isoFormat('dddd, DD.MM.YYYY') }}</div>
-                    @endif
+                @if(empty($slot['assignments']))
+                    <p>Keine Zuordnungen vorhanden.</p>
+                @else
+                    @foreach($assignmentsByDay as $dayKey => $dayData)
+                        @if(!empty($isTwoDayEvent))
+                            @if($dayKey === 'unscheduled')
+                                <div class="day-header">Ohne Startzeit</div>
+                            @elseif(!empty($dayData['date']))
+                                <div class="day-header">{{ $dayData['date']->locale('de')->isoFormat('dddd, DD.MM.YYYY') }}</div>
+                            @endif
+                        @endif
 
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 20%;">Start</th>
-                                <th style="width: 80%;">Team</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($dayData['rows'] as $row)
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td>{{ $row['start_time'] }}</td>
-                                    <td>
-                                        @if(($row['first_program'] ?? 0) === 2)
-                                            <img src="{{ public_path('flow/fll_explore_v.png') }}" alt="Explore" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
-                                        @elseif(($row['first_program'] ?? 0) === 3)
-                                            <img src="{{ public_path('flow/fll_challenge_v.png') }}" alt="Challenge" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
-                                        @endif
-                                        {!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['team_label'] ?? '–', $row['team_noshow'] ?? false) !!}
-                                    </td>
+                                    <th style="width: 20%;">Start</th>
+                                    <th style="width: 80%;">Team</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                @endforeach
-            @endif
-        </div>
+                            </thead>
+                            <tbody>
+                                @foreach($dayData['rows'] as $row)
+                                    <tr>
+                                        <td>{{ $row['start_time'] }}</td>
+                                        <td>
+                                            @if(($row['first_program'] ?? 0) === 2)
+                                                <img src="{{ public_path('flow/fll_explore_v.png') }}" alt="Explore" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
+                                            @elseif(($row['first_program'] ?? 0) === 3)
+                                                <img src="{{ public_path('flow/fll_challenge_v.png') }}" alt="Challenge" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
+                                            @endif
+                                            {!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['team_label'] ?? '–', $row['team_noshow'] ?? false) !!}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @endforeach
+                @endif
+            </div>
 
-        @if($slotIndex < count($slots) - 1)
-            <div style="page-break-before: always;"></div>
-        @endif
-    @endforeach
+            @if($slotIndex < count($slots) - 1)
+                <div style="page-break-before: always;"></div>
+            @endif
+        @endforeach
+    @endif
 </body>
 </html>

@@ -105,6 +105,16 @@
             padding-bottom: 3px;
             border-bottom: 1px solid #333;
         }
+
+        .day-header {
+            background-color: #34495e;
+            color: #fff;
+            padding: 8px 12px;
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -114,7 +124,7 @@
     </div>
 
     @if(!empty($isTwoDayEvent))
-        <div class="section-header">Tag 1 ({{ $day1Date ?? $eventDate }})</div>
+        <div class="day-header">Tag 1 ({{ $day1Date ?? $eventDate }})</div>
 
         @if(!empty($scheduleActivitiesDay1) || !empty($parallelActivitiesDay1))
             <table class="two-columns">
@@ -171,7 +181,11 @@
         @endforeach
 
         <div style="page-break-before: always;"></div>
-        <div class="section-header">Tag 2 ({{ $day2Date ?? $eventDate }})</div>
+        <div class="header">
+            <h1>{{ $eventName }} – {{ ($isTwoDayEvent ?? false) ? (($day1Date ?? $eventDate) . ' / ' . ($day2Date ?? $eventDate)) : $eventDate }}</h1>
+            <p>Letzte Änderung: {{ $lastUpdated }}</p>
+        </div>
+        <div class="day-header">Tag 2 ({{ $day2Date ?? $eventDate }})</div>
 
         @if(!empty($scheduleActivitiesDay2) || !empty($parallelActivitiesDay2))
             <table class="two-columns">
