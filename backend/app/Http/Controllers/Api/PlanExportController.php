@@ -979,6 +979,7 @@ class PlanExportController extends Controller
             $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
                 ->timezone('Europe/Berlin')
                 ->format('d.m.Y H:i');
+            $exploreGrouping = $this->getExploreGroupingConfig($planId);
 
             // Fetch teams with their assigned rooms and jury/gutachter group assignments
             // Explore teams (first_program = 2)
@@ -1017,12 +1018,27 @@ class PlanExportController extends Controller
                         'name' => $team->team_name,
                         'hot_number' => $team->team_number_hot,
                         'noshow' => (bool) ($team->noshow ?? false),
+                        'team_number_plan' => (int) ($team->team_number_plan ?? 0),
                         'room_name' => $team->room_name ?? '–',
                         'group_assignment' => $gutachterGroupNumber,
                     ];
                 })
                 ->values()
                 ->all();
+
+            $exploreMorningTeams = [];
+            $exploreAfternoonTeams = [];
+            if ((bool) $exploreGrouping['has_two_groups']) {
+                $e1Teams = (int) $exploreGrouping['e1_teams'];
+                foreach ($exploreTeams as $team) {
+                    $planNo = (int) ($team['team_number_plan'] ?? 0);
+                    if ($planNo > 0 && $planNo <= $e1Teams) {
+                        $exploreMorningTeams[] = $team;
+                    } else {
+                        $exploreAfternoonTeams[] = $team;
+                    }
+                }
+            }
 
             // Challenge teams (first_program = 3)
             $challengeTeams = DB::table('team_plan')
@@ -1075,6 +1091,9 @@ class PlanExportController extends Controller
             // Generate content HTML
             $contentHtml = view('pdf.team-list', [
                 'exploreTeams' => $exploreTeams,
+                'exploreHasTwoGroups' => (bool) $exploreGrouping['has_two_groups'],
+                'exploreMorningTeams' => $exploreMorningTeams,
+                'exploreAfternoonTeams' => $exploreAfternoonTeams,
                 'challengeTeams' => $challengeTeams,
                 'eventName' => $eventName,
                 'eventDate' => $eventDate,
