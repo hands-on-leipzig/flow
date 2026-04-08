@@ -8,7 +8,7 @@
         <td style="width:66%; padding-right:20px;">
             @php
                 $teamCount = count($rows ?? []);
-                $useTwoColumns = $teamCount > 20;
+                $useTwoColumns = $teamCount > 18;
             @endphp
 
             @if($useTwoColumns)
