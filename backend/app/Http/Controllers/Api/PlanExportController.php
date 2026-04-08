@@ -279,15 +279,18 @@ class PlanExportController extends Controller
                 'r_final_2',
             ];
 
-            $rgActivities = collect($this->activityFetcher->fetchActivities(
+            $moderatorActivities = collect($this->activityFetcher->fetchActivities(
                 $planId,
-                [],
+                [13],  // Moderator role
                 false, // includeRooms
                 true,  // includeGroupMeta
                 true,  // includeActivityMeta
                 true,  // includeTeamNames
                 true   // freeBlocks
-            ))->filter(function ($a) use ($roundCodes) {
+            ))->unique(fn ($a) => (int) ($a->activity_id ?? 0))
+                ->values();
+
+            $rgActivities = $moderatorActivities->filter(function ($a) use ($roundCodes) {
                 return ($a->activity_type_code ?? null) === 'r_match'
                     && in_array(($a->group_activity_type_code ?? null), $roundCodes, true);
             })->values();
@@ -398,91 +401,49 @@ class PlanExportController extends Controller
                 'final_rounds_count' => count($roundsData) - 4,
             ]);
 
-            // Fetch special activities (opening, research on stage, awards, inserted blocks, free blocks)
-            $specialActivityCodes = [
-                'c_opening',
-                'e_opening',
-                'g_opening',
-                'c_presentations', // Forschung auf der Bühne
-                'c_awards',
-                'e_awards',
-                'g_awards',
-                'c_inserted_block',
-                'e_inserted_block',
-                'g_inserted_block',
-            ];
+            // Build top columns dynamically from moderator-visible activities.
+            $robotActivityIds = $rgActivities
+                ->pluck('activity_id')
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
 
-            $freeBlockCodes = [
-                'c_free_block',
-                'e_free_block',
-                'g_free_block',
-            ];
+            $freeBlockActivities = $moderatorActivities
+                ->filter(fn ($a) => $this->isFreeBlock($a))
+                ->map(function ($a) {
+                    return [
+                        'name' => $a->activity_atd_name ?? $a->activity_name ?? '–',
+                        'start_time' => Carbon::parse($a->start_time)->format('H:i'),
+                        'end_time' => Carbon::parse($a->end_time)->format('H:i'),
+                        'start_timestamp' => Carbon::parse($a->start_time)->timestamp,
+                    ];
+                })
+                ->sortBy('start_timestamp')
+                ->values()
+                ->all();
 
-            // Get activity type detail IDs for special activities (excluding free blocks)
-            $specialActivityTypeIds = DB::table('m_activity_type_detail')
-                ->whereIn('code', $specialActivityCodes)
-                ->select('id', 'code', 'name')
-                ->get()
-                ->keyBy('id');
-
-            // Get activity type detail IDs for free blocks
-            $freeBlockTypeIds = DB::table('m_activity_type_detail')
-                ->whereIn('code', $freeBlockCodes)
-                ->select('id', 'code', 'name')
-                ->get()
-                ->keyBy('id');
-
-            // Collect special activities (non-free-block) to insert between rounds
-            $activitiesToInsert = [];
-            if ($specialActivityTypeIds->isNotEmpty()) {
-                $specialActivityIds = $specialActivityTypeIds->keys()->toArray();
-
-                $activities = DB::table('activity')
-                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-                    ->where('activity_group.plan', $planId)
-                    ->whereIn('activity_group.activity_type_detail', $specialActivityIds)
-                    ->select(
-                        'activity.id',
-                        'activity.start',
-                        'activity.end',
-                        'activity.activity_group',
-                        'activity.extra_block',
-                        'activity_group.activity_type_detail'
-                    )
-                    ->orderBy('activity.start')
-                    ->get();
-
-                foreach ($activities as $activity) {
-                    $typeDetailId = $activity->activity_type_detail;
-                    if (isset($specialActivityTypeIds[$typeDetailId])) {
-                        $typeDetail = $specialActivityTypeIds[$typeDetailId];
-
-                        // For inserted blocks, try to get the name from extra_block table
-                        $activityName = $typeDetail->name;
-                        if (in_array($typeDetail->code, ['c_inserted_block', 'e_inserted_block', 'g_inserted_block']) && $activity->extra_block) {
-                            $extraBlockName = DB::table('extra_block')
-                                ->where('id', $activity->extra_block)
-                                ->value('name');
-
-                            if ($extraBlockName) {
-                                $activityName = $extraBlockName;
-                            }
-                        }
-
-                        $activitiesToInsert[] = [
-                            'name' => $activityName,
-                            'start_time' => Carbon::parse($activity->start)->format('H:i'),
-                            'end_time' => Carbon::parse($activity->end)->format('H:i'),
-                            'start_timestamp' => Carbon::parse($activity->start)->timestamp,
-                        ];
+            $activitiesToInsert = $moderatorActivities
+                ->reject(function ($a) use ($robotActivityIds) {
+                    $id = (int) ($a->activity_id ?? 0);
+                    if ($id > 0 && in_array($id, $robotActivityIds, true)) {
+                        return true; // Robot game
                     }
-                }
-            }
 
-            // Sort special activities chronologically for left column
-            usort($activitiesToInsert, function ($a, $b) {
-                return $a['start_timestamp'] <=> $b['start_timestamp'];
-            });
+                    return $this->isFreeBlock($a); // Free blocks
+                })
+                ->map(function ($a) {
+                    return [
+                        'name' => $a->activity_atd_name ?? $a->activity_name ?? '–',
+                        'start_time' => Carbon::parse($a->start_time)->format('H:i'),
+                        'end_time' => Carbon::parse($a->end_time)->format('H:i'),
+                        'start_timestamp' => Carbon::parse($a->start_time)->timestamp,
+                    ];
+                })
+                ->sortBy('start_timestamp')
+                ->values()
+                ->all();
 
             // Get plan and event data (needed for date filtering)
             $plan = Plan::findOrFail($planId);
@@ -492,59 +453,25 @@ class PlanExportController extends Controller
             $eventStartDate = Carbon::parse($event->date)->startOfDay();
             $eventEndDate = Carbon::parse($event->date)->addDays($event->days - 1)->endOfDay();
 
-            // Collect free blocks separately (for right column)
-            // Filter to only include activities on event day(s)
-            $freeBlockActivities = [];
-            if ($freeBlockTypeIds->isNotEmpty()) {
-                $freeBlockIds = $freeBlockTypeIds->keys()->toArray();
-
-                $activities = DB::table('activity')
-                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-                    ->where('activity_group.plan', $planId)
-                    ->whereIn('activity_group.activity_type_detail', $freeBlockIds)
-                    ->select(
-                        'activity.id',
-                        'activity.start',
-                        'activity.end',
-                        'activity.activity_group',
-                        'activity.extra_block',
-                        'activity_group.activity_type_detail'
-                    )
-                    ->orderBy('activity.start')
-                    ->get();
-
-                foreach ($activities as $activity) {
-                    $typeDetailId = $activity->activity_type_detail;
-                    if (isset($freeBlockTypeIds[$typeDetailId])) {
-                        // Filter by event date range
-                        $activityStart = Carbon::parse($activity->start);
-                        if ($activityStart->lt($eventStartDate) || $activityStart->gt($eventEndDate)) {
-                            continue; // Skip activities outside event date range
-                        }
-
-                        $typeDetail = $freeBlockTypeIds[$typeDetailId];
-
-                        // Get name from extra_block table
-                        $activityName = $typeDetail->name;
-                        if ($activity->extra_block) {
-                            $extraBlockName = DB::table('extra_block')
-                                ->where('id', $activity->extra_block)
-                                ->value('name');
-
-                            if ($extraBlockName) {
-                                $activityName = $extraBlockName;
-                            }
-                        }
-
-                        $freeBlockActivities[] = [
-                            'name' => $activityName,
-                            'start_time' => Carbon::parse($activity->start)->format('H:i'),
-                            'end_time' => Carbon::parse($activity->end)->format('H:i'),
-                            'start_timestamp' => Carbon::parse($activity->start)->timestamp,
-                        ];
-                    }
+            // Keep only activities that fall within event day(s)
+            $activitiesToInsert = array_values(array_filter($activitiesToInsert, function ($a) use ($eventStartDate, $eventEndDate) {
+                $ts = (int) ($a['start_timestamp'] ?? 0);
+                if ($ts <= 0) {
+                    return false;
                 }
-            }
+                $dt = Carbon::createFromTimestamp($ts);
+
+                return ! $dt->lt($eventStartDate) && ! $dt->gt($eventEndDate);
+            }));
+            $freeBlockActivities = array_values(array_filter($freeBlockActivities, function ($a) use ($eventStartDate, $eventEndDate) {
+                $ts = (int) ($a['start_timestamp'] ?? 0);
+                if ($ts <= 0) {
+                    return false;
+                }
+                $dt = Carbon::createFromTimestamp($ts);
+
+                return ! $dt->lt($eventStartDate) && ! $dt->gt($eventEndDate);
+            }));
 
             // Format timestamp like Gesamtplan
             $eventName = $event->name;
