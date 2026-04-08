@@ -716,7 +716,7 @@ class PlanExportController extends Controller
         // Determine rows per page depending on multiday events
         $eventDays = DB::table('event')->where('id', $eventId)->value('days');
         $isMultidayEvent = (int) ($eventDays ?? 1) > 1;
-        $maxRowsPerPage = $isMultidayEvent ? 14 : 16; // reduce when date bar is shown
+        $maxRowsPerPage = $isMultidayEvent ? 13 : 16; // reduce when date bar is shown
 
         // PDF erzeugen
         $pdf = match ($type) {
@@ -2278,8 +2278,8 @@ class PlanExportController extends Controller
         // Multiday flag for per-page date bar and row limit adjustments
         $isMultidayEvent = (int) ($event->days ?? 1) > 1;
         // If invoked from a caller that didn't reduce the page size already, do it here
-        if ($isMultidayEvent && (int) $maxRowsPerPage > 14) {
-            $maxRowsPerPage = 14;
+        if ($isMultidayEvent && (int) $maxRowsPerPage > 13) {
+            $maxRowsPerPage = 13;
         }
 
         // Explore zuerst, dann Challenge
