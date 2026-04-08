@@ -267,279 +267,127 @@ class PlanExportController extends Controller
         try {
             Log::info("moderatorMatchPlanPdf called for planId: {$planId}");
 
-            // Get team_plan entries for Challenge teams (first_program = 3) to map team_number_plan to team IDs
-            $teamPlanMap = DB::table('team_plan')
-                ->join('team', 'team_plan.team', '=', 'team.id')
-                ->where('team_plan.plan', $planId)
-                ->where('team.first_program', 3) // Challenge only
-                ->select(
-                    'team_plan.team_number_plan',
-                    'team.id as team_id',
-                    'team.name as team_name',
-                    'team.team_number_hot',
-                    'team_plan.noshow'
-                )
-                ->get()
-                ->keyBy('team_number_plan');
-
-            // Get r_match activity type detail ID
-            $matchActivityTypeId = DB::table('m_activity_type_detail')
-                ->where('code', 'r_match')
-                ->value('id');
-
-            if (! $matchActivityTypeId) {
-                return response()->json(['error' => 'Match activity type not found'], 404);
-            }
-
-            // Fetch matches for rounds 0 (Testrunde), 1, 2, 3
-            $roundsData = [];
-            $roundLabels = [
-                0 => 'Testrunde',
-                1 => 'Runde 1',
-                2 => 'Runde 2',
-                3 => 'Runde 3',
+            // Build robot-game rounds from plan activities (not match table)
+            $roundCodes = [
+                'r_test_round',
+                'r_round_1',
+                'r_round_2',
+                'r_round_3',
+                'r_final_16',
+                'r_final_8',
+                'r_final_4',
+                'r_final_2',
             ];
-            $roundStartTimes = []; // Store start times for chronological insertion
 
-            for ($round = 0; $round <= 3; $round++) {
-                // Get matches for this round, ordered by match_no
-                $matches = DB::table('match')
-                    ->where('match.plan', $planId)
-                    ->where('match.round', $round)
-                    ->orderBy('match.match_no')
-                    ->get();
+            $rgActivities = collect($this->activityFetcher->fetchActivities(
+                $planId,
+                [],
+                false, // includeRooms
+                true,  // includeGroupMeta
+                true,  // includeActivityMeta
+                true,  // includeTeamNames
+                true   // freeBlocks
+            ))->filter(function ($a) use ($roundCodes) {
+                return ($a->activity_type_code ?? null) === 'r_match'
+                    && in_array(($a->group_activity_type_code ?? null), $roundCodes, true);
+            })->values();
 
-                // Get start times from activities table
-                // Join with activities where table_1/table_2 match and activity_type_detail = r_match
-                $matchData = [];
-                foreach ($matches as $match) {
-                    // Find activity for this match
-                    // Match on table_1, table_2, and table_1_team, table_2_team
-                    // Also match on round by checking activity_group's activity_type_detail (r_round_1, r_round_2, etc.)
-                    $roundActivityCodes = [
-                        0 => 'r_test_round',
-                        1 => 'r_round_1',
-                        2 => 'r_round_2',
-                        3 => 'r_round_3',
-                    ];
-                    $roundActivityCode = $roundActivityCodes[$round] ?? null;
+            $roundsData = [];
+            $roundStartTimes = [];
+            $groupedRounds = $rgActivities
+                ->groupBy(fn ($a) => (int) ($a->activity_group_id ?? 0))
+                ->sortBy(function ($group) {
+                    $first = $group->sortBy('start_time')->first();
 
-                    $activity = null;
-                    if ($roundActivityCode) {
-                        $roundActivityTypeId = DB::table('m_activity_type_detail')
-                            ->where('code', $roundActivityCode)
-                            ->value('id');
+                    return $first ? Carbon::parse($first->start_time)->timestamp : PHP_INT_MAX;
+                });
 
-                        if ($roundActivityTypeId) {
-                            $activity = DB::table('activity')
-                                ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-                                ->where('activity_group.plan', $planId)
-                                ->where('activity_group.activity_type_detail', $roundActivityTypeId)
-                                ->where('activity.activity_type_detail', $matchActivityTypeId)
-                                ->where('activity.table_1', $match->table_1)
-                                ->where('activity.table_2', $match->table_2)
-                                ->where('activity.table_1_team', $match->table_1_team)
-                                ->where('activity.table_2_team', $match->table_2_team)
-                                ->select('activity.start as start_time')
-                                ->orderBy('activity.start')
-                                ->first();
-                        }
-                    }
+            $roundIndex = 0;
+            foreach ($groupedRounds as $groupActivities) {
+                $sortedMatches = $groupActivities->sortBy([
+                    ['start_time', 'asc'],
+                    ['table_1', 'asc'],
+                    ['table_2', 'asc'],
+                ])->values();
 
-                    $startTime = $activity ? Carbon::parse($activity->start_time)->format('H:i') : '–';
+                if ($sortedMatches->isEmpty()) {
+                    continue;
+                }
 
-                    // Store earliest start time for this round
-                    if ($activity && (! isset($roundStartTimes[$round]) || Carbon::parse($activity->start_time)->timestamp < $roundStartTimes[$round])) {
-                        $roundStartTimes[$round] = Carbon::parse($activity->start_time)->timestamp;
-                    }
+                $firstMatch = $sortedMatches->first();
+                $roundCode = (string) ($firstMatch->group_activity_type_code ?? '');
+                $isTestRound = ($roundCode === 'r_test_round');
+                $isFinalRound = in_array($roundCode, ['r_final_16', 'r_final_8', 'r_final_4', 'r_final_2'], true);
 
-                    // Get team 1 info
+                $matchData = $sortedMatches->map(function ($activity) use ($isTestRound, $isFinalRound) {
+                    $activityTs = Carbon::parse($activity->start_time)->timestamp;
+
                     $team1 = null;
-                    if ($match->table_1_team > 0) {
-                        if (isset($teamPlanMap[$match->table_1_team])) {
-                            $t1 = $teamPlanMap[$match->table_1_team];
+                    if (((int) ($activity->table_1_team ?? 0)) > 0) {
+                        if (! empty($activity->table_1_team_name)) {
                             $team1 = [
-                                'name' => $t1->team_name,
-                                'noshow' => (bool) ($t1->noshow ?? false),
+                                'name' => $activity->table_1_team_name,
+                                'noshow' => (bool) ($activity->table_1_team_noshow ?? false),
                             ];
                         } else {
-                            // Placeholder team
                             $team1 = [
-                                'name' => sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', $match->table_1_team),
+                                'name' => sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', (int) $activity->table_1_team),
                                 'noshow' => false,
                             ];
                         }
                     } else {
-                        // Empty slot - use "---" for test round, otherwise "Freiwilliges Team ohne Wertung"
                         $team1 = [
-                            'name' => $round === 0 ? '---' : 'Freiwilliges Team ohne Wertung',
+                            'name' => $isFinalRound ? '' : ($isTestRound ? '---' : 'Freiwilliges Team ohne Wertung'),
                             'noshow' => false,
                         ];
                     }
 
-                    // Get team 2 info
                     $team2 = null;
-                    if ($match->table_2_team > 0) {
-                        if (isset($teamPlanMap[$match->table_2_team])) {
-                            $t2 = $teamPlanMap[$match->table_2_team];
+                    if (((int) ($activity->table_2_team ?? 0)) > 0) {
+                        if (! empty($activity->table_2_team_name)) {
                             $team2 = [
-                                'name' => $t2->team_name,
-                                'noshow' => (bool) ($t2->noshow ?? false),
+                                'name' => $activity->table_2_team_name,
+                                'noshow' => (bool) ($activity->table_2_team_noshow ?? false),
                             ];
                         } else {
-                            // Placeholder team
                             $team2 = [
-                                'name' => sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', $match->table_2_team),
+                                'name' => sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', (int) $activity->table_2_team),
                                 'noshow' => false,
                             ];
                         }
                     } else {
-                        // Empty slot - use "---" for test round, otherwise "Freiwilliges Team ohne Wertung"
                         $team2 = [
-                            'name' => $round === 0 ? '---' : 'Freiwilliges Team ohne Wertung',
+                            'name' => $isFinalRound ? '' : ($isTestRound ? '---' : 'Freiwilliges Team ohne Wertung'),
                             'noshow' => false,
                         ];
                     }
 
-                    // Get table names (without "Tisch " prefix)
-                    // Get event ID first
-                    $eventId = DB::table('plan')->where('id', $planId)->value('event');
+                    $table1Label = ! empty($activity->table_1_name)
+                        ? preg_replace('/^Tisch\\s+/u', '', (string) $activity->table_1_name)
+                        : (string) ($activity->table_1 ?? '');
+                    $table2Label = ! empty($activity->table_2_name)
+                        ? preg_replace('/^Tisch\\s+/u', '', (string) $activity->table_2_name)
+                        : (string) ($activity->table_2 ?? '');
 
-                    $table1Name = null;
-                    if ($eventId) {
-                        $table1Name = DB::table('table_event')
-                            ->where('event', $eventId)
-                            ->where('table_number', $match->table_1)
-                            ->value('table_name');
-                    }
-                    $table1Label = $table1Name ?: (string) $match->table_1;
-
-                    $table2Name = null;
-                    if ($eventId) {
-                        $table2Name = DB::table('table_event')
-                            ->where('event', $eventId)
-                            ->where('table_number', $match->table_2)
-                            ->value('table_name');
-                    }
-                    $table2Label = $table2Name ?: (string) $match->table_2;
-
-                    $matchData[] = [
-                        'match_no' => $match->match_no,
-                        'start_time' => $startTime,
-                        'start_timestamp' => $activity ? Carbon::parse($activity->start_time)->timestamp : null,
+                    return [
+                        'start_time' => Carbon::parse($activity->start_time)->format('H:i'),
+                        'start_timestamp' => $activityTs,
                         'table_1' => $table1Label,
                         'table_2' => $table2Label,
                         'team_1' => $team1,
                         'team_2' => $team2,
                     ];
-                }
+                })->all();
 
-                $roundsData[$round] = [
-                    'label' => $roundLabels[$round],
+                $roundsData[$roundIndex] = [
+                    'label' => $this->formatActivityLabel($firstMatch),
                     'matches' => $matchData,
                 ];
-            }
-
-            // Fetch final rounds from activities (r_final_16, r_final_8, r_final_4, r_final_2)
-            $finalRoundCodes = [
-                'r_final_16' => 'Achtelfinale',
-                'r_final_8' => 'Viertelfinale',
-                'r_final_4' => 'Halbfinale',
-                'r_final_2' => 'Finale',
-            ];
-
-            $eventId = DB::table('plan')->where('id', $planId)->value('event');
-            $finalRoundKey = 4; // Start after regular rounds (0-3)
-
-            foreach ($finalRoundCodes as $finalCode => $finalLabel) {
-                // Get activity type detail ID for this final round group
-                $finalGroupTypeId = DB::table('m_activity_type_detail')
-                    ->where('code', $finalCode)
-                    ->value('id');
-
-                if (! $finalGroupTypeId) {
-                    continue;
-                }
-
-                // Get activities for this final round
-                $finalActivities = DB::table('activity')
-                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-                    ->where('activity_group.plan', $planId)
-                    ->where('activity_group.activity_type_detail', $finalGroupTypeId)
-                    ->where('activity.activity_type_detail', $matchActivityTypeId)
-                    ->select(
-                        'activity.start as start_time',
-                        'activity.table_1',
-                        'activity.table_2',
-                        'activity.table_1_team',
-                        'activity.table_2_team'
-                    )
-                    ->orderBy('activity.start')
-                    ->get();
-
-                if ($finalActivities->isEmpty()) {
-                    continue;
-                }
-
-                $finalMatchData = [];
-                $finalRoundStartTime = null;
-                foreach ($finalActivities as $activity) {
-                    $startTime = Carbon::parse($activity->start_time)->format('H:i');
-
-                    // Store earliest start time for this final round
-                    $activityTimestamp = Carbon::parse($activity->start_time)->timestamp;
-                    if ($finalRoundStartTime === null || $activityTimestamp < $finalRoundStartTime) {
-                        $finalRoundStartTime = $activityTimestamp;
-                    }
-
-                    // Get table names (without "Tisch " prefix)
-                    $table1Name = null;
-                    if ($eventId) {
-                        $table1Name = DB::table('table_event')
-                            ->where('event', $eventId)
-                            ->where('table_number', $activity->table_1)
-                            ->value('table_name');
-                    }
-                    $table1Label = $table1Name ?: (string) $activity->table_1;
-
-                    $table2Name = null;
-                    if ($eventId) {
-                        $table2Name = DB::table('table_event')
-                            ->where('event', $eventId)
-                            ->where('table_number', $activity->table_2)
-                            ->value('table_name');
-                    }
-                    $table2Label = $table2Name ?: (string) $activity->table_2;
-
-                    // For final rounds, team names are empty (moderator fills in during the day)
-                    $finalMatchData[] = [
-                        'start_time' => $startTime,
-                        'start_timestamp' => $activityTimestamp,
-                        'table_1' => $table1Label,
-                        'table_2' => $table2Label,
-                        'team_1' => [
-                            'name' => '', // Empty - moderator fills in
-                            'noshow' => false,
-                        ],
-                        'team_2' => [
-                            'name' => '', // Empty - moderator fills in
-                            'noshow' => false,
-                        ],
-                    ];
-                }
-
-                // Use a key that sorts after regular rounds (4, 5, 6, 7)
-                $roundsData[$finalRoundKey] = [
-                    'label' => $finalLabel,
-                    'matches' => $finalMatchData,
-                ];
-
-                // Store start time for this final round
-                if ($finalRoundStartTime !== null) {
-                    $roundStartTimes[$finalRoundKey] = $finalRoundStartTime;
-                }
-
-                $finalRoundKey++;
+                $roundStartTimes[$roundIndex] = collect($matchData)
+                    ->pluck('start_timestamp')
+                    ->filter()
+                    ->min();
+                $roundIndex++;
             }
 
             Log::info('moderatorMatchPlanPdf roundsData summary', [
