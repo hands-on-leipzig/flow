@@ -37,12 +37,12 @@ $isMultiDay = count($activitiesByDay) > 1;
                 <thead>
                     <tr style="background-color:#f5f5f5;">
                         <th style="text-align:center; padding:6px 4px; width:4%;"></th>
-                        <th style="text-align:left; padding:6px 8px; width:7%;">Start</th>
-                        <th style="text-align:left; padding:6px 8px; width:7%;">Ende</th>
+                        <th style="text-align:left; padding:6px 8px; width:8%;">Start</th>
+                        <th style="text-align:left; padding:6px 8px; width:8%;">Ende</th>
                         <th style="text-align:center; padding:6px 4px; width:5%;"></th>
                         <th style="text-align:center; padding:6px 4px; width:5%;"></th>
-                        <th style="text-align:left; padding:6px 8px; width:25%;">Aktivität</th>
-                        <th style="text-align:left; padding:6px 8px; width:47%;">Team</th>
+                        <th style="text-align:left; padding:6px 8px; width:35%;">Aktivität</th>
+                        <th style="text-align:left; padding:6px 8px; width:35%;">Team</th>
                     </tr>
                 </thead>
                 <tbody>
