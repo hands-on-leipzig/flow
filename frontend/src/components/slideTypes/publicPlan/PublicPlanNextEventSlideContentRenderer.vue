@@ -61,7 +61,7 @@ const nextEvent = computed(() => {
           Als nächstes folgt
         </div>
         <div class="font-semibold">
-          {{ formatTimeOnly(nextEvent.startTime) }} {{ nextEvent.name }}
+          {{ formatTimeOnly(nextEvent.startTime, true) }} {{ nextEvent.name }}
         </div>
       </div>
       <div v-else class="text-center opacity-70">
