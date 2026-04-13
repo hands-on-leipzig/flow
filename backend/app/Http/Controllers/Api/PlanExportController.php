@@ -3385,6 +3385,11 @@ class PlanExportController extends Controller
         foreach ($eventOverview as &$event) {
             $event['assigned_column'] = $event['group_overview_plan_column'] ?? 'Allgemein';
 
+            // Normalize legacy naming to keep header/data column matching stable.
+            if ($event['assigned_column'] === 'Live-Challenge') {
+                $event['assigned_column'] = 'Live Challenge';
+            }
+
             // Handle empty strings as well as null
             if (empty($event['assigned_column'])) {
                 $event['assigned_column'] = 'Allgemein';
