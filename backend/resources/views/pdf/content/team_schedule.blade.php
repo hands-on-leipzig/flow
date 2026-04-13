@@ -1,14 +1,26 @@
 @php
     $icon = null;
     $cleanTitle = $team;
+    $toDataUri = function (string $path): ?string {
+        if (!is_file($path)) {
+            return null;
+        }
+        $mime = mime_content_type($path) ?: 'image/png';
+        $data = @file_get_contents($path);
+        if ($data === false) {
+            return null;
+        }
+        return 'data:' . $mime . ';base64,' . base64_encode($data);
+    };
 
     if (str_contains($team, 'FLL Explore')) {
-        $icon = public_path('flow/fll_explore_h.png');
+        $icon = $toDataUri(public_path('flow/fll_explore_h.png'));
         $cleanTitle = trim(str_replace('FLL Explore', '', $team));
     } elseif (str_contains($team, 'FLL Challenge')) {
-        $icon = public_path('flow/fll_challenge_h.png');
+        $icon = $toDataUri(public_path('flow/fll_challenge_h.png'));
         $cleanTitle = trim(str_replace('FLL Challenge', '', $team));
     }
+    $hourglassIcon = $toDataUri(public_path('flow/hourglass.png'));
 
     // Group rows by day (same approach as room/role PDFs)
     $activitiesByDay = [];
@@ -60,8 +72,8 @@
                             @endphp
                             <tr style="background-color:{{ $bgColor }};">
                                 <td style="text-align:center; padding:4px;">
-                                    @if(!empty($row['is_free']))
-                                        <img src="{{ public_path('flow/hourglass.png') }}" alt="Free interval" style="height:16px; width:auto;">
+                                    @if(!empty($row['is_free']) && !empty($hourglassIcon))
+                                        <img src="{{ $hourglassIcon }}" alt="Free interval" style="height:16px; width:auto;">
                                     @endif
                                 </td>
                                 <td style="padding:5px 8px;">{{ $row['start'] }}</td>
