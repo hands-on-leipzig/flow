@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Log;
 
 class PlanExportController extends Controller
 {
-    private const PDF_ACTIVITY_LABEL_MAX_LENGTH = 40;
+    private const PDF_ACTIVITY_LABEL_MAX_LENGTH = 35;
 
     private ActivityFetcherService $activityFetcher;
 
@@ -3384,6 +3384,11 @@ class PlanExportController extends Controller
         // Pre-assign activities to their correct columns
         foreach ($eventOverview as &$event) {
             $event['assigned_column'] = $event['group_overview_plan_column'] ?? 'Allgemein';
+
+            // Normalize legacy naming to keep header/data column matching stable.
+            if ($event['assigned_column'] === 'Live-Challenge') {
+                $event['assigned_column'] = 'Live Challenge';
+            }
 
             // Handle empty strings as well as null
             if (empty($event['assigned_column'])) {
