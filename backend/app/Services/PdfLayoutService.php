@@ -28,10 +28,8 @@ class PdfLayoutService
         // Headerdaten
         $header = $this->buildHeaderData($event);
 
-        // TEMPORARY: Disable footer logos in all PDF layouts.
-        // Cloud servers currently fail on larger PDFs due to image security-policy errors during render.
-        // Keep footer logos empty until infra/server policy issue is resolved.
-        $footerLogos = [];
+        // Footerlogos: For QR PDFs, logos are rendered in content area, so pass empty array
+        $footerLogos = $isQrCodePdf ? [] : $this->buildFooterLogos($event->id);
 
         return View::make('pdf.layout_landscape', [
             'title'       => $title,
@@ -50,10 +48,8 @@ class PdfLayoutService
         // Headerdaten
         $header = $this->buildHeaderData($event);
 
-        // TEMPORARY: Disable footer logos in all PDF layouts.
-        // Cloud servers currently fail on larger PDFs due to image security-policy errors during render.
-        // Keep footer logos empty until infra/server policy issue is resolved.
-        $footerLogos = [];
+        // Footerlogos
+        $footerLogos = $this->buildFooterLogos($event->id);
 
         return View::make('pdf.layout_portrait', [
             'title'       => $title,
