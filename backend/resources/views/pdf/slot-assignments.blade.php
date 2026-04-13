@@ -20,6 +20,21 @@
     </style>
 </head>
 <body>
+    @php
+        $toDataUri = function (string $path): ?string {
+            if (!is_file($path)) {
+                return null;
+            }
+            $mime = mime_content_type($path) ?: 'image/png';
+            $data = @file_get_contents($path);
+            if ($data === false) {
+                return null;
+            }
+            return 'data:' . $mime . ';base64,' . base64_encode($data);
+        };
+        $exploreIcon = $toDataUri(public_path('flow/fll_explore_v.png'));
+        $challengeIcon = $toDataUri(public_path('flow/fll_challenge_v.png'));
+    @endphp
     @if(empty($slots ?? []))
         <div class="header">
             <h1>{{ $eventName }} – {{ $eventDate }}</h1>
@@ -79,10 +94,10 @@
                                     <tr>
                                         <td>{{ $row['start_time'] }}</td>
                                         <td>
-                                            @if(($row['first_program'] ?? 0) === 2)
-                                                <img src="{{ public_path('flow/fll_explore_v.png') }}" alt="Explore" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
-                                            @elseif(($row['first_program'] ?? 0) === 3)
-                                                <img src="{{ public_path('flow/fll_challenge_v.png') }}" alt="Challenge" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
+                                            @if(($row['first_program'] ?? 0) === 2 && !empty($exploreIcon))
+                                                <img src="{{ $exploreIcon }}" alt="Explore" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
+                                            @elseif(($row['first_program'] ?? 0) === 3 && !empty($challengeIcon))
+                                                <img src="{{ $challengeIcon }}" alt="Challenge" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
                                             @endif
                                             {!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['team_label'] ?? '–', $row['team_noshow'] ?? false) !!}
                                         </td>

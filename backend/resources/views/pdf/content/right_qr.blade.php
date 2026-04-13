@@ -1,4 +1,15 @@
 {{-- resources/views/pdf/partials/right_qr.blade.php --}}
+@php
+    $accessibleNoIcon = null;
+    $path = public_path('flow/accessible_no.png');
+    if (is_file($path)) {
+        $mime = mime_content_type($path) ?: 'image/png';
+        $data = @file_get_contents($path);
+        if ($data !== false) {
+            $accessibleNoIcon = 'data:' . $mime . ';base64,' . base64_encode($data);
+        }
+    }
+@endphp
 <td style="width:34%; text-align:center;">
 
     <div style="
@@ -69,8 +80,8 @@
                         <tr>
                             <td valign="top" style="width:33%; padding:4px 8px 4px 6px; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:normal; line-height:1.2;">
                                 {{ $roomName }}
-                                @if(!$isAccessible)
-                                    <img src="{{ public_path('flow/accessible_no.png') }}" alt="Nicht barrierefrei" style="height:12px; width:auto; margin-left:4px;">
+                                @if(!$isAccessible && !empty($accessibleNoIcon))
+                                    <img src="{{ $accessibleNoIcon }}" alt="Nicht barrierefrei" style="height:12px; width:auto; margin-left:4px;">
                                 @endif
                             </td>
                             <td valign="top" style="width:67%; padding:4px 6px; vertical-align:top; font-size:12px; color:#444; font-family:sans-serif; white-space:normal; word-wrap:break-word; line-height:1.2;">
