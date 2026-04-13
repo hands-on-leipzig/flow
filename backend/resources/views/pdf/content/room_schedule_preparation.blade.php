@@ -1,3 +1,18 @@
+@php
+    $toDataUri = function (string $path): ?string {
+        if (!is_file($path)) {
+            return null;
+        }
+        $mime = mime_content_type($path) ?: 'image/png';
+        $data = @file_get_contents($path);
+        if ($data === false) {
+            return null;
+        }
+        return 'data:' . $mime . ';base64,' . base64_encode($data);
+    };
+    $exploreIcon = $toDataUri(public_path('flow/fll_explore_v.png'));
+    $challengeIcon = $toDataUri(public_path('flow/fll_challenge_v.png'));
+@endphp
 <h2 style="margin-bottom: 15px; font-size: 22px; font-weight: bold;">
     {{ $room }}
 </h2>
@@ -37,13 +52,13 @@
                                         @endphp
                                         <tr bgcolor="{{ $bgColor }}">
                                             <td style="text-align:center; padding:4px;">
-                                                @if($row['is_explore'])
-                                                    <img src="{{ public_path('flow/fll_explore_v.png') }}" alt="Explore" style="height:16px;">
+                                                @if($row['is_explore'] && !empty($exploreIcon))
+                                                    <img src="{{ $exploreIcon }}" alt="Explore" style="height:16px;">
                                                 @endif
                                             </td>
                                             <td style="text-align:center; padding:4px;">
-                                                @if($row['is_challenge'])
-                                                    <img src="{{ public_path('flow/fll_challenge_v.png') }}" alt="Challenge" style="height:16px;">
+                                                @if($row['is_challenge'] && !empty($challengeIcon))
+                                                    <img src="{{ $challengeIcon }}" alt="Challenge" style="height:16px;">
                                                 @endif
                                             </td>
                                             <td style="padding:5px 8px;">{!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['team_display'] ?? '–', $row['team_is_noshow'] ?? false) !!}</td>
@@ -68,13 +83,13 @@
                                         @endphp
                                         <tr bgcolor="{{ $bgColor }}">
                                             <td style="text-align:center; padding:4px;">
-                                                @if($row['is_explore'])
-                                                    <img src="{{ public_path('flow/fll_explore_v.png') }}" alt="Explore" style="height:16px;">
+                                                @if($row['is_explore'] && !empty($exploreIcon))
+                                                    <img src="{{ $exploreIcon }}" alt="Explore" style="height:16px;">
                                                 @endif
                                             </td>
                                             <td style="text-align:center; padding:4px;">
-                                                @if($row['is_challenge'])
-                                                    <img src="{{ public_path('flow/fll_challenge_v.png') }}" alt="Challenge" style="height:16px;">
+                                                @if($row['is_challenge'] && !empty($challengeIcon))
+                                                    <img src="{{ $challengeIcon }}" alt="Challenge" style="height:16px;">
                                                 @endif
                                             </td>
                                             <td style="padding:5px 8px;">{!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['team_display'] ?? '–', $row['team_is_noshow'] ?? false) !!}</td>
@@ -102,15 +117,15 @@
                             <tr bgcolor="{{ $bgColor }}">
                                 {{-- Explore Icon --}}
                                 <td style="text-align:center; padding:4px;">
-                                    @if($row['is_explore'])
-                                        <img src="{{ public_path('flow/fll_explore_v.png') }}" alt="Explore" style="height:16px;">
+                                    @if($row['is_explore'] && !empty($exploreIcon))
+                                        <img src="{{ $exploreIcon }}" alt="Explore" style="height:16px;">
                                     @endif
                                 </td>
 
                                 {{-- Challenge Icon --}}
                                 <td style="text-align:center; padding:4px;">
-                                    @if($row['is_challenge'])
-                                        <img src="{{ public_path('flow/fll_challenge_v.png') }}" alt="Challenge" style="height:16px;">
+                                    @if($row['is_challenge'] && !empty($challengeIcon))
+                                        <img src="{{ $challengeIcon }}" alt="Challenge" style="height:16px;">
                                     @endif
                                 </td>
 

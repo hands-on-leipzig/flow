@@ -15,6 +15,22 @@ foreach($rows as $row) {
 }
 
 $isMultiDay = count($activitiesByDay) > 1;
+
+$toDataUri = function (string $path): ?string {
+    if (!is_file($path)) {
+        return null;
+    }
+    $mime = mime_content_type($path) ?: 'image/png';
+    $data = @file_get_contents($path);
+    if ($data === false) {
+        return null;
+    }
+    return 'data:' . $mime . ';base64,' . base64_encode($data);
+};
+
+$hourglassIcon = $toDataUri(public_path('flow/hourglass.png'));
+$exploreIcon = $toDataUri(public_path('flow/fll_explore_v.png'));
+$challengeIcon = $toDataUri(public_path('flow/fll_challenge_v.png'));
 @endphp
 
 <h2 style="margin-bottom: 6px; font-size: 22px; font-weight: bold;">
@@ -49,22 +65,22 @@ $isMultiDay = count($activitiesByDay) > 1;
                     @foreach($dayData['rows'] as $i => $row)
                         <tr style="background-color:{{ $i % 2 === 0 ? '#ffffff' : '#f9f9f9' }};">
                             <td style="text-align:center; padding:4px;">
-                                @if(!empty($row['is_free']))
-                                    <img src="{{ public_path('flow/hourglass.png') }}" alt="Free interval" style="height:16px; width:auto;">
+                                @if(!empty($row['is_free']) && !empty($hourglassIcon))
+                                    <img src="{{ $hourglassIcon }}" alt="Free interval" style="height:16px; width:auto;">
                                 @endif
                             </td>
                             <td style="padding:5px 8px;">{{ $row['start'] }}</td>
                             <td style="padding:5px 8px;">{{ $row['end'] }}</td>
                             {{-- Explore Icon --}}
                             <td style="text-align:center; padding:4px;">
-                                @if(!empty($row['is_explore']))
-                                    <img src="{{ public_path('flow/fll_explore_v.png') }}" alt="Explore" style="height:16px;">
+                                @if(!empty($row['is_explore']) && !empty($exploreIcon))
+                                    <img src="{{ $exploreIcon }}" alt="Explore" style="height:16px;">
                                 @endif
                             </td>
                             {{-- Challenge Icon --}}
                             <td style="text-align:center; padding:4px;">
-                                @if(!empty($row['is_challenge']))
-                                    <img src="{{ public_path('flow/fll_challenge_v.png') }}" alt="Challenge" style="height:16px;">
+                                @if(!empty($row['is_challenge']) && !empty($challengeIcon))
+                                    <img src="{{ $challengeIcon }}" alt="Challenge" style="height:16px;">
                                 @endif
                             </td>
                             <td style="padding:5px 8px;">{{ $row['activity'] }}</td>

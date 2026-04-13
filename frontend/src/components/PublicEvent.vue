@@ -3,7 +3,7 @@ import {ref, computed, onMounted, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import {programLogoSrc, programLogoAlt, imageUrl} from '@/utils/images'
-import { formatTimeOnly } from '@/utils/dateTimeFormat'
+import {formatTimeOnly} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 
 const route = useRoute()
@@ -103,9 +103,12 @@ const loadEvent = async () => {
 }
 
 // Format date to show only date part (long format for main event date)
-const formatDateOnly = (dateString) => {
+const formatDateOnly = (dateString, daysToAdd = 0) => {
   if (!dateString) return ''
   const date = new Date(dateString)
+  if (daysToAdd > 0) {
+    date.setDate(date.getDate() + daysToAdd)
+  }
   return date.toLocaleDateString('de-DE', {
     weekday: 'long',
     year: 'numeric',
@@ -130,7 +133,7 @@ function formatShortWeekday(dateInput) {
   if (!dateInput) return ''
   const d = new Date(dateInput)
   if (isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(d)
+  return new Intl.DateTimeFormat('de-DE', {weekday: 'short'}).format(d)
 }
 
 // True if the plan has important times on more than one day
@@ -653,6 +656,8 @@ onMounted(async () => {
               Datum & Ort
             </h3>
             <p class="text-gray-800 font-medium text-base md:text-lg">{{ formatDateOnly(scheduleInfo.date) }}</p>
+            <p v-if="scheduleInfo.days > 1" class="text-gray-800 font-medium text-base md:text-lg">bis
+              {{ formatDateOnly(scheduleInfo.date, scheduleInfo.days - 1) }}</p>
             <!-- EventMap Component -->
             <div v-if="scheduleInfo.address" class="mt-3 md:mt-4">
               <EventMap
