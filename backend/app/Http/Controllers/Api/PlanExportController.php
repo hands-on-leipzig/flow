@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Log;
 
 class PlanExportController extends Controller
 {
-    private const PDF_ACTIVITY_LABEL_MAX_LENGTH = 40;
+    private const PDF_ACTIVITY_LABEL_MAX_LENGTH = 35;
 
     private ActivityFetcherService $activityFetcher;
 
