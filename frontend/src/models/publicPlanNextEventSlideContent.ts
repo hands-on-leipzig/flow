@@ -1,19 +1,19 @@
 import {AbstractPublicPlanSlideContent} from "./abstractPublicPlanSlideContent";
 
-export class PublicPlanSlideContent extends AbstractPublicPlanSlideContent {
+export class PublicPlanNextEventSlideContent extends AbstractPublicPlanSlideContent {
 
     constructor(data: object) {
         super(data);
-        Object.assign(this, data);
     }
 
     public toJSON(): object {
         return {
-            type: "PublicPlanSlideContent",
+            type: 'PublicPlanNextEventSlideContent',
             planId: this.planId,
+            interval: this.interval,
             role: this.role,
             room: this.room,
-            background: this.background
+            background: this.background,
         };
     }
 }

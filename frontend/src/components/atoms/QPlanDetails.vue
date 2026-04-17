@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import axios from 'axios'
 
 const props = defineProps({
@@ -39,18 +39,32 @@ const minRequiredTables = () => Math.min(3, details.value?.r_tables ?? 3)
 const warnClassTables = (val) => val < minRequiredTables() ? 'text-yellow-500 font-semibold' : 'text-gray-300'
 const iconTables = (val) => val < minRequiredTables() ? '⚠️' : '✓'
 
-const matchesByRound = (round) => {
-  const filtered = details.value?.matches?.filter(m => m.round === round) ?? []
-  // Sort by match_no to ensure chronological order
-  return filtered.sort((a, b) => a.match_no - b.match_no)
-}
-
 const formatTeam = (teamNum) => {
   // Format team display: Team 0 = '–' (volunteer/BYE), null/undefined = empty, others = number
   if (teamNum === null || teamNum === undefined) return ''
   if (teamNum === 0) return '–'
   return String(teamNum)
 }
+
+const matchPlanColumns = computed(() => {
+  if (Array.isArray(details.value?.match_plan_rounds) && details.value.match_plan_rounds.length > 0) {
+    return details.value.match_plan_rounds
+  }
+
+  return [
+    { key: '0', label: 'Testrunde', matches: [] },
+    { key: '1', label: 'Runde 1', matches: [] },
+    { key: '2', label: 'Runde 2', matches: [] },
+    { key: '3', label: 'Runde 3', matches: [] },
+  ]
+})
+
+const transferRows = computed(() => {
+  if (details.value?.is_two_day_event && Array.isArray(details.value?.transfer_summary)) {
+    return details.value.transfer_summary
+  }
+  return details.value?.teams ?? []
+})
 </script>
 
 <template>
@@ -67,32 +81,50 @@ const formatTeam = (teamNum) => {
               <tr>
                 <th class="px-2 py-1 text-left">Team</th>
                 <th class="px-2 py-1">Tr.</th>
-                <th class="px-2 py-1">1→2</th>
-                <th class="px-2 py-1">2→3</th>
-                <th class="px-2 py-1">3→4</th>
-                <th class="px-2 py-1">4→5</th>
-                <th class="px-2 py-1">Δ</th>
+                <template v-if="details.is_two_day_event">
+                  <th class="px-2 py-1">T1 1→2</th>
+                  <th class="px-2 py-1">T1 2→3</th>
+                  <th class="px-2 py-1">T2 1→2</th>
+                  <th class="px-2 py-1">T2 2→3</th>
+                  <th class="px-2 py-1">T2 3→4</th>
+                </template>
+                <template v-else>
+                  <th class="px-2 py-1">1→2</th>
+                  <th class="px-2 py-1">2→3</th>
+                  <th class="px-2 py-1">3→4</th>
+                  <th class="px-2 py-1">4→5</th>
+                </template>
+                <th v-if="!details.is_two_day_event" class="px-2 py-1">Δ</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="team in details.teams" :key="team.id" class="border-t">
+              <tr v-for="team in transferRows" :key="team.id ?? team.team" class="border-t">
                 <td class="px-2 py-1">{{ team.team }}</td>
                 <td class="text-center">
                   <span :class="okClass(team.q1_ok)">{{ okIcon(team.q1_ok) }}</span>
                 </td>
-                <td class="text-center" :class="team.q1_transition_1_2 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
-                  {{ team.q1_transition_1_2 }}
-                </td>
-                <td class="text-center" :class="team.q1_transition_2_3 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
-                  {{ team.q1_transition_2_3 }}
-                </td>
-                <td class="text-center" :class="team.q1_transition_3_4 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
-                  {{ team.q1_transition_3_4 }}
-                </td>
-                <td class="text-center" :class="team.q1_transition_4_5 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
-                  {{ team.q1_transition_4_5 }}
-                </td>
-                <td class="text-center">{{ team.q5_idle_avg?.toFixed(2) ?? '–' }}</td>
+                <template v-if="details.is_two_day_event">
+                  <td class="text-center" :class="team.day1_1_2 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">{{ team.day1_1_2 }}</td>
+                  <td class="text-center" :class="team.day1_2_3 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">{{ team.day1_2_3 }}</td>
+                  <td class="text-center" :class="team.day2_1_2 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">{{ team.day2_1_2 }}</td>
+                  <td class="text-center" :class="team.day2_2_3 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">{{ team.day2_2_3 }}</td>
+                  <td class="text-center" :class="team.day2_3_4 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">{{ team.day2_3_4 }}</td>
+                </template>
+                <template v-else>
+                  <td class="text-center" :class="team.q1_transition_1_2 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
+                    {{ team.q1_transition_1_2 }}
+                  </td>
+                  <td class="text-center" :class="team.q1_transition_2_3 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
+                    {{ team.q1_transition_2_3 }}
+                  </td>
+                  <td class="text-center" :class="team.q1_transition_3_4 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
+                    {{ team.q1_transition_3_4 }}
+                  </td>
+                  <td class="text-center" :class="team.q1_transition_4_5 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
+                    {{ team.q1_transition_4_5 }}
+                  </td>
+                </template>
+                <td v-if="!details.is_two_day_event" class="text-center">{{ team.q5_idle_avg?.toFixed(2) ?? '–' }}</td>
               </tr>
             </tbody>
           </table>
@@ -152,12 +184,12 @@ const formatTeam = (teamNum) => {
           <div class="text-sm font-semibold text-gray-600 mb-1">Matchplan</div>
           <div class="flex flex-row gap-4">
             <div
-              v-for="round in [0,1,2,3]"
-              :key="round"
+              v-for="col in matchPlanColumns"
+              :key="`${col.key}-${col.label}`"
               class="min-w-max"
             >
               <div class="text-sm font-semibold text-gray-600 mb-1">
-                {{ ['Testrunde', 'Runde 1', 'Runde 2', 'Runde 3'][round] }}
+                {{ col.label }}
               </div>
               <table class="table-auto text-sm border-collapse">
                 <thead class="bg-gray-100">
@@ -170,7 +202,7 @@ const formatTeam = (teamNum) => {
                 </thead>
                 <tbody>
                   <tr
-                    v-for="match in matchesByRound(round)"
+                    v-for="match in col.matches"
                     :key="match.id"
                     class="border-t"
                   >

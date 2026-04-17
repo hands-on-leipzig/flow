@@ -3,36 +3,37 @@
 @php
     // Adaptive grid sizing based on logo count (Option C)
     $logoCount = count($footerLogos ?? []);
-    $logoSize = 100; // Default
+    $logoSize = 150; // Default (150% of previous size)
     $layoutType = 'single'; // 'single', 'grid', 'asymmetric'
     $colsPerRow = $logoCount;
+    $singleRowMinHeight = 210;
     
     if ($logoCount === 1) {
-        $logoSize = 150;
+        $logoSize = 225;
         $layoutType = 'single';
         $colsPerRow = 1;
     } elseif ($logoCount === 2) {
-        $logoSize = 140;
+        $logoSize = 210;
         $layoutType = 'single';
         $colsPerRow = 2;
     } elseif ($logoCount === 3) {
-        $logoSize = 135;
+        $logoSize = 203;
         $layoutType = 'single';
         $colsPerRow = 3;
     } elseif ($logoCount === 4) {
-        $logoSize = 125;
+        $logoSize = 150;
         $layoutType = 'grid';
         $colsPerRow = 2; // 2×2 grid
     } elseif ($logoCount === 5) {
-        $logoSize = 115;
+        $logoSize = 138;
         $layoutType = 'asymmetric'; // 3 top + 2 bottom (centered)
         $colsPerRow = 3; // Top row
     } elseif ($logoCount === 6) {
-        $logoSize = 110;
+        $logoSize = 132;
         $layoutType = 'grid';
         $colsPerRow = 3; // 3×2 grid
     } elseif ($logoCount >= 7) {
-        $logoSize = 100;
+        $logoSize = 150;
         $layoutType = 'grid';
         $colsPerRow = 4; // 4×2 grid (or more rows if needed)
     }
@@ -89,13 +90,13 @@
 
 {{-- Footer Logos: Adaptive grid layout with full-width distribution --}}
 @if(!empty($footerLogos) && $logoCount > 0)
-    <div style="margin-top: 20px; padding: 15px 20px; border-top: 1px solid #eee;">
+    <div style="margin-top: 12px; padding: 8px 20px 4px 20px; border-top: 1px solid #eee;">
         @if($layoutType === 'single')
             {{-- Single row: 1-3 logos --}}
-            <table style="width: 100%; border-collapse: collapse;">
+            <table style="width: 100%; border-collapse: collapse; min-height: {{ $singleRowMinHeight }}px;">
                 <tr>
                     @foreach($footerLogos as $src)
-                        <td style="text-align: center; vertical-align: middle; padding: 8px; width: {{ 100 / $logoCount }}%;">
+                        <td style="text-align: center; vertical-align: middle; padding: 4px 8px; width: {{ 100 / $logoCount }}%; height: {{ $singleRowMinHeight }}px;">
                             <img src="{{ $src }}" alt="Sponsor logo" style="max-width: {{ $logoSize }}px; max-height: {{ $logoSize }}px; width: auto; height: auto; display: inline-block;" />
                         </td>
                     @endforeach
@@ -108,10 +109,10 @@
                 $bottomRow = array_slice($footerLogos, 3);
             @endphp
             {{-- Top row: 3 logos full width --}}
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px;">
                 <tr>
                     @foreach($topRow as $src)
-                        <td style="text-align: center; vertical-align: middle; padding: 8px; width: 33.33%;">
+                        <td style="text-align: center; vertical-align: middle; padding: 4px 8px; width: 33.33%;">
                             <img src="{{ $src }}" alt="Sponsor logo" style="max-width: {{ $logoSize }}px; max-height: {{ $logoSize }}px; width: auto; height: auto; display: inline-block;" />
                         </td>
                     @endforeach
@@ -122,7 +123,7 @@
                 <tr>
                     <td style="width: 25%;"></td> {{-- Left spacer --}}
                     @foreach($bottomRow as $src)
-                        <td style="text-align: center; vertical-align: middle; padding: 8px; width: 25%;">
+                        <td style="text-align: center; vertical-align: middle; padding: 4px 8px; width: 25%;">
                             <img src="{{ $src }}" alt="Sponsor logo" style="max-width: {{ $logoSize }}px; max-height: {{ $logoSize }}px; width: auto; height: auto; display: inline-block;" />
                         </td>
                     @endforeach
@@ -143,7 +144,7 @@
                     $isLastRow = ($row === $rows - 1);
                     $needsCentering = $isLastRow && $colsInThisRow < $colsPerRow;
                 @endphp
-                <table style="width: 100%; border-collapse: collapse;{{ $row > 0 ? ' margin-top: 12px;' : '' }}">
+                <table style="width: 100%; border-collapse: collapse;{{ $row > 0 ? ' margin-top: 6px;' : '' }}">
                     <tr>
                         @if($needsCentering)
                             {{-- Center the last row if it has fewer logos --}}
@@ -154,7 +155,7 @@
                             @endphp
                             <td style="width: {{ $spacerWidth }}%;"></td>
                             @foreach($rowLogos as $src)
-                                <td style="text-align: center; vertical-align: middle; padding: 8px; width: {{ $logoWidthPercent }}%;">
+                                <td style="text-align: center; vertical-align: middle; padding: 4px 8px; width: {{ $logoWidthPercent }}%;">
                                     <img src="{{ $src }}" alt="Sponsor logo" style="max-width: {{ $logoSize }}px; max-height: {{ $logoSize }}px; width: auto; height: auto; display: inline-block;" />
                                 </td>
                             @endforeach
@@ -165,7 +166,7 @@
                                 $logoWidthPercent = 100 / $colsInThisRow;
                             @endphp
                             @foreach($rowLogos as $src)
-                                <td style="text-align: center; vertical-align: middle; padding: 8px; width: {{ $logoWidthPercent }}%;">
+                                <td style="text-align: center; vertical-align: middle; padding: 4px 8px; width: {{ $logoWidthPercent }}%;">
                                     <img src="{{ $src }}" alt="Sponsor logo" style="max-width: {{ $logoSize }}px; max-height: {{ $logoSize }}px; width: auto; height: auto; display: inline-block;" />
                                 </td>
                             @endforeach

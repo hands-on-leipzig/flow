@@ -8,10 +8,107 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\MActivityTypeDetail;
 
 
 class QualityController extends Controller
 {
+    private array $atdCodeToId = [];
+
+    private function atdId(string $code): ?int
+    {
+        if (!array_key_exists($code, $this->atdCodeToId)) {
+            $this->atdCodeToId[$code] = DB::table('m_activity_type_detail')->where('code', $code)->value('id');
+        }
+
+        return $this->atdCodeToId[$code] ? (int) $this->atdCodeToId[$code] : null;
+    }
+
+    private function buildTwoDayTransferSummary(int $planId, int $teamCount, int $minGap): array
+    {
+        $day1Date = (new \App\Support\PlanParameter($planId))->get('g_date')->format('Y-m-d');
+        $day2Date = (new \DateTime($day1Date))->modify('+1 day')->format('Y-m-d');
+
+        $rMatchId = $this->atdId('r_match');
+        $rCheckId = $this->atdId('r_check');
+        $jWithTeamId = $this->atdId('j_with_team');
+        $lcWithTeamId = $this->atdId('lc_with_team');
+
+        $activities = DB::table('activity as a')
+            ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+            ->where('ag.plan', $planId)
+            ->whereIn('a.activity_type_detail', array_filter([$rMatchId, $rCheckId, $jWithTeamId, $lcWithTeamId]))
+            ->orderBy('a.start')
+            ->orderBy('a.id')
+            ->get([
+                'a.activity_type_detail as activity_atd',
+                'a.start',
+                'a.end',
+                'a.jury_team',
+                'a.table_1_team',
+                'a.table_2_team',
+            ]);
+
+        $summary = [];
+        for ($team = 1; $team <= $teamCount; $team++) {
+            $teamActivities = $activities->filter(function ($a) use ($team, $jWithTeamId, $lcWithTeamId, $rMatchId, $rCheckId) {
+                if ($a->activity_atd === $jWithTeamId || $a->activity_atd === $lcWithTeamId) {
+                    return (int)$a->jury_team === $team;
+                }
+                if ($a->activity_atd === $rMatchId || $a->activity_atd === $rCheckId) {
+                    return (int)$a->table_1_team === $team || (int)$a->table_2_team === $team;
+                }
+                return false;
+            })->values();
+
+            $merged = [];
+            $i = 0;
+            while ($i < $teamActivities->count()) {
+                $current = $teamActivities[$i];
+                if ($current->activity_atd === $rCheckId &&
+                    $i + 1 < $teamActivities->count() &&
+                    $teamActivities[$i + 1]->activity_atd === $rMatchId) {
+                    $merged[] = (object) ['start' => $current->start, 'end' => $teamActivities[$i + 1]->end];
+                    $i += 2;
+                } else {
+                    $merged[] = (object) ['start' => $current->start, 'end' => $current->end];
+                    $i++;
+                }
+            }
+
+            $d1 = array_values(array_filter($merged, fn($a) => str_starts_with($a->start, $day1Date)));
+            $d2 = array_values(array_filter($merged, fn($a) => str_starts_with($a->start, $day2Date)));
+
+            $gapsDay1 = [];
+            for ($j = 1; $j < count($d1); $j++) {
+                $prev = new \DateTime($d1[$j - 1]->end);
+                $curr = new \DateTime($d1[$j]->start);
+                $gapsDay1[] = ($curr->getTimestamp() - $prev->getTimestamp()) / 60;
+            }
+
+            $gapsDay2 = [];
+            for ($j = 1; $j < count($d2); $j++) {
+                $prev = new \DateTime($d2[$j - 1]->end);
+                $curr = new \DateTime($d2[$j]->start);
+                $gapsDay2[] = ($curr->getTimestamp() - $prev->getTimestamp()) / 60;
+            }
+
+            $allGaps = array_merge($gapsDay1, $gapsDay2);
+            $q1Ok = !collect($allGaps)->contains(fn($g) => $g < $minGap);
+
+            $summary[] = [
+                'team' => $team,
+                'q1_ok' => $q1Ok,
+                'day1_1_2' => $gapsDay1[0] ?? 0,
+                'day1_2_3' => $gapsDay1[1] ?? 0,
+                'day2_1_2' => $gapsDay2[0] ?? 0,
+                'day2_2_3' => $gapsDay2[1] ?? 0,
+                'day2_3_4' => $gapsDay2[2] ?? 0,
+            ];
+        }
+
+        return $summary;
+    }
     
     public function startQRun(Request $request)
     {
@@ -130,12 +227,99 @@ class QualityController extends Controller
         // Get plan ID from q_plan and fetch matches from match table
         $qplan = \App\Models\QPlan::findOrFail($qplanId);
         $planId = $qplan->plan;
+        $isTwoDayEvent = (bool) (new \App\Support\PlanParameter($planId))->get('g_finale');
         $matches = \App\Models\MatchEntry::where('plan', $planId)
             ->orderBy('round')
             ->orderBy('match_no')
             ->get();
+        $matchPlanRounds = [];
+
+        if ($isTwoDayEvent) {
+            // Day 1 has two test rounds stored as activity groups (r_test_round), not in match.round=0.
+            $rTestRoundGroupAtdId = MActivityTypeDetail::where('code', 'r_test_round')->value('id');
+            $rMatchAtdId = MActivityTypeDetail::where('code', 'r_match')->value('id');
+
+            $testRoundActivities = DB::table('activity as a')
+                ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+                ->where('ag.plan', $planId)
+                ->where('ag.activity_type_detail', $rTestRoundGroupAtdId)
+                ->where('a.activity_type_detail', $rMatchAtdId)
+                ->orderBy('a.start')
+                ->orderBy('a.id')
+                ->get([
+                    'a.id',
+                    'a.activity_group',
+                    'a.start',
+                    'a.table_1',
+                    'a.table_1_team',
+                    'a.table_2',
+                    'a.table_2_team',
+                ]);
+
+            $groupedTestRounds = $testRoundActivities->groupBy('activity_group')->values();
+
+            foreach ($groupedTestRounds as $idx => $groupMatches) {
+                $roundNumber = $idx + 1;
+                $matchPlanRounds[] = [
+                    'key' => "tr{$roundNumber}",
+                    'label' => "Testrunde {$roundNumber}",
+                    'matches' => $groupMatches->values()->map(function ($m, $matchIdx) {
+                        return [
+                            'id' => $m->id,
+                            'round' => null,
+                            'match_no' => $matchIdx + 1,
+                            'table_1' => $m->table_1,
+                            'table_1_team' => $m->table_1_team,
+                            'table_2' => $m->table_2,
+                            'table_2_team' => $m->table_2_team,
+                        ];
+                    })->toArray(),
+                ];
+            }
+
+            foreach ([1, 2, 3] as $roundNum) {
+                $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
+                $matchPlanRounds[] = [
+                    'key' => "r{$roundNum}",
+                    'label' => "Runde {$roundNum}",
+                    'matches' => $roundMatches->map(function ($m) {
+                        return [
+                            'id' => $m->id,
+                            'round' => $m->round,
+                            'match_no' => $m->match_no,
+                            'table_1' => $m->table_1,
+                            'table_1_team' => $m->table_1_team,
+                            'table_2' => $m->table_2,
+                            'table_2_team' => $m->table_2_team,
+                        ];
+                    })->toArray(),
+                ];
+            }
+        } else {
+            foreach ([0, 1, 2, 3] as $roundNum) {
+                $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
+                $matchPlanRounds[] = [
+                    'key' => (string) $roundNum,
+                    'label' => [0 => 'Testrunde', 1 => 'Runde 1', 2 => 'Runde 2', 3 => 'Runde 3'][$roundNum],
+                    'matches' => $roundMatches->map(function ($m) {
+                        return [
+                            'id' => $m->id,
+                            'round' => $m->round,
+                            'match_no' => $m->match_no,
+                            'table_1' => $m->table_1,
+                            'table_1_team' => $m->table_1_team,
+                            'table_2' => $m->table_2,
+                            'table_2_team' => $m->table_2_team,
+                        ];
+                    })->toArray(),
+                ];
+            }
+        }
 
         $c_teams = $qplan->c_teams;
+        $transferSummary = $isTwoDayEvent
+            ? $this->buildTwoDayTransferSummary($planId, (int)$c_teams, (int)$qplan->c_duration_transfer)
+            : [];
 
         // Indexiere Matches nach Runde für schnelleren Zugriff
         $matchesByRound = $matches->groupBy('round');
@@ -182,6 +366,9 @@ class QualityController extends Controller
         return response()->json([
             'teams' => $teams,
             'matches' => $matches,
+            'match_plan_rounds' => $matchPlanRounds,
+            'is_two_day_event' => $isTwoDayEvent,
+            'transfer_summary' => $transferSummary,
             'c_duration_transfer' => (int) $qplan->c_duration_transfer,
             'r_tables' => (int) $qplan->r_tables,
             'match_summary' => $summary,

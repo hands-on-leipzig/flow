@@ -160,7 +160,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/plans/{planId}/extra-blocks/slot', [ExtraBlockController::class, 'slotIndex']);
     Route::post('/plans/{planId}/extra-blocks/slot', [ExtraBlockController::class, 'slotStore']);
     Route::get('/plans/{planId}/extra-blocks/slot/{extraBlock}/teams', [ExtraBlockController::class, 'slotTeamAssignments']);
-    Route::patch('/plans/{planId}/extra-blocks/slot/{extraBlock}/teams/{team}', [ExtraBlockController::class, 'slotUpdateTeamStart']);
+    Route::patch('/plans/{planId}/extra-blocks/slot/{extraBlock}/teams/{programId}/{teamNumberPlan}', [ExtraBlockController::class, 'slotUpdateTeamStart']);
+    Route::get('/plans/{planId}/extra-blocks/slot/{extraBlock}/teams/{programId}/{teamNumberPlan}/activities', [ExtraBlockController::class, 'slotTeamActivities']);
     Route::put('/plans/{planId}/extra-blocks/slot/{extraBlock}', [ExtraBlockController::class, 'slotUpdate']);
     Route::delete('/plans/{planId}/extra-blocks/slot/{extraBlock}', [ExtraBlockController::class, 'slotDestroy']);
 
@@ -286,6 +287,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/match-teams/{planId}/{round}', [PlanExportController::class, 'matchTeams']);
         Route::get('/match-plan/{planId}', [PlanExportController::class, 'matchPlanPdf']);
         Route::get('/moderator-match-plan/{planId}', [PlanExportController::class, 'moderatorMatchPlanPdf']);
+        Route::get('/slot-assignments/{planId}', [PlanExportController::class, 'slotAssignmentsPdf']);
         Route::get('/team-list/{planId}', [PlanExportController::class, 'teamListPdf']);
         Route::get('/event-overview/{planId}', [PlanExportController::class, 'eventOverviewPdf']);
         Route::match(['get', 'post'], '/pdf_download/{type}/{eventId}', [PlanExportController::class, 'download']);

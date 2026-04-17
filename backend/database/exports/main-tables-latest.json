@@ -532,7 +532,7 @@
         },
         {
             "id": 43,
-            "name": "Live Challenge: Nachbereitung",
+            "name": "Live Challenge: Notizen",
             "code": "lc_scoring",
             "name_preview": "Ohne Team",
             "sequence": 93,
@@ -1063,7 +1063,7 @@
         {
             "id": 14,
             "name": "r_robot_check_16",
-            "context": "expert",
+            "context": "protected",
             "level": 3,
             "type": "boolean",
             "value": "1",
@@ -2248,7 +2248,7 @@
         {
             "id": 128,
             "name": "r_final_16",
-            "context": "expert",
+            "context": "protected",
             "level": 3,
             "type": "boolean",
             "value": "0",
@@ -2272,8 +2272,8 @@
             "step": "5",
             "first_program": 3,
             "sequence": 41,
-            "ui_label": "LC Dauer gro\u00dfe Pause Juror:innen",
-            "ui_description": "Dauer Pause nach drei Teams"
+            "ui_label": "Live Challenge Dauer gro\u00dfe Pause",
+            "ui_description": "Dauer Pause nach drei Teams bzw zwischen den beiden Testrunden"
         },
         {
             "id": 130,
@@ -5236,7 +5236,7 @@
             "role": 15
         },
         {
-            "id": 860,
+            "id": 890,
             "activity_type_detail": 33,
             "role": 16
         },
@@ -6452,7 +6452,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-03-19T12:13:12.279300Z",
+        "exported_at": "2026-04-08T14:19:31.423081Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",

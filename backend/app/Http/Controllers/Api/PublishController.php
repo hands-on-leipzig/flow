@@ -235,13 +235,13 @@ class PublishController extends Controller
             }
 
             $eventCount = $events->count();
-            
+
             // Increase execution time limit for batch operation
             // Allow ~10 seconds per event, minimum 60 seconds, maximum 600 seconds (10 minutes)
             $estimatedTime = max(60, min(600, $eventCount * 10));
             set_time_limit($estimatedTime);
             ini_set('max_execution_time', $estimatedTime);
-            
+
             $regenerated = 0;
             $failed = 0;
             $errors = [];
@@ -299,12 +299,12 @@ class PublishController extends Controller
                 'error_type' => get_class($e),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             $errorMessage = $e->getMessage();
             if (str_contains($errorMessage, 'Maximum execution time')) {
                 $errorMessage = 'Operation timed out. Please try with fewer events or increase PHP max_execution_time.';
             }
-            
+
             return response()->json([
                 'success' => false,
                 'error' => $errorMessage
@@ -353,6 +353,8 @@ class PublishController extends Controller
             'event_id' => $eventId,
             'level' => $level,
             'date' => $event->date,
+            'days' => $event->days,
+            'enddate' => $event->enddate,
             'address' => $drahtData['address'] ?? null,
             // hier direkt durchreichen:
             'contact' => $drahtData['contact'] ?? [],
@@ -474,22 +476,22 @@ class PublishController extends Controller
 
         // Activities laden
         $activities = $this->fetcher->fetchActivities($plan->id);
-        
+
         // Add explore_group from activity table to each activity
         $activityIds = $activities->pluck('activity_id')->toArray();
         $activityExploreGroups = DB::table('activity')
             ->whereIn('id', $activityIds)
             ->pluck('explore_group', 'id')
             ->toArray();
-        
-        $activities = $activities->map(function($activity) use ($activityExploreGroups) {
+
+        $activities = $activities->map(function ($activity) use ($activityExploreGroups) {
             $activity->explore_group = $activityExploreGroups[$activity->activity_id] ?? null;
             return $activity;
         });
 
         // Check if there are 2x Explore groups
         $planParams = new PlanParameter($plan->id);
-        $eMode = (int) $planParams->get('e_mode');
+        $eMode = (int)$planParams->get('e_mode');
         $hasTwoExploreGroups = ($eMode === ExploreMode::HYBRID_BOTH->value || $eMode === ExploreMode::DECOUPLED_BOTH->value);
 
         // Activity Type Details by code (cached lookup with name and sequence)
@@ -517,22 +519,21 @@ class PublishController extends Controller
         $findStart = function ($codes, ?int $exploreGroup = null) use ($activities, $atdIds, $atdDetails) {
             $codeArray = (array)$codes;
             // Sort codes to prefer program-specific (e_/c_/j_/r_) over general (g_) codes
-            usort($codeArray, function($a, $b) {
+            usort($codeArray, function ($a, $b) {
                 $aPref = str_starts_with($a, 'g_') ? 1 : 0;
                 $bPref = str_starts_with($b, 'g_') ? 1 : 0;
                 return $aPref <=> $bPref;
             });
-            
+
             $ids = collect($codeArray)->map(fn($code) => $atdIds[$code] ?? null)->filter();
-            
+
             // Filter activities by explore_group if provided
             $filteredActivities = $activities;
             if ($exploreGroup !== null) {
-                $filteredActivities = $activities->filter(fn($a) => 
-                    ($a->explore_group ?? null) === $exploreGroup
+                $filteredActivities = $activities->filter(fn($a) => ($a->explore_group ?? null) === $exploreGroup
                 );
             }
-            
+
             $act = $filteredActivities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
             if (!$act) {
                 return null;
@@ -553,22 +554,21 @@ class PublishController extends Controller
         $findEnd = function ($codes, ?int $exploreGroup = null) use ($activities, $atdIds, $atdDetails) {
             $codeArray = (array)$codes;
             // Sort codes to prefer program-specific (e_/c_/j_/r_) over general (g_) codes
-            usort($codeArray, function($a, $b) {
+            usort($codeArray, function ($a, $b) {
                 $aPref = str_starts_with($a, 'g_') ? 1 : 0;
                 $bPref = str_starts_with($b, 'g_') ? 1 : 0;
                 return $aPref <=> $bPref;
             });
-            
+
             $ids = collect($codeArray)->map(fn($code) => $atdIds[$code] ?? null)->filter();
-            
+
             // Filter activities by explore_group if provided
             $filteredActivities = $activities;
             if ($exploreGroup !== null) {
-                $filteredActivities = $activities->filter(fn($a) => 
-                    ($a->explore_group ?? null) === $exploreGroup
+                $filteredActivities = $activities->filter(fn($a) => ($a->explore_group ?? null) === $exploreGroup
                 );
             }
-            
+
             $act = $filteredActivities->first(fn($a) => $ids->contains($a->activity_type_detail_id));
             if (!$act) {
                 return null;
@@ -599,7 +599,7 @@ class PublishController extends Controller
             if ($openingMorning && $openingMorning['value']) {
                 $exploreMorningTimes[] = $openingMorning;
             }
-            
+
             // For morning group, calculate end time from awards start + e1_duration_awards parameter
             $awardsStartMorning = $findStart(['e_awards', 'g_awards'], 1);
             $endTimeAdded = false;
@@ -622,7 +622,7 @@ class PublishController extends Controller
                     // Other exception (e.g., date parsing), will fall through to use end_time fallback
                 }
             }
-            
+
             // Fallback: use awards end_time if we didn't add calculated end time
             if (!$endTimeAdded) {
                 $endMorning = $findEnd(['e_awards', 'g_awards'], 1);
@@ -652,10 +652,10 @@ class PublishController extends Controller
             }
 
             // Sort chronologically
-            usort($exploreMorningTimes, function($a, $b) {
+            usort($exploreMorningTimes, function ($a, $b) {
                 return strtotime($a['value']) <=> strtotime($b['value']);
             });
-            usort($exploreAfternoonTimes, function($a, $b) {
+            usort($exploreAfternoonTimes, function ($a, $b) {
                 return strtotime($a['value']) <=> strtotime($b['value']);
             });
         } else {
@@ -681,7 +681,7 @@ class PublishController extends Controller
             }
 
             // Sort chronologically by time value (not by sequence)
-            usort($exploreTimes, function($a, $b) {
+            usort($exploreTimes, function ($a, $b) {
                 return strtotime($a['value']) <=> strtotime($b['value']);
             });
         }
@@ -712,7 +712,7 @@ class PublishController extends Controller
         }
 
         // Sort challenge times chronologically
-        usort($challengeTimes, function($a, $b) {
+        usort($challengeTimes, function ($a, $b) {
             return strtotime($a['value']) <=> strtotime($b['value']);
         });
 

@@ -241,6 +241,25 @@ class PreviewMatrixService
             }
         }
 
+        // Move Live Challenge lane columns (e_*_LC*, c_*_LC*) to the far right,
+        // while keeping relative order of all other columns unchanged.
+        if (count($finalHeaders) > 1) {
+            $timeHeader = $finalHeaders[0];
+            $contentHeaders = array_slice($finalHeaders, 1);
+            $nonLcHeaders = [];
+            $lcHeaders = [];
+
+            foreach ($contentHeaders as $h) {
+                if (isset($h['key']) && str_contains($h['key'], '_LC')) {
+                    $lcHeaders[] = $h;
+                } else {
+                    $nonLcHeaders[] = $h;
+                }
+            }
+
+            $finalHeaders = array_merge([$timeHeader], $nonLcHeaders, $lcHeaders);
+        }
+
         // --- 5) Rows bauen
         $rows = $this->buildRowsPerActiveDay($finalHeaders, $bucket);
         return ['headers' => $finalHeaders, 'rows' => $rows];

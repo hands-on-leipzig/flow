@@ -33,7 +33,7 @@
         }
 
         .section {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .section-header {
@@ -70,55 +70,27 @@
         .noshow {
             text-decoration: line-through;
         }
+
+        .day-header {
+            background-color: #34495e;
+            color: #fff;
+            padding: 8px 12px;
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>{{ $eventName }} – {{ $eventDate }}</h1>
+        <h1>{{ $eventName }} – {{ ($isTwoDayEvent ?? false) ? (($day1Date ?? $eventDate) . ' / ' . ($day2Date ?? $eventDate)) : $eventDate }}</h1>
         <p>Letzte Änderung: {{ $lastUpdated }}</p>
     </div>
 
-    @if(!empty($exploreTeams))
+    @if(!empty($isTwoDayEvent))
         <div class="section">
-            <div class="section-header">FIRST LEGO League Explore</div>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 50%;">Team</th>
-                        <th style="width: 30%;">Teambereich</th>
-                        <th style="width: 20%;">Gutachter:innen-Gruppe</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($exploreTeams as $team)
-                        <tr>
-                            <td>
-                                @php
-                                    $teamLabel = $team['name'];
-                                    if ($team['hot_number']) {
-                                        $teamLabel .= ' (' . $team['hot_number'] . ')';
-                                    }
-                                @endphp
-                                @if($team['noshow'])
-                                    <span class="noshow">{{ e($teamLabel) }}</span>
-                                @else
-                                    {{ e($teamLabel) }}
-                                @endif
-                            </td>
-                            <td>{{ e($team['room_name']) }}</td>
-                            <td style="text-align: center;">{{ $team['group_assignment'] ? e($team['group_assignment']) : '–' }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    @endif
-
-    @if(!empty($challengeTeams))
-        <div class="section">
-            <div class="section-header">FIRST LEGO League Challenge</div>
-            
+            <div class="day-header">Tag 1 ({{ $day1Date ?? $eventDate }}) - FIRST LEGO League Challenge</div>
             <table>
                 <thead>
                     <tr>
@@ -128,7 +100,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($challengeTeams as $team)
+                    @foreach(($challengeTeams ?? []) as $team)
                         <tr>
                             <td>
                                 @php
@@ -150,6 +122,251 @@
                 </tbody>
             </table>
         </div>
+
+        <div style="page-break-before: always;"></div>
+        <div class="header">
+            <h1>{{ $eventName }} – {{ ($isTwoDayEvent ?? false) ? (($day1Date ?? $eventDate) . ' / ' . ($day2Date ?? $eventDate)) : $eventDate }}</h1>
+            <p>Letzte Änderung: {{ $lastUpdated }}</p>
+        </div>
+
+        <div class="section">
+            <div class="day-header">Tag 2 ({{ $day2Date ?? $eventDate }}) - FIRST LEGO League Explore</div>
+            @if(!empty($exploreHasTwoGroups))
+                <div class="section-header">Vormittag</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 50%;">Team</th>
+                            <th style="width: 30%;">Teambereich</th>
+                            <th style="width: 20%;">Gutachter:innen-Gruppe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach(($exploreMorningTeams ?? []) as $team)
+                            <tr>
+                                <td>
+                                    @php
+                                        $teamLabel = $team['name'];
+                                        if ($team['hot_number']) {
+                                            $teamLabel .= ' (' . $team['hot_number'] . ')';
+                                        }
+                                    @endphp
+                                    @if($team['noshow'])
+                                        <span class="noshow">{{ e($teamLabel) }}</span>
+                                    @else
+                                        {{ e($teamLabel) }}
+                                    @endif
+                                </td>
+                                <td>{{ e($team['room_name']) }}</td>
+                                <td style="text-align: center;">{{ $team['group_assignment'] ? e($team['group_assignment']) : '–' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+
+                <div class="section-header">Nachmittag</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 50%;">Team</th>
+                            <th style="width: 30%;">Teambereich</th>
+                            <th style="width: 20%;">Gutachter:innen-Gruppe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach(($exploreAfternoonTeams ?? []) as $team)
+                            <tr>
+                                <td>
+                                    @php
+                                        $teamLabel = $team['name'];
+                                        if ($team['hot_number']) {
+                                            $teamLabel .= ' (' . $team['hot_number'] . ')';
+                                        }
+                                    @endphp
+                                    @if($team['noshow'])
+                                        <span class="noshow">{{ e($teamLabel) }}</span>
+                                    @else
+                                        {{ e($teamLabel) }}
+                                    @endif
+                                </td>
+                                <td>{{ e($team['room_name']) }}</td>
+                                <td style="text-align: center;">{{ $team['group_assignment'] ? e($team['group_assignment']) : '–' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @else
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 50%;">Team</th>
+                            <th style="width: 30%;">Teambereich</th>
+                            <th style="width: 20%;">Gutachter:innen-Gruppe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach(($exploreTeams ?? []) as $team)
+                            <tr>
+                                <td>
+                                    @php
+                                        $teamLabel = $team['name'];
+                                        if ($team['hot_number']) {
+                                            $teamLabel .= ' (' . $team['hot_number'] . ')';
+                                        }
+                                    @endphp
+                                    @if($team['noshow'])
+                                        <span class="noshow">{{ e($teamLabel) }}</span>
+                                    @else
+                                        {{ e($teamLabel) }}
+                                    @endif
+                                </td>
+                                <td>{{ e($team['room_name']) }}</td>
+                                <td style="text-align: center;">{{ $team['group_assignment'] ? e($team['group_assignment']) : '–' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+        </div>
+    @else
+        @if(!empty($exploreTeams))
+            <div class="section">
+                @if(!empty($exploreHasTwoGroups))
+                    <div class="section-header">FIRST LEGO League Explore - Vormittag</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 50%;">Team</th>
+                                <th style="width: 30%;">Teambereich</th>
+                                <th style="width: 20%;">Gutachter:innen-Gruppe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach(($exploreMorningTeams ?? []) as $team)
+                                <tr>
+                                    <td>
+                                        @php
+                                            $teamLabel = $team['name'];
+                                            if ($team['hot_number']) {
+                                                $teamLabel .= ' (' . $team['hot_number'] . ')';
+                                            }
+                                        @endphp
+                                        @if($team['noshow'])
+                                            <span class="noshow">{{ e($teamLabel) }}</span>
+                                        @else
+                                            {{ e($teamLabel) }}
+                                        @endif
+                                    </td>
+                                    <td>{{ e($team['room_name']) }}</td>
+                                    <td style="text-align: center;">{{ $team['group_assignment'] ? e($team['group_assignment']) : '–' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+
+                    <div class="section-header">FIRST LEGO League Explore - Nachmittag</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 50%;">Team</th>
+                                <th style="width: 30%;">Teambereich</th>
+                                <th style="width: 20%;">Gutachter:innen-Gruppe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach(($exploreAfternoonTeams ?? []) as $team)
+                                <tr>
+                                    <td>
+                                        @php
+                                            $teamLabel = $team['name'];
+                                            if ($team['hot_number']) {
+                                                $teamLabel .= ' (' . $team['hot_number'] . ')';
+                                            }
+                                        @endphp
+                                        @if($team['noshow'])
+                                            <span class="noshow">{{ e($teamLabel) }}</span>
+                                        @else
+                                            {{ e($teamLabel) }}
+                                        @endif
+                                    </td>
+                                    <td>{{ e($team['room_name']) }}</td>
+                                    <td style="text-align: center;">{{ $team['group_assignment'] ? e($team['group_assignment']) : '–' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <div class="section-header">FIRST LEGO League Explore</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 50%;">Team</th>
+                                <th style="width: 30%;">Teambereich</th>
+                                <th style="width: 20%;">Gutachter:innen-Gruppe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($exploreTeams as $team)
+                                <tr>
+                                    <td>
+                                        @php
+                                            $teamLabel = $team['name'];
+                                            if ($team['hot_number']) {
+                                                $teamLabel .= ' (' . $team['hot_number'] . ')';
+                                            }
+                                        @endphp
+                                        @if($team['noshow'])
+                                            <span class="noshow">{{ e($teamLabel) }}</span>
+                                        @else
+                                            {{ e($teamLabel) }}
+                                        @endif
+                                    </td>
+                                    <td>{{ e($team['room_name']) }}</td>
+                                    <td style="text-align: center;">{{ $team['group_assignment'] ? e($team['group_assignment']) : '–' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            </div>
+        @endif
+
+        @if(!empty($challengeTeams))
+            <div class="section">
+                <div class="section-header">FIRST LEGO League Challenge</div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 50%;">Team</th>
+                            <th style="width: 30%;">Teambereich</th>
+                            <th style="width: 20%;">Jury-Gruppe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($challengeTeams as $team)
+                            <tr>
+                                <td>
+                                    @php
+                                        $teamLabel = $team['name'];
+                                        if ($team['hot_number']) {
+                                            $teamLabel .= ' (' . $team['hot_number'] . ')';
+                                        }
+                                    @endphp
+                                    @if($team['noshow'])
+                                        <span class="noshow">{{ e($teamLabel) }}</span>
+                                    @else
+                                        {{ e($teamLabel) }}
+                                    @endif
+                                </td>
+                                <td>{{ e($team['room_name']) }}</td>
+                                <td style="text-align: center;">{{ $team['group_assignment'] ? e($team['group_assignment']) : '–' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     @endif
 </body>
 </html>

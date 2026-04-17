@@ -378,46 +378,55 @@ class ExtraBlockController extends Controller
 
         $fp = (int) $block->first_program;
 
-        $q = DB::table('team_plan as tp')
-            ->join('team as t', 't.id', '=', 'tp.team')
-            ->leftJoin('slot_block_team as sbt', function ($j) use ($extraBlock) {
-                $j->on('sbt.team', '=', 't.id')
-                    ->where('sbt.extra_block', '=', $extraBlock);
-            })
-            ->where('tp.plan', $planId);
-
-        if ($fp === FirstProgram::EXPLORE->value) {
-            $q->whereIn('t.first_program', [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value]);
-        } elseif ($fp === FirstProgram::CHALLENGE->value) {
-            $q->where('t.first_program', FirstProgram::CHALLENGE->value);
-        }
-
-        $rows = $q->select([
-            't.id as team_id',
-            'tp.team_number_plan',
-            't.team_number_hot',
-            't.name as team_name',
-            't.first_program',
-            'sbt.start as slot_start',
-        ])
-            ->orderByRaw('sbt.start IS NULL')
-            ->orderBy('sbt.start')
-            ->orderBy('tp.team_number_plan')
+        $assignments = SlotBlockTeam::query()
+            ->where('extra_block', $extraBlock)
             ->get()
-            ->map(function ($r) use ($planId, $extraBlock, $block, $eTransfer, $cTransfer) {
-                $start = $r->slot_start
-                    ? (is_string($r->slot_start)
-                        ? $r->slot_start
-                        : \Carbon\Carbon::parse($r->slot_start)->format('Y-m-d H:i:s'))
-                    : null;
+            ->keyBy(fn (SlotBlockTeam $row) => ((int) $row->first_program).':'.((int) $row->team_number_plan));
+
+        $teamLookup = DB::table('team_plan as tp')
+            ->join('team as t', 't.id', '=', 'tp.team')
+            ->where('tp.plan', $planId)
+            ->select([
+                'tp.team_number_plan',
+                't.id as team_id',
+                't.team_number_hot',
+                't.name as team_name',
+                't.first_program',
+            ])
+            ->get()
+            ->groupBy(function ($row) {
+                $fp = (int) $row->first_program;
+                $program = $fp === FirstProgram::CHALLENGE->value
+                    ? FirstProgram::CHALLENGE->value
+                    : FirstProgram::EXPLORE->value;
+
+                return $program.':'.((int) $row->team_number_plan);
+            })
+            ->map(fn ($rows) => $rows->first());
+
+        $rows = collect();
+        foreach ($this->assignmentRangesForBlock($block, $params) as $range) {
+            $program = (int) $range['program'];
+            for ($teamNo = 1; $teamNo <= (int) $range['team_count']; $teamNo++) {
+                $key = $program.':'.$teamNo;
+                /** @var SlotBlockTeam|null $assignment */
+                $assignment = $assignments->get($key);
+                $lookup = $teamLookup->get($key);
+
+                $start = null;
+                if ($assignment?->start) {
+                    $start = $assignment->start instanceof \Carbon\Carbon
+                        ? $assignment->start->format('Y-m-d H:i:s')
+                        : (string) $assignment->getRawOriginal('start');
+                }
 
                 $collision = null;
-                if ($start !== null && $r->team_number_plan !== null) {
-                    $transfer = $this->transferDurationForProgram((int) $r->first_program, $eTransfer, $cTransfer);
+                if ($start !== null) {
+                    $transfer = $this->transferDurationForProgram($program, $eTransfer, $cTransfer);
                     $collision = $this->evaluateTeamCollisionForSlot(
                         $planId,
-                        (int) $r->team_number_plan,
-                        (int) $r->first_program,
+                        $teamNo,
+                        $program,
                         $start,
                         (int) $block->duration,
                         $transfer,
@@ -425,17 +434,47 @@ class ExtraBlockController extends Controller
                     );
                 }
 
-                return [
-                    'team_id' => (int) $r->team_id,
-                    'team_number_plan' => $r->team_number_plan,
-                    'team_number_hot' => $r->team_number_hot,
-                    'team_name' => $r->team_name,
-                    'first_program' => (int) $r->first_program,
+                $placeholderName = sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', $teamNo);
+                $rows->push([
+                    'row_key' => $key,
+                    'team_id' => $lookup->team_id ?? null,
+                    'team_number_plan' => $teamNo,
+                    'team_number_hot' => $lookup->team_number_hot ?? null,
+                    'team_name' => $lookup->team_name ?? $placeholderName,
+                    'first_program' => $program,
                     'start' => $start,
                     'collision_status' => $collision['status'] ?? null,
                     'collision_gap_minutes' => $collision['min_gap_minutes'] ?? null,
-                ];
-            });
+                ]);
+            }
+        }
+
+        $rows = $rows
+            ->sort(function ($a, $b) {
+                if (empty($a['start']) && empty($b['start'])) {
+                    if ((int) $a['first_program'] !== (int) $b['first_program']) {
+                        return (int) $a['first_program'] <=> (int) $b['first_program'];
+                    }
+
+                    return (int) $a['team_number_plan'] <=> (int) $b['team_number_plan'];
+                }
+                if (empty($a['start'])) {
+                    return 1;
+                }
+                if (empty($b['start'])) {
+                    return -1;
+                }
+                if ((string) $a['start'] === (string) $b['start']) {
+                    if ((int) $a['first_program'] !== (int) $b['first_program']) {
+                        return (int) $a['first_program'] <=> (int) $b['first_program'];
+                    }
+
+                    return (int) $a['team_number_plan'] <=> (int) $b['team_number_plan'];
+                }
+
+                return (string) $a['start'] <=> (string) $b['start'];
+            })
+            ->values();
 
         return response()->json([
             'teams' => $rows,
@@ -444,12 +483,28 @@ class ExtraBlockController extends Controller
         ]);
     }
 
-    public function slotUpdateTeamStart(UpdateSlotTeamStartRequest $request, int $planId, int $extraBlock, int $team): JsonResponse
+    public function slotUpdateTeamStart(UpdateSlotTeamStartRequest $request, int $planId, int $extraBlock, int $programId, int $teamNumberPlan): JsonResponse
     {
         $block = ExtraBlock::where('plan', $planId)->findOrFail($extraBlock);
         $this->assertSlotBlock($block, $planId);
 
         $validated = $request->validated();
+        if (! in_array($programId, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value], true)) {
+            abort(422, 'Invalid program for slot assignment');
+        }
+
+        $params = PlanParameter::load($planId);
+        $isAllowedProgram = $this->blockAllowsProgram((int) $block->first_program, $programId);
+        if (! $isAllowedProgram) {
+            abort(422, 'Program not applicable for this slot block');
+        }
+        $maxTeams = $programId === FirstProgram::CHALLENGE->value
+            ? (int) $params->get('c_teams')
+            : (int) $params->get('e_teams');
+        if ($teamNumberPlan < 1 || $teamNumberPlan > $maxTeams) {
+            abort(422, 'Team number out of configured plan range');
+        }
+
         $startRaw = $validated['start'];
         $startVal = $startRaw !== null && $startRaw !== ''
             ? preg_replace('/T/', ' ', (string) $startRaw, 1)
@@ -460,51 +515,42 @@ class ExtraBlockController extends Controller
         if ($startVal === '' || $startVal === null) {
             SlotBlockTeam::query()
                 ->where('extra_block', $extraBlock)
-                ->where('team', $team)
+                ->where('first_program', $programId)
+                ->where('team_number_plan', $teamNumberPlan)
                 ->delete();
 
-            return response()->json(['team_id' => $team, 'start' => null]);
-        }
-
-        $tp = DB::table('team_plan')
-            ->where('plan', $planId)
-            ->where('team', $team)
-            ->first();
-        if (! $tp) {
-            abort(404, 'Team not in plan');
-        }
-
-        $t = DB::table('team')->where('id', $team)->first();
-        $fp = (int) $block->first_program;
-        if ($fp === FirstProgram::EXPLORE->value) {
-            if (! in_array((int) $t->first_program, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)) {
-                abort(422, 'Team not applicable for this slot block');
-            }
-        } elseif ($fp === FirstProgram::CHALLENGE->value) {
-            if ((int) $t->first_program !== FirstProgram::CHALLENGE->value) {
-                abort(422, 'Team not applicable for this slot block');
-            }
+            return response()->json([
+                'first_program' => $programId,
+                'team_number_plan' => $teamNumberPlan,
+                'start' => null,
+            ]);
         }
 
         SlotBlockTeam::updateOrCreate(
-            ['extra_block' => $extraBlock, 'team' => $team],
+            [
+                'extra_block' => $extraBlock,
+                'first_program' => $programId,
+                'team_number_plan' => $teamNumberPlan,
+            ],
             ['start' => $startVal]
         );
 
-        $row = SlotBlockTeam::where('extra_block', $extraBlock)->where('team', $team)->first();
+        $row = SlotBlockTeam::where('extra_block', $extraBlock)
+            ->where('first_program', $programId)
+            ->where('team_number_plan', $teamNumberPlan)
+            ->first();
 
         $startOut = $row->start instanceof \Carbon\Carbon
             ? $row->start->format('Y-m-d H:i:s')
             : (string) $row->getRawOriginal('start');
 
-        $params = PlanParameter::load($planId);
         $eTransfer = (int) $params->get('e_duration_transfer');
         $cTransfer = (int) $params->get('c_duration_transfer');
-        $transfer = $this->transferDurationForProgram((int) $t->first_program, $eTransfer, $cTransfer);
+        $transfer = $this->transferDurationForProgram($programId, $eTransfer, $cTransfer);
         $collision = $this->evaluateTeamCollisionForSlot(
             $planId,
-            (int) $tp->team_number_plan,
-            (int) $t->first_program,
+            $teamNumberPlan,
+            $programId,
             $startOut,
             (int) $block->duration,
             $transfer,
@@ -512,11 +558,219 @@ class ExtraBlockController extends Controller
         );
 
         return response()->json([
-            'team_id' => $team,
+            'first_program' => $programId,
+            'team_number_plan' => $teamNumberPlan,
             'start' => $startOut,
             'collision_status' => $collision['status'],
             'collision_gap_minutes' => $collision['min_gap_minutes'],
         ]);
+    }
+
+    public function slotTeamActivities(int $planId, int $extraBlock, int $programId, int $teamNumberPlan): JsonResponse
+    {
+        $block = ExtraBlock::where('plan', $planId)->findOrFail($extraBlock);
+        $this->assertSlotBlock($block, $planId);
+
+        if (! in_array($programId, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value], true)) {
+            abort(422, 'Invalid program for slot assignment');
+        }
+        if (! $this->blockAllowsProgram((int) $block->first_program, $programId)) {
+            abort(422, 'Program not applicable for this slot block');
+        }
+
+        $params = PlanParameter::load($planId);
+        $maxTeams = $programId === FirstProgram::CHALLENGE->value
+            ? (int) $params->get('c_teams')
+            : (int) $params->get('e_teams');
+        if ($teamNumberPlan < 1 || $teamNumberPlan > $maxTeams) {
+            abort(422, 'Team number out of configured plan range');
+        }
+
+        $transfer = $this->transferDurationForProgram(
+            $programId,
+            (int) $params->get('e_duration_transfer'),
+            (int) $params->get('c_duration_transfer')
+        );
+
+        $assignment = SlotBlockTeam::query()
+            ->where('extra_block', $extraBlock)
+            ->where('first_program', $programId)
+            ->where('team_number_plan', $teamNumberPlan)
+            ->first();
+
+        $slotStart = null;
+        if ($assignment?->start) {
+            $slotStart = $assignment->start instanceof \Carbon\Carbon
+                ? $assignment->start->format('Y-m-d H:i:s')
+                : (string) $assignment->getRawOriginal('start');
+        }
+
+        $slotDate = $slotStart ? substr($slotStart, 0, 10) : null;
+
+        $query = DB::table('activity as a')
+            ->join('activity_group as ag', 'ag.id', '=', 'a.activity_group')
+            ->join('m_activity_type_detail as atd', 'atd.id', '=', 'a.activity_type_detail')
+            ->leftJoin('extra_block as eb', 'eb.id', '=', 'a.extra_block')
+            ->where('ag.plan', $planId)
+            ->where('atd.first_program', $programId)
+            ->whereExists(function ($q) use ($programId) {
+                $roleId = $programId === FirstProgram::CHALLENGE->value ? 3 : 8;
+                $q->select(DB::raw(1))
+                    ->from('m_visibility as mv')
+                    ->whereColumn('mv.activity_type_detail', 'atd.id')
+                    ->where('mv.role', $roleId);
+            })
+            ->where(function ($q) use ($teamNumberPlan) {
+                $q->where('a.jury_team', $teamNumberPlan)
+                    ->orWhere('a.table_1_team', $teamNumberPlan)
+                    ->orWhere('a.table_2_team', $teamNumberPlan)
+                    ->orWhere('a.slot_team', $teamNumberPlan);
+            })
+            ->where(function ($q) use ($extraBlock) {
+                $q->whereNull('a.extra_block')
+                    ->orWhere('a.extra_block', '!=', $extraBlock);
+            });
+
+        if ($slotDate !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/', $slotDate)) {
+            $query->whereDate('a.start', $slotDate);
+        }
+
+        $rows = $query
+            ->select([
+                'a.id',
+                'a.start',
+                'a.end',
+                'atd.name as activity_name',
+                'atd.code as activity_code',
+                'eb.name as extra_block_name',
+            ])
+            ->orderBy('a.start')
+            ->orderBy('a.end')
+            ->get()
+            ->map(function ($row) use ($slotStart, $block, $transfer) {
+                $start = is_string($row->start) ? $row->start : (string) $row->start;
+                $end = is_string($row->end) ? $row->end : (string) $row->end;
+                $start = preg_replace('/T/', ' ', $start, 1);
+                $end = preg_replace('/T/', ' ', $end, 1);
+                if (strlen($start) === 16) {
+                    $start .= ':00';
+                }
+                if (strlen($end) === 16) {
+                    $end .= ':00';
+                }
+
+                $status = null;
+                $gap = null;
+                if ($slotStart !== null) {
+                    $comparison = $this->classifyActivityAgainstSlot(
+                        $slotStart,
+                        (int) $block->duration,
+                        $transfer,
+                        $start,
+                        $end
+                    );
+                    $status = $comparison['status'];
+                    $gap = $comparison['gap_minutes'];
+                }
+
+                return [
+                    'id' => (int) $row->id,
+                    'start' => $start,
+                    'end' => $end,
+                    'label' => str_contains((string) ($row->activity_code ?? ''), '_slot_block')
+                        ? ((string) ($row->extra_block_name ?? '') !== '' ? $row->extra_block_name : ($row->activity_name ?: $row->activity_code))
+                        : ($row->activity_name ?: $row->activity_code),
+                    'status' => $status,
+                    'gap_minutes' => $gap,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'first_program' => $programId,
+            'team_number_plan' => $teamNumberPlan,
+            'slot_start' => $slotStart,
+            'slot_date' => $slotDate,
+            'slot_duration' => (int) $block->duration,
+            'transfer_minutes' => $transfer,
+            'activities' => $rows,
+        ]);
+    }
+
+    private function blockAllowsProgram(int $blockFirstProgram, int $programId): bool
+    {
+        if ($blockFirstProgram === FirstProgram::JOINT->value) {
+            return in_array($programId, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value], true);
+        }
+        if ($blockFirstProgram === FirstProgram::EXPLORE->value) {
+            return $programId === FirstProgram::EXPLORE->value;
+        }
+        if ($blockFirstProgram === FirstProgram::CHALLENGE->value) {
+            return $programId === FirstProgram::CHALLENGE->value;
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<int, array{program:int, team_count:int}>
+     */
+    private function assignmentRangesForBlock(ExtraBlock $block, PlanParameter $params): array
+    {
+        $fp = (int) $block->first_program;
+        $eTeams = max(0, (int) $params->get('e_teams'));
+        $cTeams = max(0, (int) $params->get('c_teams'));
+
+        if ($fp === FirstProgram::JOINT->value) {
+            return [
+                ['program' => FirstProgram::EXPLORE->value, 'team_count' => $eTeams],
+                ['program' => FirstProgram::CHALLENGE->value, 'team_count' => $cTeams],
+            ];
+        }
+        if ($fp === FirstProgram::EXPLORE->value) {
+            return [['program' => FirstProgram::EXPLORE->value, 'team_count' => $eTeams]];
+        }
+        if ($fp === FirstProgram::CHALLENGE->value) {
+            return [['program' => FirstProgram::CHALLENGE->value, 'team_count' => $cTeams]];
+        }
+
+        return [];
+    }
+
+    /**
+     * @return array{status: string, gap_minutes: ?int}
+     */
+    private function classifyActivityAgainstSlot(
+        string $slotStart,
+        int $slotDurationMinutes,
+        int $transferMinutes,
+        string $activityStart,
+        string $activityEnd
+    ): array {
+        $slotStartDt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $slotStart);
+        $actStartDt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $activityStart);
+        $actEndDt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $activityEnd);
+        if (! $slotStartDt || ! $actStartDt || ! $actEndDt) {
+            return ['status' => 'green', 'gap_minutes' => null];
+        }
+        $slotEndDt = $slotStartDt->modify('+'.$slotDurationMinutes.' minutes');
+
+        if ($slotStartDt < $actEndDt && $slotEndDt > $actStartDt) {
+            return ['status' => 'red', 'gap_minutes' => 0];
+        }
+
+        $gap = null;
+        if ($slotEndDt <= $actStartDt) {
+            $gap = (int) floor(($actStartDt->getTimestamp() - $slotEndDt->getTimestamp()) / 60);
+        } elseif ($actEndDt <= $slotStartDt) {
+            $gap = (int) floor(($slotStartDt->getTimestamp() - $actEndDt->getTimestamp()) / 60);
+        }
+
+        if ($gap !== null && $gap < $transferMinutes) {
+            return ['status' => 'yellow', 'gap_minutes' => $gap];
+        }
+
+        return ['status' => 'green', 'gap_minutes' => $gap];
     }
 
     private function transferDurationForProgram(int $teamFirstProgram, int $eTransfer, int $cTransfer): int

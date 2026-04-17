@@ -18,6 +18,8 @@ import {TeamsMapSlideContent} from "../../models/teamsMapSlideContent";
 import TeamsMapSlideContentRenderer from "./teams/TeamsMapSlideContentRenderer.vue";
 import {TeamsTableSlideContent} from "../../models/teamsTableSlideContent";
 import TeamsTableSlideContentRenderer from "./teams/TeamsTableSlideContentRenderer.vue";
+import {PublicPlanNextEventSlideContent} from "../../models/publicPlanNextEventSlideContent";
+import PublicPlanNextEventSlideContentRenderer from "./publicPlan/PublicPlanNextEventSlideContentRenderer.vue";
 
 const props = withDefaults(defineProps<{
   slide: Slide,
@@ -49,6 +51,8 @@ const componentName = computed(() => {
     return PublicPlanSlideContentRenderer;
   } else if (content instanceof PublicPlanNextSlideContent) {
     return PublicPlanNextSlideContentRenderer;
+  } else if (content instanceof PublicPlanNextEventSlideContent) {
+    return PublicPlanNextEventSlideContentRenderer;
   } else if (content instanceof TeamsMapSlideContent) {
     return TeamsMapSlideContentRenderer;
   } else if (content instanceof TeamsTableSlideContent) {
