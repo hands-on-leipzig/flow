@@ -405,10 +405,11 @@ class ContaoController extends Controller
 
         return DB::table('activity', 'a')
             ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
-            ->join('m_activity_type_detail as atd', 'ag.activity_type_detail', '=', 'atd.id')
+            ->join('m_activity_type_detail as agtd', 'ag.activity_type_detail', '=', 'agtd.id')
+            ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
             ->join('plan as p', 'ag.plan', '=', 'p.id')
-            ->where('a.code', $activityCode)
-            ->where('atd.code', $detailCode)
+            ->where('atd.code', $activityCode)
+            ->where('agtd.code', $detailCode)
             ->where('p.event', $eventId)
             ->select('a.id', 'atd.code')
             ->get();
