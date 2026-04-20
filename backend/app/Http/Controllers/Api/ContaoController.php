@@ -397,25 +397,25 @@ class ContaoController extends Controller
         };
     }
 
-    private function writeMatchupsToSchedule($round, $tournamentId, $eventId)
+    // match: true -> RG matches, false -> RG check
+    private function loadFinalActivities($eventId, $round, $match = true)
     {
-        $matchups = $this->getMatchups($round, $tournamentId);
+        $detailCode = $this->roundToCode($round);
+        $activityCode = $match ? 'r_match' : 'r_check';
 
-        $code = $this->roundToCode($round);
-        $activities = DB::table('activity', 'a')
+        return DB::table('activity', 'a')
             ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
             ->join('m_activity_type_detail as atd', 'ag.activity_type_detail', '=', 'atd.id')
             ->join('plan as p', 'ag.plan', '=', 'p.id')
-            ->where('atd.code', $code)
+            ->where('a.code', $activityCode)
+            ->where('atd.code', $detailCode)
             ->where('p.event', $eventId)
             ->select('a.id', 'atd.code')
             ->get();
+    }
 
-        if (count($activities) != count($matchups) || count($activities) == 0 || count($matchups) == 0) {
-            Log::warning("Mismatch between number of activities and matchups for round {$round}: " . count($activities) . " activities vs " . count($matchups) . " matchups. Nothing will be done");
-            return ['status' => 'error', 'message' => "Mismatch between number of activities and matchups for round {$round}: " . count($activities) . " activities vs " . count($matchups) . " matchups. Nothing will be done"];
-        }
-
+    private function writeTeamsNamesToSchedule($eventId, $activities, $matchups): void
+    {
         for ($i = 0; $i < count($activities); $i++) {
             if ($i >= count($matchups)) {
                 break;
@@ -446,6 +446,27 @@ class ContaoController extends Controller
                     ]);
             }
         }
+    }
+
+    private function writeMatchupsToSchedule($round, $tournamentId, $eventId)
+    {
+        $matchups = $this->getMatchups($round, $tournamentId);
+        $activities = $this->loadFinalActivities($eventId, $round, true);
+
+        if (count($activities) != count($matchups) || count($activities) == 0 || count($matchups) == 0) {
+            Log::warning("Mismatch between number of activities and matchups for round {$round}: " . count($activities) . " activities vs " . count($matchups) . " matchups. Nothing will be done");
+            return ['status' => 'error', 'message' => "Mismatch between number of activities and matchups for round {$round}: " . count($activities) . " activities vs " . count($matchups) . " matchups. Nothing will be done"];
+        }
+
+        $this->writeTeamsNamesToSchedule($eventId, $activities, $matchups);
+
+        // Robot Check
+        $checkActivities = $this->loadFinalActivities($eventId, $round, false);
+        if (count($checkActivities) == count($matchups) && count($checkActivities) > 0) {
+            Log::info("Also writing robot check activities for round {$round}");
+            $this->writeTeamsNamesToSchedule($eventId, $checkActivities, $matchups);
+        }
+
         return ['status' => 'ok', 'message' => "Matchups for round {$round} written to schedule"];
     }
 
