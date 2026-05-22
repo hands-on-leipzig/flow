@@ -7,6 +7,7 @@ import {useAuth} from '@/composables/useAuth'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
+import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBox.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import {getEventTitleLong, getCompetitionType, cleanEventName} from '@/utils/eventTitle'
 
@@ -247,6 +248,8 @@ watch(
           />
         </div>
       </div>
+
+      <SharePointDocumentsBox />
     </div>
   </div>
 </template>
