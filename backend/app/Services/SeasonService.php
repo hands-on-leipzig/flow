@@ -11,7 +11,7 @@ class  SeasonService
     {
         $month = (int)date('n');
         $year = (int)date('Y');
-        $effectiveYear = ($month <= 7) ? $year - 1 : $year;
+        $effectiveYear = ($month <= 4) ? $year - 1 : $year;
         $current_season = DB::table('m_season')->where('year', $effectiveYear)->get();
         if (!$current_season) {
             Log::error("Could not find current season");
