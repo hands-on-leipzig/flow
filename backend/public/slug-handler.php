@@ -26,7 +26,7 @@ if (empty($slug)) {
 
 try {
     // Find the event by slug
-    $event = Event::where('slug', $slug)->last();
+    $event = Event::where('slug', $slug)->latest()->first();
 
     if (!$event) {
         http_response_code(404);
