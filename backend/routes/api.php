@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
@@ -205,6 +206,9 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);
+    Route::get('/sharepoint/status', [SharepointController::class, 'status']);
+    Route::get('/sharepoint/documents', [SharepointController::class, 'listDocuments']);
+
     Route::get('/events/{event}/draht-data', [DrahtController::class, 'show']);
     Route::get('/draht/people/{drahtEventId}', [DrahtController::class, 'getPeople']);
     Route::post('/rooms', [RoomController::class, 'store']);
@@ -362,5 +366,11 @@ Route::middleware(['keycloak'])->group(function () {
     // Admin helper functions routes
     Route::prefix('admin/helpers')->group(function () {
         Route::post('/logos/cleanup-orphaned', [LogoController::class, 'cleanupOrphanedLogos']); // Admin: Clean up orphaned logos
+    });
+
+    Route::prefix('admin/sharepoint')->group(function () {
+        Route::get('/', [SharepointController::class, 'getAdminConfig']);
+        Route::put('/', [SharepointController::class, 'updateAdminConfig']);
+        Route::post('/test', [SharepointController::class, 'testConnection']);
     });
 });

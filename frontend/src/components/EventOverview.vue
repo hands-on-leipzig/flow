@@ -7,6 +7,7 @@ import {useAuth} from '@/composables/useAuth'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
+import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBox.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import {getEventTitleLong, getCompetitionType, cleanEventName} from '@/utils/eventTitle'
 
@@ -236,17 +237,25 @@ watch(
         </div>
 
         <!-- Right column: FreeBlocks -->
-        <div class="lg:col-span-2 p-4 border rounded shadow h-fit order-2">
-          <h2 class="text-lg font-semibold mb-2">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
-          <FreeBlocks
-              :event-date="event?.date"
-              :event-days="event?.days"
-              :plan-id="planId"
-              :show-challenge="showChallenge"
-              :show-explore="showExplore"
-          />
+        <div class="lg:col-span-2 space-y-4 h-fit order-2">
+          <div class="p-4 border rounded shadow">
+            <h2 class="text-lg font-semibold mb-2">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
+            <FreeBlocks
+                :event-date="event?.date"
+                :event-days="event?.days"
+                :plan-id="planId"
+                :show-challenge="showChallenge"
+                :show-explore="showExplore"
+            />
+          </div>
+          <div class="p-4 border rounded shadow">
+            <SharePointDocumentsBox/>
+          </div>
         </div>
+
       </div>
+
+
     </div>
   </div>
 </template>
