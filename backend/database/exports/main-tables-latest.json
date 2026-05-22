@@ -3140,6 +3140,11 @@
             "id": 2,
             "name": "UNEARTHED",
             "year": 2025
+        },
+        {
+            "id": 3,
+            "name": "BIOGLOW",
+            "year": 2026
         }
     ],
     "m_supported_plan": [
@@ -6452,7 +6457,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-04-08T14:19:31.423081Z",
+        "exported_at": "2026-05-22T21:43:14.977106Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
