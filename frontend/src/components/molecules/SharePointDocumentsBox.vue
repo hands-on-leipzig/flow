@@ -54,7 +54,7 @@ async function loadFolder(itemId: string | null = null) {
     breadcrumbs.value = data.breadcrumbs ?? []
     currentItemId.value = data.current_item_id ?? null
   } catch (err: unknown) {
-    const axiosErr = err as {response?: {data?: {error?: string}}}
+    const axiosErr = err as { response?: { data?: { error?: string } } }
     error.value = axiosErr.response?.data?.error || 'Dokumente konnten nicht geladen werden.'
     items.value = []
   } finally {
@@ -97,7 +97,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="p-4 border rounded shadow">
+  <div>
     <h2 class="text-lg font-semibold mb-3">Dokumente für Regionalpartner:innen</h2>
 
     <p v-if="!configured && !loading" class="text-sm text-gray-500">
