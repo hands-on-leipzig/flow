@@ -227,13 +227,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="rounded-xl shadow bg-white p-3">
-    <div class="border-b border-gray-200 p-3 flex flex-col gap-6">
+  <div class="glass-card liquid-surface-inner p-3">
+    <div class="border-b border-[var(--color-border)] p-3 flex flex-col gap-6">
       <div>
         <h3 class="text-lg font-semibold mb-0">
           QR Code zum Online-Plan
         </h3>
-        <p class="text-sm text-gray-600">Der QR-Code beinhaltet den oben gezeigten Link. Er kann während der
+        <p class="text-sm text-[var(--color-text-muted)]">Der QR-Code beinhaltet den oben gezeigten Link. Er kann während der
           Veranstaltung gescannt
           werden, um direkt
           zum
@@ -265,13 +265,13 @@ onMounted(() => {
             <img
                 :src="previewPlan"
                 alt="Preview Plan mit WLAN"
-                class="h-20 mb-2 object-contain rounded border border-gray-200"
+                class="h-20 mb-2 object-contain rounded border border-[var(--color-border)]"
             />
           </template>
 
           <template v-else>
             <div
-                class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
+                class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-[var(--color-border)] rounded text-[var(--color-text-subtle)] text-sm mb-2"
             >
               Preview
             </div>
@@ -296,15 +296,15 @@ onMounted(() => {
     <!-- WLAN -->
     <div class="p-3 flex flex-col gap-6">
       <div>
-        <h4 class="text-base font-semibold text-gray-800 mb-0">QR-Code für WLAN-Zugang</h4>
-        <p class="text-sm text-gray-600">Es werden nur Netzwerke mit Netzwerkschlüssel unterstützt. Falls ein Web-Login
+        <h4 class="text-base font-semibold text-[var(--color-text)] mb-0">QR-Code für WLAN-Zugang</h4>
+        <p class="text-sm text-[var(--color-text-muted)]">Es werden nur Netzwerke mit Netzwerkschlüssel unterstützt. Falls ein Web-Login
           notwendig ist,
           nur SSID ohne
           Passwort eingeben - Anmeldedaten können im Hinweis hinterlegt werden.</p>
       </div>
       <div v-if="event" class="space-y-3">
         <div class="flex items-center gap-3">
-          <label class="w-20 text-sm text-gray-700">SSID</label>
+          <label class="w-20 text-sm text-[var(--color-text-muted)]">SSID</label>
           <input
               v-model="event.wifi_ssid"
               class="flex-1 border px-3 py-1 rounded text-sm"
@@ -314,7 +314,7 @@ onMounted(() => {
           />
         </div>
         <div class="flex items-center gap-3">
-          <label class="w-20 text-sm text-gray-700">Passwort</label>
+          <label class="w-20 text-sm text-[var(--color-text-muted)]">Passwort</label>
           <div class="flex-1 relative">
             <input
                 :placeholder="hasPassword ? '*****' : 'z. B. $N#Uh)eA~ado]tyMXTkG'"
@@ -327,7 +327,7 @@ onMounted(() => {
             />
             <button
                 v-if="hasPassword"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] focus:outline-none"
                 tabindex="-1"
                 type="button"
                 @click="togglePasswordVisibility"
@@ -374,7 +374,7 @@ onMounted(() => {
           </div>
         </div>
         <div class="flex items-start gap-3">
-          <label class="w-20 text-sm text-gray-700 mt-1">Hinweise</label>
+          <label class="w-20 text-sm text-[var(--color-text-muted)] mt-1">Hinweise</label>
           <textarea
               v-model="event.wifi_instruction"
               class="flex-1 border px-3 py-1 rounded text-sm"
@@ -390,13 +390,13 @@ onMounted(() => {
         <div class="flex flex-col items-center w-36">
           <template v-if="!event?.wifi_ssid">
             <div
-                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-400 mb-2"
+                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-[var(--color-border)] rounded text-xl text-[var(--color-text-subtle)] mb-2"
             >?
             </div>
           </template>
           <template v-else-if="loadingWifiQr">
             <div
-                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-lg text-gray-500 mb-2"
+                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-[var(--color-border)] rounded text-lg text-[var(--color-text-subtle)] mb-2"
             >⏳
             </div>
           </template>
@@ -414,13 +414,13 @@ onMounted(() => {
         <div class="flex flex-col items-center w-44">
           <template v-if="!event?.wifi_ssid">
             <div
-                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
+                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-[var(--color-border)] rounded text-[var(--color-text-subtle)] text-sm mb-2"
             >?
             </div>
           </template>
           <template v-else-if="loadingWifiQr">
             <div
-                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-500 text-sm mb-2"
+                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-[var(--color-border)] rounded text-[var(--color-text-subtle)] text-sm mb-2"
             >⏳
             </div>
           </template>
@@ -428,12 +428,12 @@ onMounted(() => {
             <img
                 :src="previewPlanWifi"
                 alt="Preview Plan mit WLAN"
-                class="h-20 mb-2 object-contain rounded border border-gray-200"
+                class="h-20 mb-2 object-contain rounded border border-[var(--color-border)]"
             />
           </template>
           <template v-else>
             <div
-                class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
+                class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-[var(--color-border)] rounded text-[var(--color-text-subtle)] text-sm mb-2"
             >Preview
             </div>
           </template>
@@ -459,7 +459,7 @@ onMounted(() => {
         v-if="anyDownloading"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
     >
-      <div class="bg-white px-4 py-3 rounded shadow flex items-center gap-2">
+      <div class="glass-row-item inline-flex px-4 py-3 gap-2">
         <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
           <path class="opacity-75" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"

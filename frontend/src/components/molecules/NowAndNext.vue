@@ -175,23 +175,23 @@ function openPreview(id: string | number) {
     <!-- Controls -->
     <div class="flex flex-wrap items-end gap-3">
       <div>
-        <label class="block text-xs text-gray-500 mb-1">Event ID</label>
-        <div class="text-sm font-medium text-gray-700">
+        <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Event ID</label>
+        <div class="text-sm font-medium text-[var(--color-text-muted)]">
           {{ event?.id || '—' }}
         </div>
       </div>
       
       <div>
-        <label class="block text-xs text-gray-500 mb-1">Event Name</label>
-        <div class="text-sm font-medium text-gray-700">
+        <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Event Name</label>
+        <div class="text-sm font-medium text-[var(--color-text-muted)]">
           {{ event?.name || 'Kein Event ausgewählt' }}
         </div>
       </div>
       
       <div>
-        <label class="block text-xs text-gray-500 mb-1">Plan ID</label>
+        <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Plan ID</label>
         <div class="flex items-center gap-2">
-          <div class="text-sm font-medium text-gray-700">
+          <div class="text-sm font-medium text-[var(--color-text-muted)]">
             {{ planId || 'wird geladen...' }}
           </div>
           <button
@@ -206,14 +206,14 @@ function openPreview(id: string | number) {
       </div>
       
       <div>
-        <label class="block text-xs text-gray-500 mb-1">Event Date</label>
-        <div class="text-sm font-medium text-gray-700">
+        <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Event Date</label>
+        <div class="text-sm font-medium text-[var(--color-text-muted)]">
           {{ formatDate(event?.date) }}
         </div>
       </div>
 
       <div v-if="event && event.days > 1">
-        <label class="block text-xs text-gray-500 mb-1">Tag</label>
+        <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Tag</label>
         <select v-model.number="selectedDay" class="border rounded px-2 py-1">
           <option v-for="day in availableDays" :key="day" :value="day">
             Tag {{ day }}
@@ -222,7 +222,7 @@ function openPreview(id: string | number) {
       </div>
 
       <div>
-        <label class="block text-xs text-gray-500 mb-1">Rolle</label>
+        <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Rolle</label>
         <select v-model.number="role" class="border rounded px-2 py-1">
           <option v-for="r in roles" :key="r.id" :value="r.id">
             {{ r.label }}
@@ -239,7 +239,7 @@ function openPreview(id: string | number) {
 
       <div v-if="usePoint" class="flex items-end gap-3">
         <div>
-          <label class="block text-xs text-gray-500 mb-1">Uhrzeit im Plan</label>
+          <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Uhrzeit im Plan</label>
           <input type="time" v-model="timeStr" class="border rounded px-2 py-1" />
         </div>
       </div>
@@ -250,7 +250,7 @@ function openPreview(id: string | number) {
 
       <div class="flex items-end gap-2">
         <div>
-          <label class="block text-xs text-gray-500 mb-1">Intervall (min)</label>
+          <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Intervall (min)</label>
           <input type="number" min="1" v-model.number="intervalMin" class="border rounded px-2 py-1 w-24" />
         </div>
         <button @click="callNext" class="px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700">
@@ -260,7 +260,7 @@ function openPreview(id: string | number) {
     </div>
 
     <!-- Result -->
-    <div v-if="loading" class="text-gray-500">Wird geladen …</div>
+    <div v-if="loading" class="text-[var(--color-text-subtle)]">Wird geladen …</div>
     <div v-else-if="error" class="text-red-600">{{ error }}</div>
 
     <div v-else-if="result">
@@ -273,10 +273,10 @@ function openPreview(id: string | number) {
         <div
           v-for="g in (result.groups || [])"
           :key="g.activity_group_id"
-          class="border rounded-lg bg-white shadow-sm overflow-hidden"
+          class="glass-card liquid-surface-inner overflow-hidden"
         >
           <!-- Group-Header -->
-          <div class="px-3 py-2 bg-gray-50 border-b">
+          <div class="px-3 py-2 bg-[var(--color-bg-muted)] border-b">
             <div class="flex items-start gap-2">
               <!-- Program Icon -->
               <img
@@ -297,7 +297,7 @@ function openPreview(id: string | number) {
                 <div class="text-sm font-semibold">
                   {{ g.group_meta?.name || ('Group #' + g.activity_group_id) }}
                 </div>
-                <div v-if="g.group_meta?.description" class="text-xs text-gray-500 mt-0.5">
+                <div v-if="g.group_meta?.description" class="text-xs text-[var(--color-text-subtle)] mt-0.5">
                   {{ g.group_meta.description }}
                 </div>
               </div>
@@ -311,7 +311,7 @@ function openPreview(id: string | number) {
     class="px-3 py-2"
   >
     <!-- Zeile 1: Activity-Name (kleiner) -->
-    <div class="text-sm text-gray-700 font-medium">
+    <div class="text-sm text-[var(--color-text-muted)] font-medium">
       {{ a.meta?.name || a.activity_name || ('Activity #' + a.activity_id) }}
     </div>
 
@@ -320,18 +320,18 @@ function openPreview(id: string | number) {
       <div class="text-base font-semibold whitespace-nowrap">
         {{ formatTimeOnly(a.start_time, true) }}–{{ formatTimeOnly(a.end_time, true) }}
       </div>
-      <div class="text-base text-gray-700">
+      <div class="text-base text-[var(--color-text-muted)]">
         {{ splitWith(a).right }}
       </div>
     </div>
 
     <!-- Zeile 3: Teams (Lane: ein Team; Tables: Team A : Team B). Sonst leer -->
-    <div v-if="splitWith(a).bottom" class="mt-0.5 text-base text-gray-800">
+    <div v-if="splitWith(a).bottom" class="mt-0.5 text-base text-[var(--color-text)]">
       {{ splitWith(a).bottom }}
     </div>
   </li>
 
-  <li v-if="!g.activities || g.activities.length === 0" class="px-3 py-3 text-xs text-gray-500">
+  <li v-if="!g.activities || g.activities.length === 0" class="px-3 py-3 text-xs text-[var(--color-text-subtle)]">
     Keine Aktivitäten in dieser Gruppe.
   </li>
 </ul>
@@ -339,7 +339,7 @@ function openPreview(id: string | number) {
         </div>
       </div>
 
-      <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-gray-500">
+      <div v-if="!result.groups || result.groups.length === 0" class="mt-4 text-center text-[var(--color-text-subtle)]">
         Keine passenden Aktivitäten.
       </div>
     </div>

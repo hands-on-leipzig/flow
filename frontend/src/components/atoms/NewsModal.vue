@@ -22,8 +22,8 @@ const mailtoLink = computed(() => {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+  <div class="glass-scrim fixed inset-0 flex items-center justify-center z-50 p-4">
+    <div class="glass-modal glass-modal-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
       <!-- Header -->
       <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-lg">
         <h2 class="text-2xl font-bold text-white">{{ news.title }}</h2>
@@ -41,7 +41,7 @@ const mailtoLink = computed(() => {
 
       <!-- Content -->
       <div class="px-6 py-6">
-        <div class="text-gray-800 whitespace-pre-wrap leading-relaxed">
+        <div class="text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
           {{ news.text }}
         </div>
 
@@ -62,9 +62,9 @@ const mailtoLink = computed(() => {
       </div>
 
       <!-- Footer -->
-      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+      <div class="px-6 py-4 bg-[var(--color-bg-muted)] border-t border-[var(--color-border)] rounded-b-lg">
         <!-- Contact text -->
-        <p class="text-sm text-gray-600 mb-4">
+        <p class="text-sm text-[var(--color-text-muted)] mb-4">
           Fragen gerne per Mail an 
           <a 
             :href="mailtoLink" 

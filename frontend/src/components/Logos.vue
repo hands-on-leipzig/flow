@@ -450,8 +450,8 @@ onMounted(async () => {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Left Side: All Logos List -->
       <div>
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Logos verwalten</h2>
-        <p class="text-sm text-gray-600 mb-4">Die hier hochgeladenen Logos müssen aktiviert sein, um im öffentlichen
+        <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Logos verwalten</h2>
+        <p class="text-sm text-[var(--color-text-muted)] mb-4">Die hier hochgeladenen Logos müssen aktiviert sein, um im öffentlichen
           Plan zu erscheinen.</p>
 
         <div class="space-y-2">
@@ -503,17 +503,17 @@ onMounted(async () => {
           </div>
         </div>
 
-        <p v-if="logos.length === 0" class="text-sm text-gray-500 italic mt-4">
+        <p v-if="logos.length === 0" class="text-sm text-[var(--color-text-subtle)] italic mt-4">
           Noch keine Logos hochgeladen.
         </p>
       </div>
 
       <!-- Right Side: Assigned Logos (Sortable) -->
       <div>
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Logos in Verwendung</h2>
-        <p class="text-sm text-gray-600 mb-4">Ziehe die Logos, um die Reihenfolge zu ändern, in welcher sie im
+        <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Logos in Verwendung</h2>
+        <p class="text-sm text-[var(--color-text-muted)] mb-4">Ziehe die Logos, um die Reihenfolge zu ändern, in welcher sie im
           öffentlichen Plan erscheinen.</p>
-        <p class="text-sm text-gray-600 mb-4">
+        <p class="text-sm text-[var(--color-text-muted)] mb-4">
           Das erste Logo wird für die Namensaufkleber verwendet.
         </p>
 
@@ -539,7 +539,7 @@ onMounted(async () => {
           >
             <!-- Drag handle indicator -->
             <div
-                class="drag-handle absolute top-2 right-2 text-gray-400 text-xs cursor-move select-none"
+                class="drag-handle absolute top-2 right-2 text-[var(--color-text-subtle)] text-xs cursor-move select-none"
                 title="Drag to reorder"
             >
               ⋮⋮
@@ -570,13 +570,13 @@ onMounted(async () => {
             />
 
             <div class="space-y-1 text-center">
-              <div v-if="logo.title" class="text-sm font-medium text-gray-900">
+              <div v-if="logo.title" class="text-sm font-medium text-[var(--color-text)]">
                 {{ logo.title }}
               </div>
               <div v-if="logo.link" class="text-xs text-blue-600 truncate" :title="logo.link">
                 {{ logo.link }}
               </div>
-              <div v-if="!logo.title && !logo.link" class="text-xs text-gray-400 italic">
+              <div v-if="!logo.title && !logo.link" class="text-xs text-[var(--color-text-subtle)] italic">
                 Kein Titel/Link
               </div>
             </div>
@@ -588,7 +588,7 @@ onMounted(async () => {
         </div>
 
         <p v-if="sortedLogos.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))).length === 0"
-           class="text-sm text-gray-500 italic mt-4">
+           class="text-sm text-[var(--color-text-subtle)] italic mt-4">
           Keine Logos in Verwendung. Aktiviere Logos links, um sie hier zu sortieren.
         </p>
       </div>
@@ -597,7 +597,7 @@ onMounted(async () => {
     <!-- Logo Preview Modal -->
     <div
         v-if="selectedLogoForPreview"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        class="glass-scrim fixed inset-0 flex items-center justify-center z-50"
         @click="closeLogoPreview"
     >
       <div class="bg-white rounded-lg p-6 max-w-4xl max-h-[90vh] overflow-auto" @click.stop>
@@ -605,7 +605,7 @@ onMounted(async () => {
           <h3 class="text-lg font-semibold">{{ selectedLogoForPreview.title || 'Logo Preview' }}</h3>
           <button
               @click="closeLogoPreview"
-              class="text-gray-500 hover:text-gray-700 text-2xl"
+              class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] text-2xl"
           >
             ×
           </button>

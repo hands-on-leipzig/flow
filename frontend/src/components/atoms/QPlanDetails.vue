@@ -68,16 +68,16 @@ const transferRows = computed(() => {
 </script>
 
 <template>
-  <div class="mt-2 border-t border-gray-300 pt-2">
-    <div v-if="loading" class="text-sm text-gray-500">Lade Plan-Details …</div>
+  <div class="mt-2 border-t border-[var(--color-border)] pt-2">
+    <div v-if="loading" class="text-sm text-[var(--color-text-subtle)]">Lade Plan-Details …</div>
     <div v-else-if="error" class="text-sm text-red-500">{{ error }}</div>
     <div v-else>
       <div class="flex flex-row justify-between items-start gap-4">
         <!-- Linker Block: Timing -->
         <div class="basis-[25%] flex-shrink-0 overflow-x-auto">
-          <div class="text-sm font-semibold text-gray-600 mb-1">Transfer</div>
+          <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Transfer</div>
           <table class="table-auto text-sm border-collapse">
-            <thead class="bg-gray-100">
+            <thead class="bg-[var(--color-bg-muted)]">
               <tr>
                 <th class="px-2 py-1 text-left">Team</th>
                 <th class="px-2 py-1">Tr.</th>
@@ -132,9 +132,9 @@ const transferRows = computed(() => {
 
         <!-- Mittlerer Block: Tisch-Zuordnung -->
         <div class="basis-[30%] flex-shrink-0 overflow-x-auto">
-          <div class="text-sm font-semibold text-gray-600 mb-1">Testrunde, Tische und Teams gegenüber</div>
+          <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Testrunde, Tische und Teams gegenüber</div>
           <table class="table-auto text-sm border-collapse">
-            <thead class="bg-gray-100">
+            <thead class="bg-[var(--color-bg-muted)]">
               <tr>
                 <th class="px-2 py-1 text-left">Team</th>
                 <th class="px-2 py-1">TR</th>
@@ -181,18 +181,18 @@ const transferRows = computed(() => {
 
         <!-- Rechter Block: Matchplan -->
         <div class="basis-[50%] flex-shrink-0 overflow-x-auto">
-          <div class="text-sm font-semibold text-gray-600 mb-1">Matchplan</div>
+          <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Matchplan</div>
           <div class="flex flex-row gap-4">
             <div
               v-for="col in matchPlanColumns"
               :key="`${col.key}-${col.label}`"
               class="min-w-max"
             >
-              <div class="text-sm font-semibold text-gray-600 mb-1">
+              <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
                 {{ col.label }}
               </div>
               <table class="table-auto text-sm border-collapse">
-                <thead class="bg-gray-100">
+                <thead class="bg-[var(--color-bg-muted)]">
                   <tr>
                     <th class="px-2 py-1">T1</th>
                     <th class="px-2 py-1">T2</th>

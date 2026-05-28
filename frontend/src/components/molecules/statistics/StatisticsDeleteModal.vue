@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-w-full">
+  <div class="glass-modal p-6 w-96 max-w-full">
     <h3 class="text-lg font-bold mb-4">
       <template v-if="mode === 'plan-delete'">
         Plan löschen?
@@ -8,7 +8,7 @@
         {{ cleanupMeta[cleanupType].title }}
       </template>
     </h3>
-    <p class="mb-6 text-sm text-gray-700">
+    <p class="mb-6 text-sm text-[var(--color-text-muted)]">
       <template v-if="mode === 'plan-delete'">
         Bist du sicher, dass du den Plan mit der ID
         <span class="font-semibold">{{ planId }}</span>
@@ -19,7 +19,7 @@
       </template>
     </p>
     <div class="flex justify-end gap-2">
-      <button class="px-4 py-2 text-gray-600 hover:text-black" @click="$emit('cancel')">Abbrechen</button>
+      <button class="px-4 py-2 text-[var(--color-text-muted)] hover:text-black" @click="$emit('cancel')">Abbrechen</button>
       <button class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" @click="$emit('confirm')">
         {{ confirmLabel }}
       </button>

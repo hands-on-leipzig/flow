@@ -195,7 +195,7 @@ const emit = defineEmits([
         </button>
 
         <button
-          class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-3 py-2 rounded"
+          class="bg-gray-200 hover:bg-gray-300 text-[var(--color-text)] font-semibold px-3 py-2 rounded"
           title="Liste neu laden"
           @click="emit('refresh')"
         >

@@ -224,7 +224,7 @@ const isDefaultValue = computed(() => {
 
 <template>
   <div
-      class="px-4 py-1 w-full max-w-full hover:bg-gray-50 transition-colors duration-150 rounded"
+      class="px-4 py-1 w-full max-w-full hover:bg-[var(--color-bg-hover)] transition-colors duration-150 rounded"
       :class="[
         compact ? 'px-2 py-1' : '',
         horizontal
@@ -249,16 +249,16 @@ const isDefaultValue = computed(() => {
             @change="emitChange"
             @input="validateValue(localValue, param)"
             :disabled="disabled"
-            class="w-full md:w-24 border rounded px-2 py-1 pr-8 text-sm shadow-sm"
+            class="w-full md:w-24 liquid-surface-control px-2 py-1 pr-8 text-sm"
             :class="{ 
               'opacity-50 cursor-not-allowed': disabled,
               'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled,
               'border-red-300 bg-red-50': validationError,
-              'border-gray-300': !validationError
+              'border-[var(--color-border)]': !validationError
             }"
         />
         <span v-if="showDefaultValue(param) && !validationError"
-              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-[var(--color-text-subtle)] pointer-events-none">
           {{ showDefaultValue(param) }}
         </span>
         <!-- Validation error tooltip -->
@@ -270,9 +270,9 @@ const isDefaultValue = computed(() => {
 
       <!-- Boolean inputs - Fancy toggle -->
       <div v-else-if="param.type === 'boolean'" class="flex items-center justify-start w-full md:w-auto">
-        <div class="relative flex border border-gray-300 rounded overflow-hidden w-full md:w-24"
+        <div class="relative flex border border-[var(--color-border)] rounded overflow-hidden w-full md:w-24"
              :class="{
-               'border-gray-300': isDefaultValue,
+               'border-[var(--color-border)]': isDefaultValue,
                'border-orange-500': !isDefaultValue,
                'opacity-50 cursor-not-allowed': disabled
              }">
@@ -282,10 +282,10 @@ const isDefaultValue = computed(() => {
               @click="!disabled && !localValue && toggleValue()"
               class="px-2 py-1 text-sm transition-all duration-150 flex-1"
               :class="{
-                'bg-white text-black': !localValue && isDefaultValue,
-                'bg-gray-200 text-gray-600': localValue && isDefaultValue,
+                'bg-[var(--color-bg-elevated)] text-[var(--color-text)]': !localValue && isDefaultValue,
+                'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]': localValue && isDefaultValue,
                 'text-black': !localValue && !isDefaultValue,
-                'bg-orange-100 text-gray-600': localValue && !isDefaultValue,
+                'bg-orange-100 text-[var(--color-text-muted)]': localValue && !isDefaultValue,
                 'cursor-not-allowed': disabled || localValue
               }"
           >
@@ -293,7 +293,7 @@ const isDefaultValue = computed(() => {
           </button>
 
           <!-- Vertical separator -->
-          <div class="w-px bg-gray-300"></div>
+          <div class="w-px bg-[var(--color-border)]"></div>
 
           <!-- Nein button -->
           <button
@@ -301,9 +301,9 @@ const isDefaultValue = computed(() => {
               @click="!disabled && localValue && toggleValue()"
               class="px-2 py-1 text-sm transition-all duration-150 flex-1"
               :class="{
-                'bg-gray-200 text-gray-600': !localValue && isDefaultValue,
-                'bg-white text-black': localValue && isDefaultValue,
-                'bg-orange-100 text-gray-600': !localValue && !isDefaultValue,
+                'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]': !localValue && isDefaultValue,
+                'bg-[var(--color-bg-elevated)] text-[var(--color-text)]': localValue && isDefaultValue,
+                'bg-orange-100 text-[var(--color-text-muted)]': !localValue && !isDefaultValue,
                 'text-black': localValue && !isDefaultValue,
                 'cursor-not-allowed': disabled || !localValue
               }"
@@ -320,14 +320,14 @@ const isDefaultValue = computed(() => {
             v-model="localValue"
             @change="emitChange"
             :disabled="disabled"
-            class="w-full md:w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
+            class="w-full md:w-24 border border-[var(--color-border)] rounded px-2 py-1 pr-8 text-sm shadow-sm"
             :class="{ 
               'opacity-50 cursor-not-allowed': disabled,
               'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
             }"
         />
         <span v-if="showDefaultValue(param)"
-              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-[var(--color-text-subtle)] pointer-events-none">
           {{ showDefaultValue(param) }}
         </span>
       </div>
@@ -353,7 +353,7 @@ const isDefaultValue = computed(() => {
           />
         </div>
         <span v-if="showDefaultValue(param) && !validationError"
-              class="text-xs text-gray-400 pointer-events-none whitespace-nowrap">
+              class="text-xs text-[var(--color-text-subtle)] pointer-events-none whitespace-nowrap">
           {{ showDefaultValue(param) }}
         </span>
         <!-- Validation error indicator -->
@@ -370,14 +370,14 @@ const isDefaultValue = computed(() => {
             v-model="localValue"
             @change="emitChange"
             :disabled="disabled"
-            class="w-full md:w-24 border border-gray-300 rounded px-2 py-1 pr-8 text-sm shadow-sm"
+            class="w-full md:w-24 border border-[var(--color-border)] rounded px-2 py-1 pr-8 text-sm shadow-sm"
             :class="{ 
               'opacity-50 cursor-not-allowed': disabled,
               'bg-orange-100 border-orange-300': isChangedFromDefault(param) && !disabled
             }"
         />
         <span v-if="showDefaultValue(param)"
-              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-[var(--color-text-subtle)] pointer-events-none">
           {{ showDefaultValue(param) }}
         </span>
       </div>

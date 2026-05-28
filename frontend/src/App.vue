@@ -76,23 +76,24 @@ onMounted(() => {
 </script>
 
 <template>
-  <div :class="['flex flex-col w-full font-sans', isPublicRoute ? 'min-h-screen' : 'h-screen', { 'px-0 md:px-10': !isPublicRoute }]">
-    <Navigation v-if="!isPublicRoute"/>
-    <EventDayBanner v-if="!isPublicRoute"/>
+  <div v-if="isPublicRoute" class="min-h-screen w-full font-sans">
+    <router-view/>
+  </div>
 
-    <div :class="['shadow-lg', isPublicRoute ? 'flex-grow' : 'flex-1']">
-      <router-view/>
+  <div v-else class="glass-layout liquid-surface-scope h-screen font-sans">
+    <Navigation/>
+
+    <div class="glass-layout__main">
+      <EventDayBanner/>
+      <div class="glass-layout__panel liquid-surface">
+        <router-view/>
+      </div>
     </div>
 
-    <!-- News Modal -->
-    <NewsModal 
-      v-if="showNewsModal && currentNews" 
-      :news="currentNews" 
-      @markRead="markNewsAsRead"
+    <NewsModal
+        v-if="showNewsModal && currentNews"
+        :news="currentNews"
+        @markRead="markNewsAsRead"
     />
   </div>
 </template>
-
-<style scoped>
-
-</style>

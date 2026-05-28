@@ -4,11 +4,11 @@
     <!-- Filters -->
     <div class="filters mb-4 flex gap-4 items-center">
       <div class="flex items-center gap-2">
-        <label class="text-sm font-medium text-gray-700">Activity Type:</label>
+        <label class="text-sm font-medium text-[var(--color-text-muted)]">Activity Type:</label>
         <select 
           v-model="activityFilter" 
           @change="loadMatrix"
-          class="border border-gray-300 rounded-md px-3 py-2 text-sm"
+          class="border border-[var(--color-border)] rounded-md px-3 py-2 text-sm"
         >
           <option value="all">Alle</option>
           <option 
@@ -22,11 +22,11 @@
       </div>
       
       <div class="flex items-center gap-2">
-        <label class="text-sm font-medium text-gray-700">FIRST Program:</label>
+        <label class="text-sm font-medium text-[var(--color-text-muted)]">FIRST Program:</label>
         <select 
           v-model="roleFilter" 
           @change="loadMatrix"
-          class="border border-gray-300 rounded-md px-3 py-2 text-sm"
+          class="border border-[var(--color-border)] rounded-md px-3 py-2 text-sm"
         >
           <option value="all">Alle</option>
           <option value="2">Explore</option>
@@ -40,7 +40,7 @@
     <!-- Loading State -->
     <div v-if="loading" class="text-center py-8">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <p class="mt-2 text-sm text-gray-600">Loading visibility matrix...</p>
+      <p class="mt-2 text-sm text-[var(--color-text-muted)]">Loading visibility matrix...</p>
     </div>
 
     <!-- Error State -->
@@ -59,13 +59,13 @@
       <table class="sticky-matrix">
         <thead class="sticky-top">
           <tr>
-            <th class="sticky-left bg-gray-50 font-medium text-gray-900 px-4 py-3 text-left">
+            <th class="sticky-left bg-[var(--color-bg-muted)] font-medium text-[var(--color-text)] px-4 py-3 text-left">
               Activity
             </th>
             <th 
               v-for="role in roles" 
               :key="role.id"
-              class="bg-gray-50 font-medium text-gray-900 px-3 py-3 text-center min-w-[120px]"
+              class="bg-[var(--color-bg-muted)] font-medium text-[var(--color-text)] px-3 py-3 text-center min-w-[120px]"
             >
               <div class="flex items-center justify-center">
                 <div 
@@ -78,8 +78,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="activity in activities" :key="activity.id" class="border-b border-gray-200">
-            <td class="sticky-left bg-white font-medium text-gray-900 px-4 py-3">
+          <tr v-for="activity in activities" :key="activity.id" class="border-b border-[var(--color-border)]">
+            <td class="sticky-left bg-[var(--liquid-tile-bg-inner)] font-medium text-[var(--color-text)] px-4 py-3">
               <div class="flex items-center">
                 <div 
                   class="w-3 h-3 rounded-full mr-2 flex-shrink-0"
@@ -97,7 +97,7 @@
                 type="checkbox" 
                 :checked="isVisible(role.id, activity.id)"
                 @click="handleCheckboxClick(role.id, activity.id, $event)"
-                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-[var(--color-border)] rounded"
                 :disabled="toggling"
               />
             </td>
@@ -108,10 +108,10 @@
 
     <!-- Confirmation Dialog -->
     <div v-if="showConfirmDialog" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+      <div class="glass-modal relative top-20 mx-auto w-96">
         <div class="mt-3 text-center">
           <div class="mt-2 px-7 py-3">
-            <p class="text-sm text-gray-500">
+            <p class="text-sm text-[var(--color-text-subtle)]">
               Sichtbarkeit von <strong>{{ getActivityName(pendingToggle?.activityId) }}</strong><br>
               für Rolle <strong>{{ getRoleName(pendingToggle?.roleId) }}</strong><br>
               <strong>{{ pendingToggle?.visible ? 'einschalten' : 'ausschalten' }}</strong>?
@@ -126,7 +126,7 @@
             </button>
             <button
               @click="cancelToggle"
-              class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              class="px-4 py-2 bg-gray-300 text-[var(--color-text-muted)] rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
             >
               Nein
             </button>
@@ -247,7 +247,7 @@ const getActivityColor = (program) => {
     case 'EXPLORE':
       return 'bg-green-500'
     case 'DISCOVER':
-      return 'bg-gray-500'
+      return 'bg-[var(--color-bg-muted)]0'
     default:
       return 'bg-gray-400'
   }

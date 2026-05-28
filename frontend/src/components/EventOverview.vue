@@ -47,24 +47,20 @@ const showChallenge = computed(() => {
 const eventTitleLong = computed(() => getEventTitleLong(event.value))
 const competitionType = computed(() => getCompetitionType(event.value))
 
-// Format title with italic FIRST and blue event name for display
+// Format title with italic FIRST and accent-colored event name for display
 const formattedEventTitle = computed(() => {
   if (!eventTitleLong.value) return ''
 
   const title = eventTitleLong.value
-  // Use cleaned event name to match what's actually in the title
   const cleanedEventName = cleanEventName(event.value)
 
   if (!cleanedEventName) {
-    // Just format FIRST in italics
     return title.replace('FIRST', '<em>FIRST</em>')
   }
 
-  // Split title: "FIRST LEGO League [competitionType] [cleanedEventName]"
-  // We want: <em>FIRST</em> LEGO League [competitionType] <br> <span class="text-blue-600">[cleanedEventName]</span>
   const withoutEventName = title.replace(new RegExp(` ${cleanedEventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '')
   const formatted = withoutEventName.replace('FIRST', '<em>FIRST</em>')
-  return `${formatted} <span class="text-blue-600">${cleanedEventName}</span>`
+  return `${formatted} <span class="event-overview__name">${cleanedEventName}</span>`
 })
 
 async function fetchPlanId() {
@@ -73,8 +69,6 @@ async function fetchPlanId() {
     const response = await axios.get(`/plans/event/${event.value.id}`)
     planId.value = response.data.id
   } catch (error) {
-    // Silently handle missing plan - plan generation might be in progress
-    // Only log in development mode
     if (import.meta.env.DEV) {
       console.debug('Plan not found for event:', event.value?.id)
     }
@@ -123,7 +117,6 @@ onMounted(async () => {
   await fetchSelectableEventCount()
 })
 
-// Watch for event changes and reload data
 watch(
     () => event.value?.id,
     async (newEventId, oldEventId) => {
@@ -135,19 +128,19 @@ watch(
 </script>
 
 <template>
-  <div class="p-4 lg:p-6 space-y-6">
+  <div class="space-y-6">
     <div>
       <div class="flex flex-wrap items-center justify-between gap-2 w-full">
-        <h1 class="text-xl lg:text-2xl font-bold" v-html="formattedEventTitle"></h1>
+        <h1 class="text-xl lg:text-2xl font-bold text-[var(--color-text)]" v-html="formattedEventTitle"/>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
         <!-- Left column: Daten, Adresse, Kontakt -->
         <div class="lg:col-span-1 space-y-4 order-1">
-          <div class="p-4 border rounded shadow">
+          <div class="glass-card liquid-surface-inner">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <h3 class="font-semibold mb-2">Daten</h3>
+                <h3 class="glass-card__heading">Daten</h3>
                 <p>Datum: {{ dayjs(event?.date).format('dddd, DD.MM.YYYY') }}</p>
                 <p v-if="event?.days > 1">bis:
                   {{ dayjs(event?.date).add(event?.days - 1, 'day').format('dddd, DD.MM.YYYY') }}</p>
@@ -155,7 +148,6 @@ watch(
                 <p>Saison: {{ event?.season_rel.name }}</p>
               </div>
 
-              <!-- Teamstatistik -->
               <div>
                 <div
                     v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0"
@@ -166,7 +158,7 @@ watch(
                     <span class="font-medium block">
                       {{ teamStats.explore.registered }} von {{ teamStats.explore.capacity }} Teams
                     </span>
-                    <span class="text-gray-600 block">angemeldet</span>
+                    <span class="text-[var(--color-text-muted)] block">angemeldet</span>
                   </div>
                 </div>
 
@@ -179,7 +171,7 @@ watch(
                     <span class="font-medium block">
                       {{ teamStats.challenge.registered }} von {{ teamStats.challenge.capacity }} Teams
                     </span>
-                    <span class="text-gray-600 block">angemeldet</span>
+                    <span class="text-[var(--color-text-muted)] block">angemeldet</span>
                   </div>
                 </div>
 
@@ -190,7 +182,7 @@ watch(
                     teamStats.challenge.capacity === 0 &&
                     teamStats.challenge.registered === 0
                   "
-                    class="text-gray-500 text-xs"
+                    class="text-[var(--color-text-subtle)] text-xs"
                 >
                   Keine Team-Daten verfügbar
                 </div>
@@ -198,8 +190,8 @@ watch(
             </div>
           </div>
 
-          <div class="p-4 border rounded shadow">
-            <h3 class="font-semibold mb-2">Adresse</h3>
+          <div class="glass-card liquid-surface-inner">
+            <h3 class="glass-card__heading">Adresse</h3>
             <p class="mb-3">{{ event?.address }}</p>
             <EventMap
                 v-if="event?.address && event?.id"
@@ -210,27 +202,29 @@ watch(
             />
           </div>
 
-          <div class="p-4 border rounded shadow">
-            <h3 class="text-lg font-semibold mb-4">Kontakt</h3>
-            <div class="grid gap-4">
+          <div class="glass-card liquid-surface-inner">
+            <h3 class="glass-card__title">Kontakt</h3>
+            <div class="grid gap-3">
               <div
                   v-for="(person, index) in event?.contact"
                   :key="index"
-                  class="p-3 border rounded-md bg-gray-50 shadow-sm"
+                  class="glass-chip liquid-surface-inner"
               >
-                <div class="flex items-center justify-between mb-1">
-                  <span class="font-semibold text-blue-800 text-sm">{{ person.contact }}</span>
-                  <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Kontaktperson</span>
+                <div class="flex items-center justify-between mb-1 gap-2">
+                  <span class="glass-chip__label">{{ person.contact }}</span>
+                  <span class="glass-chip__badge">Kontaktperson</span>
                 </div>
-                <div class="text-sm text-gray-700 flex items-center gap-1">
-                  <svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                <div class="text-sm text-[var(--color-text-muted)] flex items-center gap-1">
+                  <svg class="w-4 h-4 flex-shrink-0 opacity-70" fill="currentColor" viewBox="0 0 20 20">
                     <path
                         d="M2.94 5.5a1.5 1.5 0 011.5-1.5h11.12a1.5 1.5 0 011.5 1.5v9a1.5 1.5 0 01-1.5 1.5H4.44a1.5 1.5 0 01-1.5-1.5v-9zm1.62.4v.28l5.5 3.44 5.5-3.44v-.28H4.56zm0 1.48v6.12h10.88V7.38L10 10.75 4.56 7.38z"
                     />
                   </svg>
                   {{ person.contact_email }}
                 </div>
-                <p v-if="person.contact_infos" class="text-xs text-gray-600 mt-1">{{ person.contact_infos }}</p>
+                <p v-if="person.contact_infos" class="text-xs text-[var(--color-text-subtle)] mt-1">
+                  {{ person.contact_infos }}
+                </p>
               </div>
             </div>
           </div>
@@ -238,8 +232,8 @@ watch(
 
         <!-- Right column: FreeBlocks -->
         <div class="lg:col-span-2 space-y-4 h-fit order-2">
-          <div class="p-4 border rounded shadow">
-            <h2 class="text-lg font-semibold mb-2">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
+          <div class="glass-card liquid-surface-inner">
+            <h2 class="glass-card__title">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
             <FreeBlocks
                 :event-date="event?.date"
                 :event-days="event?.days"
@@ -248,14 +242,17 @@ watch(
                 :show-explore="showExplore"
             />
           </div>
-          <div class="p-4 border rounded shadow">
+          <div class="glass-card liquid-surface-inner">
             <SharePointDocumentsBox/>
           </div>
         </div>
-
       </div>
-
-
     </div>
   </div>
 </template>
+
+<style scoped>
+.event-overview__name {
+  color: var(--color-accent);
+}
+</style>

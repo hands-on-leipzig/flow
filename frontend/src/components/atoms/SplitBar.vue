@@ -43,7 +43,7 @@ function onDrag(e) {
 
 <template>
   <div class="w-full max-w-xl select-none">
-    <label class="block font-medium mb-3 text-gray-700">Teamverteilung</label>
+    <label class="block font-medium mb-3 text-[var(--color-text-muted)]">Teamverteilung</label>
 
     <div class="flex items-center gap-3">
       <div class="flex flex-col items-center">
@@ -52,29 +52,29 @@ function onDrag(e) {
 
       <div
           ref="barRef"
-          class="flex-1 relative h-12 bg-gray-100 rounded-lg border border-gray-300 overflow-hidden cursor-ew-resize transition-all duration-200 hover:shadow-md hover:border-gray-400"
+          class="flex-1 relative h-12 bg-[var(--color-bg-muted)] rounded-lg border border-[var(--color-border)] overflow-hidden cursor-ew-resize transition-all duration-200 hover:shadow-md hover:border-gray-400"
           :class="{ 'ring-2 ring-gray-400 ring-opacity-50': isDragging }"
           @mousedown="startDrag"
       >
         <div
-            class="absolute top-0 left-0 h-full bg-gray-200 flex items-center justify-center text-gray-700 font-medium text-sm transition-all duration-200"
+            class="absolute top-0 left-0 h-full bg-gray-200 flex items-center justify-center text-[var(--color-text-muted)] font-medium text-sm transition-all duration-200"
             :style="{ width: `${e1Percent}%` }"
         >
           <span v-if="e1 > 0">{{ e1 }} Team{{ e1 === 1 ? '' : 's' }}</span>
         </div>
 
         <div
-            class="absolute top-0 right-0 h-full bg-gray-300 flex items-center justify-center text-gray-700 font-medium text-sm transition-all duration-200"
+            class="absolute top-0 right-0 h-full bg-gray-300 flex items-center justify-center text-[var(--color-text-muted)] font-medium text-sm transition-all duration-200"
             :style="{ width: `${100 - e1Percent}%` }"
         >
           <span v-if="e2 > 0">{{ e2 }} Team{{ e2 === 1 ? '' : 's' }}</span>
         </div>
 
         <div
-            class="absolute top-0 h-full w-1 bg-gray-500 transition-all duration-200"
+            class="absolute top-0 h-full w-1 bg-[var(--color-bg-muted)]0 transition-all duration-200"
             :style="{ left: `${e1Percent}%` }"
         >
-          <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-gray-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center gap-1">
+          <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-[var(--color-bg-muted)]0 rounded-full border-2 border-white shadow-sm flex items-center justify-center gap-1">
             <svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 12 12">
               <path d="M7 2L4 6l3 4"/>
             </svg>

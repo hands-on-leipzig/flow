@@ -86,34 +86,34 @@ async function handleDelete() {
 
 <template>
   <div class="space-y-2 mt-4">
-    <div v-if="loading" class="text-gray-500">Lade QRuns …</div>
+    <div v-if="loading" class="text-[var(--color-text-subtle)]">Lade QRuns …</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
-    <div v-else-if="qruns.length === 0" class="text-gray-400">Keine QRuns gefunden.</div>
+    <div v-else-if="qruns.length === 0" class="text-[var(--color-text-subtle)]">Keine QRuns gefunden.</div>
     <div v-else>
       <div
         v-for="qrun in qruns"
         :key="qrun.id"
-        class="border rounded bg-gray-50 overflow-hidden"
+        class="border rounded bg-[var(--color-bg-muted)] overflow-hidden"
       >
         <div
-          class="flex p-4 items-start hover:bg-gray-100 cursor-pointer"
+          class="flex p-4 items-start hover:bg-[var(--color-bg-hover)] cursor-pointer"
           @click="toggleExpanded(qrun.id)"
         >
           <!-- Spalte 1: Name + Kommentar -->
           <div class="basis-[35%] flex-shrink-0">
             <div class="font-bold text-lg"> {{ qrun.id }} {{ qrun.name }}</div>
-            <div class="text-xs text-gray-400 italic"> {{ qrun.host || 'unknown' }} </div>
-            <div class="text-sm text-gray-600 whitespace-pre-line">{{ qrun.comment || '—' }}</div>
+            <div class="text-xs text-[var(--color-text-subtle)] italic"> {{ qrun.host || 'unknown' }} </div>
+            <div class="text-sm text-[var(--color-text-muted)] whitespace-pre-line">{{ qrun.comment || '—' }}</div>
           </div>
 
           <!-- Spalte 2: Teams + Runden -->
-          <div class="basis-[20%] flex-shrink-0 text-sm text-gray-600 space-y-1">
+          <div class="basis-[20%] flex-shrink-0 text-sm text-[var(--color-text-muted)] space-y-1">
             <div><strong>Teams:</strong> {{ qrun.selection.min_teams ?? '?' }}–{{ qrun.selection.max_teams ?? '?' }}</div>
             <div><strong>Runden:</strong> {{ qrun.selection.jury_rounds?.join(', ') ?? '?' }}</div>
           </div>
 
           <!-- Spalte 3: Spuren + Tische -->
-          <div class="basis-[20%] flex-shrink-0 text-sm text-gray-600 space-y-1">
+          <div class="basis-[20%] flex-shrink-0 text-sm text-[var(--color-text-muted)] space-y-1">
             <div><strong>Spuren:</strong> {{ qrun.selection.jury_lanes?.join(', ') ?? '?' }}</div>
             <div><strong>Tische:</strong> {{ qrun.selection.tables?.join(', ') ?? '?' }}</div>
           </div>
@@ -159,7 +159,7 @@ async function handleDelete() {
 
         </div>
 
-        <div v-if="expandedQRunId === qrun.id" class="border-t border-gray-200">
+        <div v-if="expandedQRunId === qrun.id" class="border-t border-[var(--color-border)]">
            <div class="bg-white px-4 py-2">
             <QPlanList
               :qrun="qrun.id"

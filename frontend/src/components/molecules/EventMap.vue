@@ -384,17 +384,17 @@ onBeforeUnmount(() => {
   <div v-if="address" class="space-y-3">
     <!-- Show full address above map if using stripped address -->
     <div v-if="mapCoordinates && usedAddress && fullAddress && usedAddress !== fullAddress"
-         class="text-sm text-gray-700 whitespace-pre-line bg-white rounded-lg p-3 border border-gray-200">
+         class="text-sm text-[var(--color-text-muted)] whitespace-pre-line bg-white rounded-lg p-3 border border-[var(--color-border)]">
       {{ fullAddress }}
     </div>
     <!-- Show address while loading or if map failed -->
     <div v-else-if="!mapCoordinates && address"
-         class="text-sm text-gray-700 whitespace-pre-line bg-white rounded-lg p-3 border border-gray-200">
+         class="text-sm text-[var(--color-text-muted)] whitespace-pre-line bg-white rounded-lg p-3 border border-[var(--color-border)]">
       {{ address }}
     </div>
     
     <!-- OpenStreetMap Map -->
-    <div class="rounded-lg overflow-hidden border-2 border-gray-300 shadow-lg relative"
+    <div class="rounded-lg overflow-hidden border-2 border-[var(--color-border)] shadow-lg relative"
          style="height: 250px; min-height: 250px;">
       <GenericLeafletMap
         :markers="mapMarkers"
@@ -408,11 +408,11 @@ onBeforeUnmount(() => {
         <div class="relative">
           <button
               ref="mapMenuButton"
-              class="bg-white hover:bg-gray-50 rounded-lg shadow-lg p-2 border border-gray-200 flex items-center gap-2 transition-colors"
+              class="bg-white hover:bg-[var(--color-bg-hover)] rounded-lg shadow-lg p-2 border border-[var(--color-border)] flex items-center gap-2 transition-colors"
               title="Karten-Optionen"
               @click="showMapMenu = !showMapMenu"
           >
-            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                   d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
                   stroke-linecap="round" stroke-linejoin="round"
@@ -428,13 +428,13 @@ onBeforeUnmount(() => {
       <div
           v-if="showMapMenu && mapCoordinates && mapMenuButton"
           :style="getMenuPosition()"
-          class="fixed w-64 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-[9999]"
+          class="fixed w-64 bg-white rounded-lg shadow-xl border border-[var(--color-border)] overflow-hidden z-[9999]"
           :data-map-menu="eventId"
       >
         <div class="py-1">
           <!-- Open in Google Maps -->
           <button
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+              class="w-full text-left px-4 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] flex items-center gap-2 transition-colors"
               @click="openInGoogleMaps"
           >
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -447,7 +447,7 @@ onBeforeUnmount(() => {
           <!-- Open in Apple Maps -->
           <button
               v-if="isAppleDevice"
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+              class="w-full text-left px-4 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] flex items-center gap-2 transition-colors"
               @click="openInAppleMaps"
           >
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -459,7 +459,7 @@ onBeforeUnmount(() => {
 
           <!-- Open in OpenStreetMap -->
           <button
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+              class="w-full text-left px-4 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] flex items-center gap-2 transition-colors"
               @click="openInOpenStreetMap"
           >
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -470,11 +470,11 @@ onBeforeUnmount(() => {
           </button>
 
           <!-- Divider -->
-          <div class="border-t border-gray-200 my-1"></div>
+          <div class="border-t border-[var(--color-border)] my-1"></div>
 
           <!-- Copy Coordinates -->
           <button
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+              class="w-full text-left px-4 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] flex items-center gap-2 transition-colors"
               @click="copyCoordinates"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,7 +488,7 @@ onBeforeUnmount(() => {
 
           <!-- Copy Address -->
           <button
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+              class="w-full text-left px-4 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] flex items-center gap-2 transition-colors"
               @click="copyAddress"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -503,7 +503,7 @@ onBeforeUnmount(() => {
           <!-- Share Location -->
           <button
               v-if="canShare"
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+              class="w-full text-left px-4 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] flex items-center gap-2 transition-colors"
               @click="shareLocation"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -518,7 +518,7 @@ onBeforeUnmount(() => {
           <!-- QR Code (only if enabled) -->
           <button
               v-if="showQRCode"
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+              class="w-full text-left px-4 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] flex items-center gap-2 transition-colors"
               @click="showMapMenu = false; showQRCodeModal = true"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -537,14 +537,14 @@ onBeforeUnmount(() => {
     <Teleport to="body">
       <div
           v-if="showQRCodeModal && mapCoordinates && showQRCode"
-          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          class="glass-scrim fixed inset-0 flex items-center justify-center z-50 p-4"
           @click="showQRCodeModal = false"
       >
         <div class="bg-white rounded-lg md:rounded-xl p-4 md:p-6 max-w-md w-full mx-4" @click.stop>
           <div class="flex justify-between items-center mb-3 md:mb-4">
-            <h3 class="text-base md:text-lg font-semibold text-gray-900">QR-Code für Standort</h3>
+            <h3 class="text-base md:text-lg font-semibold text-[var(--color-text)]">QR-Code für Standort</h3>
             <button
-                class="text-gray-400 hover:text-gray-600 transition-colors"
+                class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors"
                 @click="showQRCodeModal = false"
             >
               <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -556,9 +556,9 @@ onBeforeUnmount(() => {
             <div
                 class="bg-white p-3 md:p-4 rounded-lg min-h-[200px] md:min-h-[256px] min-w-[200px] md:min-w-[256px] flex items-center justify-center">
               <canvas ref="qrCodeRef" class="max-w-full max-h-full"></canvas>
-              <div v-if="!mapCoordinates" class="text-gray-400 text-xs md:text-sm absolute">Lade Standort...</div>
+              <div v-if="!mapCoordinates" class="text-[var(--color-text-subtle)] text-xs md:text-sm absolute">Lade Standort...</div>
             </div>
-            <p class="text-xs md:text-sm text-gray-600 text-center">
+            <p class="text-xs md:text-sm text-[var(--color-text-muted)] text-center">
               Scannen Sie den QR-Code, um den Standort in Google Maps zu öffnen
             </p>
           </div>

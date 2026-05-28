@@ -232,28 +232,27 @@ fetchConditions()
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row min-h-screen">
+  <div class="flex flex-col lg:flex-row min-h-0">
     <!-- Desktop sidebar (lg and up) -->
     <aside
         v-if="!(activeTab === 'statistics' && statisticsTableOnly)"
-        class="hidden lg:block w-64 flex-shrink-0 bg-gray-100 border-r p-4 space-y-2"
+        class="hidden lg:block glass-sidebar-panel liquid-surface-inner border-r border-[var(--color-sidebar-border)] space-y-1"
     >
       <button
           v-for="item in adminMenuItems"
           :key="item.key"
           type="button"
-          class="w-full text-left px-3 py-2 rounded text-sm"
+          class="glass-nav-link nav-link w-full"
           :class="{
-          'bg-white font-semibold shadow': activeTab === item.key,
-          'opacity-50 cursor-not-allowed bg-gray-100': (item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item),
-          'hover:bg-gray-200': isTabAvailable(item)
+          'glass-nav-link--active': activeTab === item.key,
+          'opacity-50 cursor-not-allowed': (item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item),
         }"
           :disabled="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)"
           :title="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item) ? `${item.label} ist nur auf Dev oder lokal verfügbar` : ''"
           @click="isTabAvailable(item) && (activeTab = item.key)"
       >
         {{ item.icon }} {{ item.label }}
-        <span v-if="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)" class="ml-2 text-xs text-gray-500">{{
+        <span v-if="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)" class="ml-2 text-xs text-[var(--color-text-subtle)]">{{
             item.devSuffix
           }}</span>
       </button>
@@ -263,22 +262,21 @@ fetchConditions()
     <div class="flex-1 flex flex-col min-w-0">
       <!-- Mobile admin menu dropdown (below nav bar) -->
       <div
-          class="lg:hidden sticky z-40 bg-gray-100 border-b border-gray-200 shadow-sm"
-          style="top: var(--app-nav-height, 52px);"
+          class="lg:hidden sticky z-40 bg-[var(--color-bg-muted)] border-b border-[var(--color-border)] shadow-sm top-0"
       >
         <Menu as="div" class="relative">
           <MenuButton
-              class="flex items-center justify-between w-full px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
+              class="flex items-center justify-between w-full px-4 py-3 text-left text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]/80 transition-colors"
           >
             <span>{{ currentMenuLabel }}</span>
-            <svg class="w-5 h-5 text-gray-500 flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-5 h-5 text-[var(--color-text-subtle)] flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd"
                     d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                     clip-rule="evenodd"/>
             </svg>
           </MenuButton>
           <MenuItems
-              class="absolute left-0 right-0 z-50 mt-0 max-h-[min(70vh,400px)] overflow-y-auto bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border-b border-gray-200"
+              class="absolute left-0 right-0 z-50 mt-0 max-h-[min(70vh,400px)] overflow-y-auto glass-dropdown focus:outline-none"
           >
             <div class="py-1">
               <MenuItem
@@ -292,14 +290,14 @@ fetchConditions()
                     :class="[
                     'w-full text-left px-4 py-3 text-sm flex items-center gap-2',
                     active ? 'bg-blue-50' : '',
-                    activeTab === item.key ? 'font-semibold bg-gray-100' : '',
+                    activeTab === item.key ? 'font-semibold bg-[var(--color-bg-muted)]' : '',
                     (item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item) ? 'opacity-50 cursor-not-allowed' : ''
                   ]"
                     @click="isTabAvailable(item) && (activeTab = item.key)"
                 >
                   <span>{{ item.icon }} {{ item.label }}</span>
                   <span v-if="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)"
-                        class="text-xs text-gray-500">{{ item.devSuffix }}</span>
+                        class="text-xs text-[var(--color-text-subtle)]">{{ item.devSuffix }}</span>
                   <span v-if="activeTab === item.key" class="ml-auto text-blue-600">✓</span>
                 </button>
               </MenuItem>
@@ -317,7 +315,7 @@ fetchConditions()
           <div
               v-for="(cond, index) in conditions"
               :key="cond.id || index"
-              class="flex items-center justify-center gap-4 px-3 py-2 rounded bg-white hover:bg-gray-200"
+              class="flex items-center justify-center gap-4 px-3 py-2 rounded glass-row-item hover:bg-[var(--color-bg-hover)]"
           >
             <Multiselect
                 v-model="cond.parameter"
@@ -382,9 +380,9 @@ fetchConditions()
 
           <div class="space-y-6">
             <!-- Regional Partner Sync -->
-            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="glass-surface-lg border border-[var(--color-border)]">
               <h3 class="text-lg font-semibold mb-2">Regional Partner synchronisieren</h3>
-              <p class="text-gray-600 mb-4">
+              <p class="text-[var(--color-text-muted)] mb-4">
                 Synchronisiert alle Regional Partner aus DRAHT in die Datenbank.
                 Bestehende Regional Partner werden aktualisiert, neue werden hinzugefügt.
               </p>
@@ -397,9 +395,9 @@ fetchConditions()
             </div>
 
             <!-- Events Sync -->
-            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="glass-surface-lg border border-[var(--color-border)]">
               <h3 class="text-lg font-semibold mb-2">Events synchronisieren</h3>
-              <p class="text-gray-600 mb-4">
+              <p class="text-[var(--color-text-muted)] mb-4">
                 Synchronisiert alle Events aus DRAHT in die Datenbank.
                 Bestehende Events werden aktualisiert, neue werden hinzugefügt.
               </p>
@@ -412,9 +410,9 @@ fetchConditions()
             </div>
 
             <!-- Temporary for testing: Update match schedule from Contao -->
-            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="glass-surface-lg border border-[var(--color-border)]">
               <h3 class="text-lg font-semibold mb-2">Teams in Finalrunden aus Contao laden</h3>
-              <p class="text-gray-600 mb-4">
+              <p class="text-[var(--color-text-muted)] mb-4">
                 Dieser Button ist hier, damit man die Funktion gut auf dev testen kann. Kommt bald wieder weg :)
               </p>
               <div class="flex items-center gap-2">
@@ -475,7 +473,7 @@ fetchConditions()
               <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
               <div
                   class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
-              <span class="ml-2 text-sm font-medium text-gray-700">Nur Tabelle</span>
+              <span class="ml-2 text-sm font-medium text-[var(--color-text-muted)]">Nur Tabelle</span>
             </label>
           </div>
           <statistics :table-only="statisticsTableOnly"/>
@@ -494,16 +492,16 @@ fetchConditions()
 
           <div class="space-y-6">
             <!-- Regenerate Public Links -->
-            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="glass-surface-lg border border-[var(--color-border)]">
               <h3 class="text-lg font-semibold mb-2">Öffentliche Links regenerieren</h3>
-              <p class="text-gray-600 mb-4">
+              <p class="text-[var(--color-text-muted)] mb-4">
                 Regeneriert alle öffentlichen Links und QR-Codes für alle Events einer ausgewählten Saison.
                 Dies erstellt neue Links und QR-Codes und aktualisiert sie auch in DRAHT.
               </p>
               <div class="flex items-center gap-4">
                 <select
                     v-model="selectedSeason"
-                    class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-4 py-2 border border-[var(--color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     :disabled="regeneratingLinks"
                 >
                   <option :value="null">-- Saison auswählen --</option>
@@ -526,12 +524,12 @@ fetchConditions()
             </div>
 
             <!-- Logo Cleanup -->
-            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="glass-surface-lg border border-[var(--color-border)]">
               <h3 class="text-lg font-semibold mb-2">Logo-Bereinigung</h3>
-              <p class="text-gray-600 mb-2">
+              <p class="text-[var(--color-text-muted)] mb-2">
                 Diese Funktion bereinigt verwaiste Logos:
               </p>
-              <ul class="list-disc list-inside mb-4 space-y-1 text-sm text-gray-600">
+              <ul class="list-disc list-inside mb-4 space-y-1 text-sm text-[var(--color-text-muted)]">
                 <li>Löscht Datenbankeinträge, deren Dateien nicht mehr auf dem Server existieren</li>
                 <li>Löscht Dateien ohne zugehörigen Datenbankeintrag (nur hochgeladene Logos, keine System-Logos)</li>
               </ul>

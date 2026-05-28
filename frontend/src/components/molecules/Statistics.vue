@@ -346,7 +346,7 @@ const modalState = ref<{
 const badgeClass = (n) =>
   n > 0
     ? 'bg-red-100 text-red-800 border border-red-300'
-    : 'bg-gray-100 text-gray-700 border border-gray-300'
+    : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] border border-[var(--color-border)]'
 
 const publicationTotals = computed(() => ({
   total: totals.value?.publication_totals?.total ?? 0,
@@ -576,7 +576,7 @@ function getLastChangeClass(timestamp: string | null): string {
   } else if (hours <= 72) {
     return 'bg-blue-400 text-white' // Medium blue - last 72 hours
   } else if (hours <= 168) {
-    return 'bg-blue-200 text-gray-800' // Lightest blue - last 7 days
+    return 'bg-blue-200 text-[var(--color-text)]' // Lightest blue - last 7 days
   }
   return '' // No highlight for older changes
 }
@@ -834,7 +834,7 @@ function exportToCSV() {
 
 <template>
   <div>
-    <div v-if="loading" class="text-gray-500">Lade Daten …</div>
+    <div v-if="loading" class="text-[var(--color-text-subtle)]">Lade Daten …</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
       <!-- Global orphans -->
@@ -910,48 +910,48 @@ function exportToCSV() {
         <!-- Season totals (5 boxes) -->
         <div v-if="!props.tableOnly" class="mb-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
           <!-- Box 1: regional partners -->
-          <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
-            <div class="flex justify-between text-gray-700">
+          <div class="glass-row-item p-2 space-y-0.5 flex-col items-stretch">
+            <div class="flex justify-between text-[var(--color-text-muted)]">
               <span>Regionalpartner</span>
               <span class="font-semibold">{{ seasonTotals.rp_total }}</span>
             </div>
-            <div class="flex justify-between text-gray-700">
+            <div class="flex justify-between text-[var(--color-text-muted)]">
               <span>mit Event</span>
               <span class="font-semibold">{{ seasonTotals.rp_with_events }}</span>
             </div>
           </div>
 
           <!-- Box 2: past events -->
-          <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
-            <div class="flex justify-between text-gray-700">
+          <div class="glass-row-item p-2 space-y-0.5 flex-col items-stretch">
+            <div class="flex justify-between text-[var(--color-text-muted)]">
               <span>Events: Vergangenheit</span>
               <span class="font-semibold">{{ seasonTotals.events_past }}</span>
             </div>
-            <div class="flex justify-between text-gray-700">
+            <div class="flex justify-between text-[var(--color-text-muted)]">
               <span>mit generiertem Plan</span>
               <span class="font-semibold">{{ seasonTotals.events_with_plan_with_generator_past }}</span>
             </div>
           </div>
 
           <!-- Box 3: future events -->
-          <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
-            <div class="flex justify-between text-gray-700">
+          <div class="glass-row-item p-2 space-y-0.5 flex-col items-stretch">
+            <div class="flex justify-between text-[var(--color-text-muted)]">
               <span>Events: Zukunft</span>
               <span class="font-semibold">{{ seasonTotals.events_future }}</span>
             </div>
-            <div class="flex justify-between text-gray-700">
+            <div class="flex justify-between text-[var(--color-text-muted)]">
               <span>mit generiertem Plan</span>
               <span class="font-semibold">{{ seasonTotals.events_with_plan_with_generator_future }}</span>
             </div>
           </div>
 
         <!-- Box 4: plans & activities -->
-        <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
-          <div class="flex justify-between text-gray-700">
+        <div class="glass-row-item p-2 space-y-0.5 flex-col items-stretch">
+          <div class="flex justify-between text-[var(--color-text-muted)]">
             <span>Pläne</span>
             <span class="font-semibold">{{ formatNumber(seasonTotals.plans_total) }}</span>
           </div>
-          <div class="flex justify-between text-gray-700">
+          <div class="flex justify-between text-[var(--color-text-muted)]">
             <span>ActGroups | Activities</span>
             <span class="font-semibold">
               {{ formatNumber(seasonTotals.activity_groups_total) }} | {{ formatNumber(seasonTotals.activities_total) }}
@@ -960,12 +960,12 @@ function exportToCSV() {
         </div>
 
         <!-- Box 5: Publications -->
-        <div class="bg-white border rounded shadow-sm p-2 space-y-0.5">
-          <div class="flex justify-between text-gray-700">
+        <div class="glass-row-item p-2 space-y-0.5 flex-col items-stretch">
+          <div class="flex justify-between text-[var(--color-text-muted)]">
             <span>Veröffentlichte Pläne</span>
             <span class="font-semibold">{{ formatNumber(publicationTotals.total) }}</span>
           </div>
-          <div class="flex justify-between text-gray-700">
+          <div class="flex justify-between text-[var(--color-text-muted)]">
             <span>Level 1 | 2 | 3 | 4</span>
             <span class="font-semibold">
               {{ formatNumber(publicationTotals.level_1) }} | {{ formatNumber(publicationTotals.level_2) }} | {{ formatNumber(publicationTotals.level_3) }} | {{ formatNumber(publicationTotals.level_4) }}
@@ -990,7 +990,7 @@ function exportToCSV() {
               <div
                 class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
               ></div>
-              <span class="ml-2 text-sm font-medium text-gray-700">Vergangenheit ausblenden</span>
+              <span class="ml-2 text-sm font-medium text-[var(--color-text-muted)]">Vergangenheit ausblenden</span>
             </label>
             
             <!-- Toggle 2: Show only next 14 days -->
@@ -1004,7 +1004,7 @@ function exportToCSV() {
               <div
                 class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
               ></div>
-              <span class="ml-2 text-sm font-medium text-gray-700">Nur die nächsten 14 Tage</span>
+              <span class="ml-2 text-sm font-medium text-[var(--color-text-muted)]">Nur die nächsten 14 Tage</span>
             </label>
           </div>
           
@@ -1030,9 +1030,9 @@ function exportToCSV() {
       </div>
 
       <!-- Table -->
-      <div class="border border-gray-300 bg-white rounded shadow-sm overflow-hidden">
-        <div class="flex justify-between items-center p-2 bg-gray-50 border-b">
-          <div class="text-xs text-gray-600 flex items-center gap-4 flex-wrap">
+      <div class="glass-card liquid-surface-inner overflow-hidden">
+        <div class="flex justify-between items-center p-2 bg-[var(--color-bg-muted)] border-b">
+          <div class="text-xs text-[var(--color-text-muted)] flex items-center gap-4 flex-wrap">
             <span class="flex items-center gap-1">
               <div class="w-2 h-2 bg-red-500 rounded-full"></div>
               <span>= Event benötigt Aufmerksamkeit (Ablauf/Teams/Räume)</span>
@@ -1051,7 +1051,7 @@ function exportToCSV() {
         </div>
         <div class="max-h-[60vh] overflow-y-auto">
           <table class="min-w-full text-sm">
-            <thead class="bg-gray-100 text-left sticky top-0 z-10">
+            <thead class="bg-[var(--color-bg-muted)] text-left sticky top-0 z-10">
               <tr>
                 <th class="px-3 py-2">RP</th>
                 <th class="px-3 py-2 w-24">Partner</th>
@@ -1071,10 +1071,10 @@ function exportToCSV() {
         <tr
             v-for="(row, index) in filteredRows"
           :key="`${row.partner_id}-${row.event_id}-${row.plan_id}`"
-          class="border-t border-gray-200 hover:bg-gray-50"
+          class="border-t border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]"
         >
           <!-- RP ID -->
-          <td class="px-3 py-2 text-gray-400">
+          <td class="px-3 py-2 text-[var(--color-text-subtle)]">
             <template v-if="shouldShowPartner(index)">
               {{ row.partner_id }}
             </template>
@@ -1104,7 +1104,7 @@ function exportToCSV() {
           </td>
 
           <!-- Event ID -->
-          <td class="px-3 py-2 text-gray-400">
+          <td class="px-3 py-2 text-[var(--color-text-subtle)]">
             <template v-if="shouldShowEvent(index)">
               {{ row.event_id }}
             </template>
@@ -1141,7 +1141,7 @@ function exportToCSV() {
               >
                 {{ row.event_name }}
               </a>
-              <span class="text-gray-500 ml-1">({{ formatDateOnly(row.event_date) }})</span>
+              <span class="text-[var(--color-text-subtle)] ml-1">({{ formatDateOnly(row.event_date) }})</span>
               <span
                 v-if="row.event_needs_attention"
                 class="inline-block w-2 h-2 bg-red-500 rounded-full ml-1 align-middle"
@@ -1157,7 +1157,7 @@ function exportToCSV() {
                     :alt="programLogoAlt('E')"
                     class="w-5 h-5 inline-block align-middle"
                   />
-                  <span class="text-xs text-gray-600 ml-1">
+                  <span class="text-xs text-[var(--color-text-muted)] ml-1">
                     {{ row.event_teams_explore ?? 0 }}
                   </span>
                 </template>
@@ -1167,7 +1167,7 @@ function exportToCSV() {
                     :alt="programLogoAlt('C')"
                     class="w-5 h-5 inline-block align-middle ml-2"
                   />
-                  <span class="text-xs text-gray-600 ml-1">
+                  <span class="text-xs text-[var(--color-text-muted)] ml-1">
                     {{ row.event_teams_challenge ?? 0 }}
                   </span>
                 </template>
@@ -1179,7 +1179,7 @@ function exportToCSV() {
           </td>
 
           <!-- Plan ID + buttons -->
-          <td class="px-3 py-2 text-gray-400">
+          <td class="px-3 py-2 text-[var(--color-text-subtle)]">
             <div class="flex flex-col items-start">
               <div class="flex items-center gap-1">
                 <span>{{ row.plan_id }}<template v-if="row.plan_id && row.e_mode !== undefined && row.e_mode !== null"> E{{ row.e_mode }}</template></span>
@@ -1345,7 +1345,7 @@ function exportToCSV() {
         </div>
       </div>
 
-      <div v-if="filteredRows.length === 0" class="mt-4 text-gray-500 italic">
+      <div v-if="filteredRows.length === 0" class="mt-4 text-[var(--color-text-subtle)] italic">
         <template v-if="flattenedRows.length === 0">
           Keine Pläne in dieser Saison.
         </template>
@@ -1359,7 +1359,7 @@ function exportToCSV() {
 
   <!-- Modals -->
   <teleport to="body">
-    <div v-if="modalState.visible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div v-if="modalState.visible" class="glass-scrim fixed inset-0 flex items-center justify-center z-50">
       <!-- Expert Parameters Modal -->
       <StatisticsExpertParametersModal
         v-if="modalState.mode === 'non-default-parameters' && modalState.planId"

@@ -564,7 +564,7 @@ const teamsPerJuryHint2 = computed(() => {
 </script>
 
 <template>
-  <div class="p-4 border rounded shadow relative min-w-0">
+  <div class="glass-card liquid-surface-inner relative min-w-0">
     <div class="flex items-center gap-2 mb-4 justify-between flex-wrap">
       <div class="flex items-center gap-2 min-w-0 flex-1">
         <img
@@ -634,9 +634,9 @@ const teamsPerJuryHint2 = computed(() => {
                 :value="option.value"
             >
               <button
-                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                  :class="checked ? 'ring-1 ring-gray-500 bg-[var(--color-bg-muted)]' : 'hover:border-gray-400'"
                   class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                   type="button"
               >
                 {{ option.label }}
@@ -655,9 +655,9 @@ const teamsPerJuryHint2 = computed(() => {
                 v-slot="{ checked }"
             >
               <button
-                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                  :class="checked ? 'ring-1 ring-gray-500 bg-[var(--color-bg-muted)]' : 'hover:border-gray-400'"
                   class="px-2 py-1 rounded-md border text-sm transition
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                   type="button"
               >
                 ja
@@ -668,9 +668,9 @@ const teamsPerJuryHint2 = computed(() => {
                 v-slot="{ checked }"
             >
               <button
-                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                  :class="checked ? 'ring-1 ring-gray-500 bg-[var(--color-bg-muted)]' : 'hover:border-gray-400'"
                   class="px-2 py-1 rounded-md border text-sm transition
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                   type="button"
               >
                 nein
@@ -683,7 +683,7 @@ const teamsPerJuryHint2 = computed(() => {
     </div>
 
     <!-- Message when explore is disabled -->
-    <div v-else class="text-center py-8 text-gray-500">
+    <div v-else class="text-center py-8 text-[var(--color-text-subtle)]">
       <div class="text-lg font-medium mb-2"><span class="italic">FIRST</span> LEGO League Explore ist deaktiviert</div>
       <div class="text-sm">Aktiviere den Schalter oben rechts, um <span class="italic">FIRST</span> LEGO League Explore-Einstellungen zu konfigurieren.</div>
     </div>
@@ -708,7 +708,7 @@ const teamsPerJuryHint2 = computed(() => {
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
                 class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                 type="button"
             >
               {{ n }}
@@ -720,7 +720,7 @@ const teamsPerJuryHint2 = computed(() => {
             <span class="text-sm font-medium break-words">Gutachter:innen-Gruppen</span>
             <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
           </div>
-          <span class="text-xs text-gray-500 italic break-words">{{ teamsPerJuryHint1 }}</span>
+          <span class="text-xs text-[var(--color-text-subtle)] italic break-words">{{ teamsPerJuryHint1 }}</span>
         </div>
       </div>
     </div>
@@ -743,7 +743,7 @@ const teamsPerJuryHint2 = computed(() => {
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
                 class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                 type="button"
             >
               {{ n }}
@@ -755,7 +755,7 @@ const teamsPerJuryHint2 = computed(() => {
             <span class="text-sm font-medium break-words">Gutachter:innen-Gruppen</span>
             <InfoPopover :text="paramMapByName['e2_lanes']?.ui_description"/>
           </div>
-          <span class="text-xs text-gray-500 italic break-words">{{ teamsPerJuryHint2 }}</span>
+          <span class="text-xs text-[var(--color-text-subtle)] italic break-words">{{ teamsPerJuryHint2 }}</span>
         </div>
       </div>
     </div>
@@ -775,7 +775,7 @@ const teamsPerJuryHint2 = computed(() => {
       </div>
 
       <!-- Two columns for AM and PM -->
-      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 text-gray-800">
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 text-[var(--color-text)]">
         <!-- AM -->
         <div :class="(eMode === 4 || eMode === 7 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
           <div class="text-sm font-medium mb-1">
@@ -797,7 +797,7 @@ const teamsPerJuryHint2 = computed(() => {
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
                     class="px-2 py-1 rounded-md border text-sm transition
-                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                     type="button"
                 >
                   {{ n }}
@@ -812,7 +812,7 @@ const teamsPerJuryHint2 = computed(() => {
                   <span class="text-sm font-medium break-words">Gutacher:innen-Gruppen</span>
                   <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
                 </div>
-                <span class="text-xs text-gray-500 italic break-words">
+                <span class="text-xs text-[var(--color-text-subtle)] italic break-words">
                 {{ teamsPerJuryHint1 }}
               </span>
               </div>
@@ -843,7 +843,7 @@ const teamsPerJuryHint2 = computed(() => {
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
                     class="px-2 py-1 rounded-md border text-sm transition
-                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                     type="button"
                 >
                   {{ n }}
@@ -858,7 +858,7 @@ const teamsPerJuryHint2 = computed(() => {
                   <span class="text-sm font-medium break-words">Gutacher:innen-Gruppen</span>
                   <InfoPopover :text="paramMapByName['e2_lanes']?.ui_description"/>
                 </div>
-                <span class="text-xs text-gray-500 italic break-words">
+                <span class="text-xs text-[var(--color-text-subtle)] italic break-words">
                 {{ teamsPerJuryHint2 }}
               </span>
               </div>

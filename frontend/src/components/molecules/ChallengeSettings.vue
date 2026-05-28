@@ -260,7 +260,7 @@ const teamsPerJuryHint = computed(() => {
 </script>
 
 <template>
-  <div class="p-4 border rounded shadow relative min-w-0">
+  <div class="glass-card liquid-surface-inner relative min-w-0">
     <div class="flex items-center gap-2 mb-4 justify-between flex-wrap">
       <div class="flex items-center gap-2 min-w-0 flex-1">
         <img
@@ -322,7 +322,7 @@ const teamsPerJuryHint = computed(() => {
                       'after:text-emerald-700 after/rounded after:content-[\'Empfohlen\']' : ''
                   ]"
                   class="relative px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                   type="button"
               >
                 {{ n }}
@@ -332,12 +332,12 @@ const teamsPerJuryHint = computed(() => {
 
           <span class="text-sm font-medium whitespace-nowrap">Jurygruppe(n)</span>
           <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
-          <span class="text-xs text-gray-500 italic break-words">
+          <span class="text-xs text-[var(--color-text-subtle)] italic break-words">
             {{ teamsPerJuryHint }}
           </span>
         </div>
 
-        <p v-if="cTeams && allowedJuryLanes.length === 0" class="text-xs text-gray-500 mt-1">
+        <p v-if="cTeams && allowedJuryLanes.length === 0" class="text-xs text-[var(--color-text-subtle)] mt-1">
           Keine gültigen Spurenzahlen für die aktuelle Teamanzahl.
         </p>
 
@@ -362,7 +362,7 @@ const teamsPerJuryHint = computed(() => {
                     disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                   ]"
                   class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                   type="button"
                   @click="!disabled && updateByName('r_tables', tb)"
               >
@@ -390,7 +390,7 @@ const teamsPerJuryHint = computed(() => {
     </template>
 
     <!-- Message when challenge is disabled -->
-    <div v-else class="text-center py-8 text-gray-500">
+    <div v-else class="text-center py-8 text-[var(--color-text-subtle)]">
       <div class="text-lg font-medium mb-2"><span class="italic">FIRST</span> LEGO League Challenge ist deaktiviert</div>
       <div class="text-sm">Aktiviere den Schalter oben rechts, um <span class="italic">FIRST</span> LEGO League Challenge-Einstellungen zu konfigurieren.</div>
     </div>

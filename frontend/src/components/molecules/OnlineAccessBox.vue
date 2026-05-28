@@ -223,7 +223,7 @@ async function regenerateLinkAndQR() {
 <template>
   <SavingToast ref="saving" message="Publikations-Level wird gespeichert..." />
 
-  <div class="rounded-xl shadow bg-white p-6 space-y-4" style="overflow-anchor: none;">
+  <div class="glass-surface-lg space-y-4" style="overflow-anchor: none;">
     <h2 class="text-lg font-semibold">Online – von der Planung bis zur Veranstaltung</h2>
 
     <!-- Link + Erklärung -->
@@ -238,7 +238,7 @@ async function regenerateLinkAndQR() {
         >
           {{ event?.link }}
         </a>
-        <p class="text-sm text-gray-600 mt-1">
+        <p class="text-sm text-[var(--color-text-muted)] mt-1">
           gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
         </p>
       </div>
@@ -281,10 +281,10 @@ async function regenerateLinkAndQR() {
               {{ label.split(' ')[0] }} <br />
               {{ label.split(' ').slice(1).join(' ') }}
             </span>
-            <span v-if="idx === 1" class="text-xs text-gray-500 italic mt-1" style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+            <span v-if="idx === 1" class="text-xs text-[var(--color-text-subtle)] italic mt-1" style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
               sinnvoll, sobald der Plan grob fertig ist
             </span>
-            <span v-if="idx === 2" class="text-xs text-gray-500 italic mt-1" style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+            <span v-if="idx === 2" class="text-xs text-[var(--color-text-subtle)] italic mt-1" style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
               nur nutzen, wenn der Plan komplett ist
             </span>
           </div>
@@ -323,22 +323,22 @@ async function regenerateLinkAndQR() {
                   <!-- Left column: Datum, Adresse, Kontakt -->
                   <div>
                     <div class="font-semibold mb-1">Datum</div>
-                    <div v-if="scheduleInfo.date" class="text-gray-700 mb-3">{{ formatDateOnly(scheduleInfo.date) }}</div>
-                    <div v-else class="text-gray-400 mb-3 italic">–</div>
+                    <div v-if="scheduleInfo.date" class="text-[var(--color-text-muted)] mb-3">{{ formatDateOnly(scheduleInfo.date) }}</div>
+                    <div v-else class="text-[var(--color-text-subtle)] mb-3 italic">–</div>
                     
                     <div class="font-semibold mb-1">Adresse</div>
-                    <div v-if="scheduleInfo.address" class="text-gray-700 mb-3 whitespace-pre-line text-xs">{{ scheduleInfo.address }}</div>
-                    <div v-else class="text-gray-400 mb-3 italic text-xs">–</div>
+                    <div v-if="scheduleInfo.address" class="text-[var(--color-text-muted)] mb-3 whitespace-pre-line text-xs">{{ scheduleInfo.address }}</div>
+                    <div v-else class="text-[var(--color-text-subtle)] mb-3 italic text-xs">–</div>
                     
                     <div class="font-semibold mb-1">Kontakt</div>
-                    <div v-if="scheduleInfo.contact && scheduleInfo.contact.length > 0" class="text-gray-700 mb-3 text-xs">
+                    <div v-if="scheduleInfo.contact && scheduleInfo.contact.length > 0" class="text-[var(--color-text-muted)] mb-3 text-xs">
                       <div v-for="(contact, contactIdx) in scheduleInfo.contact" :key="contactIdx" class="mb-1">
                         <div class="font-medium">{{ contact.contact }}</div>
-                        <div v-if="contact.contact_email" class="text-gray-600">{{ contact.contact_email }}</div>
-                        <div v-if="contact.contact_infos" class="text-gray-500">{{ contact.contact_infos }}</div>
+                        <div v-if="contact.contact_email" class="text-[var(--color-text-muted)]">{{ contact.contact_email }}</div>
+                        <div v-if="contact.contact_infos" class="text-[var(--color-text-subtle)]">{{ contact.contact_infos }}</div>
                       </div>
                     </div>
-                    <div v-else class="text-gray-400 mb-3 italic text-xs">–</div>
+                    <div v-else class="text-[var(--color-text-subtle)] mb-3 italic text-xs">–</div>
                   </div>
                   
                   <!-- Right column: Angemeldete Teams -->
@@ -354,12 +354,12 @@ async function regenerateLinkAndQR() {
                           />
                           <span class="italic">FIRST</span> LEGO League Explore
                         </div>
-                        <div class="text-gray-600 text-xs font-normal mb-2 pl-7">
+                        <div class="text-[var(--color-text-muted)] text-xs font-normal mb-2 pl-7">
                           {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet
                         </div>
-                        <div v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0" class="text-gray-600 pl-2 text-xs">
+                        <div v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0" class="text-[var(--color-text-muted)] pl-2 text-xs">
                           <span v-for="(team, teamIdx) in scheduleInfo.teams.explore.list" :key="teamIdx">
-                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span><span v-if="teamIdx < scheduleInfo.teams.explore.list.length - 1">, </span>
+                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-[var(--color-text-subtle)]"> ({{ team.team_number_hot }})</span><span v-if="teamIdx < scheduleInfo.teams.explore.list.length - 1">, </span>
                           </span>
                         </div>
                       </div>
@@ -372,17 +372,17 @@ async function regenerateLinkAndQR() {
                           />
                           <span class="italic">FIRST</span> LEGO League Challenge
                         </div>
-                        <div class="text-gray-600 text-xs font-normal mb-2 pl-7">
+                        <div class="text-[var(--color-text-muted)] text-xs font-normal mb-2 pl-7">
                           {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet
                         </div>
-                        <div v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0" class="text-gray-600 pl-2 text-xs">
+                        <div v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0" class="text-[var(--color-text-muted)] pl-2 text-xs">
                           <span v-for="(team, teamIdx) in scheduleInfo.teams.challenge.list" :key="teamIdx">
-                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-gray-500"> ({{ team.team_number_hot }})</span><span v-if="teamIdx < scheduleInfo.teams.challenge.list.length - 1">, </span>
+                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-[var(--color-text-subtle)]"> ({{ team.team_number_hot }})</span><span v-if="teamIdx < scheduleInfo.teams.challenge.list.length - 1">, </span>
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div v-else class="text-gray-400 italic text-xs">–</div>
+                    <div v-else class="text-[var(--color-text-subtle)] italic text-xs">–</div>
                   </div>
                 </div>
               </template>
@@ -405,7 +405,7 @@ async function regenerateLinkAndQR() {
                     </div>
                     <div class="space-y-1 text-xs">
                       <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore_morning" :key="timeIdx" class="flex justify-between">
-                        <span class="text-gray-600">{{ timeEntry.label }}</span>
+                        <span class="text-[var(--color-text-muted)]">{{ timeEntry.label }}</span>
                         <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
                       </div>
                     </div>
@@ -422,7 +422,7 @@ async function regenerateLinkAndQR() {
                     </div>
                     <div class="space-y-1 text-xs">
                       <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore_afternoon" :key="timeIdx" class="flex justify-between">
-                        <span class="text-gray-600">{{ timeEntry.label }}</span>
+                        <span class="text-[var(--color-text-muted)]">{{ timeEntry.label }}</span>
                         <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
                       </div>
                     </div>
@@ -441,7 +441,7 @@ async function regenerateLinkAndQR() {
                   </div>
                   <div class="space-y-1 text-xs">
                     <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore" :key="timeIdx" class="flex justify-between">
-                      <span class="text-gray-600">{{ timeEntry.label }}</span>
+                      <span class="text-[var(--color-text-muted)]">{{ timeEntry.label }}</span>
                       <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
                     </div>
                   </div>
@@ -459,7 +459,7 @@ async function regenerateLinkAndQR() {
                   </div>
                   <div class="space-y-1 text-xs">
                     <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.challenge" :key="timeIdx" class="flex justify-between">
-                      <span class="text-gray-600">{{ timeEntry.label }}</span>
+                      <span class="text-[var(--color-text-muted)]">{{ timeEntry.label }}</span>
                       <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
                     </div>
                   </div>

@@ -331,7 +331,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="bg-white shadow-sm rounded-xl border border-gray-200">
+  <div class="liquid-surface-inner rounded-xl">
     <div class="flex items-center gap-2 mb-2">
           <img
           :src="programLogoSrc('C')"
@@ -344,17 +344,17 @@ defineExpose({
     </div>
     
     
-    <div class="px-4 py-3 border-b border-gray-100">
-      <h3 class="text-sm font-semibold text-gray-700">
+    <div class="px-4 py-3 border-b border-[var(--color-border)]">
+      <h3 class="text-sm font-semibold text-[var(--color-text-muted)]">
         Die Blöcke werden <em>nach</em> dem angegebenen Zeitpunkt eingeschoben.
       </h3>
-      <p class="text-xs text-gray-500 mt-1">
+      <p class="text-xs text-[var(--color-text-subtle)] mt-1">
         Diese Blöcke verändern direkt die Zeiten im Robot-Game. Die Jury-Runden werden davon nur indirekt beeinflusst. 
       </p>
     </div>
     <!-- Mobile: card layout -->
     <div class="md:hidden">
-      <div v-if="visibleInsertPoints.length" class="divide-y divide-gray-100">
+      <div v-if="visibleInsertPoints.length" class="divide-y divide-[var(--color-border)]">
         <div v-for="p in visibleInsertPoints" :key="`mobile_${p.id}`" class="px-4 py-3 space-y-3">
           <div class="flex items-start justify-between gap-3">
             <label class="inline-flex items-start space-x-3 min-w-0">
@@ -362,7 +362,7 @@ defineExpose({
                   :model-value="isPointEnabled(p.id)"
                   @update:modelValue="togglePoint(p, $event)"
               />
-              <span class="text-gray-900 min-w-0">
+              <span class="text-[var(--color-text)] min-w-0">
                 <span class="font-medium break-words">{{ p.ui_label }}</span>
                 <InfoPopover v-if="p.ui_description" :text="p.ui_description"/>
               </span>
@@ -376,12 +376,12 @@ defineExpose({
 
           <div class="grid grid-cols-3 gap-2">
             <div>
-              <label class="block text-[11px] text-gray-500 mb-1">Davor</label>
+              <label class="block text-[11px] text-[var(--color-text-subtle)] mb-1">Davor</label>
               <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.buffer_before ?? ''"
                      :class="['w-full border rounded px-2 py-1 text-center text-sm',
                               isBlockEditable(p.id)
-                                ? 'bg-white border-gray-300'
-                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                                ? 'liquid-surface-control'
+                                : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                      min="5"
                      step="5"
                      type="number"
@@ -390,12 +390,12 @@ defineExpose({
               />
             </div>
             <div>
-              <label class="block text-[11px] text-gray-500 mb-1">Dauer</label>
+              <label class="block text-[11px] text-[var(--color-text-subtle)] mb-1">Dauer</label>
               <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.duration ?? ''"
                      :class="['w-full border rounded px-2 py-1 text-center text-sm',
                               isBlockEditable(p.id)
-                                ? 'bg-white border-gray-300'
-                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                                ? 'liquid-surface-control'
+                                : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                      min="5"
                      step="5"
                      type="number"
@@ -404,12 +404,12 @@ defineExpose({
               />
             </div>
             <div>
-              <label class="block text-[11px] text-gray-500 mb-1">Danach</label>
+              <label class="block text-[11px] text-[var(--color-text-subtle)] mb-1">Danach</label>
               <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.buffer_after ?? ''"
                      :class="['w-full border rounded px-2 py-1 text-center text-sm',
                               isBlockEditable(p.id)
-                                ? 'bg-white border-gray-300'
-                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                                ? 'liquid-surface-control'
+                                : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                      min="5"
                      step="5"
                      type="number"
@@ -421,39 +421,39 @@ defineExpose({
 
           <div class="space-y-2">
             <div>
-              <label class="block text-[11px] text-gray-500 mb-1">Titel</label>
+              <label class="block text-[11px] text-[var(--color-text-subtle)] mb-1">Titel</label>
               <input :disabled="!isBlockEditable(p.id)"
                      :value="fixedByPoint[p.id]?.name ?? ''"
                      :class="['w-full border rounded px-2 py-1 text-sm',
                               isBlockEditable(p.id)
-                                ? 'bg-white border-gray-300'
-                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                                ? 'liquid-surface-control'
+                                : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                      type="text"
                      @blur="onFixedTextBlur(p.id, 'name', $event)"
                      @input="onFixedTextInput(p.id, 'name', $event)"
               />
             </div>
             <div>
-              <label class="block text-[11px] text-gray-500 mb-1">Beschreibung</label>
+              <label class="block text-[11px] text-[var(--color-text-subtle)] mb-1">Beschreibung</label>
               <input :disabled="!isBlockEditable(p.id)"
                      :value="fixedByPoint[p.id]?.description ?? ''"
                      :class="['w-full border rounded px-2 py-1 text-sm',
                               isBlockEditable(p.id)
-                                ? 'bg-white border-gray-300'
-                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                                ? 'liquid-surface-control'
+                                : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                      type="text"
                      @blur="onFixedTextBlur(p.id, 'description', $event)"
                      @input="onFixedTextInput(p.id, 'description', $event)"
               />
             </div>
             <div>
-              <label class="block text-[11px] text-gray-500 mb-1">Link</label>
+              <label class="block text-[11px] text-[var(--color-text-subtle)] mb-1">Link</label>
               <input :disabled="!isBlockEditable(p.id)"
                      :value="fixedByPoint[p.id]?.link ?? ''"
                      :class="['w-full border rounded px-2 py-1 text-sm',
                               isBlockEditable(p.id)
-                                ? 'bg-white border-gray-300'
-                                : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                                ? 'liquid-surface-control'
+                                : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                      type="text"
                      @blur="onFixedTextBlur(p.id, 'link', $event)"
                      @input="onFixedTextInput(p.id, 'link', $event)"
@@ -462,14 +462,14 @@ defineExpose({
           </div>
         </div>
       </div>
-      <div v-else class="px-4 py-6 text-gray-500 text-center text-sm">Keine Einfügepunkte für dieses Level.</div>
+      <div v-else class="px-4 py-6 text-[var(--color-text-subtle)] text-center text-sm">Keine Einfügepunkte für dieses Level.</div>
     </div>
 
     <!-- Desktop: table layout -->
     <div class="hidden md:block overflow-x-auto">
       <table class="min-w-full text-sm">
         <thead>
-        <tr class="text-gray-500 text-xs uppercase tracking-wide">
+        <tr class="text-[var(--color-text-subtle)] text-xs uppercase tracking-wide">
           <th class="text-left px-4 py-2 w-64">Zeitpunkt</th>
           <th class="text-center px-2 py-2 w-20">Davor</th>
           <th class="text-center px-2 py-2 w-20">Dauer</th>
@@ -479,7 +479,7 @@ defineExpose({
           <th class="text-left px-2 py-2 w-64">Link</th>
         </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-[var(--color-border)]">
         <tr v-for="p in visibleInsertPoints" :key="p.id" class="border-b">
           <td class="px-4 py-2">
             <label class="inline-flex items-center space-x-3">
@@ -488,7 +488,7 @@ defineExpose({
                   @update:modelValue="togglePoint(p, $event)"
               />
 
-              <span class="text-gray-900">
+              <span class="text-[var(--color-text)]">
                 <span class="font-medium">{{ p.ui_label }}</span>
                   <InfoPopover v-if="p.ui_description" :text="p.ui_description"/>
               </span>
@@ -499,8 +499,8 @@ defineExpose({
             <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.buffer_before ?? ''"
                    :class="['w-16 border rounded px-2 py-1 text-center', 
                             isBlockEditable(p.id) 
-                              ? 'bg-white border-gray-300' 
-                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                              ? 'liquid-surface-control' 
+                              : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                    min="5"
                    step="5"
                    type="number"
@@ -514,8 +514,8 @@ defineExpose({
             <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.duration ?? ''"
                    :class="['w-16 border rounded px-2 py-1 text-center', 
                             isBlockEditable(p.id) 
-                              ? 'bg-white border-gray-300' 
-                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                              ? 'liquid-surface-control' 
+                              : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                    min="5"
                    step="5"
                    type="number"
@@ -528,8 +528,8 @@ defineExpose({
             <input :disabled="!isBlockEditable(p.id)" :value="fixedByPoint[p.id]?.buffer_after ?? ''"
                    :class="['w-16 border rounded px-2 py-1 text-center', 
                             isBlockEditable(p.id) 
-                              ? 'bg-white border-gray-300' 
-                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                              ? 'liquid-surface-control' 
+                              : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                    min="5"
                    step="5"
                    type="number"
@@ -543,8 +543,8 @@ defineExpose({
                    :value="fixedByPoint[p.id]?.name ?? ''"
                    :class="['w-full border rounded px-2 py-1', 
                             isBlockEditable(p.id) 
-                              ? 'bg-white border-gray-300' 
-                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                              ? 'liquid-surface-control' 
+                              : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                    type="text"
                    @blur="onFixedTextBlur(p.id, 'name', $event)"
                    @input="onFixedTextInput(p.id, 'name', $event)"
@@ -556,8 +556,8 @@ defineExpose({
                    :value="fixedByPoint[p.id]?.description ?? ''"
                    :class="['w-full border rounded px-2 py-1', 
                             isBlockEditable(p.id) 
-                              ? 'bg-white border-gray-300' 
-                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                              ? 'liquid-surface-control' 
+                              : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                    type="text"
                    @blur="onFixedTextBlur(p.id, 'description', $event)"
                    @input="onFixedTextInput(p.id, 'description', $event)"
@@ -569,8 +569,8 @@ defineExpose({
                    :value="fixedByPoint[p.id]?.link ?? ''"
                    :class="['w-full border rounded px-2 py-1', 
                             isBlockEditable(p.id) 
-                              ? 'bg-white border-gray-300' 
-                              : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                              ? 'liquid-surface-control' 
+                              : 'bg-[var(--color-bg-muted)] border-[var(--color-border)] text-[var(--color-text-subtle)] cursor-not-allowed']"
                    type="text"
                    @blur="onFixedTextBlur(p.id, 'link', $event)"
                    @input="onFixedTextInput(p.id, 'link', $event)"
@@ -578,12 +578,12 @@ defineExpose({
           </td>
         </tr>
         <tr v-if="!insertPoints.length">
-          <td class="px-4 py-6 text-gray-500 text-center" colspan="7">Keine Einfügepunkte für dieses Level.</td>
+          <td class="px-4 py-6 text-[var(--color-text-subtle)] text-center" colspan="7">Keine Einfügepunkte für dieses Level.</td>
         </tr>
         </tbody>
       </table>
     </div>
 
-    <div v-if="loading || saving" class="text-sm text-gray-500 px-4 py-2">Speichere / lade…</div>
+    <div v-if="loading || saving" class="text-sm text-[var(--color-text-subtle)] px-4 py-2">Speichere / lade…</div>
   </div>
 </template>

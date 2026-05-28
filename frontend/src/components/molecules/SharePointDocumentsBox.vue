@@ -98,17 +98,17 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h2 class="text-lg font-semibold mb-3">Dokumente für Regionalpartner:innen</h2>
+    <h2 class="glass-card__title !mb-3">Dokumente für Regionalpartner:innen</h2>
 
-    <p v-if="!configured && !loading" class="text-sm text-gray-500">
+    <p v-if="!configured && !loading" class="text-sm text-[var(--color-text-muted)]">
       Noch keine Dokumentenablage konfiguriert.
     </p>
 
     <template v-else>
-      <div v-if="breadcrumbs.length" class="flex flex-wrap items-center gap-1 text-sm text-gray-600 mb-3">
+      <div v-if="breadcrumbs.length" class="flex flex-wrap items-center gap-1 text-sm text-[var(--color-text-muted)] mb-3">
         <button
             type="button"
-            class="text-blue-600 hover:underline"
+            class="text-[var(--color-accent)] hover:underline"
             :disabled="loading"
             @click="goToRoot"
         >
@@ -119,18 +119,18 @@ onMounted(async () => {
           <button
               v-if="index < breadcrumbs.length - 1"
               type="button"
-              class="text-blue-600 hover:underline"
+              class="text-[var(--color-accent)] hover:underline"
               :disabled="loading"
               @click="navigateTo(crumb, index)"
           >
             {{ crumb.name }}
           </button>
-          <span v-else class="font-medium text-gray-800">{{ crumb.name }}</span>
+          <span v-else class="font-medium text-[var(--color-text)]">{{ crumb.name }}</span>
         </template>
         <button
             v-if="canGoUp"
             type="button"
-            class="ml-2 text-xs text-gray-500 hover:text-gray-700"
+            class="ml-2 text-xs text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)]"
             :disabled="loading"
             @click="goUp"
         >
@@ -140,20 +140,20 @@ onMounted(async () => {
 
       <p v-if="error" class="text-sm text-red-600 mb-2">{{ error }}</p>
 
-      <div v-if="loading" class="text-sm text-gray-500 py-4">Lade Dokumente…</div>
+      <div v-if="loading" class="text-sm text-[var(--color-text-muted)] py-4">Lade Dokumente…</div>
 
       <div
           v-else-if="items.length === 0 && !error"
-          class="text-sm text-gray-500 py-4"
+          class="text-sm text-[var(--color-text-muted)] py-4"
       >
         Dieser Ordner ist leer.
       </div>
 
-      <ul v-else-if="!loading" class="divide-y border rounded max-h-80 overflow-y-auto">
+      <ul v-else-if="!loading" class="glass-list liquid-surface-inner">
         <li
             v-for="item in items"
             :key="item.id"
-            class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 text-sm"
+            class="glass-list__item"
         >
           <span class="flex-shrink-0 w-5 text-center" aria-hidden="true">
             {{ item.type === 'folder' ? '📁' : '📄' }}
@@ -161,7 +161,7 @@ onMounted(async () => {
           <button
               v-if="item.type === 'folder'"
               type="button"
-              class="flex-1 text-left font-medium text-blue-700 hover:underline truncate"
+              class="flex-1 text-left font-medium text-[var(--color-accent)] hover:underline truncate"
               @click="openFolder(item)"
           >
             {{ item.name }}
@@ -169,15 +169,15 @@ onMounted(async () => {
           <button
               v-else
               type="button"
-              class="flex-1 text-left truncate hover:underline"
+              class="flex-1 text-left truncate hover:underline text-[var(--color-text)]"
               @click="openFile(item)"
           >
             {{ item.name }}
           </button>
-          <span v-if="item.type === 'file' && item.size" class="text-gray-400 text-xs flex-shrink-0">
+          <span v-if="item.type === 'file' && item.size" class="text-[var(--color-text-subtle)] text-xs flex-shrink-0">
             {{ formatSize(item.size) }}
           </span>
-          <span v-if="item.modified" class="text-gray-400 text-xs flex-shrink-0 hidden sm:inline">
+          <span v-if="item.modified" class="text-[var(--color-text-subtle)] text-xs flex-shrink-0 hidden sm:inline">
             {{ formatDate(item.modified) }}
           </span>
         </li>

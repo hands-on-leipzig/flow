@@ -10,6 +10,7 @@
     "update": "ncu -i --format group"
   },
   "dependencies": {
+    "@handson/glass": "github:hands-on-leipzig/glass#v1.0.1",
     "@headlessui/vue": "1.7.23",
     "@jamescoyle/vue-icon": "0.1.2",
     "@mdi/js": "7.4.47",

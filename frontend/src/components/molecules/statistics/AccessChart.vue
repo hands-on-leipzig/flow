@@ -7,7 +7,7 @@
           'px-4 py-2 rounded transition-colors',
           viewMode === 'timeline' 
             ? 'bg-blue-500 text-white hover:bg-blue-600' 
-            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            : 'bg-gray-200 text-[var(--color-text-muted)] hover:bg-gray-300'
         ]"
       >
         Vollständige Timeline
@@ -18,19 +18,19 @@
           'px-4 py-2 rounded transition-colors',
           viewMode === 'day' 
             ? 'bg-blue-500 text-white hover:bg-blue-600' 
-            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            : 'bg-gray-200 text-[var(--color-text-muted)] hover:bg-gray-300'
         ]"
       >
         Tag des Events{{ formattedEventDate ? ` (${formattedEventDate})` : '' }}
       </button>
     </div>
     
-    <div v-if="loading" class="text-gray-500 py-4">Lade Daten...</div>
+    <div v-if="loading" class="text-[var(--color-text-subtle)] py-4">Lade Daten...</div>
     <div v-else-if="error" class="text-red-500 py-4">{{ error }}</div>
     <div v-else-if="chartData" class="chart-wrapper">
       <canvas ref="chartCanvas"></canvas>
     </div>
-    <div v-else class="text-gray-500 py-4">Keine Daten verfügbar</div>
+    <div v-else class="text-[var(--color-text-subtle)] py-4">Keine Daten verfügbar</div>
   </div>
 </template>
 

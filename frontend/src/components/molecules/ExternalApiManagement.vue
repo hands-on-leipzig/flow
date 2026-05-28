@@ -359,13 +359,13 @@ onMounted(() => {
       <div
         v-for="application in applications"
         :key="application.id"
-        class="bg-white rounded-lg shadow p-6 border border-gray-200"
+        class="glass-surface-lg border border-[var(--color-border)]"
       >
         <div class="flex justify-between items-start mb-4">
           <div>
             <h3 class="text-xl font-semibold">{{ application.name }}</h3>
-            <p v-if="application.description" class="text-gray-600 mt-1">{{ application.description }}</p>
-            <div class="mt-2 text-sm text-gray-500">
+            <p v-if="application.description" class="text-[var(--color-text-muted)] mt-1">{{ application.description }}</p>
+            <div class="mt-2 text-sm text-[var(--color-text-subtle)]">
               <p>Contact: {{ application.contact_email }}</p>
               <p>Rate Limit: {{ application.rate_limit }} requests/hour</p>
               <p>Status: 
@@ -378,7 +378,7 @@ onMounted(() => {
           <div class="flex gap-2">
             <button
               @click="openApplicationForm(application)"
-              class="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"
+              class="px-3 py-1 bg-[var(--color-bg-muted)]0 text-white rounded text-sm hover:bg-gray-600"
             >
               Edit
             </button>
@@ -407,7 +407,7 @@ onMounted(() => {
             <div
               v-for="apiKey in application.api_keys"
               :key="apiKey.id"
-              class="bg-gray-50 rounded p-3 flex justify-between items-center"
+              class="bg-[var(--color-bg-muted)] rounded p-3 flex justify-between items-center"
             >
               <div class="flex-1">
                 <div class="flex items-center gap-2">
@@ -427,7 +427,7 @@ onMounted(() => {
                     Expired
                   </span>
                 </div>
-                <div class="text-sm text-gray-600 mt-1">
+                <div class="text-sm text-[var(--color-text-muted)] mt-1">
                   <p>Scopes: {{ apiKey.scopes && apiKey.scopes.length > 0 ? apiKey.scopes.join(', ') : 'None' }}</p>
                   <p>Last used: {{ formatDate(apiKey.last_used_at) }}</p>
                   <p v-if="apiKey.expires_at">Expires: {{ formatDate(apiKey.expires_at) }}</p>
@@ -442,7 +442,7 @@ onMounted(() => {
                 </button>
                 <button
                   @click="toggleApiKeyActive(application.id, apiKey)"
-                  class="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
+                  class="px-2 py-1 bg-[var(--color-bg-muted)]0 text-white rounded text-xs hover:bg-gray-600"
                 >
                   {{ apiKey.is_active ? 'Deactivate' : 'Activate' }}
                 </button>
@@ -455,13 +455,13 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          <div v-else class="text-gray-500 text-sm">
+          <div v-else class="text-[var(--color-text-subtle)] text-sm">
             No API keys created yet
           </div>
         </div>
       </div>
 
-      <div v-if="applications.length === 0" class="text-center py-8 text-gray-500">
+      <div v-if="applications.length === 0" class="text-center py-8 text-[var(--color-text-subtle)]">
         No applications created yet. Click "Create Application" to get started.
       </div>
     </div>
@@ -469,7 +469,7 @@ onMounted(() => {
     <!-- Application Form Modal -->
     <div
       v-if="showApplicationForm"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="glass-scrim fixed inset-0 flex items-center justify-center z-50"
       @click.self="closeApplicationForm"
     >
       <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -569,7 +569,7 @@ onMounted(() => {
         <div class="flex justify-end gap-2 mt-6">
           <button
             @click="closeApplicationForm"
-            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            class="px-4 py-2 bg-[var(--color-bg-muted)]0 text-white rounded hover:bg-gray-600"
           >
             Cancel
           </button>
@@ -587,10 +587,10 @@ onMounted(() => {
     <!-- API Key Form Modal -->
     <div
       v-if="showApiKeyForm"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="glass-scrim fixed inset-0 flex items-center justify-center z-50"
       @click.self="closeApiKeyForm"
     >
-      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div class="glass-modal max-w-md w-full mx-4">
         <h3 class="text-xl font-bold mb-4">Create API Key</h3>
 
         <div class="space-y-4">
@@ -637,7 +637,7 @@ onMounted(() => {
         <div class="flex justify-end gap-2 mt-6">
           <button
             @click="closeApiKeyForm"
-            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            class="px-4 py-2 bg-[var(--color-bg-muted)]0 text-white rounded hover:bg-gray-600"
           >
             Cancel
           </button>
@@ -655,10 +655,10 @@ onMounted(() => {
     <!-- Edit API Key Form Modal -->
     <div
       v-if="showEditApiKeyForm"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="glass-scrim fixed inset-0 flex items-center justify-center z-50"
       @click.self="closeEditApiKeyForm"
     >
-      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div class="glass-modal max-w-md w-full mx-4">
         <h3 class="text-xl font-bold mb-4">Edit API Key</h3>
 
         <div class="space-y-4">
@@ -714,7 +714,7 @@ onMounted(() => {
         <div class="flex justify-end gap-2 mt-6">
           <button
             @click="closeEditApiKeyForm"
-            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            class="px-4 py-2 bg-[var(--color-bg-muted)]0 text-white rounded hover:bg-gray-600"
           >
             Cancel
           </button>
@@ -732,7 +732,7 @@ onMounted(() => {
     <!-- API Key Display Modal -->
     <div
       v-if="showApiKeyModal"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="glass-scrim fixed inset-0 flex items-center justify-center z-50"
       @click.self="showApiKeyModal = false"
     >
       <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
@@ -740,7 +740,7 @@ onMounted(() => {
         <p class="text-red-600 font-semibold mb-4">
           ⚠️ Store this key securely - it will not be shown again!
         </p>
-        <div class="bg-gray-100 rounded p-4 mb-4">
+        <div class="bg-[var(--color-bg-muted)] rounded p-4 mb-4">
           <code class="text-sm break-all">{{ newApiKey }}</code>
         </div>
         <div class="flex justify-end gap-2">
@@ -752,7 +752,7 @@ onMounted(() => {
           </button>
           <button
             @click="showApiKeyModal = false; newApiKey = null"
-            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            class="px-4 py-2 bg-[var(--color-bg-muted)]0 text-white rounded hover:bg-gray-600"
           >
             Close
           </button>

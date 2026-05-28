@@ -61,15 +61,15 @@ onMounted(fetchRounds)
 </script>
 
 <template>
-  <section class="rounded-xl bg-white shadow p-4 sm:p-6">
+  <section class="glass-surface-lg p-4 sm:p-6">
     <div class="mb-4">
-      <h2 class="text-lg font-semibold text-gray-900">Robot-Game Ergebnisse</h2>
-      <p class="text-sm text-gray-600">
+      <h2 class="text-lg font-semibold text-[var(--color-text)]">Robot-Game Ergebnisse</h2>
+      <p class="text-sm text-[var(--color-text-muted)]">
         Wähle aus, welche Runden öffentlich sichtbar sein sollen.
       </p>
     </div>
 
-    <div v-if="loading" class="py-8 text-center text-sm text-gray-500">Lade...</div>
+    <div v-if="loading" class="py-8 text-center text-sm text-[var(--color-text-subtle)]">Lade...</div>
 
     <div v-else-if="rounds" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <button
@@ -82,7 +82,7 @@ onMounted(fetchRounds)
             'min-h-12 rounded-lg border px-4 py-3 text-sm font-semibold transition-colors',
             rounds[round.key]
               ? 'border-green-600 bg-green-600 text-white'
-              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400',
+              : 'border-[var(--color-border)] bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]',
             saving === round.key ? 'opacity-70' : ''
           ]"
       >

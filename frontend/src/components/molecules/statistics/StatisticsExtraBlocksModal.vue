@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white p-6 rounded-lg shadow-lg w-[90vw] max-w-4xl max-h-[90vh] overflow-auto">
+  <div class="glass-modal p-6 w-[90vw] max-w-4xl max-h-[90vh] overflow-auto">
     <h3 class="text-lg font-bold mb-4">
       Extra-Blöcke für Plan {{ planId }}
       <template v-if="eventName && eventDate">
@@ -7,11 +7,11 @@
       </template>
     </h3>
     
-    <div v-if="loading" class="text-gray-500 py-4">
+    <div v-if="loading" class="text-[var(--color-text-subtle)] py-4">
       Lade Extra-Blöcke...
     </div>
     
-    <div v-else-if="freeBlocks.length === 0 && insertedBlocks.length === 0" class="text-gray-500 py-4">
+    <div v-else-if="freeBlocks.length === 0 && insertedBlocks.length === 0" class="text-[var(--color-text-subtle)] py-4">
       Keine aktiven Extra-Blöcke gefunden.
     </div>
     
@@ -21,24 +21,24 @@
         <h4 class="text-md font-semibold mb-2">Freie Blöcke</h4>
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm border-collapse">
-            <thead class="bg-gray-100 text-left">
+            <thead class="bg-[var(--color-bg-muted)] text-left">
               <tr>
-                <th class="px-3 py-2 border border-gray-300">Datum</th>
-                <th class="px-3 py-2 border border-gray-300">Start</th>
-                <th class="px-3 py-2 border border-gray-300">Ende</th>
-                <th class="px-3 py-2 border border-gray-300">Titel</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Datum</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Start</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Ende</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Titel</th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="block in freeBlocks"
                 :key="block.id"
-                class="hover:bg-gray-50"
+                class="hover:bg-[var(--color-bg-hover)]"
               >
-                <td class="px-3 py-2 border border-gray-300">{{ block.date ?? '–' }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ block.start ?? '–' }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ block.end ?? '–' }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ block.name ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ block.date ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ block.start ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ block.end ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ block.name ?? '–' }}</td>
               </tr>
             </tbody>
           </table>
@@ -50,20 +50,20 @@
         <h4 class="text-md font-semibold mb-2">Eingefügte Blöcke</h4>
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm border-collapse">
-            <thead class="bg-gray-100 text-left">
+            <thead class="bg-[var(--color-bg-muted)] text-left">
               <tr>
-                <th class="px-3 py-2 border border-gray-300">Einfügepunkt</th>
-                <th class="px-3 py-2 border border-gray-300">Titel</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Einfügepunkt</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Titel</th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="block in insertedBlocks"
                 :key="block.id"
-                class="hover:bg-gray-50"
+                class="hover:bg-[var(--color-bg-hover)]"
               >
-                <td class="px-3 py-2 border border-gray-300">{{ block.insert_point_name ?? '–' }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ block.name ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ block.insert_point_name ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ block.name ?? '–' }}</td>
               </tr>
             </tbody>
           </table>
@@ -72,7 +72,7 @@
     </div>
     
     <div class="flex justify-end gap-2 mt-6">
-      <button class="px-4 py-2 text-gray-600 hover:text-black" @click="$emit('close')">Schließen</button>
+      <button class="px-4 py-2 text-[var(--color-text-muted)] hover:text-black" @click="$emit('close')">Schließen</button>
     </div>
   </div>
 </template>
