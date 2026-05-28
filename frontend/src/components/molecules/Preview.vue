@@ -219,65 +219,64 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
   <div class="flex flex-col gap-3 h-full min-h-0">
     <!-- Kopfbereich: Buttons + Info -->
     <div class="flex flex-wrap items-center gap-2">
-      <div class="inline-flex rounded-md overflow-hidden border">
+      <div class="glass-segment">
         <button
-          class="px-3 py-1 text-sm"
-          :class="view === 'overview' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+          class="glass-segment__btn"
+          :class="{'glass-segment__btn--active': view === 'overview'}"
           @click="setView('overview')"
         >Überblick</button>
       </div>
 
-      <div class="inline-flex items-center rounded-md border bg-gray-50/50 px-2 py-1">
-        <div class="inline-flex rounded-md overflow-hidden border">
+      <div class="inline-flex items-center rounded-md border border-[var(--color-border)] bg-[var(--color-bg-muted)]/50 px-2 py-1">
+        <div class="glass-segment">
           <button
-            class="px-3 py-1 text-sm"
-            :class="view === 'roles' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'roles'}"
             @click="setView('roles')"
           >Rollen</button>
 
           <button
-            class="px-3 py-1 text-sm border-l"
-            :class="view === 'teams' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'teams'}"
             @click="setView('teams')"
           >Teams</button>
 
           <button
-            class="px-3 py-1 text-sm border-l"
-            :class="view === 'rooms' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'rooms'}"
             @click="setView('rooms')"
           >Räume</button>
         </div>
 
-        <div v-if="view === 'roles' || view === 'teams' || view === 'rooms'" class="ml-3 text-xs text-gray-500">
+        <div v-if="view === 'roles' || view === 'teams' || view === 'rooms'" class="ml-3 text-xs text-[var(--color-text-subtle)]">
           Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
         </div>
       </div>
 
-      <div class="inline-flex rounded-md overflow-hidden border">
+      <div class="glass-segment">
         <button
           v-if="hasChallenge"
-          class="px-3 py-1 text-sm"
-          :class="view === 'robot-game' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+          class="glass-segment__btn"
+          :class="{'glass-segment__btn--active': view === 'robot-game'}"
           @click="setView('robot-game')"
         >Robot-Game</button>
       </div>
 
-      <div v-if="isAdmin" class="inline-flex rounded-md overflow-hidden border">
-        <!-- Aktivitäten und Plan-Qualität -->
+      <div v-if="isAdmin" class="glass-segment">
         <button
-          class="px-3 py-1 text-sm"
-          :class="view === 'activities' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+          class="glass-segment__btn"
+          :class="{'glass-segment__btn--active': view === 'activities'}"
           @click="setView('activities')"
         >Aktivitäten</button>
         <button
           v-if="hasChallenge"
-          class="px-3 py-1 text-sm border-l"
-          :class="view === 'quality' ? 'bg-gray-900 text-white' : 'bg-white text-gray-800 hover:bg-gray-100'"
+          class="glass-segment__btn"
+          :class="{'glass-segment__btn--active': view === 'quality'}"
           @click="setView('quality')"
         >Plan-Qualität</button>
       </div>
 
-      <div class="ml-3 flex-1 flex items-center justify-end text-xs text-gray-500 min-w-0">
+      <div class="ml-3 flex-1 flex items-center justify-end text-xs text-[var(--color-text-subtle)] min-w-0">
         <span class="whitespace-nowrap">Plan ID: {{ effectivePlanId }}</span>
       </div>
     </div>
@@ -288,30 +287,30 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT 1–3: Bestehende Preview-Tabellen (roles, teams, rooms) -->
-    <div v-if="view === 'roles' || view === 'teams' || view === 'rooms'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white">
+    <div v-if="view === 'roles' || view === 'teams' || view === 'rooms'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white">
       <table class="w-full table-fixed text-sm">
-        <thead class="sticky top-0 bg-gray-50">
+        <thead class="sticky top-0 bg-[var(--color-bg-muted)]">
           <tr>
-            <th v-for="h in headers" :key="h.key" class="text-left font-normal px-2 py-2 border-b border-gray-200">
+            <th v-for="h in headers" :key="h.key" class="text-left font-normal px-2 py-2 border-b border-[var(--color-border)]">
               {{ h.title }}
             </th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td :colspan="headers.length" class="px-3 py-8 text-left text-gray-500">Wird geladen …</td>
+            <td :colspan="headers.length" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</td>
           </tr>
 
           <template v-else>
             <template v-for="(r, ridx) in rows" :key="ridx">
               <tr v-if="r.separator">
                 <td :colspan="headers.length" class="p-0">
-                  <div v-if="r.variant === 'day'" class="h-0.5 bg-gray-500"></div>
+                  <div v-if="r.variant === 'day'" class="h-0.5 bg-[var(--color-bg-muted)]0"></div>
                   <div v-else class="h-3"></div>
                 </td>
               </tr>
 
-              <tr v-else class="odd:bg-gray-50 even:bg-gray-100">
+              <tr v-else class="odd:bg-[var(--color-bg-muted)] even:bg-[var(--color-bg-muted)]">
                 <td v-if="headerKeys[0]==='time'" class="align-top px-2 py-2 whitespace-pre-line">
                   <template v-if="r.timeLabel">
                     <span class="block">{{ (r.timeLabel || '').split(' ')[0] }}</span>
@@ -335,7 +334,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
             </template>
 
             <tr v-if="rows.length === 0 && !loading">
-              <td :colspan="headers.length" class="px-3 py-6 text-center text-gray-500">
+              <td :colspan="headers.length" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
                 Keine Aktivitäten im Zeitraum.
               </td>
             </tr>
@@ -345,11 +344,11 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Überblick -->
-    <div v-if="view === 'overview'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-gray-500">Wird geladen …</div>
+    <div v-if="view === 'overview'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
       
       <template v-else>
-        <div v-if="!overviewHtml" class="px-3 py-6 text-center text-gray-500">
+        <div v-if="!overviewHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
           Keine Übersichtsdaten gefunden.
         </div>
         
@@ -358,11 +357,11 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Robot-Game Matchplan -->
-    <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-gray-500">Wird geladen …</div>
+    <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
 
       <template v-else>
-        <div v-if="!robotGameData || !robotGameData.rounds || robotGameData.rounds.length === 0" class="px-3 py-6 text-center text-gray-500">
+        <div v-if="!robotGameData || !robotGameData.rounds || robotGameData.rounds.length === 0" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
           Keine Robot-Game Daten gefunden.
         </div>
 
@@ -374,16 +373,16 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
               :key="round.round"
               class="min-w-max"
             >
-              <div class="text-sm font-semibold text-gray-600 mb-2">
+              <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-2">
                 {{ round.name }}
               </div>
-              <table class="table-auto text-sm border-collapse border border-gray-200">
-                <thead class="bg-gray-50">
+              <table class="table-auto text-sm border-collapse border border-[var(--color-border)]">
+                <thead class="bg-[var(--color-bg-muted)]">
                   <tr>
-                    <th class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 1</th>
-                    <th class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 2</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 3</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-gray-200 text-center font-normal">Tisch 4</th>
+                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 1</th>
+                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 2</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 3</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 4</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -416,13 +415,13 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
           <!-- Team summary table -->
           <div v-if="robotGameData.team_summary && robotGameData.team_summary.length > 0" class="mt-4">
-            <div class="text-sm font-semibold text-gray-600 mb-2">Übersicht über die Verteilung</div>
-            <table class="table-auto text-sm border-collapse border border-gray-200">
-              <thead class="bg-gray-50">
+            <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-2">Übersicht über die Verteilung</div>
+            <table class="table-auto text-sm border-collapse border border-[var(--color-border)]">
+              <thead class="bg-[var(--color-bg-muted)]">
                 <tr>
-                  <th class="px-3 py-2 border border-gray-200 text-left font-normal">Team</th>
-                  <th class="px-3 py-2 border border-gray-200 text-center font-normal">Verschiedene Tische</th>
-                  <th class="px-3 py-2 border border-gray-200 text-center font-normal">Verschiedene Teams</th>
+                  <th class="px-3 py-2 border border-[var(--color-border)] text-left font-normal">Team</th>
+                  <th class="px-3 py-2 border border-[var(--color-border)] text-center font-normal">Verschiedene Tische</th>
+                  <th class="px-3 py-2 border border-[var(--color-border)] text-center font-normal">Verschiedene Teams</th>
                 </tr>
               </thead>
               <tbody>
@@ -431,9 +430,9 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
                   :key="summary.team"
                   class="border-t"
                 >
-                  <td class="px-3 py-2 border border-gray-200">{{ summary.team }}</td>
-                  <td class="px-3 py-2 border border-gray-200 text-center">{{ summary.different_tables }}</td>
-                  <td class="px-3 py-2 border border-gray-200 text-center">{{ summary.different_opponents }}</td>
+                  <td class="px-3 py-2 border border-[var(--color-border)]">{{ summary.team }}</td>
+                  <td class="px-3 py-2 border border-[var(--color-border)] text-center">{{ summary.different_tables }}</td>
+                  <td class="px-3 py-2 border border-[var(--color-border)] text-center">{{ summary.different_opponents }}</td>
                 </tr>
               </tbody>
             </table>
@@ -443,16 +442,16 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Plan-Qualität (QPlanDetails) -->
-    <div v-else-if="view === 'quality'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white p-4">
+    <div v-else-if="view === 'quality'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
       <QPlanDetails v-if="effectivePlanId" :plan-id="Number(effectivePlanId)" />
     </div>
 
     <!-- ANSICHT: Power-User „Aktivitäten" -->
-    <div v-else-if="view === 'activities'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-gray-200 bg-white p-3">
-      <div v-if="loading" class="px-3 py-8 text-left text-gray-500">Wird geladen …</div>
+    <div v-else-if="view === 'activities'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-3">
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
 
       <template v-else>
-        <div v-if="activities.length === 0" class="px-3 py-6 text-center text-gray-500">
+        <div v-if="activities.length === 0" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
           Keine Aktivitäten gefunden.
         </div>
 
@@ -463,7 +462,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
           <div class="overflow-x-auto border rounded">
             <table class="min-w-full text-xs">
-              <thead class="bg-gray-50">
+              <thead class="bg-[var(--color-bg-muted)]">
                 <tr>
                   <th class="px-2 py-1 text-left">Activity ID</th>
                   <th class="px-2 py-1 text-left">Start</th>
@@ -483,7 +482,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
               </thead>
               <tbody>
                 <tr v-for="a in group.activities" :key="a.activity_id" class="border-t">
-                  <td class="px-2 py-1 text-gray-500">{{ a.activity_id }}</td>
+                  <td class="px-2 py-1 text-[var(--color-text-subtle)]">{{ a.activity_id }}</td>
                   <td class="px-2 py-1">{{ formatDateTime(a.start_time, true) }}</td>
                   <td class="px-2 py-1">{{ formatTimeOnly(a.end_time, true) }}</td>
                   <td class="px-2 py-1">{{ a.program || '' }}</td>

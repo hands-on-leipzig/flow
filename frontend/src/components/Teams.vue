@@ -51,7 +51,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
+  <div v-if="loading" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)] min-h-[400px]">
     <LoaderFlow/>
     <LoaderText/>
   </div>

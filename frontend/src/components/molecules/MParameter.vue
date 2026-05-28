@@ -161,7 +161,7 @@ async function onSort() {
 // Farbstreifen nach context
 const contextBarClass = (ctx: string | null | undefined) => {
   switch (ctx) {
-    case 'input':     return 'bg-white border border-gray-300';
+    case 'input':     return 'bg-white border border-[var(--color-border)]';
     case 'expert':    return 'bg-blue-500';
     case 'protected': return 'bg-black';
     default:          return 'bg-gray-200';
@@ -176,10 +176,10 @@ const contextBarClass = (ctx: string | null | undefined) => {
     <!-- Filterleiste -->
     <div class="flex flex-wrap items-center gap-3 mb-3">
     <!-- Context -->
-    <div class="inline-flex items-center gap-3 px-3 py-2 border border-gray-300 rounded-md bg-white shadow-sm whitespace-nowrap">
-        <div class="text-sm font-medium text-gray-700">Context:</div>
+    <div class="glass-row-item inline-flex gap-3 px-3 py-2 whitespace-nowrap">
+        <div class="text-sm font-medium text-[var(--color-text-muted)]">Context:</div>
         <div class="flex items-center gap-3">
-        <label v-for="ctx in ['protected', 'input','expert',]" :key="ctx" class="flex items-center gap-1 text-sm text-gray-600">
+        <label v-for="ctx in ['protected', 'input','expert',]" :key="ctx" class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
             <input type="checkbox" v-model="filterContexts" :value="ctx" class="accent-gray-600" />
             {{ ctx }}
         </label>
@@ -187,12 +187,12 @@ const contextBarClass = (ctx: string | null | undefined) => {
     </div>
 
     <!-- Program -->
-    <div class="inline-flex items-center gap-3 px-3 py-2 border border-gray-300 rounded-md bg-white shadow-sm whitespace-nowrap">
-        <div class="text-sm font-medium text-gray-700">Programm:</div>
+    <div class="glass-row-item inline-flex gap-3 px-3 py-2 whitespace-nowrap">
+        <div class="text-sm font-medium text-[var(--color-text-muted)]">Programm:</div>
         <div class="flex items-center gap-3">
         <label v-for="prog in [{value:0,label:'gemeinsam',icon:null},{value:2,label:'FIRST LEGO League Explore',icon:'E'},{value:3,label:'FIRST LEGO League Challenge',icon:'C'}]"
                 :key="prog.value"
-                class="flex items-center gap-1 text-sm text-gray-600">
+                class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
             <input type="checkbox" v-model="filterPrograms" :value="prog.value" class="accent-gray-600" />
             <img v-if="prog.icon" :src="programLogoSrc(prog.icon)" :alt="programLogoAlt(prog.icon)" class="w-4 h-4 flex-shrink-0" />
             <span v-html="formatProgramLabel(prog.label)"></span>
@@ -201,10 +201,10 @@ const contextBarClass = (ctx: string | null | undefined) => {
     </div>
 
     <!-- Level -->
-    <div class="inline-flex items-center gap-3 px-3 py-2 border border-gray-300 rounded-md bg-white shadow-sm whitespace-nowrap">
-        <div class="text-sm font-medium text-gray-700">Level:</div>
+    <div class="glass-row-item inline-flex gap-3 px-3 py-2 whitespace-nowrap">
+        <div class="text-sm font-medium text-[var(--color-text-muted)]">Level:</div>
         <div class="flex items-center gap-3">
-        <label v-for="lvl in [1,2,3]" :key="lvl" class="flex items-center gap-1 text-sm text-gray-600">
+        <label v-for="lvl in [1,2,3]" :key="lvl" class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
             <input type="checkbox" v-model="filterLevels" :value="lvl" class="accent-gray-600" />
             {{ lvl }}
         </label>
@@ -214,10 +214,10 @@ const contextBarClass = (ctx: string | null | undefined) => {
 
     <!-- Liste -->
     <div class="border rounded bg-white">
-      <div v-if="loading" class="p-4 text-gray-500">Lade …</div>
+      <div v-if="loading" class="p-4 text-[var(--color-text-subtle)]">Lade …</div>
       <div v-else-if="error" class="p-4 text-red-600">{{ error }}</div>
       <div v-else>
-        <div class="px-3 py-2 text-xs text-gray-500 border-b bg-gray-50">
+        <div class="px-3 py-2 text-xs text-[var(--color-text-subtle)] border-b bg-[var(--color-bg-muted)]">
           Ziehen zum Umsortieren · Sortiert nach <code>sequence</code>
         </div>
 
@@ -235,7 +235,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
                 <div v-if="filtered.includes(item)" class="border-b">
                     <!-- Kopfzeile (kompakt) -->
                     <div class="flex items-center gap-3 px-3 py-2">
-                        <span class="w-8 text-right text-xs text-gray-500">#{{ item.sequence }}</span>
+                        <span class="w-8 text-right text-xs text-[var(--color-text-subtle)]">#{{ item.sequence }}</span>
                         <span class="drag-handle cursor-move select-none">⋮⋮</span>
 
                         <!-- Fix breiter Kontext/Programm-Bereich -->
@@ -258,14 +258,14 @@ const contextBarClass = (ctx: string | null | undefined) => {
                         <div class="flex-1 min-w-0">
                             <div class="font-medium truncate">
                             {{ item.name || '(ohne Name)' }}
-                            <span class="ml-2 text-sm text-gray-500">
+                            <span class="ml-2 text-sm text-[var(--color-text-subtle)]">
                                 {{ item.ui_label || '—' }} = {{ item.value || '—' }} 
                             </span>
                             </div>
                         </div>
 
                         <button
-                        class="text-sm px-2 py-1 rounded bg-gray-100 hover:bg-gray-200"
+                        class="text-sm px-2 py-1 rounded bg-[var(--color-bg-muted)] hover:bg-[var(--color-bg-hover)]"
                         @click="toggleExpand(item)"
                         >
                         {{ expandedId === item.id ? 'Schließen' : 'Bearbeiten' }}
@@ -278,15 +278,15 @@ const contextBarClass = (ctx: string | null | undefined) => {
                         <div class="grid grid-cols-1 md:grid-cols-8 gap-3">
                         <!-- ID -->
                         <div class="md:col-span-1">
-                            <label class="block text-xs text-gray-500 mb-1">ID</label>
-                            <div class="w-full border rounded px-2 py-1 bg-gray-50 text-sm text-gray-700">
+                            <label class="block text-xs text-[var(--color-text-subtle)] mb-1">ID</label>
+                            <div class="w-full border rounded px-2 py-1 bg-[var(--color-bg-muted)] text-sm text-[var(--color-text-muted)]">
                             {{ item.id }}
                             </div>
                         </div>
 
                         <!-- Name -->
                         <div class="md:col-span-3">
-                            <label class="block text-xs text-gray-500 mb-1">Name</label>
+                            <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Name</label>
                             <input
                             v-model="draftById[item.id].name"
                             class="w-full border rounded px-2 py-1"
@@ -295,7 +295,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
 
                         <!-- UI Label -->
                         <div class="md:col-span-4">
-                            <label class="block text-xs text-gray-500 mb-1">UI Label</label>
+                            <label class="block text-xs text-[var(--color-text-subtle)] mb-1">UI Label</label>
                             <input
                             v-model="draftById[item.id].ui_label"
                             class="w-full border rounded px-2 py-1"
@@ -308,15 +308,15 @@ const contextBarClass = (ctx: string | null | undefined) => {
                         <!-- Box 1: Context / Program / Level -->
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div>
-                                <label class="block text-xs text-gray-500 mb-1">Context</label>
-                                <select v-model="draftById[item.id].context" class="w-full border rounded px-2 py-1 bg-white text-sm text-gray-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Context</label>
+                                <select v-model="draftById[item.id].context" class="w-full border rounded px-2 py-1 bg-white text-sm text-[var(--color-text)] focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                     <option v-for="c in contexts" :key="c" :value="c">{{ c }}</option>
                                 </select>
                                 </div>
 
                                 <div>
-                                <label class="block text-xs text-gray-500 mb-1">Program</label>
-                                <select v-model="draftById[item.id].first_program" class="w-full border rounded px-2 py-1 bg-white text-sm text-gray-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Program</label>
+                                <select v-model="draftById[item.id].first_program" class="w-full border rounded px-2 py-1 bg-white text-sm text-[var(--color-text)] focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                     <option :value="null">(gemeinsam)</option>
                                     <option :value="2">FIRST LEGO League Explore</option>
                                     <option :value="3">FIRST LEGO League Challenge</option>
@@ -324,8 +324,8 @@ const contextBarClass = (ctx: string | null | undefined) => {
                                 </div>
 
                                 <div>
-                                <label class="block text-xs text-gray-500 mb-1">Level</label>
-                                <select v-model.number="draftById[item.id].level" class="w-full border rounded px-2 py-1 bg-white text-sm text-gray-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Level</label>
+                                <select v-model.number="draftById[item.id].level" class="w-full border rounded px-2 py-1 bg-white text-sm text-[var(--color-text)] focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                     <option :value="1">1</option>
                                     <option :value="2">2</option>
                                     <option :value="3">3</option>
@@ -336,25 +336,25 @@ const contextBarClass = (ctx: string | null | undefined) => {
                             <!-- Box 2: Type / Value / Min / Max / Step -->
                             <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
                                 <div>
-                                <label class="block text-xs text-gray-500 mb-1">Type</label>
-                                <select v-model="draftById[item.id].type" class="w-full border rounded px-2 py-1 bg-white text-sm text-gray-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Type</label>
+                                <select v-model="draftById[item.id].type" class="w-full border rounded px-2 py-1 bg-white text-sm text-[var(--color-text)] focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                     <option v-for="t in types" :key="t" :value="t">{{ t }}</option>
                                 </select>
                                 </div>
                                 <div>
-                                <label class="block text-xs text-gray-500 mb-1">Wert</label>
+                                <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Wert</label>
                                 <input v-model="draftById[item.id].value" class="w-full border rounded px-2 py-1" />
                                 </div>
                                 <div>
-                                <label class="block text-xs text-gray-500 mb-1">Min</label>
+                                <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Min</label>
                                 <input v-model="draftById[item.id].min" class="w-full border rounded px-2 py-1" />
                                 </div>
                                 <div>
-                                <label class="block text-xs text-gray-500 mb-1">Max</label>
+                                <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Max</label>
                                 <input v-model="draftById[item.id].max" class="w-full border rounded px-2 py-1" />
                                 </div>
                                 <div>
-                                <label class="block text-xs text-gray-500 mb-1">Step</label>
+                                <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Step</label>
                                 <input v-model="draftById[item.id].step" class="w-full border rounded px-2 py-1" />
                                 </div>
                             </div>
@@ -362,7 +362,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
 
                         <!-- UI Beschreibung mit Spellcheck im Browser -->
                         <div class="mt-3">
-                            <label class="block text-xs text-gray-500 mb-1">UI Beschreibung</label>
+                            <label class="block text-xs text-[var(--color-text-subtle)] mb-1">UI Beschreibung</label>
                             <textarea v-model="draftById[item.id].ui_description" rows="3" class="w-full border rounded px-2 py-1"
                         
                             spellcheck="true"
@@ -382,7 +382,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
                             {{ savingId === item.id ? 'Speichern…' : 'Speichern' }}
                             </button>
                             <button
-                            class="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200"
+                            class="px-3 py-1 rounded bg-[var(--color-bg-muted)] hover:bg-[var(--color-bg-hover)]"
                             @click="discard(item)"
                             >
                             Verwerfen
@@ -396,7 +396,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
 
         </draggable>
 
-        <div v-if="filtered.length === 0 && !loading" class="px-4 py-6 text-gray-500">
+        <div v-if="filtered.length === 0 && !loading" class="px-4 py-6 text-[var(--color-text-subtle)]">
           Keine Einträge für diese Filter.
         </div>
       </div>

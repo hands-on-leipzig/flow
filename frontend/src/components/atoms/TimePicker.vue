@@ -313,7 +313,7 @@ onUnmounted(() => {
       type="button"
       @click="openDropdown"
       :disabled="disabled"
-      class="px-3 py-1.5 text-sm font-semibold border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[80px] text-center"
+      class="px-3 py-1.5 text-sm font-semibold border border-[var(--color-border)] rounded-md bg-white hover:bg-[var(--color-bg-hover)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[80px] text-center"
     >
       {{ displayTime }}
     </button>
@@ -426,7 +426,7 @@ onUnmounted(() => {
           v-if="mode === 'minutes'"
           type="button"
           @click.stop="mode = 'hours'"
-          class="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+          class="flex-1 px-3 py-2 text-sm font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] rounded-md hover:bg-[var(--color-bg-hover)] transition-colors"
         >
           ← Zurück zu Stunden
         </button>
@@ -434,7 +434,7 @@ onUnmounted(() => {
         <button
           type="button"
           @click.stop="closeDropdown"
-          class="px-3 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-md transition-colors"
+          class="px-3 py-2 text-sm font-medium glass-btn-secondary hover:bg-[var(--color-bg-hover)] rounded-md transition-colors"
         >
           Schließen
         </button>

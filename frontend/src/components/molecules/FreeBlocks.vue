@@ -665,18 +665,18 @@ const hasBlocksOutsideEventDates = computed(() => {
 <template>
   <div class="space-y-8 relative">
     <!-- Error Alert Banner -->
-    <div v-if="generatorError" class="bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-lg">
+    <div v-if="generatorError" class="glass-alert-error">
       <div class="flex items-start justify-between">
         <div class="flex-1">
           <div class="flex items-center">
-            <svg class="h-5 w-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="h-5 w-5 text-red-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd"
                     d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                     clip-rule="evenodd"/>
             </svg>
-            <h3 class="text-red-800 font-semibold text-lg">{{ generatorError }}</h3>
+            <h3 class="text-red-700 font-semibold text-lg">{{ generatorError }}</h3>
           </div>
-          <p v-if="errorDetails" class="mt-2 text-red-700 text-sm">{{ errorDetails }}</p>
+          <p v-if="errorDetails" class="mt-2 text-red-600 text-sm">{{ errorDetails }}</p>
         </div>
         <button
             @click="generatorError = null; errorDetails = null"
@@ -693,40 +693,38 @@ const hasBlocksOutsideEventDates = computed(() => {
     </div>
 
     <!-- CUSTOM BLOCKS -->
-    <div class="bg-white shadow-sm rounded-xl border border-gray-200 relative">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <span class="text-sm text-gray-600">Diese Blöcke werden direkt in den generierten Plan kopiert.</span>
+    <div class="liquid-surface-inner rounded-xl relative overflow-hidden">
+      <div class="glass-panel-header">
+        <span class="text-sm text-[var(--color-text-muted)]">Diese Blöcke werden direkt in den generierten Plan kopiert.</span>
         <button
-            class="bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+            class="glass-btn-accent"
             :disabled="!planId"
             @click="addCustom">
           + Block hinzufügen
         </button>
       </div>
 
-      <!-- Warning for blocks outside event dates -->
-      <div v-if="hasBlocksOutsideEventDates"
-           class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
+      <div v-if="hasBlocksOutsideEventDates" class="glass-alert-warning mx-4">
         Freie Blöcke an Tagen außerhalb der Veranstaltung werden in den Plänen nicht angezeigt.
       </div>
 
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto px-4 pb-4">
         <table class="min-w-full text-sm">
           <thead>
-          <tr class="text-gray-500 text-xs uppercase tracking-wide">
+          <tr class="text-[var(--color-text-subtle)] text-xs uppercase tracking-wide">
             <th class="text-left px-2 py-2 w-20">Aktion</th>
             <th class="text-center px-2 py-2 w-20">Programme</th>
             <th class="text-left px-2 py-2 w-28">Zeit</th>
             <th class="text-left px-2 py-2">Inhalt</th>
           </tr>
           </thead>
-          <tbody class="divide-y divide-gray-100">
+          <tbody class="divide-y divide-[var(--color-border)]">
           <tr v-for="b in visibleCustomBlocks" :key="b.id ?? JSON.stringify(b)"
-              class="border-b transition-all duration-200"
+              class="border-b border-[var(--color-border)] transition-all duration-200"
               :class="{
-                'opacity-60 bg-gray-50': b.active === false,
-                'bg-yellow-100 hover:bg-yellow-200': b.active !== false && isBlockOutsideEventDates(b),
-                'hover:bg-gray-50': b.active !== false && !isBlockOutsideEventDates(b)
+                'glass-table-row--muted': b.active === false,
+                'glass-table-row--warning': b.active !== false && isBlockOutsideEventDates(b),
+                'glass-table-row--hover': b.active !== false && !isBlockOutsideEventDates(b)
               }">
             <td class="px-2 py-2">
               <div class="flex flex-col items-center space-y-2">
@@ -777,10 +775,8 @@ const hasBlocksOutsideEventDates = computed(() => {
                 <input
                     :value="extractDate(b.start || b.end)"
                     :disabled="b.active === false"
-                    :class="['w-full border rounded px-2 py-1 text-sm',
-                           b.active !== false
-                             ? 'bg-white border-gray-300'
-                             : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                    :class="['w-full liquid-surface-control text-sm px-2 py-1',
+                           b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
                     type="date"
                     @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
                 />
@@ -789,10 +785,8 @@ const hasBlocksOutsideEventDates = computed(() => {
                   <input
                       :value="extractTime(b.start)"
                       :disabled="b.active === false"
-                      :class="['flex-1 border rounded px-2 py-1 text-sm',
-                             b.active !== false
-                               ? 'bg-white border-gray-300'
-                               : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                      :class="['flex-1 liquid-surface-control text-sm px-2 py-1',
+                             b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
                       type="time"
                       min="00:05"
                       max="23:55"
@@ -804,10 +798,8 @@ const hasBlocksOutsideEventDates = computed(() => {
                   <input
                       :value="extractTime(b.end)"
                       :disabled="b.active === false"
-                      :class="['flex-1 border rounded px-2 py-1 text-sm',
-                             b.active !== false
-                               ? 'bg-white border-gray-300'
-                               : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                      :class="['flex-1 liquid-surface-control text-sm px-2 py-1',
+                             b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
                       type="time"
                       min="00:05"
                       max="23:55"
@@ -825,29 +817,23 @@ const hasBlocksOutsideEventDates = computed(() => {
                 <div class="flex space-x-2">
                   <input :value="b.name"
                          :disabled="b.active === false"
-                         :class="['flex-1 border rounded px-2 py-1 text-sm',
-                                  b.active !== false
-                                    ? 'bg-white border-gray-300'
-                                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                         :class="['flex-1 liquid-surface-control text-sm px-2 py-1',
+                                  b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
                          type="text" placeholder="Titel"
                          @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
                          @blur="saveBlock(b)"/>
                   <input :value="b.link ?? ''"
                          :disabled="b.active === false"
-                         :class="['flex-1 border rounded px-2 py-1 text-sm',
-                                  b.active !== false
-                                    ? 'bg-white border-gray-300'
-                                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                         :class="['flex-1 liquid-surface-control text-sm px-2 py-1',
+                                  b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
                          type="url" placeholder="https://example.com"
                          @input="(e) => { b.link = (e.target as HTMLInputElement).value }"
                          @blur="saveBlock(b)"/>
                 </div>
                 <input :value="b.description"
                        :disabled="b.active === false"
-                       :class="['w-full border rounded px-2 py-1 text-sm',
-                                b.active !== false
-                                  ? 'bg-white border-gray-300'
-                                  : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
+                       :class="['w-full liquid-surface-control text-sm px-2 py-1',
+                                b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
                        type="text" placeholder="Beschreibung"
                        @input="(e) => { b.description = (e.target as HTMLInputElement).value }"
                        @blur="saveBlock(b)"/>
@@ -856,7 +842,7 @@ const hasBlocksOutsideEventDates = computed(() => {
           </tr>
 
           <tr v-if="!customBlocks.length">
-            <td class="px-4 py-6 text-gray-500 text-center" colspan="4">
+            <td class="px-4 py-6 text-[var(--color-text-muted)] text-center" colspan="4">
               Noch keine freien Zusatzblöcke. Füge oben welche hinzu.
             </td>
           </tr>

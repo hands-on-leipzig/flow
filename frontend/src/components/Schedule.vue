@@ -539,7 +539,7 @@ const updateTableName = async () => {
 
 <template>
   <div class="h-screen px-0 py-2 md:p-6 flex flex-col space-y-3 md:space-y-5 overflow-y-auto">
-    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600">
+    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)]">
       <LoaderFlow/>
       <LoaderText/>
     </div>
@@ -559,15 +559,15 @@ const updateTableName = async () => {
         </option>
       </select>
 
-      <label for="name" class="block text-sm font-medium text-gray-700 whitespace-nowrap">Planname</label>
-      <input v-model="inputName" id="name" class="border border-gray-300 rounded px-5 py-2 focus:outline-none"
+      <label for="name" class="block text-sm font-medium text-[var(--color-text-muted)] whitespace-nowrap">Planname</label>
+      <input v-model="inputName" id="name" class="border border-[var(--color-border)] rounded px-5 py-2 focus:outline-none"
              type="text"/>
     </div>
 
 
-    <div class="bg-white border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none shadow-sm">
+    <div class="glass-card liquid-surface-inner border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base border-b border-gray-200"
+          class="w-full text-left px-3 md:px-4 py-2 font-semibold text-[var(--color-text)] uppercase flex justify-between items-center text-sm md:text-base border-b border-[var(--color-border)]"
           @click="toggle('general')"
       >
         Allgemein
@@ -607,9 +607,9 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="bg-white border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none shadow-sm">
+    <div class="glass-card liquid-surface-inner border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base border-b border-gray-200"
+          class="w-full text-left px-3 md:px-4 py-2 font-semibold text-[var(--color-text)] uppercase flex justify-between items-center text-sm md:text-base border-b border-[var(--color-border)]"
           @click="toggle('expert')"
       >
         Expertenparameter
@@ -646,7 +646,7 @@ const updateTableName = async () => {
                   </template>
                 </template>
               </div>
-              <div v-else class="text-center py-8 text-gray-500">
+              <div v-else class="text-center py-8 text-[var(--color-text-subtle)]">
                 <div class="text-sm font-medium mb-1"><span class="italic">FIRST</span> LEGO League Explore ist deaktiviert</div>
                 <div class="text-xs">Aktiviere <span class="italic">FIRST</span> LEGO League Explore, um Expertenparameter zu konfigurieren.</div>
               </div>
@@ -682,14 +682,14 @@ const updateTableName = async () => {
 
 
                 <!-- Robot-Game-Tische -->
-                <div class="p-3 md:p-4 border rounded shadow mt-3 md:mt-4 w-full max-w-lg">
+                <div class="p-3 md:glass-card liquid-surface-inner mt-3 md:mt-4 w-full max-w-lg">
                   <div class="flex items-center mb-2 md:mb-3">
-                    <span class="text-sm md:text-base font-medium text-gray-800">Bezeichnung der Robot-Game-Tische<br>(ersetzt nur die Nummer)</span>
+                    <span class="text-sm md:text-base font-medium text-[var(--color-text)]">Bezeichnung der Robot-Game-Tische<br>(ersetzt nur die Nummer)</span>
                   </div>
 
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                     <div v-for="(name, i) in tableNames" :key="i">
-                      <label class="block text-xs text-gray-600 mb-1">Tisch {{ i + 1 }}</label>
+                      <label class="block text-xs text-[var(--color-text-muted)] mb-1">Tisch {{ i + 1 }}</label>
                       <input
                           v-model="tableNames[i]"
                           class="w-full border px-3 py-1 rounded text-sm"
@@ -702,7 +702,7 @@ const updateTableName = async () => {
                 </div>
 
               </div>
-              <div v-else class="text-center py-8 text-gray-500">
+              <div v-else class="text-center py-8 text-[var(--color-text-subtle)]">
                 <div class="text-sm font-medium mb-1"><span class="italic">FIRST</span> LEGO League Challenge ist deaktiviert</div>
                 <div class="text-xs">Aktiviere <span class="italic">FIRST</span> LEGO League Challenge, um Expertenparameter zu konfigurieren.</div>
               </div>
@@ -715,9 +715,9 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="bg-white border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none shadow-sm" v-if="selectedEvent?.level === 3">
+    <div class="glass-card liquid-surface-inner border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none" v-if="selectedEvent?.level === 3">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base border-b border-gray-200"
+          class="w-full text-left px-3 md:px-4 py-2 font-semibold text-[var(--color-text)] uppercase flex justify-between items-center text-sm md:text-base border-b border-[var(--color-border)]"
           @click="toggle('finals')"
       >
         Finalparameter
@@ -758,9 +758,9 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div v-if="showChallenge" class="bg-white border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none shadow-sm">
+    <div v-if="showChallenge" class="glass-card liquid-surface-inner border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base border-b border-gray-200"
+          class="w-full text-left px-3 md:px-4 py-2 font-semibold text-[var(--color-text)] uppercase flex justify-between items-center text-sm md:text-base border-b border-[var(--color-border)]"
           @click="toggle('extras')"
       >
         Zusatzblöcke
@@ -806,7 +806,7 @@ const updateTableName = async () => {
 
     <!-- Preview Section - Hidden on mobile, shown on tablet+ -->
     <div class="hidden md:flex flex-grow overflow-hidden">
-      <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-gray-600">
+      <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)]">
         <LoaderFlow/>
         <LoaderText/>
       </div>
@@ -818,9 +818,9 @@ const updateTableName = async () => {
     </div>
     </template>
     <!-- Mobile Preview Toggle -->
-    <div class="md:hidden bg-white border-b border-x-0 border-t-0 rounded-none shadow-sm">
+    <div class="md:hidden glass-card liquid-surface-inner border-b border-x-0 border-t-0 rounded-none">
       <button
-          class="w-full text-left px-3 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm border-b border-gray-200"
+          class="w-full text-left px-3 py-2 font-semibold text-[var(--color-text)] uppercase flex justify-between items-center text-sm border-b border-[var(--color-border)]"
           @click="toggle('preview')"
       >
         Vorschau
@@ -828,7 +828,7 @@ const updateTableName = async () => {
       </button>
       <transition name="fade">
         <div v-if="openGroup === 'preview'" class="p-3 max-h-[400px] overflow-y-auto">
-          <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-gray-600 py-8">
+          <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)] py-8">
             <LoaderFlow/>
             <LoaderText/>
           </div>

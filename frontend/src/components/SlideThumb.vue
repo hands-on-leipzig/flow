@@ -68,9 +68,9 @@ const componentSlide = Slide.fromObject(props.slide);
 <template>
   <div
       :data-slide-id="slide.id"
-      class="flex flex-col relative bg-white w-56 h-52 m-2 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow overflow-hidden group">
+      class="flex flex-col relative bg-white w-56 h-52 m-2 rounded-lg shadow-md border border-[var(--color-border)] hover:shadow-lg transition-shadow overflow-hidden group">
     <!-- Preview Area -->
-    <div class="relative w-full h-36 bg-gray-100 flex items-center justify-center overflow-hidden">
+    <div class="relative w-full h-36 bg-[var(--color-bg-muted)] flex items-center justify-center overflow-hidden">
       <div class="w-full h-full flex items-center justify-center relative z-0 group-hover:pointer-events-none">
         <SlideContentRenderer :slide="componentSlide" :preview="true" :eventId="event.id"></SlideContentRenderer>
       </div>
@@ -84,12 +84,12 @@ const componentSlide = Slide.fromObject(props.slide);
             @click="emit('editSlide')"
             title="Bearbeiten"
         >
-          <i class="bi bi-pencil text-gray-700"></i>
+          <i class="bi bi-pencil text-[var(--color-text-muted)]"></i>
         </router-link>
         <button class="relative z-50 w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-lg hover:bg-red-50 transition-colors pointer-events-auto"
                 @click="copySingleLink"
                 title="Direktlink kopieren">
-          <i class="bi bi-clipboard-plus text-gray-700"></i>
+          <i class="bi bi-clipboard-plus text-[var(--color-text-muted)]"></i>
         </button>
         <button
             class="relative z-50 w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-lg hover:bg-red-50 transition-colors pointer-events-auto"
@@ -107,15 +107,15 @@ const componentSlide = Slide.fromObject(props.slide);
       <input
           v-model="slide.name"
           @blur="updateSlideName(slide)"
-          class="text-sm font-medium px-2 py-1 border border-transparent bg-transparent hover:bg-gray-50 cursor-text rounded hover:border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors mb-1"
+          class="text-sm font-medium px-2 py-1 border border-transparent bg-transparent hover:bg-[var(--color-bg-hover)] cursor-text rounded hover:border-[var(--color-border)] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors mb-1"
           draggable="false"
           placeholder="Folienname..."
       />
 
       <!-- Controls Bar -->
-      <div class="flex items-center justify-between mt-auto pt-1 border-t border-gray-100">
+      <div class="flex items-center justify-between mt-auto pt-1 border-t border-[var(--color-border)]">
         <div
-            class="drag-handle cursor-grab active:cursor-grabbing p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            class="drag-handle cursor-grab active:cursor-grabbing p-1 rounded text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] transition-colors"
             title="Ziehen" draggable="false">
           <i class="bi bi-arrows-move text-sm"></i>
         </div>
@@ -130,7 +130,7 @@ const componentSlide = Slide.fromObject(props.slide);
                 aria-label="Aktivieren/Deaktivieren"
             />
             <div class="flex items-center gap-1.5">
-              <span class="text-xs text-gray-500" :class="slide.active === 1 ? 'text-green-600 font-medium' : ''">
+              <span class="text-xs text-[var(--color-text-subtle)]" :class="slide.active === 1 ? 'text-green-600 font-medium' : ''">
                 {{ slide.active === 1 ? 'Aktiv' : 'Inaktiv' }}
               </span>
               <span

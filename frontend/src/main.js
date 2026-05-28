@@ -3,6 +3,7 @@ import App from './App.vue'
 import {createRouter, createWebHistory} from 'vue-router'
 import axios from 'axios'
 import './assets/main.css'
+import './assets/glass-layout.css'
 import keycloak from "@/keycloak.js";
 import Schedule from "@/components/Schedule.vue";
 import Logos from "@/components/Logos.vue";
@@ -29,6 +30,10 @@ import PublicScores from "@/components/PublicScores.vue";
 import {useEventStore} from "@/stores/event";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
+import '@handson/glass/styles.css'
+import {initTheme} from '@handson/glass/theme'
+
+initTheme()
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},

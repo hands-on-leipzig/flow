@@ -662,24 +662,24 @@ const currentTabLabel = computed(() =>
 </script>
 
 <template>
-  <div class="rounded-xl shadow bg-white p-6 flex flex-col">
+  <div class="glass-surface-lg flex flex-col">
     <h3 class="text-lg font-semibold mb-4">Drucksachen</h3>
 
     <!-- Tabs: dropdown on mobile, row on desktop -->
-    <div class="mb-4 border-b border-gray-200">
+    <div class="mb-4 border-b border-[var(--color-border)]">
       <!-- Mobile: dropdown -->
       <div class="lg:hidden">
         <Menu as="div" class="relative">
           <MenuButton
-            class="flex items-center justify-between w-full px-4 py-3 text-left text-base font-semibold text-gray-700 bg-gray-50 rounded-t-lg border border-gray-200 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+            class="flex items-center justify-between w-full px-4 py-3 text-left text-base font-semibold text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] rounded-t-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
           >
             <span>{{ currentTabLabel }}</span>
-            <svg class="w-5 h-5 text-gray-500 flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-5 h-5 text-[var(--color-text-subtle)] flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
             </svg>
           </MenuButton>
           <MenuItems
-            class="absolute left-0 right-0 z-50 mt-0 rounded-b-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-t-0 border-gray-200"
+            class="absolute left-0 right-0 z-50 mt-0 rounded-b-lg glass-dropdown focus:outline-none"
           >
             <div class="py-1">
               <MenuItem
@@ -692,7 +692,7 @@ const currentTabLabel = computed(() =>
                   :class="[
                     'w-full text-left px-4 py-3 text-sm font-semibold',
                     active ? 'bg-blue-50' : '',
-                    activeTab === tab.key ? 'text-blue-600' : 'text-gray-700'
+                    activeTab === tab.key ? 'text-blue-600' : 'text-[var(--color-text-muted)]'
                   ]"
                   @click="activeTab = tab.key"
                 >
@@ -712,7 +712,7 @@ const currentTabLabel = computed(() =>
           type="button"
           :class="[
             'px-4 py-2 relative',
-            activeTab === tab.key ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600 hover:text-gray-800'
+            activeTab === tab.key ? 'border-b-2 border-blue-500 text-blue-600' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
           ]"
           @click="activeTab = tab.key"
         >
@@ -732,17 +732,17 @@ const currentTabLabel = computed(() =>
     <!-- Tab Content: Öffentlich -->
     <div v-show="activeTab === 'public'">
       <!-- Übersichtsplan -->
-      <div class="border-b border-gray-200 pb-3 mb-3">
+      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-base font-semibold text-gray-800">Übersichtsplan für das Publikum</h4>
-            <p class="text-sm text-gray-600">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
+            <h4 class="text-base font-semibold text-[var(--color-text)]">Übersichtsplan für das Publikum</h4>
+            <p class="text-sm text-[var(--color-text-muted)]">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
           </div>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
             :class="!isDownloading.overview 
               ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
             :disabled="isDownloading.overview"
             @click="downloadEventOverviewPdf()"
           >
@@ -757,10 +757,10 @@ const currentTabLabel = computed(() =>
       </div>
 
     <!-- Räume -->
-    <div class="border-b border-gray-200 pb-3 mb-3">
+    <div class="border-b border-[var(--color-border)] pb-3 mb-3">
       <div class="mb-2">
-        <h4 class="text-base font-semibold text-gray-800">Räume</h4>
-        <p class="text-sm text-gray-600">Eine Seite pro Raum mit allen Aktivitäten.</p>
+        <h4 class="text-base font-semibold text-[var(--color-text)]">Räume</h4>
+        <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Raum mit allen Aktivitäten.</p>
       </div>
 
       <!-- Warning box -->
@@ -787,7 +787,7 @@ const currentTabLabel = computed(() =>
           class="px-4 py-2 rounded text-sm flex items-center gap-2"
           :class="!isDownloadingCsv 
             ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
           :disabled="isDownloadingCsv"
           @click="downloadRoomUtilizationCsv"
         >
@@ -804,7 +804,7 @@ const currentTabLabel = computed(() =>
           class="px-4 py-2 rounded text-sm flex items-center gap-2"
           :class="!isDownloading.rooms 
             ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
           :disabled="isDownloading.rooms"
           @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, 'Räume.pdf')"
         >
@@ -819,10 +819,10 @@ const currentTabLabel = computed(() =>
     </div>
 
     <!-- Rollen -->
-    <div class="border-b border-gray-200 pb-3 mb-3">
+    <div class="border-b border-[var(--color-border)] pb-3 mb-3">
       <div class="mb-2">
-        <h4 class="text-base font-semibold text-gray-800">Rollen</h4>
-        <p class="text-sm text-gray-600">Eine Seite pro Rolle mit allen Aktivitäten.</p>
+        <h4 class="text-base font-semibold text-[var(--color-text)]">Rollen</h4>
+        <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Rolle mit allen Aktivitäten.</p>
       </div>
 
       <!-- Warning box -->
@@ -843,7 +843,7 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- No roles available message -->
-      <div v-if="availableRoles.length === 0" class="mt-4 p-4 bg-gray-50 rounded text-center text-sm text-gray-600">
+      <div v-if="availableRoles.length === 0" class="mt-4 p-4 bg-[var(--color-bg-muted)] rounded text-center text-sm text-[var(--color-text-muted)]">
         Keine Rollen mit Aktivitäten im Plan vorhanden.
       </div>
 
@@ -854,8 +854,8 @@ const currentTabLabel = computed(() =>
         :class="{ 'lg:grid-cols-2': exploreRoles.length > 0 && challengeRoles.length > 0 }"
       >
         <!-- Explore Roles -->
-        <div v-if="exploreRoles.length > 0" class="bg-gray-50 rounded p-3">
-          <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+        <div v-if="exploreRoles.length > 0" class="bg-[var(--color-bg-muted)] rounded p-3">
+          <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
             <img 
               :src="programLogoSrc('E')" 
               :alt="programLogoAlt('E')"
@@ -867,7 +867,7 @@ const currentTabLabel = computed(() =>
             <label 
               v-for="role in exploreRoles" 
               :key="role.id"
-              class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded"
+              class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
             >
               <input 
                 type="checkbox" 
@@ -881,8 +881,8 @@ const currentTabLabel = computed(() =>
         </div>
 
         <!-- Challenge Roles -->
-        <div v-if="challengeRoles.length > 0" class="bg-gray-50 rounded p-3">
-          <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+        <div v-if="challengeRoles.length > 0" class="bg-[var(--color-bg-muted)] rounded p-3">
+          <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
             <img 
               :src="programLogoSrc('C')" 
               :alt="programLogoAlt('C')"
@@ -894,7 +894,7 @@ const currentTabLabel = computed(() =>
             <label 
               v-for="role in challengeRoles" 
               :key="role.id"
-              class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded"
+              class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
             >
               <input 
                 type="checkbox" 
@@ -923,7 +923,7 @@ const currentTabLabel = computed(() =>
           class="px-4 py-2 rounded text-sm flex items-center gap-2"
           :class="hasSelectedRoles && !isDownloading.roles 
             ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
           :disabled="!hasSelectedRoles || isDownloading.roles"
           @click="downloadRolesPdf"
         >
@@ -938,10 +938,10 @@ const currentTabLabel = computed(() =>
     </div>
 
     <!-- Teams -->
-    <div class="border-b border-gray-200 pb-3 mb-3">
+    <div class="border-b border-[var(--color-border)] pb-3 mb-3">
       <div class="mb-2">
-        <h4 class="text-base font-semibold text-gray-800">Teams</h4>
-        <p class="text-sm text-gray-600">Eine Seite pro Team mit allen Aktivitäten.</p>
+        <h4 class="text-base font-semibold text-[var(--color-text)]">Teams</h4>
+        <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Team mit allen Aktivitäten.</p>
       </div>
 
       <!-- Warning box -->
@@ -962,7 +962,7 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- No teams available message -->
-      <div v-if="availableTeamPrograms.length === 0" class="mt-4 p-4 bg-gray-50 rounded text-center text-sm text-gray-600">
+      <div v-if="availableTeamPrograms.length === 0" class="mt-4 p-4 bg-[var(--color-bg-muted)] rounded text-center text-sm text-[var(--color-text-muted)]">
         Keine Teams im Plan vorhanden.
       </div>
 
@@ -973,8 +973,8 @@ const currentTabLabel = computed(() =>
         :class="{ 'lg:grid-cols-2': hasExploreTeams && hasChallengeTeams }"
       >
         <!-- Explore Teams -->
-        <div v-if="hasExploreTeams" class="bg-gray-50 rounded p-3">
-          <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+        <div v-if="hasExploreTeams" class="bg-[var(--color-bg-muted)] rounded p-3">
+          <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
             <img 
               :src="programLogoSrc('E')" 
               :alt="programLogoAlt('E')"
@@ -984,7 +984,7 @@ const currentTabLabel = computed(() =>
           </h5>
           <div class="space-y-0.5">
             <label 
-              class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded"
+              class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
             >
               <input 
                 type="checkbox" 
@@ -998,8 +998,8 @@ const currentTabLabel = computed(() =>
         </div>
 
         <!-- Challenge Teams -->
-        <div v-if="hasChallengeTeams" class="bg-gray-50 rounded p-3">
-          <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+        <div v-if="hasChallengeTeams" class="bg-[var(--color-bg-muted)] rounded p-3">
+          <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
             <img 
               :src="programLogoSrc('C')" 
               :alt="programLogoAlt('C')"
@@ -1009,7 +1009,7 @@ const currentTabLabel = computed(() =>
           </h5>
           <div class="space-y-0.5">
             <label 
-              class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded"
+              class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
             >
               <input 
                 type="checkbox" 
@@ -1029,7 +1029,7 @@ const currentTabLabel = computed(() =>
           class="px-4 py-2 rounded text-sm flex items-center gap-2"
           :class="hasSelectedPrograms && !isDownloading.teams 
             ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-gray-100 cursor-not-allowed opacity-50'"
+            : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
           :disabled="!hasSelectedPrograms || isDownloading.teams"
           @click="downloadTeamsPdf"
         >
@@ -1047,18 +1047,18 @@ const currentTabLabel = computed(() =>
     <!-- Tab Content: Organisation -->
     <div v-show="activeTab === 'organisation'">
       <!-- 1. Teamliste -->
-      <div class="border-b border-gray-200 pb-3 mb-3">
+      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-base font-semibold text-gray-800">Teamliste</h4>
-            <p class="text-sm text-gray-600">Alle Teams mit Teamräume und Zuordnung zu Guterachter:innen- bzw. Jury Gruppen.</p>
-            <p class="text-sm text-gray-600 mt-2">Diese Liste hilft beim Check-In und bei den Briefings und Beratungen.</p>
+            <h4 class="text-base font-semibold text-[var(--color-text)]">Teamliste</h4>
+            <p class="text-sm text-[var(--color-text-muted)]">Alle Teams mit Teamräume und Zuordnung zu Guterachter:innen- bzw. Jury Gruppen.</p>
+            <p class="text-sm text-[var(--color-text-muted)] mt-2">Diese Liste hilft beim Check-In und bei den Briefings und Beratungen.</p>
           </div>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
             :class="!isDownloading['team-list'] 
               ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
             :disabled="isDownloading['team-list']"
             @click="downloadTeamListPdf"
           >
@@ -1073,17 +1073,17 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- 2. Moderation -->
-      <div class="border-b border-gray-200 pb-3 mb-3">
+      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-base font-semibold text-gray-800">Moderation</h4>
-            <p class="text-sm text-gray-600">Zeiten für alle Aktivitäten mit Moderation und kompletter Robot-Game-Matchplan</p>
+            <h4 class="text-base font-semibold text-[var(--color-text)]">Moderation</h4>
+            <p class="text-sm text-[var(--color-text-muted)]">Zeiten für alle Aktivitäten mit Moderation und kompletter Robot-Game-Matchplan</p>
           </div>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
             :class="!isDownloading['moderator-match-plan'] 
               ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
             :disabled="isDownloading['moderator-match-plan']"
             @click="downloadModeratorMatchPlanPdf"
           >
@@ -1098,17 +1098,17 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- 3. Slot-Zuordnung -->
-      <div class="border-b border-gray-200 pb-3 mb-3">
+      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-base font-semibold text-gray-800">Slot-Zuordnung</h4>
-            <p class="text-sm text-gray-600">Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.</p>
+            <h4 class="text-base font-semibold text-[var(--color-text)]">Slot-Zuordnung</h4>
+            <p class="text-sm text-[var(--color-text-muted)]">Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.</p>
           </div>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
             :class="!isDownloading['slot-assignments'] 
               ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
             :disabled="isDownloading['slot-assignments']"
             @click="downloadSlotAssignmentsPdf"
           >
@@ -1123,10 +1123,10 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- 4. Match-Plan für SCORE -->
-      <div v-if="hasChallengeTeams || event?.event_challenge" class="border-b border-gray-200 pb-3 mb-3">
+      <div v-if="hasChallengeTeams || event?.event_challenge" class="border-b border-[var(--color-border)] pb-3 mb-3">
         <div class="mb-2">
-          <h4 class="text-base font-semibold text-gray-800">Match-Plan für SCORE</h4>
-          <p class="text-sm text-gray-600">Vorrunden-Matches zum Übernehmen in die Auswertesoftware 
+          <h4 class="text-base font-semibold text-[var(--color-text)]">Match-Plan für SCORE</h4>
+          <p class="text-sm text-[var(--color-text-muted)]">Vorrunden-Matches zum Übernehmen in die Auswertesoftware 
             <a 
               href="https://evaluation.hands-on-technology.org/" 
               target="_blank" 
@@ -1136,7 +1136,7 @@ const currentTabLabel = computed(() =>
               SCORE
             </a>.
           </p>
-          <p class="text-sm text-gray-600 mt-2">
+          <p class="text-sm text-[var(--color-text-muted)] mt-2">
             Damit die Schiedsrichter:innen die Matches in der Reihenfolge angezeigt bekommen, wie in den den Plänen aus FLOW, müssen in SCORE die Matches exakt so angepasst werden, wie hier gezeigt.
           </p>
         </div>
@@ -1153,7 +1153,7 @@ const currentTabLabel = computed(() =>
             class="px-4 py-2 rounded text-sm flex items-center gap-2"
             :class="!isDownloading['match-plan'] 
               ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
             :disabled="isDownloading['match-plan']"
             @click="downloadMatchPlanPdf"
           >
@@ -1168,17 +1168,17 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- 5. Gesamtplan -->
-      <div class="border-b border-gray-200 pb-3 mb-3">
+      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-base font-semibold text-gray-800">Gesamtplan</h4>
-            <p class="text-sm text-gray-600">Volle Details, aber in einfacher Formatierung.</p>
+            <h4 class="text-base font-semibold text-[var(--color-text)]">Gesamtplan</h4>
+            <p class="text-sm text-[var(--color-text-muted)]">Volle Details, aber in einfacher Formatierung.</p>
           </div>
           <button
             class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
             :class="!isDownloading.full 
               ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-gray-100 cursor-not-allowed opacity-50'"
+              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
             :disabled="isDownloading.full"
             @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
           >
@@ -1198,7 +1198,7 @@ const currentTabLabel = computed(() =>
       <p class="text-sm text-blue-600 mb-4">
         Namensaufkleber zum Drucken auf A4-Papier
       </p>
-      <p class="text-sm text-gray-600 mb-3">
+      <p class="text-sm text-[var(--color-text-muted)] mb-3">
         Die PDF-Dateien sind passend zum  
         <a 
           href="https://www.avery-zweckform.com/vorlage-l4785" 
@@ -1208,10 +1208,10 @@ const currentTabLabel = computed(() =>
         >
           Format Avery L4785</a> formatiert.
       </p>
-      <p class="text-sm text-gray-600 mb-4">
+      <p class="text-sm text-[var(--color-text-muted)] mb-4">
         Jeder Aufkleber enthält den Namen der Person, den Team-Namen bzw. die Rolle sowie die Logos (Programm, Saison, Veranstalter).
       </p>
-      <p class="text-sm text-gray-600 mb-4">
+      <p class="text-sm text-[var(--color-text-muted)] mb-4">
         Als Veranstalter-Logo wird das erste aktive aus dem
         <a
           href="/plan/logos"
@@ -1220,17 +1220,17 @@ const currentTabLabel = computed(() =>
           View Logos</a>
         verwendet.
       </p>
-      <p class="text-sm text-gray-600 mb-4">
+      <p class="text-sm text-[var(--color-text-muted)] mb-4">
         Mit "Überspringen" können die ersten Aufkleber auf dem ersten Blatt übersprungen werden, um teilweise bereits verwendete Blätter weiter zu nutzen und Material zu sparen.
       </p>
  
       
       <!-- Namensaufkleber für Teams -->
-      <div class="border-b border-gray-200 pb-3 mb-3">
+      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
         <div>
-          <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Teams</h4>
-          <p class="text-sm text-gray-600 mb-4">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
-          <p class="text-sm text-gray-600 mb-4">"No-Show" Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.</p>
+          <h4 class="text-base font-semibold text-[var(--color-text)] mb-2">Namensaufkleber für Teams</h4>
+          <p class="text-sm text-[var(--color-text-muted)] mb-4">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
+          <p class="text-sm text-[var(--color-text-muted)] mb-4">"No-Show" Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.</p>
           
           <!-- Filters: stacked on mobile, side-by-side on desktop when both programs -->
           <div 
@@ -1239,8 +1239,8 @@ const currentTabLabel = computed(() =>
             :class="{ 'lg:grid-cols-2': hasExploreTeams && hasChallengeTeams }"
           >
             <!-- Explore -->
-            <div v-if="hasExploreTeams" class="bg-gray-50 rounded p-3">
-              <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+            <div v-if="hasExploreTeams" class="bg-[var(--color-bg-muted)] rounded p-3">
+              <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
                 <img 
                   :src="programLogoSrc('E')" 
                   :alt="programLogoAlt('E')"
@@ -1249,7 +1249,7 @@ const currentTabLabel = computed(() =>
                 <span>FIRST LEGO League Explore</span>
               </h5>
               <div class="space-y-0.5">
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
                   <input 
                     type="checkbox" 
                     :checked="teamLabelFilters[2]?.players ?? true"
@@ -1258,7 +1258,7 @@ const currentTabLabel = computed(() =>
                   />
                   <span class="text-sm">Teammitglieder</span>
                 </label>
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
                   <input 
                     type="checkbox" 
                     :checked="teamLabelFilters[2]?.coaches ?? true"
@@ -1271,8 +1271,8 @@ const currentTabLabel = computed(() =>
             </div>
             
             <!-- Challenge -->
-            <div v-if="hasChallengeTeams" class="bg-gray-50 rounded p-3">
-              <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+            <div v-if="hasChallengeTeams" class="bg-[var(--color-bg-muted)] rounded p-3">
+              <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
                 <img 
                   :src="programLogoSrc('C')" 
                   :alt="programLogoAlt('C')"
@@ -1281,7 +1281,7 @@ const currentTabLabel = computed(() =>
                 <span>FIRST LEGO League Challenge</span>
               </h5>
               <div class="space-y-0.5">
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
                   <input 
                     type="checkbox" 
                     :checked="teamLabelFilters[3]?.players ?? true"
@@ -1290,7 +1290,7 @@ const currentTabLabel = computed(() =>
                   />
                   <span class="text-sm">Teammitglieder</span>
                 </label>
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
                   <input 
                     type="checkbox" 
                     :checked="teamLabelFilters[3]?.coaches ?? true"
@@ -1305,21 +1305,21 @@ const currentTabLabel = computed(() =>
           
           <!-- PDF Button -->
           <div class="flex items-center justify-end gap-2">
-            <label class="flex items-center gap-1 text-sm text-gray-600">
+            <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
               <span class="text-xs">Überspringen:</span>
               <input
                 type="number"
                 v-model.number="teamLabelSkipOffset"
                 min="0"
                 max="9"
-                class="w-12 border border-gray-300 rounded px-1 py-0.5 text-sm text-center"
+                class="w-12 border border-[var(--color-border)] rounded px-1 py-0.5 text-sm text-center"
               />
             </label>
             <button
               class="px-4 py-2 rounded text-sm flex items-center gap-2"
               :class="canDownloadTeamLabels && !isDownloading['name-tags']
                 ? 'bg-gray-200 hover:bg-gray-300' 
-                : 'bg-gray-100 cursor-not-allowed opacity-50'"
+                : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
               :disabled="!canDownloadTeamLabels || isDownloading['name-tags']"
               @click="downloadNameTagsPdf"
             >
@@ -1335,13 +1335,13 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- Namensaufkleber für Volunteer -->
-      <div class="border-b border-gray-200 pb-3 mb-3">
+      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
         <div>
-          <h4 class="text-base font-semibold text-gray-800 mb-2">Namensaufkleber für Volunteers</h4>
-          <p class="text-sm text-gray-600 mb-3">
+          <h4 class="text-base font-semibold text-[var(--color-text)] mb-2">Namensaufkleber für Volunteers</h4>
+          <p class="text-sm text-[var(--color-text-muted)] mb-3">
             Hier kann eine einfache Liste von Rollen und Namen hochgeladen werden, aus der dann ein PDF erzeugt wird.
           </p>
-          <p class="text-xs text-gray-500 mb-4">
+          <p class="text-xs text-[var(--color-text-subtle)] mb-4">
             Format: Name, Rolle, Programm (E für Explore, C für Challenge, leer für kein Logo). 
             Spalten können durch Tab oder Komma getrennt sein.
           </p>
@@ -1352,24 +1352,24 @@ const currentTabLabel = computed(() =>
               v-model="volunteerInputText"
               @input="updateVolunteerPreview"
               placeholder="Max Mustermann&#9;Gutachter&#9;E&#10;Anna Schmidt&#9;Schiedsrichter:in&#9;C&#10;..."
-              class="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono"
+              class="w-full border border-[var(--color-border)] rounded px-3 py-2 text-sm font-mono"
               rows="6"
             ></textarea>
           </div>
           
           <!-- Preview Grid -->
           <div v-if="volunteerPreview.length > 0 || submittedVolunteers.length > 0" class="mb-4">
-            <div class="text-sm font-semibold text-gray-700 mb-2">
+            <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-2">
               Vorschau ({{ (volunteerPreview.length + submittedVolunteers.length) }} Einträge):
             </div>
-            <div class="border border-gray-300 rounded overflow-hidden">
+            <div class="border border-[var(--color-border)] rounded overflow-hidden">
               <div class="overflow-x-auto max-h-64 overflow-y-auto">
                 <table class="min-w-full text-sm">
-                  <thead class="bg-gray-50 sticky top-0">
+                  <thead class="bg-[var(--color-bg-muted)] sticky top-0">
                     <tr>
-                      <th class="px-3 py-2 text-left font-semibold text-gray-700 border-b">Name</th>
-                      <th class="px-3 py-2 text-left font-semibold text-gray-700 border-b">Rolle</th>
-                      <th class="px-3 py-2 text-left font-semibold text-gray-700 border-b">Programm</th>
+                      <th class="px-3 py-2 text-left font-semibold text-[var(--color-text-muted)] border-b">Name</th>
+                      <th class="px-3 py-2 text-left font-semibold text-[var(--color-text-muted)] border-b">Rolle</th>
+                      <th class="px-3 py-2 text-left font-semibold text-[var(--color-text-muted)] border-b">Programm</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
@@ -1422,14 +1422,14 @@ const currentTabLabel = computed(() =>
               </button>
             </div>
             <div class="flex items-center gap-2">
-              <label class="flex items-center gap-1 text-sm text-gray-600">
+              <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
                 <span class="text-xs">Überspringen:</span>
                 <input
                   type="number"
                   v-model.number="volunteerLabelSkipOffset"
                   min="0"
                   max="9"
-                  class="w-12 border border-gray-300 rounded px-1 py-0.5 text-sm text-center"
+                  class="w-12 border border-[var(--color-border)] rounded px-1 py-0.5 text-sm text-center"
                 />
               </label>
               <button
@@ -1437,7 +1437,7 @@ const currentTabLabel = computed(() =>
                 class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
                 :class="hasSubmittedVolunteers && !isDownloading['volunteer-labels']
                   ? 'bg-gray-200 hover:bg-gray-300' 
-                  : 'bg-gray-100 cursor-not-allowed opacity-50'"
+                  : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
                 :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
               >
               <svg v-if="isDownloading['volunteer-labels']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -1464,11 +1464,11 @@ const currentTabLabel = computed(() =>
         @click.stop
       >
         <!-- Modal Header -->
-        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 class="text-lg font-semibold text-gray-900" v-html="eventTitleNormalized"></h3>
+        <div class="px-6 py-4 border-b border-[var(--color-border)] flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-[var(--color-text)]" v-html="eventTitleNormalized"></h3>
           <button
             @click="closeMatchPlanModal"
-            class="text-gray-400 hover:text-gray-600 transition-colors"
+            class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1483,7 +1483,7 @@ const currentTabLabel = computed(() =>
             <template v-for="option in roundOptions" :key="option.value">
               <div class="bg-white border rounded-lg shadow">
                 <button
-                  class="w-full text-left px-4 py-2 bg-gray-100 font-semibold text-black uppercase flex justify-between items-center"
+                  class="w-full text-left px-4 py-2 bg-[var(--color-bg-muted)] font-semibold text-black uppercase flex justify-between items-center"
                   @click="toggleRound(option.value)"
                 >
                   {{ option.label }}
@@ -1496,10 +1496,10 @@ const currentTabLabel = computed(() =>
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                       </svg>
-                      <span class="ml-3 text-gray-600">Lade Matches...</span>
+                      <span class="ml-3 text-[var(--color-text-muted)]">Lade Matches...</span>
                     </div>
                     
-                    <div v-else-if="matches.length === 0" class="text-center py-8 text-gray-500">
+                    <div v-else-if="matches.length === 0" class="text-center py-8 text-[var(--color-text-subtle)]">
                       Keine Matches gefunden
                     </div>
                     
@@ -1510,7 +1510,7 @@ const currentTabLabel = computed(() =>
                         <div
                           class="px-4 py-2 rounded text-white text-sm font-medium"
                           :class="[
-                            isEmptySlot(match.team_1) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600',
+                            isEmptySlot(match.team_1) ? 'bg-gray-300 text-[var(--color-text-muted)]' : 'bg-blue-600',
                             isNoshow(match.team_1) ? 'line-through' : ''
                           ]"
                         >
@@ -1521,7 +1521,7 @@ const currentTabLabel = computed(() =>
                         <div
                           class="px-4 py-2 rounded text-white text-sm font-medium"
                           :class="[
-                            isEmptySlot(match.team_2) ? 'bg-gray-300 text-gray-700' : 'bg-blue-600',
+                            isEmptySlot(match.team_2) ? 'bg-gray-300 text-[var(--color-text-muted)]' : 'bg-blue-600',
                             isNoshow(match.team_2) ? 'line-through' : ''
                           ]"
                         >
@@ -1549,11 +1549,11 @@ const currentTabLabel = computed(() =>
         @click.stop
       >
         <!-- Modal Header -->
-        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 class="text-lg font-semibold text-gray-900">HERO Schichten</h3>
+        <div class="px-6 py-4 border-b border-[var(--color-border)] flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-[var(--color-text)]">HERO Schichten</h3>
           <button
             @click="closeModal"
-            class="text-gray-400 hover:text-gray-600 transition-colors"
+            class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1568,7 +1568,7 @@ const currentTabLabel = computed(() =>
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
-            <span class="ml-3 text-gray-600">Lade Schichten...</span>
+            <span class="ml-3 text-[var(--color-text-muted)]">Lade Schichten...</span>
           </div>
           
           <div v-else-if="workerShifts?.error" class="text-center py-8 text-red-600">
@@ -1576,26 +1576,26 @@ const currentTabLabel = computed(() =>
           </div>
           
           <div v-else-if="workerShifts?.shifts" class="space-y-4">
-            <p class="text-sm text-gray-600 italic">Zu jeder Zeile sollte in HERO eine Schicht angelegt werden.</p>
+            <p class="text-sm text-[var(--color-text-muted)] italic">Zu jeder Zeile sollte in HERO eine Schicht angelegt werden.</p>
             <div class="overflow-x-auto">
-              <table class="min-w-full border-collapse border border-gray-300">
+              <table class="min-w-full border-collapse border border-[var(--color-border)]">
                 <thead>
-                  <tr class="bg-gray-50">
-                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Datum</th>
-                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Treffpunkt</th>
-                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Beginn</th>
-                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Ende</th>
-                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-700">Label</th>
+                  <tr class="bg-[var(--color-bg-muted)]">
+                    <th class="border border-[var(--color-border)] px-4 py-2 text-left font-semibold text-[var(--color-text-muted)]">Datum</th>
+                    <th class="border border-[var(--color-border)] px-4 py-2 text-left font-semibold text-[var(--color-text-muted)]">Treffpunkt</th>
+                    <th class="border border-[var(--color-border)] px-4 py-2 text-left font-semibold text-[var(--color-text-muted)]">Beginn</th>
+                    <th class="border border-[var(--color-border)] px-4 py-2 text-left font-semibold text-[var(--color-text-muted)]">Ende</th>
+                    <th class="border border-[var(--color-border)] px-4 py-2 text-left font-semibold text-[var(--color-text-muted)]">Label</th>
                   </tr>
                 </thead>
                 <tbody>
                   <template v-for="role in workerShifts.shifts" :key="role.role_name">
-                    <tr v-for="(shift, index) in role.shifts" :key="`${role.role_name}-${shift.day}`" class="hover:bg-gray-50">
-                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ formatDate(shift.day) }}</td>
-                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.start }}</td>
-                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.start }}</td>
-                      <td class="border border-gray-300 px-4 py-2 text-gray-700">{{ shift.end }}</td>
-                      <td class="border border-gray-300 px-4 py-2 font-medium text-gray-900">{{ role.role_name }}</td>
+                    <tr v-for="(shift, index) in role.shifts" :key="`${role.role_name}-${shift.day}`" class="hover:bg-[var(--color-bg-hover)]">
+                      <td class="border border-[var(--color-border)] px-4 py-2 text-[var(--color-text-muted)]">{{ formatDate(shift.day) }}</td>
+                      <td class="border border-[var(--color-border)] px-4 py-2 text-[var(--color-text-muted)]">{{ shift.start }}</td>
+                      <td class="border border-[var(--color-border)] px-4 py-2 text-[var(--color-text-muted)]">{{ shift.start }}</td>
+                      <td class="border border-[var(--color-border)] px-4 py-2 text-[var(--color-text-muted)]">{{ shift.end }}</td>
+                      <td class="border border-[var(--color-border)] px-4 py-2 font-medium text-[var(--color-text)]">{{ role.role_name }}</td>
                     </tr>
                   </template>
                 </tbody>
@@ -1603,7 +1603,7 @@ const currentTabLabel = computed(() =>
             </div>
           </div>
           
-          <div v-else class="text-center py-8 text-gray-500">
+          <div v-else class="text-center py-8 text-[var(--color-text-subtle)]">
             Keine Schichten verfügbar
           </div>
         </div>
@@ -1615,7 +1615,7 @@ const currentTabLabel = computed(() =>
       v-if="anyDownloading"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
     >
-      <div class="bg-white px-4 py-3 rounded shadow flex items-center gap-2">
+      <div class="glass-row-item inline-flex px-4 py-3 gap-2">
         <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
           <path class="opacity-75" fill="currentColor"

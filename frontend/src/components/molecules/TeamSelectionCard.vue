@@ -32,10 +32,10 @@ const plannedAmountNotMatching = computed(() => {
       
       <!-- Card 1: Plan für (Editable) -->
       <div 
-        class="border border-gray-200 rounded-lg p-3 sm:p-4 bg-white transition-colors shadow-sm"
+        class="glass-chip liquid-surface-inner p-3 sm:p-4 transition-colors"
       >
         <div class="mb-2 sm:mb-3">
-          <span class="text-xs sm:text-sm font-semibold text-gray-700">Plan für</span>
+          <span class="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)]">Plan für</span>
         </div>
         <div class="relative">
           <div class="w-full text-xl sm:text-2xl font-bold bg-white relative flex items-center justify-center gap-1.5 sm:gap-2">
@@ -44,7 +44,7 @@ const plannedAmountNotMatching = computed(() => {
             <div class="flex flex-col gap-0.5">
               <button
                 type="button"
-                class="w-6 h-3.5 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                class="w-6 h-3.5 flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 @click="onUpdate(Math.min(maxTeams, planTeams + 1))"
                 :disabled="planTeams >= maxTeams"
               >
@@ -54,7 +54,7 @@ const plannedAmountNotMatching = computed(() => {
               </button>
               <button
                 type="button"
-                class="w-6 h-3.5 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                class="w-6 h-3.5 flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 @click="onUpdate(Math.max(minTeams, planTeams - 1))"
                 :disabled="planTeams <= minTeams"
               >
@@ -64,33 +64,33 @@ const plannedAmountNotMatching = computed(() => {
               </button>
             </div>
             <span v-if="planTeams > 0">{{ planTeams }}</span>
-            <span v-else class="text-gray-400">0</span>
-            <span class="text-xs font-medium text-gray-500">Teams</span>
+            <span v-else class="text-[var(--color-text-subtle)]">0</span>
+            <span class="text-xs font-medium text-[var(--color-text-subtle)]">Teams</span>
           </div>
         </div>
       </div>
       
       <!-- Card 2: Angemeldet (Registered) -->
-      <div class="border border-gray-200 rounded-lg p-3 sm:p-4 bg-white shadow-sm">
+      <div class="glass-chip liquid-surface-inner p-3 sm:p-4">
         <div class="mb-2 sm:mb-3">
-          <span class="text-xs sm:text-sm font-semibold text-gray-700">Angemeldet</span>
+          <span class="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)]">Angemeldet</span>
         </div>
-        <div class="w-full text-xl sm:text-2xl font-bold bg-white text-gray-900 flex items-center justify-center gap-1.5 sm:gap-2">
+        <div class="w-full text-xl sm:text-2xl font-bold bg-white text-[var(--color-text)] flex items-center justify-center gap-1.5 sm:gap-2">
           <span v-if="registeredTeams > 0">{{ registeredTeams }}</span>
-          <span v-else class="text-gray-400">0</span>
-          <span class="text-xs font-medium text-gray-500">Teams</span>
+          <span v-else class="text-[var(--color-text-subtle)]">0</span>
+          <span class="text-xs font-medium text-[var(--color-text-subtle)]">Teams</span>
         </div>
       </div>
       
       <!-- Card 3: Kapazität (Capacity) -->
-      <div class="border border-gray-200 rounded-lg p-3 sm:p-4 bg-white shadow-sm">
+      <div class="glass-chip liquid-surface-inner p-3 sm:p-4">
         <div class="mb-2 sm:mb-3">
-          <span class="text-xs sm:text-sm font-semibold text-gray-700">Kapazität</span>
+          <span class="text-xs sm:text-sm font-semibold text-[var(--color-text-muted)]">Kapazität</span>
         </div>
-        <div class="w-full text-xl sm:text-2xl font-bold bg-white text-gray-900 flex items-center justify-center gap-1.5 sm:gap-2">
+        <div class="w-full text-xl sm:text-2xl font-bold bg-white text-[var(--color-text)] flex items-center justify-center gap-1.5 sm:gap-2">
           <span v-if="capacity > 0">{{ capacity }}</span>
-          <span v-else class="text-gray-400">0</span>
-          <span class="text-xs font-medium text-gray-500">Teams</span>
+          <span v-else class="text-[var(--color-text-subtle)]">0</span>
+          <span class="text-xs font-medium text-[var(--color-text-subtle)]">Teams</span>
         </div>
       </div>
     </div>

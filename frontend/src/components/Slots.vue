@@ -496,7 +496,7 @@ function lineStatusClass(status: TeamActivityLine['status']): string {
   if (status === 'red') return 'text-red-700'
   if (status === 'yellow') return 'text-yellow-700'
   if (status === 'green') return 'text-green-700'
-  return 'text-gray-700'
+  return 'text-[var(--color-text-muted)]'
 }
 
 function wallTimeHm(s: string | null): string {
@@ -593,18 +593,18 @@ async function onTeamStartChange(row: TeamRow, value: string) {
 }
 
 const inputUnderline =
-  'border-b border-gray-300 w-full focus:outline-none focus:border-blue-500'
+  'border-b border-[var(--color-border)] w-full focus:outline-none focus:border-blue-500'
 const inputTitle =
-  'text-sm md:text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500'
+  'text-sm md:text-md font-semibold border-b border-[var(--color-border)] flex-1 focus:outline-none focus:border-blue-500'
 </script>
 
 <template>
   <div>
-    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
+    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)] min-h-[400px]">
       <LoaderFlow/>
       <LoaderText/>
     </div>
-    <div v-else-if="!planId" class="p-3 md:p-6 text-gray-600">Kein Plan für diese Veranstaltung.</div>
+    <div v-else-if="!planId" class="p-3 md:p-6 text-[var(--color-text-muted)]">Kein Plan für diese Veranstaltung.</div>
     <div v-else class="p-3 md:p-6">
       <div class="mb-4">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-6 items-start">
@@ -620,7 +620,7 @@ const inputTitle =
             </button>
           </div>
           <div class="lg:col-span-2">
-            <p class="text-sm text-gray-700">
+            <p class="text-sm text-[var(--color-text-muted)]">
               Alle bisherigen Zuordnungen werden aus dem Plan entfernt. Dann werden die Zuordnungen für
               alle aktiven Aktivitäten pro Team in den Plan eingefügt.
             </p>
@@ -649,7 +649,7 @@ const inputTitle =
             class="p-3 md:p-4 mb-2 border rounded shadow-sm md:shadow transition-all duration-200 cursor-pointer flex gap-3"
             :class="[
               selectedId === block.id ? 'ring-2 ring-blue-500 border-blue-400 shadow-md' : 'hover:shadow-md',
-              block.active ? 'bg-white border-gray-200' : 'opacity-60 bg-gray-50 border-gray-200',
+              block.active ? 'bg-white border-[var(--color-border)]' : 'opacity-60 bg-[var(--color-bg-muted)] border-[var(--color-border)]',
             ]"
             @click="selectedId = block.id"
           >
@@ -674,7 +674,7 @@ const inputTitle =
                 :class="[
                   inputTitle,
                   'w-full mb-2',
-                  !block.active ? 'text-gray-400 cursor-not-allowed' : '',
+                  !block.active ? 'text-[var(--color-text-subtle)] cursor-not-allowed' : '',
                 ]"
                 placeholder="Name"
                 @click.stop
@@ -686,8 +686,8 @@ const inputTitle =
                 :disabled="!block.active"
                 :class="[
                   inputUnderline,
-                  'text-xs md:text-sm text-gray-700 mb-2',
-                  !block.active ? 'text-gray-400 cursor-not-allowed' : '',
+                  'text-xs md:text-sm text-[var(--color-text-muted)] mb-2',
+                  !block.active ? 'text-[var(--color-text-subtle)] cursor-not-allowed' : '',
                 ]"
                 placeholder="Beschreibung"
                 @click.stop
@@ -699,8 +699,8 @@ const inputTitle =
                 :disabled="!block.active"
                 :class="[
                   inputUnderline,
-                  'text-xs md:text-sm text-gray-700 mb-2',
-                  !block.active ? 'text-gray-400 cursor-not-allowed' : '',
+                  'text-xs md:text-sm text-[var(--color-text-muted)] mb-2',
+                  !block.active ? 'text-[var(--color-text-subtle)] cursor-not-allowed' : '',
                 ]"
                 placeholder="Link (URL)"
                 @click.stop
@@ -708,7 +708,7 @@ const inputTitle =
               />
               <div class="flex flex-wrap items-center gap-4 mb-1">
                 <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-600 whitespace-nowrap">Dauer (Min.)</span>
+                  <span class="text-xs text-[var(--color-text-muted)] whitespace-nowrap">Dauer (Min.)</span>
                   <input
                     type="number"
                     :value="block.duration"
@@ -717,7 +717,7 @@ const inputTitle =
                     step="5"
                     :disabled="!block.active"
                     inputmode="none"
-                    class="w-[4.25rem] text-sm text-center border border-gray-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                    class="w-[4.25rem] text-sm text-center border border-[var(--color-border)] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-[var(--color-bg-muted)] disabled:text-[var(--color-text-subtle)]"
                     title="Nur mit Pfeiltasten oder Klick auf ▲▼ ändern (5-Min-Schritte)"
                     @click.stop
                     @keydown="onDurationKeydown"
@@ -756,13 +756,13 @@ const inputTitle =
                   />
                 </div>
               </div>
-              <div v-if="savingBlockId === block.id" class="text-xs text-gray-500">Speichern…</div>
+              <div v-if="savingBlockId === block.id" class="text-xs text-[var(--color-text-subtle)]">Speichern…</div>
             </div>
           </div>
 
           <div
             ref="newSlotCardRef"
-            class="p-3 md:p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+            class="p-3 md:p-4 mb-2 border-dashed border-2 border-[var(--color-border)] rounded bg-[var(--color-bg-muted)] shadow-sm"
             @click.stop
           >
             <div class="mb-2">
@@ -774,7 +774,7 @@ const inputTitle =
                 placeholder="Neu Aktivität pro Team"
                 @keyup.enter="createNewSlotBlock"
               />
-              <p v-if="!newSlotName.trim()" class="text-xs text-gray-500 mt-1">
+              <p v-if="!newSlotName.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1">
                 Titel der Aktivität (z.B. Führung, Mittagessen, Interview, …)
               </p>
             </div>
@@ -784,7 +784,7 @@ const inputTitle =
                   v-model="newSlotDescription"
                   :disabled="isSavingNew"
                   type="text"
-                  :class="inputUnderline + ' text-xs md:text-sm text-gray-700'"
+                  :class="inputUnderline + ' text-xs md:text-sm text-[var(--color-text-muted)]'"
                   placeholder="Beschreibung"
                   @keyup.enter="createNewSlotBlock"
                 />
@@ -792,13 +792,13 @@ const inputTitle =
                   v-model="newSlotLink"
                   :disabled="isSavingNew"
                   type="url"
-                  :class="inputUnderline + ' text-xs md:text-sm text-gray-700'"
+                  :class="inputUnderline + ' text-xs md:text-sm text-[var(--color-text-muted)]'"
                   placeholder="Link (URL)"
                   @keyup.enter="createNewSlotBlock"
                 />
                 <div class="flex flex-wrap items-center gap-4">
                   <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-600">Dauer (Min.)</span>
+                    <span class="text-xs text-[var(--color-text-muted)]">Dauer (Min.)</span>
                     <input
                       type="number"
                       :value="newSlotDuration"
@@ -807,7 +807,7 @@ const inputTitle =
                       step="5"
                       :disabled="isSavingNew"
                       inputmode="none"
-                      class="w-[4.25rem] text-sm text-center border border-gray-300 rounded px-1 py-0.5"
+                      class="w-[4.25rem] text-sm text-center border border-[var(--color-border)] rounded px-1 py-0.5"
                       @keydown="onDurationKeydown"
                       @paste.prevent
                       @input="onNewDurationChange($event.target as HTMLInputElement)"
@@ -840,7 +840,7 @@ const inputTitle =
                     />
                   </div>
                 </div>
-                <p class="text-xs text-gray-500">
+                <p class="text-xs text-[var(--color-text-subtle)]">
                   Klick außerhalb oder Enter legt den Block an.
                 </p>
               </div>
@@ -853,8 +853,8 @@ const inputTitle =
         class="lg:col-span-2 min-w-0"
         :class="selectedBlock && !selectedBlock.active ? 'opacity-60' : ''"
       >
-        <div class="mb-3 md:mb-4 border-b border-gray-200 pb-2">
-          <h2 class="text-base md:text-xl font-bold text-gray-900">
+        <div class="mb-3 md:mb-4 border-b border-[var(--color-border)] pb-2">
+          <h2 class="text-base md:text-xl font-bold text-[var(--color-text)]">
             {{
               selectedBlock
                 ? `${selectedBlock.name} - Zuordnung der Teams`
@@ -864,7 +864,7 @@ const inputTitle =
         </div>
 
         <template v-if="selectedBlock">
-          <div class="mb-2 text-xs text-gray-600 flex flex-wrap items-center gap-4">
+          <div class="mb-2 text-xs text-[var(--color-text-muted)] flex flex-wrap items-center gap-4">
             <span class="inline-flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
               Konflikt mit anderer Aktivität des Teams
@@ -878,11 +878,11 @@ const inputTitle =
               OK
             </span>
           </div>
-          <div v-if="loadingTeams" class="flex items-center gap-2 text-gray-500 py-8">
+          <div v-if="loadingTeams" class="flex items-center gap-2 text-[var(--color-text-subtle)] py-8">
             <LoaderFlow class="scale-75"/>
             <span class="text-sm">Lade Teams…</span>
           </div>
-          <div v-else class="overflow-x-auto border rounded bg-white shadow-sm">
+          <div v-else class="overflow-x-auto glass-card liquid-surface-inner">
             <table class="w-full table-fixed text-sm">
               <colgroup>
                 <col class="w-[220px]" />
@@ -895,14 +895,14 @@ const inputTitle =
                 <tr
                   v-for="row in teams"
                   :key="row.row_key"
-                  class="border-b border-gray-100 hover:bg-gray-50/80"
+                  class="border-b border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]/80"
                 >
                   <td class="px-3 py-2 align-middle">
                     <div class="flex items-center gap-2">
                       <button
                         v-if="!row.start && editingTeamId !== rowEditKey(row)"
                         type="button"
-                        class="w-[180px] max-w-full text-left px-2 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 text-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        class="w-[180px] max-w-full text-left px-2 py-1 border border-[var(--color-border)] rounded bg-white hover:bg-[var(--color-bg-hover)] text-[var(--color-text-subtle)] disabled:bg-[var(--color-bg-muted)] disabled:text-[var(--color-text-subtle)] disabled:cursor-not-allowed"
                         :disabled="!selectedBlock.active"
                         title="Startzeit setzen"
                         @click="beginEditStart(row)"
@@ -917,7 +917,7 @@ const inputTitle =
                         v-else
                         type="datetime-local"
                         :disabled="!selectedBlock.active"
-                        class="text-sm border-b border-gray-300 bg-transparent py-0.5 w-[180px] max-w-full focus:outline-none focus:border-blue-500 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        class="text-sm border-b border-[var(--color-border)] bg-transparent py-0.5 w-[180px] max-w-full focus:outline-none focus:border-blue-500 disabled:text-[var(--color-text-subtle)] disabled:cursor-not-allowed"
                         :value="editingTeamId === rowEditKey(row) ? editingStartLocal : wallTimeToDatetimeLocal(row.start)"
                         @change="onTeamStartChange(row, ($event.target as HTMLInputElement).value)"
                         @blur="!row.start && cancelEditStart(row)"
@@ -949,7 +949,7 @@ const inputTitle =
                       class="w-6 h-6 mx-auto"
                     />
                   </td>
-                  <td class="px-3 py-2 text-gray-800 font-medium tabular-nums">
+                  <td class="px-3 py-2 text-[var(--color-text)] font-medium tabular-nums">
                     <div
                       class="relative inline-block"
                       @mouseenter="openTooltip(row)"
@@ -966,13 +966,13 @@ const inputTitle =
 
                       <div
                         v-if="tooltipOpenKey === row.row_key"
-                        class="absolute z-30 mt-2 w-[24rem] max-w-[70vw] rounded-lg border border-gray-200 bg-white shadow-xl p-3"
+                        class="absolute z-30 mt-2 w-[24rem] max-w-[70vw] glass-dropdown p-3"
                       >
-                        <p class="text-xs font-semibold text-gray-800 mb-2">
+                        <p class="text-xs font-semibold text-[var(--color-text)] mb-2">
                           Team-spezifische Aktivitäten · {{ formatTooltipDate(tooltipActivities[row.row_key]?.slot_date ?? null) }}
                         </p>
-                        <p v-if="tooltipLoadingKey === row.row_key" class="text-xs text-gray-500">Lade...</p>
-                        <p v-else-if="!(tooltipActivities[row.row_key]?.activities?.length)" class="text-xs text-gray-500">
+                        <p v-if="tooltipLoadingKey === row.row_key" class="text-xs text-[var(--color-text-subtle)]">Lade...</p>
+                        <p v-else-if="!(tooltipActivities[row.row_key]?.activities?.length)" class="text-xs text-[var(--color-text-subtle)]">
                           Keine team-spezifischen Aktivitäten gefunden.
                         </p>
                         <ul v-else class="space-y-1.5">
@@ -989,17 +989,17 @@ const inputTitle =
                       </div>
                     </div>
                   </td>
-                  <td class="px-3 py-2 text-gray-800">{{ row.team_number_hot ?? '–' }}</td>
-                  <td class="px-3 py-2 text-gray-900">{{ row.team_name }}</td>
+                  <td class="px-3 py-2 text-[var(--color-text)]">{{ row.team_number_hot ?? '–' }}</td>
+                  <td class="px-3 py-2 text-[var(--color-text)]">{{ row.team_name }}</td>
                 </tr>
               </tbody>
             </table>
-            <p v-if="!teams.length" class="p-6 text-sm text-gray-500 text-center">
+            <p v-if="!teams.length" class="p-6 text-sm text-[var(--color-text-subtle)] text-center">
               Keine Teams im Plan für diesen Slot-Typ.
             </p>
           </div>
         </template>
-        <p v-else class="text-sm text-gray-500">Links einen Slot-Block auswählen.</p>
+        <p v-else class="text-sm text-[var(--color-text-subtle)]">Links einen Slot-Block auswählen.</p>
       </div>
     </div>
     </div>

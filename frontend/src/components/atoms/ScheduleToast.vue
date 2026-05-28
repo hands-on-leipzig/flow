@@ -30,7 +30,7 @@ const isClickable = computed(() => {
 
 const buttonClass = computed(() => {
   if (props.isGenerating) {
-    return "bg-gray-300 text-gray-600 cursor-not-allowed";
+    return "bg-gray-300 text-[var(--color-text-muted)] cursor-not-allowed";
   }
   return "bg-green-500 hover:bg-green-600 text-white cursor-pointer";
 });

@@ -1073,7 +1073,7 @@ const showChallengeTeams = computed(() => {
 
 <template>
   <div>
-    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
+    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)] min-h-[400px]">
       <LoaderFlow/>
       <LoaderText/>
     </div>
@@ -1086,12 +1086,12 @@ const showChallengeTeams = computed(() => {
           <div
               v-for="room in rooms"
               :key="`mobile-room-${room.id}`"
-              class="p-3 border rounded bg-white shadow-sm"
+              class="glass-row-item"
           >
             <div class="flex items-center gap-2 mb-2">
               <input
                   v-model="room.name"
-                  class="text-sm font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
+                  class="text-sm font-semibold border-b border-[var(--color-border)] flex-1 focus:outline-none focus:border-blue-500"
                   @blur="updateRoom(room)"
               />
               <button
@@ -1106,7 +1106,7 @@ const showChallengeTeams = computed(() => {
             <div class="mb-2 flex items-center gap-2">
               <input
                   v-model="room.navigation_instruction"
-                  class="text-xs border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
+                  class="text-xs border-b border-[var(--color-border)] flex-1 text-[var(--color-text-muted)] focus:outline-none focus:border-blue-500"
                   placeholder="z. B. 2. Etage rechts"
                   @blur="updateRoom(room)"
               />
@@ -1123,7 +1123,7 @@ const showChallengeTeams = computed(() => {
               </div>
             </div>
 
-            <div class="flex flex-wrap gap-1 min-h-[36px] border rounded p-1 bg-gray-50">
+            <div class="flex flex-wrap gap-1 min-h-[36px] border rounded p-1 bg-[var(--color-bg-muted)]">
               <div v-for="element in getItemsInRoom(room.id)" :key="`mobile-assigned-${element.key}`" class="flex items-center">
                 <span
                     v-if="element.type === 'activity'"
@@ -1132,18 +1132,18 @@ const showChallengeTeams = computed(() => {
                 >
                   <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
                   {{ element.name }}
-                  <button class="ml-1 text-sm text-gray-500 hover:text-black" @click.stop="unassignItemFromRoom(element.key)">✖</button>
+                  <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black" @click.stop="unassignItemFromRoom(element.key)">✖</button>
                 </span>
                 <span
                     v-else
-                    class="flex items-center border rounded-md text-[11px] bg-white shadow-sm"
+                    class="glass-row-item text-[11px]"
                 >
                   <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
                   <span class="px-2 py-1 flex items-center gap-1">
                     <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
                     {{ element.number ? `${element.number} | ` : '' }}{{ element.name }}
                   </span>
-                  <button class="ml-1 text-sm text-gray-500 hover:text-black pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
+                  <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
                 </span>
               </div>
             </div>
@@ -1151,14 +1151,14 @@ const showChallengeTeams = computed(() => {
 
           <div
               ref="newRoomCardRef"
-              class="p-3 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+              class="p-3 border-dashed border-2 border-[var(--color-border)] rounded bg-[var(--color-bg-muted)] shadow-sm"
           >
             <div class="mb-2">
               <input
                   ref="newRoomInput"
                   v-model="newRoomName"
                   :disabled="isSaving"
-                  class="text-sm font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
+                  class="text-sm font-semibold border-b border-[var(--color-border)] w-full focus:outline-none focus:border-blue-500"
                   placeholder="Neuer Raum z.B. A2.03"
                   @keyup.enter="createRoom"
               />
@@ -1169,7 +1169,7 @@ const showChallengeTeams = computed(() => {
                     ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
-                    class="text-xs border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                    class="text-xs border-b border-[var(--color-border)] w-full text-[var(--color-text-muted)] focus:outline-none focus:border-blue-500"
                     placeholder="Navigationshinweis"
                     @keyup.enter="createRoom"
                 />
@@ -1195,14 +1195,14 @@ const showChallengeTeams = computed(() => {
                 'opacity-50': isDraggingRoom,
                 'shadow-lg': isDraggingRoom
               }"
-                  class="p-3 md:p-4 mb-2 border rounded bg-white shadow-sm md:shadow cursor-move hover:shadow-md transition-shadow"
+                  class="glass-row-item glass-row-item--interactive mb-2 cursor-move p-3 md:p-4"
               >
                 <!-- Line 1: Drag handle, Room name, Delete icon -->
                 <div class="flex items-center gap-2 mb-2">
-                  <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
+                  <div class="text-[var(--color-text-subtle)] cursor-move select-none">⋮⋮</div>
                   <input
                       v-model="room.name"
-                      class="text-sm md:text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
+                      class="text-sm md:text-md font-semibold border-b border-[var(--color-border)] flex-1 focus:outline-none focus:border-blue-500"
                       @blur="updateRoom(room)"
                   />
                   <button
@@ -1218,7 +1218,7 @@ const showChallengeTeams = computed(() => {
                 <div class="mb-2 flex items-center gap-2">
                   <input
                       v-model="room.navigation_instruction"
-                      class="text-xs md:text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
+                      class="text-xs md:text-sm border-b border-[var(--color-border)] flex-1 text-[var(--color-text-muted)] focus:outline-none focus:border-blue-500"
                       placeholder="z. B. 2. Etage rechts"
                       @blur="updateRoom(room)"
                   />
@@ -1240,7 +1240,7 @@ const showChallengeTeams = computed(() => {
                     :class="{
                   'bg-blue-100': dragOverRoomId === room.id,
                   'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
-                  'bg-gray-50': !isDragging && dragOverRoomId !== room.id
+                  'bg-[var(--color-bg-muted)]': !isDragging && dragOverRoomId !== room.id
                 }"
                     class="flex flex-wrap gap-1 min-h-[36px] border rounded p-1 transition-colors"
                 >
@@ -1271,7 +1271,7 @@ const showChallengeTeams = computed(() => {
                           />
                           {{ element.name }}
                           <button
-                              class="ml-1 text-sm text-gray-500 hover:text-black"
+                              class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black"
                               @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
@@ -1281,7 +1281,7 @@ const showChallengeTeams = computed(() => {
                         <!-- Team Proxy -->
                         <span
                             v-else-if="element.type === 'team-proxy'"
-                            class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
+                            class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move"
                         >
                           <span
                               :style="{ backgroundColor: getProgramColor(element) }"
@@ -1297,7 +1297,7 @@ const showChallengeTeams = computed(() => {
                             {{ element.name }}
                           </span>
                           <button
-                              class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
+                              class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black pr-1"
                               @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
@@ -1307,7 +1307,7 @@ const showChallengeTeams = computed(() => {
                         <!-- Team -->
                         <span
                             v-else
-                            class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
+                            class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move"
                         >
                           <span
                               :style="{ backgroundColor: getProgramColor(element) }"
@@ -1320,14 +1320,14 @@ const showChallengeTeams = computed(() => {
                                 :src="programLogoSrc(element.first_program)"
                                 class="w-3 h-3 flex-shrink-0"
                             />
-                            <span class="text-gray-600">{{ element.number || '–' }} | {{ element.name }}</span>
-                            <span v-if="getPeopleCount(element) !== null" class="text-gray-600 space-x-1">
+                            <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>
+                            <span v-if="getPeopleCount(element) !== null" class="text-[var(--color-text-muted)] space-x-1">
                               <span> | {{ getPeopleCount(element) }}</span>
                               <i class="bi bi-person"></i>
                             </span>
                           </span>
                           <button
-                              class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
+                              class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black pr-1"
                               @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
@@ -1345,18 +1345,18 @@ const showChallengeTeams = computed(() => {
           <!-- 🟩 Neuer Raum (always visible, outside draggable) -->
           <div
               ref="newRoomCardRef"
-              class="p-3 md:p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+              class="p-3 md:p-4 mb-2 border-dashed border-2 border-[var(--color-border)] rounded bg-[var(--color-bg-muted)] shadow-sm"
           >
             <div class="mb-2">
               <input
                   ref="newRoomInput"
                   v-model="newRoomName"
                   :disabled="isSaving"
-                  class="text-sm md:text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
+                  class="text-sm md:text-md font-semibold border-b border-[var(--color-border)] w-full focus:outline-none focus:border-blue-500"
                   placeholder="Neuer Raum z.B. A2.03"
                   @keyup.enter="createRoom"
               />
-              <p v-if="!newRoomName.trim()" class="text-xs text-gray-500 mt-1">
+              <p v-if="!newRoomName.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1">
                 Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert.
               </p>
             </div>
@@ -1366,11 +1366,11 @@ const showChallengeTeams = computed(() => {
                     ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
-                    class="text-xs md:text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                    class="text-xs md:text-sm border-b border-[var(--color-border)] w-full text-[var(--color-text-muted)] focus:outline-none focus:border-blue-500"
                     placeholder="Navigationshinweis"
                     @keyup.enter="createRoom"
                 />
-                <p v-if="!newRoomNote.trim()" class="text-xs text-gray-500 mt-1">
+                <p v-if="!newRoomNote.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1">
                   Falls der Raum schwer zu finden ist, hier bitte einen Hinweis eintragen.
                 </p>
               </div>
@@ -1383,7 +1383,7 @@ const showChallengeTeams = computed(() => {
       <div class="lg:col-span-1 order-1 lg:order-2">
         <div class="flex mb-3 md:mb-4 border-b text-base md:text-xl font-bold relative">
           <button
-              :class="activeTab === 'activities' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
+              :class="activeTab === 'activities' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-[var(--color-text-muted)]'"
               class="px-3 md:px-4 py-2 relative"
               @click="activeTab = 'activities'"
           >
@@ -1396,7 +1396,7 @@ const showChallengeTeams = computed(() => {
           </button>
 
           <button
-              :class="activeTab === 'teams' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
+              :class="activeTab === 'teams' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-[var(--color-text-muted)]'"
               class="px-3 md:px-4 py-2 ml-2 md:ml-4 relative"
               @click="activeTab = 'teams'"
           >
@@ -1421,7 +1421,7 @@ const showChallengeTeams = computed(() => {
                   (group.id === 'explore-morning' && showExploreTeams && hasTwoExploreGroups) ||
                   (group.id === 'explore-afternoon' && showExploreTeams && hasTwoExploreGroups) ||
                   (group.id === 'challenge' && showChallengeTeams)"
-                class="mb-4 md:mb-6 bg-gray-50 border rounded-lg p-3 md:p-4 shadow-sm"
+                class="mb-4 md:mb-6 bg-[var(--color-bg-muted)] border rounded-lg p-3 md:p-4 shadow-sm"
             >
               <div class="text-base md:text-lg font-semibold text-black mb-2 md:mb-3 flex items-center gap-2">
                 <img
@@ -1441,7 +1441,7 @@ const showChallengeTeams = computed(() => {
 
               <!-- Bulk mode checkbox for teams -->
               <div v-if="category.type === 'team'" class="mb-2">
-                <label class="flex items-center gap-2 text-xs md:text-sm text-gray-700 cursor-pointer">
+                <label class="flex items-center gap-2 text-xs md:text-sm text-[var(--color-text-muted)] cursor-pointer">
                   <input
                       :checked="group.id === 'explore-morning' ? bulkModeExploreMorning :
                           group.id === 'explore-afternoon' ? bulkModeExploreAfternoon :
@@ -1476,7 +1476,7 @@ const showChallengeTeams = computed(() => {
                   <button
                       v-else
                       type="button"
-                      class="flex items-center border rounded-md text-[11px] bg-white shadow-sm"
+                      class="glass-row-item text-[11px]"
                       @click="openAssignModal(element)"
                   >
                     <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
@@ -1487,7 +1487,7 @@ const showChallengeTeams = computed(() => {
                           :src="programLogoSrc(element.first_program)"
                           class="w-3 h-3 flex-shrink-0"
                       />
-                      <span class="text-gray-600">{{ element.number ? `${element.number} | ` : '' }}{{ element.name }}</span>
+                      <span class="text-[var(--color-text-muted)]">{{ element.number ? `${element.number} | ` : '' }}{{ element.name }}</span>
                     </span>
                   </button>
                 </template>
@@ -1557,7 +1557,7 @@ const showChallengeTeams = computed(() => {
 
                   <span
                       v-else-if="element.type === 'team-proxy'"
-                      class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
+                      class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move"
                   >
                 <span
                     :style="{ backgroundColor: getProgramColor(element) }"
@@ -1576,7 +1576,7 @@ const showChallengeTeams = computed(() => {
 
                   <span
                       v-else-if="element.type === 'team'"
-                      class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
+                      class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move"
                   >
               <span
                   :style="{ backgroundColor: getProgramColor(element) }"
@@ -1589,8 +1589,8 @@ const showChallengeTeams = computed(() => {
                       :src="programLogoSrc(element.first_program)"
                       class="w-3 h-3 flex-shrink-0"
                   />
-                 <span class="text-gray-600">{{ element.number || '–' }} | {{ element.name }}</span>
-                            <span v-if="getPeopleCount(element) !== null" class="text-gray-600 space-x-1">
+                 <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>
+                            <span v-if="getPeopleCount(element) !== null" class="text-[var(--color-text-muted)] space-x-1">
                               <span> | {{ getPeopleCount(element) }}</span>
                               <i class="bi bi-person-fill"></i>
                             </span>
@@ -1621,10 +1621,10 @@ const showChallengeTeams = computed(() => {
     <div v-if="showAssignModal && selectedAssignable" class="fixed inset-0 z-50 bg-black/40 flex items-end md:hidden" @click="closeAssignModal">
       <div class="w-full bg-white rounded-t-xl p-4 max-h-[70vh] overflow-y-auto" @click.stop>
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-gray-900">Zu Raum zuweisen</h3>
-          <button class="text-gray-500 hover:text-gray-700" @click="closeAssignModal">✕</button>
+          <h3 class="text-sm font-semibold text-[var(--color-text)]">Zu Raum zuweisen</h3>
+          <button class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)]" @click="closeAssignModal">✕</button>
         </div>
-        <div class="text-xs text-gray-600 mb-3 truncate">
+        <div class="text-xs text-[var(--color-text-muted)] mb-3 truncate">
           {{ selectedAssignable.name }}
         </div>
         <div class="space-y-2">
@@ -1632,11 +1632,11 @@ const showChallengeTeams = computed(() => {
               v-for="room in rooms"
               :key="`assign-room-${room.id}`"
               type="button"
-              class="w-full text-left px-3 py-2 border rounded hover:bg-gray-50"
+              class="w-full text-left px-3 py-2 border rounded hover:bg-[var(--color-bg-hover)]"
               @click="assignSelectedToRoom(room.id)"
           >
             <div class="font-medium text-sm">{{ room.name || 'Unbenannter Raum' }}</div>
-            <div v-if="room.navigation_instruction" class="text-xs text-gray-500">{{ room.navigation_instruction }}</div>
+            <div v-if="room.navigation_instruction" class="text-xs text-[var(--color-text-subtle)]">{{ room.navigation_instruction }}</div>
           </button>
         </div>
       </div>

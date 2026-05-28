@@ -142,7 +142,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="p-3 border rounded shadow">
+  <div class="glass-card liquid-surface-inner p-3">
     <h2 class="text-lg font-semibold mb-3">Zeiten</h2>
 
     <!-- Mobile: stack all time fields vertically -->
@@ -154,12 +154,12 @@ onMounted(async () => {
       >
         <div class="flex items-center gap-2 mb-3">
           <img :src="columnIcons[col]" :alt="columnLabels[col]" class="w-8 h-8 flex-shrink-0 object-contain">
-          <span class="text-sm font-medium text-gray-700">{{ columnLabels[col] }}</span>
+          <span class="text-sm font-medium text-[var(--color-text-muted)]">{{ columnLabels[col] }}</span>
         </div>
 
         <div class="space-y-2">
           <div v-if="isFieldEditable(getFieldPrefix(col), 'start_opening') && cellParam(getFieldPrefix(col), 'start_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'start_opening').id]">
-            <div class="text-xs font-medium text-gray-500 mb-1">Beginn Eröffnung</div>
+            <div class="text-xs font-medium text-[var(--color-text-subtle)] mb-1">Beginn Eröffnung</div>
             <ParameterField
                 :disabled="disabledMap[cellParam(getFieldPrefix(col), 'start_opening').id]"
                 :horizontal="false"
@@ -171,7 +171,7 @@ onMounted(async () => {
           </div>
 
           <div v-if="isFieldEditable(getFieldPrefix(col), 'duration_opening') && cellParam(getFieldPrefix(col), 'duration_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_opening').id]">
-            <div class="text-xs font-medium text-gray-500 mb-1">Dauer Eröffnung</div>
+            <div class="text-xs font-medium text-[var(--color-text-subtle)] mb-1">Dauer Eröffnung</div>
             <ParameterField
                 :disabled="disabledMap[cellParam(getFieldPrefix(col), 'duration_opening').id]"
                 :horizontal="false"
@@ -183,7 +183,7 @@ onMounted(async () => {
           </div>
 
           <div v-if="isFieldEditable(getFieldPrefix(col), 'duration_awards') && cellParam(getFieldPrefix(col), 'duration_awards') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_awards').id]">
-            <div class="text-xs font-medium text-gray-500 mb-1">Dauer Preisverleihung</div>
+            <div class="text-xs font-medium text-[var(--color-text-subtle)] mb-1">Dauer Preisverleihung</div>
             <ParameterField
                 :disabled="disabledMap[cellParam(getFieldPrefix(col), 'duration_awards').id]"
                 :horizontal="false"
@@ -202,11 +202,11 @@ onMounted(async () => {
       <table class="text-xs w-full" style="table-layout: fixed">
         <thead>
           <tr>
-            <th class="text-right text-sm font-medium text-gray-600 pr-3" :style="`width: ${labelColumnWidth}`"></th>
+            <th class="text-right text-sm font-medium text-[var(--color-text-muted)] pr-3" :style="`width: ${labelColumnWidth}`"></th>
             <th 
                 v-for="col in visibleColumns" 
                 :key="col"
-                class="text-center text-sm font-medium text-gray-600 px-1 whitespace-normal break-words"
+                class="text-center text-sm font-medium text-[var(--color-text-muted)] px-1 whitespace-normal break-words"
                 :style="`width: ${dataColumnWidth}`"
             >
               <div class="inline-flex items-center gap-1">
@@ -219,7 +219,7 @@ onMounted(async () => {
         <tbody>
           <!-- Row 1: Start Times -->
           <tr v-if="hasAnyStartField()">
-            <td class="text-right text-xs font-medium text-gray-500 pr-3 align-top" :style="`width: ${labelColumnWidth}`">
+            <td class="text-right text-xs font-medium text-[var(--color-text-subtle)] pr-3 align-top" :style="`width: ${labelColumnWidth}`">
               Beginn<br>Eröffnung
             </td>
             <td 
@@ -237,13 +237,13 @@ onMounted(async () => {
                   :param="cellParam(getFieldPrefix(col), 'start_opening')"
                   @update="updateParam"
               />
-              <div v-else class="text-gray-400">-</div>
+              <div v-else class="text-[var(--color-text-subtle)]">-</div>
             </td>
           </tr>
 
           <!-- Row 2: Duration Opening -->
           <tr v-if="hasAnyDurationField()">
-            <td class="text-right text-xs font-medium text-gray-500 pr-3 align-top" :style="`width: ${labelColumnWidth}`">
+            <td class="text-right text-xs font-medium text-[var(--color-text-subtle)] pr-3 align-top" :style="`width: ${labelColumnWidth}`">
               Dauer<br>Eröffnung
             </td>
             <td 
@@ -261,13 +261,13 @@ onMounted(async () => {
                   :param="cellParam(getFieldPrefix(col), 'duration_opening')"
                   @update="updateParam"
               />
-              <div v-else class="text-gray-400">-</div>
+              <div v-else class="text-[var(--color-text-subtle)]">-</div>
             </td>
           </tr>
 
           <!-- Row 3: Duration Awards -->
           <tr v-if="hasAnyAwardsField()">
-            <td class="text-right text-xs font-medium text-gray-500 pr-3 align-top" :style="`width: ${labelColumnWidth}`">
+            <td class="text-right text-xs font-medium text-[var(--color-text-subtle)] pr-3 align-top" :style="`width: ${labelColumnWidth}`">
               Dauer<br>Preisverleihung
             </td>
             <td 
@@ -285,7 +285,7 @@ onMounted(async () => {
                   :param="cellParam(getFieldPrefix(col), 'duration_awards')"
                   @update="updateParam"
               />
-              <div v-else class="text-gray-400">-</div>
+              <div v-else class="text-[var(--color-text-subtle)]">-</div>
             </td>
           </tr>
         </tbody>
