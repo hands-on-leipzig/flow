@@ -4,12 +4,13 @@ import {useRouter} from 'vue-router'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {useAuth} from '@/composables/useAuth'
+import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
 import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBox.vue'
-import {programLogoSrc, programLogoAlt} from '@/utils/images'
-import {getEventTitleLong, getCompetitionType, cleanEventName} from '@/utils/eventTitle'
+import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import {cleanEventName, getCompetitionType, getEventTitleLong} from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
 const {isAdmin} = useAuth()
@@ -19,6 +20,11 @@ const hasMultipleEvents = ref(false)
 const challengeData = ref(null)
 const exploreData = ref(null)
 const planId = ref<number | null>(null)
+
+const openGroup = ref<string | null>(null)
+const toggle = (id: string) => {
+  openGroup.value = openGroup.value === id ? null : id
+}
 
 // Team statistics
 const teamStats = ref({
@@ -141,6 +147,35 @@ watch(
         <h1 class="text-xl lg:text-2xl font-bold" v-html="formattedEventTitle"></h1>
       </div>
 
+      <div class="m-5 p-5 border rounded shadow bg-blue-300">
+        <div class="flex gap-5 text-2xl">
+          <i class="bi bi-info-circle-fill text-5xl"></i>
+          <div>
+            <p>
+              Wir bauen FLOW gerade zum zentralen Hub für Regionalpartner:innen aus. Bitte habe Verständnis, dass
+              während
+              der
+              Übergangszeit manche Funktionen schwer zu finden oder ganz abgeschaltet sind.
+            </p>
+            <p class="mt-2">
+              Du findest:
+            </p>
+            <ul class="list-disc mt-2">
+              <li>Infos zu deiner Region: auf dieser Seite</li>
+              <li>Relevante Dokumente im Sharepoint: siehe Tabelle unten</li>
+              <li>Registrierte Teams: Reiter
+                <button
+                    class="text-xl px-4 py-2 rounded bg-gray-100 hover:bg-gray-200 relative whitespace-nowrap"
+                    type="button"
+                    @click="router.push('teams')"
+                > Teams
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
         <!-- Left column: Daten, Adresse, Kontakt -->
         <div class="lg:col-span-1 space-y-4 order-1">
@@ -161,7 +196,7 @@ watch(
                     v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0"
                     class="flex items-start gap-2 mb-3"
                 >
-                  <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-10 h-10 flex-shrink-0"/>
+                  <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-10 h-10 flex-shrink-0"/>
                   <div class="flex-1">
                     <span class="font-medium block">
                       {{ teamStats.explore.registered }} von {{ teamStats.explore.capacity }} Teams
@@ -174,7 +209,7 @@ watch(
                     v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0"
                     class="flex items-start gap-2"
                 >
-                  <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-10 h-10 flex-shrink-0"/>
+                  <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="w-10 h-10 flex-shrink-0"/>
                   <div class="flex-1">
                     <span class="font-medium block">
                       {{ teamStats.challenge.registered }} von {{ teamStats.challenge.capacity }} Teams
@@ -236,26 +271,34 @@ watch(
           </div>
         </div>
 
-        <!-- Right column: FreeBlocks -->
+        <!-- Right column -->
         <div class="lg:col-span-2 space-y-4 h-fit order-2">
-          <div class="p-4 border rounded shadow">
-            <h2 class="text-lg font-semibold mb-2">Aktivitäten, die den Ablauf nicht beeinflussen</h2>
-            <FreeBlocks
-                :event-date="event?.date"
-                :event-days="event?.days"
-                :plan-id="planId"
-                :show-challenge="showChallenge"
-                :show-explore="showExplore"
-            />
-          </div>
           <div class="p-4 border rounded shadow">
             <SharePointDocumentsBox/>
           </div>
+
+          <div class="p-4 border rounded shadow">
+            <button
+                class="w-full text-left px-3 md:px-4 py-2 bg-white font-semibold text-black uppercase flex justify-between items-center text-sm md:text-base border-b border-gray-200"
+                @click="toggle('general')"
+            >
+              Aktivitäten, die den Ablauf nicht beeinflussen
+              <AccordionArrow :opened="openGroup === 'general'"/>
+            </button>
+            <transition name="fade">
+              <div v-if="openGroup === 'general'" class="p-3 md:p-4">
+                <FreeBlocks
+                    :event-date="event?.date"
+                    :event-days="event?.days"
+                    :plan-id="planId"
+                    :show-challenge="showChallenge"
+                    :show-explore="showExplore"
+                />
+              </div>
+            </transition>
+          </div>
         </div>
-
       </div>
-
-
     </div>
   </div>
 </template>
