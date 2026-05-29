@@ -27,11 +27,12 @@ use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Models\Event;
+use App\Services\SeasonService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/ping', fn () => ['pong' => true]);
+Route::get('/ping', fn() => ['pong' => true]);
 
 Route::get('/profile', function (Illuminate\Http\Request $request) {
     return response()->json([
@@ -72,10 +73,10 @@ Route::middleware(['keycloak'])->group(function () {
         ]);
     });
 
-    Route::get('/user', fn (Request $r) => $r->input('keycloak_user'));
+    Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
     Route::get('/user/regional-partners', function (Request $request) {
         $user = $request->user();
-        if (! $user) {
+        if (!$user) {
             return response()->json(['regional_partners' => []]);
         }
 
@@ -89,7 +90,7 @@ Route::middleware(['keycloak'])->group(function () {
     });
     Route::get('/user/selected-event', function (Request $request) {
         $eventId = $request->user()?->selection_event;
-        if (! $eventId) {
+        if (!$eventId) {
             return response()->json(['selected_event' => null]);
         }
 
@@ -265,7 +266,8 @@ Route::middleware(['keycloak'])->group(function () {
             ->toArray(); // Convert Collection to array
 
         return response()->json($seasons);
-    }); // Get all seasons for dropdowns
+    });
+    Route::get('/current-season', [SeasonService::class, 'currentSeasonId']);
 
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
