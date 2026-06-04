@@ -7,6 +7,7 @@ use App\Services\SharepointService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 class SharepointController extends Controller
 {
@@ -48,6 +49,56 @@ class SharepointController extends Controller
             return response()->json([
                 'error' => 'Dokumente konnten nicht geladen werden.',
             ], 500);
+        }
+    }
+
+    public function getFileLink(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'drive_id' => 'required|string|max:256',
+            'item_id' => 'required|string|max:256',
+        ]);
+
+        try {
+            return response()->json(
+                $this->sharepointService->resolveGuestFileLink(
+                    $validated['drive_id'],
+                    $validated['item_id'],
+                )
+            );
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('SharePoint file link failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Datei-Link konnte nicht aufgelöst werden.'], 500);
+        }
+    }
+
+    public function streamFile(Request $request): Response|JsonResponse
+    {
+        $validated = $request->validate([
+            'drive_id' => 'required|string|max:256',
+            'item_id' => 'required|string|max:256',
+        ]);
+
+        try {
+            $file = $this->sharepointService->streamFileContent(
+                $validated['drive_id'],
+                $validated['item_id'],
+            );
+
+            return response($file['body'], 200, [
+                'Content-Type' => $file['content_type'],
+                'Content-Disposition' => 'inline; filename="'.addslashes($file['filename']).'"',
+                'Content-Length' => (string) strlen($file['body']),
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('SharePoint file stream failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Datei konnte nicht geladen werden.'], 500);
         }
     }
 

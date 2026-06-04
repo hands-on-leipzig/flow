@@ -216,6 +216,9 @@ class DrahtController extends Controller
                                 $IDs['event_challenge'] = $eventData['id'];
                                 $IDs['contao_id_challenge'] = $eventData['contao_id'] ?? null;
                                 break;
+                            case FirstProgram::FUTURE_8->value:
+                                $IDs['event_future_8'] = $eventData['id'];
+                                break;
                         }
 
                         // First, try to find event by draht ID (most reliable)
@@ -226,6 +229,10 @@ class DrahtController extends Controller
                                 ->first();
                         } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
                             $existingEvent = Event::where('event_challenge', $eventData['id'])
+                                ->where('season', $seasonId)
+                                ->first();
+                        } elseif ($firstProgram === FirstProgram::FUTURE_8->value) {
+                            $existingEvent = Event::where('event_future_8', $eventData['id'])
                                 ->where('season', $seasonId)
                                 ->first();
                         }
@@ -241,6 +248,8 @@ class DrahtController extends Controller
                                         $query->whereNull('event_explore');
                                     } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
                                         $query->whereNull('event_challenge');
+                                    } elseif ($firstProgram === FirstProgram::FUTURE_8->value) {
+                                        $query->whereNull('event_future_8');
                                     }
                                 })
                                 ->first();
@@ -288,9 +297,7 @@ class DrahtController extends Controller
                         }
 
                         $processedEventIds[] = $event->id;
-                        if ($firstProgram === FirstProgram::EXPLORE->value) {
-                            $processedDrahtIds[] = $eventData['id'];
-                        } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
+                        if (in_array($firstProgram, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value]) {
                             $processedDrahtIds[] = $eventData['id'];
                         }
                         if (isset($eventData['teams']) && is_array($eventData['teams'])) {

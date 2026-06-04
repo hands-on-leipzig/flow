@@ -115,8 +115,71 @@ class SharepointService
             'items' => $children,
             'breadcrumbs' => $breadcrumbs,
             'current_item_id' => $itemId,
+            'drive_id' => $driveId,
             'folder_name' => $folderName ?? ($breadcrumbs[0]['name'] ?? null),
         ];
+    }
+
+    /**
+     * Resolve a guest-accessible URL for a file in the configured folder.
+     *
+     * @return array{url: string, via: string, use_stream: bool, drive_id: string, item_id: string}
+     */
+    public function resolveGuestFileLink(string $driveId, string $itemId): array
+    {
+        $driveId = trim($driveId);
+        $itemId = trim($itemId);
+        if ($driveId === '' || $itemId === '') {
+            throw new \RuntimeException('drive_id und item_id sind erforderlich.');
+        }
+
+        $config = SharepointConfig::instance();
+        $token = $this->getAccessToken($config);
+        $this->assertItemAllowed($driveId, $itemId, $token);
+
+        $folderShareUrl = trim((string) $config->folder_url);
+        $resolved = $this->resolveGuestFileLinkInternal($driveId, $itemId, $token, $folderShareUrl);
+
+        if ($resolved['url'] !== '') {
+            return [
+                'url' => $resolved['url'],
+                'via' => $resolved['via'],
+                'use_stream' => false,
+                'drive_id' => $driveId,
+                'item_id' => $itemId,
+            ];
+        }
+
+        return [
+            'url' => '',
+            'via' => 'stream_proxy',
+            'use_stream' => true,
+            'drive_id' => $driveId,
+            'item_id' => $itemId,
+        ];
+    }
+
+    /**
+     * @return array{body: string, content_type: string, filename: string}
+     */
+    public function streamFileContent(string $driveId, string $itemId): array
+    {
+        $driveId = trim($driveId);
+        $itemId = trim($itemId);
+        if ($driveId === '' || $itemId === '') {
+            throw new \RuntimeException('drive_id und item_id sind erforderlich.');
+        }
+
+        $config = SharepointConfig::instance();
+        $token = $this->getAccessToken($config);
+        $this->assertItemAllowed($driveId, $itemId, $token);
+
+        $binary = $this->fetchDriveItemContentBinary($driveId, $itemId, $token);
+        if ($binary === null) {
+            throw new \RuntimeException('Datei konnte nicht aus SharePoint geladen werden.');
+        }
+
+        return $binary;
     }
 
     public function testConnection(): array
@@ -247,6 +310,7 @@ class SharepointService
             $isFolder = isset($entry['folder']);
             $items[] = [
                 'id' => $entry['id'],
+                'drive_id' => $driveId,
                 'name' => $entry['name'],
                 'type' => $isFolder ? 'folder' : 'file',
                 'size' => $isFolder ? null : ($entry['size'] ?? null),
@@ -322,5 +386,341 @@ class SharepointService
         }
 
         return $crumbs;
+    }
+
+    private function assertItemAllowed(string $driveId, string $itemId, string $token): void
+    {
+        if (! $this->isItemUnderRoot($driveId, $itemId, $token)) {
+            throw new \RuntimeException('Datei liegt nicht im konfigurierten SharePoint-Ordner.');
+        }
+    }
+
+    private function isItemUnderRoot(string $driveId, string $itemId, string $token): bool
+    {
+        $config = SharepointConfig::instance();
+        $root = $this->resolveRootFolder($config, $token);
+        $rootDriveId = $root['drive_id'];
+        $rootItemId = $root['id'];
+
+        if ($driveId !== $rootDriveId) {
+            return false;
+        }
+        if ($itemId === $rootItemId) {
+            return true;
+        }
+
+        $current = $itemId;
+        for ($depth = 0; $depth < 40; $depth++) {
+            $response = Http::withToken($token)
+                ->get(self::GRAPH_BASE."/drives/{$driveId}/items/{$current}", [
+                    '$select' => 'id,parentReference',
+                ]);
+
+            if (! $response->successful()) {
+                return false;
+            }
+
+            $item = $response->json();
+            if (($item['id'] ?? null) === $rootItemId) {
+                return true;
+            }
+
+            $parentId = $item['parentReference']['id'] ?? null;
+            if (! $parentId || $parentId === $current) {
+                return false;
+            }
+
+            $current = $parentId;
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{url: string, via: string}
+     */
+    private function resolveGuestFileLinkInternal(
+        string $driveId,
+        string $itemId,
+        string $token,
+        string $folderShareUrl,
+    ): array {
+        $out = ['url' => '', 'via' => ''];
+
+        $tryAccept = function (string $candidate, string $via) use (&$out, $driveId, $itemId, $token): bool {
+            $candidate = trim($candidate);
+            if ($candidate === '') {
+                return false;
+            }
+            if ($this->guestUrlTargetsFile($candidate, $driveId, $itemId, $token)) {
+                $out['url'] = $candidate;
+                $out['via'] = $via;
+
+                return true;
+            }
+
+            return false;
+        };
+
+        $existing = $this->findAnonymousLinkOnItem($driveId, $itemId, $token);
+        if ($tryAccept($existing, 'existing_anonymous_link')) {
+            return $out;
+        }
+
+        $viaShares = $this->guestUrlViaItemSharesApi($driveId, $itemId, $token);
+        if ($tryAccept($viaShares, 'shares_driveItem')) {
+            return $out;
+        }
+
+        if ($folderShareUrl !== '') {
+            $colonFile = $this->colonFileUrlFromFolderShare($folderShareUrl, $itemId);
+            if ($tryAccept($colonFile, 'colon_file_from_folder')) {
+                return $out;
+            }
+        }
+
+        $createUrl = self::GRAPH_BASE.'/drives/'.rawurlencode($driveId)
+            .'/items/'.rawurlencode($itemId).'/createLink';
+        $createAttempts = [
+            ['scope' => 'anonymous', 'retainInheritedPermissions' => false, 'via' => 'createLink_anonymous_file'],
+            ['scope' => 'anonymous', 'retainInheritedPermissions' => true, 'via' => 'createLink_anonymous_inherit'],
+            ['scope' => 'organization', 'retainInheritedPermissions' => true, 'via' => 'createLink_organization'],
+        ];
+
+        foreach ($createAttempts as $attempt) {
+            $response = Http::withToken($token)
+                ->acceptJson()
+                ->post($createUrl, [
+                    'type' => 'view',
+                    'retainInheritedPermissions' => ! empty($attempt['retainInheritedPermissions']),
+                    'scope' => $attempt['scope'],
+                ]);
+
+            if ($response->successful()) {
+                $webUrl = $response->json('link.webUrl');
+                if ($webUrl && $tryAccept($webUrl, $attempt['via'])) {
+                    return $out;
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    private function guestUrlTargetsFile(string $candidateUrl, string $driveId, string $itemId, string $token): bool
+    {
+        $candidateUrl = trim($candidateUrl);
+        $itemId = trim($itemId);
+        if ($candidateUrl === '' || $itemId === '') {
+            return false;
+        }
+
+        $meta = $this->shareUrlToDriveItemMeta($candidateUrl, $token);
+        if ($meta['id'] !== '') {
+            return $meta['id'] === $itemId && ! $meta['is_folder'];
+        }
+
+        if (stripos($candidateUrl, $itemId) !== false && stripos($candidateUrl, '/:f:/') === false) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function findAnonymousLinkOnItem(string $driveId, string $itemId, string $token): string
+    {
+        $response = Http::withToken($token)
+            ->get(self::GRAPH_BASE.'/drives/'.rawurlencode($driveId)
+                .'/items/'.rawurlencode($itemId).'/permissions');
+
+        if (! $response->successful()) {
+            return '';
+        }
+
+        foreach ($response->json('value', []) as $perm) {
+            if (! is_array($perm) || empty($perm['link']) || ! is_array($perm['link'])) {
+                continue;
+            }
+            $link = $perm['link'];
+            $scope = isset($link['scope']) ? strtolower((string) $link['scope']) : '';
+            if ($scope !== 'anonymous') {
+                continue;
+            }
+            if (! empty($link['webUrl'])) {
+                $candidate = trim((string) $link['webUrl']);
+                if ($this->guestUrlTargetsFile($candidate, $driveId, $itemId, $token)) {
+                    return $candidate;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    private function guestUrlViaItemSharesApi(string $driveId, string $itemId, string $token): string
+    {
+        $response = Http::withToken($token)
+            ->get(self::GRAPH_BASE.'/drives/'.rawurlencode($driveId)
+                .'/items/'.rawurlencode($itemId), [
+                    '$select' => 'webUrl,id,file',
+                ]);
+
+        if (! $response->successful()) {
+            return '';
+        }
+
+        $meta = $response->json();
+        if (empty($meta['webUrl']) || empty($meta['file'])) {
+            return '';
+        }
+
+        $candidates = array_unique(array_filter([
+            trim((string) $meta['webUrl']),
+            preg_replace('/\?.*$/', '', trim((string) $meta['webUrl'])),
+        ]));
+
+        foreach ($candidates as $url) {
+            $shareId = $this->encodeShareUrl($url);
+            $shareResponse = Http::withToken($token)
+                ->get(self::GRAPH_BASE.'/shares/'.rawurlencode($shareId).'/driveItem', [
+                    '$select' => 'webUrl,id,folder,file',
+                ]);
+
+            if (! $shareResponse->successful()) {
+                continue;
+            }
+
+            $di = $shareResponse->json();
+            if (! empty($di['driveItem']) && is_array($di['driveItem'])) {
+                $di = $di['driveItem'];
+            }
+            if (empty($di['id']) || (string) $di['id'] !== $itemId || ! empty($di['folder'])) {
+                continue;
+            }
+            if (! empty($di['webUrl'])) {
+                $guest = trim((string) $di['webUrl']);
+                if ($this->guestUrlTargetsFile($guest, $driveId, $itemId, $token)) {
+                    return $guest;
+                }
+                if (stripos($guest, $itemId) !== false) {
+                    return $guest;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    private function colonFileUrlFromFolderShare(string $folderShareUrl, string $fileItemId): string
+    {
+        $folderShareUrl = trim($folderShareUrl);
+        $fileItemId = trim($fileItemId);
+        if ($folderShareUrl === '' || $fileItemId === '') {
+            return '';
+        }
+
+        if (! preg_match('#^(https?://[^/]+).*/:f:/([rs])/([^/]+)/([^/?#]+)#i', $folderShareUrl, $m)) {
+            return '';
+        }
+
+        $origin = $m[1];
+        $kind = strtolower((string) $m[2]);
+        $siteSlug = (string) $m[3];
+        $query = '';
+        if (preg_match('/\?([^#]+)/', $folderShareUrl, $qm)) {
+            $query = '?'.$qm[1];
+        }
+
+        foreach (['b', 'w', 'x'] as $seg) {
+            $candidate = $origin.'/:'. $seg.':/'.$kind.'/'.$siteSlug.'/'.$fileItemId.$query;
+            if ($candidate !== $folderShareUrl) {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @return array{id: string, is_folder: bool}
+     */
+    private function shareUrlToDriveItemMeta(string $shareUrl, string $token): array
+    {
+        $empty = ['id' => '', 'is_folder' => false];
+        $shareUrl = trim($shareUrl);
+        if ($shareUrl === '') {
+            return $empty;
+        }
+
+        $shareId = $this->encodeShareUrl($shareUrl);
+        $response = Http::withToken($token)
+            ->get(self::GRAPH_BASE.'/shares/'.rawurlencode($shareId).'/driveItem', [
+                '$select' => 'id,folder,file',
+            ]);
+
+        if (! $response->successful()) {
+            return $empty;
+        }
+
+        $item = $response->json();
+        if (! empty($item['driveItem']) && is_array($item['driveItem'])) {
+            $item = $item['driveItem'];
+        }
+
+        return [
+            'id' => ! empty($item['id']) ? trim((string) $item['id']) : '',
+            'is_folder' => ! empty($item['folder']),
+        ];
+    }
+
+    /**
+     * @return array{body: string, content_type: string, filename: string}|null
+     */
+    private function fetchDriveItemContentBinary(string $driveId, string $itemId, string $token): ?array
+    {
+        $metaResponse = Http::withToken($token)
+            ->get(self::GRAPH_BASE.'/drives/'.rawurlencode($driveId)
+                .'/items/'.rawurlencode($itemId), [
+                    '$select' => 'name,file',
+                ]);
+
+        $name = 'download';
+        if ($metaResponse->successful()) {
+            $meta = $metaResponse->json();
+            if (! empty($meta['name'])) {
+                $name = (string) $meta['name'];
+            }
+            if (empty($meta['file'])) {
+                return null;
+            }
+        }
+
+        $contentResponse = Http::withToken($token)
+            ->withOptions(['allow_redirects' => true])
+            ->get(self::GRAPH_BASE.'/drives/'.rawurlencode($driveId)
+                .'/items/'.rawurlencode($itemId).'/content');
+
+        if (! $contentResponse->successful()) {
+            Log::error('SharePoint file stream failed', [
+                'status' => $contentResponse->status(),
+                'drive_id' => $driveId,
+                'item_id' => $itemId,
+            ]);
+
+            return null;
+        }
+
+        $body = $contentResponse->body();
+        if ($body === '') {
+            return null;
+        }
+
+        $contentType = $contentResponse->header('Content-Type') ?: 'application/octet-stream';
+
+        return [
+            'body' => $body,
+            'content_type' => $contentType,
+            'filename' => $name,
+        ];
     }
 }

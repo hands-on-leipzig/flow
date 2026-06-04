@@ -209,6 +209,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);
     Route::get('/sharepoint/status', [SharepointController::class, 'status']);
     Route::get('/sharepoint/documents', [SharepointController::class, 'listDocuments']);
+    Route::get('/sharepoint/documents-file-link', [SharepointController::class, 'getFileLink']);
+    Route::get('/sharepoint/documents-file-stream', [SharepointController::class, 'streamFile']);
 
     Route::get('/events/{event}/draht-data', [DrahtController::class, 'show']);
     Route::get('/draht/people/{drahtEventId}', [DrahtController::class, 'getPeople']);

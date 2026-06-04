@@ -8,6 +8,8 @@ enum FirstProgram: int
     case DISCOVER = 1;   // Discover program
     case EXPLORE = 2;    // Explore program
     case CHALLENGE = 3;  // Challenge program
+    case FUTURE_5 = 7;
+    case FUTURE_8 = 8;
 
     /**
      * Check if this program is Explore-related (includes Discover)
@@ -38,10 +40,11 @@ enum FirstProgram: int
      */
     public function getLetter(): string
     {
-        return match($this) {
+        return match ($this) {
             self::DISCOVER, self::EXPLORE => 'E',
             self::CHALLENGE => 'C',
             self::JOINT => 'G',
+            self::FUTURE_5, self::FUTURE_8 => 'F',
         };
     }
 }

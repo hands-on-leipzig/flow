@@ -2,9 +2,11 @@
 import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
+import {useSharePointFileOpen} from '@/composables/useSharePointFileOpen'
 
 interface SharePointItem {
   id: string
+  drive_id?: string | null
   name: string
   type: 'folder' | 'file'
   size: number | null
@@ -19,10 +21,15 @@ interface Breadcrumb {
 
 const configured = ref(false)
 const loading = ref(false)
+const openingFile = ref(false)
+const openingFileName = ref('')
 const error = ref<string | null>(null)
 const items = ref<SharePointItem[]>([])
 const breadcrumbs = ref<Breadcrumb[]>([])
 const currentItemId = ref<string | null>(null)
+const currentDriveId = ref<string | null>(null)
+
+const {openDocumentFile} = useSharePointFileOpen()
 
 const formatSize = (bytes: number | null) => {
   if (bytes == null) return ''
@@ -53,6 +60,7 @@ async function loadFolder(itemId: string | null = null) {
     items.value = data.items ?? []
     breadcrumbs.value = data.breadcrumbs ?? []
     currentItemId.value = data.current_item_id ?? null
+    currentDriveId.value = data.drive_id ?? null
   } catch (err: unknown) {
     const axiosErr = err as { response?: { data?: { error?: string } } }
     error.value = axiosErr.response?.data?.error || 'Dokumente konnten nicht geladen werden.'
@@ -66,9 +74,16 @@ async function openFolder(item: SharePointItem) {
   await loadFolder(item.id)
 }
 
-function openFile(item: SharePointItem) {
-  if (item.web_url) {
-    window.open(item.web_url, '_blank', 'noopener,noreferrer')
+async function openFile(item: SharePointItem) {
+  if (openingFile.value) return
+  openingFile.value = true
+  openingFileName.value = item.name
+  try {
+    const driveId = item.drive_id || currentDriveId.value || undefined
+    await openDocumentFile({...item, drive_id: driveId})
+  } finally {
+    openingFile.value = false
+    openingFileName.value = ''
   }
 }
 
@@ -140,6 +155,10 @@ onMounted(async () => {
 
       <p v-if="error" class="text-sm text-red-600 mb-2">{{ error }}</p>
 
+      <p v-if="openingFile" class="text-sm text-gray-500 mb-2">
+        Öffne {{ openingFileName }}…
+      </p>
+
       <div v-if="loading" class="text-sm text-gray-500 py-4">Lade Dokumente…</div>
 
       <div
@@ -170,6 +189,7 @@ onMounted(async () => {
               v-else
               type="button"
               class="flex-1 text-left truncate hover:underline"
+              :disabled="openingFile"
               @click="openFile(item)"
           >
             {{ item.name }}
