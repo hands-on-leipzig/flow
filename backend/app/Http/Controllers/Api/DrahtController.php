@@ -297,7 +297,7 @@ class DrahtController extends Controller
                         }
 
                         $processedEventIds[] = $event->id;
-                        if (in_array($firstProgram, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value]) {
+                        if (in_array($firstProgram, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value])) {
                             $processedDrahtIds[] = $eventData['id'];
                         }
                         if (isset($eventData['teams']) && is_array($eventData['teams'])) {
