@@ -146,14 +146,17 @@ router.beforeEach(async (to, from, next) => {
         // Use the store - pinia is already active
         const eventStore = useEventStore();
 
-        // Try to fetch selected event if not already loaded
         if (!eventStore.selectedEvent) {
             await eventStore.fetchSelectedEvent();
+        } else {
+            await eventStore.validateSelectedEventSeason();
         }
 
         // If still no event selected, redirect to event selection page
         if (!eventStore.selectedEvent) {
-            next('/plan/events');
+            next(eventStore.staleSeasonCleared
+                ? '/plan/events?reason=stale-season'
+                : '/plan/events');
             return;
         }
 

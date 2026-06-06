@@ -2,9 +2,13 @@
 import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
+import DocumentViewerModal from '@/components/atoms/DocumentViewerModal.vue'
+import DocumentOpeningOverlay from '@/components/atoms/DocumentOpeningOverlay.vue'
+import {useSharePointFileOpen} from '@/composables/useSharePointFileOpen'
 
 interface SharePointItem {
   id: string
+  drive_id?: string | null
   name: string
   type: 'folder' | 'file'
   size: number | null
@@ -19,10 +23,61 @@ interface Breadcrumb {
 
 const configured = ref(false)
 const loading = ref(false)
+const openingFile = ref(false)
+const openingFileName = ref('')
 const error = ref<string | null>(null)
 const items = ref<SharePointItem[]>([])
 const breadcrumbs = ref<Breadcrumb[]>([])
 const currentItemId = ref<string | null>(null)
+const currentDriveId = ref<string | null>(null)
+const folderWebUrl = ref<string | null>(null)
+
+const viewerOpen = ref(false)
+const viewerUrl = ref('')
+const viewerTitle = ref('')
+const viewerMode = ref<'pdf' | 'image'>('pdf')
+const viewerBlobUrl = ref('')
+
+function closeViewer() {
+  viewerOpen.value = false
+  viewerUrl.value = ''
+  viewerTitle.value = ''
+  if (viewerBlobUrl.value) {
+    URL.revokeObjectURL(viewerBlobUrl.value)
+    viewerBlobUrl.value = ''
+  }
+}
+
+async function openPdfFromBlob(blob: Blob, title: string): Promise<boolean> {
+  if (!blob || blob.size < 100) return false
+  if (viewerBlobUrl.value) {
+    URL.revokeObjectURL(viewerBlobUrl.value)
+  }
+  viewerBlobUrl.value = URL.createObjectURL(blob)
+  viewerUrl.value = viewerBlobUrl.value
+  viewerTitle.value = title
+  viewerMode.value = 'pdf'
+  viewerOpen.value = true
+  return true
+}
+
+async function openImageFromBlob(blob: Blob, title: string): Promise<boolean> {
+  if (!blob || blob.size < 1) return false
+  if (viewerBlobUrl.value) {
+    URL.revokeObjectURL(viewerBlobUrl.value)
+  }
+  viewerBlobUrl.value = URL.createObjectURL(blob)
+  viewerUrl.value = viewerBlobUrl.value
+  viewerTitle.value = title
+  viewerMode.value = 'image'
+  viewerOpen.value = true
+  return true
+}
+
+const {openDocumentFile} = useSharePointFileOpen({
+  openPdfFromBlob,
+  openImageFromBlob,
+})
 
 const formatSize = (bytes: number | null) => {
   if (bytes == null) return ''
@@ -53,6 +108,10 @@ async function loadFolder(itemId: string | null = null) {
     items.value = data.items ?? []
     breadcrumbs.value = data.breadcrumbs ?? []
     currentItemId.value = data.current_item_id ?? null
+    currentDriveId.value = data.drive_id ?? null
+    if (data.folder_web_url) {
+      folderWebUrl.value = data.folder_web_url
+    }
   } catch (err: unknown) {
     const axiosErr = err as { response?: { data?: { error?: string } } }
     error.value = axiosErr.response?.data?.error || 'Dokumente konnten nicht geladen werden.'
@@ -66,9 +125,24 @@ async function openFolder(item: SharePointItem) {
   await loadFolder(item.id)
 }
 
-function openFile(item: SharePointItem) {
-  if (item.web_url) {
-    window.open(item.web_url, '_blank', 'noopener,noreferrer')
+async function openFile(item: SharePointItem) {
+  if (openingFile.value) return
+  openingFile.value = true
+  openingFileName.value = item.name
+  error.value = null
+  try {
+    const driveId = item.drive_id || currentDriveId.value || undefined
+    if (!driveId) {
+      error.value = 'Datei konnte nicht geöffnet werden (keine Drive-ID).'
+      return
+    }
+    const ok = await openDocumentFile({...item, drive_id: driveId})
+    if (!ok) {
+      error.value = 'Datei konnte nicht geladen werden.'
+    }
+  } finally {
+    openingFile.value = false
+    openingFileName.value = ''
   }
 }
 
@@ -90,6 +164,9 @@ async function goToRoot() {
 onMounted(async () => {
   const statusRes = await axios.get('/sharepoint/status')
   configured.value = statusRes.data.configured ?? false
+  if (statusRes.data.folder_url) {
+    folderWebUrl.value = statusRes.data.folder_url
+  }
   if (configured.value) {
     await loadFolder(null)
   }
@@ -170,6 +247,7 @@ onMounted(async () => {
               v-else
               type="button"
               class="flex-1 text-left truncate hover:underline"
+              :disabled="openingFile"
               @click="openFile(item)"
           >
             {{ item.name }}
@@ -182,6 +260,28 @@ onMounted(async () => {
           </span>
         </li>
       </ul>
+
+      <p v-if="folderWebUrl && !loading" class="mt-3 text-sm">
+        <a
+            :href="folderWebUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-blue-600 hover:underline inline-flex items-center gap-1"
+        >
+          SharePoint im neuen Tab öffnen
+          <span aria-hidden="true">↗</span>
+        </a>
+      </p>
     </template>
+
+    <DocumentOpeningOverlay :open="openingFile" :file-name="openingFileName"/>
+
+    <DocumentViewerModal
+        :show="viewerOpen"
+        :url="viewerUrl"
+        :title="viewerTitle"
+        :mode="viewerMode"
+        @close="closeViewer"
+    />
   </div>
 </template>

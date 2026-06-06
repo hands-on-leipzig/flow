@@ -89,14 +89,36 @@ Route::middleware(['keycloak'])->group(function () {
         return response()->json(['regional_partners' => $regionalPartners]);
     });
     Route::get('/user/selected-event', function (Request $request) {
-        $eventId = $request->user()?->selection_event;
+        $user = $request->user();
+        $eventId = $user?->selection_event;
         if (!$eventId) {
             return response()->json(['selected_event' => null]);
+        }
+
+        $event = Event::find($eventId);
+        if (!$event || $event->season !== SeasonService::currentSeasonId()) {
+            $user->selection_event = null;
+            $user->selection_regional_partner = null;
+            $user->save();
+
+            return response()->json([
+                'selected_event' => null,
+                'cleared_stale_season' => true,
+            ]);
         }
 
         $controller = new EventController;
 
         return $controller->getEvent($eventId);
+    });
+
+    Route::delete('/user/selected-event', function (Request $request) {
+        $user = $request->user();
+        $user->selection_event = null;
+        $user->selection_regional_partner = null;
+        $user->save();
+
+        return response()->json(['status' => 'ok']);
     });
 
     Route::post('/user/select-event', function (Request $request) {
@@ -209,6 +231,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/rooms', [RoomController::class, 'index']);
     Route::get('/sharepoint/status', [SharepointController::class, 'status']);
     Route::get('/sharepoint/documents', [SharepointController::class, 'listDocuments']);
+    Route::get('/sharepoint/documents-file-link', [SharepointController::class, 'getFileLink']);
+    Route::get('/sharepoint/documents-file-stream', [SharepointController::class, 'streamFile']);
 
     Route::get('/events/{event}/draht-data', [DrahtController::class, 'show']);
     Route::get('/draht/people/{drahtEventId}', [DrahtController::class, 'getPeople']);
@@ -267,7 +291,9 @@ Route::middleware(['keycloak'])->group(function () {
 
         return response()->json($seasons);
     });
-    Route::get('/current-season', [SeasonService::class, 'currentSeasonId']);
+    Route::get('/current-season', function () {
+        return response()->json(['id' => SeasonService::currentSeasonId()]);
+    });
 
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);

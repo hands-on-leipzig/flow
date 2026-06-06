@@ -7,12 +7,16 @@ interface EventStoreState {
   selectedEvent: FllEvent | null
   selectedEventId?: number
   readiness: any | null
+  staleSeasonCleared: boolean
+  currentSeasonId: number | null
 }
 
 export const useEventStore = defineStore('event', {
     state: (): EventStoreState => ({
         selectedEvent: null,
-        readiness: null, 
+        readiness: null,
+        staleSeasonCleared: false,
+        currentSeasonId: null,
     }),
 
     getters: {
@@ -20,27 +24,96 @@ export const useEventStore = defineStore('event', {
     },
 
     actions: {
+        clearSelectedEvent() {
+            this.selectedEvent = null
+            this.selectedEventId = undefined
+            this.readiness = null
+        },
+
+        async fetchCurrentSeasonId(): Promise<number | null> {
+            if (this.currentSeasonId !== null) {
+                return this.currentSeasonId
+            }
+
+            try {
+                const { data } = await axios.get<{ id: number }>('/current-season')
+                this.currentSeasonId = data.id
+                return data.id
+            } catch (error) {
+                console.error('Failed to fetch current season', error)
+                return null
+            }
+        },
+
+        isEventFromCurrentSeason(event: FllEvent, currentSeasonId: number): boolean {
+            const eventSeasonId = typeof event.season === 'object'
+                ? (event.season as { id: number }).id
+                : event.season
+
+            return eventSeasonId === currentSeasonId
+        },
+
+        async clearStaleSeasonSelection() {
+            try {
+                await axios.delete('/user/selected-event')
+            } catch (error) {
+                console.error('Failed to clear stale season selection', error)
+            }
+            this.clearSelectedEvent()
+            this.staleSeasonCleared = true
+        },
+
+        async validateSelectedEventSeason(): Promise<boolean> {
+            if (!this.selectedEvent) {
+                return false
+            }
+
+            const currentSeasonId = await this.fetchCurrentSeasonId()
+            if (currentSeasonId === null) {
+                return true
+            }
+
+            if (this.isEventFromCurrentSeason(this.selectedEvent, currentSeasonId)) {
+                return true
+            }
+
+            await this.clearStaleSeasonSelection()
+            return false
+        },
+
         async fetchSelectedEvent() {
             try {
                 const response = await axios.get<any>('/user/selected-event')
-                
-                // Check if there's actually an event selected
-                if (response.data.selected_event === null || !response.data.id) {
-                    this.selectedEvent = null
+
+                if (response.data.cleared_stale_season) {
+                    await this.clearStaleSeasonSelection()
                     return
                 }
-                
+
+                // Check if there's actually an event selected
+                if (response.data.selected_event === null || !response.data.id) {
+                    this.clearSelectedEvent()
+                    return
+                }
+
                 const event = new FllEvent(response.data)
-                
+                const currentSeasonId = await this.fetchCurrentSeasonId()
+
+                if (currentSeasonId !== null && !this.isEventFromCurrentSeason(event, currentSeasonId)) {
+                    await this.clearStaleSeasonSelection()
+                    return
+                }
+
                 // Fetch DRAHT team data
                 if (event.id) {
                     await this.loadDrahtTeamData(event)
                 }
-                
+
                 this.selectedEvent = event
+                this.staleSeasonCleared = false
             } catch (error) {
                 console.error('Failed to fetch selected event', error)
-                this.selectedEvent = null
+                this.clearSelectedEvent()
             }
         },
 
