@@ -1,7 +1,7 @@
 <script setup>
-import {ref, onMounted} from 'vue'
+import {ref, onMounted, computed} from 'vue'
 import axios from 'axios'
-import {useRouter} from 'vue-router'
+import {useRouter, useRoute} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import {useAuth} from '@/composables/useAuth'
 import dayjs from "dayjs";
@@ -11,6 +11,10 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 const regionalPartners = ref([])
 const eventStore = useEventStore()
 const router = useRouter()
+const route = useRoute()
+const showStaleSeasonNotice = computed(() =>
+    route.query.reason === 'stale-season' || eventStore.staleSeasonCleared
+)
 const loading = ref(true)
 const { isAdmin } = useAuth()
 
@@ -64,6 +68,7 @@ async function selectEvent(eventId, regionalPartnerId) {
     event: eventId,
     regional_partner: regionalPartnerId
   })
+  eventStore.staleSeasonCleared = false
   await eventStore.fetchSelectedEvent()
   router.push('/event')
 }
@@ -125,6 +130,13 @@ async function createEvent() {
 
 <template>
   <div class="p-6 overflow-y-auto max-h-screen max-w-screen">
+    <div
+      v-if="showStaleSeasonNotice"
+      class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"
+    >
+      Deine zuletzt gewählte Veranstaltung gehört zur letzten Saison. Bitte wähle eine Veranstaltung der aktuellen Saison.
+    </div>
+
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-2xl font-bold">Veranstaltung wählen</h1>
       
