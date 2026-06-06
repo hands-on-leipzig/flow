@@ -29,7 +29,7 @@ watch(
     <Transition name="doc-viewer-fade">
       <div
           v-if="show"
-          class="fixed inset-0 z-50 flex flex-col bg-black/60 p-0 sm:p-8"
+          class="fixed inset-0 z-[10100] flex flex-col bg-black/60 p-0 sm:p-8"
           role="dialog"
           aria-modal="true"
           :aria-label="title || 'Dokument'"

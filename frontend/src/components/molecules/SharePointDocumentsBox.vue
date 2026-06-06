@@ -3,6 +3,7 @@ import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import DocumentViewerModal from '@/components/atoms/DocumentViewerModal.vue'
+import DocumentOpeningOverlay from '@/components/atoms/DocumentOpeningOverlay.vue'
 import {useSharePointFileOpen} from '@/composables/useSharePointFileOpen'
 
 interface SharePointItem {
@@ -209,10 +210,6 @@ onMounted(async () => {
 
       <p v-if="error" class="text-sm text-red-600 mb-2">{{ error }}</p>
 
-      <p v-if="openingFile" class="text-sm text-gray-500 mb-2">
-        Öffne {{ openingFileName }}…
-      </p>
-
       <div v-if="loading" class="text-sm text-gray-500 py-4">Lade Dokumente…</div>
 
       <div
@@ -257,6 +254,8 @@ onMounted(async () => {
         </li>
       </ul>
     </template>
+
+    <DocumentOpeningOverlay :open="openingFile" :file-name="openingFileName"/>
 
     <DocumentViewerModal
         :show="viewerOpen"
