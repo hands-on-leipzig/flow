@@ -2,6 +2,7 @@
 import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
+import DocumentViewerModal from '@/components/atoms/DocumentViewerModal.vue'
 import {useSharePointFileOpen} from '@/composables/useSharePointFileOpen'
 
 interface SharePointItem {
@@ -29,7 +30,52 @@ const breadcrumbs = ref<Breadcrumb[]>([])
 const currentItemId = ref<string | null>(null)
 const currentDriveId = ref<string | null>(null)
 
-const {openDocumentFile} = useSharePointFileOpen()
+const viewerOpen = ref(false)
+const viewerUrl = ref('')
+const viewerTitle = ref('')
+const viewerMode = ref<'pdf' | 'image'>('pdf')
+const viewerBlobUrl = ref('')
+
+function closeViewer() {
+  viewerOpen.value = false
+  viewerUrl.value = ''
+  viewerTitle.value = ''
+  if (viewerBlobUrl.value) {
+    URL.revokeObjectURL(viewerBlobUrl.value)
+    viewerBlobUrl.value = ''
+  }
+}
+
+async function openPdfFromBlob(blob: Blob, title: string): Promise<boolean> {
+  if (!blob || blob.size < 100) return false
+  if (viewerBlobUrl.value) {
+    URL.revokeObjectURL(viewerBlobUrl.value)
+  }
+  viewerBlobUrl.value = URL.createObjectURL(blob)
+  viewerUrl.value = viewerBlobUrl.value
+  viewerTitle.value = title
+  viewerMode.value = 'pdf'
+  viewerOpen.value = true
+  return true
+}
+
+async function openImageFromBlob(blob: Blob, title: string): Promise<boolean> {
+  if (!blob || blob.size < 1) return false
+  if (viewerBlobUrl.value) {
+    URL.revokeObjectURL(viewerBlobUrl.value)
+  }
+  viewerBlobUrl.value = URL.createObjectURL(blob)
+  viewerUrl.value = viewerBlobUrl.value
+  viewerTitle.value = title
+  viewerMode.value = 'image'
+  viewerOpen.value = true
+  return true
+}
+
+const {openDocumentFile} = useSharePointFileOpen({
+  openPdfFromBlob,
+  openImageFromBlob,
+})
 
 const formatSize = (bytes: number | null) => {
   if (bytes == null) return ''
@@ -78,9 +124,17 @@ async function openFile(item: SharePointItem) {
   if (openingFile.value) return
   openingFile.value = true
   openingFileName.value = item.name
+  error.value = null
   try {
     const driveId = item.drive_id || currentDriveId.value || undefined
-    await openDocumentFile({...item, drive_id: driveId})
+    if (!driveId) {
+      error.value = 'Datei konnte nicht geöffnet werden (keine Drive-ID).'
+      return
+    }
+    const ok = await openDocumentFile({...item, drive_id: driveId})
+    if (!ok) {
+      error.value = 'Datei konnte nicht geladen werden.'
+    }
   } finally {
     openingFile.value = false
     openingFileName.value = ''
@@ -203,5 +257,13 @@ onMounted(async () => {
         </li>
       </ul>
     </template>
+
+    <DocumentViewerModal
+        :show="viewerOpen"
+        :url="viewerUrl"
+        :title="viewerTitle"
+        :mode="viewerMode"
+        @close="closeViewer"
+    />
   </div>
 </template>

@@ -20,3 +20,11 @@ export function isSharePointHost(urlOrHostname: string): boolean {
 export function isPdfFileName(name: string): boolean {
   return /\.pdf$/i.test(String(name || '').trim())
 }
+
+export function isImageFileName(name: string): boolean {
+  return /\.(png|jpe?g|gif|webp|svg|avif|ico)$/i.test(String(name || '').trim())
+}
+
+export function canViewInApp(name: string): boolean {
+  return isPdfFileName(name) || isImageFileName(name)
+}

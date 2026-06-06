@@ -1,5 +1,5 @@
 import axios from 'axios'
-import {isPdfFileName, isSharePointHost} from '@/utils/sharePointHost'
+import {canViewInApp, isImageFileName, isPdfFileName, isSharePointHost} from '@/utils/sharePointHost'
 
 interface SharePointFileItem {
   id: string
@@ -8,14 +8,10 @@ interface SharePointFileItem {
   web_url?: string | null
 }
 
-interface FileLinkResponse {
-  url?: string
-  via?: string
-  use_stream?: boolean
-}
-
-function openExternalUrl(url: string) {
-  window.open(url, '_blank', 'noopener,noreferrer')
+interface SharePointFileOpenOptions {
+  openPdfFromBlob?: (blob: Blob, title: string) => Promise<boolean>
+  openImageFromBlob?: (blob: Blob, title: string) => Promise<boolean>
+  openExternalUrl?: (url: string) => void
 }
 
 async function getFileStreamBlob(driveId: string, itemId: string): Promise<Blob | null> {
@@ -31,58 +27,54 @@ async function getFileStreamBlob(driveId: string, itemId: string): Promise<Blob 
   }
 }
 
-async function openViaStream(driveId: string, itemId: string) {
-  const blob = await getFileStreamBlob(driveId, itemId)
-  if (!blob) return
-  const blobUrl = URL.createObjectURL(blob)
-  openExternalUrl(blobUrl)
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
-}
+/**
+ * SharePoint bytes are loaded via the Flow API proxy, never fetch() to *.sharepoint.com.
+ * PDFs and images open in-app; other types open a blob URL in a new tab (no SharePoint login).
+ */
+export function useSharePointFileOpen(options: SharePointFileOpenOptions = {}) {
+  const {
+    openPdfFromBlob,
+    openImageFromBlob,
+    openExternalUrl = (url: string) => window.open(url, '_blank', 'noopener,noreferrer'),
+  } = options
 
-export function useSharePointFileOpen() {
-  async function openDocumentFile(file: SharePointFileItem) {
+  async function openViaStream(driveId: string, itemId: string, file: SharePointFileItem): Promise<boolean> {
+    const blob = await getFileStreamBlob(driveId, itemId)
+    if (!blob) return false
+
+    const title = String(file?.name || 'Download')
+
+    if (isPdfFileName(file.name) && openPdfFromBlob) {
+      if (await openPdfFromBlob(blob, title)) return true
+    }
+
+    if (isImageFileName(file.name) && openImageFromBlob) {
+      if (await openImageFromBlob(blob, title)) return true
+    }
+
+    const blobUrl = URL.createObjectURL(blob)
+    openExternalUrl(blobUrl)
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+    return true
+  }
+
+  async function openDocumentFile(file: SharePointFileItem): Promise<boolean> {
     const driveId = String(file?.drive_id || '').trim()
     const itemId = String(file?.id || '').trim()
 
     if (driveId && itemId) {
-      if (isPdfFileName(file.name)) {
-        await openViaStream(driveId, itemId)
-        return
-      }
-
-      try {
-        const {data} = await axios.get<FileLinkResponse>('/sharepoint/documents-file-link', {
-          params: {drive_id: driveId, item_id: itemId},
-        })
-        if (data?.use_stream) {
-          await openViaStream(driveId, itemId)
-          return
-        }
-        const guestUrl = String(data?.url || '').trim()
-        const via = String(data?.via || '')
-        const preferStream =
-          data?.use_stream ||
-          via === 'stream_proxy' ||
-          (guestUrl && /\/:f:\//i.test(guestUrl))
-        if (!preferStream && guestUrl) {
-          openExternalUrl(guestUrl)
-          return
-        }
-        await openViaStream(driveId, itemId)
-        return
-      } catch {
-        await openViaStream(driveId, itemId)
-        return
-      }
+      return openViaStream(driveId, itemId, file)
     }
 
     const rawUrl = String(file?.web_url || '').trim()
-    if (!rawUrl) return
-    if (isPdfFileName(file.name) && isSharePointHost(rawUrl)) {
-      openExternalUrl(rawUrl)
-      return
+    if (!rawUrl) return false
+
+    if (canViewInApp(file.name) && isSharePointHost(rawUrl)) {
+      return false
     }
+
     openExternalUrl(rawUrl)
+    return true
   }
 
   return {openDocumentFile}
