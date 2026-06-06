@@ -30,6 +30,7 @@ const items = ref<SharePointItem[]>([])
 const breadcrumbs = ref<Breadcrumb[]>([])
 const currentItemId = ref<string | null>(null)
 const currentDriveId = ref<string | null>(null)
+const folderWebUrl = ref<string | null>(null)
 
 const viewerOpen = ref(false)
 const viewerUrl = ref('')
@@ -108,6 +109,9 @@ async function loadFolder(itemId: string | null = null) {
     breadcrumbs.value = data.breadcrumbs ?? []
     currentItemId.value = data.current_item_id ?? null
     currentDriveId.value = data.drive_id ?? null
+    if (data.folder_web_url) {
+      folderWebUrl.value = data.folder_web_url
+    }
   } catch (err: unknown) {
     const axiosErr = err as { response?: { data?: { error?: string } } }
     error.value = axiosErr.response?.data?.error || 'Dokumente konnten nicht geladen werden.'
@@ -160,6 +164,9 @@ async function goToRoot() {
 onMounted(async () => {
   const statusRes = await axios.get('/sharepoint/status')
   configured.value = statusRes.data.configured ?? false
+  if (statusRes.data.folder_url) {
+    folderWebUrl.value = statusRes.data.folder_url
+  }
   if (configured.value) {
     await loadFolder(null)
   }
@@ -253,6 +260,18 @@ onMounted(async () => {
           </span>
         </li>
       </ul>
+
+      <p v-if="folderWebUrl && !loading" class="mt-3 text-sm">
+        <a
+            :href="folderWebUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-blue-600 hover:underline inline-flex items-center gap-1"
+        >
+          SharePoint im neuen Tab öffnen
+          <span aria-hidden="true">↗</span>
+        </a>
+      </p>
     </template>
 
     <DocumentOpeningOverlay :open="openingFile" :file-name="openingFileName"/>

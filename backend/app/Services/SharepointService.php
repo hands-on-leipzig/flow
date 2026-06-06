@@ -30,6 +30,7 @@ class SharepointService
         return [
             'configured' => $this->isConfigured(),
             'folder_name' => $config->cached_root_name,
+            'folder_url' => $config->folder_url,
         ];
     }
 
@@ -110,13 +111,16 @@ class SharepointService
         }
 
         $children = $this->fetchChildren($driveId, $itemId, $token);
+        $folderWebUrl = $this->getItemWebUrl($driveId, $itemId, $token)
+            ?: trim((string) $config->folder_url);
 
         return [
             'items' => $children,
             'breadcrumbs' => $breadcrumbs,
             'current_item_id' => $itemId,
             'drive_id' => $driveId,
-            'folder_name' => $folderName ?? ($breadcrumbs[0]['name'] ?? null),
+            'folder_name' => $folderName ?? ($breadcrumbs[count($breadcrumbs) - 1]['name'] ?? null),
+            'folder_web_url' => $folderWebUrl ?: null,
         ];
     }
 
@@ -287,6 +291,23 @@ class SharepointService
         $base64 = strtr($base64, '+/', '-_');
 
         return 'u!'.$base64;
+    }
+
+    private function getItemWebUrl(string $driveId, string $itemId, string $token): ?string
+    {
+        $response = Http::withToken($token)
+            ->get(self::GRAPH_BASE.'/drives/'.rawurlencode($driveId)
+                .'/items/'.rawurlencode($itemId), [
+                    '$select' => 'webUrl',
+                ]);
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $url = trim((string) ($response->json('webUrl') ?? ''));
+
+        return $url !== '' ? $url : null;
     }
 
     private function fetchChildren(string $driveId, string $itemId, string $token): array
