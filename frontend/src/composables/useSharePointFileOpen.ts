@@ -1,5 +1,5 @@
 import axios from 'axios'
-import {canViewInApp, isImageFileName, isPdfFileName, isSharePointHost} from '@/utils/sharePointHost'
+import {canViewInApp, isImageFileName, isPdfFileName, isSharePointHost, isUrlShortcutFileName, parseInternetShortcutUrl, readUrlShortcutText} from '@/utils/sharePointHost'
 
 interface SharePointFileItem {
   id: string
@@ -50,6 +50,15 @@ export function useSharePointFileOpen(options: SharePointFileOpenOptions = {}) {
 
     if (isImageFileName(file.name) && openImageFromBlob) {
       if (await openImageFromBlob(blob, title)) return true
+    }
+
+    if (isUrlShortcutFileName(file.name)) {
+      const text = await readUrlShortcutText(blob)
+      const targetUrl = parseInternetShortcutUrl(text)
+      if (targetUrl) {
+        openExternalUrl(targetUrl)
+        return true
+      }
     }
 
     const blobUrl = URL.createObjectURL(blob)
