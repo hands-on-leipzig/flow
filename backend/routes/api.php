@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\CarouselController;
+use App\Http\Controllers\Api\SlugAdminController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
@@ -45,8 +46,9 @@ Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPubli
 Route::get('/carousel/{event}/slide/{slide}', [CarouselController::class, 'getPublicSingleSlide']);
 Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?room=24&point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?room=24&interval=15&point_in_time=...
-Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
-Route::get('/events/public/{id}', [EventController::class, 'getPublicEventById']); // Public event lookup by id
+Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']);       // Public event lookup by slug
+Route::get('/events/public/{id}', [EventController::class, 'getPublicEventById']);    // Public event lookup by id
+Route::get('/events/{eventId}/slugs', [EventController::class, 'getSlugsByEventId']); // Alle Slugs für ein Event (für JOIN etc.)
 Route::get('/events/{event}/team-coordinates', [DrahtController::class, 'getTeamsCoordinates']);
 Route::get('/events', [EventController::class, 'index']); // Get list of current events
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
@@ -298,6 +300,14 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
+
+    Route::prefix('admin/slugs')->group(function () {
+        Route::get('/overview', [SlugAdminController::class, 'overview']);                                    // Alle Partner + Events + Slugs
+        Route::post('/sync-season', [SlugAdminController::class, 'syncCurrentSeason']);                       // Slugs für aktuelle Saison syncen
+        Route::put('/{slugId}', [SlugAdminController::class, 'updateSlug']);                                  // Einzelnen Slug anpassen
+        Route::post('/events/{eventId}/regenerate', [SlugAdminController::class, 'regenerateSlugsForEvent']); // Slugs für ein Event neu generieren
+        Route::put('/partners/{partnerId}/prefixes', [SlugAdminController::class, 'updatePartnerPrefixes']); // Präfixe eines Partners setzen
+    });
 
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren

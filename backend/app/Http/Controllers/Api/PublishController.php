@@ -12,6 +12,7 @@ use App\Support\PlanParameter;
 use App\Enums\ExploreMode;
 
 use App\Services\SeasonService;
+use App\Services\SlugService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,154 +38,36 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class PublishController extends Controller
 {
     private ActivityFetcherService $fetcher;
+    private SlugService $slugService;
 
-    public function __construct(ActivityFetcherService $fetcher)
+    public function __construct(ActivityFetcherService $fetcher, SlugService $slugService)
     {
-        $this->fetcher = $fetcher;
+        $this->fetcher     = $fetcher;
+        $this->slugService = $slugService;
     }
 
     public function linkAndQRcode(int $eventId): JsonResponse
     {
-        // Event direkt laden
-        $event = DB::table('event')
-            ->where('id', $eventId)
-            ->first();
+        $event = Event::find($eventId);
 
         if (!$event) {
             return response()->json(['error' => 'Event not found'], 404);
-        }
-
-
-        // Wenn bereits gesetzt → zurückgeben
-        if (!empty($event->link) && !empty($event->qrcode) && !empty($event->slug)) {
-            // For existing QR codes, regenerate with ?source=qr if not already present
-            // But return the clean display link
-            return response()->json([
-                'link' => $event->link,  // Clean display link
-                'qrcode' => 'data:image/png;base64,' . $event->qrcode,
-            ]);
         }
 
         if (empty($event->name)) {
             return response()->json(['error' => 'Event name is required'], 400);
         }
 
-        switch ($event->level) {
-
-            case 1:
-                // Use event name directly
-                $link = $event->name;
-
-                // Prüfen, ob mehrere Regio für diesen Regionalpartner existieren
-                $eventCount = DB::table('event')
-                    ->where('regional_partner', $event->regional_partner)
-                    ->where('level', 1)
-                    ->where('season', SeasonService::currentSeasonId())
-                    ->count();
-
-                if ($eventCount > 1) {
-                    if (!is_null($event->event_challenge)) {
-                        $link .= "-challenge";
-                    }
-                    if (!is_null($event->event_explore)) {
-                        $link .= "-explore";
-                    }
-                }
-                break;
-
-            case 2:
-                // Find first "-" in event name, add 2 to position, use the rest
-                $dashPos = strpos($event->name, '-');
-                if ($dashPos !== false) {
-                    // Add 2 to skip the "-" and space
-                    $position = $dashPos + 2;
-                    $suffix = substr($event->name, $position);
-                    $link = "quali-" . $suffix;
-                } else {
-                    // No dash found, use full event name
-                    $link = "quali-" . $event->name;
-                }
-                break;
-
-            case 3:
-                $link = "finale"; // Region bewusst weggelassen
-        }
-
-        // Link "säubern"
-        $link = trim(strtolower($link));
-        $link = str_replace(array('ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß', '/', ' '), array('ae', 'oe', 'ue', 'AE', 'OE', 'UE', 'ss', '-', '-'), $link);
-
-        $slug = $link;
-        // Display link (stored in DB, shown to users) - clean without query params
-        $displayLink = config('app.frontend_url', 'http://localhost:5173') . "/" . $link;
-        // QR code link (includes source parameter for tracking)
-        $qrCodeLink = $displayLink . "?source=qr";
-
-        // QR-Code mit Endroid erzeugen (use QR code link with source parameter)
-        $qrCode = new QrCode(
-            $qrCodeLink,
-            new Encoding('UTF-8'),
-            ErrorCorrectionLevel::High,
-            300,
-            10,
-            RoundBlockSizeMode::Margin,
-            new Color(0, 0, 0),        // schwarz
-            new Color(255, 255, 255)   // weiß
-        );
-
-        $writer = new PngWriter();
-
-        // Logo optional hinzufügen
-        $logo = null;
-        $logoPath = public_path("flow/hot_outline.png");
-        if (file_exists($logoPath)) {
-            $logo = new Logo($logoPath, 100); // 50px breit
-        }
-
-        // QR-Code schreiben
-        $result = $writer->write($qrCode, $logo);
-        $qrcodeRaw = base64_encode($result->getString()); // nur Base64
-
-        // In DB speichern (ohne Prefix) - store clean display link without ?source=qr
-        DB::table('event')
-            ->where('id', $event->id)
-            ->update([
-                'slug' => $slug,
-                'link' => $displayLink,  // Clean link without ?source=qr
-                'qrcode' => $qrcodeRaw,
+        // Wenn bereits QR-Code gesetzt und Slugs vorhanden → zurückgeben
+        if (!empty($event->link) && !empty($event->qrcode) && !empty($event->slug)) {
+            return response()->json([
+                'link'   => $event->link,
+                'qrcode' => 'data:image/png;base64,' . $event->qrcode,
+                'slugs'  => $this->slugService->getSlugsForEvent($event->id, $event->season),
             ]);
-
-        // Update link in DRAHT for both explore and challenge events if they exist
-        // Only update DRAHT in production environment
-        if (app()->environment('production')) {
-            try {
-                $drahtController = app(\App\Http\Controllers\Api\DrahtController::class);
-
-                // Update link for challenge event if it exists
-                if (!empty($event->event_challenge)) {
-                    $drahtController->updateEventLink($event->event_challenge, $displayLink);
-                }
-
-                // Update link for explore event if it exists
-                if (!empty($event->event_explore)) {
-                    $drahtController->updateEventLink($event->event_explore, $displayLink);
-                }
-            } catch (\Exception $e) {
-                // Log error but don't fail the link generation
-                Log::error("Failed to update link in DRAHT for event {$event->id}", [
-                    'error' => $e->getMessage()
-                ]);
-            }
-        } else {
-            // Log that we're skipping DRAHT update in non-production environment
-            Log::info("Skipping DRAHT link update for event {$event->id} (environment: " . app()->environment() . ")");
         }
 
-        // In Response Prefix hinzufügen
-        return response()->json([
-            'link' => $link,
-            'qrcode' => 'data:image/png;base64,' . $qrcodeRaw,
-        ]);
+        return $this->generateLinkQrcodeAndSlugs($event);
     }
 
     /**
@@ -192,26 +75,103 @@ class PublishController extends Controller
      */
     public function regenerateLinkAndQRcode(int $eventId): JsonResponse
     {
-        // Event direkt laden
-        $event = DB::table('event')
-            ->where('id', $eventId)
-            ->first();
+        $event = Event::find($eventId);
 
         if (!$event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
 
-        // Clear existing link and QR code to force regeneration
+        // Reset → Neugenererierung erzwingen
         DB::table('event')
             ->where('id', $eventId)
+            ->update(['slug' => null, 'link' => null, 'qrcode' => null]);
+
+        $event->refresh();
+
+        return $this->generateLinkQrcodeAndSlugs($event);
+    }
+
+    /**
+     * Gemeinsame Logik: Slugs generieren, QR-Code erzeugen, speichern.
+     */
+    private function generateLinkQrcodeAndSlugs(Event $event): JsonResponse
+    {
+        // Slugs via SlugService generieren und in event_slug speichern
+        $slugRecords = $this->slugService->generateForEvent($event);
+
+        // Primären Slug für event.slug / event.link / QR-Code ermitteln
+        $primarySlug = collect($slugRecords)->firstWhere('is_primary', true);
+
+        if (!$primarySlug) {
+            // Fallback: ersten Slug nehmen
+            $primarySlug = $slugRecords[0] ?? null;
+        }
+
+        if (!$primarySlug) {
+            return response()->json(['error' => 'Slug generation failed'], 500);
+        }
+
+        $slug        = $primarySlug['slug'];
+        $displayLink = config('app.frontend_url', 'http://localhost:5173') . '/' . $slug;
+        $qrCodeLink  = $displayLink . '?source=qr';
+
+        // QR-Code mit Endroid erzeugen
+        $qrCode = new QrCode(
+            $qrCodeLink,
+            new Encoding('UTF-8'),
+            ErrorCorrectionLevel::High,
+            300,
+            10,
+            RoundBlockSizeMode::Margin,
+            new Color(0, 0, 0),
+            new Color(255, 255, 255)
+        );
+
+        $writer = new PngWriter();
+
+        $logo     = null;
+        $logoPath = public_path('flow/hot_outline.png');
+        if (file_exists($logoPath)) {
+            $logo = new Logo($logoPath, 100);
+        }
+
+        $result    = $writer->write($qrCode, $logo);
+        $qrcodeRaw = base64_encode($result->getString());
+
+        // Primären Slug + Link + QR-Code auf event speichern (Rückwärtskompatibilität)
+        DB::table('event')
+            ->where('id', $event->id)
             ->update([
-                'slug' => null,
-                'link' => null,
-                'qrcode' => null,
+                'slug'   => $slug,
+                'link'   => $displayLink,
+                'qrcode' => $qrcodeRaw,
             ]);
 
-        // Now call the existing method to regenerate
-        return $this->linkAndQRcode($eventId);
+        // Primären Link in DRAHT aktualisieren
+        if (app()->environment('production')) {
+            try {
+                $drahtController = app(\App\Http\Controllers\Api\DrahtController::class);
+
+                if (!empty($event->event_challenge)) {
+                    $drahtController->updateEventLink($event->event_challenge, $displayLink);
+                }
+                if (!empty($event->event_explore)) {
+                    $drahtController->updateEventLink($event->event_explore, $displayLink);
+                }
+            } catch (\Exception $e) {
+                Log::error("Failed to update link in DRAHT for event {$event->id}", [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        } else {
+            Log::info("Skipping DRAHT link update for event {$event->id} (environment: " . app()->environment() . ')');
+        }
+
+        return response()->json([
+            'link'   => $displayLink,
+            'qrcode' => 'data:image/png;base64,' . $qrcodeRaw,
+            'slugs'  => $slugRecords,
+        ]);
     }
 
     /**
@@ -221,9 +181,7 @@ class PublishController extends Controller
     {
         try {
             // Get all events for this season
-            $events = DB::table('event')
-                ->where('season', $seasonId)
-                ->get();
+            $events = Event::where('season', $seasonId)->get();
 
             if ($events->isEmpty()) {
                 return response()->json([
@@ -256,14 +214,12 @@ class PublishController extends Controller
                     // Clear existing link and QR code to force regeneration
                     DB::table('event')
                         ->where('id', $event->id)
-                        ->update([
-                            'slug' => null,
-                            'link' => null,
-                            'qrcode' => null,
-                        ]);
+                        ->update(['slug' => null, 'link' => null, 'qrcode' => null]);
 
-                    // Regenerate link and QR code
-                    $this->linkAndQRcode($event->id);
+                    $event->refresh();
+
+                    // Regenerate link, QR code and slugs
+                    $this->generateLinkQrcodeAndSlugs($event);
                     $regenerated++;
 
                     // Log progress every 10 events or on last event

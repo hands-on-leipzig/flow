@@ -9,8 +9,10 @@ use App\Models\RegionalPartner;
 use App\Models\Slide;
 use App\Models\TableEvent;
 use App\Models\User;
+use App\Models\EventSlug;
 use App\Services\SeasonService;
 use App\Services\EventAttentionService;
+use App\Services\SlugService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -85,21 +87,70 @@ class EventController extends Controller
     public function getEventBySlug($slug)
     {
         try {
-            $event = Event::where('slug', $slug)
-                ->where('season', SeasonService::currentSeasonId())
+            $seasonId = SeasonService::currentSeasonId();
+            $slugService = app(SlugService::class);
+
+            // Zuerst in event_slug Tabelle suchen (neue Logik)
+            $event = $slugService->findEventBySlug($slug, $seasonId);
+
+            // Fallback: alte event.slug Spalte (Rückwärtskompatibilität)
+            if (!$event) {
+                $event = Event::where('slug', $slug)
+                    ->where('season', $seasonId)
+                    ->first();
+            }
+
+            if (!$event) {
+                return response()->json(['error' => 'Event not found'], 404);
+            }
+
+            $event->load(['seasonRel', 'levelRel', 'regionalPartner']);
+
+            return response()->json($this->eventPublicInformationArray($event));
+        } catch (\Exception $e) {
+            Log::error('Error in getEventBySlug: ' . $e->getMessage());
+            return response()->json(['error' => 'Internal server error'], 500);
+        }
+    }
+
+    /**
+     * Gibt alle Slugs für ein Event zurück (für JOIN und andere Konsumenten).
+     * Public endpoint – keine Authentifizierung nötig.
+     */
+    public function getSlugsByEventId(int $eventId)
+    {
+        try {
+            $seasonId = SeasonService::currentSeasonId();
+
+            $event = Event::where('id', $eventId)
+                ->where('season', $seasonId)
                 ->first();
 
             if (!$event) {
                 return response()->json(['error' => 'Event not found'], 404);
             }
 
-            // Load relationships separately to avoid potential issues
-            $event->load(['seasonRel', 'levelRel', 'regionalPartner']);
+            $slugService = app(SlugService::class);
+            $slugs       = $slugService->getSlugsForEvent($eventId, $seasonId);
+            $primarySlug = collect($slugs)->firstWhere('is_primary', true);
 
-            // Return only public information (no sensitive data like wifi_password)
-            return response()->json($this->eventPublicInformationArray($event));
+            $baseUrl = config('app.frontend_url', 'http://localhost:5173');
+
+            return response()->json([
+                'event_id' => $eventId,
+                'season_id' => $seasonId,
+                'primary_slug' => $primarySlug['slug'] ?? null,
+                'primary_url'  => $primarySlug ? $baseUrl . '/' . $primarySlug['slug'] : null,
+                'slugs' => array_map(fn($s) => [
+                    'slug'       => $s['slug'],
+                    'url'        => $baseUrl . '/' . $s['slug'],
+                    'program'    => $s['program'],
+                    'variant'    => $s['variant'],
+                    'is_primary' => (bool) $s['is_primary'],
+                ], $slugs),
+            ]);
         } catch (\Exception $e) {
-            Log::error('Error in getEventBySlug: ' . $e->getMessage());
+            Log::error('Error in getSlugsByEventId: ' . $e->getMessage());
             return response()->json(['error' => 'Internal server error'], 500);
         }
     }

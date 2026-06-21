@@ -12,6 +12,7 @@ import MainTablesAdmin from '@/components/molecules/MainTablesAdmin.vue'
 import SystemNews from '@/components/molecules/SystemNews.vue'
 import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
+import SlugAdmin from '@/components/molecules/SlugAdmin.vue'
 import '@vueform/multiselect/themes/default.css'
 
 const activeTab = ref('statistics')
@@ -28,6 +29,7 @@ const adminMenuItems = [
   {key: 'sync', label: 'Draht Sync', icon: '🔁', devOnly: false},
   {key: 'external-api', label: 'External API', icon: '🔑', devOnly: false},
   {key: 'sharepoint', label: 'SharePoint', icon: '📂', devOnly: false},
+  {key: 'slug-admin', label: 'Slug-Verwaltung', icon: '🔗', devOnly: false},
   {key: 'hilfsfunktionen', label: 'Hilfsfunktionen', icon: '🔧', devOnly: false},
 ]
 
@@ -483,6 +485,10 @@ fetchConditions()
 
         <div v-if="activeTab === 'external-api'">
           <ExternalApiManagement/>
+        </div>
+
+        <div v-if="activeTab === 'slug-admin'">
+          <SlugAdmin/>
         </div>
 
         <div v-if="activeTab === 'sharepoint'">
