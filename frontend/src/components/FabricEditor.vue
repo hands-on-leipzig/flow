@@ -46,9 +46,9 @@ let canvas: Canvas;
 const standardImages = [
   {title: 'Hands on Technology', url: imageUrl('flow/hot.png')},
   {title: 'Hands on Technology', url: imageUrl('flow/hot_outline.png')},
-  {title: 'Unearthed', url: imageUrl('flow/season_unearthed+fll_h.png')},
-  {title: 'Unearthed', url: imageUrl('flow/season_unearthed_v.png')},
-  {title: 'Unearthed', url: imageUrl('flow/season_unearthed_wordmark.png')},
+  {title: 'Bioglow', url: imageUrl('flow/season_bioglow+fll_h.png')},
+  {title: 'Bioglow', url: imageUrl('flow/season_bioglow_v.png')},
+  {title: 'Bioglow', url: imageUrl('flow/season_bioglow_wordmark.png')},
   {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_h.png')},
   {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_v.png')},
   {title: 'FIRST', url: imageUrl('flow/first_h.png')},
