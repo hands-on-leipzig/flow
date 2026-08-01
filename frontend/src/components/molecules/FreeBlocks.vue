@@ -693,22 +693,22 @@ const hasBlocksOutsideEventDates = computed(() => {
     </div>
 
     <!-- CUSTOM BLOCKS -->
-    <div class="liquid-surface-inner rounded-xl relative overflow-hidden">
+    <div class="relative">
       <div class="glass-panel-header">
-        <span class="text-sm text-[var(--color-text-muted)]">Diese Blöcke werden direkt in den generierten Plan kopiert.</span>
+        <span class="text-sm text-[var(--color-text-muted)] min-w-0">Diese Blöcke werden direkt in den generierten Plan kopiert.</span>
         <button
-            class="glass-btn-accent"
+            class="glass-btn-accent shrink-0"
             :disabled="!planId"
             @click="addCustom">
           + Block hinzufügen
         </button>
       </div>
 
-      <div v-if="hasBlocksOutsideEventDates" class="glass-alert-warning mx-4">
+      <div v-if="hasBlocksOutsideEventDates" class="glass-alert-warning mb-4">
         Freie Blöcke an Tagen außerhalb der Veranstaltung werden in den Plänen nicht angezeigt.
       </div>
 
-      <div class="overflow-x-auto px-4 pb-4">
+      <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead>
           <tr class="text-[var(--color-text-subtle)] text-xs uppercase tracking-wide">

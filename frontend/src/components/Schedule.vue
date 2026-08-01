@@ -565,17 +565,18 @@ const updateTableName = async () => {
     </div>
 
 
-    <div class="glass-card liquid-surface-inner border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none">
+    <div class="glass-accordion">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 font-semibold text-[var(--color-text)] uppercase flex justify-between items-center text-sm md:text-base border-b border-[var(--color-border)]"
+          class="glass-accordion__header"
+          type="button"
           @click="toggle('general')"
       >
         Allgemein
         <AccordionArrow :opened="openGroup === 'general'"/>
       </button>
       <transition name="fade">
-        <div v-if="openGroup === 'general'" class="p-3 md:p-4">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-2 md:mt-4">
+        <div v-if="openGroup === 'general'" class="glass-accordion__body">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
             <ExploreSettings
                 :parameters="parameters"
                 :show-explore="showExplore"
@@ -607,17 +608,18 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="glass-card liquid-surface-inner border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none">
+    <div class="glass-accordion">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 font-semibold text-[var(--color-text)] uppercase flex justify-between items-center text-sm md:text-base border-b border-[var(--color-border)]"
+          class="glass-accordion__header"
+          type="button"
           @click="toggle('expert')"
       >
         Expertenparameter
         <AccordionArrow :opened="openGroup === 'expert'"/>
       </button>
       <transition name="fade">
-        <div v-if="openGroup === 'expert'" class="p-3 md:p-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 max-h-none md:max-h-[600px] overflow-y-visible md:overflow-y-auto overflow-x-hidden">
+        <div v-if="openGroup === 'expert'" class="glass-accordion__body">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-h-none md:max-h-[600px] overflow-y-visible md:overflow-y-auto overflow-x-hidden">
             <!-- Left column: Explore or turned off message -->
             <div class="w-full min-w-0">
               <div class="flex items-center gap-2 mb-2">
@@ -715,16 +717,17 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="glass-card liquid-surface-inner border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none" v-if="selectedEvent?.level === 3">
+    <div class="glass-accordion" v-if="selectedEvent?.level === 3">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 font-semibold text-[var(--color-text)] uppercase flex justify-between items-center text-sm md:text-base border-b border-[var(--color-border)]"
+          class="glass-accordion__header"
+          type="button"
           @click="toggle('finals')"
       >
         Finalparameter
         <AccordionArrow :opened="openGroup === 'finals'"/>
       </button>
       <transition name="fade">
-        <div v-if="openGroup === 'finals'" class="p-3 md:p-4">
+        <div v-if="openGroup === 'finals'" class="glass-accordion__body">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-h-[400px] md:max-h-[600px] overflow-y-auto">
             <!-- Left column: Input parameters -->
             <div>
@@ -758,16 +761,17 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div v-if="showChallenge" class="glass-card liquid-surface-inner border-b border-x-0 border-t-0 md:border md:rounded-lg rounded-none">
+    <div v-if="showChallenge" class="glass-accordion">
       <button
-          class="w-full text-left px-3 md:px-4 py-2 font-semibold text-[var(--color-text)] uppercase flex justify-between items-center text-sm md:text-base border-b border-[var(--color-border)]"
+          class="glass-accordion__header"
+          type="button"
           @click="toggle('extras')"
       >
         Zusatzblöcke
         <AccordionArrow :opened="openGroup === 'extras'"/>
       </button>
       <transition name="fade">
-        <div v-if="openGroup === 'extras'" class="p-3 md:p-4">
+        <div v-if="openGroup === 'extras'" class="glass-accordion__body">
           <InsertBlocks
               ref="insertBlocksRef"
               :plan-id="selectedPlanId as number"

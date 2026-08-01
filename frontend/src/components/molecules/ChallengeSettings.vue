@@ -260,15 +260,15 @@ const teamsPerJuryHint = computed(() => {
 </script>
 
 <template>
-  <div class="glass-card liquid-surface-inner relative min-w-0">
-    <div class="flex items-center gap-2 mb-4 justify-between flex-wrap">
-      <div class="flex items-center gap-2 min-w-0 flex-1">
+  <div class="glass-card liquid-surface-inner relative min-w-0 glass-settings-block">
+    <div class="flex items-center gap-3 justify-between flex-wrap">
+      <div class="flex items-center gap-2.5 min-w-0 flex-1">
         <img
             :alt="programLogoAlt('C')"
             :src="programLogoSrc('C')"
-            class="w-10 h-10 flex-shrink-0"
+            class="w-9 h-9 flex-shrink-0"
         />
-        <h3 class="text-lg font-semibold capitalize break-words min-w-0">
+        <h3 class="glass-card__title !mb-0 capitalize break-words min-w-0">
           <span class="italic">FIRST</span> LEGO League Challenge
         </h3>
       </div>
@@ -289,21 +289,19 @@ const teamsPerJuryHint = computed(() => {
     </div>
 
     <template v-if="showChallenge">
-      <div class="mb-3">
-        <TeamSelectionCard
-            :plan-teams="planTeams"
-            :registered-teams="registeredTeams"
-            :capacity="capacity"
-            :min-teams="challengeTeamLimits.min"
-            :max-teams="challengeTeamLimits.max"
-            :on-update="(value) => updateByName('c_teams', value)"
-        />
-      </div>
+      <TeamSelectionCard
+          :plan-teams="planTeams"
+          :registered-teams="registeredTeams"
+          :capacity="capacity"
+          :min-teams="challengeTeamLimits.min"
+          :max-teams="challengeTeamLimits.max"
+          :on-update="(value) => updateByName('c_teams', value)"
+      />
 
       <!-- Jury lanes -->
-      <div class="mb-1">
-        <div class="flex flex-wrap items-center gap-2">
-          <RadioGroup v-model="jLanesProxy" class="flex gap-1 flex-wrap">
+      <div>
+        <div class="glass-settings-row">
+          <RadioGroup v-model="jLanesProxy" class="flex gap-1.5 flex-wrap">
             <RadioGroupOption
                 v-for="n in lanePalette"
                 :key="'j_lane_' + n"
@@ -314,15 +312,12 @@ const teamsPerJuryHint = computed(() => {
               <button
                   :aria-disabled="disabled"
                   :class="[
-                    checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
-                    disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400',
-                    // highlight recommended
+                    'glass-choice relative whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                    checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
                     (!disabled && isLaneRecommended(n)) ? 'after:absolute after:-top-2 ' +
                      'after:-right-2 after:text-[10px] after:px-1.5 after:py-0.5 after:bg-emerald-100 ' +
-                      'after:text-emerald-700 after/rounded after:content-[\'Empfohlen\']' : ''
+                      'after:text-emerald-700 after:rounded after:content-[\'Empfohlen\']' : ''
                   ]"
-                  class="relative px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                   type="button"
               >
                 {{ n }}
@@ -330,49 +325,44 @@ const teamsPerJuryHint = computed(() => {
             </RadioGroupOption>
           </RadioGroup>
 
-          <span class="text-sm font-medium whitespace-nowrap">Jurygruppe(n)</span>
+          <span class="glass-settings-label whitespace-nowrap">Jurygruppe(n)</span>
           <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
-          <span class="text-xs text-[var(--color-text-subtle)] italic break-words">
+          <span class="glass-settings-hint break-words">
             {{ teamsPerJuryHint }}
           </span>
         </div>
 
-        <p v-if="cTeams && allowedJuryLanes.length === 0" class="text-xs text-[var(--color-text-subtle)] mt-1">
+        <p v-if="cTeams && allowedJuryLanes.length === 0" class="glass-settings-hint mt-1.5 !not-italic">
           Keine gültigen Spurenzahlen für die aktuelle Teamanzahl.
         </p>
-
       </div>
 
 
       <!-- Robot game tables -->
-      <div class="mb-3">
-        <div class="flex flex-wrap items-center gap-2">
-          <RadioGroup v-model="rTablesProxy" class="flex gap-1 flex-wrap">
-            <RadioGroupOption
-                v-for="tb in [2,4]"
-                :key="'tables_' + tb"
-                v-slot="{ checked, disabled }"
-                :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
-                :value="tb"
+      <div class="glass-settings-row">
+        <RadioGroup v-model="rTablesProxy" class="flex gap-1.5 flex-wrap">
+          <RadioGroupOption
+              v-for="tb in [2,4]"
+              :key="'tables_' + tb"
+              v-slot="{ checked, disabled }"
+              :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
+              :value="tb"
+          >
+            <button
+                :aria-disabled="disabled"
+                :class="[
+                  'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                  checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
+                ]"
+                type="button"
+                @click="!disabled && updateByName('r_tables', tb)"
             >
-              <button
-                  :aria-disabled="disabled"
-                  :class="[
-                    checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
-                    disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-                  ]"
-                  class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
-                  type="button"
-                  @click="!disabled && updateByName('r_tables', tb)"
-              >
-                {{ tb }}
-              </button>
-            </RadioGroupOption>
-          </RadioGroup>
-          <span class="text-sm font-medium whitespace-nowrap">Robot-Game Tische</span>
-          <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
-        </div>
+              {{ tb }}
+            </button>
+          </RadioGroupOption>
+        </RadioGroup>
+        <span class="glass-settings-label whitespace-nowrap">Robot-Game Tische</span>
+        <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
       </div>
 
       <!-- Alert message banner -->

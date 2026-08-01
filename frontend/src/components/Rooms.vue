@@ -538,6 +538,14 @@ const handleDrop = async (event, room) => {
   isDragging.value = false
 }
 
+const onRoomDropzoneLeave = (event, roomId) => {
+  const next = event.relatedTarget
+  if (next && event.currentTarget.contains(next)) return
+  if (dragOverRoomId.value === roomId) {
+    dragOverRoomId.value = null
+  }
+}
+
 // --- Room reordering ---
 const handleRoomReorder = async () => {
   try {
@@ -1086,33 +1094,34 @@ const showChallengeTeams = computed(() => {
           <div
               v-for="room in rooms"
               :key="`mobile-room-${room.id}`"
-              class="glass-row-item"
+              class="glass-stack-card"
           >
-            <div class="flex items-center gap-2 mb-2">
+            <div class="flex items-center gap-2">
               <input
                   v-model="room.name"
-                  class="text-sm font-semibold border-b border-[var(--color-border)] flex-1 focus:outline-none focus:border-blue-500"
+                  class="liquid-surface-control text-sm font-semibold flex-1 min-w-0 px-2 py-1.5"
                   @blur="updateRoom(room)"
               />
               <button
-                  class="text-lg hover:text-red-800"
+                  class="shrink-0 p-1.5 text-[var(--color-text-muted)] hover:text-red-700"
                   title="Raum löschen"
+                  type="button"
                   @click="askDeleteRoom(room)"
               >
-                <i style="color: grey;" class="bi bi-trash-fill"></i>
+                <i class="bi bi-trash-fill text-lg"></i>
               </button>
             </div>
 
-            <div class="mb-2 flex items-center gap-2">
+            <div class="flex items-center gap-2">
               <input
                   v-model="room.navigation_instruction"
-                  class="text-xs border-b border-[var(--color-border)] flex-1 text-[var(--color-text-muted)] focus:outline-none focus:border-blue-500"
+                  class="liquid-surface-control text-xs flex-1 min-w-0 px-2 py-1.5 text-[var(--color-text-muted)]"
                   placeholder="z. B. 2. Etage rechts"
                   @blur="updateRoom(room)"
               />
               <div
                   :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
-                  class="cursor-pointer"
+                  class="shrink-0 cursor-pointer"
                   @click="toggleAccessibility(room)"
               >
                 <img
@@ -1123,45 +1132,57 @@ const showChallengeTeams = computed(() => {
               </div>
             </div>
 
-            <div class="flex flex-wrap gap-1 min-h-[36px] border rounded p-1 bg-[var(--color-bg-muted)]">
-              <div v-for="element in getItemsInRoom(room.id)" :key="`mobile-assigned-${element.key}`" class="flex items-center">
-                <span
-                    v-if="element.type === 'activity'"
-                    :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
-                    class="text-[11px] px-2 py-1 rounded-full flex items-center gap-1 font-medium"
-                >
-                  <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
-                  {{ element.name }}
-                  <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black" @click.stop="unassignItemFromRoom(element.key)">✖</button>
-                </span>
-                <span
-                    v-else
-                    class="glass-row-item text-[11px]"
-                >
-                  <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
-                  <span class="px-2 py-1 flex items-center gap-1">
+            <div class="glass-dropzone">
+              <div
+                  v-if="getItemsInRoom(room.id).length === 0"
+                  class="glass-dropzone__empty"
+              >
+                <i class="bi bi-box-arrow-in-down glass-dropzone__empty-icon"></i>
+                <span class="glass-dropzone__empty-text">Noch nichts zugewiesen</span>
+              </div>
+              <div v-else class="glass-dropzone__list">
+                <div v-for="element in getItemsInRoom(room.id)" :key="`mobile-assigned-${element.key}`" class="flex items-center">
+                  <span
+                      v-if="element.type === 'activity'"
+                      :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
+                      class="text-[11px] px-2 py-1 rounded-full flex items-center gap-1 font-medium"
+                  >
                     <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
-                    {{ element.number ? `${element.number} | ` : '' }}{{ element.name }}
+                    {{ element.name }}
+                    <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black" @click.stop="unassignItemFromRoom(element.key)">✖</button>
                   </span>
-                  <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
-                </span>
+                  <span
+                      v-else
+                      class="glass-row-item text-[11px]"
+                  >
+                    <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
+                    <span class="px-2 py-1 flex items-center gap-1">
+                      <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
+                      {{ element.number ? `${element.number} | ` : '' }}{{ element.name }}
+                    </span>
+                    <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
           <div
               ref="newRoomCardRef"
-              class="p-3 border-dashed border-2 border-[var(--color-border)] rounded bg-[var(--color-bg-muted)] shadow-sm"
+              class="glass-stack-card glass-stack-card--dashed"
           >
-            <div class="mb-2">
+            <div>
               <input
                   ref="newRoomInput"
                   v-model="newRoomName"
                   :disabled="isSaving"
-                  class="text-sm font-semibold border-b border-[var(--color-border)] w-full focus:outline-none focus:border-blue-500"
+                  class="liquid-surface-control text-sm font-semibold w-full px-2 py-1.5"
                   placeholder="Neuer Raum z.B. A2.03"
                   @keyup.enter="createRoom"
               />
+              <p v-if="!newRoomName.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1.5">
+                Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert.
+              </p>
             </div>
             <transition name="fade">
               <div v-if="newRoomName.trim().length > 0">
@@ -1169,7 +1190,7 @@ const showChallengeTeams = computed(() => {
                     ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
-                    class="text-xs border-b border-[var(--color-border)] w-full text-[var(--color-text-muted)] focus:outline-none focus:border-blue-500"
+                    class="liquid-surface-control text-xs w-full px-2 py-1.5 text-[var(--color-text-muted)]"
                     placeholder="Navigationshinweis"
                     @keyup.enter="createRoom"
                 />
@@ -1195,36 +1216,37 @@ const showChallengeTeams = computed(() => {
                 'opacity-50': isDraggingRoom,
                 'shadow-lg': isDraggingRoom
               }"
-                  class="glass-row-item glass-row-item--interactive mb-2 cursor-move p-3 md:p-4"
+                  class="glass-stack-card glass-stack-card--interactive cursor-move"
               >
                 <!-- Line 1: Drag handle, Room name, Delete icon -->
-                <div class="flex items-center gap-2 mb-2">
-                  <div class="text-[var(--color-text-subtle)] cursor-move select-none">⋮⋮</div>
+                <div class="flex items-center gap-2">
+                  <div class="shrink-0 text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5" aria-hidden="true">⋮⋮</div>
                   <input
                       v-model="room.name"
-                      class="text-sm md:text-md font-semibold border-b border-[var(--color-border)] flex-1 focus:outline-none focus:border-blue-500"
+                      class="liquid-surface-control text-sm md:text-base font-semibold flex-1 min-w-0 px-2 py-1.5"
                       @blur="updateRoom(room)"
                   />
                   <button
-                      class="text-lg hover:text-red-800"
+                      class="shrink-0 p-1.5 text-[var(--color-text-muted)] hover:text-red-700"
                       title="Raum löschen"
+                      type="button"
                       @click="askDeleteRoom(room)"
                   >
-                    <i style="color: grey;" class="bi bi-trash-fill"></i>
+                    <i class="bi bi-trash-fill text-lg"></i>
                   </button>
                 </div>
 
                 <!-- Line 2: Navigation instruction full width with accessibility icon at end -->
-                <div class="mb-2 flex items-center gap-2">
+                <div class="flex items-center gap-2">
                   <input
                       v-model="room.navigation_instruction"
-                      class="text-xs md:text-sm border-b border-[var(--color-border)] flex-1 text-[var(--color-text-muted)] focus:outline-none focus:border-blue-500"
+                      class="liquid-surface-control text-xs md:text-sm flex-1 min-w-0 px-2 py-1.5 text-[var(--color-text-muted)]"
                       placeholder="z. B. 2. Etage rechts"
                       @blur="updateRoom(room)"
                   />
                   <div
                       :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
-                      class="cursor-pointer"
+                      class="shrink-0 cursor-pointer"
                       @click="toggleAccessibility(room)"
                   >
                     <img
@@ -1235,22 +1257,33 @@ const showChallengeTeams = computed(() => {
                   </div>
                 </div>
 
-                <!-- Line 3: Drop area full width with reduced padding -->
+                <!-- Line 3: Drop area -->
                 <div
+                    class="glass-dropzone"
                     :class="{
-                  'bg-blue-100': dragOverRoomId === room.id,
-                  'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
-                  'bg-[var(--color-bg-muted)]': !isDragging && dragOverRoomId !== room.id
-                }"
-                    class="flex flex-wrap gap-1 min-h-[36px] border rounded p-1 transition-colors"
+                      'glass-dropzone--dragging': isDragging,
+                      'glass-dropzone--active': dragOverRoomId === room.id,
+                    }"
+                    @dragenter.prevent="dragOverRoomId = room.id"
+                    @dragover.prevent="dragOverRoomId = room.id"
+                    @dragleave="onRoomDropzoneLeave($event, room.id)"
                 >
+                  <div
+                      v-if="getItemsInRoom(room.id).length === 0"
+                      class="glass-dropzone__empty"
+                  >
+                    <i class="bi bi-box-arrow-in-down glass-dropzone__empty-icon"></i>
+                    <span class="glass-dropzone__empty-text">
+                      {{ isDragging ? 'Hier ablegen' : 'Aktivitäten oder Teams hierher ziehen' }}
+                    </span>
+                  </div>
                   <draggable
                       :list="getItemsInRoom(room.id)"
-                      class="flex flex-wrap gap-1 w-full"
+                      class="glass-dropzone__list"
                       group="assignables"
                       item-key="key"
                       @add="event => handleDrop(event, room)"
-                      @end="isDragging = false"
+                      @end="isDragging = false; dragOverRoomId = null"
                       @start="isDragging = true"
                   >
 
@@ -1345,18 +1378,18 @@ const showChallengeTeams = computed(() => {
           <!-- 🟩 Neuer Raum (always visible, outside draggable) -->
           <div
               ref="newRoomCardRef"
-              class="p-3 md:p-4 mb-2 border-dashed border-2 border-[var(--color-border)] rounded bg-[var(--color-bg-muted)] shadow-sm"
+              class="glass-stack-card glass-stack-card--dashed"
           >
-            <div class="mb-2">
+            <div>
               <input
                   ref="newRoomInput"
                   v-model="newRoomName"
                   :disabled="isSaving"
-                  class="text-sm md:text-md font-semibold border-b border-[var(--color-border)] w-full focus:outline-none focus:border-blue-500"
+                  class="liquid-surface-control text-sm md:text-base font-semibold w-full px-2 py-1.5"
                   placeholder="Neuer Raum z.B. A2.03"
                   @keyup.enter="createRoom"
               />
-              <p v-if="!newRoomName.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1">
+              <p v-if="!newRoomName.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1.5">
                 Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert.
               </p>
             </div>
@@ -1366,11 +1399,11 @@ const showChallengeTeams = computed(() => {
                     ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
-                    class="text-xs md:text-sm border-b border-[var(--color-border)] w-full text-[var(--color-text-muted)] focus:outline-none focus:border-blue-500"
+                    class="liquid-surface-control text-xs md:text-sm w-full px-2 py-1.5 text-[var(--color-text-muted)]"
                     placeholder="Navigationshinweis"
                     @keyup.enter="createRoom"
                 />
-                <p v-if="!newRoomNote.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1">
+                <p v-if="!newRoomNote.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1.5">
                   Falls der Raum schwer zu finden ist, hier bitte einen Hinweis eintragen.
                 </p>
               </div>
