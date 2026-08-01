@@ -4,7 +4,6 @@ import {useRouter} from 'vue-router'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {useAuth} from '@/composables/useAuth'
-import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
@@ -20,11 +19,6 @@ const hasMultipleEvents = ref(false)
 const challengeData = ref(null)
 const exploreData = ref(null)
 const planId = ref<number | null>(null)
-
-const openGroup = ref<string | null>(null)
-const toggle = (id: string) => {
-  openGroup.value = openGroup.value === id ? null : id
-}
 
 // Team statistics
 const teamStats = ref({
