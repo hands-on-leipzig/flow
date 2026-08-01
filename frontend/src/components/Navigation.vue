@@ -10,13 +10,22 @@ import {imageUrl, programLogoSrc, programLogoAlt} from '@/utils/images'
 import {getAbbreviatedCompetitionType} from '@/utils/eventTitle'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
-import {theme, toggleTheme} from '@hands-on/glass/theme'
+import {theme, setTheme} from '@hands-on/glass/theme'
 import AppShell from '@hands-on/glass/app-shell'
+import SidebarFooter from '@hands-on/glass/sidebar-footer'
 
 const eventStore = useEventStore()
 const {isAdmin, initializeUserRoles} = useAuth()
 const router = useRouter()
 const route = useRoute()
+
+const userLabel = computed(() => {
+  const parsed = keycloak?.tokenParsed as Record<string, unknown> | undefined
+  const name = typeof parsed?.name === 'string' ? parsed.name.trim() : ''
+  if (name) return name
+  const preferred = typeof parsed?.preferred_username === 'string' ? parsed.preferred_username.trim() : ''
+  return preferred || 'FLOW'
+})
 
 const selectableEvents = ref<any[]>([])
 const loadingEvents = ref(false)
@@ -306,127 +315,169 @@ function logout() {
     </template>
 
     <template #lower>
-      <div class="glass-sidebar__footer">
-        <Menu v-if="showEventDropdown" as="div" class="relative w-full">
-          <MenuButton
-              @click="focusSearchAfterDropdownOpen($event)"
-              class="glass-sidebar__item w-full"
-          >
-            <span class="glass-sidebar__item-icon"><i class="bi bi-caret-up-fill" aria-hidden="true"/></span>
-            <span class="glass-sidebar__item-label truncate">{{ eventDropdownLabel() }}</span>
-          </MenuButton>
-          <MenuItems
-              class="absolute left-0 bottom-full z-50 mb-2 origin-bottom-left rounded-xl liquid-surface liquid-surface--radius-lg focus:outline-none w-[min(100%,20rem)] max-h-[50vh] overflow-y-auto"
-          >
-            <div class="py-2">
-              <div v-if="isAdmin" class="px-3 pb-2">
-                <input
-                    ref="eventSearchInput"
-                    v-model="eventSearchQuery"
-                    type="text"
-                    placeholder="Veranstaltung suchen..."
-                    class="w-full px-3 py-2 text-sm liquid-surface-control"
-                />
-              </div>
-              <div v-if="loadingEvents" class="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
-                Lade...
-              </div>
-              <div v-else-if="filteredDropdownEvents.length === 0"
-                   class="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
-                Keine Veranstaltungen gefunden.
-              </div>
-              <template v-else>
-                <MenuItem
-                    v-for="ev in filteredDropdownEvents"
-                    :key="ev.id"
-                    v-slot="{ active }"
-                >
-                  <button
-                      @click="selectEventFromDropdown(ev, ev.regional_partner_id)"
-                      :class="[
+      <SidebarFooter
+          identity-aria-label="Account"
+          settings-aria-label="Einstellungen"
+      >
+        <template v-if="showEventDropdown" #prepend>
+          <Menu as="div" class="relative w-full">
+            <MenuButton
+                @click="focusSearchAfterDropdownOpen($event)"
+                class="glass-sidebar__item w-full"
+            >
+              <span class="glass-sidebar__item-icon"><i class="bi bi-calendar2-event" aria-hidden="true"/></span>
+              <span class="glass-sidebar__item-label truncate">{{ eventDropdownLabel() }}</span>
+            </MenuButton>
+            <MenuItems
+                class="absolute left-0 bottom-full z-50 mb-2 origin-bottom-left rounded-xl liquid-surface liquid-surface--radius-lg focus:outline-none w-[min(100%,20rem)] max-h-[50vh] overflow-y-auto"
+            >
+              <div class="py-2">
+                <div v-if="isAdmin" class="px-3 pb-2">
+                  <input
+                      ref="eventSearchInput"
+                      v-model="eventSearchQuery"
+                      type="text"
+                      placeholder="Veranstaltung suchen..."
+                      class="w-full px-3 py-2 text-sm liquid-surface-control"
+                  />
+                </div>
+                <div v-if="loadingEvents" class="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
+                  Lade...
+                </div>
+                <div v-else-if="filteredDropdownEvents.length === 0"
+                     class="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
+                  Keine Veranstaltungen gefunden.
+                </div>
+                <template v-else>
+                  <MenuItem
+                      v-for="ev in filteredDropdownEvents"
+                      :key="ev.id"
+                      v-slot="{ active }"
+                  >
+                    <button
+                        @click="selectEventFromDropdown(ev, ev.regional_partner_id)"
+                        :class="[
                       'w-full text-left px-4 py-3 text-sm transition-colors',
                       active ? 'bg-[var(--color-bg-hover)]' : '',
                       eventStore.selectedEvent?.id === ev.id ? 'border-l-[3px] border-[var(--color-accent)]' : ''
                     ]"
-                  >
-                    <div class="flex justify-between items-start gap-2 min-w-0">
-                      <div class="flex-1 min-w-0">
-                        <div class="font-medium truncate">{{ ev.name }}</div>
-                        <div class="text-xs text-[var(--color-text-muted)]">
-                          {{ dayjs(ev.date).format('DD.MM.YY') }} · {{ ev.regional_partner_name }}
+                    >
+                      <div class="flex justify-between items-start gap-2 min-w-0">
+                        <div class="flex-1 min-w-0">
+                          <div class="font-medium truncate">{{ ev.name }}</div>
+                          <div class="text-xs text-[var(--color-text-muted)]">
+                            {{ dayjs(ev.date).format('DD.MM.YY') }} · {{ ev.regional_partner_name }}
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                          <img v-if="ev.event_explore" :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
+                               class="w-5 h-5"/>
+                          <img v-if="ev.event_challenge" :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
+                               class="w-5 h-5"/>
                         </div>
                       </div>
-                      <div class="flex items-center gap-2 flex-shrink-0">
-                        <img v-if="ev.event_explore" :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
-                             class="w-5 h-5"/>
-                        <img v-if="ev.event_challenge" :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
-                             class="w-5 h-5"/>
-                      </div>
-                    </div>
-                  </button>
-                </MenuItem>
-                <MenuItem v-if="isAdmin" v-slot="{ active }">
-                  <button
-                      @click="router.push({ path: '/events' }); mobileMenuOpen = false"
-                      :class="['w-full text-left px-4 py-3 text-sm border-t border-[var(--color-border)]', active ? 'bg-[var(--color-bg-hover)]' : 'text-[var(--color-accent)]']"
-                  >
-                    Mehr Veranstaltungen...
-                  </button>
-                </MenuItem>
-              </template>
+                    </button>
+                  </MenuItem>
+                  <MenuItem v-if="isAdmin" v-slot="{ active }">
+                    <button
+                        @click="router.push({ path: '/events' }); mobileMenuOpen = false"
+                        :class="['w-full text-left px-4 py-3 text-sm border-t border-[var(--color-border)]', active ? 'bg-[var(--color-bg-hover)]' : 'text-[var(--color-accent)]']"
+                    >
+                      Mehr Veranstaltungen...
+                    </button>
+                  </MenuItem>
+                </template>
+              </div>
+            </MenuItems>
+          </Menu>
+        </template>
+
+        <template #identity="{ close }">
+          <div class="glass-sidebar-footer__menu-header">
+            <span class="glass-sidebar-footer__menu-title">{{ userLabel }}</span>
+            <span class="glass-sidebar-footer__menu-subtitle">FLOW</span>
+          </div>
+          <button
+              type="button"
+              class="glass-sidebar-footer__menu-item glass-sidebar-footer__menu-item--danger"
+              role="menuitem"
+              @click="logout(); close()"
+          >
+            <i class="bi bi-box-arrow-right" aria-hidden="true"/>
+            <span>Logout</span>
+          </button>
+        </template>
+
+        <template #settings="{ close }">
+          <div class="glass-sidebar-footer__prefs">
+            <div class="glass-sidebar-footer__prefs-block">
+              <span class="glass-sidebar-footer__menu-label">Theme</span>
+              <div class="glass-sidebar-footer__prefs-row" role="group" aria-label="Theme">
+                <button
+                    type="button"
+                    class="glass-sidebar-footer__pref-btn"
+                    :class="{ active: theme === 'light' }"
+                    :aria-pressed="theme === 'light'"
+                    @click="setTheme('light')"
+                >
+                  <i class="bi bi-sun-fill" aria-hidden="true"/>
+                  <span>Hell</span>
+                </button>
+                <button
+                    type="button"
+                    class="glass-sidebar-footer__pref-btn"
+                    :class="{ active: theme === 'dark' }"
+                    :aria-pressed="theme === 'dark'"
+                    @click="setTheme('dark')"
+                >
+                  <i class="bi bi-moon-fill" aria-hidden="true"/>
+                  <span>Dunkel</span>
+                </button>
+              </div>
             </div>
-          </MenuItems>
-        </Menu>
+          </div>
+          <button
+              v-if="isAdmin"
+              type="button"
+              class="glass-sidebar-footer__menu-item"
+              role="menuitem"
+              @click="goTo({ name: 'Admin', path: '/admin' }); close()"
+          >
+            <i class="bi bi-shield-lock" aria-hidden="true"/>
+            <span>Admin</span>
+          </button>
+          <button
+              type="button"
+              class="glass-sidebar-footer__menu-item"
+              role="menuitem"
+              @click="openHelpModal(); close()"
+          >
+            <i class="bi bi-question-circle" aria-hidden="true"/>
+            <span>Hilfe</span>
+          </button>
+        </template>
 
-        <button
-            v-if="isAdmin"
-            type="button"
-            class="glass-sidebar__item"
-            :class="{'glass-sidebar__item--active': isActive('/admin')}"
-            @click="goTo({ name: 'Admin', path: '/admin' })"
-        >
-          <span class="glass-sidebar__item-icon"><i class="bi bi-shield-lock" aria-hidden="true"/></span>
-          <span class="glass-sidebar__item-label">Admin</span>
-        </button>
-
-        <button type="button" class="glass-sidebar__item" @click="openHelpModal">
-          <span class="glass-sidebar__item-icon"><i class="bi bi-question-circle" aria-hidden="true"/></span>
-          <span class="glass-sidebar__item-label">Hilfe</span>
-        </button>
-
-        <button type="button" class="glass-sidebar__item" @click="toggleTheme">
-          <span class="glass-sidebar__item-icon">
-            <i :class="theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon'" aria-hidden="true"/>
-          </span>
-          <span class="glass-sidebar__item-label">{{ theme === 'dark' ? 'Hell' : 'Dunkel' }}</span>
-        </button>
-
-        <button type="button" class="glass-sidebar__item" @click="logout">
-          <span class="glass-sidebar__item-icon"><i class="bi bi-box-arrow-right" aria-hidden="true"/></span>
-          <span class="glass-sidebar__item-label">Logout</span>
-        </button>
-      </div>
-
-      <div class="glass-sidebar__partners">
-        <img
-            :src="imageUrl('/flow/first+fll_v.png')"
-            alt="FIRST LEGO League"
-            class="glass-sidebar__partner-logo glass-sidebar__partner-logo--primary"
-            decoding="async"
-        />
-        <a
-            href="https://www.hands-on-technology.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="glass-sidebar__partner-link"
-        >
+        <template #partners>
           <img
-              :src="imageUrl('/flow/hot.png')"
-              alt="HANDS on TECHNOLOGY"
-              class="glass-sidebar__partner-logo glass-sidebar__partner-logo--secondary"
+              :src="imageUrl('/flow/first+fll_v.png')"
+              alt="FIRST LEGO League"
+              class="glass-sidebar__partner-logo glass-sidebar__partner-logo--primary"
+              decoding="async"
           />
-        </a>
-      </div>
+          <a
+              href="https://www.hands-on-technology.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="glass-sidebar__partner-link"
+          >
+            <img
+                :src="imageUrl('/flow/hot.png')"
+                alt="HANDS on TECHNOLOGY"
+                class="glass-sidebar__partner-logo glass-sidebar__partner-logo--secondary"
+            />
+          </a>
+        </template>
+      </SidebarFooter>
     </template>
 
     <slot />
