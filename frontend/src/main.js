@@ -13,6 +13,7 @@ import dayjs from "dayjs";
 import 'dayjs/locale/de';
 import Rooms from "@/components/Rooms.vue";
 import EventOverview from "@/components/EventOverview.vue";
+import HomeOverview from "@/components/HomeOverview.vue";
 import PublishControl from "@/components/PublishControl.vue";
 import EventDayControl from "@/components/EventDayControl.vue";
 // Admin is lazy-loaded - only loads when /admin route is accessed
@@ -42,8 +43,9 @@ const routes = [
     {
         path: '/plan',
         component: PlanLayout,
-        redirect: '/plan/event',
+        redirect: '/plan/overview',
         children: [
+            {path: 'overview', component: HomeOverview},
             {path: 'event', component: EventOverview},
             {path: 'schedule', component: Schedule},
             {path: 'teams', component: Teams},
@@ -62,6 +64,7 @@ const routes = [
         ]
     },
     // Redirect old routes to new plan/ prefixed routes
+    {path: '/overview', redirect: '/plan/overview'},
     {path: '/event', redirect: '/plan/event'},
     {path: '/schedule', redirect: '/plan/schedule'},
     {path: '/slots', redirect: '/plan/slots'},
@@ -165,9 +168,9 @@ router.beforeEach(async (to, from, next) => {
             return;
         }
 
-        // Day-of default view: on first load, open am Tag instead of Veranstaltung
+        // Day-of default view: on first load, open am Tag instead of Übersicht
         const isInitialNavigation = from.matched.length === 0
-        if (isInitialNavigation && to.path === '/plan/event' && isTodayWithinEvent(eventStore.selectedEvent)) {
+        if (isInitialNavigation && to.path === '/plan/overview' && isTodayWithinEvent(eventStore.selectedEvent)) {
             next('/plan/live')
             return
         }

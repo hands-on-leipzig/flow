@@ -25,7 +25,7 @@ export default defineConfig(({mode}) => {
                     display: 'standalone',
                     orientation: 'portrait',
                     scope: '/',
-                    start_url: '/plan/event',
+                    start_url: '/plan/overview',
                     icons: [
                         {
                             src: '/pwa-192x192.png',

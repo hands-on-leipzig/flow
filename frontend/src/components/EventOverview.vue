@@ -1,23 +1,15 @@
 <script lang="ts" setup>
 import {computed, onMounted, ref, watch} from 'vue'
-import {useRouter} from 'vue-router'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
-import {useAuth} from '@/composables/useAuth'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
-import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBox.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {cleanEventName, getCompetitionType, getEventTitleLong} from '@/utils/eventTitle'
+import {cleanEventName, getEventTitleLong} from '@/utils/eventTitle'
 
 const eventStore = useEventStore()
-const {isAdmin} = useAuth()
-const router = useRouter()
 const event = computed(() => eventStore.selectedEvent)
-const hasMultipleEvents = ref(false)
-const challengeData = ref(null)
-const exploreData = ref(null)
 const planId = ref<number | null>(null)
 
 // Team statistics
@@ -45,7 +37,6 @@ const showChallenge = computed(() => {
 
 // Use normalized event title utilities
 const eventTitleLong = computed(() => getEventTitleLong(event.value))
-const competitionType = computed(() => getCompetitionType(event.value))
 
 // Format title with italic FIRST and accent-colored event name for display
 const formattedEventTitle = computed(() => {
@@ -80,9 +71,6 @@ async function loadEventData() {
 
   const drahtData = await axios.get(`/events/${event.value.id}/draht-data`)
 
-  exploreData.value = drahtData.data.event_explore
-  challengeData.value = drahtData.data.event_challenge
-
   event.value.address = drahtData.data.address
   event.value.contact = drahtData.data.contact
   event.value.information = drahtData.data.information
@@ -101,20 +89,9 @@ async function loadEventData() {
   await fetchPlanId()
 }
 
-async function fetchSelectableEventCount() {
-  try {
-    const {data} = await axios.get('/events/selectable')
-    const events = (data || []).flatMap((rp: { events?: unknown[] }) => rp.events || [])
-    hasMultipleEvents.value = events.length > 1
-  } catch {
-    hasMultipleEvents.value = false
-  }
-}
-
 onMounted(async () => {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
   await loadEventData()
-  await fetchSelectableEventCount()
 })
 
 watch(
@@ -132,35 +109,6 @@ watch(
     <div>
       <div class="flex flex-wrap items-center justify-between gap-2 w-full">
         <h1 class="text-xl lg:text-2xl font-bold text-[var(--color-text)]" v-html="formattedEventTitle"/>
-      </div>
-
-      <div class="m-5 p-5 border rounded shadow bg-blue-300">
-        <div class="flex gap-5 text-2xl">
-          <i class="bi bi-info-circle-fill text-5xl"></i>
-          <div>
-            <p>
-              Wir bauen FLOW gerade zum zentralen Hub für Regionalpartner:innen aus. Bitte habe Verständnis, dass
-              während
-              der
-              Übergangszeit manche Funktionen schwer zu finden oder ganz abgeschaltet sind.
-            </p>
-            <p class="mt-2">
-              Du findest:
-            </p>
-            <ul class="list-disc mt-2">
-              <li>Infos zu deiner Region: auf dieser Seite</li>
-              <li>Relevante Dokumente im Sharepoint: siehe Tabelle unten</li>
-              <li>Registrierte Teams: Reiter
-                <button
-                    class="text-xl px-4 py-2 rounded bg-gray-100 hover:bg-gray-200 relative whitespace-nowrap"
-                    type="button"
-                    @click="router.push('teams')"
-                > Teams
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
@@ -270,9 +218,6 @@ watch(
                 :show-challenge="showChallenge"
                 :show-explore="showExplore"
             />
-          </div>
-          <div class="glass-card liquid-surface-inner">
-            <SharePointDocumentsBox/>
           </div>
         </div>
       </div>

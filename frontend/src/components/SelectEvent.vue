@@ -70,7 +70,7 @@ async function selectEvent(eventId, regionalPartnerId) {
   })
   eventStore.staleSeasonCleared = false
   await eventStore.fetchSelectedEvent()
-  router.push('/event')
+  router.push('/overview')
 }
 
 async function createEvent() {

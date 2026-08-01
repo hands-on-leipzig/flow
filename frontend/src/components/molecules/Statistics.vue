@@ -80,7 +80,7 @@ async function selectEvent(eventId, regionalPartnerId) {
     regional_partner: regionalPartnerId
   })
   await eventStore.fetchSelectedEvent()
-  router.push('/event')
+  router.push('/overview')
 }
 
 onMounted(async () => {

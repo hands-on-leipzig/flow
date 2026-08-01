@@ -70,7 +70,7 @@ watch(() => route.path, async () => {
 
 onMounted(() => {
   if (window.location.pathname === "/") {
-    router.push("/event")
+    router.push("/overview")
   }
 })
 </script>

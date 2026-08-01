@@ -100,10 +100,10 @@ async function selectEventFromDropdown(event: any, regionalPartnerId: number) {
     })
     await eventStore.fetchSelectedEvent()
     mobileMenuOpen.value = false
-    if (route.path.includes('/event')) {
-      await router.replace('/event')
+    if (route.path.includes('/overview')) {
+      await router.replace('/overview')
     } else {
-      router.push('/event')
+      router.push('/overview')
     }
   } catch (error) {
     console.error('Failed to select event:', error)
@@ -159,6 +159,7 @@ async function checkDataReadiness() {
 }
 
 const tabs = computed(() => [
+  {name: 'Übersicht', path: '/overview', icon: 'bi-house-door'},
   {name: 'Veranstaltung', path: '/event', icon: 'bi-calendar-event'},
   {name: 'Ablauf', path: '/schedule', icon: 'bi-list-check'},
   {name: 'Slots', path: '/slots', icon: 'bi-grid-3x3-gap'},
@@ -280,7 +281,7 @@ function logout() {
       @update:open="mobileMenuOpen = $event"
   >
     <template #brand>
-      <RouterLink to="/plan/event" class="glass-sidebar__brand" @click="mobileMenuOpen = false">
+      <RouterLink to="/plan/overview" class="glass-sidebar__brand" @click="mobileMenuOpen = false">
         <img :src="imageUrl('/flow/flow.png')" alt="FLOW" class="glass-sidebar__brand-logo"/>
       </RouterLink>
     </template>
@@ -290,7 +291,7 @@ function logout() {
           v-if="isLiveTabActive"
           type="button"
           class="glass-sidebar__item glass-sidebar__item--back"
-          @click="goTo({ name: 'Veranstaltung', path: '/event' })"
+          @click="goTo({ name: 'Übersicht', path: '/overview' })"
       >
         <span class="glass-sidebar__item-icon"><i class="bi bi-arrow-left" aria-hidden="true"/></span>
         <span class="glass-sidebar__item-label">Zurück zu Planung</span>
