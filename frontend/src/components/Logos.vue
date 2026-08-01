@@ -2,10 +2,14 @@
 import {ref, onMounted, computed, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
+import {usePlanCacheStore} from '@/stores/planCache'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
+
+defineOptions({name: 'Logos'})
 
 const logos = ref([])
 const eventStore = useEventStore()
+const planCache = usePlanCacheStore()
 const selectedEvent = computed(() => eventStore.selectedEvent)
 const uploadFile = ref(null)
 const fileInput = ref(null)
@@ -19,9 +23,9 @@ const draggedOverLogo = ref(null)
 const dropPosition = ref(null) // 'before' or 'after'
 const isDragging = ref(false)
 
-const fetchLogos = async () => {
-  const {data} = await axios.get('/logos')
-  logos.value = data
+const fetchLogos = async ({force = false} = {}) => {
+  if (force) planCache.invalidateLogos()
+  logos.value = await planCache.getLogos()
 }
 
 const uploadLogo = async () => {
@@ -54,7 +58,7 @@ const uploadLogo = async () => {
     const response = await axios.post('/logos', formData)
     const uploadedLogo = response.data
 
-    await fetchLogos()
+    await fetchLogos({force: true})
 
     // Automatically toggle the uploaded logo on for the current event
     if (currentEvent?.id && uploadedLogo?.id) {
@@ -62,7 +66,7 @@ const uploadLogo = async () => {
         await axios.post(`/logos/${uploadedLogo.id}/toggle-event`, {
           event_id: currentEvent.id
         })
-        await fetchLogos() // Refresh to update the toggle state
+        await fetchLogos({force: true}) // Refresh to update the toggle state
       } catch (toggleError) {
         console.error('Error toggling logo after upload:', toggleError)
         // Don't fail the whole operation if toggle fails
@@ -120,7 +124,7 @@ const toggleEventLogo = async (logo) => {
     await axios.post(`/logos/${logo.id}/toggle-event`, {
       event_id: currentEvent.id
     })
-    await fetchLogos()
+    await fetchLogos({force: true})
   } catch (error) {
     console.error('Error toggling logo event:', error)
   }
@@ -144,7 +148,7 @@ const deleteLogo = async () => {
 
   try {
     await axios.delete(`/logos/${logoToDelete.value.id}`)
-    await fetchLogos()
+    await fetchLogos({force: true})
     logoToDelete.value = null
   } catch (error) {
     console.error('Error deleting logo:', error)
@@ -316,7 +320,7 @@ const handleDrop = async (event, targetLogo) => {
     })
 
     // Refresh logos to get updated order
-    await fetchLogos()
+    await fetchLogos({force: true})
     console.log('Order saved successfully')
   } catch (error) {
     console.error('Error updating logo order:', error)

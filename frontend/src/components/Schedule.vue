@@ -3,6 +3,7 @@ import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import ParameterField from "@/components/molecules/ParameterField.vue"
 import {useEventStore} from '@/stores/event'
+import {usePlanCacheStore} from '@/stores/planCache'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import TimeSettings from "@/components/molecules/TimeSettings.vue";
 import ExploreSettings from "@/components/molecules/ExploreSettings.vue";
@@ -19,7 +20,10 @@ import ScheduleToast from "@/components/atoms/ScheduleToast.vue";
 import { useDebouncedSave } from "@/composables/useDebouncedSave";
 import { DEBOUNCE_DELAY } from "@/constants/extraBlocks";
 
+defineOptions({name: 'Schedule'})
+
 const eventStore = useEventStore()
+const planCache = usePlanCacheStore()
 const selectedEvent = computed<FllEvent | null>(() => eventStore.selectedEvent)
 const parameters = ref<Parameter[]>([])
 
@@ -438,8 +442,7 @@ const expertParamsGrouped = computed(() => {
 async function getOrCreatePlan() {
   if (!selectedEvent.value) return
 
-  const res = await axios.get(`/plans/event/${selectedEvent.value.id}`)
-  const planData = res.data
+  const planData = await planCache.getPlan(selectedEvent.value.id)
 
   plans.value = [planData]
   selectedPlanId.value = planData.id
@@ -448,6 +451,7 @@ async function getOrCreatePlan() {
 
   // Generator nur starten, wenn Plan neu ist
   if (planData.existing === false) {
+    planCache.invalidatePlan()
     await runGeneratorOnce()
   }
 }
@@ -483,7 +487,7 @@ onMounted(async () => {
   }
   await getOrCreatePlan()
 
-  const {data} = await axios.get('/parameter/lanes-options')
+  const data = await planCache.getLanesOptions()
   const rows: LaneRow[] = Array.isArray(data?.rows) ? data.rows : data
   lanesIndex.value = buildLanesIndex(rows)
   supportedPlanData.value = rows
@@ -497,8 +501,8 @@ const tableNames = ref(['', '', '', ''])
 const fetchTableNames = async () => {
   if (!selectedEvent.value?.id) return
   try {
-    const response = await axios.get(`/table-names/${selectedEvent.value.id}`)
-    const tables = response.data.table_names
+    const response = await planCache.getTableNames(selectedEvent.value.id)
+    const tables = response.table_names
 
     const names = Array(4).fill('')
     tables.forEach(t => {

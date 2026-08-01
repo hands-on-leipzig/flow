@@ -4,11 +4,15 @@ import {useRouter} from 'vue-router'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import {useEventStore} from '@/stores/event'
+import {schedulePlanPrefetch, usePlanCacheStore} from '@/stores/planCache'
 import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBox.vue'
 import {imageUrl, programLogoAlt, programLogoSrc} from '@/utils/images'
 import {cleanEventName, getCompetitionType, getEventTitleLong} from '@/utils/eventTitle'
 
+defineOptions({name: 'HomeOverview'})
+
 const eventStore = useEventStore()
+const planCache = usePlanCacheStore()
 const router = useRouter()
 const event = computed(() => eventStore.selectedEvent)
 
@@ -111,18 +115,19 @@ const noshowUrl = imageUrl('/flow/FLOW - Wenn Teams am Tag der Veranstaltung nic
 async function loadOverviewData() {
   if (!event.value?.id) return
   loading.value = true
+  const eventId = event.value.id
 
   try {
+    // Phase 1: everything the start page needs to render
     const [drahtRes, planRes, publishRes] = await Promise.allSettled([
-      axios.get(`/events/${event.value.id}/draht-data`),
-      axios.get(`/plans/event/${event.value.id}`),
-      axios.get(`/publish/level/${event.value.id}`),
-      eventStore.refreshReadiness(event.value.id),
-      eventStore.updateTeamDiscrepancyStatus(),
+      planCache.getDrahtData(eventId),
+      planCache.getPlan(eventId),
+      axios.get(`/publish/level/${eventId}`),
+      eventStore.refreshReadiness(eventId),
     ])
 
     if (drahtRes.status === 'fulfilled') {
-      const data = drahtRes.value.data
+      const data = drahtRes.value
       teamStats.value = {
         explore: {
           capacity: data.capacity_explore || 0,
@@ -135,12 +140,22 @@ async function loadOverviewData() {
       }
     }
 
-    hasPlan.value = planRes.status === 'fulfilled' && !!planRes.value.data?.id
+    hasPlan.value = planRes.status === 'fulfilled' && !!planRes.value?.id
     publicationLevel.value =
         publishRes.status === 'fulfilled' ? (publishRes.value.data?.level ?? 1) : null
   } finally {
     loading.value = false
   }
+
+  // Phase 2: discrepancy flag (sidebar/teams warning) — after first paint
+  try {
+    await eventStore.updateTeamDiscrepancyStatus()
+  } catch {
+    // non-blocking
+  }
+
+  // Phase 3: warm other pages only after homepage work is done
+  schedulePlanPrefetch(eventId)
 }
 
 function goTo(path: string) {

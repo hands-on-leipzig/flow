@@ -1,14 +1,17 @@
 <script lang="ts" setup>
 import {computed, onMounted, ref, watch} from 'vue'
-import axios from 'axios'
 import {useEventStore} from '@/stores/event'
+import {usePlanCacheStore} from '@/stores/planCache'
 import dayjs from 'dayjs'
 import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {cleanEventName, getEventTitleLong} from '@/utils/eventTitle'
 
+defineOptions({name: 'EventOverview'})
+
 const eventStore = useEventStore()
+const planCache = usePlanCacheStore()
 const event = computed(() => eventStore.selectedEvent)
 const planId = ref<number | null>(null)
 
@@ -57,8 +60,8 @@ const formattedEventTitle = computed(() => {
 async function fetchPlanId() {
   if (!event.value?.id) return
   try {
-    const response = await axios.get(`/plans/event/${event.value.id}`)
-    planId.value = response.data.id
+    const plan = await planCache.getPlan(event.value.id)
+    planId.value = plan?.id ?? null
   } catch (error) {
     if (import.meta.env.DEV) {
       console.debug('Plan not found for event:', event.value?.id)
@@ -69,20 +72,20 @@ async function fetchPlanId() {
 async function loadEventData() {
   if (!event.value?.id) return
 
-  const drahtData = await axios.get(`/events/${event.value.id}/draht-data`)
+  const data = await planCache.getDrahtData(event.value.id)
 
-  event.value.address = drahtData.data.address
-  event.value.contact = drahtData.data.contact
-  event.value.information = drahtData.data.information
+  event.value.address = data.address
+  event.value.contact = data.contact
+  event.value.information = data.information
 
   teamStats.value = {
     explore: {
-      capacity: drahtData.data.capacity_explore || 0,
-      registered: drahtData.data.teams_explore ? Object.keys(drahtData.data.teams_explore).length : 0,
+      capacity: data.capacity_explore || 0,
+      registered: data.teams_explore ? Object.keys(data.teams_explore).length : 0,
     },
     challenge: {
-      capacity: drahtData.data.capacity_challenge || 0,
-      registered: drahtData.data.teams_challenge ? Object.keys(drahtData.data.teams_challenge).length : 0,
+      capacity: data.capacity_challenge || 0,
+      registered: data.teams_challenge ? Object.keys(data.teams_challenge).length : 0,
     },
   }
 

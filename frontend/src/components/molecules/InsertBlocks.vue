@@ -4,6 +4,7 @@ import axios from 'axios'
 import ToggleSwitch from "@/components/atoms/ToggleSwitch.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import {usePlanCacheStore} from '@/stores/planCache'
 // Note: Block changes trigger debounce in Schedule.vue, blocks are saved to DB when countdown triggers  
 
 type InsertPoint = {
@@ -159,9 +160,8 @@ async function loadInsertPoints() {
   const level = props.eventLevel
   if (level == null) return
   try {
-    const {data} = await axios.get<InsertPoint[]>('/insert-points', {
-      params: {level: Number(level)}
-    })
+    const planCache = usePlanCacheStore()
+    const data = await planCache.getInsertPoints(Number(level))
     const rows = Array.isArray(data) ? data : []
     rows.sort((a, b) =>
         (a.sequence ?? 0) - (b.sequence ?? 0) ||

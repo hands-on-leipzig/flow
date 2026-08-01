@@ -5,6 +5,8 @@ import {useEventStore} from '@/stores/event'
 import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 
+defineOptions({name: 'EventDayControl'})
+
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const publicationLevel = ref<number | null>(null)

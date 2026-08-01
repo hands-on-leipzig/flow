@@ -2,7 +2,7 @@
 import OnlineAccessBox from '@/components/molecules/OnlineAccessBox.vue'
 import DuringEventBox from '@/components/molecules/DuringEventBox.vue'
 
-
+defineOptions({name: 'PublishControl'})
 </script>
 
 <template>

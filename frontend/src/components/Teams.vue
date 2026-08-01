@@ -1,12 +1,15 @@
 <script setup>
 import TeamList from "@/components/molecules/TeamList.vue";
 import {computed, onMounted, ref} from "vue";
-import axios from "axios";
 import {useEventStore} from "@/stores/event";
+import {usePlanCacheStore} from "@/stores/planCache";
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import LoaderText from "@/components/atoms/LoaderText.vue";
 
+defineOptions({name: 'Teams'})
+
 const eventStore = useEventStore()
+const planCache = usePlanCacheStore()
 const event = computed(() => eventStore.selectedEvent)
 const exploreTeamsDraht = ref([])
 const challengeTeamsDraht = ref([])
@@ -16,7 +19,12 @@ const loading = ref(true)
 onMounted(async () => {
   loading.value = true
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
-  const drahtData = await axios.get(`/events/${event.value?.id}/draht-data`)
+  if (!event.value?.id) {
+    loading.value = false
+    return
+  }
+
+  const drahtData = await planCache.getDrahtData(event.value.id)
 
   // Helper function to convert teams object/array to array format
   const normalizeTeams = (teams) => {
@@ -44,8 +52,8 @@ onMounted(async () => {
   }
 
   // teams_explore and teams_challenge can be objects (with team numbers as keys) or arrays
-  exploreTeamsDraht.value = normalizeTeams(drahtData.data.teams_explore)
-  challengeTeamsDraht.value = normalizeTeams(drahtData.data.teams_challenge)
+  exploreTeamsDraht.value = normalizeTeams(drahtData.teams_explore)
+  challengeTeamsDraht.value = normalizeTeams(drahtData.teams_challenge)
   loading.value = false
 })
 </script>

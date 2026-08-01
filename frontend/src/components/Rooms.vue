@@ -2,14 +2,18 @@
 import {ref, onMounted, onUnmounted, computed, nextTick, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
+import {usePlanCacheStore} from '@/stores/planCache'
 import draggable from 'vuedraggable'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import LoaderText from "@/components/atoms/LoaderText.vue";
 import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
 
+defineOptions({name: 'Rooms'})
+
 // --- Stores & Refs ---
 const eventStore = useEventStore()
+const planCache = usePlanCacheStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => eventStore.selectedEvent?.id)
 const rooms = ref([])
@@ -87,7 +91,7 @@ onMounted(async () => {
   rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
 
   // Plan-ID holen
-  const {data: planData} = await axios.get(`/plans/event/${eventId.value}`)
+  const planData = await planCache.getPlan(eventId.value)
   if (!planData?.id) {
     if (import.meta.env.DEV) {
       console.debug('Kein Plan für Event gefunden')

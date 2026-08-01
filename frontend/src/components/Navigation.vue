@@ -3,6 +3,7 @@ import {Menu, MenuButton, MenuItems, MenuItem} from '@headlessui/vue'
 import {onMounted, ref, computed, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useEventStore} from '@/stores/event'
+import {usePlanCacheStore} from '@/stores/planCache'
 import {useAuth} from '@/composables/useAuth'
 import axios from 'axios'
 import dayjs from 'dayjs'
@@ -15,6 +16,7 @@ import AppShell from '@hands-on/glass/app-shell'
 import SidebarFooter from '@hands-on/glass/sidebar-footer'
 
 const eventStore = useEventStore()
+const planCache = usePlanCacheStore()
 const {isAdmin, initializeUserRoles} = useAuth()
 const router = useRouter()
 const route = useRoute()
@@ -178,8 +180,18 @@ onMounted(async () => {
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
+  // Sidebar warnings only — keep this light so Übersicht/SharePoint stay first
   await checkDataReadiness()
-  await fetchSelectableEvents()
+  // Event switcher list can wait; don't compete with homepage APIs
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    window.requestIdleCallback(() => {
+      void fetchSelectableEvents()
+    }, {timeout: 8000})
+  } else {
+    setTimeout(() => {
+      void fetchSelectableEvents()
+    }, 2000)
+  }
 })
 
 watch(
@@ -197,17 +209,23 @@ watch(
 )
 
 watch(
-    () => route.path,
-    async () => {
-      if (eventStore.selectedEvent?.id) {
+    () => eventStore.selectedEvent?.id,
+    async (newId, oldId) => {
+      if (oldId && newId !== oldId) {
+        planCache.clear()
+      }
+      if (newId) {
         await checkDataReadiness()
       }
+      // Prefetch is owned by HomeOverview (after homepage data). Event list can wait.
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        window.requestIdleCallback(() => {
+          void fetchSelectableEvents()
+        }, {timeout: 8000})
+      } else {
+        void fetchSelectableEvents()
+      }
     }
-)
-
-watch(
-    () => eventStore.selectedEvent?.id,
-    () => fetchSelectableEvents()
 )
 
 watch(

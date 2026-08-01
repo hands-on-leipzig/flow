@@ -2,12 +2,15 @@
 import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
+import {usePlanCacheStore} from '@/stores/planCache'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+
+defineOptions({name: 'Slots'})
 
 /** 0 = beide, 2 = Explore, 3 = Challenge — wie Freie Blöcke */
 type SlotBlock = {
@@ -85,6 +88,7 @@ function mapApiToSlot(b: Record<string, unknown>): SlotBlock {
 }
 
 const eventStore = useEventStore()
+const planCache = usePlanCacheStore()
 const event = computed(() => eventStore.selectedEvent)
 const planId = ref<number | null>(null)
 const loading = ref(true)
@@ -227,7 +231,7 @@ function cancelEditStart(row: TeamRow) {
 
 async function loadPlan() {
   if (!event.value?.id) return
-  const {data} = await axios.get(`/plans/event/${event.value.id}`)
+  const data = await planCache.getPlan(event.value.id)
   planId.value = data?.id ?? null
 }
 
