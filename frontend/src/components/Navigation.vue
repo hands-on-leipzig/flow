@@ -10,7 +10,7 @@ import {imageUrl, programLogoSrc, programLogoAlt} from '@/utils/images'
 import {getAbbreviatedCompetitionType} from '@/utils/eventTitle'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
-import {theme, toggleTheme} from '@handson/glass/theme'
+import {theme, toggleTheme} from '@hands-on/glass/theme'
 
 const eventStore = useEventStore()
 const {isAdmin, initializeUserRoles} = useAuth()

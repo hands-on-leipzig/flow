@@ -30,8 +30,8 @@ import PublicScores from "@/components/PublicScores.vue";
 import {useEventStore} from "@/stores/event";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
-import '@handson/glass/styles.css'
-import {initTheme} from '@handson/glass/theme'
+import '@hands-on/glass/styles.css'
+import {initTheme} from '@hands-on/glass/theme'
 
 initTheme()
 
