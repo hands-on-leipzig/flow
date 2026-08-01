@@ -11,7 +11,7 @@ import {getAbbreviatedCompetitionType} from '@/utils/eventTitle'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, toggleTheme} from '@hands-on/glass/theme'
-import AppShell from '@hands-on/glass/components/AppShell.vue'
+import AppShell from '@hands-on/glass/app-shell'
 
 const eventStore = useEventStore()
 const {isAdmin, initializeUserRoles} = useAuth()

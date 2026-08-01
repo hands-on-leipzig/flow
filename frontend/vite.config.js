@@ -71,6 +71,10 @@ export default defineConfig(({mode}) => {
                 '@': fileURLToPath(new URL('./src', import.meta.url))
             },
         },
+        // Keep glass Vue SFCs out of the dep optimizer (exports resolve via Vite + vue plugin).
+        optimizeDeps: {
+            exclude: ['@hands-on/glass'],
+        },
 
         // Proxy → Laravel (VITE_FILES_BASE_URL or http://localhost:8000). Backend must be running.
         server: {
