@@ -1,217 +1,133 @@
 /**
- * App shell layout – sidebar left, content panel right.
- * Uses @handson/glass tokens; wrap root in .liquid-surface-scope.
+ * FLOW content UI patterns on top of @hands-on/glass app shell.
+ * Shell / sidebar chrome lives in @hands-on/glass (AppShell + app-shell.css).
  */
-
-.glass-layout {
-  --glass-sidebar-width: 15.5rem;
-  display: flex;
-  height: 100%;
-  height: 100dvh;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  box-sizing: border-box;
-}
-
-.glass-layout__sidebar {
-  display: flex;
-  flex-direction: column;
-  width: var(--glass-sidebar-width);
-  flex-shrink: 0;
-  min-height: 0;
-  padding: 1rem 0.75rem;
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-}
-
-.glass-layout__sidebar-header {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.625rem;
-  padding: 0 0.375rem 1rem;
-  border-bottom: 1px solid var(--color-sidebar-border);
-  margin-bottom: 0.75rem;
-}
-
-.glass-layout__sidebar-header img {
-  height: 1.75rem;
-  width: auto;
-}
-
-.glass-layout__sidebar-nav {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  padding: 0 0.125rem;
-}
-
-.glass-layout__sidebar-footer {
-  margin-top: auto;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-sidebar-border);
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.glass-layout__main {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.glass-layout__panel {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 1.25rem 1.5rem;
-  border-radius: var(--radius-xl);
-}
-
-.glass-nav-link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.625rem 0.875rem;
-  border-radius: var(--radius-lg);
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-  text-align: left;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.glass-nav-link:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text);
-}
-
-.glass-nav-link--active {
-  background: var(--color-accent-muted);
-  color: var(--color-text);
-  font-weight: 700;
-  box-shadow: inset 3px 0 0 var(--color-accent);
-}
-
-.glass-nav-link--back {
-  margin-bottom: 0.5rem;
-  background: var(--color-bg-muted);
-  color: var(--color-text);
-  font-weight: 600;
-}
-
-.glass-nav-link--back:hover {
-  background: var(--color-bg-hover);
-}
-
-.glass-nav-warning {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: var(--radius-full);
-  background: #ef4444;
-  flex-shrink: 0;
-}
-
-.glass-layout__mobile-trigger {
-  display: none;
-  position: fixed;
-  top: 0.875rem;
-  left: 0.875rem;
-  z-index: 45;
-  align-items: center;
-  justify-content: center;
-  width: var(--touch);
-  height: var(--touch);
-  border: 1px solid var(--liquid-border);
-  border-radius: var(--radius-lg);
-  background: var(--liquid-tile-bg);
-  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
-  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
-  box-shadow: var(--liquid-shadow);
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.glass-layout__mobile-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 48;
-  background: var(--liquid-modal-scrim-bg);
-}
-
-.glass-layout__sidebar--drawer {
-  position: fixed;
-  top: 0.75rem;
-  left: 0.75rem;
-  bottom: 0.75rem;
-  z-index: 49;
-  max-width: calc(100vw - 1.5rem);
-}
-
-@media (max-width: 1023px) {
-  .glass-layout {
-    padding: 0.75rem 0.75rem 0.75rem 0;
-  }
-
-  .glass-layout__sidebar--desktop {
-    display: none;
-  }
-
-  .glass-layout__mobile-trigger {
-    display: inline-flex;
-  }
-
-  .glass-layout__main {
-    padding-left: 0.75rem;
-  }
-
-  .glass-layout__panel {
-    padding: 1rem;
-    padding-top: calc(var(--touch) + 1.25rem);
-  }
-}
-
-@media (min-width: 1024px) {
-  .glass-layout__sidebar--drawer,
-  .glass-layout__mobile-backdrop {
-    display: none !important;
-  }
-}
 
 /* Content cards inside the main panel */
 .glass-card {
-  padding: 1rem 1.25rem;
+  padding: 1.35rem 1.5rem 1.5rem;
   border-radius: var(--radius-lg);
 }
 
-.glass-card__title {
-  font-size: var(--text-lg);
-  font-weight: 700;
+/* Nested liquid cards need stronger contour on light/cream backgrounds */
+.glass-card.liquid-surface-inner {
+  border-color: color-mix(in srgb, var(--color-border-strong) 55%, var(--liquid-border-soft));
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.07),
+    0 3px 10px rgba(0, 0, 0, 0.035),
+    var(--liquid-shadow-inset);
+}
+
+/* Accordion shells: quieter frame so nested cards can read as elevation */
+.glass-accordion {
+  padding: 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 70%, var(--color-border));
+  background: color-mix(in srgb, var(--liquid-tile-bg-inner) 55%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.glass-accordion__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--color-text);
-  margin-bottom: 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  background: color-mix(in srgb, var(--color-bg-muted) 40%, transparent);
+}
+
+.glass-accordion__body {
+  padding: 1.25rem 1.35rem 1.5rem;
+}
+
+.glass-card__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+  margin-bottom: 0.85rem;
+  line-height: 1.3;
 }
 
 .glass-card__heading {
   font-size: var(--text-base);
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--color-text);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.65rem;
+  line-height: 1.35;
+}
+
+.glass-settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.glass-settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.9rem;
+}
+
+.glass-settings-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.35;
+}
+
+.glass-settings-hint {
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.glass-choice {
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, var(--color-border));
+  background: color-mix(in srgb, var(--color-bg-elevated, #fff) 70%, transparent);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-choice:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-text-muted) 35%, var(--color-border));
+  background: var(--color-bg-hover);
+}
+
+.glass-choice--active {
+  border-color: color-mix(in srgb, var(--color-text) 55%, var(--color-border));
+  background: var(--color-bg-muted);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 12%, transparent);
+}
+
+.glass-choice:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .glass-chip {
-  padding: 0.75rem 1rem;
+  padding: 1rem 1.1rem;
   border-radius: var(--radius);
+  border-color: color-mix(in srgb, var(--color-border-strong) 50%, var(--liquid-border-soft));
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.04),
+    var(--liquid-shadow-inset);
 }
 
 .glass-chip__label {
@@ -258,10 +174,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  margin: -1rem -1.25rem 1rem;
+  padding: 0 0 0.75rem;
+  margin: 0 0 1rem;
   border-bottom: 1px solid var(--color-border);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .glass-btn-accent {
@@ -461,6 +376,109 @@
 
 .glass-row-item--interactive:hover {
   background: var(--color-bg-hover);
+}
+
+/* Multi-line cards (rooms, etc.) — not a single horizontal row */
+.glass-stack-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--liquid-border-soft);
+  background: var(--liquid-tile-bg-inner);
+  box-shadow: var(--liquid-shadow-inset);
+}
+
+.glass-stack-card--interactive {
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-stack-card--interactive:hover {
+  background: var(--color-bg-hover);
+}
+
+.glass-stack-card--dashed {
+  border-style: dashed;
+  border-width: 2px;
+  background: color-mix(in srgb, var(--color-bg-muted) 72%, transparent);
+  box-shadow: none;
+}
+
+.glass-dropzone {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.375rem;
+  min-height: 4.75rem;
+  padding: 0.625rem;
+  border-radius: var(--radius);
+  border: 1.5px dashed color-mix(in srgb, var(--color-border) 88%, var(--color-text-subtle));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-bg-muted) 42%, transparent) 0%,
+      color-mix(in srgb, var(--color-bg-muted) 68%, transparent) 100%
+    );
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-dropzone--dragging {
+  border-color: color-mix(in srgb, var(--color-accent) 32%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-muted) 35%, var(--color-bg-muted));
+}
+
+.glass-dropzone--active,
+.glass-dropzone:has(.sortable-ghost) {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-muted) 78%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 16%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.glass-dropzone__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.375rem;
+  width: 100%;
+  min-height: 3.5rem;
+}
+
+.glass-dropzone__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  text-align: center;
+  pointer-events: none;
+  color: var(--color-text-subtle);
+}
+
+.glass-dropzone__empty-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.glass-dropzone__empty-text {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  max-width: 14rem;
+}
+
+.glass-dropzone--dragging .glass-dropzone__empty,
+.glass-dropzone--active .glass-dropzone__empty,
+.glass-dropzone:has(.sortable-ghost) .glass-dropzone__empty {
+  color: var(--color-accent);
 }
 
 .glass-selectable-card {

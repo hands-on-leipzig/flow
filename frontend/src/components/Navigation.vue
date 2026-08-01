@@ -11,6 +11,7 @@ import {getAbbreviatedCompetitionType} from '@/utils/eventTitle'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, toggleTheme} from '@hands-on/glass/theme'
+import AppShell from '@hands-on/glass/components/AppShell.vue'
 
 const eventStore = useEventStore()
 const {isAdmin, initializeUserRoles} = useAuth()
@@ -149,14 +150,14 @@ async function checkDataReadiness() {
 }
 
 const tabs = computed(() => [
-  {name: 'Veranstaltung', path: '/event'},
-  {name: 'Ablauf', path: '/schedule'},
-  {name: 'Slots', path: '/slots'},
-  {name: 'Teams', path: '/teams'},
-  {name: 'Räume', path: '/rooms'},
-  {name: 'Logos', path: '/logos'},
-  {name: 'Ausgabe', path: '/publish'},
-  {name: 'am Tag', path: '/live'},
+  {name: 'Veranstaltung', path: '/event', icon: 'bi-calendar-event'},
+  {name: 'Ablauf', path: '/schedule', icon: 'bi-list-check'},
+  {name: 'Slots', path: '/slots', icon: 'bi-grid-3x3-gap'},
+  {name: 'Teams', path: '/teams', icon: 'bi-people'},
+  {name: 'Räume', path: '/rooms', icon: 'bi-door-open'},
+  {name: 'Logos', path: '/logos', icon: 'bi-images'},
+  {name: 'Ausgabe', path: '/publish', icon: 'bi-broadcast'},
+  {name: 'am Tag', path: '/live', icon: 'bi-play-circle'},
 ])
 
 const liveTabPath = '/live'
@@ -263,167 +264,174 @@ function logout() {
 </script>
 
 <template>
-  <button
-      type="button"
-      class="glass-layout__mobile-trigger"
-      aria-label="Menü öffnen"
-      @click="toggleMobileMenu"
+  <AppShell
+      :open="mobileMenuOpen"
+      menu-aria-label="Menü öffnen"
+      @toggle="toggleMobileMenu"
+      @update:open="mobileMenuOpen = $event"
   >
-    <svg v-if="!mobileMenuOpen" class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-    </svg>
-    <svg v-else class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-    </svg>
-  </button>
+    <template #brand>
+      <RouterLink to="/plan/event" class="glass-sidebar__brand" @click="mobileMenuOpen = false">
+        <img :src="imageUrl('/flow/flow.png')" alt="FLOW" class="glass-sidebar__brand-logo"/>
+      </RouterLink>
+    </template>
 
-  <div
-      v-if="mobileMenuOpen"
-      class="glass-layout__mobile-backdrop lg:hidden"
-      @click="mobileMenuOpen = false"
-  />
-
-  <aside
-      class="glass-layout__sidebar liquid-surface flex-col"
-      :class="mobileMenuOpen ? 'flex glass-layout__sidebar--drawer' : 'hidden lg:flex'"
-  >
-    <div class="glass-layout__sidebar-header">
-      <img :src="imageUrl('/flow/flow.png')" alt="FLOW Logo"/>
-      <img :src="imageUrl('/flow/hot+fll.png')" alt="HANDS on TECHNOLOGY + FLL Logo"/>
-    </div>
-
-    <nav class="glass-layout__sidebar-nav">
+    <template #nav>
       <button
           v-if="isLiveTabActive"
           type="button"
-          class="glass-nav-link glass-nav-link--back nav-link"
+          class="glass-sidebar__item glass-sidebar__item--back"
           @click="goTo({ name: 'Veranstaltung', path: '/event' })"
       >
-        <span class="inline-flex items-center gap-2">
-          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-          </svg>
-          Zurück zu Planung
-        </span>
+        <span class="glass-sidebar__item-icon"><i class="bi bi-arrow-left" aria-hidden="true"/></span>
+        <span class="glass-sidebar__item-label">Zurück zu Planung</span>
       </button>
 
       <button
           v-for="tab in tabs"
           :key="tab.path"
           type="button"
-          class="glass-nav-link nav-link"
-          :class="{'glass-nav-link--active': isActive(tab.path)}"
+          class="glass-sidebar__item"
+          :class="{'glass-sidebar__item--active': isActive(tab.path)}"
           @click="goTo(tab)"
       >
-        <span>{{ tab.name }}</span>
+        <span class="glass-sidebar__item-icon"><i class="bi" :class="tab.icon" aria-hidden="true"/></span>
+        <span class="glass-sidebar__item-label">{{ tab.name }}</span>
         <span
             v-if="hasWarning(tab.path)"
-            class="glass-nav-warning"
+            class="glass-sidebar__warning"
             title="Achtung: Es gibt offene Punkte in diesem Bereich"
         />
       </button>
-    </nav>
+    </template>
 
-    <div class="glass-layout__sidebar-footer">
-      <Menu v-if="showEventDropdown" as="div" class="relative w-full">
-        <MenuButton
-            @click="focusSearchAfterDropdownOpen($event)"
-            class="glass-nav-link w-full"
-        >
-          <span class="truncate">{{ eventDropdownLabel() }}</span>
-          <svg class="w-4 h-4 flex-shrink-0 opacity-60" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  clip-rule="evenodd"/>
-          </svg>
-        </MenuButton>
-        <MenuItems
-            class="absolute left-0 bottom-full z-50 mb-2 origin-bottom-left rounded-xl liquid-surface liquid-surface--radius-lg focus:outline-none w-[min(100%,20rem)] max-h-[50vh] overflow-y-auto"
-        >
-          <div class="py-2">
-            <div v-if="isAdmin" class="px-3 pb-2">
-              <input
-                  ref="eventSearchInput"
-                  v-model="eventSearchQuery"
-                  type="text"
-                  placeholder="Veranstaltung suchen..."
-                  class="w-full px-3 py-2 text-sm liquid-surface-control"
-              />
-            </div>
-            <div v-if="loadingEvents" class="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
-              Lade...
-            </div>
-            <div v-else-if="filteredDropdownEvents.length === 0"
-                 class="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
-              Keine Veranstaltungen gefunden.
-            </div>
-            <template v-else>
-              <MenuItem
-                  v-for="ev in filteredDropdownEvents"
-                  :key="ev.id"
-                  v-slot="{ active }"
-              >
-                <button
-                    @click="selectEventFromDropdown(ev, ev.regional_partner_id)"
-                    :class="[
+    <template #lower>
+      <div class="glass-sidebar__footer">
+        <Menu v-if="showEventDropdown" as="div" class="relative w-full">
+          <MenuButton
+              @click="focusSearchAfterDropdownOpen($event)"
+              class="glass-sidebar__item w-full"
+          >
+            <span class="glass-sidebar__item-icon"><i class="bi bi-caret-up-fill" aria-hidden="true"/></span>
+            <span class="glass-sidebar__item-label truncate">{{ eventDropdownLabel() }}</span>
+          </MenuButton>
+          <MenuItems
+              class="absolute left-0 bottom-full z-50 mb-2 origin-bottom-left rounded-xl liquid-surface liquid-surface--radius-lg focus:outline-none w-[min(100%,20rem)] max-h-[50vh] overflow-y-auto"
+          >
+            <div class="py-2">
+              <div v-if="isAdmin" class="px-3 pb-2">
+                <input
+                    ref="eventSearchInput"
+                    v-model="eventSearchQuery"
+                    type="text"
+                    placeholder="Veranstaltung suchen..."
+                    class="w-full px-3 py-2 text-sm liquid-surface-control"
+                />
+              </div>
+              <div v-if="loadingEvents" class="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
+                Lade...
+              </div>
+              <div v-else-if="filteredDropdownEvents.length === 0"
+                   class="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
+                Keine Veranstaltungen gefunden.
+              </div>
+              <template v-else>
+                <MenuItem
+                    v-for="ev in filteredDropdownEvents"
+                    :key="ev.id"
+                    v-slot="{ active }"
+                >
+                  <button
+                      @click="selectEventFromDropdown(ev, ev.regional_partner_id)"
+                      :class="[
                       'w-full text-left px-4 py-3 text-sm transition-colors',
                       active ? 'bg-[var(--color-bg-hover)]' : '',
                       eventStore.selectedEvent?.id === ev.id ? 'border-l-[3px] border-[var(--color-accent)]' : ''
                     ]"
-                >
-                  <div class="flex justify-between items-start gap-2 min-w-0">
-                    <div class="flex-1 min-w-0">
-                      <div class="font-medium truncate">{{ ev.name }}</div>
-                      <div class="text-xs text-[var(--color-text-muted)]">
-                        {{ dayjs(ev.date).format('DD.MM.YY') }} · {{ ev.regional_partner_name }}
+                  >
+                    <div class="flex justify-between items-start gap-2 min-w-0">
+                      <div class="flex-1 min-w-0">
+                        <div class="font-medium truncate">{{ ev.name }}</div>
+                        <div class="text-xs text-[var(--color-text-muted)]">
+                          {{ dayjs(ev.date).format('DD.MM.YY') }} · {{ ev.regional_partner_name }}
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-2 flex-shrink-0">
+                        <img v-if="ev.event_explore" :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
+                             class="w-5 h-5"/>
+                        <img v-if="ev.event_challenge" :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
+                             class="w-5 h-5"/>
                       </div>
                     </div>
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                      <img v-if="ev.event_explore" :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
-                           class="w-5 h-5"/>
-                      <img v-if="ev.event_challenge" :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
-                           class="w-5 h-5"/>
-                    </div>
-                  </div>
-                </button>
-              </MenuItem>
-              <MenuItem v-if="isAdmin" v-slot="{ active }">
-                <button
-                    @click="router.push({ path: '/events' }); mobileMenuOpen = false"
-                    :class="['w-full text-left px-4 py-3 text-sm border-t border-[var(--color-border)]', active ? 'bg-[var(--color-bg-hover)]' : 'text-[var(--color-accent)]']"
-                >
-                  Mehr Veranstaltungen...
-                </button>
-              </MenuItem>
-            </template>
-          </div>
-        </MenuItems>
-      </Menu>
+                  </button>
+                </MenuItem>
+                <MenuItem v-if="isAdmin" v-slot="{ active }">
+                  <button
+                      @click="router.push({ path: '/events' }); mobileMenuOpen = false"
+                      :class="['w-full text-left px-4 py-3 text-sm border-t border-[var(--color-border)]', active ? 'bg-[var(--color-bg-hover)]' : 'text-[var(--color-accent)]']"
+                  >
+                    Mehr Veranstaltungen...
+                  </button>
+                </MenuItem>
+              </template>
+            </div>
+          </MenuItems>
+        </Menu>
 
-      <button
-          v-if="isAdmin"
-          type="button"
-          class="glass-nav-link nav-link"
-          :class="{'glass-nav-link--active': isActive('/admin')}"
-          @click="goTo({ name: 'Admin', path: '/admin' })"
-      >
-        Admin
-      </button>
+        <button
+            v-if="isAdmin"
+            type="button"
+            class="glass-sidebar__item"
+            :class="{'glass-sidebar__item--active': isActive('/admin')}"
+            @click="goTo({ name: 'Admin', path: '/admin' })"
+        >
+          <span class="glass-sidebar__item-icon"><i class="bi bi-shield-lock" aria-hidden="true"/></span>
+          <span class="glass-sidebar__item-label">Admin</span>
+        </button>
 
-      <button type="button" class="glass-nav-link nav-link" @click="openHelpModal">
-        Hilfe
-      </button>
+        <button type="button" class="glass-sidebar__item" @click="openHelpModal">
+          <span class="glass-sidebar__item-icon"><i class="bi bi-question-circle" aria-hidden="true"/></span>
+          <span class="glass-sidebar__item-label">Hilfe</span>
+        </button>
 
-      <button type="button" class="glass-nav-link nav-link" @click="toggleTheme">
-        <span>{{ theme === 'dark' ? 'Hell' : 'Dunkel' }}</span>
-        <i :class="theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon'"/>
-      </button>
+        <button type="button" class="glass-sidebar__item" @click="toggleTheme">
+          <span class="glass-sidebar__item-icon">
+            <i :class="theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon'" aria-hidden="true"/>
+          </span>
+          <span class="glass-sidebar__item-label">{{ theme === 'dark' ? 'Hell' : 'Dunkel' }}</span>
+        </button>
 
-      <button type="button" class="glass-nav-link nav-link" @click="logout">
-        Logout
-      </button>
-    </div>
-  </aside>
+        <button type="button" class="glass-sidebar__item" @click="logout">
+          <span class="glass-sidebar__item-icon"><i class="bi bi-box-arrow-right" aria-hidden="true"/></span>
+          <span class="glass-sidebar__item-label">Logout</span>
+        </button>
+      </div>
 
-  <HelpModal :show="showHelpModal" @close="closeHelpModal"/>
+      <div class="glass-sidebar__partners">
+        <img
+            :src="imageUrl('/flow/first+fll_v.png')"
+            alt="FIRST LEGO League"
+            class="glass-sidebar__partner-logo glass-sidebar__partner-logo--primary"
+            decoding="async"
+        />
+        <a
+            href="https://www.hands-on-technology.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="glass-sidebar__partner-link"
+        >
+          <img
+              :src="imageUrl('/flow/hot.png')"
+              alt="HANDS on TECHNOLOGY"
+              class="glass-sidebar__partner-logo glass-sidebar__partner-logo--secondary"
+          />
+        </a>
+      </div>
+    </template>
+
+    <slot />
+
+    <HelpModal :show="showHelpModal" @close="closeHelpModal"/>
+  </AppShell>
 </template>
+

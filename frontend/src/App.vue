@@ -80,14 +80,10 @@ onMounted(() => {
     <router-view/>
   </div>
 
-  <div v-else class="glass-layout liquid-surface-scope h-screen font-sans">
-    <Navigation/>
-
-    <div class="glass-layout__main">
-      <EventDayBanner/>
-      <div class="glass-layout__panel liquid-surface">
-        <router-view/>
-      </div>
+  <Navigation v-else class="font-sans">
+    <EventDayBanner/>
+    <div class="glass-app__panel liquid-surface">
+      <router-view/>
     </div>
 
     <NewsModal
@@ -95,5 +91,5 @@ onMounted(() => {
         :news="currentNews"
         @markRead="markNewsAsRead"
     />
-  </div>
+  </Navigation>
 </template>
