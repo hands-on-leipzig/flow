@@ -292,7 +292,7 @@ function copyUrl(url) {
     <div class="flex items-center justify-between border-b pb-4">
       <div class="flex items-center gap-3">
         <i class="bi bi-slides text-2xl text-blue-600"></i>
-        <h2 class="text-xl font-bold text-gray-800">Slideshow-Editor</h2>
+        <h2 class="text-xl font-bold text-[var(--color-text)]">Slideshow-Editor</h2>
       </div>
       <button
           class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -306,15 +306,15 @@ function copyUrl(url) {
     <!-- Slideshows -->
     <div class="space-y-4" v-if="slideshows.length > 0">
       <div v-for="(slideshow, index) in slideshows" :key="slideshow.id"
-           class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+           class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-[var(--color-border)] shadow-sm overflow-hidden">
 
         <!-- Slideshow Header -->
         <button
             @click="toggleSlideshow(slideshow.id)"
-            class="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition-colors text-left"
+            class="w-full flex items-center justify-between p-5 hover:bg-[var(--color-bg-hover)] transition-colors text-left"
         >
           <div class="flex items-center gap-3 flex-1">
-            <i class="bi bi-collection-play text-xl text-gray-600"></i>
+            <i class="bi bi-collection-play text-xl text-[var(--color-text-muted)]"></i>
 
             <div v-if="editingSlideshowId === slideshow.id" class="flex items-center gap-2" @click.stop>
               <input
@@ -322,23 +322,23 @@ function copyUrl(url) {
                   v-model="editingSlideshowName"
                   @blur="saveSlideshowName(slideshow)"
                   @keydown="handleSlideshowNameKeydown($event, slideshow)"
-                  class="text-lg font-bold text-gray-800 px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="text-lg font-bold text-[var(--color-text)] px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   ref="slideshowNameInput"
                   autofocus
               />
             </div>
             <div v-else class="flex items-center gap-2" @click.stop>
-              <h3 class="text-lg font-bold text-gray-800">{{ slideshow.name }}</h3>
+              <h3 class="text-lg font-bold text-[var(--color-text)]">{{ slideshow.name }}</h3>
               <button
                   @click.stop="startEditingSlideshowName(slideshow)"
-                  class="text-gray-400 hover:text-gray-600 transition-colors"
+                  class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors"
                   title="Slideshow umbenennen"
               >
                 <i class="bi bi-pencil text-sm"></i>
               </button>
             </div>
 
-            <span class="text-sm text-gray-500">({{
+            <span class="text-sm text-[var(--color-text-subtle)]">({{
                 slideshow.slides.length
               }} Folie{{ slideshow.slides.length !== 1 ? 'n' : '' }})</span>
 
@@ -346,7 +346,7 @@ function copyUrl(url) {
             <div class="flex items-center gap-2 ml-2" @click.stop>
               <button
                   @click.stop="openSlideshowInNewWindow(slideshow)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--color-text-muted)] bg-white border border-[var(--color-border)] rounded-md hover:bg-[var(--color-bg-hover)] transition-colors"
                   title="Slideshow in neuem Fenster öffnen"
               >
                 <i class="bi bi-box-arrow-up-right text-xs"></i>
@@ -358,7 +358,7 @@ function copyUrl(url) {
                     'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
                     copiedSlideshowId === slideshow.id
                       ? 'bg-green-100 border border-green-300 text-green-700'
-                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      : 'bg-white border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]'
                   ]"
                   :title="copiedSlideshowId === slideshow.id ? 'Link kopiert!' : 'Link kopieren'"
               >
@@ -371,7 +371,7 @@ function copyUrl(url) {
           <!-- Arrow Icon on the right -->
           <i
               :class="[
-                'bi text-gray-500 transition-transform flex-shrink-0',
+                'bi text-[var(--color-text-subtle)] transition-transform flex-shrink-0',
                 expandedSlideshows.has(slideshow.id) ? 'bi-chevron-up' : 'bi-chevron-down'
               ]"
           ></i>
@@ -381,11 +381,11 @@ function copyUrl(url) {
         <transition name="fade">
           <div v-if="expandedSlideshows.has(slideshow.id)" class="px-5 pb-5">
             <!-- Settings Row -->
-            <div class="bg-white rounded-lg p-4 mb-4 border border-gray-200">
+            <div class="bg-white rounded-lg p-4 mb-4 border border-[var(--color-border)]">
               <div class="grid grid-cols-1 gap-4 items-end">
                 <!-- Transition Time -->
                 <div class="flex-1">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                  <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-2">
                     <i class="bi bi-clock"></i> Anzeigezeit pro Folie
                   </label>
                   <div class="flex flex-col gap-2">
@@ -397,10 +397,10 @@ function copyUrl(url) {
                           v-model.number="slideshow.transition_time"
                           @change="updateTransitionTime(slideshow)"
                           @blur="updateTransitionTime(slideshow)"
-                          class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          class="w-20 px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           aria-label="Transition time in seconds"
                       />
-                      <span class="text-sm font-medium text-gray-700">Sekunden</span>
+                      <span class="text-sm font-medium text-[var(--color-text-muted)]">Sekunden</span>
                     </div>
                     <div class="flex flex-wrap gap-2">
                       <button
@@ -411,7 +411,7 @@ function copyUrl(url) {
                         'px-3 py-1 text-xs font-medium rounded-md transition-colors',
                         slideshow.transition_time === preset
                           ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]'
                       ]"
                       >
                         {{ preset }}s
@@ -429,14 +429,14 @@ function copyUrl(url) {
                 <button
                     class="flex flex-col items-center justify-center w-56 h-52 m-2 border-2 border-dashed border-gray-500 rounded-xl hover:border-green-500 hover:bg-gray-700 transition-all cursor-pointer group flex-shrink-0"
                     @click="openSlideTypeModal(slideshow)">
-                  <i class="bi bi-plus-circle text-4xl text-gray-400 group-hover:text-green-500 mb-2 transition-colors"></i>
+                  <i class="bi bi-plus-circle text-4xl text-[var(--color-text-subtle)] group-hover:text-green-500 mb-2 transition-colors"></i>
                   <span
-                      class="text-sm font-medium text-gray-400 group-hover:text-green-500 text-center">Neue Folie</span>
+                      class="text-sm font-medium text-[var(--color-text-subtle)] group-hover:text-green-500 text-center">Neue Folie</span>
                 </button>
 
                 <!-- Empty State (only shown when no slides) -->
                 <div v-if="slideshow.slides.length === 0"
-                     class="flex flex-col items-center justify-center py-12 text-gray-400 flex-1 min-w-[200px]">
+                     class="flex flex-col items-center justify-center py-12 text-[var(--color-text-subtle)] flex-1 min-w-[200px]">
                   <i class="bi bi-inbox text-4xl mb-3"></i>
                   <p class="text-sm">Noch keine Folien vorhanden</p>
                 </div>
@@ -472,9 +472,9 @@ function copyUrl(url) {
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!loading" class="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-      <i class="bi bi-slides text-5xl text-gray-400 mb-4"></i>
-      <p class="text-gray-600 font-medium mb-2">Noch keine Slideshow vorhanden</p>
+    <div v-else-if="!loading" class="text-center py-12 bg-[var(--color-bg-muted)] rounded-xl border-2 border-dashed border-[var(--color-border)]">
+      <i class="bi bi-slides text-5xl text-[var(--color-text-subtle)] mb-4"></i>
+      <p class="text-[var(--color-text-muted)] font-medium mb-2">Noch keine Slideshow vorhanden</p>
       <button
           class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           :disabled="loading || !planId || !event?.id"
@@ -485,27 +485,27 @@ function copyUrl(url) {
     </div>
 
     <!-- Loading State -->
-    <div v-else class="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+    <div v-else class="text-center py-12 bg-[var(--color-bg-muted)] rounded-xl border-2 border-dashed border-[var(--color-border)]">
       <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
            viewBox="0 0 24 24" aria-hidden="true">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
       </svg>
-      <p class="text-gray-600 font-medium">Lädt...</p>
+      <p class="text-[var(--color-text-muted)] font-medium">Lädt...</p>
     </div>
 
     <!-- Slide Type Selection Modal -->
     <div
         v-if="showSlideTypeModal"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]"
+        class="glass-scrim fixed inset-0 flex items-center justify-center z-[100]"
         @click="closeSlideTypeModal"
     >
       <div class="bg-white rounded-lg p-6 max-w-2xl mx-4 w-full" @click.stop>
         <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Folientyp wählen</h3>
+          <h3 class="text-lg font-semibold text-[var(--color-text)]">Folientyp wählen</h3>
           <button
               @click="closeSlideTypeModal"
-              class="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] text-2xl leading-none"
           >
             ×
           </button>
@@ -523,8 +523,8 @@ function copyUrl(url) {
                 creatingSlideType === type.slide
                   ? 'border-blue-500 bg-blue-50 cursor-wait'
                   : creatingSlideType
-                  ? 'border-gray-200 opacity-50 cursor-not-allowed'
-                  : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50 cursor-pointer group'
+                  ? 'border-[var(--color-border)] opacity-50 cursor-not-allowed'
+                  : 'border-[var(--color-border)] hover:border-blue-500 hover:bg-blue-50 cursor-pointer group'
               ]"
             >
               <div v-if="creatingSlideType === type.slide"
@@ -538,13 +538,13 @@ function copyUrl(url) {
               `bi ${type.icon} text-4xl mb-3 transition-colors`,
               creatingSlideType === type.slide
                 ? 'text-blue-600'
-                : 'text-gray-600 group-hover:text-blue-600'
+                : 'text-[var(--color-text-muted)] group-hover:text-blue-600'
             ]"></i>
               <span :class="[
               'text-sm font-medium text-center',
               creatingSlideType === type.slide
                 ? 'text-blue-700'
-                : 'text-gray-700 group-hover:text-blue-700'
+                : 'text-[var(--color-text-muted)] group-hover:text-blue-700'
             ]">{{ type.label }}</span>
             </button>
           </template>
@@ -554,7 +554,7 @@ function copyUrl(url) {
           <button
               @click="closeSlideTypeModal"
               :disabled="!!creatingSlideType"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 text-sm font-medium text-[var(--color-text-muted)] bg-white border border-[var(--color-border)] rounded-md hover:bg-[var(--color-bg-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Abbrechen
           </button>

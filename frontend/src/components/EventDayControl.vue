@@ -30,12 +30,12 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
 </script>
 
 <template>
-  <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
-    <section class="rounded-xl bg-white shadow p-4 sm:p-6">
+  <div class="space-y-4 sm:space-y-6">
+    <section class="glass-surface-lg">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <div class="flex items-center gap-2">
-            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">{{ event?.name || 'am Tag' }}</h1>
+            <h1 class="text-xl sm:text-2xl font-bold text-[var(--color-text)] truncate">{{ event?.name || 'am Tag' }}</h1>
             <i
                 v-if="!loadingPublicationLevel && isHighestPublicationLevel"
                 class="bi bi-check-circle-fill text-green-600 text-base flex-shrink-0"
@@ -70,9 +70,9 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
 
     <RobotGameRoundsPanel/>
 
-    <section class="rounded-xl bg-white shadow p-4 sm:p-6">
-      <h2 class="text-base font-semibold text-gray-900">Weitere Live-Tools</h2>
-      <p class="mt-1 text-sm text-gray-600">
+    <section class="glass-surface-lg">
+      <h2 class="glass-card__heading">Weitere Live-Tools</h2>
+      <p class="text-sm text-[var(--color-text-muted)]">
         Hier werden später weitere mobile Funktionen für den Veranstaltungstag ergänzt werden.
       </p>
     </section>

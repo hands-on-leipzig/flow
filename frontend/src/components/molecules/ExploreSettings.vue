@@ -564,15 +564,15 @@ const teamsPerJuryHint2 = computed(() => {
 </script>
 
 <template>
-  <div class="p-4 border rounded shadow relative min-w-0">
-    <div class="flex items-center gap-2 mb-4 justify-between flex-wrap">
-      <div class="flex items-center gap-2 min-w-0 flex-1">
+  <div class="glass-card liquid-surface-inner relative min-w-0 glass-settings-block">
+    <div class="flex items-center gap-3 justify-between flex-wrap">
+      <div class="flex items-center gap-2.5 min-w-0 flex-1">
         <img
             :alt="programLogoAlt('E')"
             :src="programLogoSrc('E')"
-            class="w-10 h-10 flex-shrink-0"
+            class="w-9 h-9 flex-shrink-0"
         />
-        <h3 class="text-lg font-semibold capitalize break-words min-w-0">
+        <h3 class="glass-card__title !mb-0 capitalize break-words min-w-0">
           <span class="italic">FIRST</span> LEGO League Explore
         </h3>
       </div>
@@ -609,7 +609,7 @@ const teamsPerJuryHint2 = computed(() => {
     </div>
     -->
 
-    <div v-if="hasExplore" class="mb-3">
+    <div v-if="hasExplore">
       <TeamSelectionCard
           :plan-teams="planTeams"
           :registered-teams="registeredTeams"
@@ -621,12 +621,11 @@ const teamsPerJuryHint2 = computed(() => {
     </div>
 
     <!-- New UI: Two-row approach -->
-    <div v-if="hasExplore">
-      <div class="space-y-4 mb-4">
+    <div v-if="hasExplore" class="glass-settings-block">
         <!-- First row: Timing (Radio buttons) -->
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-sm font-medium whitespace-nowrap">Explore im</span>
-          <RadioGroup v-model="timingMode" class="flex gap-1 flex-wrap">
+        <div class="glass-settings-row">
+          <span class="glass-settings-label whitespace-nowrap">Explore im</span>
+          <RadioGroup v-model="timingMode" class="flex gap-1.5 flex-wrap">
             <RadioGroupOption
                 v-for="option in timingOptions"
                 :key="option.value"
@@ -634,9 +633,8 @@ const teamsPerJuryHint2 = computed(() => {
                 :value="option.value"
             >
               <button
-                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-                  class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :class="checked ? 'glass-choice--active' : ''"
+                  class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
                   type="button"
               >
                 {{ option.label }}
@@ -647,17 +645,16 @@ const teamsPerJuryHint2 = computed(() => {
         </div>
 
         <!-- Second row: Integration (Simple Ja/Nein) - Only show if Challenge is enabled -->
-        <div v-if="isChallengeEnabled" class="flex flex-wrap items-center gap-2">
-          <span class="text-sm font-medium whitespace-nowrap">Integration mit Challenge</span>
-          <RadioGroup v-model="integrationEnabled" class="flex gap-1 flex-wrap">
+        <div v-if="isChallengeEnabled" class="glass-settings-row">
+          <span class="glass-settings-label whitespace-nowrap">Integration mit Challenge</span>
+          <RadioGroup v-model="integrationEnabled" class="flex gap-1.5 flex-wrap">
             <RadioGroupOption
                 value="yes"
                 v-slot="{ checked }"
             >
               <button
-                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-                  class="px-2 py-1 rounded-md border text-sm transition
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :class="checked ? 'glass-choice--active' : ''"
+                  class="glass-choice focus:outline-none focus:ring-2 focus:ring-offset-1"
                   type="button"
               >
                 ja
@@ -668,9 +665,8 @@ const teamsPerJuryHint2 = computed(() => {
                 v-slot="{ checked }"
             >
               <button
-                  :class="checked ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
-                  class="px-2 py-1 rounded-md border text-sm transition
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                  :class="checked ? 'glass-choice--active' : ''"
+                  class="glass-choice focus:outline-none focus:ring-2 focus:ring-offset-1"
                   type="button"
               >
                 nein
@@ -678,12 +674,10 @@ const teamsPerJuryHint2 = computed(() => {
             </RadioGroupOption>
           </RadioGroup>
         </div>
-
-      </div>
     </div>
 
     <!-- Message when explore is disabled -->
-    <div v-else class="text-center py-8 text-gray-500">
+    <div v-else class="text-center py-8 text-[var(--color-text-subtle)]">
       <div class="text-lg font-medium mb-2"><span class="italic">FIRST</span> LEGO League Explore ist deaktiviert</div>
       <div class="text-sm">Aktiviere den Schalter oben rechts, um <span class="italic">FIRST</span> LEGO League Explore-Einstellungen zu konfigurieren.</div>
     </div>
@@ -691,72 +685,64 @@ const teamsPerJuryHint2 = computed(() => {
     <!-- Gutachter:innen-Gruppen selection - Based on timing mode only -->
 
     <!-- AM timing: Show AM lanes selection -->
-    <div v-if="hasExplore && timingMode === 'morning'" class="mt-4">
-      <div class="flex flex-wrap items-start gap-2">
-        <RadioGroup v-model="eLanesAMProxy" class="flex gap-1 flex-wrap">
-          <RadioGroupOption
-              v-for="n in allLaneOptions"
-              :key="'e_lane_am_' + n"
-              v-slot="{ checked, disabled }"
-              :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
-              :value="n"
+    <div v-if="hasExplore && timingMode === 'morning'" class="glass-settings-row items-start">
+      <RadioGroup v-model="eLanesAMProxy" class="flex gap-1.5 flex-wrap">
+        <RadioGroupOption
+            v-for="n in allLaneOptions"
+            :key="'e_lane_am_' + n"
+            v-slot="{ checked, disabled }"
+            :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
+            :value="n"
+        >
+          <button
+              :aria-disabled="disabled"
+              :class="[
+                'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                checked ? (getAlertLevelStyle(currentConfigAlertLevelAM) || 'glass-choice--active') : '',
+              ]"
+              type="button"
           >
-            <button
-                :aria-disabled="disabled"
-                :class="[
-                  checked ? getAlertLevelStyle(currentConfigAlertLevelAM) : '',
-                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-                ]"
-                class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                type="button"
-            >
-              {{ n }}
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
-        <div class="flex flex-col min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-medium break-words">Gutachter:innen-Gruppen</span>
-            <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
-          </div>
-          <span class="text-xs text-gray-500 italic break-words">{{ teamsPerJuryHint1 }}</span>
+            {{ n }}
+          </button>
+        </RadioGroupOption>
+      </RadioGroup>
+      <div class="flex flex-col min-w-0 flex-1 gap-0.5">
+        <div class="flex items-center gap-2">
+          <span class="glass-settings-label break-words">Gutachter:innen-Gruppen</span>
+          <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
         </div>
+        <span class="glass-settings-hint break-words">{{ teamsPerJuryHint1 }}</span>
       </div>
     </div>
 
     <!-- PM timing: Show PM lanes selection -->
-    <div v-if="hasExplore && timingMode === 'afternoon'" class="mt-4">
-      <div class="flex flex-wrap items-start gap-2">
-        <RadioGroup v-model="eLanesPMProxy" class="flex gap-1 flex-wrap">
-          <RadioGroupOption
-              v-for="n in allLaneOptions"
-              :key="'e_lane_pm_' + n"
-              v-slot="{ checked, disabled }"
-              :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
-              :value="n"
+    <div v-if="hasExplore && timingMode === 'afternoon'" class="glass-settings-row items-start">
+      <RadioGroup v-model="eLanesPMProxy" class="flex gap-1.5 flex-wrap">
+        <RadioGroupOption
+            v-for="n in allLaneOptions"
+            :key="'e_lane_pm_' + n"
+            v-slot="{ checked, disabled }"
+            :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
+            :value="n"
+        >
+          <button
+              :aria-disabled="disabled"
+              :class="[
+                'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                checked ? (getAlertLevelStyle(currentConfigAlertLevelPM) || 'glass-choice--active') : '',
+              ]"
+              type="button"
           >
-            <button
-                :aria-disabled="disabled"
-                :class="[
-                  checked ? getAlertLevelStyle(currentConfigAlertLevelPM) : '',
-                  disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
-                ]"
-                class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                type="button"
-            >
-              {{ n }}
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
-        <div class="flex flex-col min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-medium break-words">Gutachter:innen-Gruppen</span>
-            <InfoPopover :text="paramMapByName['e2_lanes']?.ui_description"/>
-          </div>
-          <span class="text-xs text-gray-500 italic break-words">{{ teamsPerJuryHint2 }}</span>
+            {{ n }}
+          </button>
+        </RadioGroupOption>
+      </RadioGroup>
+      <div class="flex flex-col min-w-0 flex-1 gap-0.5">
+        <div class="flex items-center gap-2">
+          <span class="glass-settings-label break-words">Gutachter:innen-Gruppen</span>
+          <InfoPopover :text="paramMapByName['e2_lanes']?.ui_description"/>
         </div>
+        <span class="glass-settings-hint break-words">{{ teamsPerJuryHint2 }}</span>
       </div>
     </div>
 
@@ -775,7 +761,7 @@ const teamsPerJuryHint2 = computed(() => {
       </div>
 
       <!-- Two columns for AM and PM -->
-      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 text-gray-800">
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 text-[var(--color-text)]">
         <!-- AM -->
         <div :class="(eMode === 4 || eMode === 7 || e1Teams === 0) ? 'opacity-40 pointer-events-none' : ''">
           <div class="text-sm font-medium mb-1">
@@ -797,7 +783,7 @@ const teamsPerJuryHint2 = computed(() => {
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
                     class="px-2 py-1 rounded-md border text-sm transition
-                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                     type="button"
                 >
                   {{ n }}
@@ -812,7 +798,7 @@ const teamsPerJuryHint2 = computed(() => {
                   <span class="text-sm font-medium break-words">Gutacher:innen-Gruppen</span>
                   <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
                 </div>
-                <span class="text-xs text-gray-500 italic break-words">
+                <span class="text-xs text-[var(--color-text-subtle)] italic break-words">
                 {{ teamsPerJuryHint1 }}
               </span>
               </div>
@@ -843,7 +829,7 @@ const teamsPerJuryHint2 = computed(() => {
                   disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
                 ]"
                     class="px-2 py-1 rounded-md border text-sm transition
-                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
+                      focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                     type="button"
                 >
                   {{ n }}
@@ -858,7 +844,7 @@ const teamsPerJuryHint2 = computed(() => {
                   <span class="text-sm font-medium break-words">Gutacher:innen-Gruppen</span>
                   <InfoPopover :text="paramMapByName['e2_lanes']?.ui_description"/>
                 </div>
-                <span class="text-xs text-gray-500 italic break-words">
+                <span class="text-xs text-[var(--color-text-subtle)] italic break-words">
                 {{ teamsPerJuryHint2 }}
               </span>
               </div>

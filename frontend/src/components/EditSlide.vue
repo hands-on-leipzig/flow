@@ -227,7 +227,7 @@ function updateDuration(value: number) {
   <div class="flex items-center justify-between border-b pb-4 mb-6 mt-4">
     <router-link
         to="/plan/presentation"
-        class="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+        class="flex items-center gap-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
     >
       <i class="bi bi-arrow-left"></i>
       <span>Zurück zur Slideshow</span>
@@ -244,7 +244,7 @@ function updateDuration(value: number) {
             ? 'bg-blue-600 hover:bg-blue-700 text-white'
             : isSaving
             ? 'bg-gray-400 text-white cursor-wait'
-            : 'bg-gray-100 text-gray-600 cursor-default'
+            : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] cursor-default'
         ]"
     >
       <i v-if="isSaving" class="bi bi-hourglass-split animate-spin"></i>
@@ -254,7 +254,7 @@ function updateDuration(value: number) {
   </div>
 
   <div class="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-1">
-    <div class="rounded-xl shadow bg-white p-4 col-span-1" v-if="!!slide">
+    <div class="glass-card liquid-surface-inner p-4 col-span-1" v-if="!!slide">
       <span class="font-semibold px-2">
         Einstellungen
       </span>
@@ -328,8 +328,8 @@ function updateDuration(value: number) {
               <button
                   type="button"
                   class="px-2 py-1 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  :class="slide.content.role == 14 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
+                  :class="slide.content.role == 14 ? 'ring-1 ring-gray-500 bg-[var(--color-bg-muted)]' : 'hover:border-gray-400'"
                   @click="updateByName('role', 14)"
               >
                 Explore & Challenge
@@ -337,8 +337,8 @@ function updateDuration(value: number) {
               <button
                   type="button"
                   class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  :class="slide.content.role == 10 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
+                  :class="slide.content.role == 10 ? 'ring-1 ring-gray-500 bg-[var(--color-bg-muted)]' : 'hover:border-gray-400'"
                   @click="updateByName('role', 10)"
               >
                 Nur Explore
@@ -346,8 +346,8 @@ function updateDuration(value: number) {
               <button
                   type="button"
                   class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
-                  :class="slide.content.role == 6 ? 'ring-1 ring-gray-500 bg-gray-100' : 'hover:border-gray-400'"
+                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
+                  :class="slide.content.role == 6 ? 'ring-1 ring-gray-500 bg-[var(--color-bg-muted)]' : 'hover:border-gray-400'"
                   @click="updateByName('role', 6)"
               >
                 Nur Challenge
@@ -472,7 +472,7 @@ function updateDuration(value: number) {
       </div>
     </div>
 
-    <div class="rounded-xl shadow bg-white p-4 col-span-2">
+    <div class="glass-card liquid-surface-inner p-4 col-span-2">
       <span class="font-semibold">Hintergrund</span> <br>
       <FabricEditor :slide="slide" @change="scheduleSave" v-if="!!slide"></FabricEditor>
     </div>

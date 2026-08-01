@@ -2,7 +2,7 @@
   <div class="main-tables-admin">
     <div class="mb-6">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-bold text-gray-900">m-Tabellen-Verwaltung</h2>
+        <h2 class="text-2xl font-bold text-[var(--color-text)]">m-Tabellen-Verwaltung</h2>
         
         <!-- Export Button -->
         <button
@@ -16,15 +16,15 @@
       
       <!-- Table Tabs -->
       <div class="mb-6">
-        <div class="border-b border-gray-200 relative">
+        <div class="border-b border-[var(--color-border)] relative">
           <!-- Left scroll indicator -->
           <div 
             v-if="showLeftScroll"
-            class="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 flex items-center justify-center cursor-pointer hover:bg-gray-50"
+            class="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 flex items-center justify-center cursor-pointer hover:bg-[var(--color-bg-hover)]"
             @mouseenter="scrollLeft"
             @mouseleave="stopScrolling"
           >
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 text-[var(--color-text-subtle)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
           </div>
@@ -32,11 +32,11 @@
           <!-- Right scroll indicator -->
           <div 
             v-if="showRightScroll"
-            class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 flex items-center justify-center cursor-pointer hover:bg-gray-50"
+            class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 flex items-center justify-center cursor-pointer hover:bg-[var(--color-bg-hover)]"
             @mouseenter="scrollRight"
             @mouseleave="stopScrolling"
           >
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 text-[var(--color-text-subtle)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
             </svg>
           </div>
@@ -54,13 +54,13 @@
               :class="[
                 selectedTable === table.name
                   ? 'border-blue-500 text-blue-600 bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50',
+                  : 'border-transparent text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] hover:border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]',
                 'whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out rounded-t-lg tab-button'
               ]"
             >
               <span class="flex items-center">
                 {{ table.displayName }}
-                <span class="ml-2 text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full font-semibold">
+                <span class="ml-2 text-xs bg-gray-200 text-[var(--color-text-muted)] px-2 py-1 rounded-full font-semibold">
                   {{ table.recordCount }}
                 </span>
               </span>
@@ -71,9 +71,9 @@
     </div>
 
     <!-- Special UI for m_parameter table -->
-    <div v-if="selectedTable === 'm_parameter'" class="bg-white shadow overflow-hidden sm:rounded-md">
+    <div v-if="selectedTable === 'm_parameter'" class="glass-card liquid-surface-inner overflow-hidden">
       <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">
+        <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
           {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
         </h3>
         <MParameter />
@@ -81,9 +81,9 @@
     </div>
 
     <!-- Special UI for m_visibility table -->
-    <div v-else-if="selectedTable === 'm_visibility'" class="bg-white shadow overflow-hidden sm:rounded-md">
+    <div v-else-if="selectedTable === 'm_visibility'" class="glass-card liquid-surface-inner overflow-hidden">
       <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">
+        <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
           {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
         </h3>
         <Visibility />
@@ -91,9 +91,9 @@
     </div>
 
     <!-- Generic Table Content for other tables -->
-    <div v-else-if="selectedTable && tableData.length > 0" class="bg-white shadow overflow-hidden sm:rounded-md">
+    <div v-else-if="selectedTable && tableData.length > 0" class="glass-card liquid-surface-inner overflow-hidden">
       <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">
+        <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
           {{ getTableDisplayName(selectedTable) }} - {{ tableData.length }} Datensätze
         </h3>
 
@@ -113,15 +113,15 @@
         <!-- Table -->
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+            <thead class="bg-[var(--color-bg-muted)]">
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-6 py-3 text-left text-xs font-medium text-[var(--color-text-subtle)] uppercase tracking-wider">
                   Aktionen
                 </th>
                 <th
                   v-for="column in tableColumns"
                   :key="column"
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-left text-xs font-medium text-[var(--color-text-subtle)] uppercase tracking-wider"
                 >
                   {{ column }}
                 </th>
@@ -139,7 +139,7 @@
                     </button>
                     <button
                       @click="cancelEdit"
-                      class="text-gray-600 hover:text-gray-900"
+                      class="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
                     >
                       Abbrechen
                     </button>
@@ -162,13 +162,13 @@
                 <td
                   v-for="column in tableColumns"
                   :key="column"
-                  class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                  class="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]"
                 >
                   <input
                     v-if="editingRecord === index"
                     v-model="editingData[column]"
                     :type="getInputType(column)"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    class="block w-full px-3 py-2 border border-[var(--color-border)] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                   <span v-else>{{ record[column] || '-' }}</span>
                 </td>
@@ -181,11 +181,11 @@
 
     <!-- Empty State -->
     <div v-else-if="selectedTable && selectedTable !== 'm_parameter' && selectedTable !== 'm_visibility' && tableData.length === 0" class="text-center py-12">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="mx-auto h-12 w-12 text-[var(--color-text-subtle)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
       </svg>
-      <h3 class="mt-2 text-sm font-medium text-gray-900">Keine Datensätze gefunden</h3>
-      <p class="mt-1 text-sm text-gray-500">Diese Tabelle ist leer.</p>
+      <h3 class="mt-2 text-sm font-medium text-[var(--color-text)]">Keine Datensätze gefunden</h3>
+      <p class="mt-1 text-sm text-[var(--color-text-subtle)]">Diese Tabelle ist leer.</p>
       <div class="mt-6">
         <button
           @click="addNewRecord"
@@ -205,7 +205,7 @@
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
-      <p class="mt-2 text-sm text-gray-500">Tabellendaten werden geladen...</p>
+      <p class="mt-2 text-sm text-[var(--color-text-subtle)]">Tabellendaten werden geladen...</p>
     </div>
   </div>
 

@@ -533,7 +533,7 @@ async function paste() {
       <div v-if="toolbarState.type === 'text'" class="ml-4 mb-1 flex items-center gap-x-2">
         <!-- Text property toolbar -->
         <input type="number" title="Textgröße" v-model.number="toolbarState.object.fontSize" v-on:change="triggerRender"
-               class="w-16 pr-1 border border-gray-300 rounded ml-2 h-10"/>
+               class="w-16 pr-1 border border-[var(--color-border)] rounded ml-2 h-10"/>
         <button v-on:click="makeBold" title="Fett"
                 class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-bold h-10 w-12"
                 :class="{ 'bg-gray-400': toolbarState.object.fontWeight === 'bold' }">B
@@ -564,7 +564,7 @@ async function paste() {
         <input type="color" title="Randfarbe" class="px-2 rounded ml-2 h-10 w-12" :value="toolbarState.object.stroke"
                @input="onStrokeChange($event.target.value)"/>
         <!-- Border Size -->
-        <input type="number" title="Randgröße" min="0" class="w-16 px-1 border border-gray-300 rounded ml-2 h-10"
+        <input type="number" title="Randgröße" min="0" class="w-16 px-1 border border-[var(--color-border)] rounded ml-2 h-10"
                :value="toolbarState.object.strokeWidth"
                @input="onStrokeWidthChange($event.target.value)"/>
       </div>

@@ -34,7 +34,7 @@ onBeforeUnmount(() => {
   <span v-if="props.text" class="relative inline-block info-popover">
     <button
         type="button"
-        class="ml-1 text-gray-500 hover:text-blue-600 align-middle"
+        class="ml-1 text-[var(--color-text-subtle)] hover:text-blue-600 align-middle"
         title="Mehr Informationen"
         @click.stop="handleToggle"
     >
@@ -45,7 +45,7 @@ onBeforeUnmount(() => {
 
     <div
         v-if="open"
-        class="absolute left-0 mt-2 w-64 rounded-md bg-white p-2 shadow-lg border text-sm text-gray-700 z-10"
+        class="absolute left-0 mt-2 w-64 rounded-md bg-white p-2 shadow-lg border text-sm text-[var(--color-text-muted)] z-10"
     >
       {{ props.text }}
     </div>

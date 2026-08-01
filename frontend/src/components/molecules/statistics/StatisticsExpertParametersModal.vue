@@ -1,14 +1,14 @@
 <template>
-  <div class="bg-white p-6 rounded-lg shadow-lg w-[90vw] max-w-4xl max-h-[90vh] overflow-auto">
+  <div class="glass-modal p-6 w-[90vw] max-w-4xl max-h-[90vh] overflow-auto">
     <h3 class="text-lg font-bold mb-4">
       Veränderte Parameter für Plan {{ planId }}
     </h3>
     
-    <div v-if="loading" class="text-gray-500 py-4">
+    <div v-if="loading" class="text-[var(--color-text-subtle)] py-4">
       Lade Parameter...
     </div>
     
-    <div v-else-if="inputParameters.length === 0 && expertParameters.length === 0 && tableNames.length === 0" class="text-gray-500 py-4">
+    <div v-else-if="inputParameters.length === 0 && expertParameters.length === 0 && tableNames.length === 0" class="text-[var(--color-text-subtle)] py-4">
       Keine veränderten Parameter gefunden.
     </div>
     
@@ -18,24 +18,24 @@
         <h4 class="text-md font-semibold mb-2">Input-Parameter</h4>
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm border-collapse">
-            <thead class="bg-gray-100 text-left">
+            <thead class="bg-[var(--color-bg-muted)] text-left">
               <tr>
-                <th class="px-3 py-2 border border-gray-300">Name</th>
-                <th class="px-3 py-2 border border-gray-300">UI Label</th>
-                <th class="px-3 py-2 border border-gray-300">Set Value</th>
-                <th class="px-3 py-2 border border-gray-300">Default Value</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Name</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">UI Label</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Set Value</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Default Value</th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="param in inputParameters"
                 :key="param.name"
-                class="hover:bg-gray-50"
+                class="hover:bg-[var(--color-bg-hover)]"
               >
-                <td class="px-3 py-2 border border-gray-300">{{ param.name }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ param.ui_label ?? '–' }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ param.set_value ?? '–' }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ param.default_value ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.name }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.ui_label ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.set_value ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.default_value ?? '–' }}</td>
               </tr>
             </tbody>
           </table>
@@ -47,24 +47,24 @@
         <h4 class="text-md font-semibold mb-2">Expert-Parameter</h4>
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm border-collapse">
-            <thead class="bg-gray-100 text-left">
+            <thead class="bg-[var(--color-bg-muted)] text-left">
               <tr>
-                <th class="px-3 py-2 border border-gray-300">Name</th>
-                <th class="px-3 py-2 border border-gray-300">UI Label</th>
-                <th class="px-3 py-2 border border-gray-300">Set Value</th>
-                <th class="px-3 py-2 border border-gray-300">Default Value</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Name</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">UI Label</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Set Value</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Default Value</th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="param in expertParameters"
                 :key="param.name"
-                class="hover:bg-gray-50"
+                class="hover:bg-[var(--color-bg-hover)]"
               >
-                <td class="px-3 py-2 border border-gray-300">{{ param.name }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ param.ui_label ?? '–' }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ param.set_value ?? '–' }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ param.default_value ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.name }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.ui_label ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.set_value ?? '–' }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.default_value ?? '–' }}</td>
               </tr>
             </tbody>
           </table>
@@ -76,20 +76,20 @@
         <h4 class="text-md font-semibold mb-2">Tischnamen (überschrieben)</h4>
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm border-collapse">
-            <thead class="bg-gray-100 text-left">
+            <thead class="bg-[var(--color-bg-muted)] text-left">
               <tr>
-                <th class="px-3 py-2 border border-gray-300">Tisch Nummer</th>
-                <th class="px-3 py-2 border border-gray-300">Tischname</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Tisch Nummer</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Tischname</th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="table in tableNames"
                 :key="table.table_number"
-                class="hover:bg-gray-50"
+                class="hover:bg-[var(--color-bg-hover)]"
               >
-                <td class="px-3 py-2 border border-gray-300">{{ table.table_number }}</td>
-                <td class="px-3 py-2 border border-gray-300">{{ table.table_name }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ table.table_number }}</td>
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ table.table_name }}</td>
               </tr>
             </tbody>
           </table>
@@ -98,7 +98,7 @@
     </div>
     
     <div class="flex justify-end gap-2 mt-6">
-      <button class="px-4 py-2 text-gray-600 hover:text-black" @click="$emit('close')">Schließen</button>
+      <button class="px-4 py-2 text-[var(--color-text-muted)] hover:text-black" @click="$emit('close')">Schließen</button>
     </div>
   </div>
 </template>
