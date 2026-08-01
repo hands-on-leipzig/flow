@@ -218,16 +218,16 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 <template>
   <div class="flex flex-col gap-3 h-full min-h-0">
     <!-- Kopfbereich: Buttons + Info -->
-    <div class="flex flex-wrap items-center gap-2">
-      <div class="glass-segment">
-        <button
-          class="glass-segment__btn"
-          :class="{'glass-segment__btn--active': view === 'overview'}"
-          @click="setView('overview')"
-        >Überblick</button>
-      </div>
+    <div class="flex items-center gap-2 min-w-0">
+      <div class="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+        <div class="glass-segment">
+          <button
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'overview'}"
+            @click="setView('overview')"
+          >Überblick</button>
+        </div>
 
-      <div class="inline-flex items-center rounded-md border border-[var(--color-border)] bg-[var(--color-bg-muted)]/50 px-2 py-1">
         <div class="glass-segment">
           <button
             class="glass-segment__btn"
@@ -248,37 +248,39 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           >Räume</button>
         </div>
 
-        <div v-if="view === 'roles' || view === 'teams' || view === 'rooms'" class="ml-3 text-xs text-[var(--color-text-subtle)]">
-          Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+        <div v-if="hasChallenge" class="glass-segment">
+          <button
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'robot-game'}"
+            @click="setView('robot-game')"
+          >Robot-Game</button>
+        </div>
+
+        <div v-if="isAdmin" class="glass-segment">
+          <button
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'activities'}"
+            @click="setView('activities')"
+          >Aktivitäten</button>
+          <button
+            v-if="hasChallenge"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'quality'}"
+            @click="setView('quality')"
+          >Plan-Qualität</button>
         </div>
       </div>
 
-      <div class="glass-segment">
-        <button
-          v-if="hasChallenge"
-          class="glass-segment__btn"
-          :class="{'glass-segment__btn--active': view === 'robot-game'}"
-          @click="setView('robot-game')"
-        >Robot-Game</button>
-      </div>
-
-      <div v-if="isAdmin" class="glass-segment">
-        <button
-          class="glass-segment__btn"
-          :class="{'glass-segment__btn--active': view === 'activities'}"
-          @click="setView('activities')"
-        >Aktivitäten</button>
-        <button
-          v-if="hasChallenge"
-          class="glass-segment__btn"
-          :class="{'glass-segment__btn--active': view === 'quality'}"
-          @click="setView('quality')"
-        >Plan-Qualität</button>
-      </div>
-
-      <div class="ml-3 flex-1 flex items-center justify-end text-xs text-[var(--color-text-subtle)] min-w-0">
+      <div class="shrink-0 text-xs text-[var(--color-text-subtle)]">
         <span class="whitespace-nowrap">Plan ID: {{ effectivePlanId }}</span>
       </div>
+    </div>
+
+    <div
+      v-if="view === 'roles' || view === 'teams' || view === 'rooms'"
+      class="text-xs text-[var(--color-text-subtle)]"
+    >
+      Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
     </div>
 
     <!-- Fehlermeldung -->

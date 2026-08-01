@@ -538,7 +538,7 @@ const updateTableName = async () => {
 </script>
 
 <template>
-  <div class="h-screen px-0 py-2 md:p-6 flex flex-col space-y-3 md:space-y-5 overflow-y-auto">
+  <div class="h-full min-h-0 flex flex-col gap-3 md:gap-4 overflow-y-auto">
     <div v-if="loading" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)]">
       <LoaderFlow/>
       <LoaderText/>
@@ -565,7 +565,7 @@ const updateTableName = async () => {
     </div>
 
 
-    <div class="glass-accordion">
+    <div class="glass-accordion shrink-0">
       <button
           class="glass-accordion__header"
           type="button"
@@ -576,7 +576,7 @@ const updateTableName = async () => {
       </button>
       <transition name="fade">
         <div v-if="openGroup === 'general'" class="glass-accordion__body">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 items-start">
             <ExploreSettings
                 :parameters="parameters"
                 :show-explore="showExplore"
@@ -608,7 +608,7 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="glass-accordion">
+    <div class="glass-accordion shrink-0">
       <button
           class="glass-accordion__header"
           type="button"
@@ -717,7 +717,7 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div class="glass-accordion" v-if="selectedEvent?.level === 3">
+    <div class="glass-accordion shrink-0" v-if="selectedEvent?.level === 3">
       <button
           class="glass-accordion__header"
           type="button"
@@ -761,7 +761,7 @@ const updateTableName = async () => {
       </transition>
     </div>
 
-    <div v-if="showChallenge" class="glass-accordion">
+    <div v-if="showChallenge" class="glass-accordion shrink-0">
       <button
           class="glass-accordion__header"
           type="button"
@@ -809,13 +809,14 @@ const updateTableName = async () => {
     </div>
 
     <!-- Preview Section - Hidden on mobile, shown on tablet+ -->
-    <div class="hidden md:flex flex-grow overflow-hidden">
-      <div v-if="isGenerating" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)]">
+    <div class="hidden md:flex flex-1 min-h-[16rem] min-w-0 overflow-hidden">
+      <div v-if="isGenerating" class="flex items-center justify-center h-full w-full flex-col text-[var(--color-text-muted)]">
         <LoaderFlow/>
         <LoaderText/>
       </div>
       <Preview
           v-else-if="selectedPlanId"
+          class="w-full min-h-0"
           :plan-id="selectedPlanId as number"
           initial-view="overview"
       />

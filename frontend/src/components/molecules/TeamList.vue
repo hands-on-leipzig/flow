@@ -800,10 +800,10 @@ onMounted(async () => {
           </h3>
           <div class="text-sm text-[var(--color-text-subtle)] flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <span>
-              <span :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Plan für: {{
+              <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">Plan für: {{
                   program === 'explore' ? planParams.e_teams : planParams.c_teams
                 }}</span>, <span
-                :class="planCapacity !== enrolledCount ? 'bg-yellow-100 px-1 rounded text-red-800' : ''">Angemeldet: {{
+                :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">Angemeldet: {{
                 program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0
               }}</span>, Kapazität: {{
                 program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0
@@ -823,10 +823,10 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-      <div v-if="showSyncPrompt" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-red-800 rounded flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+      <div v-if="showSyncPrompt" class="mb-3 p-3 bg-amber-50 border border-amber-200 text-amber-950 rounded-xl flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-sm font-medium">
         Die Daten in FLOW weichen von denen der Anmeldung ab.
         <button
-          class="px-3 py-1.5 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
+          class="px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 shrink-0"
           @click="showDiffModal = !showDiffModal"
         >
           {{ diffCount }} {{ diffCount === 1 ? 'Änderung' : 'Änderungen' }} übernehmen
@@ -846,49 +846,46 @@ onMounted(async () => {
           <div>
             <li
                 :class="[
-                  'rounded px-3 py-1.5 md:py-2 mb-1 flex flex-wrap md:flex-nowrap justify-between items-center gap-2 transition-opacity cursor-pointer',
-                  (teamsBeyondCapacity && index >= planCapacity) 
-                    ? 'bg-yellow-100 text-red-800' 
-                    : 'bg-[var(--color-bg-muted)]',
-                  team.noshow ? 'opacity-50' : 'opacity-100',
+                  'rounded-xl px-3 py-2 md:py-2.5 mb-1.5 flex flex-wrap md:flex-nowrap justify-between items-center gap-2 transition-opacity cursor-pointer border',
                   (teamsBeyondCapacity && index >= planCapacity)
-                    ? 'border border-yellow-300'
-                    : '',
+                    ? 'bg-amber-50 text-amber-950 border-amber-200'
+                    : 'bg-white/90 text-[var(--color-text)] border-[var(--color-border)]',
+                  team.noshow ? 'opacity-55' : 'opacity-100',
                   // Only apply colored border if team is NOT beyond capacity
-                  !(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'morning' 
-                    ? 'border-l-[6px]' 
-                    : (!(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'afternoon' 
-                        ? 'border-l-[6px]' 
+                  !(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'morning'
+                    ? 'border-l-[6px]'
+                    : (!(teamsBeyondCapacity && index >= planCapacity) && hasTwoExploreGroups && getTeamGroup(team) === 'afternoon'
+                        ? 'border-l-[6px]'
                         : '')
                 ]"
                 :style="(teamsBeyondCapacity && index >= planCapacity) ? '' : getTeamBorderStyle(team)"
                 @click="toggleTeamExpansion(team)"
             >
               <!-- Drag-Handle -->
-              <span class="drag-handle cursor-move text-[var(--color-text-subtle)] self-center" @click.stop><IconDraggable/></span>
+              <span class="drag-handle cursor-move text-[var(--color-text-muted)] self-center" @click.stop><IconDraggable/></span>
 
               <!-- Mobile: zweizeilig, linksbündig -->
               <div class="flex-1 min-w-0 md:hidden grid grid-cols-[3rem_minmax(0,1fr)] gap-x-2 gap-y-0 items-start">
                 <div class="flex flex-col leading-4">
                   <span
                       v-if="!teamsBeyondCapacity || index < planCapacity"
-                      :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-black'"
-                      class="text-sm"
+                      :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-950' : 'text-[var(--color-text)]'"
+                      class="text-sm font-semibold tabular-nums"
                   >
                     T{{ String(index + 1).padStart(2, '0') }}
                   </span>
-                  <span v-else class="text-sm text-red-800">–</span>
+                  <span v-else class="text-sm font-semibold text-amber-950">–</span>
                   <span
-                      :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-[var(--color-text-subtle)]'"
-                      class="text-sm"
+                      :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-900' : 'text-[var(--color-text-muted)]'"
+                      class="text-sm tabular-nums"
                   >
                     {{ team.team_number_hot ? String(team.team_number_hot).padStart(4, '0') : '0000' }}
                   </span>
                 </div>
 
                 <div
-                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-[var(--color-text)]'"
-                    class="text-sm truncate leading-tight"
+                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-950' : 'text-[var(--color-text)]'"
+                    class="text-sm font-medium truncate leading-tight"
                 >
                   {{ team.name }}
                 </div>
@@ -907,8 +904,8 @@ onMounted(async () => {
                     />
                     <span class="text-xs">No-show</span>
                   </label>
-                  <span v-else class="text-xs text-[var(--color-text-subtle)]">No-show</span>
-                  <span class="text-[var(--color-text-subtle)] text-sm">
+                  <span v-else class="text-xs text-amber-800">No-show</span>
+                  <span class="text-[var(--color-text-muted)] text-sm">
                     {{ isTeamExpanded(team) ? '▼' : '▶' }}
                   </span>
                 </div>
@@ -918,21 +915,21 @@ onMounted(async () => {
               <div class="hidden md:flex flex-1 min-w-0 items-center gap-3">
                 <span
                     v-if="!teamsBeyondCapacity || index < planCapacity"
-                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-black'"
-                    class="w-8 text-right text-sm"
+                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-950' : 'text-[var(--color-text)]'"
+                    class="w-8 text-right text-sm font-semibold tabular-nums"
                 >
                   T{{ String(index + 1).padStart(2, '0') }}
                 </span>
-                <span v-else class="w-8 text-right text-sm text-red-800">–</span>
+                <span v-else class="w-8 text-right text-sm font-semibold text-amber-950">–</span>
                 <span
-                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-[var(--color-text-subtle)]'"
-                    class="text-sm w-12"
+                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-900' : 'text-[var(--color-text-muted)]'"
+                    class="text-sm w-12 tabular-nums font-medium"
                 >
                   {{ team.team_number_hot || '–' }}
                 </span>
                 <span
-                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-red-800' : 'text-[var(--color-text)]'"
-                    class="flex-1 text-sm truncate"
+                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-950' : 'text-[var(--color-text)]'"
+                    class="flex-1 text-sm font-medium truncate"
                 >
                   {{ team.name }}
                 </span>
@@ -949,8 +946,8 @@ onMounted(async () => {
                   />
                   <span class="text-xs">No-show</span>
                 </label>
-                <span v-else class="text-xs text-[var(--color-text-subtle)]">No-show</span>
-                <span class="text-[var(--color-text-subtle)] text-sm">
+                <span v-else class="text-xs text-amber-800">No-show</span>
+                <span class="text-[var(--color-text-muted)] text-sm">
                   {{ isTeamExpanded(team) ? '▼' : '▶' }}
                 </span>
               </div>
@@ -1055,7 +1052,7 @@ onMounted(async () => {
       <!-- Placeholder rows for plan > enrolled -->
       <template v-for="placeholder in placeholderRows" :key="placeholder.id">
         <li
-            class="bg-yellow-100 border border-yellow-300 text-red-800 rounded px-3 py-2 mb-1 flex flex-wrap md:flex-nowrap justify-between items-center gap-2"
+            class="bg-amber-50 border border-amber-200 text-amber-950 rounded-xl px-3 py-2.5 mb-1.5 flex flex-wrap md:flex-nowrap justify-between items-center gap-2"
         >
           <!-- Empty space for drag handle -->
           <span class="w-6"></span>
@@ -1064,10 +1061,10 @@ onMounted(async () => {
           <span class="w-8"></span>
 
           <!-- Empty team number -->
-          <span class="text-sm w-12 text-red-800">–</span>
+          <span class="text-sm w-12 text-amber-900 tabular-nums">–</span>
 
           <!-- Placeholder text -->
-          <span class="w-full md:w-auto md:flex-1 text-sm text-red-800 italic order-last md:order-none">Fehlendes Team</span>
+          <span class="w-full md:w-auto md:flex-1 text-sm font-medium text-amber-950 order-last md:order-none">Fehlendes Team</span>
 
           <!-- Empty space for checkbox -->
           <span class="w-16"></span>

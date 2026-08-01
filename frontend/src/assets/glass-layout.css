@@ -7,25 +7,30 @@
 .glass-card {
   padding: 1.35rem 1.5rem 1.5rem;
   border-radius: var(--radius-lg);
+  /* Clip backdrop-filter to the radius — otherwise corners look square. */
+  overflow: hidden;
 }
 
 /* Nested liquid cards need stronger contour on light/cream backgrounds */
 .glass-card.liquid-surface-inner {
   border-color: color-mix(in srgb, var(--color-border-strong) 55%, var(--liquid-border-soft));
+  /* Opaque enough that text inside stays readable on cream panel bg */
+  background: color-mix(in srgb, #ffffff 92%, var(--liquid-tile-bg-inner));
   box-shadow:
     0 12px 30px rgba(0, 0, 0, 0.07),
     0 3px 10px rgba(0, 0, 0, 0.035),
     var(--liquid-shadow-inset);
 }
 
-/* Accordion shells: quieter frame so nested cards can read as elevation */
+/* Accordion shells: quieter frame so nested cards can read as elevation.
+   Avoid overflow:hidden — it clips card shadows/radii once content loads. */
 .glass-accordion {
   padding: 0;
   border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 70%, var(--color-border));
   background: color-mix(in srgb, var(--liquid-tile-bg-inner) 55%, transparent);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .glass-accordion__header {
@@ -41,12 +46,20 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  border: none;
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-bg-muted) 40%, transparent);
+  cursor: pointer;
+}
+
+.glass-accordion:has(.glass-accordion__body) .glass-accordion__header {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
 }
 
 .glass-accordion__body {
-  padding: 1.25rem 1.35rem 1.5rem;
+  padding: 1.35rem 1.35rem 1.6rem;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .glass-card__title {
