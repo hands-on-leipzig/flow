@@ -20,12 +20,15 @@ export default defineConfig(({mode}) => {
                     name: 'FLOW - Flexibles OrganisationsWerkzeug',
                     short_name: 'FLOW',
                     description: 'FLOW event planning and organization tool',
-                    theme_color: '#ffffff',
+                    theme_color: '#F78B1F',
                     background_color: '#ffffff',
                     display: 'standalone',
-                    orientation: 'portrait',
+                    // any keeps landscape useful for day-of / public schedule
+                    orientation: 'any',
                     scope: '/',
                     start_url: '/plan/overview',
+                    lang: 'de',
+                    categories: ['productivity', 'utilities'],
                     icons: [
                         {
                             src: '/pwa-192x192.png',
@@ -55,6 +58,24 @@ export default defineConfig(({mode}) => {
                         /^\/api\//,
                         /^\/schedule\//,
                         /^\/slug-handler\.php/,
+                    ],
+                    // Public plan + RP app shell should work when opened from home screen
+                    runtimeCaching: [
+                        {
+                            urlPattern: ({url}) => url.pathname.startsWith('/api/plans/') && url.pathname.includes('/visitor/'),
+                            handler: 'NetworkFirst',
+                            options: {
+                                cacheName: 'flow-visitor-plan',
+                                networkTimeoutSeconds: 5,
+                                expiration: {
+                                    maxEntries: 32,
+                                    maxAgeSeconds: 60 * 60 * 6,
+                                },
+                                cacheableResponse: {
+                                    statuses: [0, 200],
+                                },
+                            },
+                        },
                     ],
                     cleanupOutdatedCaches: true,
                     clientsClaim: true,

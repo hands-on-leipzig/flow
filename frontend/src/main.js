@@ -25,6 +25,7 @@ import EditSlide from "@/components/EditSlide.vue";
 import PlanLayout from "@/components/PlanLayout.vue";
 import PresentationSettings from "@/components/molecules/PresentationSettings.vue";
 import PublicEvent from "@/components/PublicEvent.vue";
+import PublicSchedule from "@/components/PublicSchedule.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
 import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
 import PublicScores from "@/components/PublicScores.vue";
@@ -40,6 +41,7 @@ const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
     {path: '/carousel/:eventId/:slideId', component: StandaloneSlide, props: true, meta: {public: true}},
     {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
+    {path: '/public-schedule/:planId', component: PublicSchedule, props: true, meta: {public: true}},
     {
         path: '/plan',
         component: PlanLayout,
