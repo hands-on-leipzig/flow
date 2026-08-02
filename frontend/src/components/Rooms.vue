@@ -1089,10 +1089,10 @@ const showChallengeTeams = computed(() => {
       <LoaderFlow/>
       <LoaderText/>
     </div>
-    <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 p-3 md:p-6">
-      <!-- 🟢 Räume: Erste 3 Spalten -->
+    <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-5">
+      <!-- Räume: Erste 3 Spalten -->
       <div class="lg:col-span-3 order-2 lg:order-1">
-        <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">Räume</h2>
+        <h2 class="glass-card__heading !text-lg md:!text-xl !mb-3 md:!mb-4">Räume</h2>
         <!-- Mobile: tap-first room list (no drag/drop) -->
         <div class="md:hidden space-y-3">
           <div
@@ -1103,11 +1103,11 @@ const showChallengeTeams = computed(() => {
             <div class="flex items-center gap-2">
               <input
                   v-model="room.name"
-                  class="liquid-surface-control text-sm font-semibold flex-1 min-w-0 px-2 py-1.5"
+                  class="glass-input glass-input--sm liquid-surface-control flex-1 min-w-0 !font-semibold"
                   @blur="updateRoom(room)"
               />
               <button
-                  class="shrink-0 p-1.5 text-[var(--color-text-muted)] hover:text-red-700"
+                  class="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-[var(--radius)] text-[var(--color-text-muted)] hover:text-red-700 hover:bg-[color-mix(in_srgb,#dc2626_10%,transparent)] transition-colors"
                   title="Raum löschen"
                   type="button"
                   @click="askDeleteRoom(room)"
@@ -1119,7 +1119,7 @@ const showChallengeTeams = computed(() => {
             <div class="flex items-center gap-2">
               <input
                   v-model="room.navigation_instruction"
-                  class="liquid-surface-control text-xs flex-1 min-w-0 px-2 py-1.5 text-[var(--color-text-muted)]"
+                  class="glass-input glass-input--sm liquid-surface-control flex-1 min-w-0 !text-xs text-[var(--color-text-muted)]"
                   placeholder="z. B. 2. Etage rechts"
                   @blur="updateRoom(room)"
               />
@@ -1148,12 +1148,12 @@ const showChallengeTeams = computed(() => {
                 <div v-for="element in getItemsInRoom(room.id)" :key="`mobile-assigned-${element.key}`" class="flex items-center">
                   <span
                       v-if="element.type === 'activity'"
-                      :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
-                      class="text-[11px] px-2 py-1 rounded-full flex items-center gap-1 font-medium"
+                      :style="{ borderColor: getProgramColor(element) }"
+                      class="glass-program-pill text-[11px]"
                   >
                     <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
                     {{ element.name }}
-                    <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black" @click.stop="unassignItemFromRoom(element.key)">✖</button>
+                    <button class="ml-0.5 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)]" @click.stop="unassignItemFromRoom(element.key)">✖</button>
                   </span>
                   <span
                       v-else
@@ -1164,7 +1164,7 @@ const showChallengeTeams = computed(() => {
                       <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
                       {{ element.number ? `${element.number} | ` : '' }}{{ element.name }}
                     </span>
-                    <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
+                    <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
                   </span>
                 </div>
               </div>
@@ -1180,7 +1180,7 @@ const showChallengeTeams = computed(() => {
                   ref="newRoomInput"
                   v-model="newRoomName"
                   :disabled="isSaving"
-                  class="liquid-surface-control text-sm font-semibold w-full px-2 py-1.5"
+                  class="glass-input glass-input--sm liquid-surface-control w-full !font-semibold"
                   placeholder="Neuer Raum z.B. A2.03"
                   @keyup.enter="createRoom"
               />
@@ -1194,7 +1194,7 @@ const showChallengeTeams = computed(() => {
                     ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
-                    class="liquid-surface-control text-xs w-full px-2 py-1.5 text-[var(--color-text-muted)]"
+                    class="glass-input glass-input--sm liquid-surface-control w-full !text-xs text-[var(--color-text-muted)]"
                     placeholder="Navigationshinweis"
                     @keyup.enter="createRoom"
                 />
@@ -1216,10 +1216,7 @@ const showChallengeTeams = computed(() => {
             <template #item="{ element: room }">
               <div
                   :key="room.id"
-                  :class="{
-                'opacity-50': isDraggingRoom,
-                'shadow-lg': isDraggingRoom
-              }"
+                  :class="{ 'opacity-55 scale-[1.01]': isDraggingRoom }"
                   class="glass-stack-card glass-stack-card--interactive cursor-move"
               >
                 <!-- Line 1: Drag handle, Room name, Delete icon -->
@@ -1227,11 +1224,11 @@ const showChallengeTeams = computed(() => {
                   <div class="shrink-0 text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5" aria-hidden="true">⋮⋮</div>
                   <input
                       v-model="room.name"
-                      class="liquid-surface-control text-sm md:text-base font-semibold flex-1 min-w-0 px-2 py-1.5"
+                      class="glass-input glass-input--sm liquid-surface-control flex-1 min-w-0 !font-semibold"
                       @blur="updateRoom(room)"
                   />
                   <button
-                      class="shrink-0 p-1.5 text-[var(--color-text-muted)] hover:text-red-700"
+                      class="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-[var(--radius)] text-[var(--color-text-muted)] hover:text-red-700 hover:bg-[color-mix(in_srgb,#dc2626_10%,transparent)] transition-colors"
                       title="Raum löschen"
                       type="button"
                       @click="askDeleteRoom(room)"
@@ -1244,7 +1241,7 @@ const showChallengeTeams = computed(() => {
                 <div class="flex items-center gap-2">
                   <input
                       v-model="room.navigation_instruction"
-                      class="liquid-surface-control text-xs md:text-sm flex-1 min-w-0 px-2 py-1.5 text-[var(--color-text-muted)]"
+                      class="glass-input glass-input--sm liquid-surface-control flex-1 min-w-0 !text-xs md:!text-sm text-[var(--color-text-muted)]"
                       placeholder="z. B. 2. Etage rechts"
                       @blur="updateRoom(room)"
                   />
@@ -1297,8 +1294,8 @@ const showChallengeTeams = computed(() => {
                         <!-- Activity -->
                         <span
                             v-if="element.type === 'activity'"
-                            :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
-                            class="text-[11px] md:text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
+                            :style="{ borderColor: getProgramColor(element) }"
+                            class="glass-program-pill glass-program-pill--interactive text-[11px] md:text-xs"
                         >
                           <img
                               v-if="programLogoSrc(element.first_program)"
@@ -1308,7 +1305,7 @@ const showChallengeTeams = computed(() => {
                           />
                           {{ element.name }}
                           <button
-                              class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black"
+                              class="ml-0.5 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
                               @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
@@ -1334,7 +1331,7 @@ const showChallengeTeams = computed(() => {
                             {{ element.name }}
                           </span>
                           <button
-                              class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black pr-1"
+                              class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] pr-1"
                               @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
@@ -1360,11 +1357,11 @@ const showChallengeTeams = computed(() => {
                             <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>
                             <span v-if="getPeopleCount(element) !== null" class="text-[var(--color-text-muted)] space-x-1">
                               <span> | {{ getPeopleCount(element) }}</span>
-                              <i class="bi bi-person"></i>
+                              <i class="bi bi-person-fill"></i>
                             </span>
                           </span>
                           <button
-                              class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-black pr-1"
+                              class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] pr-1"
                               @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
@@ -1379,7 +1376,7 @@ const showChallengeTeams = computed(() => {
             </template>
           </draggable>
 
-          <!-- 🟩 Neuer Raum (always visible, outside draggable) -->
+          <!-- Neuer Raum (always visible, outside draggable) -->
           <div
               ref="newRoomCardRef"
               class="glass-stack-card glass-stack-card--dashed"
@@ -1389,7 +1386,7 @@ const showChallengeTeams = computed(() => {
                   ref="newRoomInput"
                   v-model="newRoomName"
                   :disabled="isSaving"
-                  class="liquid-surface-control text-sm md:text-base font-semibold w-full px-2 py-1.5"
+                  class="glass-input glass-input--sm liquid-surface-control w-full !font-semibold"
                   placeholder="Neuer Raum z.B. A2.03"
                   @keyup.enter="createRoom"
               />
@@ -1403,7 +1400,7 @@ const showChallengeTeams = computed(() => {
                     ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
-                    class="liquid-surface-control text-xs md:text-sm w-full px-2 py-1.5 text-[var(--color-text-muted)]"
+                    class="glass-input glass-input--sm liquid-surface-control w-full !text-xs md:!text-sm text-[var(--color-text-muted)]"
                     placeholder="Navigationshinweis"
                     @keyup.enter="createRoom"
                 />
@@ -1416,33 +1413,34 @@ const showChallengeTeams = computed(() => {
         </div>
       </div>
 
-      <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->
+      <!-- Rechte Spalte: Aktivitäten & Teams -->
       <div class="lg:col-span-1 order-1 lg:order-2">
-        <div class="flex mb-3 md:mb-4 border-b text-base md:text-xl font-bold relative">
+        <div class="glass-card liquid-surface-inner !p-3 md:!p-4">
+        <div class="glass-tabs !mb-3 md:!mb-4">
           <button
-              :class="activeTab === 'activities' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-[var(--color-text-muted)]'"
-              class="px-3 md:px-4 py-2 relative"
+              type="button"
+              :class="['glass-tab relative', activeTab === 'activities' ? 'glass-tab--active' : '']"
               @click="activeTab = 'activities'"
           >
             Aktivitäten
-            <div
+            <span
                 v-if="hasWarning('activities')"
-                class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+                class="absolute top-1.5 right-1 w-2 h-2 bg-red-500 rounded-full"
                 title="Noch nicht alle Aktivitäten zugeordnet"
-            ></div>
+            ></span>
           </button>
 
           <button
-              :class="activeTab === 'teams' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-[var(--color-text-muted)]'"
-              class="px-3 md:px-4 py-2 ml-2 md:ml-4 relative"
+              type="button"
+              :class="['glass-tab relative', activeTab === 'teams' ? 'glass-tab--active' : '']"
               @click="activeTab = 'teams'"
           >
             Teams
-            <div
+            <span
                 v-if="hasWarning('teams')"
-                class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+                class="absolute top-1.5 right-1 w-2 h-2 bg-red-500 rounded-full"
                 title="Noch nicht alle Teams zugeordnet"
-            ></div>
+            ></span>
           </button>
         </div>
 
@@ -1458,9 +1456,9 @@ const showChallengeTeams = computed(() => {
                   (group.id === 'explore-morning' && showExploreTeams && hasTwoExploreGroups) ||
                   (group.id === 'explore-afternoon' && showExploreTeams && hasTwoExploreGroups) ||
                   (group.id === 'challenge' && showChallengeTeams)"
-                class="mb-4 md:mb-6 bg-[var(--color-bg-muted)] border rounded-lg p-3 md:p-4 shadow-sm"
+                class="mb-3 md:mb-4 liquid-surface-inner rounded-[var(--radius)] p-3"
             >
-              <div class="text-base md:text-lg font-semibold text-black mb-2 md:mb-3 flex items-center gap-2">
+              <div class="glass-card__heading !mb-2 md:!mb-3 !text-sm md:!text-base flex items-center gap-2">
                 <img
                     v-if="group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
                     :alt="programLogoAlt('E')"
@@ -1484,7 +1482,7 @@ const showChallengeTeams = computed(() => {
                           group.id === 'explore-afternoon' ? bulkModeExploreAfternoon :
                           group.id === 'explore' ? bulkModeExplore :
                           group.id === 'challenge' ? bulkModeChallenge : false"
-                      class="cursor-pointer"
+                      class="cursor-pointer accent-[var(--color-accent)]"
                       type="checkbox"
                       @change="toggleBulkMode(group.id)"
                   />
@@ -1498,8 +1496,8 @@ const showChallengeTeams = computed(() => {
                   <button
                       v-if="element.type === 'activity'"
                       type="button"
-                      :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
-                      class="text-[11px] px-2 py-1 rounded-full flex items-center gap-1 font-medium"
+                      :style="{ borderColor: getProgramColor(element) }"
+                      class="glass-program-pill text-[11px]"
                       @click="openAssignModal(element)"
                   >
                     <img
@@ -1575,70 +1573,68 @@ const showChallengeTeams = computed(() => {
 
 
                 <template #item="{ element }">
-              <span
-                  v-if="element.type === 'activity'"
-                  :style="{
-                  border: '2px solid ' + getProgramColor(element),
-                  backgroundColor: '#fff'
-                }"
-                  class="text-[11px] md:text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
-              >
-                <img
-                    v-if="programLogoSrc(element.first_program)"
-                    :alt="programLogoAlt(element.first_program)"
-                    :src="programLogoSrc(element.first_program)"
-                    class="w-3 h-3 flex-shrink-0"
-                />
-                {{ element.name }}
-              </span>
+                  <span
+                      v-if="element.type === 'activity'"
+                      :style="{ borderColor: getProgramColor(element) }"
+                      class="glass-program-pill glass-program-pill--interactive text-[11px] md:text-xs"
+                  >
+                    <img
+                        v-if="programLogoSrc(element.first_program)"
+                        :alt="programLogoAlt(element.first_program)"
+                        :src="programLogoSrc(element.first_program)"
+                        class="w-3 h-3 flex-shrink-0"
+                    />
+                    {{ element.name }}
+                  </span>
 
                   <span
                       v-else-if="element.type === 'team-proxy'"
                       class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move"
                   >
-                <span
-                    :style="{ backgroundColor: getProgramColor(element) }"
-                    class="w-1.5 self-stretch rounded-l-md"
-                ></span>
-                <span class="px-2 py-1 flex items-center gap-1">
-                  <img
-                      v-if="programLogoSrc(element.first_program)"
-                      :alt="programLogoAlt(element.first_program)"
-                      :src="programLogoSrc(element.first_program)"
-                      class="w-3 h-3 flex-shrink-0"
-                  />
-                  {{ element.name }}
-                </span>
-              </span>
+                    <span
+                        :style="{ backgroundColor: getProgramColor(element) }"
+                        class="w-1.5 self-stretch rounded-l-md"
+                    ></span>
+                    <span class="px-2 py-1 flex items-center gap-1">
+                      <img
+                          v-if="programLogoSrc(element.first_program)"
+                          :alt="programLogoAlt(element.first_program)"
+                          :src="programLogoSrc(element.first_program)"
+                          class="w-3 h-3 flex-shrink-0"
+                      />
+                      {{ element.name }}
+                    </span>
+                  </span>
 
                   <span
                       v-else-if="element.type === 'team'"
                       class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move"
                   >
-              <span
-                  :style="{ backgroundColor: getProgramColor(element) }"
-                  class="w-1.5 self-stretch rounded-l-md"
-              ></span>
-                <span class="px-2 py-1 flex items-center gap-1.5">
-                  <img
-                      v-if="programLogoSrc(element.first_program)"
-                      :alt="programLogoAlt(element.first_program)"
-                      :src="programLogoSrc(element.first_program)"
-                      class="w-3 h-3 flex-shrink-0"
-                  />
-                 <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>
-                            <span v-if="getPeopleCount(element) !== null" class="text-[var(--color-text-muted)] space-x-1">
-                              <span> | {{ getPeopleCount(element) }}</span>
-                              <i class="bi bi-person-fill"></i>
-                            </span>
-                </span>
-              </span>
+                    <span
+                        :style="{ backgroundColor: getProgramColor(element) }"
+                        class="w-1.5 self-stretch rounded-l-md"
+                    ></span>
+                    <span class="px-2 py-1 flex items-center gap-1.5">
+                      <img
+                          v-if="programLogoSrc(element.first_program)"
+                          :alt="programLogoAlt(element.first_program)"
+                          :src="programLogoSrc(element.first_program)"
+                          class="w-3 h-3 flex-shrink-0"
+                      />
+                      <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>
+                      <span v-if="getPeopleCount(element) !== null" class="text-[var(--color-text-muted)] space-x-1">
+                        <span> | {{ getPeopleCount(element) }}</span>
+                        <i class="bi bi-person-fill"></i>
+                      </span>
+                    </span>
+                  </span>
                 </template>
 
 
               </draggable>
             </div>
           </template>
+        </div>
         </div>
       </div>
     </div>
@@ -1655,11 +1651,24 @@ const showChallengeTeams = computed(() => {
     />
 
     <!-- Mobile tap-to-assign modal -->
-    <div v-if="showAssignModal && selectedAssignable" class="fixed inset-0 z-50 bg-black/40 flex items-end md:hidden" @click="closeAssignModal">
-      <div class="w-full bg-white rounded-t-xl p-4 max-h-[70vh] overflow-y-auto" @click.stop>
+    <div
+        v-if="showAssignModal && selectedAssignable"
+        class="glass-scrim fixed inset-0 z-50 flex items-end md:hidden"
+        @click="closeAssignModal"
+    >
+      <div
+          class="w-full max-h-[70vh] overflow-y-auto rounded-t-[var(--radius-xl)] border border-[var(--liquid-border)] bg-[var(--liquid-popover-fill)] backdrop-blur-[var(--liquid-popover-blur)] p-4 shadow-[var(--shadow-lg)]"
+          @click.stop
+      >
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-sm font-semibold text-[var(--color-text)]">Zu Raum zuweisen</h3>
-          <button class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)]" @click="closeAssignModal">✕</button>
+          <button
+              type="button"
+              class="text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
+              @click="closeAssignModal"
+          >
+            ✕
+          </button>
         </div>
         <div class="text-xs text-[var(--color-text-muted)] mb-3 truncate">
           {{ selectedAssignable.name }}
@@ -1669,10 +1678,10 @@ const showChallengeTeams = computed(() => {
               v-for="room in rooms"
               :key="`assign-room-${room.id}`"
               type="button"
-              class="w-full text-left px-3 py-2 border rounded hover:bg-[var(--color-bg-hover)]"
+              class="w-full text-left px-3 py-2.5 liquid-surface-inner rounded-[var(--radius)] hover:bg-[var(--color-bg-hover)] transition-colors"
               @click="assignSelectedToRoom(room.id)"
           >
-            <div class="font-medium text-sm">{{ room.name || 'Unbenannter Raum' }}</div>
+            <div class="font-medium text-sm text-[var(--color-text)]">{{ room.name || 'Unbenannter Raum' }}</div>
             <div v-if="room.navigation_instruction" class="text-xs text-[var(--color-text-subtle)]">{{ room.navigation_instruction }}</div>
           </button>
         </div>

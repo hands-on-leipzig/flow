@@ -372,6 +372,30 @@
   box-shadow: var(--shadow-lg);
 }
 
+/* Program-colored activity chip (rooms sidebar / dropzones) */
+.glass-program-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-full);
+  border: 2px solid;
+  background: color-mix(in srgb, #ffffff 90%, var(--liquid-tile-bg-inner));
+  box-shadow: var(--liquid-shadow-inset);
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.25;
+}
+
+.glass-program-pill--interactive {
+  cursor: move;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-program-pill--interactive:hover {
+  background: color-mix(in srgb, #ffffff 96%, var(--color-bg-hover));
+}
+
 .glass-row-item {
   display: flex;
   align-items: center;
@@ -397,11 +421,15 @@
   flex-direction: column;
   align-items: stretch;
   gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--liquid-border-soft);
-  background: var(--liquid-tile-bg-inner);
-  box-shadow: var(--liquid-shadow-inset);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, var(--liquid-border-soft));
+  background: color-mix(in srgb, #ffffff 92%, var(--liquid-tile-bg-inner));
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.07),
+    0 3px 10px rgba(0, 0, 0, 0.035),
+    var(--liquid-shadow-inset);
+  overflow: hidden;
 }
 
 .glass-stack-card--interactive {
