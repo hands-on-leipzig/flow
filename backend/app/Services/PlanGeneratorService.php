@@ -38,11 +38,22 @@ class PlanGeneratorService
             // There is only one supported configuration
         } else {
             // --- Challenge prüfen (non-finale events) ---
-            if ($params->get("c_teams") > 0) {
-                $cTeams = $params->get("c_teams");
+            if ((int) ($params->get("c_teams") ?? 0) > 0) {
+                $cTeams = (int) ($params->get("c_teams") ?? 0);
                 $jLanes = $params->get("j_lanes");
                 $rTables = $params->get("r_tables");
-                
+
+                if ($jLanes === null || $jLanes === '') {
+                    return [
+                        'supported' => false,
+                        'error' => 'Challenge-Konfiguration unvollständig',
+                        'details' => 'Jury-Spuren (j_lanes) sind nicht gesetzt. Bitte wähle eine gültige Spuranzahl.',
+                    ];
+                }
+
+                $jLanes = (int) $jLanes;
+                $rTables = $rTables === null || $rTables === '' ? null : (int) $rTables;
+
                 $ok = $this->checkSupportedPlan(
                     FirstProgram::CHALLENGE->value,
                     $cTeams,
@@ -60,7 +71,7 @@ class PlanGeneratorService
                     return [
                         'supported' => false,
                         'error' => 'Challenge-Konfiguration wird nicht unterstützt',
-                        'details' => "Die Kombination aus Challenge-Teams ({$cTeams}), Spuren ({$jLanes}) und Tischen ({$rTables}) wird nicht unterstützt. Bitte überprüfe diese Parameter."
+                        'details' => "Die Kombination aus Challenge-Teams ({$cTeams}), Spuren ({$jLanes}) und Tischen (".($rTables ?? '–').") wird nicht unterstützt. Bitte überprüfe diese Parameter."
                     ];
                 }
             }
@@ -68,10 +79,20 @@ class PlanGeneratorService
 
         // --- Explore prüfen ---
 
-        if ($params->get("e1_teams") > 0) {
-            $e1Teams = $params->get("e1_teams");
+        if ((int) ($params->get("e1_teams") ?? 0) > 0) {
+            $e1Teams = (int) ($params->get("e1_teams") ?? 0);
             $e1Lanes = $params->get("e1_lanes");
-            
+
+            if ($e1Lanes === null || $e1Lanes === '') {
+                return [
+                    'supported' => false,
+                    'error' => 'Explore Vormittag-Konfiguration unvollständig',
+                    'details' => 'Explore-Spuren am Vormittag (e1_lanes) sind nicht gesetzt. Bitte wähle eine gültige Spuranzahl.',
+                ];
+            }
+
+            $e1Lanes = (int) $e1Lanes;
+
             $ok = $this->checkSupportedPlan(
                 FirstProgram::EXPLORE->value,
                 $e1Teams,
@@ -92,10 +113,20 @@ class PlanGeneratorService
             }
         }
 
-        if ($params->get("e2_teams") > 0) {
-            $e2Teams = $params->get("e2_teams");
+        if ((int) ($params->get("e2_teams") ?? 0) > 0) {
+            $e2Teams = (int) ($params->get("e2_teams") ?? 0);
             $e2Lanes = $params->get("e2_lanes");
-            
+
+            if ($e2Lanes === null || $e2Lanes === '') {
+                return [
+                    'supported' => false,
+                    'error' => 'Explore Nachmittag-Konfiguration unvollständig',
+                    'details' => 'Explore-Spuren am Nachmittag (e2_lanes) sind nicht gesetzt. Bitte wähle eine gültige Spuranzahl.',
+                ];
+            }
+
+            $e2Lanes = (int) $e2Lanes;
+
             $ok = $this->checkSupportedPlan(
                 FirstProgram::EXPLORE->value,
                 $e2Teams,

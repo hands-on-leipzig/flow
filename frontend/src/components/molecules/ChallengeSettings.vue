@@ -64,6 +64,9 @@ function handleToggleChange(target: HTMLInputElement) {
         updateByName('r_tables', 2)
       }
     }
+
+    // Ensure jury lanes are set — empty/null lanes yield empty plans
+    ensureJuryLanesForSelection()
   } else {
     // Turn off challenge - clear team count and related parameters
     updateByName('c_teams', 0)
@@ -109,6 +112,28 @@ const jLanesProxy = computed<number>({
   set: (val) => updateByName('j_lanes', val)
 })
 
+function ensureJuryLanesForSelection(tablesOverride?: number) {
+  const t = cTeams.value
+  if (!t || !props.lanesIndex) return
+
+  const tables = tablesOverride ?? rTables.value
+  const allowed = tables
+      ? (props.lanesIndex.challenge[`${t}|${tables}`] || []).slice().sort((a: number, b: number) => a - b)
+      : allowedJuryLanes.value
+
+  if (!allowed.length) return
+
+  const curLane = Number(paramMapByName.value['j_lanes']?.value || 0)
+  if (!allowed.includes(curLane)) {
+    updateByName('j_lanes', allowed[0])
+  }
+}
+
+function selectTables(tables: number) {
+  updateByName('r_tables', tables)
+  ensureJuryLanesForSelection(tables)
+}
+
 // ---- Invariant keeper: keep a valid (tables, lanes) combo at all times ----
 watchEffect(() => {
   const t = cTeams.value
@@ -123,6 +148,7 @@ watchEffect(() => {
   // 1) If tables unset and exactly one variant exists -> snap to it
   if (currentTables === 0 && variants.length === 1) {
     updateByName('r_tables', variants[0])
+    ensureJuryLanesForSelection(variants[0])
     return
   }
 
@@ -130,16 +156,12 @@ watchEffect(() => {
   if (currentTables !== 0 && !variants.includes(currentTables)) {
     const nextTables = variants[0]
     updateByName('r_tables', nextTables)
-    const allowedForNext = (props.lanesIndex.challenge[`${t}|${nextTables}`] || []).slice().sort((a, b) => a - b)
-    if (allowedForNext.length) updateByName('j_lanes', allowedForNext[0])
+    ensureJuryLanesForSelection(nextTables)
     return
   }
 
   // 3) Ensure current lane is valid for the (possibly merged) allowed set
-  const curLane = Number(paramMapByName.value['j_lanes']?.value || 0)
-  if (allowedJuryLanes.value.length && !allowedJuryLanes.value.includes(curLane)) {
-    updateByName('j_lanes', allowedJuryLanes.value[0])
-  }
+  ensureJuryLanesForSelection()
 })
 
 // If allowed set changes (due to teams/tables), snap lanes if invalid
@@ -147,6 +169,15 @@ watch(allowedJuryLanes, (opts) => {
   const cur = Number(paramMapByName.value['j_lanes']?.value || 0)
   if (opts.length && !opts.includes(cur)) updateByName('j_lanes', opts[0])
 })
+
+// When lanes index arrives after Challenge was already enabled, fill missing j_lanes
+watch(
+    () => props.lanesIndex,
+    (idx) => {
+      if (!idx || !cTeams.value) return
+      ensureJuryLanesForSelection()
+    }
+)
 
 // Helpers
 const isLaneAllowed = (n: number) => allowedJuryLanes.value.includes(n)
@@ -308,17 +339,20 @@ const teamsPerJuryHint = computed(() => {
                 v-slot="{ checked, disabled }"
                 :disabled="!isLaneAllowed(n)"
                 :value="n"
+                as="template"
             >
               <button
                   :aria-disabled="disabled"
                   :class="[
                     'glass-choice relative whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
                     checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
+                    disabled ? 'opacity-40 cursor-not-allowed' : '',
                     (!disabled && isLaneRecommended(n)) ? 'after:absolute after:-top-2 ' +
                      'after:-right-2 after:text-[10px] after:px-1.5 after:py-0.5 after:bg-emerald-100 ' +
                       'after:text-emerald-700 after:rounded after:content-[\'Empfohlen\']' : ''
                   ]"
                   type="button"
+                  @click="!disabled && updateByName('j_lanes', n)"
               >
                 {{ n }}
               </button>
@@ -347,15 +381,17 @@ const teamsPerJuryHint = computed(() => {
               v-slot="{ checked, disabled }"
               :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
               :value="tb"
+              as="template"
           >
             <button
                 :aria-disabled="disabled"
                 :class="[
                   'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
                   checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : '',
                 ]"
                 type="button"
-                @click="!disabled && updateByName('r_tables', tb)"
+                @click="!disabled && selectTables(tb)"
             >
               {{ tb }}
             </button>
