@@ -164,8 +164,17 @@
                   :key="column"
                   class="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]"
                 >
+                  <select
+                    v-if="editingRecord === index && column === 'presence'"
+                    v-model="editingData[column]"
+                    class="block w-full px-3 py-2 border border-[var(--color-border)] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="punctual">punctual — pünktlich da</option>
+                    <option value="window">window — Zeitfenster / Rahmen</option>
+                    <option value="info">info — Kontext / optional</option>
+                  </select>
                   <input
-                    v-if="editingRecord === index"
+                    v-else-if="editingRecord === index"
                     v-model="editingData[column]"
                     :type="getInputType(column)"
                     class="block w-full px-3 py-2 border border-[var(--color-border)] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"

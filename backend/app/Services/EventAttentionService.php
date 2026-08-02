@@ -64,7 +64,7 @@ class EventAttentionService
                 ]);
             
             Log::debug("Updated needs_attention for event {$eventId}: " . ($needsAttention ? 'true' : 'false'));
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error("Failed to update needs_attention for event {$eventId}: " . $e->getMessage());
             // Don't throw - allow operation to continue even if attention update fails
         }
@@ -117,7 +117,8 @@ class EventAttentionService
                     ? $exploreData
                     : ($exploreData['teams'] ?? []);
                 
-                $drahtExplore = $drahtData['teams_explore'] ?? [];
+                $drahtExplore = $this->normalizeTeamList($drahtData['teams_explore'] ?? []);
+                $localExplore = $this->normalizeTeamList($localExplore);
                 
                 if ($this->hasDiscrepancy($localExplore, $drahtExplore)) {
                     return true;
@@ -130,9 +131,12 @@ class EventAttentionService
                 $requestChallenge->query->set('program', 'challenge');
                 $challengeResponse = $teamController->index($requestChallenge, $event);
                 $challengeData = $challengeResponse->getData(true);
-                $localChallenge = is_array($challengeData) ? $challengeData : ($challengeData['teams'] ?? []);
+                $localChallenge = is_array($challengeData) && !isset($challengeData['teams'])
+                    ? $challengeData
+                    : ($challengeData['teams'] ?? []);
                 
-                $drahtChallenge = $drahtData['teams_challenge'] ?? [];
+                $drahtChallenge = $this->normalizeTeamList($drahtData['teams_challenge'] ?? []);
+                $localChallenge = $this->normalizeTeamList($localChallenge);
                 
                 if ($this->hasDiscrepancy($localChallenge, $drahtChallenge)) {
                     return true;
@@ -140,10 +144,26 @@ class EventAttentionService
             }
 
             return false;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error("Error checking team discrepancy for event {$event->id}: " . $e->getMessage());
             return false; // On error, assume no discrepancy (conservative approach)
         }
+    }
+
+    /**
+     * DRAHT/local payloads can be list, map, or an error string — always return a list of team arrays.
+     */
+    private function normalizeTeamList(mixed $teams): array
+    {
+        if (! is_array($teams)) {
+            return [];
+        }
+
+        // Associative map of teams (e.g. keyed by team number) → values
+        $isList = array_is_list($teams);
+        $items = $isList ? $teams : array_values($teams);
+
+        return array_values(array_filter($items, fn ($team) => is_array($team)));
     }
 
     /**
@@ -161,6 +181,9 @@ class EventAttentionService
         // Create maps by team number
         $localMap = [];
         foreach ($localTeams as $team) {
+            if (! is_array($team)) {
+                continue;
+            }
             $num = $normalizeTeamNumber($team['team_number_hot'] ?? null);
             if ($num != null) {
                 $localMap[$num] = $team;
@@ -169,6 +192,9 @@ class EventAttentionService
 
         $drahtMap = [];
         foreach ($drahtTeams as $team) {
+            if (! is_array($team)) {
+                continue;
+            }
             $num = $normalizeTeamNumber($team['ref'] ?? $team['number'] ?? null);
             if ($num != null) {
                 $drahtMap[$num] = $team;

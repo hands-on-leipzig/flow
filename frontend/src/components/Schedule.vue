@@ -193,6 +193,7 @@ const progressIntervalId = ref<NodeJS.Timeout | null>(null)
 const isGenerating = ref(false)
 const generatorError = ref<string | null>(null)
 const errorDetails = ref<string | null>(null)
+const previewReload = ref(0)
 
 // Countdown state for ScheduleToast
 const countdownSeconds = ref<number | null>(null)
@@ -346,6 +347,7 @@ async function runGeneratorOnce() {
   try {
     await axios.post(`/plans/${selectedPlanId.value}/generate`)
     await pollUntilReady(selectedPlanId.value)
+    previewReload.value += 1
   } catch (error: any) {
     if (import.meta.env.DEV) {
       console.error("Error during initial generation:", error)
@@ -822,6 +824,7 @@ const updateTableName = async () => {
           v-else-if="selectedPlanId"
           class="w-full min-h-0"
           :plan-id="selectedPlanId as number"
+          :reload="previewReload"
           initial-view="overview"
       />
     </div>
@@ -844,6 +847,7 @@ const updateTableName = async () => {
           <Preview
               v-else-if="selectedPlanId"
               :plan-id="selectedPlanId as number"
+              :reload="previewReload"
               initial-view="overview"
           />
         </div>

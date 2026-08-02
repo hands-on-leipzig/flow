@@ -150,6 +150,13 @@ return new class extends Migration {
             $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
             $table->string('code', 50)->nullable();
+            /**
+             * Public-plan / timeline semantics for visitors:
+             * - punctual: must be there at start (foreground card)
+             * - window: soft time window / frame (background band)
+             * - info: contextual / optional information
+             */
+            $table->string('presence', 20)->default('punctual');
             $table->string('name_preview', 100)->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->unsignedInteger('first_program')->nullable();

@@ -1,5 +1,113 @@
 // frontend/src/utils/dateTimeFormat.ts
 
+const BERLIN_TZ = 'Europe/Berlin'
+
+function berlinParts(ms: number) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: BERLIN_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+  const map: Record<string, string> = {}
+  for (const part of dtf.formatToParts(new Date(ms))) {
+    if (part.type !== 'literal') map[part.type] = part.value
+  }
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    hour: Number(map.hour),
+    minute: Number(map.minute),
+    second: Number(map.second),
+  }
+}
+
+/**
+ * FLOW speichert Aktivitätszeiten als naive Europe/Berlin-Wanduhr
+ * ("YYYY-MM-DD HH:mm:ss" ohne Offset). Safari parst das sonst als UTC.
+ */
+export function parseBerlinWallTime(value: string | null | undefined): number | null {
+  if (!value) return null
+  const trimmed = String(value).trim()
+
+  if (/Z|[+\-]\d{2}:?\d{2}$/.test(trimmed)) {
+    const ms = Date.parse(trimmed)
+    return Number.isNaN(ms) ? null : ms
+  }
+
+  const m = trimmed.match(
+      /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/
+  )
+  if (!m) {
+    const ms = Date.parse(trimmed)
+    return Number.isNaN(ms) ? null : ms
+  }
+
+  const year = Number(m[1])
+  const month = Number(m[2])
+  const day = Number(m[3])
+  const hour = Number(m[4] ?? 0)
+  const minute = Number(m[5] ?? 0)
+  const second = Number(m[6] ?? 0)
+  const wanted = Date.UTC(year, month - 1, day, hour, minute, second)
+
+  // Iterativ: Wandzeit Berlin → UTC-Instant (inkl. DST)
+  let utc = wanted
+  for (let i = 0; i < 3; i++) {
+    const parts = berlinParts(utc)
+    const asUtc = Date.UTC(
+        parts.year,
+        parts.month - 1,
+        parts.day,
+        parts.hour,
+        parts.minute,
+        parts.second
+    )
+    const diff = wanted - asUtc
+    if (diff === 0) break
+    utc += diff
+  }
+  return utc
+}
+
+/**
+ * Aktuelle Uhrzeit (aus clockMs) auf den Kalendertag von dayFromMs legen.
+ * Damit wandert die „Jetzt“-Marke im Tagesplan auch dann korrekt,
+ * wenn der Veranstaltungstag nicht exakt „heute“ ist (Vorschau/Test).
+ */
+export function projectClockOntoBerlinDay(clockMs: number, dayFromMs: number): number {
+  const day = berlinParts(dayFromMs)
+  const clock = berlinParts(clockMs)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return (
+      parseBerlinWallTime(
+          `${day.year}-${pad(day.month)}-${pad(day.day)} ${pad(clock.hour)}:${pad(clock.minute)}:${pad(clock.second)}`
+      ) ?? clockMs
+  )
+}
+
+/** Uhrzeit einer Berlin-Wandzeit / Instant in Europe/Berlin */
+export function formatBerlinTimeOnly(value: string | Date | number | null | undefined): string {
+  if (value == null || value === '') return ''
+  let ms: number | null
+  if (value instanceof Date) ms = value.getTime()
+  else if (typeof value === 'number') ms = value
+  else ms = parseBerlinWallTime(value)
+  if (ms == null || Number.isNaN(ms)) return ''
+
+  return new Intl.DateTimeFormat('de-DE', {
+    timeZone: BERLIN_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(ms))
+}
+
 /**
  * Uhrzeit (HH:mm) formatieren, 24h.
  * Erwartet:
@@ -11,6 +119,11 @@ export function formatTimeOnly(
   local: boolean = false
 ): string {
   if (!datetime) return ''
+
+  // Naive DB-Zeiten ohne Offset immer als Berlin behandeln
+  if (typeof datetime === 'string' && local && !/Z|[+\-]\d{2}:?\d{2}$/.test(datetime.trim())) {
+    return formatBerlinTimeOnly(datetime)
+  }
 
   let date: Date | null = null
 

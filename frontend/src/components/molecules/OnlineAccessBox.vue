@@ -184,8 +184,10 @@ function isCardActive(card: number, level: number) {
 }
 
 function previewOnlinePlan() {
-  const url = `${import.meta.env.VITE_APP_URL}/output/zeitplan.cgi?plan=${scheduleInfo.value?.plan.plan_id}`
-  window.open(url, '_blank')
+  const planId = scheduleInfo.value?.plan?.plan_id
+  if (!planId) return
+  const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin
+  window.open(`${baseUrl}/public-schedule/${planId}`, '_blank')
 }
 
 async function regenerateLinkAndQR() {

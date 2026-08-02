@@ -890,7 +890,7 @@ onMounted(async () => {
                   {{ team.name }}
                 </div>
 
-                <div class="col-start-2 flex items-center justify-between -mt-1">
+                <div class="col-start-2 flex items-center justify-between gap-2 -mt-1">
                   <label
                       v-if="!(teamsBeyondCapacity && index >= planCapacity)"
                       class="flex items-center gap-1 text-xs text-[var(--color-text-muted)] cursor-pointer"
@@ -905,8 +905,19 @@ onMounted(async () => {
                     <span class="text-xs">No-show</span>
                   </label>
                   <span v-else class="text-xs text-amber-800">No-show</span>
-                  <span class="text-[var(--color-text-muted)] text-sm">
-                    {{ isTeamExpanded(team) ? '▼' : '▶' }}
+                  <span class="ml-auto flex items-center gap-2">
+                    <span
+                        v-if="getPeopleCount(team) !== null"
+                        class="inline-flex items-center gap-0.5 text-xs tabular-nums text-[var(--color-text-muted)]"
+                        :title="`${getPeopleCount(team)} Personen`"
+                    >
+                      {{ getPeopleCount(team) }}
+                      <i class="bi bi-person-fill text-[0.85em]" aria-hidden="true"></i>
+                    </span>
+                    <span v-else class="text-xs text-[var(--color-text-subtle)]">–</span>
+                    <span class="text-[var(--color-text-muted)] text-sm">
+                      {{ isTeamExpanded(team) ? '▼' : '▶' }}
+                    </span>
                   </span>
                 </div>
               </div>
@@ -933,6 +944,15 @@ onMounted(async () => {
                 >
                   {{ team.name }}
                 </span>
+                <span
+                    v-if="getPeopleCount(team) !== null"
+                    class="inline-flex items-center gap-1 text-sm tabular-nums text-[var(--color-text-muted)] shrink-0"
+                    :title="`${getPeopleCount(team)} Personen`"
+                >
+                  {{ getPeopleCount(team) }}
+                  <i class="bi bi-person-fill" aria-hidden="true"></i>
+                </span>
+                <span v-else class="text-sm text-[var(--color-text-subtle)] shrink-0">–</span>
                 <label
                     v-if="!(teamsBeyondCapacity && index >= planCapacity)"
                     class="flex items-center gap-1 text-sm text-[var(--color-text-muted)] cursor-pointer"

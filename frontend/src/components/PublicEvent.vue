@@ -5,6 +5,7 @@ import axios from 'axios'
 import {programLogoSrc, programLogoAlt, imageUrl} from '@/utils/images'
 import {formatTimeOnly} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
+import PublicSchedule from '@/components/PublicSchedule.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -436,17 +437,10 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Level 4: Public Plan (embedded in iframe) - Full screen, no margins -->
+    <!-- Level 4: Interactive public schedule (Vue) — mobile-first, works with or without PWA -->
     <div v-if="!loading && !error && event && isContentVisible(4) && publicPlanId"
-         class="w-full fixed inset-0 flex flex-col"
-         style="margin: 0; padding: 0; border: none; z-index: 1000;">
-      <iframe
-          :src="`/output/zeitplan.cgi?plan=${publicPlanId}`"
-          class="flex-1 border-0"
-          frameborder="0"
-          scrolling="auto"
-          style="margin: 0; padding: 0; border: none; width: 100%;"
-      ></iframe>
+         class="w-full min-h-dvh">
+      <PublicSchedule :plan-id="publicPlanId" embedded/>
     </div>
 
     <!-- Event Content (hidden when level 4 is active) -->

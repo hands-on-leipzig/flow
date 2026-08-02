@@ -712,10 +712,10 @@ const hasBlocksOutsideEventDates = computed(() => {
         <table class="min-w-full text-sm">
           <thead>
           <tr class="text-[var(--color-text-subtle)] text-xs uppercase tracking-wide">
-            <th class="text-left px-2 py-2 w-20">Aktion</th>
-            <th class="text-center px-2 py-2 w-20">Programme</th>
-            <th class="text-left px-2 py-2 w-28">Zeit</th>
-            <th class="text-left px-2 py-2">Inhalt</th>
+            <th class="text-left px-3 py-3 w-16">Aktion</th>
+            <th class="text-center px-3 py-3 w-24">Programme</th>
+            <th class="text-left px-3 py-3 min-w-[13rem]">Zeit</th>
+            <th class="text-left px-3 py-3 min-w-[18rem]">Inhalt</th>
           </tr>
           </thead>
           <tbody class="divide-y divide-[var(--color-border)]">
@@ -726,8 +726,8 @@ const hasBlocksOutsideEventDates = computed(() => {
                 'glass-table-row--warning': b.active !== false && isBlockOutsideEventDates(b),
                 'glass-table-row--hover': b.active !== false && !isBlockOutsideEventDates(b)
               }">
-            <td class="px-2 py-2">
-              <div class="flex flex-col items-center space-y-2">
+            <td class="px-3 py-4 align-top">
+              <div class="flex flex-col items-center gap-3 pt-1">
                 <ToggleSwitch
                     :model-value="b.active !== false"
                     @update:modelValue="toggleActive(b, $event)"
@@ -744,8 +744,8 @@ const hasBlocksOutsideEventDates = computed(() => {
               </div>
             </td>
 
-            <td class="px-2 py-2 text-center">
-              <div class="flex justify-center space-x-1">
+            <td class="px-3 py-4 align-top text-center">
+              <div class="flex justify-center gap-2 pt-1">
                 <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
                      :class="[
                        'w-8 h-8 transition-all duration-200',
@@ -769,42 +769,38 @@ const hasBlocksOutsideEventDates = computed(() => {
               </div>
             </td>
 
-            <td class="px-2 py-2">
-              <div class="space-y-2">
-                <!-- Date field (first line) -->
+            <td class="px-3 py-4 align-top">
+              <!-- Explicit Tailwind gaps so spacing wins even if glass CSS lags -->
+              <div class="flex flex-col gap-3">
                 <input
                     :value="extractDate(b.start || b.end)"
                     :disabled="b.active === false"
-                    :class="['w-full liquid-surface-control text-sm px-2 py-1',
-                           b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
+                    class="glass-input glass-input--sm liquid-surface-control w-full"
                     type="date"
                     @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
                 />
-                <!-- Start and End time fields (second line) -->
-                <div class="flex space-x-1">
+                <div class="grid grid-cols-2 gap-3">
                   <input
                       :value="extractTime(b.start)"
                       :disabled="b.active === false"
-                      :class="['flex-1 liquid-surface-control text-sm px-2 py-1',
-                             b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
+                      class="glass-input glass-input--sm liquid-surface-control w-full"
                       type="time"
                       min="00:05"
                       max="23:55"
                       step="300"
-                      placeholder="Start"
+                      aria-label="Startzeit"
                       @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start }"
                       @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
                   />
                   <input
                       :value="extractTime(b.end)"
                       :disabled="b.active === false"
-                      :class="['flex-1 liquid-surface-control text-sm px-2 py-1',
-                             b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
+                      class="glass-input glass-input--sm liquid-surface-control w-full"
                       type="time"
                       min="00:05"
                       max="23:55"
                       step="300"
-                      placeholder="Ende"
+                      aria-label="Endzeit"
                       @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
                       @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
                   />
@@ -812,30 +808,26 @@ const hasBlocksOutsideEventDates = computed(() => {
               </div>
             </td>
 
-            <td class="px-2 py-2">
-              <div class="space-y-2">
-                <div class="flex space-x-2">
-                  <input :value="b.name"
-                         :disabled="b.active === false"
-                         :class="['flex-1 liquid-surface-control text-sm px-2 py-1',
-                                  b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
-                         type="text" placeholder="Titel"
-                         @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
-                         @blur="saveBlock(b)"/>
-                  <input :value="b.link ?? ''"
-                         :disabled="b.active === false"
-                         :class="['flex-1 liquid-surface-control text-sm px-2 py-1',
-                                  b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
-                         type="url" placeholder="https://example.com"
-                         @input="(e) => { b.link = (e.target as HTMLInputElement).value }"
-                         @blur="saveBlock(b)"/>
-                </div>
+            <td class="px-3 py-4 align-top">
+              <!-- Full-width stack: title, description, link — no side-by-side squeeze -->
+              <div class="flex flex-col gap-3">
+                <input :value="b.name"
+                       :disabled="b.active === false"
+                       class="glass-input glass-input--sm liquid-surface-control w-full"
+                       type="text" placeholder="Titel"
+                       @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
+                       @blur="saveBlock(b)"/>
                 <input :value="b.description"
                        :disabled="b.active === false"
-                       :class="['w-full liquid-surface-control text-sm px-2 py-1',
-                                b.active === false ? 'opacity-50 cursor-not-allowed' : '']"
+                       class="glass-input glass-input--sm liquid-surface-control w-full"
                        type="text" placeholder="Beschreibung"
                        @input="(e) => { b.description = (e.target as HTMLInputElement).value }"
+                       @blur="saveBlock(b)"/>
+                <input :value="b.link ?? ''"
+                       :disabled="b.active === false"
+                       class="glass-input glass-input--sm liquid-surface-control w-full"
+                       type="url" placeholder="https://example.com"
+                       @input="(e) => { b.link = (e.target as HTMLInputElement).value }"
                        @blur="saveBlock(b)"/>
               </div>
             </td>

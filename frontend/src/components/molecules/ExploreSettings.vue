@@ -775,6 +775,7 @@ const teamsPerJuryHint2 = computed(() => {
                   v-slot="{ checked, disabled }"
                   :disabled="!isExploreLaneAllowedAM(n) || e1Teams === 0"
                   :value="n"
+                  as="template"
               >
                 <button
                     :aria-disabled="disabled"
@@ -785,6 +786,7 @@ const teamsPerJuryHint2 = computed(() => {
                     class="px-2 py-1 rounded-md border text-sm transition
                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                     type="button"
+                    @click="!disabled && updateByName('e1_lanes', n)"
                 >
                   {{ n }}
                 </button>
@@ -821,6 +823,7 @@ const teamsPerJuryHint2 = computed(() => {
                   v-slot="{ checked, disabled }"
                   :disabled="!isExploreLaneAllowedPM(n) || e2Teams === 0"
                   :value="n"
+                  as="template"
               >
                 <button
                     :aria-disabled="disabled"
@@ -831,6 +834,7 @@ const teamsPerJuryHint2 = computed(() => {
                     class="px-2 py-1 rounded-md border text-sm transition
                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
                     type="button"
+                    @click="!disabled && updateByName('e2_lanes', n)"
                 >
                   {{ n }}
                 </button>
