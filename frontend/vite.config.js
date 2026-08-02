@@ -100,6 +100,14 @@ export default defineConfig(({mode}) => {
         // Proxy → Laravel (VITE_FILES_BASE_URL or http://localhost:8000). Backend must be running.
         server: {
             port: 5173,
+            // file:../../glass resolves outside frontend/; without this Vite rewrites
+            // @font-face urls to /@fs/... and serves 403 → system UI font instead of Uniform.
+            fs: {
+                allow: [
+                    fileURLToPath(new URL('.', import.meta.url)),
+                    fileURLToPath(new URL('../../glass', import.meta.url)),
+                ],
+            },
             proxy: {
                 // Blade-Views (unsere Tabelle)
                 '^/schedule/.*': {
