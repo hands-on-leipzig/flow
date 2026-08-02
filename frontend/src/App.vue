@@ -77,7 +77,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="isPublicRoute" class="min-h-screen w-full font-sans">
+  <div v-if="isPublicRoute" class="min-h-dvh w-full font-sans">
     <router-view/>
   </div>
 

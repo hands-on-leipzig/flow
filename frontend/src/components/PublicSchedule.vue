@@ -84,7 +84,10 @@ type TimedGroup = {
 type CalBlock = TimedGroup & {
   top: number
   height: number
-  overlapIndex: number
+  /** Spalte 0…n-1 bei parallelen Karten */
+  overlapCol: number
+  /** Anzahl Spalten im Overlap-Cluster */
+  overlapCols: number
   /** Langer Hintergrund-Block (Mittagessen etc.) mit Titel in der freien Mitte */
   isBand: boolean
   /** Titel-Position innerhalb des Bands (0–100%), Mitte der größten Lücke */
@@ -141,6 +144,46 @@ const roleAccent = computed(() => {
   const hex = selectedRoleMeta.value?.color_hex
   return hex ? `#${hex}` : '#ea580c'
 })
+
+type RoleSection = {
+  key: 'challenge' | 'explore' | 'general'
+  label: string
+  accent: string
+  roles: Role[]
+}
+
+/** Sections for the flat role picker (Challenge → Explore → Allgemein) */
+const roleSections = computed((): RoleSection[] => {
+  const buckets: Record<RoleSection['key'], RoleSection> = {
+    challenge: {key: 'challenge', label: 'Challenge', accent: '#ED1C24', roles: []},
+    explore: {key: 'explore', label: 'Explore', accent: '#00A651', roles: []},
+    general: {key: 'general', label: 'Allgemein', accent: '#6b7280', roles: []},
+  }
+
+  for (const role of roles.value) {
+    if (role.first_program === 3) {
+      if (role.color_hex) buckets.challenge.accent = `#${role.color_hex}`
+      buckets.challenge.roles.push(role)
+    } else if (role.first_program === 2) {
+      if (role.color_hex) buckets.explore.accent = `#${role.color_hex}`
+      buckets.explore.roles.push(role)
+    } else {
+      buckets.general.roles.push(role)
+    }
+  }
+
+  return (['challenge', 'explore', 'general'] as const)
+      .map((key) => buckets[key])
+      .filter((section) => section.roles.length > 0)
+})
+
+function roleNeedsPicker(role: Role): boolean {
+  return !(role.options.length === 1 && role.options[0].value == null)
+}
+
+function roleAccentHex(role: Role): string {
+  return role.color_hex ? `#${role.color_hex}` : '#6b7280'
+}
 
 const selectionLabel = computed(() => {
   const role = selectedRoleMeta.value
@@ -410,6 +453,45 @@ function largestFreeGapCenterPct(
   return ((center - bandStart) / span) * 100
 }
 
+/**
+ * Kalender-Spalten für parallele (nicht-Band) Events:
+ * Cluster überlappender Karten → greedy Spalten → volle Cluster-Breite teilen.
+ */
+function assignOverlapColumns(
+    cards: {id: number; startMs: number; endMs: number}[]
+): Map<number, {col: number; cols: number}> {
+  const sorted = [...cards].sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs)
+  const result = new Map<number, {col: number; cols: number}>()
+
+  let i = 0
+  while (i < sorted.length) {
+    const cluster = [sorted[i]]
+    let clusterEnd = sorted[i].endMs
+    let j = i + 1
+    while (j < sorted.length && sorted[j].startMs < clusterEnd) {
+      cluster.push(sorted[j])
+      clusterEnd = Math.max(clusterEnd, sorted[j].endMs)
+      j++
+    }
+
+    const colEndTimes: number[] = []
+    for (const ev of cluster) {
+      let col = 0
+      while (col < colEndTimes.length && colEndTimes[col] > ev.startMs) col++
+      if (col === colEndTimes.length) colEndTimes.push(ev.endMs)
+      else colEndTimes[col] = ev.endMs
+      result.set(ev.id, {col, cols: 0})
+    }
+    const cols = Math.max(1, colEndTimes.length)
+    for (const ev of cluster) {
+      const layout = result.get(ev.id)
+      if (layout) layout.cols = cols
+    }
+    i = j
+  }
+  return result
+}
+
 const calendarBlocks = computed((): CalBlock[] => {
   if (!dayRange.value) return []
   const base = dayRange.value.start
@@ -420,19 +502,19 @@ const calendarBlocks = computed((): CalBlock[] => {
       items.filter((i) => isBackgroundBand(i.group)).map((i) => i.group.activity_group_id)
   )
 
-  const activeCards: {endMs: number}[] = []
+  const cardLayouts = assignOverlapColumns(
+      items
+          .filter((i) => !bandIds.has(i.group.activity_group_id))
+          .map((i) => ({
+            id: i.group.activity_group_id,
+            startMs: i.startMs,
+            endMs: i.endMs,
+          }))
+  )
 
   return items.map((item) => {
     const isBand = bandIds.has(item.group.activity_group_id)
-
-    let overlapIndex = 0
-    if (!isBand) {
-      for (let i = activeCards.length - 1; i >= 0; i--) {
-        if (activeCards[i].endMs <= item.startMs) activeCards.splice(i, 1)
-      }
-      overlapIndex = activeCards.length
-      activeCards.push({endMs: item.endMs})
-    }
+    const layout = cardLayouts.get(item.group.activity_group_id)
 
     const blockers = isBand
         ? items.filter(
@@ -448,7 +530,8 @@ const calendarBlocks = computed((): CalBlock[] => {
       ...item,
       top: ((item.startMs - base) / 60000) * PX_PER_MINUTE,
       height: Math.max(((item.endMs - item.startMs) / 60000) * PX_PER_MINUTE, 2),
-      overlapIndex,
+      overlapCol: layout?.col ?? 0,
+      overlapCols: layout?.cols ?? 1,
       isBand,
       labelTopPct: isBand
           ? largestFreeGapCenterPct(item.startMs, item.endMs, blockers)
@@ -482,20 +565,25 @@ function blockStyle(block: CalBlock) {
       top: `${block.top}px`,
       height: `${block.height}px`,
       left: `${GUTTER}px`,
-      right: '0.45rem',
+      right: '0.35rem',
       zIndex: 2,
       '--accent': roleAccent.value,
       '--label-top': `${block.labelTopPct}%`,
     }
   }
-  // Nur kurze Karten untereinander leicht versetzen — nicht gegen Bänder
-  const indent = Math.min(block.overlapIndex, 2) * 8
+
+  // Parallele Karten teilen die Spur nebeneinander (Kalender-Spalten)
+  const cols = Math.max(1, block.overlapCols)
+  const col = Math.min(block.overlapCol, cols - 1)
+  const gap = 2
+  const track = `100% - ${GUTTER}px - 0.35rem`
   return {
     top: `${block.top}px`,
     height: `${block.height}px`,
-    left: `calc(${GUTTER}px + ${indent}px)`,
-    right: '0.45rem',
-    zIndex: 5 + block.overlapIndex + (block.current ? 2 : 0),
+    left: `calc(${GUTTER}px + (${track}) * ${col} / ${cols} + ${col > 0 ? gap / 2 : 0}px)`,
+    width: `calc((${track}) / ${cols} - ${gap}px)`,
+    right: 'auto',
+    zIndex: 5 + col + (block.current ? 2 : 0),
     '--accent': roleAccent.value,
   }
 }
@@ -506,25 +594,104 @@ function hourStyle(ms: number) {
   return {top: `${top}px`}
 }
 
-async function selectBlock(block: CalBlock | TimedGroup) {
+const planScrollEl = ref<HTMLElement | null>(null)
+const detailBodyEl = ref<HTMLElement | null>(null)
+
+/** Swipe-down to dismiss (touch + mouse / DevTools mobile preview) */
+const sheetDragY = ref(0)
+const sheetDragging = ref(false)
+let sheetDragStartY = 0
+let sheetPointerId: number | null = null
+let sheetDragFromBody = false
+
+const DISMISS_DISTANCE = 110
+
+function selectBlock(block: CalBlock | TimedGroup) {
   const id = block.group.activity_group_id
-  // Auch ohne Activity-Details auswählbar (Beschreibung / Fokus)
+  // Detail öffnet als Sheet — kein Page-Scroll
   selectedBlockId.value = selectedBlockId.value === id ? null : id
-  if (selectedBlockId.value == null) return
-  await nextTick()
-  document.querySelector('.public-schedule__detail-panel')?.scrollIntoView({
-    behavior: 'smooth',
-    block: 'nearest',
-  })
+  sheetDragY.value = 0
+  sheetDragging.value = false
 }
+
+function closeDetail() {
+  sheetDragY.value = 0
+  sheetDragging.value = false
+  sheetPointerId = null
+  selectedBlockId.value = null
+}
+
+function onSheetPointerDown(e: PointerEvent, fromBody = false) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  if (fromBody) {
+    const body = detailBodyEl.value
+    if (body && body.scrollTop > 2) return
+  }
+  sheetDragFromBody = fromBody
+  sheetDragStartY = e.clientY
+  sheetDragging.value = true
+  sheetDragY.value = 0
+  sheetPointerId = e.pointerId
+  ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
+}
+
+function onSheetPointerMove(e: PointerEvent) {
+  if (!sheetDragging.value || sheetPointerId !== e.pointerId) return
+  const dy = e.clientY - sheetDragStartY
+  if (sheetDragFromBody && dy < 0) {
+    sheetDragY.value = 0
+    return
+  }
+  sheetDragY.value = Math.max(0, dy)
+}
+
+function onSheetPointerUp(e: PointerEvent) {
+  if (!sheetDragging.value || sheetPointerId !== e.pointerId) return
+  const dy = sheetDragY.value
+  sheetDragging.value = false
+  sheetPointerId = null
+  sheetDragFromBody = false
+  try {
+    ;(e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId)
+  } catch {
+    /* already released */
+  }
+  if (dy >= DISMISS_DISTANCE) {
+    closeDetail()
+    return
+  }
+  sheetDragY.value = 0
+}
+
+const sheetPanelStyle = computed(() => ({
+  '--accent': roleAccent.value,
+  transform: sheetDragY.value ? `translateY(${sheetDragY.value}px)` : undefined,
+  transition: sheetDragging.value ? 'none' : 'transform 0.2s ease-out',
+}))
+
+const sheetBackdropStyle = computed(() => {
+  const fade = Math.max(0.12, 0.45 * (1 - sheetDragY.value / 280))
+  return {background: `rgb(15 23 42 / ${fade})`}
+})
 
 async function scrollToNow() {
   await nextTick()
   requestAnimationFrame(() => {
+    const container = planScrollEl.value
     const el =
+        (container?.querySelector('[data-current-block="true"]') as HTMLElement | null) ||
+        (container?.querySelector('[data-now-line="true"]') as HTMLElement | null) ||
         (document.querySelector('[data-current-block="true"]') as HTMLElement | null) ||
         (document.querySelector('[data-now-line="true"]') as HTMLElement | null)
-    el?.scrollIntoView({behavior: 'smooth', block: 'center'})
+    if (!el) return
+    if (container) {
+      const cRect = container.getBoundingClientRect()
+      const eRect = el.getBoundingClientRect()
+      const delta = eRect.top - cRect.top - container.clientHeight / 2 + eRect.height / 2
+      container.scrollBy({top: delta, behavior: 'smooth'})
+      return
+    }
+    el.scrollIntoView({behavior: 'smooth', block: 'center'})
   })
 }
 
@@ -629,7 +796,6 @@ async function selectOption(role: Role, option: RoleOption) {
   if (parameter === 'lane' && option.value != null) selectedLane.value = Number(option.value)
   if (parameter === 'table' && option.value != null) selectedTable.value = Number(option.value)
 
-  window.scrollTo({top: 0, behavior: 'auto'})
   await pushQuery({
     role: String(role.id),
     team: selectedTeam.value != null ? String(selectedTeam.value) : null,
@@ -661,7 +827,6 @@ async function backToRoles() {
     lane: null,
     table: null,
   })
-  window.scrollTo({top: 0, behavior: 'smooth'})
 }
 
 async function toggleExpired() {
@@ -676,7 +841,6 @@ async function openTeamPlan(teamNumber: number | null | undefined, firstProgram:
   selectedTeam.value = teamNumber
   selectedLane.value = null
   selectedTable.value = null
-  window.scrollTo({top: 0, behavior: 'auto'})
   await pushQuery({
     role: String(roleId),
     team: String(teamNumber),
@@ -703,6 +867,10 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (nowTimer) clearInterval(nowTimer)
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.overflow = ''
+    document.body.style.overflow = ''
+  }
 })
 
 watch(
@@ -728,22 +896,30 @@ watch(
       if (selectedRole.value != null) await loadSchedule()
     }
 )
+
+// Prevent document scroll while the plan chrome is fixed
+watch(
+    () => showDetail.value,
+    (locked) => {
+      if (typeof document === 'undefined') return
+      document.documentElement.style.overflow = locked ? 'hidden' : ''
+      document.body.style.overflow = locked ? 'hidden' : ''
+    },
+    {immediate: true}
+)
 </script>
 
 <template>
   <div
       class="public-schedule"
-      :class="{'public-schedule--embedded': embedded}"
+      :class="{
+        'public-schedule--embedded': embedded,
+        'public-schedule--plan-view': showDetail,
+        'public-schedule--sheet-open': showDetail && !!selectedItem,
+      }"
       :style="{'--accent': roleAccent}"
   >
     <div class="public-schedule__inner">
-      <header v-if="!showDetail" class="public-schedule__hero">
-        <p class="public-schedule__eyebrow">Online-Zeitplan</p>
-        <h1 class="public-schedule__title">
-          {{ eventName || 'Veranstaltungsplan' }}
-        </h1>
-      </header>
-
       <div v-if="loadingRoles" class="public-schedule__card public-schedule__card--center" role="status">
         Rollen werden geladen…
       </div>
@@ -753,112 +929,123 @@ watch(
       </div>
 
       <template v-else>
-        <div v-if="!showDetail" class="public-schedule__stack">
-          <p class="public-schedule__lead">
-            Tippe auf deine Rolle für den passenden Zeitplan.
-          </p>
+        <div v-if="!showDetail" class="public-schedule__picker">
+          <header class="public-schedule__picker-header">
+            <p class="public-schedule__eyebrow">Online-Zeitplan</p>
+            <h1 class="public-schedule__title">
+              {{ eventName || 'Veranstaltungsplan' }}
+            </h1>
+            <p class="public-schedule__lead">
+              Wer bist du? Tippe auf deine Rolle.
+            </p>
+          </header>
 
-          <div class="public-schedule__accordion">
-            <div v-for="role in roles" :key="role.id" class="public-schedule__accordion-item">
-              <button
-                  type="button"
-                  class="public-schedule__role-btn"
-                  :style="{backgroundColor: `#${role.color_hex}`}"
-                  :aria-expanded="openRoleId === role.id"
-                  @click="onRoleClick(role)"
-              >
-                <img
-                    :src="programLogo(role.first_program)"
-                    :alt="programLogoAlt(role.first_program || '')"
-                    class="public-schedule__role-logo"
-                />
-                <span class="public-schedule__role-name">{{ role.name }}</span>
-                <i
-                    v-if="!(role.options.length === 1 && role.options[0].value == null)"
-                    class="bi text-lg shrink-0"
-                    :class="openRoleId === role.id ? 'bi-chevron-up' : 'bi-chevron-down'"
+          <div class="public-schedule__role-list">
+            <section
+                v-for="section in roleSections"
+                :key="section.key"
+                class="public-schedule__role-section"
+            >
+              <h2 class="public-schedule__role-section-label">
+                <span
+                    class="public-schedule__role-section-dot"
+                    :style="{background: section.accent}"
                     aria-hidden="true"
                 />
-                <i v-else class="bi bi-chevron-right text-lg shrink-0" aria-hidden="true"/>
-              </button>
+                {{ section.label }}
+              </h2>
 
-              <div v-if="openRoleId === role.id" class="public-schedule__options">
-                <div v-if="showRoleSearch(role)" class="public-schedule__search-wrap">
-                  <input
-                      v-model="roleFilter"
-                      type="search"
-                      enterkeyhint="search"
-                      autocomplete="off"
-                      class="public-schedule__search"
-                      placeholder="Suchen…"
-                      :aria-label="`${role.name} suchen`"
-                  />
-                </div>
+              <div
+                  v-for="role in section.roles"
+                  :key="role.id"
+                  class="public-schedule__role-item"
+                  :class="{'public-schedule__role-item--open': openRoleId === role.id}"
+              >
                 <button
-                    v-for="(option, idx) in filteredOptions(role)"
-                    :key="`${role.id}-${idx}-${option.value}`"
                     type="button"
-                    class="public-schedule__option-btn"
-                    @click="selectOption(role, option)"
+                    class="public-schedule__role-btn"
+                    :aria-expanded="roleNeedsPicker(role) ? openRoleId === role.id : undefined"
+                    @click="onRoleClick(role)"
                 >
-                  <span :class="{'line-through opacity-50': option.noshow}">
-                    {{ option.label }}
-                  </span>
-                  <i class="bi bi-chevron-right opacity-50" aria-hidden="true"/>
+                  <span
+                      class="public-schedule__role-accent"
+                      :style="{background: roleAccentHex(role)}"
+                      aria-hidden="true"
+                  />
+                  <img
+                      :src="programLogo(role.first_program)"
+                      :alt="programLogoAlt(role.first_program || '')"
+                      class="public-schedule__role-logo"
+                  />
+                  <span class="public-schedule__role-name">{{ role.name }}</span>
+                  <i
+                      class="bi public-schedule__role-chevron"
+                      :class="roleNeedsPicker(role)
+                        ? (openRoleId === role.id ? 'bi-chevron-up' : 'bi-chevron-down')
+                        : 'bi-chevron-right'"
+                      aria-hidden="true"
+                  />
                 </button>
-                <p v-if="filteredOptions(role).length === 0" class="public-schedule__empty-filter">
-                  Keine Treffer.
-                </p>
+
+                <div v-if="openRoleId === role.id && roleNeedsPicker(role)" class="public-schedule__options">
+                  <div v-if="showRoleSearch(role)" class="public-schedule__search-wrap">
+                    <input
+                        v-model="roleFilter"
+                        type="search"
+                        enterkeyhint="search"
+                        autocomplete="off"
+                        class="public-schedule__search"
+                        placeholder="Suchen…"
+                        :aria-label="`${role.name} suchen`"
+                    />
+                  </div>
+                  <button
+                      v-for="(option, idx) in filteredOptions(role)"
+                      :key="`${role.id}-${idx}-${option.value}`"
+                      type="button"
+                      class="public-schedule__option-btn"
+                      @click="selectOption(role, option)"
+                  >
+                    <span :class="{'line-through opacity-50': option.noshow}">
+                      {{ option.label }}
+                    </span>
+                    <i class="bi bi-chevron-right opacity-40" aria-hidden="true"/>
+                  </button>
+                  <p v-if="filteredOptions(role).length === 0" class="public-schedule__empty-filter">
+                    Keine Treffer.
+                  </p>
+                </div>
               </div>
-            </div>
+            </section>
           </div>
         </div>
 
-        <!-- Single-column time rail -->
-        <div v-else class="public-schedule__stack">
-          <div class="public-schedule__toolbar">
-            <button type="button" class="public-schedule__back" @click="backToRoles">
-              <i class="bi bi-arrow-left" aria-hidden="true"/>
-              <span>Rollen</span>
-            </button>
+        <!-- Plan view: fixed chrome + scrollable calendar only -->
+        <div v-else class="public-schedule__plan">
+          <header class="public-schedule__chrome">
+            <div class="public-schedule__toolbar">
+              <button type="button" class="public-schedule__back" @click="backToRoles">
+                <i class="bi bi-arrow-left" aria-hidden="true"/>
+                <span>Rollen</span>
+              </button>
 
-            <div class="public-schedule__toolbar-center">
-              <p v-if="eventName" class="public-schedule__toolbar-event">{{ eventName }}</p>
-              <h2 class="public-schedule__selection">{{ selectionLabel }}</h2>
+              <div class="public-schedule__toolbar-center">
+                <p v-if="eventName" class="public-schedule__toolbar-event">{{ eventName }}</p>
+                <h2 class="public-schedule__selection">{{ selectionLabel }}</h2>
+              </div>
+
+              <label class="public-schedule__toggle">
+                <input
+                    type="checkbox"
+                    class="public-schedule__toggle-input"
+                    :checked="!includeExpired"
+                    @change="toggleExpired"
+                />
+                <span>Nur noch Kommende</span>
+              </label>
             </div>
 
-            <label class="public-schedule__toggle">
-              <input
-                  type="checkbox"
-                  class="public-schedule__toggle-input"
-                  :checked="!includeExpired"
-                  @change="toggleExpired"
-              />
-              <span>Nur noch Kommende</span>
-            </label>
-          </div>
-
-          <div v-if="loadingSchedule" class="public-schedule__card public-schedule__card--center" role="status">
-            Zeitplan wird geladen…
-          </div>
-
-          <div
-              v-else-if="!timedGroups.length"
-              class="public-schedule__card public-schedule__card--center"
-          >
-            Keine Einträge für diese Auswahl.
-            <button
-                v-if="!includeExpired"
-                type="button"
-                class="public-schedule__text-action"
-                @click="toggleExpired"
-            >
-              Vergangene auch anzeigen
-            </button>
-          </div>
-
-          <template v-else>
-            <div class="public-schedule__daymeta">
+            <div v-if="!loadingSchedule && timedGroups.length" class="public-schedule__daymeta">
               <div>
                 <p class="public-schedule__daymeta-label">Tagesverlauf</p>
                 <p class="public-schedule__daymeta-range">{{ dayLabel }}</p>
@@ -873,8 +1060,33 @@ watch(
                 Jetzt {{ clockLabel() }}
               </button>
             </div>
+          </header>
 
-            <div class="public-schedule__calendar" aria-label="Tageskalender im Zeitmaßstab">
+          <div ref="planScrollEl" class="public-schedule__plan-scroll">
+            <div v-if="loadingSchedule" class="public-schedule__card public-schedule__card--center" role="status">
+              Zeitplan wird geladen…
+            </div>
+
+            <div
+                v-else-if="!timedGroups.length"
+                class="public-schedule__card public-schedule__card--center"
+            >
+              Keine Einträge für diese Auswahl.
+              <button
+                  v-if="!includeExpired"
+                  type="button"
+                  class="public-schedule__text-action"
+                  @click="toggleExpired"
+              >
+                Vergangene auch anzeigen
+              </button>
+            </div>
+
+            <div
+                v-else
+                class="public-schedule__calendar"
+                aria-label="Tageskalender im Zeitmaßstab"
+            >
               <div
                   class="public-schedule__timeline"
                   :style="{
@@ -915,14 +1127,13 @@ watch(
                       'public-schedule__block--past': block.past,
                       'public-schedule__block--selected': selectedBlockId === block.group.activity_group_id,
                       'public-schedule__block--compact': !block.isBand && block.height < 44,
-                      'public-schedule__block--overlap': !block.isBand && block.overlapIndex > 0,
+                      'public-schedule__block--narrow': !block.isBand && block.overlapCols >= 3,
                     }"
                     :style="blockStyle(block)"
                     :data-current-block="block.current ? 'true' : undefined"
                     :data-event-id="block.group.activity_group_id"
                     @click="selectBlock(block)"
                 >
-                  <!-- Langer Hintergrundblock: Titel in der größten freien Lücke -->
                   <template v-if="block.isBand">
                     <div class="public-schedule__band-label">
                       <span class="public-schedule__band-title">
@@ -954,105 +1165,144 @@ watch(
                 </button>
               </div>
             </div>
+          </div>
 
-            <section
-                v-if="selectedItem"
-                class="public-schedule__detail-panel"
-                :class="{'public-schedule__detail-panel--current': selectedItem.current}"
-            >
-              <div class="public-schedule__detail-head">
-                <div>
-                  <p v-if="selectedItem.current" class="public-schedule__detail-kicker">Läuft gerade</p>
-                  <h3 class="public-schedule__detail-title">
-                    {{ selectedItem.group.group_meta?.name || 'Programmpunkt' }}
-                  </h3>
-                  <p class="public-schedule__detail-time">
-                    {{ timeLabel(selectedItem.group.start_time) }}
-                    – {{ timeLabel(selectedItem.group.end_time) }}
-                    <span class="opacity-70"> · {{ durationLabel(selectedItem.durationMin) }}</span>
-                  </p>
-                </div>
-                <button
-                    type="button"
-                    class="public-schedule__detail-close"
-                    aria-label="Schließen"
-                    @click="selectedBlockId = null"
-                >
-                  <i class="bi bi-x-lg" aria-hidden="true"/>
-                </button>
-              </div>
-
-              <p
-                  v-if="selectedItem.group.group_meta?.description"
-                  class="public-schedule__detail-desc"
-              >
-                {{ selectedItem.group.group_meta.description }}
-              </p>
-
-              <p v-if="selectedItem.room" class="public-schedule__detail-room">
-                <i class="bi bi-geo" aria-hidden="true"/>
-                {{ selectedItem.room }}
-              </p>
-
-              <ul
-                  v-if="hasExpandableDetail(selectedItem.group)"
-                  class="public-schedule__activities"
-              >
-                <li
-                    v-for="activity in detailActivities(selectedItem.group)"
-                    :key="activity.activity_id"
-                    class="public-schedule__activity"
-                >
-                  <div class="public-schedule__activity-top">
-                    <div class="public-schedule__activity-name">
-                      {{ activity.activity_name || 'Aktivität' }}
-                    </div>
-                    <div class="public-schedule__activity-time">
-                      {{ timeLabel(activity.start_time) }}
-                      <template v-if="activity.end_time">–{{ timeLabel(activity.end_time) }}</template>
-                    </div>
-                  </div>
-                  <div
-                      v-if="activity.team_name || activity.table_1_team_name || activity.table_2_team_name || activity.lane"
-                      class="public-schedule__chips"
-                  >
-                    <button
-                        v-if="activity.team_name && activity.team"
-                        type="button"
-                        class="public-schedule__chip public-schedule__chip--action"
-                        @click="openTeamPlan(activity.team, activity.meta?.first_program_id)"
-                    >
-                      {{ activity.team_name }}
-                    </button>
-                    <button
-                        v-if="activity.table_1_team_name && activity.table_1_team"
-                        type="button"
-                        class="public-schedule__chip public-schedule__chip--action"
-                        @click="openTeamPlan(activity.table_1_team, activity.meta?.first_program_id)"
-                    >
-                      <span v-if="activity.table_1_name" class="opacity-70">{{ activity.table_1_name }} · </span>
-                      {{ activity.table_1_team_name }}
-                    </button>
-                    <button
-                        v-if="activity.table_2_team_name && activity.table_2_team"
-                        type="button"
-                        class="public-schedule__chip public-schedule__chip--action"
-                        @click="openTeamPlan(activity.table_2_team, activity.meta?.first_program_id)"
-                    >
-                      <span v-if="activity.table_2_name" class="opacity-70">{{ activity.table_2_name }} · </span>
-                      {{ activity.table_2_team_name }}
-                    </button>
-                    <span v-if="activity.lane" class="public-schedule__chip">Bahn {{ activity.lane }}</span>
-                  </div>
-                </li>
-              </ul>
-            </section>
-
-            <p v-else class="public-schedule__hint">Tippe auf einen Block für Details.</p>
-          </template>
         </div>
       </template>
     </div>
+
+    <!-- Sheet teleported to body: always viewport-wide, ignores parent frames -->
+    <Teleport to="body">
+      <div
+          v-if="showDetail && selectedItem"
+          class="public-schedule__sheet"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="selectedItem.group.group_meta?.name || 'Programmpunkt'"
+      >
+        <button
+            type="button"
+            class="public-schedule__sheet-backdrop"
+            aria-label="Details schließen"
+            :style="sheetBackdropStyle"
+            @click="closeDetail"
+        />
+        <section
+            class="public-schedule__detail-panel"
+            :class="{
+              'public-schedule__detail-panel--current': selectedItem.current,
+              'public-schedule__detail-panel--dragging': sheetDragging,
+            }"
+            :style="sheetPanelStyle"
+        >
+          <div
+              class="public-schedule__detail-head"
+              @pointerdown="onSheetPointerDown($event, false)"
+              @pointermove="onSheetPointerMove"
+              @pointerup="onSheetPointerUp"
+              @pointercancel="onSheetPointerUp"
+          >
+            <div class="public-schedule__sheet-handle" aria-hidden="true"/>
+            <div class="public-schedule__detail-head-row">
+              <div>
+                <p v-if="selectedItem.current" class="public-schedule__detail-kicker">Läuft gerade</p>
+                <h3 class="public-schedule__detail-title">
+                  {{ selectedItem.group.group_meta?.name || 'Programmpunkt' }}
+                </h3>
+                <p class="public-schedule__detail-time">
+                  {{ timeLabel(selectedItem.group.start_time) }}
+                  – {{ timeLabel(selectedItem.group.end_time) }}
+                  <span class="opacity-70"> · {{ durationLabel(selectedItem.durationMin) }}</span>
+                </p>
+              </div>
+              <button
+                  type="button"
+                  class="public-schedule__detail-close"
+                  aria-label="Schließen"
+                  @pointerdown.stop
+                  @click="closeDetail"
+              >
+                <i class="bi bi-x-lg" aria-hidden="true"/>
+              </button>
+            </div>
+          </div>
+
+          <div
+              ref="detailBodyEl"
+              class="public-schedule__detail-body"
+              @pointerdown="onSheetPointerDown($event, true)"
+              @pointermove="onSheetPointerMove"
+              @pointerup="onSheetPointerUp"
+              @pointercancel="onSheetPointerUp"
+          >
+            <p
+                v-if="selectedItem.group.group_meta?.description"
+                class="public-schedule__detail-desc"
+            >
+              {{ selectedItem.group.group_meta.description }}
+            </p>
+
+            <p v-if="selectedItem.room" class="public-schedule__detail-room">
+              <i class="bi bi-geo" aria-hidden="true"/>
+              {{ selectedItem.room }}
+            </p>
+
+            <ul
+                v-if="hasExpandableDetail(selectedItem.group)"
+                class="public-schedule__activities"
+            >
+              <li
+                  v-for="activity in detailActivities(selectedItem.group)"
+                  :key="activity.activity_id"
+                  class="public-schedule__activity"
+              >
+                <div class="public-schedule__activity-top">
+                  <div class="public-schedule__activity-name">
+                    {{ activity.activity_name || 'Aktivität' }}
+                  </div>
+                  <div class="public-schedule__activity-time">
+                    {{ timeLabel(activity.start_time) }}
+                    <template v-if="activity.end_time">–{{ timeLabel(activity.end_time) }}</template>
+                  </div>
+                </div>
+                <div
+                    v-if="activity.team_name || activity.table_1_team_name || activity.table_2_team_name || activity.lane"
+                    class="public-schedule__chips"
+                >
+                  <button
+                      v-if="activity.team_name && activity.team"
+                      type="button"
+                      class="public-schedule__chip public-schedule__chip--action"
+                      @click="openTeamPlan(activity.team, activity.meta?.first_program_id)"
+                  >
+                    {{ activity.team_name }}
+                  </button>
+                  <button
+                      v-if="activity.table_1_team_name && activity.table_1_team"
+                      type="button"
+                      class="public-schedule__chip public-schedule__chip--action"
+                      @click="openTeamPlan(activity.table_1_team, activity.meta?.first_program_id)"
+                  >
+                    <span v-if="activity.table_1_name" class="opacity-70">{{ activity.table_1_name }} · </span>
+                    {{ activity.table_1_team_name }}
+                  </button>
+                  <button
+                      v-if="activity.table_2_team_name && activity.table_2_team"
+                      type="button"
+                      class="public-schedule__chip public-schedule__chip--action"
+                      @click="openTeamPlan(activity.table_2_team, activity.meta?.first_program_id)"
+                  >
+                    <span v-if="activity.table_2_name" class="opacity-70">{{ activity.table_2_name }} · </span>
+                    {{ activity.table_2_team_name }}
+                  </button>
+                  <span v-if="activity.lane" class="public-schedule__chip">Bahn {{ activity.lane }}</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1061,7 +1311,7 @@ watch(
   --accent: #ea580c;
   min-height: 100dvh;
   width: 100%;
-  background: linear-gradient(180deg, #fff7ed 0%, #fffbeb 35%, #f8fafc 100%);
+  background: #f8fafc;
   color: #111827;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
@@ -1072,17 +1322,138 @@ watch(
       env(safe-area-inset-left, 0px);
 }
 
-.public-schedule__inner {
+/* Plan view: fill the available viewport, no side frames */
+.public-schedule--plan-view,
+.public-schedule--embedded.public-schedule--plan-view {
+  height: 100%;
+  max-height: 100dvh;
+  min-height: 100%;
   width: 100%;
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 0.85rem 0.75rem 1.75rem;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
 }
 
-.public-schedule__hero { margin-bottom: 0.85rem; }
+.public-schedule--plan-view .public-schedule__inner {
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.public-schedule--embedded {
+  min-height: 100%;
+  height: 100%;
+  padding: 0;
+}
+
+.public-schedule__inner {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.public-schedule__picker {
+  min-height: 100dvh;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.public-schedule--embedded .public-schedule__picker {
+  min-height: 100%;
+}
+
+.public-schedule__picker-header {
+  padding: 1rem 1rem 0.85rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.public-schedule__role-list {
+  flex: 1;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.public-schedule__role-section {
+  padding-top: 0.85rem;
+}
+
+.public-schedule__role-section + .public-schedule__role-section {
+  border-top: 1px solid #f3f4f6;
+  margin-top: 0.35rem;
+}
+
+.public-schedule__role-section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 1rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.public-schedule__role-section-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.public-schedule__role-item {
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.public-schedule__role-item--open {
+  background: #fafafa;
+}
+
+.public-schedule__plan {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.public-schedule__chrome {
+  flex-shrink: 0;
+  z-index: 30;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.public-schedule__plan-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  background: #fff;
+}
+
+.public-schedule__plan-scroll > .public-schedule__card {
+  margin: 1rem 0.75rem;
+  border-radius: 0.75rem;
+  box-shadow: none;
+  border: 1px solid #e5e7eb;
+}
 
 .public-schedule__eyebrow {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1090,14 +1461,15 @@ watch(
 }
 
 .public-schedule__title {
-  margin-top: 0.2rem;
-  font-size: clamp(1.25rem, 5.5vw, 1.65rem);
+  margin-top: 0.15rem;
+  font-size: clamp(1.35rem, 5.5vw, 1.75rem);
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
 
 .public-schedule__lead {
+  margin-top: 0.35rem;
   font-size: 0.9375rem;
   line-height: 1.4;
   color: #4b5563;
@@ -1110,6 +1482,7 @@ watch(
 }
 
 .public-schedule__card {
+  margin: 1rem 0.75rem;
   border-radius: 0.9rem;
   background: #fff;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
@@ -1138,98 +1511,104 @@ watch(
   padding: 0.5rem 0.75rem;
 }
 
-.public-schedule__accordion {
-  border-radius: 0.9rem;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
-  overflow: hidden;
-}
-
 .public-schedule__role-btn {
   width: 100%;
-  min-height: 3.5rem;
+  min-height: 3.25rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.9rem 1rem;
+  gap: 0.7rem;
+  padding: 0.7rem 1rem 0.7rem 0.75rem;
   text-align: left;
-  color: #fff;
+  color: #111827;
+  background: transparent;
 }
 
-.public-schedule__role-btn:active { filter: brightness(0.95); }
+.public-schedule__role-btn:active {
+  background: #f3f4f6;
+}
+
+.public-schedule__role-accent {
+  width: 3px;
+  align-self: stretch;
+  min-height: 1.5rem;
+  margin: 0.15rem 0;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
 
 .public-schedule__role-logo {
-  width: 2rem;
-  height: 2rem;
+  width: 1.75rem;
+  height: 1.75rem;
   flex-shrink: 0;
-  background: rgb(255 255 255 / 0.22);
-  border-radius: 0.4rem;
-  padding: 0.15rem;
+  border-radius: 0.3rem;
+  object-fit: contain;
 }
 
 .public-schedule__role-name {
   flex: 1;
-  font-weight: 750;
-  font-size: 1.05rem;
+  font-weight: 700;
+  font-size: 1.02rem;
   line-height: 1.25;
 }
 
-.public-schedule__options { background: #fafafa; }
+.public-schedule__role-chevron {
+  font-size: 1rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.public-schedule__options {
+  background: #f8fafc;
+  border-top: 1px solid #eef2f7;
+}
 
 .public-schedule__search-wrap {
-  padding: 0.65rem 0.75rem 0.25rem;
-  border-top: 1px solid #f3f4f6;
+  padding: 0.55rem 1rem 0.25rem 1.35rem;
 }
 
 .public-schedule__search {
   width: 100%;
-  min-height: 2.75rem;
+  min-height: 2.6rem;
   border: 1px solid #e5e7eb;
-  border-radius: 0.65rem;
-  padding: 0.55rem 0.75rem;
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.7rem;
   font-size: 1rem;
   background: #fff;
 }
 
 .public-schedule__option-btn {
   width: 100%;
-  min-height: 3.15rem;
+  min-height: 2.9rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.85rem 1rem;
+  padding: 0.7rem 1rem 0.7rem 1.35rem;
   text-align: left;
-  font-size: 1rem;
-  border-top: 1px solid #f3f4f6;
+  font-size: 0.98rem;
+  border-top: 1px solid #eef2f7;
   line-height: 1.3;
+  color: #1f2937;
 }
 
 .public-schedule__option-btn:active { background: #fff7ed; }
 
 .public-schedule__empty-filter {
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 1rem 0.75rem 1.35rem;
   font-size: 0.875rem;
   color: #6b7280;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid #eef2f7;
 }
 
 .public-schedule__toolbar {
-  position: sticky;
-  top: env(safe-area-inset-top, 0px);
-  z-index: 20;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-areas:
     "back center"
     "toggle toggle";
   gap: 0.35rem 0.65rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.9rem;
-  background: rgb(255 255 255 / 0.94);
-  border: 1px solid #ececec;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.06);
-  backdrop-filter: blur(12px);
+  padding: 0.55rem 0.75rem;
+  background: #fff;
 }
 
 .public-schedule__back {
@@ -1298,7 +1677,8 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0 0.1rem;
+  padding: 0.35rem 0.75rem 0.55rem;
+  border-top: 1px solid #f3f4f6;
 }
 
 .public-schedule__daymeta-label {
@@ -1320,9 +1700,9 @@ watch(
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  min-height: 2.5rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 999px;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.5rem;
   background: #fff7ed;
   border: 1px solid #fdba74;
   color: #9a3412;
@@ -1333,13 +1713,10 @@ watch(
 
 .public-schedule__jump-now:active { background: #ffedd5; }
 
-/* ─── 1:1 calendar grid ─── */
+/* ─── 1:1 calendar grid (edge-to-edge, flat) ─── */
 .public-schedule__calendar {
-  border-radius: 1rem;
   background: #fff;
-  border: 1px solid #ececec;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
-  overflow: hidden;
+  width: 100%;
 }
 
 .public-schedule__timeline {
@@ -1365,9 +1742,9 @@ watch(
 
 .public-schedule__hour-label {
   position: absolute;
-  left: 0.2rem;
+  left: 0.15rem;
   top: -0.55rem;
-  width: calc(var(--gutter) - 8px);
+  width: calc(var(--gutter) - 6px);
   text-align: right;
   font-size: 0.7rem;
   font-weight: 750;
@@ -1424,14 +1801,13 @@ watch(
   display: flex;
   align-items: stretch;
   padding: 0;
-  border: 1px solid rgb(234 88 12 / 0.25);
-  border-radius: 0.55rem;
-  background: rgb(255 247 237 / 0.96);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  border: 1px solid rgb(234 88 12 / 0.22);
+  border-radius: 0.35rem;
+  background: #fff7ed;
+  box-shadow: none;
   overflow: hidden;
   text-align: left;
   color: inherit;
-  scroll-margin-top: calc(6.5rem + env(safe-area-inset-top, 0px));
 }
 
 .public-schedule__block--band {
@@ -1486,8 +1862,13 @@ watch(
   color: #94a3b8;
 }
 
-.public-schedule__block--overlap {
-  background: rgb(255 247 237 / 0.97);
+.public-schedule__block--narrow .public-schedule__block-title {
+  font-size: 0.72rem;
+  -webkit-line-clamp: 2;
+}
+
+.public-schedule__block--narrow .public-schedule__block-meta {
+  font-size: 0.62rem;
 }
 
 .public-schedule__block--past:not(.public-schedule__block--band) {
@@ -1569,34 +1950,98 @@ watch(
   text-overflow: ellipsis;
 }
 
-.public-schedule__hint {
-  text-align: center;
-  font-size: 0.85rem;
-  color: #9ca3af;
-  padding: 0.15rem;
+/* Fixed to viewport (teleported) — ignores iframe/parent max-width frames */
+.public-schedule__sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+  width: 100vw;
+  max-width: 100vw;
+}
+
+.public-schedule__sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgb(15 23 42 / 0.45);
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .public-schedule__detail-panel {
-  border-radius: 1rem;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(75dvh, 36rem);
+  display: flex;
+  flex-direction: column;
+  border-radius: 0.75rem 0.75rem 0 0;
   background: #fff;
-  border: 1px solid #ececec;
-  box-shadow: 0 4px 18px rgb(0 0 0 / 0.06);
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -4px 24px rgb(15 23 42 / 0.18);
   overflow: hidden;
-  scroll-margin-top: calc(6.5rem + env(safe-area-inset-top, 0px));
+  animation: public-schedule-sheet-in 0.18s ease-out;
 }
 
-.public-schedule__detail-panel--current {
-  border-color: #fdba74;
+@keyframes public-schedule-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.public-schedule__sheet-handle {
+  width: 2.75rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.35);
+  margin: 0 auto 0.55rem;
+  flex-shrink: 0;
+}
+
+.public-schedule__detail-panel--current .public-schedule__detail-head {
+  background: #1f2937;
 }
 
 .public-schedule__detail-head {
   display: flex;
+  flex-direction: column;
+  padding: 0.45rem 0.85rem 0.75rem;
+  background: #111827;
+  color: #fff;
+  flex-shrink: 0;
+  border-radius: 0.75rem 0.75rem 0 0;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.public-schedule__detail-panel--dragging .public-schedule__detail-head {
+  cursor: grabbing;
+}
+
+.public-schedule__detail-head-row {
+  display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.85rem 0.9rem 0.65rem;
-  background: #111827;
-  color: #fff;
+}
+
+.public-schedule__detail-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
 
 .public-schedule__detail-kicker {
@@ -1642,6 +2087,7 @@ watch(
 
 .public-schedule__detail-desc {
   padding: 0.75rem 0.9rem 0;
+  margin: 0;
   font-size: 0.85rem;
   color: #4b5563;
   line-height: 1.4;
@@ -1649,6 +2095,7 @@ watch(
 
 .public-schedule__detail-room {
   padding: 0.45rem 0.9rem 0;
+  margin: 0;
   font-size: 0.85rem;
   color: #6b7280;
   display: flex;

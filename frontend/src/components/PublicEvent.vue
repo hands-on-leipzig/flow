@@ -385,7 +385,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 w-full min-h-screen">
+  <div
+      class="w-full"
+      :class="(!loading && !error && event && isContentVisible(4) && publicPlanId)
+        ? 'h-dvh overflow-hidden bg-white'
+        : 'min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50'"
+  >
     <!-- Loading State -->
     <div v-if="loading" class="min-h-screen flex items-center justify-center">
       <div class="text-center">
@@ -437,9 +442,11 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Level 4: Interactive public schedule (Vue) — mobile-first, works with or without PWA -->
-    <div v-if="!loading && !error && event && isContentVisible(4) && publicPlanId"
-         class="w-full min-h-dvh">
+    <!-- Level 4: Interactive public schedule — edge-to-edge, no outer frame -->
+    <div
+        v-if="!loading && !error && event && isContentVisible(4) && publicPlanId"
+        class="w-full h-dvh overflow-hidden"
+    >
       <PublicSchedule :plan-id="publicPlanId" embedded/>
     </div>
 
