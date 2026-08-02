@@ -791,25 +791,22 @@ const updateTableName = async () => {
     </div>
 
     <!-- Error Alert Banner -->
-    <div v-if="generatorError" class="bg-red-50 border-l-4 border-red-500 p-3 md:p-4 rounded shadow-lg">
+    <div v-if="generatorError" class="glass-alert-error">
       <div class="flex items-start justify-between gap-2">
         <div class="flex-1 min-w-0">
-          <div class="flex items-center">
-            <svg class="h-4 w-4 md:h-5 md:w-5 text-red-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-            </svg>
-            <h3 class="text-red-800 font-semibold text-sm md:text-lg break-words">{{ generatorError }}</h3>
+          <div class="flex items-center gap-2">
+            <i class="bi bi-exclamation-triangle-fill text-[#dc2626] flex-shrink-0" aria-hidden="true"/>
+            <h3 class="font-semibold text-sm md:text-base break-words">{{ generatorError }}</h3>
           </div>
-          <p v-if="errorDetails" class="mt-2 text-red-700 text-xs md:text-sm break-words">{{ errorDetails }}</p>
+          <p v-if="errorDetails" class="mt-2 text-xs md:text-sm text-[var(--color-text-muted)] break-words">{{ errorDetails }}</p>
         </div>
         <button
+          type="button"
           @click="generatorError = null; errorDetails = null"
-          class="ml-2 text-red-500 hover:text-red-700 focus:outline-none flex-shrink-0"
+          class="ml-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] focus:outline-none flex-shrink-0"
           aria-label="Fehler schließen"
         >
-          <svg class="h-4 w-4 md:h-5 md:w-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-          </svg>
+          <i class="bi bi-x-lg" aria-hidden="true"/>
         </button>
       </div>
     </div>

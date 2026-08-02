@@ -7,6 +7,8 @@ import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 type TabKey = 'public' | 'organisation' | 'aufkleber'
 const PDF_TABS: { key: TabKey; label: string }[] = [
@@ -155,7 +157,7 @@ async function downloadRoomUtilizationCsv() {
     window.URL.revokeObjectURL(link.href)
   } catch (error) {
     console.error('Fehler beim CSV-Download (Raumnutzung):', error)
-    alert('Fehler beim Herunterladen der Raumnutzung. Bitte versuche es erneut.')
+    showGlassToast('Fehler beim Herunterladen der Raumnutzung. Bitte versuche es erneut.', 'error')
   } finally {
     isDownloadingCsv.value = false
   }
@@ -407,7 +409,7 @@ async function downloadNameTagsPdf() {
   } catch (error: any) {
     console.error('Fehler beim PDF-Download (Team Labels):', error)
     const errorMessage = error.response?.data?.message || error.message || 'Unbekannter Fehler'
-    alert('Fehler beim Erstellen des PDFs: ' + errorMessage)
+    showGlassToast('Fehler beim Erstellen des PDFs: ' + errorMessage, 'error')
   } finally {
     isDownloading.value['name-tags'] = false
   }
@@ -505,7 +507,7 @@ async function downloadVolunteerLabelsPdf() {
   } catch (error: any) {
     console.error('Fehler beim PDF-Download (Volunteer Labels):', error)
     const errorMessage = error.response?.data?.message || error.message || 'Unbekannter Fehler'
-    alert('Fehler beim Erstellen des PDFs: ' + errorMessage)
+    showGlassToast('Fehler beim Erstellen des PDFs: ' + errorMessage, 'error')
   } finally {
     isDownloading.value['volunteer-labels'] = false
   }
@@ -739,10 +741,8 @@ const currentTabLabel = computed(() =>
             <p class="text-sm text-[var(--color-text-muted)]">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
           </div>
           <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-            :class="!isDownloading.overview 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            :class="isDownloading.overview ? '!opacity-50' : ''"
             :disabled="isDownloading.overview"
             @click="downloadEventOverviewPdf()"
           >
@@ -766,7 +766,7 @@ const currentTabLabel = computed(() =>
       <!-- Warning box -->
       <div
         v-if="hasRoomIssues"
-        class="mt-3 flex items-start bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-3 rounded"
+        class="glass-alert-warning mt-3 flex items-start"
       >
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
@@ -784,10 +784,8 @@ const currentTabLabel = computed(() =>
       <div class="mt-4 flex justify-between">
         <!-- Raumnutzung CSV Button -->
         <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2"
-          :class="!isDownloadingCsv 
-            ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+          :class="isDownloadingCsv ? '!opacity-50' : ''"
           :disabled="isDownloadingCsv"
           @click="downloadRoomUtilizationCsv"
         >
@@ -801,10 +799,8 @@ const currentTabLabel = computed(() =>
 
         <!-- PDF Button -->
         <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2"
-          :class="!isDownloading.rooms 
-            ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+          :class="isDownloading.rooms ? '!opacity-50' : ''"
           :disabled="isDownloading.rooms"
           @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, 'Räume.pdf')"
         >
@@ -828,7 +824,7 @@ const currentTabLabel = computed(() =>
       <!-- Warning box -->
       <div
         v-if="hasTeamIssues"
-        class="mt-3 flex items-start bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-3 rounded"
+        class="glass-alert-warning mt-3 flex items-start"
       >
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
@@ -912,7 +908,7 @@ const currentTabLabel = computed(() =>
       <div class="mt-4 flex justify-between">
         <!-- HERO Schichten Button -->
         <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
+          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
           @click="showWorkerShiftsModal"
         >
           <span>HERO Schichten</span>
@@ -920,10 +916,8 @@ const currentTabLabel = computed(() =>
         
         <!-- PDF Button -->
         <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2"
-          :class="hasSelectedRoles && !isDownloading.roles 
-            ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+          :class="!(hasSelectedRoles && !isDownloading.roles) ? '!opacity-50' : ''"
           :disabled="!hasSelectedRoles || isDownloading.roles"
           @click="downloadRolesPdf"
         >
@@ -947,7 +941,7 @@ const currentTabLabel = computed(() =>
       <!-- Warning box -->
       <div
         v-if="hasTeamIssues"
-        class="mt-3 flex items-start bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 p-3 rounded"
+        class="glass-alert-warning mt-3 flex items-start"
       >
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
@@ -1026,10 +1020,8 @@ const currentTabLabel = computed(() =>
       <!-- PDF Button -->
       <div class="mt-4 flex justify-end">
         <button
-          class="px-4 py-2 rounded text-sm flex items-center gap-2"
-          :class="hasSelectedPrograms && !isDownloading.teams 
-            ? 'bg-gray-200 hover:bg-gray-300' 
-            : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+          :class="!(hasSelectedPrograms && !isDownloading.teams) ? '!opacity-50' : ''"
           :disabled="!hasSelectedPrograms || isDownloading.teams"
           @click="downloadTeamsPdf"
         >
@@ -1055,10 +1047,8 @@ const currentTabLabel = computed(() =>
             <p class="text-sm text-[var(--color-text-muted)] mt-2">Diese Liste hilft beim Check-In und bei den Briefings und Beratungen.</p>
           </div>
           <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-            :class="!isDownloading['team-list'] 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            :class="isDownloading['team-list'] ? '!opacity-50' : ''"
             :disabled="isDownloading['team-list']"
             @click="downloadTeamListPdf"
           >
@@ -1080,10 +1070,8 @@ const currentTabLabel = computed(() =>
             <p class="text-sm text-[var(--color-text-muted)]">Zeiten für alle Aktivitäten mit Moderation und kompletter Robot-Game-Matchplan</p>
           </div>
           <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-            :class="!isDownloading['moderator-match-plan'] 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            :class="isDownloading['moderator-match-plan'] ? '!opacity-50' : ''"
             :disabled="isDownloading['moderator-match-plan']"
             @click="downloadModeratorMatchPlanPdf"
           >
@@ -1105,10 +1093,8 @@ const currentTabLabel = computed(() =>
             <p class="text-sm text-[var(--color-text-muted)]">Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.</p>
           </div>
           <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-            :class="!isDownloading['slot-assignments'] 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            :class="isDownloading['slot-assignments'] ? '!opacity-50' : ''"
             :disabled="isDownloading['slot-assignments']"
             @click="downloadSlotAssignmentsPdf"
           >
@@ -1144,16 +1130,14 @@ const currentTabLabel = computed(() =>
         <!-- Buttons -->
         <div class="mt-4 flex justify-between">
           <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2 bg-gray-200 hover:bg-gray-300"
+            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
             @click="openMatchPlanModal"
           >
             <span>Online anzeigen</span>
           </button>
           <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2"
-            :class="!isDownloading['match-plan'] 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+            :class="isDownloading['match-plan'] ? '!opacity-50' : ''"
             :disabled="isDownloading['match-plan']"
             @click="downloadMatchPlanPdf"
           >
@@ -1175,10 +1159,8 @@ const currentTabLabel = computed(() =>
             <p class="text-sm text-[var(--color-text-muted)]">Volle Details, aber in einfacher Formatierung.</p>
           </div>
           <button
-            class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-            :class="!isDownloading.full 
-              ? 'bg-gray-200 hover:bg-gray-300' 
-              : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            :class="isDownloading.full ? '!opacity-50' : ''"
             :disabled="isDownloading.full"
             @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
           >
@@ -1316,10 +1298,8 @@ const currentTabLabel = computed(() =>
               />
             </label>
             <button
-              class="px-4 py-2 rounded text-sm flex items-center gap-2"
-              :class="canDownloadTeamLabels && !isDownloading['name-tags']
-                ? 'bg-gray-200 hover:bg-gray-300' 
-                : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+              class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+              :class="!(canDownloadTeamLabels && !isDownloading['name-tags']) ? '!opacity-50' : ''"
               :disabled="!canDownloadTeamLabels || isDownloading['name-tags']"
               @click="downloadNameTagsPdf"
             >
@@ -1408,7 +1388,7 @@ const currentTabLabel = computed(() =>
             <div class="flex gap-2">
               <button
                 @click="clearAllVolunteers"
-                class="px-4 py-2 rounded text-sm bg-gray-200 hover:bg-gray-300"
+                class="glass-btn-secondary !px-4 !py-2 !text-sm"
                 :disabled="volunteerPreview.length === 0 && submittedVolunteers.length === 0"
               >
                 Alles Löschen
@@ -1434,10 +1414,8 @@ const currentTabLabel = computed(() =>
               </label>
               <button
                 @click="downloadVolunteerLabelsPdf"
-                class="px-4 py-2 rounded text-sm flex items-center gap-2 flex-shrink-0"
-                :class="hasSubmittedVolunteers && !isDownloading['volunteer-labels']
-                  ? 'bg-gray-200 hover:bg-gray-300' 
-                  : 'bg-[var(--color-bg-muted)] cursor-not-allowed opacity-50'"
+                class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+                :class="!(hasSubmittedVolunteers && !isDownloading['volunteer-labels']) ? '!opacity-50' : ''"
                 :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
               >
               <svg v-if="isDownloading['volunteer-labels']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">

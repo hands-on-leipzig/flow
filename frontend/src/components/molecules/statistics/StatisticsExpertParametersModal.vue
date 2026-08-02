@@ -106,6 +106,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import axios from 'axios'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const props = defineProps<{
   planId: number
@@ -150,7 +152,7 @@ async function loadNonDefaultParameters() {
     tableNames.value = response.data.table_names || []
   } catch (err) {
     console.error('Error loading changed parameters:', err)
-    alert('Fehler beim Laden der veränderten Parameter')
+    showGlassToast('Fehler beim Laden der veränderten Parameter', 'error')
   } finally {
     loading.value = false
   }

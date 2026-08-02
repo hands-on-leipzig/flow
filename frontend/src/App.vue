@@ -6,6 +6,7 @@ import axios from "axios";
 const Navigation = defineAsyncComponent(() => import('@/components/Navigation.vue'));
 const NewsModal = defineAsyncComponent(() => import('@/components/atoms/NewsModal.vue'));
 const EventDayBanner = defineAsyncComponent(() => import('@/components/atoms/EventDayBanner.vue'));
+const GlassToast = defineAsyncComponent(() => import('@/components/atoms/GlassToast.vue'));
 
 // Check if current route is public (no navigation needed)
 const isPublicRoute = computed(() => {
@@ -92,4 +93,6 @@ onMounted(() => {
         @markRead="markNewsAsRead"
     />
   </Navigation>
+
+  <GlassToast/>
 </template>

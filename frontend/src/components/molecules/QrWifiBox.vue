@@ -252,7 +252,7 @@ onMounted(() => {
           />
           <button
               v-if="event?.qrcode"
-              class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+              class="glass-btn-secondary !px-3 !py-1 !text-sm"
               @click="downloadPng(`data:image/png;base64,${event.qrcode}`, 'FLOW_QR_Code_Plan.png')"
           >
             PNG
@@ -279,7 +279,7 @@ onMounted(() => {
 
           <button
               :disabled="isDownloading.plan"
-              class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300 flex items-center gap-2"
+              class="glass-btn-secondary !px-3 !py-1 !text-sm flex items-center gap-2"
               @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, 'Plan.pdf')"
           >
             <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -403,7 +403,7 @@ onMounted(() => {
           <template v-else-if="qrWifiUrl">
             <img :src="qrWifiUrl" alt="QR Wifi" class="w-20 h-20 mb-2 object-contain"/>
             <button
-                class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
+                class="glass-btn-secondary !px-3 !py-1 !text-sm"
                 @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
             >
               PNG
@@ -440,7 +440,7 @@ onMounted(() => {
 
           <button
               :disabled="isDownloading.plan_wifi"
-              class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300 flex items-center gap-2"
+              class="glass-btn-secondary !px-3 !py-1 !text-sm flex items-center gap-2"
               @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, 'Plan_WLAN.pdf')"
           >
             <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">

@@ -6,6 +6,8 @@ import {useEventStore} from "@/stores/event";
 import IconDraggable from "@/components/icons/IconDraggable.vue";
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import SavingToast from "@/components/atoms/SavingToast.vue"
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const props = defineProps({
   program: {type: String, required: true}, // 'explore' or 'challenge'
@@ -256,7 +258,7 @@ const applyDrahtTeam = async (team) => {
   // Note: ref can be 0, which is a valid team number, so we check for null/undefined only
   const teamNumberHot = team.draht.number ?? team.number ?? null
   if (teamNumberHot == null) {
-    alert('Fehler: Team-Nummer ist erforderlich. Das Team in DRAHT hat keine gültige "ref" (Team-Nummer).')
+    showGlassToast('Fehler: Team-Nummer ist erforderlich. Das Team in DRAHT hat keine gültige "ref" (Team-Nummer).', 'error')
     return
   }
 
@@ -295,7 +297,7 @@ const applyDrahtTeam = async (team) => {
     if (import.meta.env.DEV) {
       console.error(`Fehler beim Übernehmen von Team ${team.number || team.draht.name}`, e)
     }
-    alert('Fehler beim Übernehmen des Teams: ' + (e.response?.data?.message || e.message))
+    showGlassToast('Fehler beim Übernehmen des Teams: ' + (e.response?.data?.message || e.message), 'error')
   }
 }
 
@@ -337,7 +339,7 @@ const deleteTeam = async (team) => {
     if (import.meta.env.DEV) {
       console.error(`Fehler beim Löschen von Team ${team.local.name}`, e)
     }
-    alert('Fehler beim Löschen des Teams: ' + (e.response?.data?.message || e.message))
+    showGlassToast('Fehler beim Löschen des Teams: ' + (e.response?.data?.message || e.message), 'error')
   } finally {
     savingToast?.value?.hide()
   }

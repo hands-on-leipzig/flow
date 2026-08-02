@@ -236,6 +236,8 @@ import axios from 'axios'
 import MParameter from './MParameter.vue'
 import Visibility from './Visibility.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 // Reactive data
 const selectedTable = ref('')
@@ -444,7 +446,7 @@ const saveRecord = async (index) => {
     editingData.value = {}
   } catch (error) {
     console.error('Error saving record:', error)
-    alert('Fehler beim Speichern des Datensatzes: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler beim Speichern des Datensatzes: ' + (error.response?.data?.message || error.message), 'error')
   }
 }
 
@@ -473,7 +475,7 @@ const deleteRecord = async () => {
     recordToDelete.value = null
   } catch (error) {
     console.error('Error deleting record:', error)
-    alert('Fehler beim Löschen des Datensatzes: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler beim Löschen des Datensatzes: ' + (error.response?.data?.message || error.message), 'error')
     recordToDelete.value = null
   }
 }
@@ -497,7 +499,7 @@ const createGitHubPR = async () => {
     const message = response.data.success 
       ? `GitHub PR-Erstellung erfolgreich gestartet!\n\n${response.data.message}`
       : 'Fehler beim Erstellen des GitHub PR'
-    alert(message)
+    showGlassToast(message, 'error')
     
     // If there's output, show it
     if (response.data.output) {
@@ -505,7 +507,7 @@ const createGitHubPR = async () => {
     }
   } catch (error) {
     console.error('Error creating GitHub PR:', error)
-    alert('Fehler beim Erstellen des GitHub PR: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler beim Erstellen des GitHub PR: ' + (error.response?.data?.message || error.message), 'error')
   } finally {
     creatingPR.value = false
   }

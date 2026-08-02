@@ -2,6 +2,8 @@
 import { ref, watch, computed } from 'vue'
 import axios from 'axios'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const props = defineProps({
   qrun: {
@@ -226,7 +228,7 @@ async function startRerun() {
     // Optional: Erfolgsmeldung, Redirect etc.
   } catch (err) {
     console.error('Fehler beim ReRun:', err)
-    alert('Fehler beim Starten des ReRuns.')
+    showGlassToast('Fehler beim Starten des ReRuns.', 'error')
   }
 }
 

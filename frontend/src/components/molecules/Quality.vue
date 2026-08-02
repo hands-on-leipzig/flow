@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import axios from 'axios'
 import QRunConfigForm from '@/components/atoms/QRunConfigForm.vue'
 import QRunList from '@/components/atoms/QRunList.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
 
 const reload = ref(0)
 
@@ -83,14 +84,14 @@ const startVolumeTest = () => {
         const data = error.response.data
 
         if (status === 429 && data.error) {
-          alert(data.error)
+          showGlassToast(data.error, 'error')
         } else {
           console.error('Backend-Antwort:', status, data)
-          alert('Ein Fehler ist aufgetreten. Bitte prüfe deine Eingaben.')
+          showGlassToast('Ein Fehler ist aufgetreten. Bitte prüfe deine Eingaben.', 'error')
         }
       } else {
         console.error('Netzwerk-Fehler:', error)
-        alert('Keine Verbindung zum Server.')
+        showGlassToast('Keine Verbindung zum Server.', 'error')
       }
     })
 }

@@ -1,6 +1,8 @@
 <script setup>
 import {ref, onMounted} from 'vue'
 import axios from 'axios'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const applications = ref([])
 const loading = ref(false)
@@ -312,7 +314,7 @@ const toggleApiKeyActive = async (applicationId, apiKey) => {
 const copyApiKey = () => {
   if (newApiKey.value) {
     navigator.clipboard.writeText(newApiKey.value)
-    alert('API key copied to clipboard!')
+    showGlassToast('API key copied to clipboard!', 'success')
   }
 }
 

@@ -13,6 +13,8 @@ import StatisticsAccessChartModal from './statistics/StatisticsAccessChartModal.
 import StatisticsDeleteModal from './statistics/StatisticsDeleteModal.vue'
 import StatisticsExtraBlocksModal from './statistics/StatisticsExtraBlocksModal.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const props = defineProps<{
   tableOnly?: boolean
@@ -727,7 +729,7 @@ async function confirmModal() {
 
 function exportToCSV() {
   if (!flattenedRows.value || flattenedRows.value.length === 0) {
-    alert('Keine Daten zum Exportieren verfügbar.')
+    showGlassToast('Keine Daten zum Exportieren verfügbar.', 'info')
     return
   }
 

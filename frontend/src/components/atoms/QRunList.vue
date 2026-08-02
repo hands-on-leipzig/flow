@@ -5,6 +5,8 @@ import axios from 'axios'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 
 import { formatDateTime } from '@/utils/dateTimeFormat'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const props = defineProps({
   reload: { type: Number, required: false, default: 0 },
@@ -74,7 +76,7 @@ async function handleDelete() {
     qrunToDelete.value = null
   } catch (err) {
     console.error('Fehler beim Löschen des QRuns:', err)
-    alert('Löschen fehlgeschlagen.')
+    showGlassToast('Löschen fehlgeschlagen.', 'error')
     qrunToDelete.value = null
   }
 }

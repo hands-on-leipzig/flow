@@ -79,11 +79,9 @@ onMounted(fetchRounds)
           :disabled="saving !== null"
           @click="toggleRound(round.key)"
           :class="[
-            'min-h-12 rounded-lg border px-4 py-3 text-sm font-semibold transition-colors',
-            rounds[round.key]
-              ? 'border-green-600 bg-green-600 text-white'
-              : 'border-[var(--color-border)] bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]',
-            saving === round.key ? 'opacity-70' : ''
+            'round-toggle',
+            rounds[round.key] ? 'round-toggle--on' : 'glass-btn-secondary',
+            saving === round.key ? 'opacity-70' : '',
           ]"
       >
         {{ round.label }}
@@ -91,3 +89,34 @@ onMounted(fetchRounds)
     </div>
   </section>
 </template>
+
+<style scoped>
+.round-toggle {
+  min-height: 3rem;
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.round-toggle--on {
+  border: 1px solid color-mix(in srgb, #000 12%, #16a34a);
+  color: #fff;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 14%, #16a34a) 0%,
+    #16a34a 55%,
+    #15803d 100%
+  );
+  box-shadow:
+    0 0 0 transparent,
+    0 1px 1px rgba(15, 23, 42, 0.12),
+    inset 0 3px 7px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(0, 0, 0, 0.14);
+  transform: translateY(1px) scale(0.99);
+}
+
+.round-toggle--on:active:not(:disabled) {
+  transform: translateY(2px) scale(0.985);
+}
+</style>

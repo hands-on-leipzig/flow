@@ -47,9 +47,9 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
           </div>
           <div
               v-if="!loadingPublicationLevel && !isHighestPublicationLevel"
-              class="mt-1 inline-flex items-center gap-1.5 text-xs text-orange-700"
+              class="glass-alert-warning mt-2 !mb-0 inline-flex items-center gap-1.5 !text-xs"
           >
-            <i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i>
+            <i class="bi bi-exclamation-circle-fill text-[var(--color-accent)]" aria-hidden="true"></i>
             <span>Plan nicht vollständig veröffentlicht.</span>
           </div>
         </div>

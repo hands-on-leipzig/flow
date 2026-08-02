@@ -7,6 +7,8 @@ import {useAuth} from '@/composables/useAuth'
 import dayjs from "dayjs";
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const regionalPartners = ref([])
 const eventStore = useEventStore()
@@ -75,7 +77,7 @@ async function selectEvent(eventId, regionalPartnerId) {
 
 async function createEvent() {
   if (!createForm.value.name || !createForm.value.regional_partner || !createForm.value.level || !createForm.value.date) {
-    alert('Please fill in all required fields')
+    showGlassToast('Please fill in all required fields', 'info')
     return
   }
 
@@ -121,7 +123,7 @@ async function createEvent() {
     
   } catch (error) {
     console.error('Error creating event:', error)
-    alert('Error creating event: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Error creating event: ' + (error.response?.data?.message || error.message), 'error')
   } finally {
     creating.value = false
   }

@@ -2,6 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import ConfirmationModal from './ConfirmationModal.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 // Removed isDevEnvironment prop - news can now be created in any environment
 
@@ -34,7 +36,7 @@ const loadNews = async () => {
 
 const createNews = async () => {
   if (!newNews.value.title.trim() || !newNews.value.text.trim()) {
-    alert('Bitte fülle Titel und Text aus')
+    showGlassToast('Bitte fülle Titel und Text aus', 'info')
     return
   }
 
@@ -53,7 +55,7 @@ const createNews = async () => {
     await loadNews()
   } catch (err) {
     console.error('Error creating news:', err)
-    alert('Fehler beim Erstellen der News')
+    showGlassToast('Fehler beim Erstellen der News', 'error')
   }
 }
 
@@ -79,7 +81,7 @@ const deleteNews = async () => {
     newsToDelete.value = null
   } catch (err) {
     console.error('Error deleting news:', err)
-    alert('Fehler beim Löschen der News')
+    showGlassToast('Fehler beim Löschen der News', 'error')
     newsToDelete.value = null
   }
 }

@@ -13,6 +13,8 @@ import SystemNews from '@/components/molecules/SystemNews.vue'
 import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
 import '@vueform/multiselect/themes/default.css'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const activeTab = ref('statistics')
 
@@ -96,9 +98,9 @@ const syncDrahtRegions = async () => {
 
   try {
     await axios.get('/admin/draht/sync-draht-regions')
-    alert('Regional Partner erfolgreich synchronisiert!')
+    showGlassToast('Regional Partner erfolgreich synchronisiert!', 'success')
   } catch (error) {
-    alert('Fehler beim Synchronisieren: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler beim Synchronisieren: ' + (error.response?.data?.message || error.message), 'error')
   }
 }
 
@@ -109,9 +111,9 @@ const syncDrahtEvents = async () => {
 
   try {
     await axios.get('/admin/draht/sync-draht-events/3')
-    alert('Events erfolgreich synchronisiert!')
+    showGlassToast('Events erfolgreich synchronisiert!', 'success')
   } catch (error) {
-    alert('Fehler beim Synchronisieren: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler beim Synchronisieren: ' + (error.response?.data?.message || error.message), 'error')
   }
 }
 
@@ -161,7 +163,7 @@ watch(conditions, async (newVal) => {
 
 const regenerateLinksForSeason = async () => {
   if (!selectedSeason.value) {
-    alert('Bitte wähle eine Saison aus')
+    showGlassToast('Bitte wähle eine Saison aus', 'info')
     return
   }
 
@@ -174,12 +176,12 @@ const regenerateLinksForSeason = async () => {
   try {
     const response = await axios.post(`/publish/regenerate-season/${selectedSeason.value}`)
     if (response.data.success) {
-      alert(`✅ ${response.data.message}\n\nRegeneriert: ${response.data.regenerated}\nFehlgeschlagen: ${response.data.failed}\nGesamt: ${response.data.total}`)
+      showGlassToast(`✅ ${response.data.message}\n\nRegeneriert: ${response.data.regenerated}\nFehlgeschlagen: ${response.data.failed}\nGesamt: ${response.data.total}`, 'success')
     } else {
-      alert('Fehler: ' + (response.data.message || response.data.error || 'Unbekannter Fehler'))
+      showGlassToast('Fehler: ' + (response.data.message || response.data.error || 'Unbekannter Fehler'), 'error')
     }
   } catch (error) {
-    alert('Fehler beim Regenerieren der Links: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler beim Regenerieren der Links: ' + (error.response?.data?.message || error.message), 'error')
   } finally {
     regeneratingLinks.value = false
   }
@@ -198,15 +200,15 @@ const cleanupOrphanedLogos = async () => {
           `Gelöschte DB-Einträge: ${response.data.deleted_db_entries}\n` +
           `Gelöschte Dateien: ${response.data.deleted_files}`
       if (response.data.errors && response.data.errors.length > 0) {
-        alert(message + `\n\nFehler:\n${response.data.errors.join('\n')}`)
+        showGlassToast(message + `\n\nFehler:\n${response.data.errors.join('\n')}`, 'error')
       } else {
-        alert(message)
+        showGlassToast(message, 'success')
       }
     } else {
-      alert('Fehler: ' + (response.data.message || 'Unbekannter Fehler'))
+      showGlassToast('Fehler: ' + (response.data.message || 'Unbekannter Fehler'), 'error')
     }
   } catch (error) {
-    alert('Fehler bei der Logo-Bereinigung: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler bei der Logo-Bereinigung: ' + (error.response?.data?.message || error.message), 'error')
   } finally {
     cleaningLogos.value = false
   }

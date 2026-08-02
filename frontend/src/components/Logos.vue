@@ -4,6 +4,7 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
 
 defineOptions({name: 'Logos'})
 
@@ -33,18 +34,18 @@ const uploadLogo = async () => {
 
   const currentEvent = selectedEvent.value || eventStore.selectedEvent
   if (!currentEvent?.regional_partner) {
-    alert('Bitte wähle zuerst ein Event aus, bevor du ein Logo hochlädst.')
+    showGlassToast('Bitte wähle zuerst ein Event aus, bevor du ein Logo hochlädst.', 'info')
     return
   }
 
   // Validate file
   if (uploadFile.value.size > 2 * 1024 * 1024) {
-    alert('Datei ist zu groß. Maximum: 2MB')
+    showGlassToast('Datei ist zu groß. Maximum: 2MB', 'error')
     return
   }
 
   if (!uploadFile.value.type.startsWith('image/')) {
-    alert('Datei muss ein Bild sein')
+    showGlassToast('Datei muss ein Bild sein', 'error')
     return
   }
 
@@ -81,9 +82,9 @@ const uploadLogo = async () => {
   } catch (error) {
     console.error('Error uploading logo:', error)
     if (error.response?.status === 422) {
-      alert('Validierungsfehler: ' + JSON.stringify(error.response.data, null, 2))
+      showGlassToast('Validierungsfehler: ' + JSON.stringify(error.response.data, null, 2), 'error')
     } else {
-      alert('Fehler beim Hochladen: ' + error.message)
+      showGlassToast('Fehler beim Hochladen: ' + error.message, 'error')
     }
   } finally {
     isUploading.value = false
@@ -157,9 +158,9 @@ const deleteLogo = async () => {
     const errorDetails = error.response?.data?.details || null
 
     if (errorDetails) {
-      alert(`${errorMessage}\n\n${errorDetails}`)
+      showGlassToast(`${errorMessage}\n\n${errorDetails}`, 'error')
     } else {
-      alert(errorMessage)
+      showGlassToast(errorMessage, 'error')
     }
     // Keep modal open on error so user can try again or cancel
   }
@@ -258,7 +259,7 @@ const handleDrop = async (event, targetLogo) => {
 
   const currentEvent = selectedEvent.value || eventStore.selectedEvent
   if (!currentEvent) {
-    alert('Bitte wähle zuerst ein Event aus.')
+    showGlassToast('Bitte wähle zuerst ein Event aus.', 'info')
     return
   }
 
@@ -308,7 +309,7 @@ const handleDrop = async (event, targetLogo) => {
     })
   } catch (error) {
     console.error('Error updating logo order:', error)
-    alert('Fehler beim Aktualisieren der Reihenfolge: ' + error.message)
+    showGlassToast('Fehler beim Aktualisieren der Reihenfolge: ' + error.message, 'error')
     await fetchLogos({force: true})
   }
 }

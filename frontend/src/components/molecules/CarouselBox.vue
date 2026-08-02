@@ -10,7 +10,7 @@ import {RouterLink} from 'vue-router'
     <img :src="imageUrl('/flow/karussell.png')" alt="Karussell Vorschau" class="h-28 w-auto border"/>
     <div class="flex gap-3 mt-4">
       <RouterLink to="/presentation">
-        <button class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300">zum Slideshow-Editor</button>
+        <button class="glass-btn-secondary !px-3 !py-1 !text-sm">zum Slideshow-Editor</button>
       </RouterLink>
     </div>
   </div>

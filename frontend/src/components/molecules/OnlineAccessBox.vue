@@ -6,6 +6,7 @@ import { useAuth } from '@/composables/useAuth'
 import { imageUrl, programLogoSrc, programLogoAlt } from '@/utils/images'
 import { formatTimeOnly, formatDateOnly } from '@/utils/dateTimeFormat'
 import SavingToast from "@/components/atoms/SavingToast.vue"
+import {showGlassToast} from '@/composables/useGlassToast'
 
 // --- Time display with short weekday when event spans multiple days (same as PublicEvent) ---
 function toLocalDateString(dateInput: string | null | undefined): string {
@@ -215,7 +216,7 @@ async function regenerateLinkAndQR() {
     if (import.meta.env.DEV) {
       console.error('Error regenerating link and QR code:', error)
     }
-    alert('Fehler beim Regenerieren des Links und QR-Codes')
+    showGlassToast('Fehler beim Regenerieren des Links und QR-Codes', 'error')
   } finally {
     regenerating.value = false
   }
@@ -236,7 +237,7 @@ async function regenerateLinkAndQR() {
           :href="event?.link"
           target="_blank"
           rel="noopener"
-          class="text-blue-600 underline font-medium text-base break-all"
+          class="text-[var(--color-accent)] underline font-medium text-base break-all"
         >
           {{ event?.link }}
         </a>
@@ -249,7 +250,7 @@ async function regenerateLinkAndQR() {
         v-if="isAdmin && event?.id"
         @click="regenerateLinkAndQR"
         :disabled="regenerating"
-        class="lg:ml-auto px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 flex-shrink-0"
+        class="glass-btn-secondary lg:ml-auto !px-3 !py-2 !text-sm inline-flex items-center justify-center gap-2 flex-shrink-0"
       >
         <svg v-if="regenerating" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -275,7 +276,7 @@ async function regenerateLinkAndQR() {
             type="radio"
             :value="idx"
             v-model="detailLevel"
-            class="mt-1 accent-blue-600 flex-shrink-0"
+            class="mt-1 accent-[var(--color-accent)] flex-shrink-0"
             @focus="(e: Event) => { (e.target as HTMLInputElement)?.blur() }"
           />
           <div class="flex flex-col" style="width: 180px;">
@@ -300,7 +301,7 @@ async function regenerateLinkAndQR() {
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <template v-for="(_, idx) in Array(3)" :key="idx">
             <div
-              class="relative rounded-lg border p-3 text-sm"
+              class="relative glass-card liquid-surface-inner !p-3 text-sm"
               :class="{
                 'opacity-100': isCardActive(idx + 1, detailLevel),
                 'opacity-50': !isCardActive(idx + 1, detailLevel),
@@ -480,7 +481,7 @@ async function regenerateLinkAndQR() {
                     />
                   </div>
                   <div class="mt-4 flex justify-center">
-                    <button class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="previewOnlinePlan">
+                    <button type="button" class="glass-btn-secondary !px-3 !py-1 !text-sm" @click="previewOnlinePlan">
                       Vorschau
                     </button>
                   </div>

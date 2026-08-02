@@ -80,6 +80,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import axios from 'axios'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const props = defineProps<{
   planId: number
@@ -122,7 +124,7 @@ async function loadExtraBlocks() {
     eventDate.value = response.data.event_date || null
   } catch (err) {
     console.error('Error loading extra blocks:', err)
-    alert('Fehler beim Laden der Extra-Blöcke')
+    showGlassToast('Fehler beim Laden der Extra-Blöcke', 'error')
   } finally {
     loading.value = false
   }

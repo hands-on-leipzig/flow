@@ -615,7 +615,7 @@ const inputTitle =
           <div class="lg:col-span-1">
             <button
               type="button"
-              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg py-4 rounded-xl shadow disabled:opacity-60 disabled:cursor-not-allowed"
+              class="glass-btn-accent w-full !text-base !py-3.5 !px-4 disabled:opacity-60 disabled:cursor-not-allowed"
               :disabled="applying"
               @click="applySlotsToPlan"
             >
@@ -628,14 +628,14 @@ const inputTitle =
               Alle bisherigen Zuordnungen werden aus dem Plan entfernt. Dann werden die Zuordnungen für
               alle aktiven Aktivitäten pro Team in den Plan eingefügt.
             </p>
-            <p class="text-sm text-red-700 mt-2">
+            <div class="glass-alert-warning mt-2">
               Dabei wird <strong>nicht</strong> überprüft, ob das zu zeitlichen Konflikten für Teams führt!
-            </p>
+            </div>
           </div>
         </div>
 
-        <p v-if="applyError" class="mt-2 text-sm text-red-600">{{ applyError }}</p>
-        <p v-else-if="applyResult" class="mt-2 text-sm text-green-700">
+        <p v-if="applyError" class="glass-alert-error mt-2 text-sm">{{ applyError }}</p>
+        <p v-else-if="applyResult" class="mt-2 text-sm rounded-[var(--radius)] border border-[var(--color-border)] px-3 py-2 text-[var(--color-text)]" style="background: color-mix(in srgb, #16a34a 10%, var(--color-bg-muted));">
           OK: entfernt {{ applyResult.removed_groups }} Groups / {{ applyResult.removed_activities }} Activities.
           erstellt: {{ applyResult.created_groups }} Groups / {{ applyResult.created_activities }} Activities
         </p>
@@ -650,10 +650,10 @@ const inputTitle =
           <div
             v-for="block in blocks"
             :key="block.id"
-            class="p-3 md:p-4 mb-2 border rounded shadow-sm md:shadow transition-all duration-200 cursor-pointer flex gap-3"
+            class="glass-card liquid-surface-inner !p-3 md:!p-4 mb-2 transition-all duration-200 cursor-pointer flex gap-3"
             :class="[
-              selectedId === block.id ? 'ring-2 ring-blue-500 border-blue-400 shadow-md' : 'hover:shadow-md',
-              block.active ? 'bg-white border-[var(--color-border)]' : 'opacity-60 bg-[var(--color-bg-muted)] border-[var(--color-border)]',
+              selectedId === block.id ? 'ring-2 ring-[var(--color-accent)] border-[var(--color-accent)]' : '',
+              !block.active ? 'opacity-60' : '',
             ]"
             @click="selectedId = block.id"
           >
@@ -766,7 +766,7 @@ const inputTitle =
 
           <div
             ref="newSlotCardRef"
-            class="p-3 md:p-4 mb-2 border-dashed border-2 border-[var(--color-border)] rounded bg-[var(--color-bg-muted)] shadow-sm"
+            class="p-3 md:p-4 mb-2 border-dashed border-2 border-[var(--color-border)] rounded-[var(--radius-lg)] liquid-surface-inner"
             @click.stop
           >
             <div class="mb-2">
@@ -906,7 +906,7 @@ const inputTitle =
                       <button
                         v-if="!row.start && editingTeamId !== rowEditKey(row)"
                         type="button"
-                        class="w-[180px] max-w-full text-left px-2 py-1 border border-[var(--color-border)] rounded bg-white hover:bg-[var(--color-bg-hover)] text-[var(--color-text-subtle)] disabled:bg-[var(--color-bg-muted)] disabled:text-[var(--color-text-subtle)] disabled:cursor-not-allowed"
+                        class="glass-btn-secondary w-[180px] max-w-full !justify-start !text-[var(--color-text-subtle)] disabled:cursor-not-allowed"
                         :disabled="!selectedBlock.active"
                         title="Startzeit setzen"
                         @click="beginEditStart(row)"

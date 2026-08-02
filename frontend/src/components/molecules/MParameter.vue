@@ -3,6 +3,8 @@ import draggable from 'vuedraggable'
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 
 // Daten
@@ -135,7 +137,7 @@ async function save(item) {
     Object.assign(item, payload)
   } catch (e) {
     console.error('Update fehlgeschlagen', e)
-    alert('Speichern fehlgeschlagen.')
+    showGlassToast('Speichern fehlgeschlagen.', 'error')
   } finally {
     savingId.value = null
   }
@@ -154,7 +156,7 @@ async function onSort() {
     await axios.post('/mparams/reorder', { order: payload })
   } catch (e) {
     console.error('Reihenfolge speichern fehlgeschlagen', e)
-    alert('Reihenfolge konnte nicht gespeichert werden.')
+    showGlassToast('Reihenfolge konnte nicht gespeichert werden.', 'error')
   }
 }
 

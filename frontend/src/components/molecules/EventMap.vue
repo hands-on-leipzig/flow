@@ -3,6 +3,8 @@ import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick, Teleport } 
 import axios from 'axios'
 import QRCode from 'qrcode'
 import GenericLeafletMap from './GenericLeafletMap.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const props = defineProps({
   address: {
@@ -215,7 +217,7 @@ const copyCoordinates = async () => {
     }, 2000)
   } catch (err) {
     console.error('Failed to copy coordinates:', err)
-    alert('Koordinaten konnten nicht kopiert werden')
+    showGlassToast('Koordinaten konnten nicht kopiert werden', 'error')
   }
 }
 
@@ -232,7 +234,7 @@ const copyAddress = async () => {
     }, 2000)
   } catch (err) {
     console.error('Failed to copy address:', err)
-    alert('Adresse konnte nicht kopiert werden')
+    showGlassToast('Adresse konnte nicht kopiert werden', 'error')
   }
 }
 
