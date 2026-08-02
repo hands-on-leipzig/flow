@@ -9,13 +9,12 @@ on:
     branches:
       - main
       - test
-      - glass
   release:
     types: [ created ]
 
 jobs:
   deploy-dev:
-    if: github.ref == 'refs/heads/glass'
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy-reusable.yml
     with:
       checkout_ref: ${{ github.ref }}
