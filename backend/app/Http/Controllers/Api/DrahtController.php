@@ -503,18 +503,22 @@ class DrahtController extends Controller
 
         try {
             $regionalPartnerIds = $this->getUserRegionalPartners($user->dolibarr_id);
+            $sourceDraht = \App\Support\FlowAccess::SOURCE_DRAHT;
+            $sourceManual = \App\Support\FlowAccess::SOURCE_MANUAL;
 
+            // Only Draht-sourced links are managed here. Manual FLOW grants stay untouched.
             if (empty($regionalPartnerIds)) {
-                Log::info("No regional partners found for user", [
+                Log::info("No regional partners found for user in Draht", [
                     'user_id' => $user->id,
                     'dolibarr_id' => $user->dolibarr_id
                 ]);
-                // Remove all existing relations if API returns empty
-                DB::table('user_regional_partner')->where('user', $user->id)->delete();
+                DB::table('user_regional_partner')
+                    ->where('user', $user->id)
+                    ->where('source', $sourceDraht)
+                    ->delete();
                 return true;
             }
 
-            // Get regional partners by dolibarr_id
             $regionalPartners = RegionalPartner::whereIn('dolibarr_id', $regionalPartnerIds)->get();
 
             if ($regionalPartners->isEmpty()) {
@@ -525,43 +529,65 @@ class DrahtController extends Controller
                 return false;
             }
 
-            // Get current relations
-            $currentRelations = DB::table('user_regional_partner')
+            $targetRelations = $regionalPartners->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+            $currentDraht = DB::table('user_regional_partner')
                 ->where('user', $user->id)
+                ->where('source', $sourceDraht)
                 ->pluck('regional_partner')
-                ->toArray();
+                ->map(fn ($id) => (int) $id)
+                ->all();
 
-            // Get target relations
-            $targetRelations = $regionalPartners->pluck('id')->toArray();
+            $currentManual = DB::table('user_regional_partner')
+                ->where('user', $user->id)
+                ->where('source', $sourceManual)
+                ->pluck('regional_partner')
+                ->map(fn ($id) => (int) $id)
+                ->all();
 
-            // Remove relations that are no longer valid
-            $toRemove = array_diff($currentRelations, $targetRelations);
+            $toRemove = array_diff($currentDraht, $targetRelations);
             if (!empty($toRemove)) {
                 DB::table('user_regional_partner')
                     ->where('user', $user->id)
+                    ->where('source', $sourceDraht)
                     ->whereIn('regional_partner', $toRemove)
                     ->delete();
-                Log::info("Removed regional partner relations", [
+                Log::info("Removed Draht regional partner relations", [
                     'user_id' => $user->id,
-                    'removed' => $toRemove
+                    'removed' => array_values($toRemove)
                 ]);
             }
 
-            // Add new relations
-            $toAdd = array_diff($targetRelations, $currentRelations);
+            $toAdd = array_diff($targetRelations, $currentDraht, $currentManual);
             if (!empty($toAdd)) {
-                $insertData = array_map(function ($rpId) use ($user) {
+                $insertData = array_map(function ($rpId) use ($user, $sourceDraht) {
                     return [
                         'user' => $user->id,
-                        'regional_partner' => $rpId
+                        'regional_partner' => $rpId,
+                        'source' => $sourceDraht,
+                        'granted_at' => now(),
+                        'granted_by' => null,
                     ];
                 }, $toAdd);
 
                 DB::table('user_regional_partner')->insert($insertData);
-                Log::info("Added regional partner relations", [
+                Log::info("Added Draht regional partner relations", [
                     'user_id' => $user->id,
-                    'added' => $toAdd
+                    'added' => array_values($toAdd)
                 ]);
+            }
+
+            // If Draht confirms a previously manual grant, mark it as Draht-owned
+            $toPromote = array_intersect($targetRelations, $currentManual);
+            if (!empty($toPromote)) {
+                DB::table('user_regional_partner')
+                    ->where('user', $user->id)
+                    ->where('source', $sourceManual)
+                    ->whereIn('regional_partner', $toPromote)
+                    ->update([
+                        'source' => $sourceDraht,
+                        'granted_by' => null,
+                    ]);
             }
 
             return true;

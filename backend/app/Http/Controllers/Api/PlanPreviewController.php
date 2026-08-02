@@ -282,11 +282,8 @@ class PlanPreviewController extends Controller
      */
     public function previewActivities(int $plan)
     {
-        // Check admin role (same as PlanActivityController)
-        $jwt = request()->attributes->get('jwt');
-        $roles = $jwt['resource_access']->flow->roles ?? [];
-
-        if (! in_array('flow-admin', $roles) && ! in_array('flow_admin', $roles)) {
+        $user = request()->user();
+        if (!$user || !$user->isFlowAdmin()) {
             return response()->json(['error' => 'Forbidden - admin role required'], 403);
         }
 

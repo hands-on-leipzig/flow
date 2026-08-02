@@ -26,7 +26,7 @@ const adminMenuItems = [
   {key: 'nowandnext', label: 'Now and Next', icon: '⏰', devOnly: false},
   {key: 'quality', label: 'Massentest', icon: '🧪', devOrLocalOnly: true, devSuffix: '(Dev oder lokal)'},
   {key: 'conditions', label: 'Parameter-Anzeige', icon: '📄', devOnly: false},
-  {key: 'user-regional-partners', label: 'User-Regional Partner Relations', icon: '👥', devOnly: false},
+  {key: 'user-regional-partners', label: 'User ↔ Regionen (Zugang)', icon: '👥', devOnly: false},
   {key: 'sync', label: 'Draht Sync', icon: '🔁', devOnly: false},
   {key: 'external-api', label: 'External API', icon: '🔑', devOnly: false},
   {key: 'sharepoint', label: 'SharePoint', icon: '📂', devOnly: false},

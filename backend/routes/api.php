@@ -99,7 +99,7 @@ Route::middleware(['keycloak'])->group(function () {
         }
 
         $event = Event::find($eventId);
-        if (!$event || $event->season !== SeasonService::currentSeasonId()) {
+        if (!$event || $event->season !== SeasonService::currentSeasonId() || !$user->hasEventAccess($event->id)) {
             $user->selection_event = null;
             $user->selection_regional_partner = null;
             $user->save();
@@ -131,6 +131,22 @@ Route::middleware(['keycloak'])->group(function () {
         ]);
 
         $user = $request->user();
+        $event = Event::find($validated['event']);
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        if ((int) $event->regional_partner !== (int) $validated['regional_partner']) {
+            return response()->json([
+                'error' => 'regional_partner does not match the event',
+            ], 422);
+        }
+
+        if (!$user->hasEventAccess($event->id)) {
+            return response()->json(['error' => 'Forbidden - no access to this event'], 403);
+        }
+
         $user->selection_event = $validated['event'];
         $user->selection_regional_partner = $validated['regional_partner'];
         $user->save();

@@ -50,26 +50,13 @@ class CarouselController extends Controller
             return false;
         }
 
-        $roles = $user->getRoles() ?? [];
-        // This should be an util method
-        $isAdmin = in_array('flow-admin', $roles) || in_array('flow_admin', $roles);
-        if ($isAdmin) {
-            return true;
-        }
-
-        // If the user is a regional partner for the passed event, he may proceed
-        $hasEvent = $user->regionalPartners()
-            ->whereHas('events', function ($query) use ($eventId) {
-                $query->where('id', $eventId);
-            })
-            ->exists();
-        return $hasEvent;
+        return $user->hasEventAccess((int) $eventId);
     }
 
     private function hasEventAccessOrThrow($eventId): void
     {
         if (!$this->hasEventAccess($eventId)) {
-            abort(response()->json(['error' => 'unauthorized'], 401));
+            abort(response()->json(['error' => 'unauthorized'], 403));
         }
     }
 

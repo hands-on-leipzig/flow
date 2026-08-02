@@ -119,7 +119,11 @@ const clearUserSelection = () => {
   showUserDropdown.value = false
 }
 
-const removeRelation = async (userId, regionalPartnerId) => {
+const removeRelation = async (userId, regionalPartnerId, source) => {
+  if (source === 'draht') {
+    error.value = 'Draht-Zuordnungen bitte in Draht (Kontaktperson) ändern — nicht hier löschen.'
+    return
+  }
   try {
     await axios.delete('/admin/user-regional-partners', {
       data: {
@@ -128,13 +132,14 @@ const removeRelation = async (userId, regionalPartnerId) => {
       }
     })
 
-    // Refresh data
     await fetchData()
   } catch (err) {
     error.value = err.response?.data?.error || 'Failed to remove relation'
     console.error('Error removing relation:', err)
   }
 }
+
+const sourceLabel = (source) => source === 'manual' ? 'Manuell' : 'Draht'
 
 onMounted(() => {
   fetchData()
@@ -161,10 +166,11 @@ onMounted(() => {
       </div>
 
       <div class="glass-card liquid-surface-inner p-4">
-        <h3 class="text-sm font-medium text-[var(--color-text-subtle)]">Avg Partners per User</h3>
-        <p class="text-2xl font-bold text-blue-600">{{
-            Math.round(statistics.average_regional_partners_per_user || 0)
-          }}</p>
+        <h3 class="text-sm font-medium text-[var(--color-text-subtle)]">Manuell / Draht</h3>
+        <p class="text-2xl font-bold text-blue-600">
+          {{ statistics.manual_grants || 0 }}
+          <span class="text-base font-medium text-[var(--color-text-muted)]">/ {{ statistics.draht_grants || 0 }}</span>
+        </p>
       </div>
     </div>
 
@@ -182,13 +188,19 @@ onMounted(() => {
     <div class="glass-card liquid-surface-inner overflow-hidden">
       <div class="px-4 py-5 sm:p-6">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-medium text-[var(--color-text)]">Add User-Regional Partner Relation</h3>
+          <div>
+            <h3 class="text-lg font-medium text-[var(--color-text)]">Manuellen Regions-Zugang vergeben</h3>
+            <p class="text-sm text-[var(--color-text-muted)] mt-1">
+              Für Personen mit Keycloak-Rolle <code>flow_user</code>, die nicht als Draht-Kontaktperson einer Region hinterlegt sind.
+              Draht-Zuordnungen kommen beim Login automatisch und werden hier nur angezeigt.
+            </p>
+          </div>
           <button
               v-if="!showAddForm"
               @click="showAddForm = true"
-              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              class="glass-btn-accent !text-sm inline-flex items-center gap-1"
           >
-            ➕ Add Relation
+            ➕ Manuellen Zugang
           </button>
         </div>
 
@@ -353,18 +365,36 @@ onMounted(() => {
                   class="flex items-center justify-between bg-[var(--color-bg-muted)] rounded-md p-3"
               >
                 <div class="flex-1">
-                  <h5 class="text-sm font-medium text-[var(--color-text)]">{{ partner.name }}</h5>
+                  <div class="flex items-center gap-2">
+                    <h5 class="text-sm font-medium text-[var(--color-text)]">{{ partner.name }}</h5>
+                    <span
+                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                        :class="partner.source === 'manual'
+                          ? 'bg-orange-100 text-orange-800'
+                          : 'bg-slate-100 text-slate-700'"
+                    >
+                      {{ sourceLabel(partner.source) }}
+                    </span>
+                  </div>
                   <p class="text-xs text-[var(--color-text-subtle)]">
                     Region: {{ partner.region }} | Dolibarr ID: {{ partner.dolibarr_id }}
                   </p>
                 </div>
 
                 <button
-                    @click="removeRelation(userRelation.user_id, partner.id)"
+                    v-if="partner.source === 'manual'"
+                    @click="removeRelation(userRelation.user_id, partner.id, partner.source)"
                     class="ml-3 inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
-                  Remove
+                  Entfernen
                 </button>
+                <span
+                    v-else
+                    class="ml-3 text-xs text-[var(--color-text-subtle)]"
+                    title="Wird über Draht-Kontaktperson gesteuert"
+                >
+                  nur lesen
+                </span>
               </div>
             </div>
           </div>

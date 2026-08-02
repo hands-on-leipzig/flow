@@ -131,9 +131,7 @@ class EventController extends Controller
         $user = Auth::user();
         $season = MSeason::latest('year')->first();
 
-        // Get user roles from JWT token
-        $roles = $user->getRoles();
-        $isAdmin = in_array('flow-admin', $roles) || in_array('flow_admin', $roles);
+        $isAdmin = $user->isFlowAdmin();
 
         if ($isAdmin) {
             // Admin users can see all events

@@ -37,14 +37,7 @@ class LogoPolicy
      */
     public function update(User $user, Logo $logo): bool
     {
-        // Allow admins to update any logo
-        $roles = $user->getRoles();
-        if (in_array('flow-admin', $roles) || in_array('flow_admin', $roles)) {
-            return true;
-        }
-        
-        // Allow users to update logos from their regional partner
-        return $user->selection_regional_partner == $logo->regional_partner;
+        return $user->hasRegionalPartnerAccess((int) $logo->regional_partner);
     }
 
     /**
@@ -52,14 +45,7 @@ class LogoPolicy
      */
     public function delete(User $user, Logo $logo): bool
     {
-        // Allow admins to delete any logo
-        $roles = $user->getRoles();
-        if (in_array('flow-admin', $roles) || in_array('flow_admin', $roles)) {
-            return true;
-        }
-        
-        // Allow users to delete logos from their regional partner
-        return $user->selection_regional_partner == $logo->regional_partner;
+        return $user->hasRegionalPartnerAccess((int) $logo->regional_partner);
     }
 
     /**

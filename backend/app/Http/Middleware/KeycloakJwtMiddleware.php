@@ -51,23 +51,18 @@ class KeycloakJwtMiddleware
 
             $request->attributes->set('jwt', $claims);
 
-            $roles = $claims['resource_access']->flow->roles ?? [];
-            foreach ($claims['realm_access']->roles as $role) {
-                $roles[] = $role;
-            }
-
+            $roles = \App\Support\FlowAccess::rolesFromJwt($claims);
             $env = App::environment();
             $path = $request->path();
 
             // Env-based role access - check BEFORE creating user
-            if (in_array($env, ['local', 'staging'])) {
-                if (!in_array('flow-tester', $roles)) {
-                    return response()->json(['error' => 'Forbidden - tester role required'], 403);
-                }
-            } elseif ($env === 'production') {
-                if (!in_array('regionalpartner', $roles) && !in_array('flow_admin', $roles) && !in_array('Geschäftsstelle MA', $roles)) {
-                    return response()->json(['error' => 'Forbidden - partner or admin role required'], 403);
-                }
+            // Prod gate: flow_user (via Keycloak groups). Legacy roles still accepted.
+            if (!\App\Support\FlowAccess::canAccessApp($roles, $env)) {
+                $message = in_array($env, ['local', 'staging'], true)
+                    ? 'Forbidden - tester role required'
+                    : 'Forbidden - flow_user or flow_admin role required';
+
+                return response()->json(['error' => $message], 403);
             }
 
             try {
@@ -133,18 +128,18 @@ class KeycloakJwtMiddleware
             }
 
             // Auto-assign regional partners for flow-tester role in test environment
-            if (in_array($env, ['local', 'staging']) && in_array('flow-tester', $roles)) {
+            if (in_array($env, ['local', 'staging'], true) && \App\Support\FlowAccess::isTester($roles)) {
                 $this->assignTestRegionalPartners($user);
             }
 
-            // Sync user-regional partner relations from Draht API on each login
+            // Sync Draht-sourced RP links on each login (manual grants are preserved)
             $this->syncUserRegionalPartnersFromDraht($user);
 
             Auth::login($user);
 
             // Admin route restriction
             if (str_starts_with($path, 'api/admin') || str_starts_with($path, 'api/plans/activities/')) {
-                if (!in_array('flow_admin', $roles)) {
+                if (!\App\Support\FlowAccess::isAdmin($roles)) {
                     return response()->json(['error' => 'Forbidden - admin role required'], 403);
                 }
             }
@@ -179,12 +174,14 @@ class KeycloakJwtMiddleware
                     ->get();
             }
 
-            // Assign user to all test regional partners
+            // Assign user to all test regional partners (manual so Draht sync won't wipe them)
             $assignedCount = 0;
             foreach ($testRPs as $rp) {
                 $result = DB::table('user_regional_partner')->insertOrIgnore([
                     'user' => $user->id,
-                    'regional_partner' => $rp->id
+                    'regional_partner' => $rp->id,
+                    'source' => \App\Support\FlowAccess::SOURCE_MANUAL,
+                    'granted_at' => now(),
                 ]);
                 if ($result) {
                     $assignedCount++;
