@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanActivityController;
+use App\Http\Controllers\Api\PublicPlanController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanExportController;
 use App\Http\Controllers\Api\PlanGeneratorController;
@@ -45,6 +46,8 @@ Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPubli
 Route::get('/carousel/{event}/slide/{slide}', [CarouselController::class, 'getPublicSingleSlide']);
 Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?room=24&point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?room=24&interval=15&point_in_time=...
+Route::get('/plans/{planId}/visitor/roles', [PublicPlanController::class, 'roles']); // Public role picker for interactive plan
+Route::get('/plans/{planId}/visitor/schedule', [PublicPlanController::class, 'schedule']); // Public role-filtered schedule
 Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
 Route::get('/events/public/{id}', [EventController::class, 'getPublicEventById']); // Public event lookup by id
 Route::get('/events/{event}/team-coordinates', [DrahtController::class, 'getTeamsCoordinates']);
