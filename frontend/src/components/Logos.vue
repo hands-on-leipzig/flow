@@ -165,13 +165,17 @@ const deleteLogo = async () => {
   }
 }
 
+const clearDragState = () => {
+  draggedLogo.value = null
+  draggedOverLogo.value = null
+  dropPosition.value = null
+  isDragging.value = false
+}
+
 // Drag and drop methods
 const handleDragStart = (event, logo) => {
-  console.log('Drag start:', logo.id, event.target, event.currentTarget)
-
   // Prevent dragging if starting from an interactive element
   if (event.target.closest('input, button, label, img')) {
-    console.log('Prevented drag from interactive element')
     event.preventDefault()
     return false
   }
@@ -182,7 +186,6 @@ const handleDragStart = (event, logo) => {
   event.dataTransfer.setData('text/plain', logo.id.toString())
   event.dataTransfer.setData('application/json', JSON.stringify({logoId: logo.id}))
 
-  // Apply visual feedback to the dragged element
   const elem = event.currentTarget
   elem.style.opacity = '0.5'
   elem.style.transform = 'rotate(5deg) scale(1.05)'
@@ -191,15 +194,11 @@ const handleDragStart = (event, logo) => {
 }
 
 const handleDragEnd = (event) => {
-  // Reset styles
-  if (event.target.style) {
-    event.target.style.opacity = ''
-    event.target.style.transform = ''
+  if (event.currentTarget?.style) {
+    event.currentTarget.style.opacity = ''
+    event.currentTarget.style.transform = ''
   }
-  draggedLogo.value = null
-  draggedOverLogo.value = null
-  dropPosition.value = null
-  isDragging.value = false
+  clearDragState()
 }
 
 const handleDragOver = (event) => {
@@ -227,14 +226,33 @@ const handleDragLeave = (event) => {
   }
 }
 
+/** Apply sort_order locally so the list updates before the API round-trip. */
+const applyLocalSortOrder = (orderedLogos, eventId) => {
+  const orderById = new Map(orderedLogos.map((logo, index) => [logo.id, index]))
+  logos.value = logos.value.map((logo) => {
+    const nextOrder = orderById.get(logo.id)
+    if (nextOrder === undefined) return logo
+    return {
+      ...logo,
+      events: logo.events.map((event) => {
+        if (event.id !== eventId) return event
+        return {
+          ...event,
+          pivot: {
+            ...(event.pivot || {}),
+            sort_order: nextOrder,
+          },
+        }
+      }),
+    }
+  })
+}
+
 const handleDrop = async (event, targetLogo) => {
   event.preventDefault()
   event.stopPropagation()
 
-  console.log('Drop:', draggedLogo.value?.id, targetLogo.id, dropPosition.value)
-
   if (!draggedLogo.value || !targetLogo || draggedLogo.value.id === targetLogo.id) {
-    console.log('Drop cancelled: invalid conditions')
     return
   }
 
@@ -244,87 +262,54 @@ const handleDrop = async (event, targetLogo) => {
     return
   }
 
-  // Get logos assigned to this event, sorted by current sort_order
   const assignedLogos = sortedLogos.value.filter(logo =>
       logo.events.some(e => e.id === currentEvent.id)
   )
 
-  console.log('Assigned logos:', assignedLogos.map(l => l.id))
-
-  // Find the indices of the dragged and target logos in the assigned logos array
   const draggedIndex = assignedLogos.findIndex(logo => logo.id === draggedLogo.value.id)
   const targetIndex = assignedLogos.findIndex(logo => logo.id === targetLogo.id)
+  const position = dropPosition.value
 
-  console.log('Indices:', draggedIndex, targetIndex, 'dropPosition:', dropPosition.value)
-
-  if (draggedIndex === -1 || targetIndex === -1) {
-    console.log('Drop cancelled: index not found')
+  if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
     return
   }
 
-  // If dragging to the same position, do nothing
-  if (draggedIndex === targetIndex) {
-    console.log('Drop cancelled: same position')
-    return
-  }
-
-  // Remove the dragged item first
   const newOrder = [...assignedLogos]
   const [draggedItem] = newOrder.splice(draggedIndex, 1)
 
-  // Calculate where to insert in the array WITHOUT the dragged item
   let insertIndex
-
   if (draggedIndex < targetIndex) {
-    // Dragging forward: after removal, target index shifted left by 1
     const adjustedTargetIndex = targetIndex - 1
-    if (dropPosition.value === 'after') {
-      // Insert after the adjusted target position
-      insertIndex = adjustedTargetIndex + 1
-    } else {
-      // Insert before the adjusted target position, but add 1 to account for the offset
-      // User expects it at the target position, not before it
-      insertIndex = adjustedTargetIndex + 1
-    }
+    // Same insert for before/after when moving forward (legacy behaviour)
+    insertIndex = adjustedTargetIndex + 1
+  } else if (position === 'after') {
+    insertIndex = targetIndex + 1
   } else {
-    // Dragging backward: target index unchanged after removal
-    if (dropPosition.value === 'after') {
-      insertIndex = targetIndex + 1
-    } else {
-      insertIndex = targetIndex
-    }
+    insertIndex = targetIndex
   }
 
-  // Ensure insertIndex is valid
   insertIndex = Math.max(0, Math.min(insertIndex, newOrder.length))
-
-  console.log('Target index:', targetIndex, 'After removal adjusted:', targetIndex - 1, 'Drop position:', dropPosition.value, 'Insert index:', insertIndex)
-
-  // Insert at the calculated position
   newOrder.splice(insertIndex, 0, draggedItem)
 
-  console.log('New order:', newOrder.map(l => l.id))
+  // Optimistic UI: reorder immediately, then persist
+  applyLocalSortOrder(newOrder, currentEvent.id)
+  clearDragState()
+  planCache.invalidateLogos()
 
-  // Update sort order in database
+  const logoOrders = newOrder.map((logo, index) => ({
+    logo_id: logo.id,
+    sort_order: index,
+  }))
+
   try {
-    const logoOrders = newOrder.map((logo, index) => ({
-      logo_id: logo.id,
-      sort_order: index
-    }))
-
-    console.log('Saving order:', logoOrders)
-
     await axios.post('/logos/update-sort-order', {
       event_id: currentEvent.id,
-      logo_orders: logoOrders
+      logo_orders: logoOrders,
     })
-
-    // Refresh logos to get updated order
-    await fetchLogos({force: true})
-    console.log('Order saved successfully')
   } catch (error) {
     console.error('Error updating logo order:', error)
     alert('Fehler beim Aktualisieren der Reihenfolge: ' + error.message)
+    await fetchLogos({force: true})
   }
 }
 
@@ -421,201 +406,242 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6 p-6">
+  <div class="space-y-5">
     <!-- No event selected warning -->
-    <div v-if="!selectedEvent && !eventStore.selectedEvent"
-         class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-      <div class="flex items-center gap-2">
-        <svg class="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clip-rule="evenodd"/>
-        </svg>
-        <span class="text-sm font-medium text-yellow-800">Kein Event ausgewählt</span>
-      </div>
-      <p class="text-xs text-yellow-700 mt-1">Bitte wähle zuerst ein Event aus, um Logos hochzuladen.</p>
-    </div>
-
-    <!-- Upload -->
-    <div v-else class="flex items-center space-x-4 mb-6">
-      <input type="file" @change="handleFileChange" ref="fileInput" accept="image/*" class="border rounded px-3 py-1"
-             :disabled="isUploading"/>
-      <button @click="uploadLogo" :disabled="!uploadFile || isUploading"
-              class="px-4 py-2 bg-blue-600 text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2">
-        <svg v-if="isUploading" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-        </svg>
-        <span>{{ isUploading ? 'Lade hoch...' : 'Upload' }}</span>
-      </button>
-    </div>
-
-    <!-- Split Layout: Left (List) and Right (Sortable) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Left Side: All Logos List -->
+    <div
+        v-if="!selectedEvent && !eventStore.selectedEvent"
+        class="glass-alert-warning flex items-start gap-2"
+    >
+      <i class="bi bi-exclamation-triangle-fill mt-0.5" aria-hidden="true"></i>
       <div>
-        <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Logos verwalten</h2>
-        <p class="text-sm text-[var(--color-text-muted)] mb-4">Die hier hochgeladenen Logos müssen aktiviert sein, um im öffentlichen
-          Plan zu erscheinen.</p>
+        <div class="text-sm font-semibold">Kein Event ausgewählt</div>
+        <p class="text-xs mt-0.5 opacity-90">Bitte wähle zuerst ein Event aus, um Logos hochzuladen.</p>
+      </div>
+    </div>
 
-        <div class="space-y-2">
-          <div
-              v-for="logo in logos"
-              :key="logo.id"
-              class="border rounded p-2 shadow bg-white flex items-center gap-3"
-          >
-            <!-- Logo image -->
-            <img
-                :src="logo.url"
-                alt="Logo"
-                class="h-12 w-12 object-contain cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
-                @click="openLogoPreview(logo)"
+    <template v-else>
+      <!-- Upload -->
+      <div class="glass-card liquid-surface-inner">
+        <h2 class="glass-card__heading !mb-3">Logo hochladen</h2>
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="glass-btn-secondary !px-3 !py-2 !text-sm cursor-pointer inline-flex items-center gap-2">
+            <i class="bi bi-image" aria-hidden="true"></i>
+            <span class="truncate max-w-[14rem]">
+              {{ uploadFile ? uploadFile.name : 'Datei wählen' }}
+            </span>
+            <input
+                ref="fileInput"
+                type="file"
+                accept="image/*"
+                class="sr-only"
+                :disabled="isUploading"
+                @change="handleFileChange"
             />
+          </label>
+          <button
+              type="button"
+              class="glass-btn-accent !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+              :disabled="!uploadFile || isUploading"
+              @click="uploadLogo"
+          >
+            <svg v-if="isUploading" class="animate-spin h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <i v-else class="bi bi-upload" aria-hidden="true"></i>
+            <span>{{ isUploading ? 'Lade hoch…' : 'Hochladen' }}</span>
+          </button>
+          <span class="text-xs text-[var(--color-text-subtle)]">PNG, JPG oder SVG · max. 2&nbsp;MB</span>
+        </div>
+      </div>
 
-            <!-- Input fields stacked vertically -->
-            <div class="flex-1 min-w-0 space-y-1">
-              <input
-                  v-model="logo.title"
-                  @change="updateLogo(logo)"
-                  class="w-full px-2 py-0.5 text-xs border rounded"
-                  placeholder="Titel"
-                  type="text"
-              />
-              <input
-                  v-model="logo.link"
-                  @change="updateLogo(logo)"
-                  class="w-full px-2 py-0.5 text-xs border rounded"
-                  placeholder="https://domain.tld"
-                  type="url"
-              />
-            </div>
+      <!-- Split Layout: Left (List) and Right (Sortable) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- Left Side: All Logos List -->
+        <div class="glass-card liquid-surface-inner">
+          <h2 class="glass-card__heading">Logos verwalten</h2>
+          <p class="glass-settings-hint !mb-4">
+            Aktivierte Logos erscheinen im öffentlichen Plan.
+          </p>
 
-            <!-- Toggle and delete on the right -->
-            <div class="flex items-center gap-2 flex-shrink-0">
-              <label class="flex items-center">
-                <input
-                    type="checkbox"
-                    class="toggle-switch"
-                    :checked="logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))"
-                    @change="toggleEventLogo(logo)"
-                />
-              </label>
-              <button @click="confirmDeleteLogo(logo)" class="hover:text-red-800 text-lg">
-                <i class="bi bi-trash-fill"></i>
+          <div class="space-y-2">
+            <div
+                v-for="logo in logos"
+                :key="logo.id"
+                class="liquid-surface-inner flex items-center gap-3 p-2.5 rounded-[var(--radius)]"
+            >
+              <button
+                  type="button"
+                  class="h-12 w-12 shrink-0 rounded-[calc(var(--radius)-2px)] bg-[var(--color-bg-muted)] flex items-center justify-center overflow-hidden hover:opacity-85 transition-opacity"
+                  title="Vorschau"
+                  @click="openLogoPreview(logo)"
+              >
+                <img :src="logo.url" alt="" class="h-full w-full object-contain p-1"/>
               </button>
+
+              <div class="flex-1 min-w-0 space-y-1.5">
+                <input
+                    v-model="logo.title"
+                    type="text"
+                    placeholder="Titel"
+                    class="glass-input glass-input--sm liquid-surface-control w-full"
+                    @change="updateLogo(logo)"
+                />
+                <input
+                    v-model="logo.link"
+                    type="url"
+                    placeholder="https://domain.tld"
+                    class="glass-input glass-input--sm liquid-surface-control w-full"
+                    @change="updateLogo(logo)"
+                />
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <label class="flex items-center" :title="'Für dieses Event aktivieren'">
+                  <input
+                      type="checkbox"
+                      class="logo-toggle"
+                      :checked="logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))"
+                      @change="toggleEventLogo(logo)"
+                  />
+                </label>
+                <button
+                    type="button"
+                    class="w-9 h-9 inline-flex items-center justify-center rounded-[var(--radius)] text-[var(--color-text-muted)] hover:text-red-700 hover:bg-[color-mix(in_srgb,#dc2626_10%,transparent)] transition-colors"
+                    title="Löschen"
+                    @click="confirmDeleteLogo(logo)"
+                >
+                  <i class="bi bi-trash-fill" aria-hidden="true"></i>
+                </button>
+              </div>
             </div>
           </div>
+
+          <p v-if="logos.length === 0" class="text-sm text-[var(--color-text-subtle)] italic mt-3">
+            Noch keine Logos hochgeladen.
+          </p>
         </div>
 
-        <p v-if="logos.length === 0" class="text-sm text-[var(--color-text-subtle)] italic mt-4">
-          Noch keine Logos hochgeladen.
-        </p>
-      </div>
+        <!-- Right Side: Assigned Logos (Sortable) -->
+        <div class="glass-card liquid-surface-inner">
+          <h2 class="glass-card__heading">Logos in Verwendung</h2>
+          <p class="glass-settings-hint !mb-1">
+            Ziehe Logos, um die Reihenfolge im öffentlichen Plan zu ändern.
+          </p>
+          <p class="glass-settings-hint !mb-4">
+            Das erste Logo wird für die Namensaufkleber verwendet.
+          </p>
 
-      <!-- Right Side: Assigned Logos (Sortable) -->
-      <div>
-        <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Logos in Verwendung</h2>
-        <p class="text-sm text-[var(--color-text-muted)] mb-4">Ziehe die Logos, um die Reihenfolge zu ändern, in welcher sie im
-          öffentlichen Plan erscheinen.</p>
-        <p class="text-sm text-[var(--color-text-muted)] mb-4">
-          Das erste Logo wird für die Namensaufkleber verwendet.
-        </p>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div
-              v-for="logo in logosWithSpaceMaking.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id)))"
-              :key="logo.id"
-              class="border rounded p-3 shadow bg-white transition-all duration-300 ease-out relative"
-              :class="{
-              'opacity-50 scale-105 rotate-2': draggedLogo?.id === logo.id,
-              'ring-2 ring-blue-500 bg-blue-50': draggedOverLogo?.id === logo.id,
-              'cursor-move': !isDragging,
-              'cursor-grabbing': draggedLogo?.id === logo.id && isDragging
-            }"
-              :style="{ transform: (logo._spaceMakingOffset ? logo._spaceMakingOffset + ' ' : '') }"
-              :draggable="true"
-              @dragstart="handleDragStart($event, logo)"
-              @dragend="handleDragEnd($event)"
-              @dragover.prevent="handleDragOver($event)"
-              @dragenter.prevent="handleDragEnter($event, logo)"
-              @dragleave="handleDragLeave($event)"
-              @drop.prevent="handleDrop($event, logo)"
-          >
-            <!-- Drag handle indicator -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             <div
-                class="drag-handle absolute top-2 right-2 text-[var(--color-text-subtle)] text-xs cursor-move select-none"
-                title="Drag to reorder"
-            >
-              ⋮⋮
-            </div>
-
-            <!-- Drop indicator -->
-            <div
-                v-if="isDragging && draggedOverLogo?.id === logo.id"
-                class="absolute inset-0 border-2 border-dashed border-blue-400 bg-blue-100 bg-opacity-50 rounded flex items-center justify-center"
+                v-for="logo in logosWithSpaceMaking.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id)))"
+                :key="logo.id"
+                class="liquid-surface-inner p-3 transition-all duration-300 ease-out relative rounded-[var(--radius)]"
                 :class="{
-                'border-t-4': dropPosition === 'before',
-                'border-b-4': dropPosition === 'after'
-              }"
+                  'opacity-50 scale-105 rotate-2': draggedLogo?.id === logo.id,
+                  'ring-2 ring-[var(--color-accent)] bg-[var(--color-accent-muted)]': draggedOverLogo?.id === logo.id,
+                  'cursor-move': !isDragging,
+                  'cursor-grabbing': draggedLogo?.id === logo.id && isDragging
+                }"
+                :style="{ transform: (logo._spaceMakingOffset ? logo._spaceMakingOffset + ' ' : '') }"
+                :draggable="true"
+                @dragstart="handleDragStart($event, logo)"
+                @dragend="handleDragEnd($event)"
+                @dragover.prevent="handleDragOver($event)"
+                @dragenter.prevent="handleDragEnter($event, logo)"
+                @dragleave="handleDragLeave($event)"
+                @drop.prevent="handleDrop($event, logo)"
             >
-              <div class="text-blue-600 font-semibold text-sm">
-                {{ dropPosition === 'before' ? '↑ Drop here' : '↓ Drop here' }}
+              <div
+                  class="absolute top-2 right-2 text-[var(--color-text-subtle)] text-xs cursor-move select-none leading-none"
+                  title="Ziehen zum Sortieren"
+              >
+                ⋮⋮
               </div>
-            </div>
 
-            <img
-                :src="logo.url"
-                alt="Logo"
-                class="h-16 mx-auto cursor-pointer hover:opacity-80 transition-opacity mb-2"
-                @click.stop="openLogoPreview(logo)"
-                draggable="false"
-                @mousedown.stop
-                @dragstart.stop
-            />
+              <div
+                  v-if="isDragging && draggedOverLogo?.id === logo.id"
+                  class="absolute inset-0 border-2 border-dashed border-[var(--color-accent)] bg-[var(--color-accent-muted)]/60 rounded-[var(--radius)] flex items-center justify-center logo-drop-pulse"
+                  :class="{
+                    'border-t-4': dropPosition === 'before',
+                    'border-b-4': dropPosition === 'after'
+                  }"
+              >
+                <div class="text-[var(--color-accent)] font-semibold text-sm">
+                  {{ dropPosition === 'before' ? '↑ Hier ablegen' : '↓ Hier ablegen' }}
+                </div>
+              </div>
 
-            <div class="space-y-1 text-center">
-              <div v-if="logo.title" class="text-sm font-medium text-[var(--color-text)]">
-                {{ logo.title }}
-              </div>
-              <div v-if="logo.link" class="text-xs text-blue-600 truncate" :title="logo.link">
-                {{ logo.link }}
-              </div>
-              <div v-if="!logo.title && !logo.link" class="text-xs text-[var(--color-text-subtle)] italic">
-                Kein Titel/Link
-              </div>
-            </div>
+              <button
+                  type="button"
+                  class="block w-full mb-2"
+                  title="Vorschau"
+                  @click.stop="openLogoPreview(logo)"
+              >
+                <img
+                    :src="logo.url"
+                    alt=""
+                    class="h-14 mx-auto object-contain hover:opacity-80 transition-opacity"
+                    draggable="false"
+                    @mousedown.stop
+                    @dragstart.stop
+                />
+              </button>
 
-            <div class="flex items-center justify-center pt-2">
-              <span class="text-xs text-green-600 font-medium">✓ Aktiv</span>
+              <div class="space-y-0.5 text-center min-w-0">
+                <div v-if="logo.title" class="text-sm font-medium text-[var(--color-text)] truncate">
+                  {{ logo.title }}
+                </div>
+                <div
+                    v-if="logo.link"
+                    class="text-xs text-[var(--color-accent)] truncate"
+                    :title="logo.link"
+                >
+                  {{ logo.link }}
+                </div>
+                <div v-if="!logo.title && !logo.link" class="text-xs text-[var(--color-text-subtle)] italic">
+                  Kein Titel/Link
+                </div>
+              </div>
+
+              <div class="flex items-center justify-center pt-2">
+                <span class="text-xs font-semibold text-[var(--color-accent)]">Aktiv</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <p v-if="sortedLogos.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))).length === 0"
-           class="text-sm text-[var(--color-text-subtle)] italic mt-4">
-          Keine Logos in Verwendung. Aktiviere Logos links, um sie hier zu sortieren.
-        </p>
+          <p
+              v-if="sortedLogos.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))).length === 0"
+              class="text-sm text-[var(--color-text-subtle)] italic mt-3"
+          >
+            Keine Logos in Verwendung. Aktiviere Logos links, um sie hier zu sortieren.
+          </p>
+        </div>
       </div>
-    </div>
+    </template>
 
     <!-- Logo Preview Modal -->
     <div
         v-if="selectedLogoForPreview"
-        class="glass-scrim fixed inset-0 flex items-center justify-center z-50"
+        class="glass-scrim fixed inset-0 flex items-center justify-center z-50 p-4"
         @click="closeLogoPreview"
     >
-      <div class="bg-white rounded-lg p-6 max-w-4xl max-h-[90vh] overflow-auto" @click.stop>
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-semibold">{{ selectedLogoForPreview.title || 'Logo Preview' }}</h3>
+      <div class="glass-modal glass-modal-lg max-w-4xl w-full max-h-[90vh] overflow-auto" @click.stop>
+        <div class="glass-modal-header flex items-center justify-between gap-3">
+          <h3 class="text-lg font-semibold">
+            {{ selectedLogoForPreview.title || 'Logo-Vorschau' }}
+          </h3>
           <button
+              type="button"
+              class="text-[var(--color-on-accent)]/80 hover:text-[var(--color-on-accent)] text-2xl leading-none"
+              aria-label="Schließen"
               @click="closeLogoPreview"
-              class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] text-2xl"
           >
             ×
           </button>
         </div>
 
-        <div class="flex justify-center">
+        <div class="flex justify-center p-4">
           <img
               :src="selectedLogoForPreview.url"
               :alt="selectedLogoForPreview.title || 'Logo'"
@@ -623,12 +649,12 @@ onMounted(async () => {
           />
         </div>
 
-        <div v-if="selectedLogoForPreview.link" class="mt-4 text-center">
+        <div v-if="selectedLogoForPreview.link" class="px-4 pb-4 text-center">
           <a
               :href="selectedLogoForPreview.link"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-blue-600 hover:text-blue-800 underline"
+              class="text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] underline break-all"
           >
             {{ selectedLogoForPreview.link }}
           </a>
@@ -636,7 +662,6 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Delete Confirmation Modal -->
     <ConfirmationModal
         :show="!!logoToDelete"
         title="Logo löschen"
@@ -651,66 +676,47 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.toggle-switch {
+.logo-toggle {
   appearance: none;
-  width: 40px;
-  height: 20px;
-  background: #ccc;
+  width: 2.5rem;
+  height: 1.35rem;
+  background: color-mix(in srgb, var(--color-text-muted) 28%, var(--color-bg-muted));
+  border: 1px solid var(--color-border);
   border-radius: 9999px;
   position: relative;
-  transition: background 0.3s;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-.toggle-switch:checked {
-  background: #4ade80;
+.logo-toggle:checked {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
-.toggle-switch::after {
+.logo-toggle::after {
   content: "";
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
-  background: white;
+  width: 1rem;
+  height: 1rem;
+  background: #fff;
   border-radius: 9999px;
-  transition: transform 0.3s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease;
 }
 
-.toggle-switch:checked::after {
-  transform: translateX(20px);
+.logo-toggle:checked::after {
+  transform: translateX(1.05rem);
 }
 
-/* Enhanced drag and drop animations */
-.transition-all {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.logo-drop-pulse {
+  animation: logo-drop-pulse 1.5s ease-in-out infinite;
 }
 
-.transform {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Smooth space-making animations */
-.border {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.ring-2 {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.bg-blue-50 {
-  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Drop indicator animations */
-.border-dashed {
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
+@keyframes logo-drop-pulse {
   0%, 100% {
-    opacity: 0.7;
+    opacity: 0.75;
   }
   50% {
     opacity: 1;
