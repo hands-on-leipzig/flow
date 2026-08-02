@@ -224,6 +224,7 @@ class ActivityFetcherService
                 ELSE atd.name
             END                        as activity_atd_name,
                 atd.code                   as activity_type_code,
+                atd.presence               as activity_presence,
                 atd.first_program          as activity_first_program_id,
                 fp.name                    as activity_first_program_name,
                 CASE 
@@ -250,6 +251,7 @@ class ActivityFetcherService
                 ag_at.id                   as activity_type_id,
                 ag_at.name                 as activity_type_name,
                 ag_atd.code                as group_activity_type_code,
+                ag_atd.presence            as group_presence,
                 a.extra_block as is_extra_block,
                 ag.activity_type_detail as activity_type_detail,
                 ag.explore_group           as group_explore_group,
