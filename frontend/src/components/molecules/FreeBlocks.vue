@@ -697,7 +697,7 @@ const hasBlocksOutsideEventDates = computed(() => {
       <div class="glass-panel-header">
         <span class="text-sm text-[var(--color-text-muted)] min-w-0">Diese Blöcke werden direkt in den generierten Plan kopiert.</span>
         <button
-            class="glass-btn-accent shrink-0"
+            class="glass-btn-accent shrink-0 w-full sm:w-auto"
             :disabled="!planId"
             @click="addCustom">
           + Block hinzufügen
@@ -708,7 +708,124 @@ const hasBlocksOutsideEventDates = computed(() => {
         Freie Blöcke an Tagen außerhalb der Veranstaltung werden in den Plänen nicht angezeigt.
       </div>
 
-      <div class="overflow-x-auto">
+      <!-- Mobile: stacked cards (table forces horizontal scroll on phones) -->
+      <div class="md:hidden">
+        <div v-if="visibleCustomBlocks.length" class="space-y-3">
+          <div
+              v-for="b in visibleCustomBlocks"
+              :key="`mobile_${b.id ?? JSON.stringify(b)}`"
+              class="rounded-[var(--radius)] border border-[var(--color-border)] p-3 space-y-3 transition-all duration-200"
+              :class="{
+                'glass-table-row--muted': b.active === false,
+                'glass-table-row--warning': b.active !== false && isBlockOutsideEventDates(b),
+              }"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex items-center gap-3 min-w-0">
+                <ToggleSwitch
+                    :model-value="b.active !== false"
+                    @update:modelValue="toggleActive(b, $event)"
+                    :disabled="!b.id"
+                />
+                <div class="flex gap-2">
+                  <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
+                       :class="[
+                         'w-8 h-8 transition-all duration-200',
+                         b.active === false
+                           ? 'opacity-30 grayscale cursor-not-allowed'
+                           : (b.first_program === 2 || b.first_program === 0
+                              ? 'opacity-100 cursor-pointer'
+                              : 'opacity-30 grayscale cursor-pointer')
+                       ]"
+                       @click="b.active !== false && toggleProgram(b, 2)" title="FIRST LEGO League Explore"/>
+                  <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
+                       :class="[
+                         'w-8 h-8 transition-all duration-200',
+                         b.active === false
+                           ? 'opacity-30 grayscale cursor-not-allowed'
+                           : (b.first_program === 3 || b.first_program === 0
+                              ? 'opacity-100 cursor-pointer'
+                              : 'opacity-30 grayscale cursor-pointer')
+                       ]"
+                       @click="b.active !== false && toggleProgram(b, 3)" title="FIRST LEGO League Challenge"/>
+                </div>
+              </div>
+              <button
+                  v-if="b.id"
+                  type="button"
+                  class="no-touch-min p-2 text-lg text-[var(--color-text-muted)] hover:text-red-700"
+                  title="Block löschen"
+                  @click="confirmDeleteBlock(b)"
+              >
+                <i class="bi bi-trash-fill" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <input
+                  :value="extractDate(b.start || b.end)"
+                  :disabled="b.active === false"
+                  class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                  type="date"
+                  @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
+              />
+              <div class="grid grid-cols-2 gap-2">
+                <input
+                    :value="extractTime(b.start)"
+                    :disabled="b.active === false"
+                    class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                    type="time"
+                    min="00:05"
+                    max="23:55"
+                    step="300"
+                    aria-label="Startzeit"
+                    @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start }"
+                    @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
+                />
+                <input
+                    :value="extractTime(b.end)"
+                    :disabled="b.active === false"
+                    class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                    type="time"
+                    min="00:05"
+                    max="23:55"
+                    step="300"
+                    aria-label="Endzeit"
+                    @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
+                    @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
+                />
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <input :value="b.name"
+                     :disabled="b.active === false"
+                     class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                     type="text" placeholder="Titel"
+                     @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
+                     @blur="saveBlock(b)"/>
+              <input :value="b.description"
+                     :disabled="b.active === false"
+                     class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                     type="text" placeholder="Beschreibung"
+                     @input="(e) => { b.description = (e.target as HTMLInputElement).value }"
+                     @blur="saveBlock(b)"/>
+              <input :value="b.link ?? ''"
+                     :disabled="b.active === false"
+                     class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                     type="url" placeholder="https://example.com"
+                     @input="(e) => { b.link = (e.target as HTMLInputElement).value }"
+                     @blur="saveBlock(b)"/>
+            </div>
+          </div>
+        </div>
+        <div v-else class="py-6 text-[var(--color-text-muted)] text-center text-sm">
+          Noch keine freien Zusatzblöcke. Füge oben welche hinzu.
+        </div>
+      </div>
+
+      <!-- Desktop: table -->
+      <div class="hidden md:block overflow-x-auto">
         <table class="min-w-full text-sm">
           <thead>
           <tr class="text-[var(--color-text-subtle)] text-xs uppercase tracking-wide">
@@ -735,9 +852,10 @@ const hasBlocksOutsideEventDates = computed(() => {
                 />
                 <button
                     v-if="b.id"
-                    @click="confirmDeleteBlock(b)"
-                    class="hover:text-red-800 text-lg"
+                    type="button"
+                    class="no-touch-min hover:text-red-800 text-lg"
                     title="Block löschen"
+                    @click="confirmDeleteBlock(b)"
                 >
                   <i class="bi bi-trash-fill"></i>
                 </button>
@@ -770,7 +888,6 @@ const hasBlocksOutsideEventDates = computed(() => {
             </td>
 
             <td class="px-3 py-4 align-top">
-              <!-- Explicit Tailwind gaps so spacing wins even if glass CSS lags -->
               <div class="flex flex-col gap-3">
                 <input
                     :value="extractDate(b.start || b.end)"
@@ -809,7 +926,6 @@ const hasBlocksOutsideEventDates = computed(() => {
             </td>
 
             <td class="px-3 py-4 align-top">
-              <!-- Full-width stack: title, description, link — no side-by-side squeeze -->
               <div class="flex flex-col gap-3">
                 <input :value="b.name"
                        :disabled="b.active === false"

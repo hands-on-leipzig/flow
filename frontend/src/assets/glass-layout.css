@@ -666,3 +666,50 @@
   background: var(--color-accent);
   color: var(--color-on-accent);
 }
+
+/* ── Mobile density: use the phone width, stack chrome, shrink card chrome ── */
+@media (max-width: 768px) {
+  .glass-card {
+    padding: 0.85rem 0.85rem 1rem;
+    border-radius: var(--radius);
+    /* Don’t clip stacked form controls / focus rings on narrow screens */
+    overflow: visible;
+  }
+
+  .glass-card__title {
+    font-size: 1rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .glass-card__heading {
+    margin-bottom: 0.45rem;
+  }
+
+  .glass-chip {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .glass-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.65rem;
+  }
+
+  .glass-settings-block {
+    gap: 1rem;
+  }
+
+  .glass-accordion__header {
+    padding: 0.7rem 0.85rem;
+  }
+
+  .glass-accordion__body {
+    padding: 0.85rem 0.85rem 1.1rem;
+  }
+
+  .glass-stack-card {
+    padding: 0.7rem 0.8rem;
+  }
+}
