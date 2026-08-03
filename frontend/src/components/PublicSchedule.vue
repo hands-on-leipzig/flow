@@ -130,11 +130,16 @@ const selectedTeam = ref<number | null>(null)
 const selectedLane = ref<number | null>(null)
 const selectedTable = ref<number | null>(null)
 const includeExpired = ref(false)
+const filterOpen = ref(false)
+const roleSheetOpen = ref(false)
 
 let nowTimer: ReturnType<typeof setInterval> | null = null
+/** Which teleported sheet owns the shared swipe-dismiss gesture */
+const activeSheet = ref<'detail' | 'role'>('detail')
 
 const numericPlanId = computed(() => Number(props.planId))
-const showDetail = computed(() => selectedRole.value != null)
+const hasRoleSelection = computed(() => selectedRole.value != null)
+const planReady = computed(() => !loadingRoles.value && !error.value)
 
 const selectedRoleMeta = computed(() =>
     roles.value.find((r) => r.id === selectedRole.value) || null
@@ -197,6 +202,8 @@ const selectionLabel = computed(() => {
   const option = role.options.find((o) => o.value === value)
   return option ? `${role.name}: ${option.label}` : `${role.name} ${value}`
 })
+
+const roleChipLabel = computed(() => selectionLabel.value || 'Rolle wählen')
 
 const pageTitle = computed(() => {
   if (selectionLabel.value) return `${selectionLabel.value} · ${eventName.value || 'Zeitplan'}`
@@ -547,14 +554,6 @@ const nowTop = computed(() => {
   return ((now - dayRange.value.start) / 60000) * PX_PER_MINUTE
 })
 
-const dayLabel = computed(() => {
-  if (!dayRange.value) return ''
-  return `${formatHourMark(dayRange.value.start)} – ${formatHourMark(dayRange.value.end)}`
-})
-
-const hasNowInView = computed(() => nowTop.value != null)
-const hasCurrentEvent = computed(() => timedGroups.value.some((g) => g.current))
-
 const selectedItem = computed(() =>
     timedGroups.value.find((g) => g.group.activity_group_id === selectedBlockId.value) || null
 )
@@ -596,6 +595,8 @@ function hourStyle(ms: number) {
 
 const planScrollEl = ref<HTMLElement | null>(null)
 const detailBodyEl = ref<HTMLElement | null>(null)
+const roleBodyEl = ref<HTMLElement | null>(null)
+const filterRootEl = ref<HTMLElement | null>(null)
 
 /** Swipe-down to dismiss (touch + mouse / DevTools mobile preview) */
 const sheetDragY = ref(0)
@@ -606,25 +607,52 @@ let sheetDragFromBody = false
 
 const DISMISS_DISTANCE = 110
 
+function resetSheetDrag() {
+  sheetDragY.value = 0
+  sheetDragging.value = false
+  sheetPointerId = null
+  sheetDragFromBody = false
+}
+
 function selectBlock(block: CalBlock | TimedGroup) {
   const id = block.group.activity_group_id
   // Detail öffnet als Sheet — kein Page-Scroll
   selectedBlockId.value = selectedBlockId.value === id ? null : id
-  sheetDragY.value = 0
-  sheetDragging.value = false
+  if (selectedBlockId.value != null) {
+    roleSheetOpen.value = false
+    activeSheet.value = 'detail'
+  }
+  resetSheetDrag()
 }
 
 function closeDetail() {
-  sheetDragY.value = 0
-  sheetDragging.value = false
-  sheetPointerId = null
   selectedBlockId.value = null
+  resetSheetDrag()
 }
 
-function onSheetPointerDown(e: PointerEvent, fromBody = false) {
+function openRoleSheet() {
+  closeFilterMenu()
+  closeDetail()
+  activeSheet.value = 'role'
+  roleSheetOpen.value = true
+  if (selectedRole.value) openRoleId.value = selectedRole.value
+  resetSheetDrag()
+}
+
+function closeRoleSheet() {
+  roleSheetOpen.value = false
+  resetSheetDrag()
+}
+
+function onSheetPointerDown(
+    e: PointerEvent,
+    fromBody = false,
+    kind: 'detail' | 'role' = 'detail',
+) {
   if (e.pointerType === 'mouse' && e.button !== 0) return
+  activeSheet.value = kind
   if (fromBody) {
-    const body = detailBodyEl.value
+    const body = kind === 'role' ? roleBodyEl.value : detailBodyEl.value
     if (body && body.scrollTop > 2) return
   }
   sheetDragFromBody = fromBody
@@ -657,7 +685,8 @@ function onSheetPointerUp(e: PointerEvent) {
     /* already released */
   }
   if (dy >= DISMISS_DISTANCE) {
-    closeDetail()
+    if (activeSheet.value === 'role') closeRoleSheet()
+    else closeDetail()
     return
   }
   sheetDragY.value = 0
@@ -705,14 +734,98 @@ function showRoleSearch(role: Role): boolean {
   return openRoleId.value === role.id && role.options.length > 8
 }
 
+type StoredPrefs = {
+  role: number | null
+  team: number | null
+  lane: number | null
+  table: number | null
+  expired: boolean
+}
+
+function visitorStorageKey(planId: number) {
+  return `flow:visitor-schedule:${planId}`
+}
+
+function toStoredId(value: unknown): number | null {
+  if (value == null || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+function readStoredPrefs(planId: number): StoredPrefs | null {
+  if (typeof localStorage === 'undefined' || !planId) return null
+  try {
+    const raw = localStorage.getItem(visitorStorageKey(planId))
+    if (!raw) return null
+    const data = JSON.parse(raw) as Record<string, unknown>
+    return {
+      role: toStoredId(data.role),
+      team: toStoredId(data.team),
+      lane: toStoredId(data.lane),
+      table: toStoredId(data.table),
+      expired: data.expired === true,
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeStoredPrefs() {
+  if (typeof localStorage === 'undefined' || !numericPlanId.value) return
+  try {
+    const payload: StoredPrefs = {
+      role: selectedRole.value,
+      team: selectedTeam.value,
+      lane: selectedLane.value,
+      table: selectedTable.value,
+      expired: includeExpired.value,
+    }
+    localStorage.setItem(visitorStorageKey(numericPlanId.value), JSON.stringify(payload))
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function applyPrefs(prefs: Partial<StoredPrefs>) {
+  if (prefs.role !== undefined) selectedRole.value = prefs.role
+  if (prefs.team !== undefined) selectedTeam.value = prefs.team
+  if (prefs.lane !== undefined) selectedLane.value = prefs.lane
+  if (prefs.table !== undefined) selectedTable.value = prefs.table
+  if (prefs.expired !== undefined) includeExpired.value = prefs.expired
+  if (selectedRole.value) openRoleId.value = selectedRole.value
+}
+
+function selectionStillValid(): boolean {
+  if (selectedRole.value == null) return false
+  const role = roles.value.find((r) => r.id === selectedRole.value)
+  if (!role) return false
+  const param = role.differentiation_parameter
+  if (!param || !roleNeedsPicker(role)) return true
+  let value: number | null = null
+  if (param === 'team') value = selectedTeam.value
+  if (param === 'lane') value = selectedLane.value
+  if (param === 'table') value = selectedTable.value
+  if (value == null) return false
+  return role.options.some((o) => o.value === value)
+}
+
 function syncFromQuery() {
   const q = route.query
-  selectedRole.value = q.role != null && q.role !== '' ? Number(q.role) : null
-  selectedTeam.value = q.team != null && q.team !== '' ? Number(q.team) : null
-  selectedLane.value = q.lane != null && q.lane !== '' ? Number(q.lane) : null
-  selectedTable.value = q.table != null && q.table !== '' ? Number(q.table) : null
-  includeExpired.value = q.expired === 'yes'
-  if (selectedRole.value) openRoleId.value = selectedRole.value
+  applyPrefs({
+    role: q.role != null && q.role !== '' ? Number(q.role) : null,
+    team: q.team != null && q.team !== '' ? Number(q.team) : null,
+    lane: q.lane != null && q.lane !== '' ? Number(q.lane) : null,
+    table: q.table != null && q.table !== '' ? Number(q.table) : null,
+    expired: q.expired === 'yes',
+  })
+  writeStoredPrefs()
+}
+
+function restorePrefsFromStorage() {
+  const stored = readStoredPrefs(numericPlanId.value)
+  if (!stored || stored.role == null) return false
+  applyPrefs(stored)
+  return true
 }
 
 async function pushQuery(next: Record<string, string | null>) {
@@ -728,6 +841,7 @@ async function pushQuery(next: Record<string, string | null>) {
   for (const [key, value] of Object.entries(merged)) {
     if (value != null && value !== '') query[key] = value
   }
+  writeStoredPrefs()
   await router.replace({query})
 }
 
@@ -802,6 +916,7 @@ async function selectOption(role: Role, option: RoleOption) {
     lane: selectedLane.value != null ? String(selectedLane.value) : null,
     table: selectedTable.value != null ? String(selectedTable.value) : null,
   })
+  closeRoleSheet()
 }
 
 async function onRoleClick(role: Role) {
@@ -813,25 +928,29 @@ async function onRoleClick(role: Role) {
   roleFilter.value = ''
 }
 
-async function backToRoles() {
-  selectedRole.value = null
-  selectedTeam.value = null
-  selectedLane.value = null
-  selectedTable.value = null
-  groups.value = []
-  selectedBlockId.value = null
-  roleFilter.value = ''
-  await pushQuery({
-    role: null,
-    team: null,
-    lane: null,
-    table: null,
-  })
-}
-
 async function toggleExpired() {
   includeExpired.value = !includeExpired.value
   await pushQuery({expired: includeExpired.value ? 'yes' : 'no'})
+}
+
+function toggleFilterMenu() {
+  filterOpen.value = !filterOpen.value
+}
+
+function closeFilterMenu() {
+  filterOpen.value = false
+}
+
+async function onUpcomingFilterChange() {
+  await toggleExpired()
+  closeFilterMenu()
+}
+
+function onDocumentPointerDown(event: PointerEvent) {
+  if (!filterOpen.value) return
+  const target = event.target as Node | null
+  const root = filterRootEl.value
+  if (root && target && !root.contains(target)) closeFilterMenu()
 }
 
 async function openTeamPlan(teamNumber: number | null | undefined, firstProgram: number | null | undefined) {
@@ -854,19 +973,45 @@ watch(pageTitle, (title) => {
 }, {immediate: true})
 
 onMounted(async () => {
-  syncFromQuery()
-  if (route.query.expired == null && route.query.role == null) {
-    await pushQuery({expired: 'no'})
+  const hasQueryRole = route.query.role != null && route.query.role !== ''
+  if (hasQueryRole) {
+    syncFromQuery()
+  } else if (!restorePrefsFromStorage()) {
+    syncFromQuery()
+    if (route.query.expired == null) includeExpired.value = false
   }
+
   await loadRoles()
-  if (selectedRole.value != null) await loadSchedule()
+
+  if (selectedRole.value != null && !selectionStillValid()) {
+    applyPrefs({role: null, team: null, lane: null, table: null})
+    writeStoredPrefs()
+  }
+
+  if (selectedRole.value != null) {
+    await pushQuery({
+      role: String(selectedRole.value),
+      team: selectedTeam.value != null ? String(selectedTeam.value) : null,
+      lane: selectedLane.value != null ? String(selectedLane.value) : null,
+      table: selectedTable.value != null ? String(selectedTable.value) : null,
+      expired: includeExpired.value ? 'yes' : 'no',
+    })
+    await loadSchedule()
+  } else {
+    if (route.query.expired == null) await pushQuery({expired: 'no'})
+    else writeStoredPrefs()
+    openRoleSheet()
+  }
+
   nowTimer = setInterval(() => {
     nowMs.value = Date.now()
   }, 30000)
+  document.addEventListener('pointerdown', onDocumentPointerDown)
 })
 
 onUnmounted(() => {
   if (nowTimer) clearInterval(nowTimer)
+  document.removeEventListener('pointerdown', onDocumentPointerDown)
   if (typeof document !== 'undefined') {
     document.documentElement.style.overflow = ''
     document.body.style.overflow = ''
@@ -892,14 +1037,35 @@ watch(
 watch(
     () => props.planId,
     async () => {
+      const hasQueryRole = route.query.role != null && route.query.role !== ''
+      if (hasQueryRole) syncFromQuery()
+      else if (!restorePrefsFromStorage()) {
+        applyPrefs({role: null, team: null, lane: null, table: null, expired: false})
+      }
       await loadRoles()
-      if (selectedRole.value != null) await loadSchedule()
+      if (selectedRole.value != null && !selectionStillValid()) {
+        applyPrefs({role: null, team: null, lane: null, table: null})
+        writeStoredPrefs()
+      }
+      if (selectedRole.value != null) {
+        await pushQuery({
+          role: String(selectedRole.value),
+          team: selectedTeam.value != null ? String(selectedTeam.value) : null,
+          lane: selectedLane.value != null ? String(selectedLane.value) : null,
+          table: selectedTable.value != null ? String(selectedTable.value) : null,
+          expired: includeExpired.value ? 'yes' : 'no',
+        })
+        await loadSchedule()
+      } else {
+        writeStoredPrefs()
+        openRoleSheet()
+      }
     }
 )
 
 // Prevent document scroll while the plan chrome is fixed
 watch(
-    () => showDetail.value,
+    () => planReady.value,
     (locked) => {
       if (typeof document === 'undefined') return
       document.documentElement.style.overflow = locked ? 'hidden' : ''
@@ -914,8 +1080,8 @@ watch(
       class="public-schedule"
       :class="{
         'public-schedule--embedded': embedded,
-        'public-schedule--plan-view': showDetail,
-        'public-schedule--sheet-open': showDetail && !!selectedItem,
+        'public-schedule--plan-view': planReady,
+        'public-schedule--sheet-open': !!selectedItem || roleSheetOpen,
       }"
       :style="{'--accent': roleAccent}"
   >
@@ -928,159 +1094,111 @@ watch(
         {{ error }}
       </div>
 
-      <template v-else>
-        <div v-if="!showDetail" class="public-schedule__picker">
-          <header class="public-schedule__picker-header">
-            <p class="public-schedule__eyebrow">Online-Zeitplan</p>
-            <h1 class="public-schedule__title">
-              {{ eventName || 'Veranstaltungsplan' }}
-            </h1>
-            <p class="public-schedule__lead">
-              Wer bist du? Tippe auf deine Rolle.
-            </p>
-          </header>
-
-          <div class="public-schedule__role-list">
-            <section
-                v-for="section in roleSections"
-                :key="section.key"
-                class="public-schedule__role-section"
+      <!-- Single plan page: role via sheet, filter for upcoming -->
+      <div v-else class="public-schedule__plan">
+        <header class="public-schedule__chrome">
+          <div class="public-schedule__toolbar">
+            <button
+                type="button"
+                class="public-schedule__role-chip"
+                :aria-expanded="roleSheetOpen"
+                aria-haspopup="dialog"
+                :aria-label="hasRoleSelection ? `Rolle wechseln: ${roleChipLabel}` : 'Rolle wählen'"
+                @click="openRoleSheet"
             >
-              <h2 class="public-schedule__role-section-label">
-                <span
-                    class="public-schedule__role-section-dot"
-                    :style="{background: section.accent}"
+              <img
+                  v-if="selectedRoleMeta"
+                  :src="programLogo(selectedRoleMeta.first_program)"
+                  :alt="programLogoAlt(selectedRoleMeta.first_program || '')"
+                  class="public-schedule__role-chip-logo"
+              />
+              <i
+                  v-else
+                  class="bi bi-person-circle public-schedule__role-chip-placeholder"
+                  aria-hidden="true"
+              />
+              <span class="public-schedule__role-chip-text">
+                <span class="public-schedule__toolbar-event">
+                  {{ eventName || 'Online-Zeitplan' }}
+                </span>
+                <span class="public-schedule__selection">{{ roleChipLabel }}</span>
+              </span>
+              <span class="public-schedule__role-chip-action">
+                <span class="public-schedule__role-chip-action-label">
+                  {{ hasRoleSelection ? 'Wechseln' : 'Wählen' }}
+                </span>
+                <i class="bi bi-chevron-down" aria-hidden="true"/>
+              </span>
+            </button>
+
+            <div ref="filterRootEl" class="public-schedule__filter">
+              <button
+                  type="button"
+                  class="public-schedule__filter-btn"
+                  :class="{'public-schedule__filter-btn--active': !includeExpired}"
+                  :aria-expanded="filterOpen"
+                  aria-haspopup="true"
+                  aria-label="Filter"
+                  @click="toggleFilterMenu"
+              >
+                <i
+                    class="bi"
+                    :class="includeExpired ? 'bi-funnel' : 'bi-funnel-fill'"
                     aria-hidden="true"
                 />
-                {{ section.label }}
-              </h2>
-
+              </button>
               <div
-                  v-for="role in section.roles"
-                  :key="role.id"
-                  class="public-schedule__role-item"
-                  :class="{'public-schedule__role-item--open': openRoleId === role.id}"
+                  v-if="filterOpen"
+                  class="public-schedule__filter-menu"
+                  role="menu"
               >
-                <button
-                    type="button"
-                    class="public-schedule__role-btn"
-                    :aria-expanded="roleNeedsPicker(role) ? openRoleId === role.id : undefined"
-                    @click="onRoleClick(role)"
-                >
-                  <span
-                      class="public-schedule__role-accent"
-                      :style="{background: roleAccentHex(role)}"
-                      aria-hidden="true"
+                <label class="public-schedule__filter-option">
+                  <input
+                      type="checkbox"
+                      class="public-schedule__filter-checkbox"
+                      :checked="!includeExpired"
+                      @change="onUpcomingFilterChange"
                   />
-                  <img
-                      :src="programLogo(role.first_program)"
-                      :alt="programLogoAlt(role.first_program || '')"
-                      class="public-schedule__role-logo"
-                  />
-                  <span class="public-schedule__role-name">{{ role.name }}</span>
-                  <i
-                      class="bi public-schedule__role-chevron"
-                      :class="roleNeedsPicker(role)
-                        ? (openRoleId === role.id ? 'bi-chevron-up' : 'bi-chevron-down')
-                        : 'bi-chevron-right'"
-                      aria-hidden="true"
-                  />
-                </button>
-
-                <div v-if="openRoleId === role.id && roleNeedsPicker(role)" class="public-schedule__options">
-                  <div v-if="showRoleSearch(role)" class="public-schedule__search-wrap">
-                    <input
-                        v-model="roleFilter"
-                        type="search"
-                        enterkeyhint="search"
-                        autocomplete="off"
-                        class="public-schedule__search"
-                        placeholder="Suchen…"
-                        :aria-label="`${role.name} suchen`"
-                    />
-                  </div>
-                  <button
-                      v-for="(option, idx) in filteredOptions(role)"
-                      :key="`${role.id}-${idx}-${option.value}`"
-                      type="button"
-                      class="public-schedule__option-btn"
-                      @click="selectOption(role, option)"
-                  >
-                    <span :class="{'line-through opacity-50': option.noshow}">
-                      {{ option.label }}
-                    </span>
-                    <i class="bi bi-chevron-right opacity-40" aria-hidden="true"/>
-                  </button>
-                  <p v-if="filteredOptions(role).length === 0" class="public-schedule__empty-filter">
-                    Keine Treffer.
-                  </p>
-                </div>
+                  <span>Nur noch Kommende</span>
+                </label>
               </div>
-            </section>
+            </div>
           </div>
-        </div>
+        </header>
 
-        <!-- Plan view: fixed chrome + scrollable calendar only -->
-        <div v-else class="public-schedule__plan">
-          <header class="public-schedule__chrome">
-            <div class="public-schedule__toolbar">
-              <button type="button" class="public-schedule__back" @click="backToRoles">
-                <i class="bi bi-arrow-left" aria-hidden="true"/>
-                <span>Rollen</span>
-              </button>
+        <div ref="planScrollEl" class="public-schedule__plan-scroll">
+          <div
+              v-if="!hasRoleSelection"
+              class="public-schedule__card public-schedule__card--center"
+          >
+            Wähle oben deine Rolle, um den Zeitplan zu sehen.
+            <button type="button" class="public-schedule__text-action" @click="openRoleSheet">
+              Rolle wählen
+            </button>
+          </div>
 
-              <div class="public-schedule__toolbar-center">
-                <p v-if="eventName" class="public-schedule__toolbar-event">{{ eventName }}</p>
-                <h2 class="public-schedule__selection">{{ selectionLabel }}</h2>
-              </div>
+          <div
+              v-else-if="loadingSchedule"
+              class="public-schedule__card public-schedule__card--center"
+              role="status"
+          >
+            Zeitplan wird geladen…
+          </div>
 
-              <label class="public-schedule__toggle">
-                <input
-                    type="checkbox"
-                    class="public-schedule__toggle-input"
-                    :checked="!includeExpired"
-                    @change="toggleExpired"
-                />
-                <span>Nur noch Kommende</span>
-              </label>
-            </div>
-
-            <div v-if="!loadingSchedule && timedGroups.length" class="public-schedule__daymeta">
-              <div>
-                <p class="public-schedule__daymeta-label">Tagesverlauf</p>
-                <p class="public-schedule__daymeta-range">{{ dayLabel }}</p>
-              </div>
-              <button
-                  v-if="hasNowInView || hasCurrentEvent"
-                  type="button"
-                  class="public-schedule__jump-now"
-                  @click="scrollToNow"
-              >
-                <i class="bi bi-record-circle" aria-hidden="true"/>
-                Jetzt {{ clockLabel() }}
-              </button>
-            </div>
-          </header>
-
-          <div ref="planScrollEl" class="public-schedule__plan-scroll">
-            <div v-if="loadingSchedule" class="public-schedule__card public-schedule__card--center" role="status">
-              Zeitplan wird geladen…
-            </div>
-
-            <div
-                v-else-if="!timedGroups.length"
-                class="public-schedule__card public-schedule__card--center"
+          <div
+              v-else-if="!timedGroups.length"
+              class="public-schedule__card public-schedule__card--center"
+          >
+            Keine Einträge für diese Auswahl.
+            <button
+                v-if="!includeExpired"
+                type="button"
+                class="public-schedule__text-action"
+                @click="toggleExpired"
             >
-              Keine Einträge für diese Auswahl.
-              <button
-                  v-if="!includeExpired"
-                  type="button"
-                  class="public-schedule__text-action"
-                  @click="toggleExpired"
-              >
-                Vergangene auch anzeigen
-              </button>
-            </div>
+              Vergangene auch anzeigen
+            </button>
+          </div>
 
             <div
                 v-else
@@ -1166,15 +1284,151 @@ watch(
               </div>
             </div>
           </div>
-
         </div>
-      </template>
-    </div>
+      </div>
 
-    <!-- Sheet teleported to body: always viewport-wide, ignores parent frames -->
+    <!-- Role picker sheet -->
     <Teleport to="body">
       <div
-          v-if="showDetail && selectedItem"
+          v-if="roleSheetOpen"
+          class="public-schedule__sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Rolle wählen"
+      >
+        <button
+            type="button"
+            class="public-schedule__sheet-backdrop"
+            aria-label="Rollenauswahl schließen"
+            :style="sheetBackdropStyle"
+            @click="closeRoleSheet"
+        />
+        <section
+            class="public-schedule__detail-panel public-schedule__role-panel"
+            :class="{'public-schedule__detail-panel--dragging': sheetDragging && activeSheet === 'role'}"
+            :style="sheetPanelStyle"
+        >
+          <div
+              class="public-schedule__detail-head"
+              @pointerdown="onSheetPointerDown($event, false, 'role')"
+              @pointermove="onSheetPointerMove"
+              @pointerup="onSheetPointerUp"
+              @pointercancel="onSheetPointerUp"
+          >
+            <div class="public-schedule__sheet-handle" aria-hidden="true"/>
+            <div class="public-schedule__detail-head-row">
+              <div>
+                <p class="public-schedule__detail-kicker">Online-Zeitplan</p>
+                <h3 class="public-schedule__detail-title">Wer bist du?</h3>
+                <p class="public-schedule__detail-time">Tippe auf deine Rolle</p>
+              </div>
+              <button
+                  type="button"
+                  class="public-schedule__detail-close"
+                  aria-label="Schließen"
+                  @pointerdown.stop
+                  @click="closeRoleSheet"
+              >
+                <i class="bi bi-x-lg" aria-hidden="true"/>
+              </button>
+            </div>
+          </div>
+
+          <div
+              ref="roleBodyEl"
+              class="public-schedule__detail-body public-schedule__role-sheet-body"
+              @pointerdown="onSheetPointerDown($event, true, 'role')"
+              @pointermove="onSheetPointerMove"
+              @pointerup="onSheetPointerUp"
+              @pointercancel="onSheetPointerUp"
+          >
+            <div class="public-schedule__role-list">
+              <section
+                  v-for="section in roleSections"
+                  :key="section.key"
+                  class="public-schedule__role-section"
+              >
+                <h2 class="public-schedule__role-section-label">
+                  <span
+                      class="public-schedule__role-section-dot"
+                      :style="{background: section.accent}"
+                      aria-hidden="true"
+                  />
+                  {{ section.label }}
+                </h2>
+
+                <div
+                    v-for="role in section.roles"
+                    :key="role.id"
+                    class="public-schedule__role-item"
+                    :class="{'public-schedule__role-item--open': openRoleId === role.id}"
+                >
+                  <button
+                      type="button"
+                      class="public-schedule__role-btn"
+                      :aria-expanded="roleNeedsPicker(role) ? openRoleId === role.id : undefined"
+                      @click="onRoleClick(role)"
+                  >
+                    <span
+                        class="public-schedule__role-accent"
+                        :style="{background: roleAccentHex(role)}"
+                        aria-hidden="true"
+                    />
+                    <img
+                        :src="programLogo(role.first_program)"
+                        :alt="programLogoAlt(role.first_program || '')"
+                        class="public-schedule__role-logo"
+                    />
+                    <span class="public-schedule__role-name">{{ role.name }}</span>
+                    <i
+                        class="bi public-schedule__role-chevron"
+                        :class="roleNeedsPicker(role)
+                          ? (openRoleId === role.id ? 'bi-chevron-up' : 'bi-chevron-down')
+                          : 'bi-chevron-right'"
+                        aria-hidden="true"
+                    />
+                  </button>
+
+                  <div v-if="openRoleId === role.id && roleNeedsPicker(role)" class="public-schedule__options">
+                    <div v-if="showRoleSearch(role)" class="public-schedule__search-wrap">
+                      <input
+                          v-model="roleFilter"
+                          type="search"
+                          enterkeyhint="search"
+                          autocomplete="off"
+                          class="public-schedule__search"
+                          placeholder="Suchen…"
+                          :aria-label="`${role.name} suchen`"
+                      />
+                    </div>
+                    <button
+                        v-for="(option, idx) in filteredOptions(role)"
+                        :key="`${role.id}-${idx}-${option.value}`"
+                        type="button"
+                        class="public-schedule__option-btn"
+                        @click="selectOption(role, option)"
+                    >
+                      <span :class="{'line-through opacity-50': option.noshow}">
+                        {{ option.label }}
+                      </span>
+                      <i class="bi bi-chevron-right opacity-40" aria-hidden="true"/>
+                    </button>
+                    <p v-if="filteredOptions(role).length === 0" class="public-schedule__empty-filter">
+                      Keine Treffer.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+      </div>
+    </Teleport>
+
+    <!-- Event detail sheet -->
+    <Teleport to="body">
+      <div
+          v-if="selectedItem"
           class="public-schedule__sheet"
           role="dialog"
           aria-modal="true"
@@ -1191,13 +1445,13 @@ watch(
             class="public-schedule__detail-panel"
             :class="{
               'public-schedule__detail-panel--current': selectedItem.current,
-              'public-schedule__detail-panel--dragging': sheetDragging,
+              'public-schedule__detail-panel--dragging': sheetDragging && activeSheet === 'detail',
             }"
             :style="sheetPanelStyle"
         >
           <div
               class="public-schedule__detail-head"
-              @pointerdown="onSheetPointerDown($event, false)"
+              @pointerdown="onSheetPointerDown($event, false, 'detail')"
               @pointermove="onSheetPointerMove"
               @pointerup="onSheetPointerUp"
               @pointercancel="onSheetPointerUp"
@@ -1230,7 +1484,7 @@ watch(
           <div
               ref="detailBodyEl"
               class="public-schedule__detail-body"
-              @pointerdown="onSheetPointerDown($event, true)"
+              @pointerdown="onSheetPointerDown($event, true, 'detail')"
               @pointermove="onSheetPointerMove"
               @pointerup="onSheetPointerUp"
               @pointercancel="onSheetPointerUp"
@@ -1602,116 +1856,172 @@ watch(
 
 .public-schedule__toolbar {
   display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-areas:
-    "back center"
-    "toggle toggle";
-  gap: 0.35rem 0.65rem;
-  padding: 0.55rem 0.75rem;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.35rem;
+  align-items: center;
+  padding: 0.45rem 0.55rem 0.45rem 0.65rem;
   background: #fff;
 }
 
-.public-schedule__back {
-  grid-area: back;
-  align-self: center;
-  display: inline-flex;
+.public-schedule__role-chip {
+  min-width: 0;
+  display: flex;
   align-items: center;
-  gap: 0.3rem;
-  min-height: 2.75rem;
-  padding: 0.35rem 0.55rem;
-  margin-left: -0.25rem;
-  border-radius: 0.65rem;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #c2410c;
+  gap: 0.5rem;
+  min-height: 2.85rem;
+  padding: 0.3rem 0.35rem 0.3rem 0.25rem;
+  margin-left: -0.15rem;
+  border-radius: 0.7rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  color: #111827;
 }
 
-.public-schedule__back:active { background: #fff7ed; }
+.public-schedule__role-chip:active {
+  background: #f3f4f6;
+}
 
-.public-schedule__toolbar-center {
-  grid-area: center;
+.public-schedule__role-chip-logo,
+.public-schedule__role-chip-placeholder {
+  width: 1.7rem;
+  height: 1.7rem;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 0.3rem;
+}
+
+.public-schedule__role-chip-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 1.45rem;
+}
+
+.public-schedule__role-chip-text {
   min-width: 0;
-  align-self: center;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
 }
 
 .public-schedule__toolbar-event {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  color: #9a3412;
-  opacity: 0.85;
+  color: #6b7280;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .public-schedule__selection {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 800;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.public-schedule__toggle {
-  grid-area: toggle;
+.public-schedule__role-chip-action {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  min-height: 2.75rem;
-  padding: 0.2rem 0.1rem;
-  font-size: 0.9rem;
-  font-weight: 600;
+  gap: 0.2rem;
+  min-height: 1.85rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
   color: #374151;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.public-schedule__role-chip-action .bi {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+@media (max-width: 360px) {
+  .public-schedule__role-chip-action-label {
+    display: none;
+  }
+}
+
+.public-schedule__filter {
+  position: relative;
+  align-self: center;
+}
+
+.public-schedule__role-panel {
+  max-height: min(88dvh, 44rem);
+}
+
+.public-schedule__role-sheet-body {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+
+.public-schedule__filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-right: -0.35rem;
+  border-radius: 0.65rem;
+  color: #6b7280;
+  font-size: 1.15rem;
+}
+
+.public-schedule__filter-btn:active {
+  background: #f3f4f6;
+}
+
+.public-schedule__filter-btn--active {
+  color: #c2410c;
+}
+
+.public-schedule__filter-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 40;
+  min-width: 13rem;
+  padding: 0.35rem;
+  border-radius: 0.75rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.1);
+}
+
+.public-schedule__filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.55rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1f2937;
   cursor: pointer;
   user-select: none;
 }
 
-.public-schedule__toggle-input {
-  width: 1.2rem;
-  height: 1.2rem;
+.public-schedule__filter-option:active {
+  background: #fff7ed;
+}
+
+.public-schedule__filter-checkbox {
+  width: 1.15rem;
+  height: 1.15rem;
   accent-color: #ea580c;
   flex-shrink: 0;
 }
-
-.public-schedule__daymeta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.35rem 0.75rem 0.55rem;
-  border-top: 1px solid #f3f4f6;
-}
-
-.public-schedule__daymeta-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #9a3412;
-}
-
-.public-schedule__daymeta-range {
-  font-size: 0.95rem;
-  font-weight: 750;
-  font-variant-numeric: tabular-nums;
-  color: #1f2937;
-}
-
-.public-schedule__jump-now {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 2.25rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: 0.5rem;
-  background: #fff7ed;
-  border: 1px solid #fdba74;
-  color: #9a3412;
-  font-weight: 750;
-  font-size: 0.85rem;
-  flex-shrink: 0;
-}
-
-.public-schedule__jump-now:active { background: #ffedd5; }
 
 /* ─── 1:1 calendar grid (edge-to-edge, flat) ─── */
 .public-schedule__calendar {
@@ -2163,11 +2473,4 @@ watch(
 
 .public-schedule__chip--action:active { background: #ffedd5; }
 
-@media (min-width: 480px) {
-  .public-schedule__toolbar {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas: "back center toggle";
-    align-items: center;
-  }
-}
 </style>
