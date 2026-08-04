@@ -14,6 +14,7 @@ import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, setTheme} from '@hands-on/glass/theme'
 import AppShell from '@hands-on/glass/app-shell'
 import SidebarFooter from '@hands-on/glass/sidebar-footer'
+import SidebarNavItem from '@hands-on/glass/sidebar-nav-item'
 
 const eventStore = useEventStore()
 const planCache = usePlanCacheStore()
@@ -160,20 +161,55 @@ async function checkDataReadiness() {
   }
 }
 
-const tabs = computed(() => [
+type NavChild = {
+  name: string
+  path: string
+  icon?: string
+}
+
+type NavEntry = {
+  name: string
+  path?: string
+  icon: string
+  children?: NavChild[]
+}
+
+const navEntries = computed<NavEntry[]>(() => [
   {name: 'Übersicht', path: '/overview', icon: 'bi-house-door'},
   {name: 'Veranstaltung', path: '/event', icon: 'bi-calendar-event'},
-  {name: 'Ablauf', path: '/schedule', icon: 'bi-list-check'},
-  {name: 'Slots', path: '/slots', icon: 'bi-grid-3x3-gap'},
-  {name: 'Teams', path: '/teams', icon: 'bi-people'},
-  {name: 'Räume', path: '/rooms', icon: 'bi-door-open'},
-  {name: 'Logos', path: '/logos', icon: 'bi-images'},
+  {
+    name: 'Planung',
+    icon: 'bi-kanban',
+    children: [
+      {name: 'Ablauf', path: '/schedule', icon: 'bi-list-check'},
+      {name: 'Slots', path: '/slots', icon: 'bi-grid-3x3-gap'},
+      {name: 'Teams', path: '/teams', icon: 'bi-people'},
+      {name: 'Räume', path: '/rooms', icon: 'bi-door-open'},
+      {name: 'Logos', path: '/logos', icon: 'bi-images'},
+    ],
+  },
   {name: 'Ausgabe', path: '/publish', icon: 'bi-broadcast'},
   {name: 'am Tag', path: '/live', icon: 'bi-play-circle'},
 ])
 
 const liveTabPath = '/live'
 const isLiveTabActive = computed(() => isActive(liveTabPath))
+
+function entryWarning(entry: NavEntry): boolean {
+  if (entry.path && hasWarning(entry.path)) return true
+  return !!entry.children?.some((child) => hasWarning(child.path))
+}
+
+function childNavProps(child: NavChild) {
+  return {
+    id: child.path,
+    label: child.name,
+    icon: child.icon,
+    path: child.path,
+    active: isActive(child.path),
+    warning: hasWarning(child.path),
+  }
+}
 
 onMounted(async () => {
   initializeUserRoles()
@@ -274,6 +310,19 @@ function goTo(tab: { name: string; path: string }) {
   mobileMenuOpen.value = false
 }
 
+function goToPath(path: string) {
+  router.push(path)
+  mobileMenuOpen.value = false
+}
+
+function onNavSelect(entry: NavEntry) {
+  if (entry.path) goToPath(entry.path)
+}
+
+function onNavChildSelect(child: { path?: string; label?: string }) {
+  if (child?.path) goToPath(child.path)
+}
+
 function toggleMobileMenu() {
   mobileMenuOpen.value = !mobileMenuOpen.value
 }
@@ -305,35 +354,27 @@ function logout() {
     </template>
 
     <template #nav>
-      <button
+      <SidebarNavItem
           v-if="isLiveTabActive"
-          type="button"
-          class="glass-sidebar__item glass-sidebar__item--back"
-          @click="goTo({ name: 'Übersicht', path: '/overview' })"
-      >
-        <span class="glass-sidebar__item-icon"><i class="bi bi-arrow-left" aria-hidden="true"/></span>
-        <span class="glass-sidebar__item-label">Zurück zu Planung</span>
-      </button>
+          label="Zurück zu Planung"
+          icon="bi-arrow-left"
+          @select="goToPath('/overview')"
+      />
 
-      <button
-          v-for="tab in tabs"
-          :key="tab.path"
-          type="button"
-          class="glass-sidebar__item"
-          :class="{'glass-sidebar__item--active': isActive(tab.path)}"
-          @click="goTo(tab)"
-      >
-        <span class="glass-sidebar__item-icon"><i class="bi" :class="tab.icon" aria-hidden="true"/></span>
-        <span class="glass-sidebar__item-label">{{ tab.name }}</span>
-        <span
-            v-if="hasWarning(tab.path)"
-            class="glass-sidebar__warning"
-            title="Achtung: Es gibt offene Punkte in diesem Bereich"
-        />
-      </button>
+      <SidebarNavItem
+          v-for="entry in navEntries"
+          :key="entry.path ?? entry.name"
+          :label="entry.name"
+          :icon="entry.icon"
+          :active="!!entry.path && isActive(entry.path)"
+          :warning="entryWarning(entry)"
+          :children="entry.children?.map(childNavProps)"
+          @select="onNavSelect(entry)"
+          @select-child="onNavChildSelect"
+      />
     </template>
 
-    <template #lower>
+    <template #lower="{ collapsed }">
       <SidebarFooter
           identity-aria-label="Account"
           settings-aria-label="Einstellungen"
@@ -343,12 +384,18 @@ function logout() {
             <MenuButton
                 @click="focusSearchAfterDropdownOpen($event)"
                 class="glass-sidebar__item w-full"
+                :title="collapsed ? eventDropdownLabel() : undefined"
             >
               <span class="glass-sidebar__item-icon"><i class="bi bi-calendar2-event" aria-hidden="true"/></span>
               <span class="glass-sidebar__item-label truncate">{{ eventDropdownLabel() }}</span>
             </MenuButton>
             <MenuItems
-                class="absolute left-0 bottom-full z-50 mb-2 origin-bottom-left rounded-xl liquid-surface liquid-surface--radius-lg focus:outline-none w-[min(100%,20rem)] max-h-[50vh] overflow-y-auto"
+                :class="[
+                  'absolute z-50 origin-bottom-left rounded-xl liquid-surface liquid-surface--radius-lg focus:outline-none w-[min(100%,20rem)] max-h-[50vh] overflow-y-auto',
+                  collapsed
+                    ? 'left-full bottom-0 ml-2'
+                    : 'left-0 bottom-full mb-2',
+                ]"
             >
               <div class="py-2">
                 <div v-if="isAdmin" class="px-3 pb-2">
