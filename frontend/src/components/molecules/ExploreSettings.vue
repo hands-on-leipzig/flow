@@ -6,7 +6,7 @@ import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue"
 import TeamSelectionCard from "@/components/molecules/TeamSelectionCard.vue"
 import {useEventStore} from '@/stores/event'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import ProgramSection from '@/components/atoms/ProgramSection.vue'
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -504,13 +504,13 @@ const currentPMNote = computed<string | undefined>(() => {
 const getAlertLevelStyle = (level: number) => {
   switch (level) {
     case 1:
-      return 'border-2 border-green-500 ring-2 ring-green-500' // Recommended
+      return 'glass-choice--active'
     case 2:
-      return 'border-2 border-orange-500 ring-2 ring-orange-500' // Risk
+      return 'border-amber-400 bg-amber-50 text-amber-900'
     case 3:
-      return 'border-2 border-red-500 ring-2 ring-red-500' // High risk
+      return 'border-red-400 bg-red-50 text-red-900'
     default:
-      return 'ring-1 ring-gray-500 border-gray-500' // OK
+      return 'glass-choice--active'
   }
 }
 
@@ -564,19 +564,8 @@ const teamsPerJuryHint2 = computed(() => {
 </script>
 
 <template>
-  <div class="glass-card liquid-surface-inner relative min-w-0 glass-settings-block">
-    <div class="flex items-center gap-3 justify-between flex-wrap">
-      <div class="flex items-center gap-2.5 min-w-0 flex-1">
-        <img
-            :alt="programLogoAlt('E')"
-            :src="programLogoSrc('E')"
-            class="w-9 h-9 flex-shrink-0"
-        />
-        <h3 class="glass-card__title !mb-0 capitalize break-words min-w-0">
-          <span class="italic">FIRST</span> LEGO League Explore
-        </h3>
-      </div>
-
+  <ProgramSection program="explore" :active="showExplore">
+    <template #actions>
       <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
         <input
             :checked="showExplore"
@@ -584,30 +573,15 @@ const teamsPerJuryHint2 = computed(() => {
             type="checkbox"
             @change="handleToggleChange($event.target as HTMLInputElement)"
         >
-        <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
         <div
-            class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
+            class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-[var(--program-accent,#00A651)] transition-colors"
+        />
+        <div
+            class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
+        />
         <span v-if="showWarningOnSwitch" class="ml-2 w-2 h-2 bg-red-500 rounded-full"></span>
       </label>
-    </div>
-
-    <!-- DEBUG: Show e_mode value -->
-    <!--
-    <div v-if="hasExplore" class="mb-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm">
-      <strong>DEBUG:</strong> e_mode = {{ eMode }} ({{
-        eMode === 0 ? 'NONE' :
-            eMode === 1 ? 'INTEGRATED_MORNING' :
-                eMode === 2 ? 'INTEGRATED_AFTERNOON' :
-                    eMode === 3 ? 'DECOUPLED_MORNING' :
-                        eMode === 4 ? 'DECOUPLED_AFTERNOON' :
-                            eMode === 5 ? 'DECOUPLED_BOTH' :
-                                eMode === 6 ? 'HYBRID_MORNING' :
-                                    eMode === 7 ? 'HYBRID_AFTERNOON' :
-                                        eMode === 8 ? 'HYBRID_BOTH' :
-                                            'UNKNOWN'
-      }})
-    </div>
-    -->
+    </template>
 
     <div v-if="hasExplore">
       <TeamSelectionCard
@@ -676,11 +650,9 @@ const teamsPerJuryHint2 = computed(() => {
         </div>
     </div>
 
-    <!-- Message when explore is disabled -->
-    <div v-else class="text-center py-8 text-[var(--color-text-subtle)]">
-      <div class="text-lg font-medium mb-2"><span class="italic">FIRST</span> LEGO League Explore ist deaktiviert</div>
-      <div class="text-sm">Aktiviere den Schalter oben rechts, um <span class="italic">FIRST</span> LEGO League Explore-Einstellungen zu konfigurieren.</div>
-    </div>
+    <p v-else class="program-empty">
+      Ausgeschaltet — Schalter oben rechts zum Konfigurieren.
+    </p>
 
     <!-- Gutachter:innen-Gruppen selection - Based on timing mode only -->
 
@@ -868,5 +840,5 @@ const teamsPerJuryHint2 = computed(() => {
       <span class="text-xs">⚠</span>
       {{ currentExploreNote }}
     </div>
-  </div>
+  </ProgramSection>
 </template>

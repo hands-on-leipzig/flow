@@ -1,24 +1,26 @@
 <script setup>
-defineProps({
+import PageTabs from '@hands-on/glass/page-tabs'
+import { computed } from 'vue'
+
+const props = defineProps({
   tabs: Array,
-  modelValue: String
+  modelValue: String,
 })
 
-defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue'])
+
+const pageTabs = computed(() =>
+  (props.tabs || []).map((tab) => ({
+    id: tab,
+    label: tab,
+  }))
+)
 </script>
 
 <template>
-  <div class="glass-tabs">
-    <button
-        v-for="tab in tabs"
-        :key="tab"
-        @click="$emit('update:modelValue', tab)"
-        :class="[
-        'glass-tab',
-        modelValue === tab ? 'glass-tab--active' : ''
-      ]"
-    >
-      {{ tab }}
-    </button>
-  </div>
+  <PageTabs
+      :tabs="pageTabs"
+      :model-value="modelValue"
+      @update:model-value="emit('update:modelValue', $event)"
+  />
 </template>

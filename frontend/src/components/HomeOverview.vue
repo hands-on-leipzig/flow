@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 import {useEventStore} from '@/stores/event'
 import {schedulePlanPrefetch, usePlanCacheStore} from '@/stores/planCache'
 import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBox.vue'
+import EventMap from '@/components/molecules/EventMap.vue'
 import {imageUrl, programLogoAlt, programLogoSrc} from '@/utils/images'
 import {cleanEventName, getCompetitionType, getEventTitleLong} from '@/utils/eventTitle'
 
@@ -118,7 +119,6 @@ async function loadOverviewData() {
   const eventId = event.value.id
 
   try {
-    // Phase 1: everything the start page needs to render
     const [drahtRes, planRes, publishRes] = await Promise.allSettled([
       planCache.getDrahtData(eventId),
       planCache.getPlan(eventId),
@@ -128,6 +128,9 @@ async function loadOverviewData() {
 
     if (drahtRes.status === 'fulfilled') {
       const data = drahtRes.value
+      event.value.address = data.address
+      event.value.contact = data.contact
+      event.value.information = data.information
       teamStats.value = {
         explore: {
           capacity: data.capacity_explore || 0,
@@ -147,14 +150,14 @@ async function loadOverviewData() {
     loading.value = false
   }
 
-  // Phase 2: discrepancy flag (sidebar/teams warning) — after first paint
+  // Discrepancy check shares planCache draht-data + short in-flight dedupe with
+  // fetchSelectedEvent — only one draht-data / teams pair per load.
   try {
     await eventStore.updateTeamDiscrepancyStatus()
   } catch {
     // non-blocking
   }
 
-  // Phase 3: warm other pages only after homepage work is done
   schedulePlanPrefetch(eventId)
 }
 
@@ -179,7 +182,6 @@ watch(
 
 <template>
   <div class="space-y-6">
-    <!-- Header -->
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div class="min-w-0">
         <p class="text-sm text-[var(--color-text-muted)] mb-1">Übersicht für Regionalpartner:innen</p>
@@ -194,6 +196,7 @@ watch(
           </template>
           <span v-if="event?.level_rel?.name"> · {{ event.level_rel.name }}</span>
           <span v-if="event?.season_rel?.name"> · {{ event.season_rel.name }}</span>
+          <span v-if="competitionType"> · {{ competitionType }}</span>
         </p>
       </div>
 
@@ -213,9 +216,7 @@ watch(
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-      <!-- Left column: status cards -->
       <div class="xl:col-span-1 space-y-4 order-2 xl:order-1">
-        <!-- Teams snapshot -->
         <div class="glass-card liquid-surface-inner">
           <div class="flex items-center justify-between gap-2 mb-3">
             <h2 class="glass-card__title !mb-0">Teams</h2>
@@ -280,7 +281,6 @@ watch(
           </div>
         </div>
 
-        <!-- Readiness checklist -->
         <div class="glass-card liquid-surface-inner">
           <div class="flex items-center justify-between gap-2 mb-3">
             <h2 class="glass-card__title !mb-0">Nächste Schritte</h2>
@@ -331,7 +331,6 @@ watch(
           </p>
         </div>
 
-        <!-- Help shortcuts -->
         <div class="glass-card liquid-surface-inner">
           <h2 class="glass-card__title">Hilfe & Einstieg</h2>
           <ul class="space-y-2 text-sm">
@@ -372,28 +371,60 @@ watch(
               <button
                   type="button"
                   class="inline-flex items-center gap-2 text-[var(--color-accent)] hover:underline"
-                  @click="goTo('/event')"
+                  @click="goTo('/schedule/free')"
               >
-                <i class="bi bi-calendar-event" aria-hidden="true"/>
-                Veranstaltungsdetails & Freiblöcke
+                <i class="bi bi-calendar2-plus" aria-hidden="true"/>
+                Freie Aktivitäten im Ablauf
               </button>
             </li>
           </ul>
         </div>
       </div>
 
-      <!-- Right: documents -->
-      <div class="xl:col-span-2 order-1 xl:order-2">
+      <div class="xl:col-span-2 order-1 xl:order-2 space-y-4">
         <div class="glass-card liquid-surface-inner">
           <SharePointDocumentsBox/>
         </div>
 
-        <p v-if="competitionType" class="mt-3 text-sm text-[var(--color-text-subtle)]">
-          Tipp: Stammdaten, Adresse und Kontakte findest du unter
-          <button type="button" class="text-[var(--color-accent)] hover:underline" @click="goTo('/event')">
-            Veranstaltung
-          </button>.
-        </p>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="glass-card liquid-surface-inner">
+            <h2 class="glass-card__title">Adresse</h2>
+            <p class="mb-3">{{ event?.address || (loading ? 'Lade Adresse…' : 'Keine Adresse hinterlegt') }}</p>
+            <EventMap
+                v-if="event?.address && event?.id"
+                :address="event.address"
+                :event-id="event.id"
+                :event-name="event.name"
+                :show-q-r-code="false"
+            />
+          </div>
+
+          <div class="glass-card liquid-surface-inner">
+            <h2 class="glass-card__title">Kontakt</h2>
+            <div v-if="event?.contact?.length" class="grid gap-3">
+              <div
+                  v-for="(person, index) in event.contact"
+                  :key="index"
+                  class="glass-chip liquid-surface-inner"
+              >
+                <div class="flex items-center justify-between mb-1 gap-2">
+                  <span class="glass-chip__label">{{ person.contact }}</span>
+                  <span class="glass-chip__badge">Kontaktperson</span>
+                </div>
+                <div class="text-sm text-[var(--color-text-muted)] flex items-center gap-1">
+                  <i class="bi bi-envelope" aria-hidden="true"/>
+                  {{ person.contact_email }}
+                </div>
+                <p v-if="person.contact_infos" class="text-xs text-[var(--color-text-subtle)] mt-1">
+                  {{ person.contact_infos }}
+                </p>
+              </div>
+            </div>
+            <p v-else class="text-sm text-[var(--color-text-subtle)]">
+              {{ loading ? 'Lade Kontakte…' : 'Keine Kontakte hinterlegt' }}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   </div>

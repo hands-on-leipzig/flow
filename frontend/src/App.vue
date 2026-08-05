@@ -13,6 +13,9 @@ const isPublicRoute = computed(() => {
   return route.meta?.public === true
 })
 
+/** Slim plan pop-out / public surfaces: no app chrome. */
+const isChromeLess = computed(() => isPublicRoute.value || route.meta?.popout === true)
+
 const router = useRouter();
 const route = useRoute();
 
@@ -23,7 +26,7 @@ const showNewsModal = ref(false)
 // Check for unread news
 const checkForUnreadNews = async () => {
   // Only check for authenticated, non-public routes
-  if (isPublicRoute.value) {
+  if (isPublicRoute.value || route.meta?.popout === true) {
     return
   }
 
@@ -64,7 +67,7 @@ const markNewsAsRead = async (newsId) => {
 
 // Watch for route changes and check for unread news
 watch(() => route.path, async () => {
-  if (!isPublicRoute.value) {
+  if (!isPublicRoute.value && route.meta?.popout !== true) {
     await checkForUnreadNews()
   }
 })
@@ -77,7 +80,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="isPublicRoute" class="min-h-dvh w-full font-sans">
+  <div v-if="isChromeLess" class="min-h-dvh w-full font-sans">
     <router-view/>
   </div>
 

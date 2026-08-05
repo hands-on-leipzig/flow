@@ -2,6 +2,7 @@
 import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import ParameterField from '@/components/molecules/ParameterField.vue'
+import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import {programLogoSrc, imageUrl} from '@/utils/images'
 
 const props = defineProps<{
@@ -142,9 +143,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="glass-card liquid-surface-inner glass-settings-block">
-    <h2 class="glass-card__title !mb-0">Zeiten</h2>
-
+  <ProgramSection
+      program="shared"
+      title="Zeiten"
+      subtitle="Beginn und Dauer der gemeinsamen Blöcke"
+      :show-logo="false"
+  >
     <!-- Mobile: stack all time fields vertically -->
     <div class="md:hidden space-y-3">
       <div
@@ -290,5 +294,5 @@ onMounted(async () => {
         </tbody>
       </table>
     </div>
-  </div>
+  </ProgramSection>
 </template>

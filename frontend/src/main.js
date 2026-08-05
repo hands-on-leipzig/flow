@@ -6,13 +6,16 @@ import './assets/main.css'
 import './assets/glass-layout.css'
 import keycloak from "@/keycloak.js";
 import Schedule from "@/components/Schedule.vue";
+import ScheduleGeneral from "@/components/ScheduleGeneral.vue";
+import ScheduleExpert from "@/components/ScheduleExpert.vue";
+import ScheduleBlocks from "@/components/ScheduleBlocks.vue";
+import ScheduleFreeActivities from "@/components/ScheduleFreeActivities.vue";
 import Logos from "@/components/Logos.vue";
 import {createPinia, setActivePinia} from "pinia";
 import SelectEvent from "@/components/SelectEvent.vue";
 import dayjs from "dayjs";
 import 'dayjs/locale/de';
 import Rooms from "@/components/Rooms.vue";
-import EventOverview from "@/components/EventOverview.vue";
 import HomeOverview from "@/components/HomeOverview.vue";
 import PublishControl from "@/components/PublishControl.vue";
 import EventDayControl from "@/components/EventDayControl.vue";
@@ -20,6 +23,7 @@ import EventDayControl from "@/components/EventDayControl.vue";
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
 import Preview from "@/components/molecules/Preview.vue";
+import PlanPopout from "@/components/PlanPopout.vue";
 import Carousel from "@/components/Carousel.vue";
 import EditSlide from "@/components/EditSlide.vue";
 import PlanLayout from "@/components/PlanLayout.vue";
@@ -42,14 +46,25 @@ const routes = [
     {path: '/carousel/:eventId/:slideId', component: StandaloneSlide, props: true, meta: {public: true}},
     {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
     {path: '/public-schedule/:planId', component: PublicSchedule, props: true, meta: {public: true}},
+    // Slim second-screen plan view (auth required, no app chrome / event bootstrap)
+    {path: '/plan/popout/:planId', component: PlanPopout, props: true, meta: {popout: true}},
     {
         path: '/plan',
         component: PlanLayout,
         redirect: '/plan/overview',
         children: [
             {path: 'overview', component: HomeOverview},
-            {path: 'event', component: EventOverview},
-            {path: 'schedule', component: Schedule},
+            {path: 'event', redirect: '/plan/overview'},
+            {
+                path: 'schedule',
+                component: Schedule,
+                children: [
+                    {path: '', component: ScheduleGeneral},
+                    {path: 'expert', component: ScheduleExpert},
+                    {path: 'blocks', component: ScheduleBlocks},
+                    {path: 'free', component: ScheduleFreeActivities},
+                ],
+            },
             {path: 'teams', component: Teams},
             {path: 'logos', component: Logos},
             {path: 'events', component: SelectEvent},
@@ -67,8 +82,11 @@ const routes = [
     },
     // Redirect old routes to new plan/ prefixed routes
     {path: '/overview', redirect: '/plan/overview'},
-    {path: '/event', redirect: '/plan/event'},
+    {path: '/event', redirect: '/plan/overview'},
     {path: '/schedule', redirect: '/plan/schedule'},
+    {path: '/schedule/blocks', redirect: '/plan/schedule/blocks'},
+    {path: '/schedule/expert', redirect: '/plan/schedule/expert'},
+    {path: '/schedule/free', redirect: '/plan/schedule/free'},
     {path: '/slots', redirect: '/plan/slots'},
     {path: '/teams', redirect: '/plan/teams'},
     {path: '/logos', redirect: '/plan/logos'},
@@ -151,8 +169,13 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // Check if event is selected for non-public routes
-    // Skip check for the events selection page itself
-    if (to.path !== '/plan/events' && to.path !== '/events' && to.path.startsWith('/plan')) {
+    // Skip check for the events selection page itself and slim pop-out windows
+    if (
+        !to.meta?.popout &&
+        to.path !== '/plan/events' &&
+        to.path !== '/events' &&
+        to.path.startsWith('/plan')
+    ) {
         // Use the store - pinia is already active
         const eventStore = useEventStore();
 

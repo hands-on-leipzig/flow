@@ -18,6 +18,13 @@ export function programLogoSrc(first_program: string | number, orientation: 'v' 
   if (['3', 'c', 'challenge'].includes(key)) {
     return imageUrl(`/flow/fll_challenge_${orientation}.png`)
   }
+  // Future assets: drop in fll_future5_* / fll_future8_* when available
+  if (['5', 'f5', 'future5', 'future_5', 'future-5'].includes(key)) {
+    return imageUrl(`/flow/fll_future5_${orientation}.png`)
+  }
+  if (['8', 'f8', 'future8', 'future_8', 'future-8'].includes(key)) {
+    return imageUrl(`/flow/fll_future8_${orientation}.png`)
+  }
   return imageUrl(`/flow/first+fll_${orientation}.png`)
 }
 
@@ -26,5 +33,11 @@ export function programLogoAlt(first_program: string | number) {
 
   if (['2', 'e', 'explore'].includes(key)) return 'FIRST LEGO League Explore Logo'
   if (['3', 'c', 'challenge'].includes(key)) return 'FIRST LEGO League Challenge Logo'
+  if (['5', 'f5', 'future5', 'future_5', 'future-5'].includes(key)) {
+    return 'FIRST LEGO League Future 5+ Logo'
+  }
+  if (['8', 'f8', 'future8', 'future_8', 'future-8'].includes(key)) {
+    return 'FIRST LEGO League Future 8+ Logo'
+  }
   return 'FIRST LEGO League Logo'
 }

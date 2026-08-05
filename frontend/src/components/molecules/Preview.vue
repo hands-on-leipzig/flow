@@ -58,8 +58,11 @@ const props = withDefaults(defineProps<{
   planId?: number
   initialView?: 'overview' | 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities'
   reload?: number
+  /** Hide Plan-ID and similar meta (used in pop-out). */
+  hideMeta?: boolean
 }>(), {
   initialView: 'overview',
+  hideMeta: false,
 })
 
 const effectivePlanId = computed(() => {
@@ -271,7 +274,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
         </div>
       </div>
 
-      <div class="shrink-0 text-xs text-[var(--color-text-subtle)]">
+      <div v-if="!hideMeta" class="shrink-0 text-xs text-[var(--color-text-subtle)]">
         <span class="whitespace-nowrap">Plan ID: {{ effectivePlanId }}</span>
       </div>
     </div>

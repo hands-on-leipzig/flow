@@ -176,7 +176,6 @@ type NavEntry = {
 
 const navEntries = computed<NavEntry[]>(() => [
   {name: 'Übersicht', path: '/overview', icon: 'bi-house-door'},
-  {name: 'Veranstaltung', path: '/event', icon: 'bi-calendar-event'},
   {
     name: 'Planung',
     icon: 'bi-kanban',
@@ -302,7 +301,12 @@ function closeHelpModal() {
 
 function isActive(path: string) {
   const cleanPath = path.replace(/^\//, '')
-  return route.path.endsWith('/' + cleanPath) || route.path === '/plan/' + cleanPath
+  const planPath = '/plan/' + cleanPath
+  // Ablauf stays active for all level-3 schedule tabs
+  if (cleanPath === 'schedule') {
+    return route.path === planPath || route.path.startsWith(planPath + '/')
+  }
+  return route.path === planPath || route.path.endsWith('/' + cleanPath)
 }
 
 function goTo(tab: { name: string; path: string }) {

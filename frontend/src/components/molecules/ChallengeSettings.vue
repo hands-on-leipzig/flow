@@ -5,7 +5,7 @@ import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import TeamSelectionCard from "@/components/molecules/TeamSelectionCard.vue";
 import {useEventStore} from '@/stores/event'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import ProgramSection from '@/components/atoms/ProgramSection.vue'
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -257,13 +257,13 @@ const challengeTeamLimits = computed(() => {
 const getAlertLevelStyle = (level: number) => {
   switch (level) {
     case 1:
-      return 'border-2 border-green-500 ring-2 ring-green-500' // Recommended
+      return 'glass-choice--active' // recommended → program accent via ProgramSection
     case 2:
-      return 'border-2 border-orange-500 ring-2 ring-orange-500' // Risk
+      return 'border-amber-400 bg-amber-50 text-amber-900'
     case 3:
-      return 'border-2 border-red-500 ring-2 ring-red-500' // High risk
+      return 'border-red-400 bg-red-50 text-red-900'
     default:
-      return 'ring-1 ring-gray-500 border-gray-500' // OK
+      return 'glass-choice--active'
   }
 }
 
@@ -291,19 +291,8 @@ const teamsPerJuryHint = computed(() => {
 </script>
 
 <template>
-  <div class="glass-card liquid-surface-inner relative min-w-0 glass-settings-block">
-    <div class="flex items-center gap-3 justify-between flex-wrap">
-      <div class="flex items-center gap-2.5 min-w-0 flex-1">
-        <img
-            :alt="programLogoAlt('C')"
-            :src="programLogoSrc('C')"
-            class="w-9 h-9 flex-shrink-0"
-        />
-        <h3 class="glass-card__title !mb-0 capitalize break-words min-w-0">
-          <span class="italic">FIRST</span> LEGO League Challenge
-        </h3>
-      </div>
-
+  <ProgramSection program="challenge" :active="showChallenge">
+    <template #actions>
       <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
         <input
             :checked="showChallenge"
@@ -311,13 +300,15 @@ const teamsPerJuryHint = computed(() => {
             type="checkbox"
             @change="handleToggleChange($event.target as HTMLInputElement)"
         >
-        <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
         <div
-            class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
+            class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-[var(--program-accent,#ED1C24)] transition-colors"
+        />
+        <div
+            class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
+        />
         <span v-if="showWarningOnSwitch" class="ml-2 w-2 h-2 bg-red-500 rounded-full"></span>
       </label>
-
-    </div>
+    </template>
 
     <template v-if="showChallenge">
       <TeamSelectionCard
@@ -347,9 +338,7 @@ const teamsPerJuryHint = computed(() => {
                     'glass-choice relative whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
                     checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
                     disabled ? 'opacity-40 cursor-not-allowed' : '',
-                    (!disabled && isLaneRecommended(n)) ? 'after:absolute after:-top-2 ' +
-                     'after:-right-2 after:text-[10px] after:px-1.5 after:py-0.5 after:bg-emerald-100 ' +
-                      'after:text-emerald-700 after:rounded after:content-[\'Empfohlen\']' : ''
+                    (!disabled && isLaneRecommended(n)) ? 'choice-recommended' : ''
                   ]"
                   type="button"
                   @click="!disabled && updateByName('j_lanes', n)"
@@ -402,23 +391,85 @@ const teamsPerJuryHint = computed(() => {
       </div>
 
       <!-- Alert message banner -->
-      <div v-if="currentLaneNote && currentConfigAlertLevel >= 1"
-           :class="{
-             'bg-green-100 border border-green-300 text-green-700': currentConfigAlertLevel === 1,
-             'bg-orange-100 border border-orange-300 text-orange-700': currentConfigAlertLevel === 2,
-             'bg-red-100 border border-red-300 text-red-700': currentConfigAlertLevel === 3
-           }"
-           class="mt-3 flex items-center gap-2 px-3 py-2 rounded text-sm font-medium">
-        <span>⚠</span>
+      <div
+          v-if="currentLaneNote && currentConfigAlertLevel >= 1"
+          class="program-note"
+          :class="{
+            'program-note--ok': currentConfigAlertLevel === 1,
+            'program-note--warn': currentConfigAlertLevel === 2,
+            'program-note--error': currentConfigAlertLevel === 3,
+          }"
+      >
+        <i
+            class="bi"
+            :class="currentConfigAlertLevel === 1 ? 'bi-check-circle' : 'bi-exclamation-triangle'"
+            aria-hidden="true"
+        />
         <span>{{ currentLaneNote }}</span>
       </div>
 
     </template>
 
-    <!-- Message when challenge is disabled -->
-    <div v-else class="text-center py-8 text-[var(--color-text-subtle)]">
-      <div class="text-lg font-medium mb-2"><span class="italic">FIRST</span> LEGO League Challenge ist deaktiviert</div>
-      <div class="text-sm">Aktiviere den Schalter oben rechts, um <span class="italic">FIRST</span> LEGO League Challenge-Einstellungen zu konfigurieren.</div>
-    </div>
-  </div>
+    <p v-else class="program-empty">
+      Ausgeschaltet — Schalter oben rechts zum Konfigurieren.
+    </p>
+  </ProgramSection>
 </template>
+
+<style scoped>
+.program-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 550;
+  line-height: 1.35;
+}
+
+.program-note .bi {
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
+.program-note--ok {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+  border: 1px solid color-mix(in srgb, #22c55e 28%, transparent);
+}
+
+.program-note--warn {
+  color: #9a3412;
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent);
+}
+
+.program-note--error {
+  color: #991b1b;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  border: 1px solid color-mix(in srgb, #ef4444 28%, transparent);
+}
+
+.choice-recommended {
+  position: relative;
+}
+
+.choice-recommended::after {
+  content: 'Empfohlen';
+  position: absolute;
+  top: -0.55rem;
+  right: -0.35rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid color-mix(in srgb, #22c55e 35%, transparent);
+  pointer-events: none;
+  white-space: nowrap;
+}
+</style>

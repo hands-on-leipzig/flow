@@ -2,6 +2,7 @@ import {defineStore} from 'pinia'
 import axios from "axios"
 import FllEvent  from "@/models/FllEvent"
 import {DrahtService} from "@/services/drahtService"
+import {usePlanCacheStore} from '@/stores/planCache'
 
 interface EventStoreState {
   selectedEvent: FllEvent | null
@@ -137,14 +138,14 @@ export const useEventStore = defineStore('event', {
         
         async loadDrahtTeamData(event: FllEvent) {
             try {
+                // getTeamCounts is in-flight-deduped; draht-data goes through planCache
                 const teamCounts = await DrahtService.getTeamCounts(event.id)
                 event.drahtTeamsExplore = teamCounts.exploreCount
                 event.drahtTeamsChallenge = teamCounts.challengeCount
                 event.hasTeamDiscrepancy = teamCounts.hasDiscrepancy
                 event.drahtCapacityExplore = teamCounts.exploreCapacity
                 event.drahtCapacityChallenge = teamCounts.challengeCapacity
-                
-                // Update store state using $patch for proper reactivity
+
                 if (this.selectedEvent && this.selectedEvent.id === event.id) {
                     this.$patch({
                         selectedEvent: {
@@ -159,14 +160,12 @@ export const useEventStore = defineStore('event', {
                 }
             } catch (error) {
                 console.error('Failed to load DRAHT team data:', error)
-                // Set defaults on error
                 event.drahtTeamsExplore = 0
                 event.drahtTeamsChallenge = 0
                 event.hasTeamDiscrepancy = false
                 event.drahtCapacityExplore = 0
                 event.drahtCapacityChallenge = 0
-                
-                // Update store state using $patch for proper reactivity
+
                 if (this.selectedEvent && this.selectedEvent.id === event.id) {
                     this.$patch({
                         selectedEvent: {
@@ -181,13 +180,14 @@ export const useEventStore = defineStore('event', {
                 }
             }
         },
-        
+
         async refreshDrahtTeamData() {
             if (this.selectedEvent) {
+                usePlanCacheStore().invalidateDraht()
                 await this.loadDrahtTeamData(this.selectedEvent)
             }
         },
-        
+
         async updateTeamDiscrepancyStatus() {
             if (this.selectedEvent) {
                 await this.loadDrahtTeamData(this.selectedEvent)

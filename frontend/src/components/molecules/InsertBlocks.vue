@@ -331,7 +331,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="liquid-surface-inner rounded-xl">
+  <div class="min-w-0">
     <div class="flex items-center gap-2 mb-2">
           <img
           :src="programLogoSrc('C')"
