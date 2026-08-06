@@ -8,6 +8,25 @@ import { formatTimeOnly, formatDateOnly } from '@/utils/dateTimeFormat'
 import SavingToast from "@/components/atoms/SavingToast.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
 
+withDefaults(
+  defineProps<{
+    /**
+     * embed: no outer surface / title / link row — parent owns chrome (for layout experiments).
+     */
+    embed?: boolean
+    /** Hide the large “Veröffentlichte Informationen” preview grid. */
+    hidePreview?: boolean
+  }>(),
+  {
+    embed: false,
+    hidePreview: false,
+  }
+)
+
+const emit = defineEmits<{
+  'update:detailLevel': [level: number]
+}>()
+
 // --- Time display with short weekday when event spans multiple days (same as PublicEvent) ---
 function toLocalDateString(dateInput: string | null | undefined): string {
   if (!dateInput) return ''
@@ -65,7 +84,16 @@ const saving = ref(null)
 
 // Detail-Level (3 levels, skipping backend level 2 "Nach Anmeldeschluss")
 const levels = ['Planung und Anmeldung', 'Überblick zum Ablauf', 'volle Details']
-const detailLevel = ref(undefined)
+const levelHints = [
+  'Basisinfos zu Termin, Ort und Teams',
+  'sinnvoll, sobald der Plan grob fertig ist',
+  'nur nutzen, wenn der Plan komplett ist',
+]
+const detailLevel = ref<number | undefined>(undefined)
+
+watch(detailLevel, (level) => {
+  if (level != null) emit('update:detailLevel', level)
+})
 
 // Map frontend level (0,1,2) to backend level (1,3,4) - skipping level 2
 function frontendToBackendLevel(frontendLevel: number): number {
@@ -221,81 +249,101 @@ async function regenerateLinkAndQR() {
     regenerating.value = false
   }
 }
+
+defineExpose({
+  detailLevel,
+  levels,
+  regenerating,
+  regenerateLinkAndQR,
+})
 </script>
 
 <template>
   <SavingToast ref="saving" message="Publikations-Level wird gespeichert..." />
 
-  <div class="glass-surface-lg space-y-4" style="overflow-anchor: none;">
-    <h2 class="text-lg font-semibold">Online – von der Planung bis zur Veranstaltung</h2>
+  <div
+    class="space-y-4"
+    :class="embed ? '' : 'glass-surface-lg'"
+    style="overflow-anchor: none;"
+  >
+    <template v-if="!embed">
+      <h2 class="text-lg font-semibold">Online – von der Planung bis zur Veranstaltung</h2>
 
-    <!-- Link + Erklärung -->
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
-      <div class="flex-1 min-w-0">
-        <a
-          v-if="event?.link"
-          :href="event?.link"
-          target="_blank"
-          rel="noopener"
-          class="text-[var(--color-accent)] underline font-medium text-base break-all"
+      <!-- Link + Erklärung -->
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+        <div class="flex-1 min-w-0">
+          <a
+            v-if="event?.link"
+            :href="event?.link"
+            target="_blank"
+            rel="noopener"
+            class="text-[var(--color-accent)] underline font-medium text-base break-all"
+          >
+            {{ event?.link }}
+          </a>
+          <p class="text-sm text-[var(--color-text-muted)] mt-1">
+            gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
+          </p>
+        </div>
+        <button
+          v-if="isAdmin && event?.id"
+          @click="regenerateLinkAndQR"
+          :disabled="regenerating"
+          class="glass-btn-secondary lg:ml-auto !px-3 !py-2 !text-sm inline-flex items-center justify-center gap-2 flex-shrink-0"
         >
-          {{ event?.link }}
-        </a>
-        <p class="text-sm text-[var(--color-text-muted)] mt-1">
-          gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
-        </p>
+          <svg v-if="regenerating" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          {{ regenerating ? 'Regeneriere...' : 'Link & QR neu generieren' }}
+        </button>
       </div>
-      <!-- Regenerate Button for Admins -->
-      <button
-        v-if="isAdmin && event?.id"
-        @click="regenerateLinkAndQR"
-        :disabled="regenerating"
-        class="glass-btn-secondary lg:ml-auto !px-3 !py-2 !text-sm inline-flex items-center justify-center gap-2 flex-shrink-0"
-      >
-        <svg v-if="regenerating" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-        </svg>
-        {{ regenerating ? 'Regeneriere...' : 'Link & QR neu generieren' }}
-      </button>
-    </div>
+    </template>
 
-    <div class="flex flex-col lg:flex-row lg:items-start gap-6">
+    <div
+      class="flex flex-col gap-5"
+      :class="embed ? '' : 'lg:flex-row lg:items-start lg:gap-6'"
+    >
       <!-- Level radios (primary on mobile) -->
-      <div class="flex flex-col space-y-3 w-full lg:max-w-xs">
-        <h3 class="text-sm font-semibold mb-2">Detaillevel</h3>
-        <label
-          v-for="(label, idx) in levels"
-          :key="idx"
-          class="flex items-start gap-2 cursor-pointer"
+      <div
+        class="flex flex-col w-full"
+        :class="embed ? 'gap-2.5' : 'space-y-3 lg:max-w-xs'"
+      >
+        <h3 v-if="!embed" class="text-sm font-semibold mb-2">Detaillevel</h3>
+        <div
+          class="grid gap-2"
+          :class="embed ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'"
         >
-          <input
-            type="radio"
-            :value="idx"
-            v-model="detailLevel"
-            class="mt-1 accent-[var(--color-accent)] flex-shrink-0"
-            @focus="(e: Event) => { (e.target as HTMLInputElement)?.blur() }"
-          />
-          <div class="flex flex-col" style="width: 180px;">
-            <span class="text-sm leading-tight">
-              {{ label.split(' ')[0] }} <br />
-              {{ label.split(' ').slice(1).join(' ') }}
+          <label
+            v-for="(label, idx) in levels"
+            :key="idx"
+            class="online-level"
+            :class="{
+              'online-level--active': detailLevel === idx,
+              'online-level--compact': !embed,
+            }"
+          >
+            <input
+              type="radio"
+              :value="idx"
+              v-model="detailLevel"
+              class="online-level__input"
+              @focus="(e: Event) => { (e.target as HTMLInputElement)?.blur() }"
+            />
+            <span class="online-level__radio" aria-hidden="true"/>
+            <span class="online-level__body">
+              <span class="online-level__title">{{ label }}</span>
+              <span class="online-level__hint">{{ levelHints[idx] }}</span>
             </span>
-            <span v-if="idx === 1" class="text-xs text-[var(--color-text-subtle)] italic mt-1" style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
-              sinnvoll, sobald der Plan grob fertig ist
-            </span>
-            <span v-if="idx === 2" class="text-xs text-[var(--color-text-subtle)] italic mt-1" style="word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
-              nur nutzen, wenn der Plan komplett ist
-            </span>
-          </div>
-        </label>
+          </label>
+        </div>
       </div>
 
       <!-- Level preview (hidden on mobile; checkboxes + link are more important) -->
-      <div class="hidden lg:block flex-1">
+      <div v-if="!hidePreview" class="hidden lg:block flex-1 min-w-0">
         <h3 class="text-sm font-semibold mb-2">Veröffentlichte Informationen</h3>
 
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -494,3 +542,77 @@ async function regenerateLinkAndQR() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.online-level {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+  background: color-mix(in srgb, var(--color-bg-muted) 35%, #fff);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.online-level:hover {
+  border-color: color-mix(in srgb, var(--color-border-strong) 60%, transparent);
+  background: #fff;
+}
+
+.online-level--active {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 10%, #fff);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+.online-level--compact {
+  padding: 0.55rem 0.65rem;
+}
+
+.online-level__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.online-level__radio {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  background: #fff;
+  box-shadow: inset 0 0 0 0 var(--color-accent);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.online-level--active .online-level__radio {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 3px var(--color-accent);
+}
+
+.online-level__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.online-level__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: var(--color-text);
+}
+
+.online-level__hint {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+</style>

@@ -1,10 +1,8 @@
 <script setup lang="ts">
 /**
- * Ablauf shell: level-3 tabs swap the left pane; plan preview stays on the right.
+ * Ablauf / Zusatzaktivitäten shell: sidebar picks the left pane; plan preview stays on the right.
  */
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import PageTabs from '@hands-on/glass/page-tabs'
+import { onMounted, ref, watch } from 'vue'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
@@ -14,8 +12,6 @@ import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 
 defineOptions({ name: 'Schedule' })
 
-const route = useRoute()
-const router = useRouter()
 const {
   selectedEvent,
   selectedPlanId,
@@ -39,40 +35,6 @@ const leftWidth = ref(50)
 function clearGeneratorError() {
   generatorError.value = null
   errorDetails.value = null
-}
-
-const scheduleTabs = computed(() => {
-  const path = route.path
-  return [
-    {
-      id: '/plan/schedule',
-      label: 'Allgemein',
-      icon: 'bi-sliders2-vertical',
-      active: /\/plan\/schedule\/?$/.test(path),
-    },
-    {
-      id: '/plan/schedule/blocks',
-      label: 'Blöcke',
-      icon: 'bi-puzzle',
-      active: path.includes('/schedule/blocks'),
-    },
-    {
-      id: '/plan/schedule/expert',
-      label: 'Expertenparameter',
-      icon: 'bi-gear-wide-connected',
-      active: path.includes('/schedule/expert'),
-    },
-    {
-      id: '/plan/schedule/free',
-      label: 'Freie Aktivitäten',
-      icon: 'bi-calendar2-plus',
-      active: path.includes('/schedule/free'),
-    },
-  ]
-})
-
-function onScheduleTabSelect(tab: { id: string | number }) {
-  router.push(String(tab.id))
 }
 
 onMounted(() => {
@@ -156,15 +118,18 @@ watch(
               :class="{ 'schedule-workspace__left--full': planPopoutOpen }"
               :style="planPopoutOpen ? undefined : { flex: `0 0 ${leftWidth}%` }"
           >
-            <PageTabs
-                class="shrink-0"
-                attached
-                aria-label="Ablauf-Bereich"
-                :tabs="scheduleTabs"
-                @select="onScheduleTabSelect"
-            />
-            <div class="glass-page-panel schedule-workspace__settings">
-              <router-view/>
+            <div class="schedule-workspace__settings">
+              <router-view v-slot="{ Component, route: paneRoute }">
+                <keep-alive
+                    include="ScheduleGeneral,ScheduleExpert,ScheduleBlocks,ScheduleFreeActivities,Slots"
+                >
+                  <component
+                      :is="Component"
+                      v-if="Component"
+                      :key="paneRoute.name ?? paneRoute.path"
+                  />
+                </keep-alive>
+              </router-view>
             </div>
           </section>
 
@@ -176,32 +141,34 @@ watch(
             />
 
             <section class="schedule-workspace__right">
-              <div class="schedule-workspace__preview-bar">
-                <h2 class="text-sm font-semibold text-[var(--color-text)] uppercase tracking-wide">Plan</h2>
-                <button
-                    type="button"
-                    class="inline-flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] disabled:opacity-50"
-                    :disabled="!selectedPlanId"
-                    title="Plan in eigenem Fenster öffnen"
-                    @click="openPlanPopout"
-                >
-                  <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
-                  <span>Pop-out</span>
-                </button>
-              </div>
-
               <div class="schedule-workspace__preview">
-                <div v-if="isGenerating" class="flex items-center justify-center h-full w-full flex-col text-[var(--color-text-muted)]">
-                  <LoaderFlow/>
-                  <LoaderText/>
+                <div class="schedule-workspace__preview-bar">
+                  <h2 class="text-sm font-semibold text-[var(--color-text)] uppercase tracking-wide">Plan</h2>
+                  <button
+                      type="button"
+                      class="inline-flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] disabled:opacity-50"
+                      :disabled="!selectedPlanId"
+                      title="Plan in eigenem Fenster öffnen"
+                      @click="openPlanPopout"
+                  >
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
+                    <span>Pop-out</span>
+                  </button>
                 </div>
-                <Preview
-                    v-else-if="selectedPlanId"
-                    class="w-full h-full min-h-0"
-                    :plan-id="selectedPlanId as number"
-                    :reload="previewReload"
-                    initial-view="overview"
-                />
+
+                <div class="flex-1 min-h-0 min-w-0 overflow-hidden">
+                  <div v-if="isGenerating" class="flex items-center justify-center h-full w-full flex-col text-[var(--color-text-muted)]">
+                    <LoaderFlow/>
+                    <LoaderText/>
+                  </div>
+                  <Preview
+                      v-else-if="selectedPlanId"
+                      class="w-full h-full min-h-0"
+                      :plan-id="selectedPlanId as number"
+                      :reload="previewReload"
+                      initial-view="overview"
+                  />
+                </div>
               </div>
             </section>
           </template>
@@ -229,7 +196,6 @@ watch(
 @media (min-width: 768px) {
   .schedule-workspace__split {
     flex-direction: row;
-    /* Equal air left/right of the splitter so the rail sits mid-gutter */
     gap: 0.55rem;
     align-items: stretch;
   }
@@ -251,9 +217,14 @@ watch(
   min-height: 0;
   overflow: auto;
   padding: 1.15rem 1.2rem 1.4rem;
+  background: var(--glass-tab-surface, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, transparent);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.07),
+    0 2px 6px rgba(15, 23, 42, 0.04);
 }
 
-/* Mirror tab strip height so both white panels share one top edge */
 .schedule-workspace__right {
   flex: 1 1 auto;
   min-width: 0;
@@ -264,12 +235,11 @@ watch(
 
 .schedule-workspace__preview-bar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   flex-shrink: 0;
-  min-height: 2.65rem;
-  padding: 0.2rem 0.15rem 0.35rem;
+  margin-bottom: 0.65rem;
 }
 
 .schedule-workspace__preview {
@@ -290,11 +260,6 @@ watch(
 @media (min-width: 768px) {
   .schedule-workspace__right {
     min-height: 0;
-  }
-
-  .schedule-workspace__splitter {
-    align-self: stretch;
-    margin-top: 2.65rem;
   }
 }
 

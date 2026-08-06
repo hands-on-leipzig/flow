@@ -23,7 +23,7 @@ function onFreeBlocksChanged() {
 <template>
   <div class="min-w-0 pb-2">
     <p class="text-xs text-[var(--color-text-muted)] mb-3">
-      Freie Aktivitäten erscheinen in Plänen und Ausgaben, ändern aber den generierten Ablauf nicht.
+      Freie Blöcke erscheinen in Plänen und Ausgaben, ändern aber den generierten Ablauf nicht.
     </p>
     <FreeBlocks
         v-if="selectedPlanId"

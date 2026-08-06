@@ -374,7 +374,7 @@ watch(
                   @click="goTo('/schedule/free')"
               >
                 <i class="bi bi-calendar2-plus" aria-hidden="true"/>
-                Freie Aktivitäten im Ablauf
+                Freie Blöcke
               </button>
             </li>
           </ul>

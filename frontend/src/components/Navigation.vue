@@ -104,9 +104,9 @@ async function selectEventFromDropdown(event: any, regionalPartnerId: number) {
     await eventStore.fetchSelectedEvent()
     mobileMenuOpen.value = false
     if (route.path.includes('/overview')) {
-      await router.replace('/overview')
+      await router.replace('/plan/overview')
     } else {
-      router.push('/overview')
+      void router.push('/plan/overview')
     }
   } catch (error) {
     console.error('Failed to select event:', error)
@@ -175,28 +175,58 @@ type NavEntry = {
 }
 
 const navEntries = computed<NavEntry[]>(() => [
-  {name: 'Übersicht', path: '/overview', icon: 'bi-house-door'},
+  {name: 'Übersicht', path: '/plan/overview', icon: 'bi-house-door'},
   {
-    name: 'Planung',
-    icon: 'bi-kanban',
+    name: 'Ablauf',
+    path: '/plan/schedule',
+    icon: 'bi-list-check',
     children: [
-      {name: 'Ablauf', path: '/schedule', icon: 'bi-list-check'},
-      {name: 'Slots', path: '/slots', icon: 'bi-grid-3x3-gap'},
-      {name: 'Teams', path: '/teams', icon: 'bi-people'},
-      {name: 'Räume', path: '/rooms', icon: 'bi-door-open'},
-      {name: 'Logos', path: '/logos', icon: 'bi-images'},
+      {name: 'Allgemein', path: '/plan/schedule', icon: 'bi-sliders2-vertical'},
+      {name: 'Expertenparameter', path: '/plan/schedule/expert', icon: 'bi-gear-wide-connected'},
     ],
   },
-  {name: 'Ausgabe', path: '/publish', icon: 'bi-broadcast'},
-  {name: 'am Tag', path: '/live', icon: 'bi-play-circle'},
+  {
+    name: 'Zusätzliche Aktivitäten',
+    path: '/plan/schedule/blocks',
+    icon: 'bi-calendar-plus',
+    children: [
+      {name: 'Feste Blöcke', path: '/plan/schedule/blocks', icon: 'bi-puzzle'},
+      {name: 'Freie Blöcke', path: '/plan/schedule/free', icon: 'bi-calendar2-plus'},
+      {name: 'Slots', path: '/plan/schedule/slots', icon: 'bi-grid-3x3-gap'},
+    ],
+  },
+  {name: 'Teams', path: '/plan/teams', icon: 'bi-people'},
+  {name: 'Räume', path: '/plan/rooms', icon: 'bi-door-open'},
+  {name: 'Logos', path: '/plan/logos', icon: 'bi-images'},
+  {
+    name: 'Ausgabe',
+    path: '/plan/publish',
+    icon: 'bi-broadcast',
+    children: [
+      {name: 'Verteilung', path: '/plan/publish', icon: 'bi-link-45deg'},
+      {name: 'Digital', path: '/plan/publish/digital', icon: 'bi-display'},
+      {name: 'Analog', path: '/plan/publish/analog', icon: 'bi-printer'},
+    ],
+  },
+  {name: 'am Tag', path: '/plan/live', icon: 'bi-play-circle'},
 ])
 
-const liveTabPath = '/live'
+const liveTabPath = '/plan/live'
 const isLiveTabActive = computed(() => isActive(liveTabPath))
 
 function entryWarning(entry: NavEntry): boolean {
-  if (entry.path && hasWarning(entry.path)) return true
-  return !!entry.children?.some((child) => hasWarning(child.path))
+  if (entry.children?.length) {
+    return entry.children.some((child) => hasWarning(child.path))
+  }
+  return !!entry.path && hasWarning(entry.path)
+}
+
+/** Parents with children: only highlight via active child (not own default path). */
+function entryActive(entry: NavEntry): boolean {
+  if (entry.children?.length) {
+    return entry.children.some((child) => isActive(child.path))
+  }
+  return !!entry.path && isActive(entry.path)
 }
 
 function childNavProps(child: NavChild) {
@@ -274,13 +304,15 @@ watch(
 
 function hasWarning(tabPath: string): boolean {
   if (!readiness.value) return false
+  const path = normalizePlanPath(tabPath)
 
-  switch (tabPath) {
-    case '/teams':
+  switch (path) {
+    case '/plan/teams':
       return eventStore.selectedEvent?.hasTeamDiscrepancy
-    case '/schedule':
+    case '/plan/schedule':
+    case '/plan/schedule/expert':
       return !readiness.value.explore_teams_ok || !readiness.value.challenge_teams_ok
-    case '/rooms':
+    case '/plan/rooms':
       return !readiness.value.room_mapping_ok
     default:
       return false
@@ -299,24 +331,25 @@ function closeHelpModal() {
   showHelpModal.value = false
 }
 
-function isActive(path: string) {
-  const cleanPath = path.replace(/^\//, '')
-  const planPath = '/plan/' + cleanPath
-  // Ablauf stays active for all level-3 schedule tabs
-  if (cleanPath === 'schedule') {
-    return route.path === planPath || route.path.startsWith(planPath + '/')
-  }
-  return route.path === planPath || route.path.endsWith('/' + cleanPath)
+function normalizePlanPath(path: string): string {
+  const raw = (path || '').trim()
+  if (!raw) return '/plan/overview'
+  if (raw.startsWith('/plan/') || raw === '/plan') return raw.replace(/\/$/, '') || '/plan'
+  if (raw.startsWith('/')) return (`/plan${raw}`).replace(/\/$/, '')
+  return (`/plan/${raw}`).replace(/\/$/, '')
 }
 
-function goTo(tab: { name: string; path: string }) {
-  router.push(tab.path)
-  mobileMenuOpen.value = false
+function isActive(path: string) {
+  const target = normalizePlanPath(path)
+  const current = route.path.replace(/\/$/, '') || '/'
+  return current === target
 }
 
 function goToPath(path: string) {
-  router.push(path)
+  const target = normalizePlanPath(path)
   mobileMenuOpen.value = false
+  if (isActive(target)) return
+  void router.push(target)
 }
 
 function onNavSelect(entry: NavEntry) {
@@ -360,17 +393,17 @@ function logout() {
     <template #nav>
       <SidebarNavItem
           v-if="isLiveTabActive"
-          label="Zurück zu Planung"
+          label="Zurück zur Übersicht"
           icon="bi-arrow-left"
-          @select="goToPath('/overview')"
-      />
+          @select="goToPath('/plan/overview')"
+        />
 
       <SidebarNavItem
           v-for="entry in navEntries"
           :key="entry.path ?? entry.name"
           :label="entry.name"
           :icon="entry.icon"
-          :active="!!entry.path && isActive(entry.path)"
+          :active="entryActive(entry)"
           :warning="entryWarning(entry)"
           :children="entry.children?.map(childNavProps)"
           @select="onNavSelect(entry)"
@@ -511,7 +544,7 @@ function logout() {
               type="button"
               class="glass-sidebar-footer__menu-item"
               role="menuitem"
-              @click="goTo({ name: 'Admin', path: '/admin' }); close()"
+              @click="goToPath('/plan/admin'); close()"
           >
             <i class="bi bi-shield-lock" aria-hidden="true"/>
             <span>Admin</span>
