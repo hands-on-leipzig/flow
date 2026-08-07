@@ -5,14 +5,20 @@ import axios from "axios";
 import {useEventStore} from "@/stores/event";
 import IconDraggable from "@/components/icons/IconDraggable.vue";
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {getProgramTheme} from '@/utils/programTheme'
 import SavingToast from "@/components/atoms/SavingToast.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
 
 
 const props = defineProps({
-  program: {type: String, required: true}, // 'explore' or 'challenge'
+  program: {type: String, required: true}, // 'explore' | 'challenge' | 'future8'
   remoteTeams: {type: Array, default: () => []},
+  /** List left (2/3) + export/tools right (1/3) */
+  split: {type: Boolean, default: false},
 })
+
+const programTheme = computed(() => getProgramTheme(props.program))
+const programLabel = computed(() => programTheme.value.shortName)
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -474,6 +480,20 @@ const getTeamPeopleData = (team) => {
   return peopleData.value[teamNumber]
 }
 
+/** Coach display names for the team row */
+const getCoachNames = (team) => {
+  const data = getTeamPeopleData(team)
+  if (!data?.coaches?.length) return []
+  return data.coaches
+      .map((coach) => {
+        if (typeof coach === 'string') return coach.trim() || null
+        if (!coach || typeof coach !== 'object') return null
+        const name = [coach.firstname, coach.name].filter(Boolean).join(' ').trim()
+        return name || null
+      })
+      .filter(Boolean)
+}
+
 // Toggle team expansion
 const toggleTeamExpansion = (team) => {
   const teamNumber = getDrahtTeamNumber(team)
@@ -628,8 +648,7 @@ const downloadXML = () => {
     }
   })
 
-  // Get program name in German
-  const programName = props.program === 'explore' ? 'Explore' : 'Challenge'
+  const programName = programLabel.value
 
   Object.entries(peopleData.value).forEach(([teamNumber, teamData]) => {
     // Find matching team object to get organization and location
@@ -788,17 +807,20 @@ onMounted(async () => {
 <template>
   <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
 
-  <div class="overflow-y-auto max-h-[80vh] lg:max-h-none mx-2 sm:mx-4">
-    <div class="glass-card liquid-surface-inner">
+  <div
+      class="team-list"
+      :class="{ 'team-list--split': split }"
+  >
+    <div class="team-list__main glass-card liquid-surface-inner">
       <div class="flex items-start sm:items-center gap-2 mb-2">
         <img
-            :alt="programLogoAlt(program)"
-            :src="programLogoSrc(program)"
+            :alt="programLogoAlt(programTheme.logoKey || program)"
+            :src="programLogoSrc(programTheme.logoKey || program)"
             class="w-10 h-10 flex-shrink-0"
         />
         <div>
-          <h3 class="text-lg font-semibold capitalize">
-            <span class="italic">FIRST</span> LEGO League {{ program }}
+          <h3 class="text-lg font-semibold">
+            <span class="italic">FIRST</span> LEGO League {{ programLabel }}
           </h3>
           <div class="text-sm text-[var(--color-text-subtle)] flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <span>
@@ -885,11 +907,21 @@ onMounted(async () => {
                   </span>
                 </div>
 
-                <div
-                    :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-950' : 'text-[var(--color-text)]'"
-                    class="text-sm font-medium truncate leading-tight"
-                >
-                  {{ team.name }}
+                <div class="min-w-0">
+                  <div
+                      :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-950' : 'text-[var(--color-text)]'"
+                      class="text-sm font-medium truncate leading-tight"
+                  >
+                    {{ team.name }}
+                  </div>
+                  <div
+                      v-if="getCoachNames(team).length"
+                      class="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] truncate leading-tight mt-0.5 min-w-0"
+                      :title="getCoachNames(team).join(', ')"
+                  >
+                    <i class="bi bi-person-badge shrink-0" aria-hidden="true"/>
+                    <span class="truncate">{{ getCoachNames(team).join(', ') }}</span>
+                  </div>
                 </div>
 
                 <div class="col-start-2 flex items-center justify-between gap-2 -mt-1">
@@ -929,22 +961,32 @@ onMounted(async () => {
                 <span
                     v-if="!teamsBeyondCapacity || index < planCapacity"
                     :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-950' : 'text-[var(--color-text)]'"
-                    class="w-8 text-right text-sm font-semibold tabular-nums"
+                    class="w-8 text-right text-sm font-semibold tabular-nums shrink-0"
                 >
                   T{{ String(index + 1).padStart(2, '0') }}
                 </span>
-                <span v-else class="w-8 text-right text-sm font-semibold text-amber-950">–</span>
+                <span v-else class="w-8 text-right text-sm font-semibold text-amber-950 shrink-0">–</span>
                 <span
                     :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-900' : 'text-[var(--color-text-muted)]'"
-                    class="text-sm w-12 tabular-nums font-medium"
+                    class="text-sm w-12 tabular-nums font-medium shrink-0"
                 >
                   {{ team.team_number_hot || '–' }}
                 </span>
                 <span
                     :class="(teamsBeyondCapacity && index >= planCapacity) ? 'text-amber-950' : 'text-[var(--color-text)]'"
-                    class="flex-1 text-sm font-medium truncate"
+                    class="min-w-0 basis-[30%] max-w-[14rem] text-sm font-medium truncate"
                 >
                   {{ team.name }}
+                </span>
+                <span
+                    class="min-w-0 flex-1 inline-flex items-center gap-1.5 text-sm text-[var(--color-text-muted)]"
+                    :title="getCoachNames(team).join(', ') || undefined"
+                >
+                  <template v-if="getCoachNames(team).length">
+                    <i class="bi bi-person-badge shrink-0 opacity-80" aria-hidden="true"/>
+                    <span class="truncate">{{ getCoachNames(team).join(', ') }}</span>
+                  </template>
+                  <span v-else class="text-[var(--color-text-subtle)]">–</span>
                 </span>
                 <span
                     v-if="getPeopleCount(team) !== null"
@@ -957,7 +999,7 @@ onMounted(async () => {
                 <span v-else class="text-sm text-[var(--color-text-subtle)] shrink-0">–</span>
                 <label
                     v-if="!(teamsBeyondCapacity && index >= planCapacity)"
-                    class="flex items-center gap-1 text-sm text-[var(--color-text-muted)] cursor-pointer"
+                    class="flex items-center gap-1 text-sm text-[var(--color-text-muted)] cursor-pointer shrink-0"
                     @click.stop
                 >
                   <input
@@ -968,8 +1010,8 @@ onMounted(async () => {
                   />
                   <span class="text-xs">No-show</span>
                 </label>
-                <span v-else class="text-xs text-amber-800">No-show</span>
-                <span class="text-[var(--color-text-muted)] text-sm">
+                <span v-else class="text-xs text-amber-800 shrink-0">No-show</span>
+                <span class="text-[var(--color-text-muted)] text-sm shrink-0">
                   {{ isTeamExpanded(team) ? '▼' : '▶' }}
                 </span>
               </div>
@@ -1093,15 +1135,14 @@ onMounted(async () => {
         </li>
       </template>
 
-      <!-- Note about no-show teams -->
-      <div class="mt-4 text-xs text-[var(--color-text-muted)] italic">
-        "No-show" Teams bleiben im Plan, werden aber in allen Ausgaben "durchgestrichen" dargestellt.
-      </div>
+      <!-- Stacked layout: note + exports under the list -->
+      <template v-if="!split">
+        <div class="mt-4 text-xs text-[var(--color-text-muted)] italic">
+          "No-show" Teams bleiben im Plan, werden aber in allen Ausgaben "durchgestrichen" dargestellt.
+        </div>
 
-      <!-- Totals and Download buttons -->
-      <div v-if="Object.keys(peopleData).length > 0" class="mt-4 pt-4 border-t border-[var(--color-border)]">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-          <div class="flex items-center gap-4 min-w-0">
+        <div v-if="Object.keys(peopleData).length > 0" class="mt-4 pt-4 border-t border-[var(--color-border)]">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
             <div class="text-sm">
               <span class="font-semibold">Gesamt:</span>
               <span class="ml-2">{{ totalPlayers }} {{ totalPlayers === 1 ? 'Mitglied' : 'Mitglieder' }}</span>
@@ -1110,55 +1151,86 @@ onMounted(async () => {
               <span class="ml-2">=</span>
               <span class="ml-2 font-semibold">{{ totalCoaches + totalPlayers }} Personen</span>
             </div>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700" @click="downloadJSON">
+                Download JSON
+              </button>
+              <button type="button" class="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700" @click="downloadCSV">
+                Download CSV
+              </button>
+              <button type="button" class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700" @click="downloadXML">
+                Download XML
+              </button>
+            </div>
           </div>
-          <div class="hidden md:flex gap-2">
+        </div>
+      </template>
+    </div>
+
+    <!-- Split layout: tools column -->
+    <aside v-if="split" class="team-list__aside glass-card liquid-surface-inner">
+      <h2 class="text-sm font-semibold tracking-wide uppercase text-[var(--color-text-muted)] mb-3">
+        Export & Funktionen
+      </h2>
+
+      <div class="space-y-4">
+        <div class="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-muted)]/35 px-3 py-3">
+          <div class="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-1.5">Personen</div>
+          <div v-if="Object.keys(peopleData).length > 0" class="text-sm space-y-1">
+            <div class="flex justify-between gap-2">
+              <span>Mitglieder</span>
+              <span class="font-semibold tabular-nums">{{ totalPlayers }}</span>
+            </div>
+            <div class="flex justify-between gap-2">
+              <span>Coaches</span>
+              <span class="font-semibold tabular-nums">{{ totalCoaches }}</span>
+            </div>
+            <div class="flex justify-between gap-2 pt-1 border-t border-[var(--color-border)] mt-1">
+              <span>Gesamt</span>
+              <span class="font-semibold tabular-nums">{{ totalCoaches + totalPlayers }}</span>
+            </div>
+          </div>
+          <p v-else class="text-sm text-[var(--color-text-muted)]">
+            Noch keine Personen-Daten geladen.
+          </p>
+        </div>
+
+        <div>
+          <div class="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">Export</div>
+          <div class="flex flex-col gap-2">
             <button
-                class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                type="button"
+                class="w-full px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                :disabled="Object.keys(peopleData).length === 0"
                 @click="downloadJSON"
             >
               Download JSON
             </button>
             <button
-                class="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                type="button"
+                class="w-full px-3 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                :disabled="Object.keys(peopleData).length === 0"
                 @click="downloadCSV"
             >
               Download CSV
             </button>
             <button
-                class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                type="button"
+                class="w-full px-3 py-2 text-sm font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+                :disabled="Object.keys(peopleData).length === 0"
                 @click="downloadXML"
             >
               Download XML
             </button>
           </div>
-          <details class="md:hidden">
-            <summary class="cursor-pointer select-none text-sm font-medium text-[var(--color-text-muted)]">
-              Downloads anzeigen
-            </summary>
-            <div class="mt-2 flex flex-col gap-2">
-              <button
-                  class="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                  @click="downloadJSON"
-              >
-                Download JSON
-              </button>
-              <button
-                  class="w-full px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700"
-                  @click="downloadCSV"
-              >
-                Download CSV
-              </button>
-              <button
-                  class="w-full px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
-                  @click="downloadXML"
-              >
-                Download XML
-              </button>
-            </div>
-          </details>
+        </div>
+
+        <div class="text-xs text-[var(--color-text-muted)] italic leading-relaxed">
+          "No-show" Teams bleiben im Plan, werden aber in allen Ausgaben "durchgestrichen" dargestellt.
         </div>
       </div>
-    </div>
+    </aside>
+
     <div
         v-if="showDiffModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
@@ -1250,6 +1322,39 @@ onMounted(async () => {
   </div>
 </template>
 <style scoped>
+.team-list {
+  min-height: 0;
+}
+
+.team-list--split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: start;
+  height: 100%;
+}
+
+@media (min-width: 960px) {
+  .team-list--split {
+    grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+  }
+
+  .team-list--split .team-list__main {
+    max-height: calc(100dvh - 8rem);
+    overflow-y: auto;
+  }
+
+  .team-list--split .team-list__aside {
+    position: sticky;
+    top: 0.25rem;
+  }
+}
+
+.team-list__main,
+.team-list__aside {
+  min-width: 0;
+}
+
 .drag-ghost {
   opacity: 0.4;
   transform: scale(0.98);

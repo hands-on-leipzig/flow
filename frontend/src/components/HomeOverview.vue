@@ -7,8 +7,9 @@ import {useEventStore} from '@/stores/event'
 import {schedulePlanPrefetch, usePlanCacheStore} from '@/stores/planCache'
 import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBox.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
-import {imageUrl, programLogoAlt, programLogoSrc} from '@/utils/images'
-import {cleanEventName, getCompetitionType, getEventTitleLong} from '@/utils/eventTitle'
+import {imageUrl, programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
+import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
+import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
 
 defineOptions({name: 'HomeOverview'})
 
@@ -16,6 +17,7 @@ const eventStore = useEventStore()
 const planCache = usePlanCacheStore()
 const router = useRouter()
 const event = computed(() => eventStore.selectedEvent)
+const showEventModal = ref(false)
 
 const teamStats = ref({
   explore: {capacity: 0, registered: 0},
@@ -25,25 +27,22 @@ const hasPlan = ref(false)
 const publicationLevel = ref<number | null>(null)
 const loading = ref(true)
 
-const eventTitleLong = computed(() => getEventTitleLong(event.value))
-const competitionType = computed(() => getCompetitionType(event.value))
-
-const formattedEventTitle = computed(() => {
-  if (!eventTitleLong.value) return ''
-
-  const title = eventTitleLong.value
-  const cleanedEventName = cleanEventName(event.value)
-
-  if (!cleanedEventName) {
-    return title.replace('FIRST', '<em>FIRST</em>')
+const seasonName = computed(() =>
+    (event.value as any)?.season_rel?.name
+    || (event.value as any)?.seasonRel?.name
+    || null
+)
+const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
+const headingPlace = computed(() => cleanEventName(event.value) || event.value?.name || '—')
+const headingDate = computed(() => {
+  if (!event.value?.date) return ''
+  const start = dayjs(event.value.date)
+  if (!start.isValid()) return ''
+  if ((event.value.days || 1) > 1) {
+    const end = start.add(event.value.days - 1, 'day')
+    return `${start.format('DD.MM.YYYY')}–${end.format('DD.MM.YYYY')}`
   }
-
-  const withoutEventName = title.replace(
-      new RegExp(` ${cleanedEventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
-      ''
-  )
-  const formatted = withoutEventName.replace('FIRST', '<em>FIRST</em>')
-  return `${formatted} <span class="home-overview__name">${cleanedEventName}</span>`
+  return start.format('DD.MM.YYYY')
 })
 
 const daysUntilEvent = computed(() => {
@@ -78,7 +77,7 @@ const checklist = computed(() => {
       label: 'Team-Anmeldung geprüft',
       ok: !hasTeamDiscrepancy.value,
       warnText: 'DRAHT und FLOW weichen voneinander ab',
-      path: '/teams',
+      path: '/plan/teams/explore',
     },
     {
       key: 'schedule',
@@ -182,22 +181,31 @@ watch(
 
 <template>
   <div class="space-y-6">
-    <div class="flex flex-wrap items-start justify-between gap-4">
-      <div class="min-w-0">
-        <p class="text-sm text-[var(--color-text-muted)] mb-1">Übersicht für Regionalpartner:innen</p>
-        <h1
-            class="text-xl lg:text-2xl font-bold text-[var(--color-text)]"
-            v-html="formattedEventTitle || event?.name || 'Deine Veranstaltung'"
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 min-w-0 flex-1">
+        <img
+            :src="seasonLogoSrc(seasonName)"
+            :alt="seasonLogoAlt(seasonName)"
+            class="h-9 w-auto shrink-0 object-contain"
         />
-        <p v-if="event?.date" class="mt-1 text-[var(--color-text-muted)]">
-          {{ dayjs(event.date).format('dddd, DD.MM.YYYY') }}
-          <template v-if="event.days > 1">
-            – {{ dayjs(event.date).add(event.days - 1, 'day').format('dddd, DD.MM.YYYY') }}
+        <h1 class="min-w-0 text-lg sm:text-xl lg:text-2xl font-bold text-[var(--color-text)] truncate">
+          <span>{{ headingType }}</span>
+          <span class="text-[var(--color-text-muted)] font-semibold mx-1.5">·</span>
+          <span>{{ headingPlace }}</span>
+          <template v-if="headingDate">
+            <span class="text-[var(--color-text-muted)] font-semibold mx-1.5">·</span>
+            <span class="tabular-nums font-semibold">{{ headingDate }}</span>
           </template>
-          <span v-if="event?.level_rel?.name"> · {{ event.level_rel.name }}</span>
-          <span v-if="event?.season_rel?.name"> · {{ event.season_rel.name }}</span>
-          <span v-if="competitionType"> · {{ competitionType }}</span>
-        </p>
+        </h1>
+        <button
+            type="button"
+            class="glass-btn-secondary !px-2.5 !py-1.5 !text-sm shrink-0 inline-flex items-center gap-1.5"
+            title="Veranstaltung wechseln"
+            @click="showEventModal = true"
+        >
+          <i class="bi bi-arrow-left-right" aria-hidden="true"/>
+          <span class="hidden sm:inline">Wechseln</span>
+        </button>
       </div>
 
       <div v-if="eventSoon" class="glass-chip liquid-surface-inner flex items-center gap-2 !px-3 !py-2">
@@ -214,6 +222,8 @@ watch(
         </div>
       </div>
     </div>
+
+    <EventSelectModal :open="showEventModal" @close="showEventModal = false"/>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
       <div class="xl:col-span-1 space-y-4 order-2 xl:order-1">
@@ -429,9 +439,3 @@ watch(
     </div>
   </div>
 </template>
-
-<style scoped>
-.home-overview__name {
-  color: var(--color-accent);
-}
-</style>

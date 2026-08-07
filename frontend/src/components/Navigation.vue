@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import {Menu, MenuButton, MenuItems, MenuItem} from '@headlessui/vue'
 import {onMounted, ref, computed, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import {useAuth} from '@/composables/useAuth'
-import axios from 'axios'
-import dayjs from 'dayjs'
-import {imageUrl, programLogoSrc, programLogoAlt} from '@/utils/images'
-import {getAbbreviatedCompetitionType} from '@/utils/eventTitle'
+import {imageUrl} from '@/utils/images'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, setTheme} from '@hands-on/glass/theme'
@@ -29,113 +25,6 @@ const userLabel = computed(() => {
   const preferred = typeof parsed?.preferred_username === 'string' ? parsed.preferred_username.trim() : ''
   return preferred || 'FLOW'
 })
-
-const selectableEvents = ref<any[]>([])
-const loadingEvents = ref(false)
-const userRegionalPartners = ref<number[]>([])
-
-const showEventDropdown = computed(
-    () => (dropdownEventsFlat.value.length > 1 || isAdmin.value) && eventStore.selectedEvent
-)
-const eventSearchQuery = ref('')
-const eventSearchInput = ref<HTMLInputElement | null>(null)
-
-const dropdownEventsFlat = computed(() => {
-  if (!selectableEvents.value.length) return []
-  return selectableEvents.value.flatMap((rp: any) =>
-      (rp.events || []).map((e: any) => ({
-        ...e,
-        regional_partner_id: rp.regional_partner?.id,
-        regional_partner_name: rp.regional_partner?.name
-      }))
-  )
-})
-
-async function fetchSelectableEvents() {
-  loadingEvents.value = true
-  try {
-    const response = await axios.get('/events/selectable')
-    selectableEvents.value = response.data || []
-    if (isAdmin.value) {
-      try {
-        const rpResponse = await axios.get('/user/regional-partners')
-        if (rpResponse.data?.regional_partners) {
-          userRegionalPartners.value = rpResponse.data.regional_partners.map((rp: any) => rp.id)
-        }
-      } catch {
-        if (import.meta.env.DEV) console.debug('Failed to fetch regional partners')
-      }
-    }
-  } catch (error) {
-    console.error('Failed to fetch selectable events:', error)
-  } finally {
-    loadingEvents.value = false
-  }
-}
-
-const dropdownEvents = computed(() => {
-  if (!dropdownEventsFlat.value.length) return dropdownEventsFlat.value
-  if (isAdmin.value && userRegionalPartners.value.length > 0) {
-    return dropdownEventsFlat.value.filter(
-        (e: any) => userRegionalPartners.value.includes(e.regional_partner_id)
-    )
-  }
-  return dropdownEventsFlat.value
-})
-
-const filteredDropdownEvents = computed(() => {
-  const query = eventSearchQuery.value.trim().toLowerCase()
-  if (!query) return dropdownEvents.value
-
-  return dropdownEvents.value.filter((ev: any) => {
-    const name = ev.name?.toLowerCase() || ''
-    const regionalPartner = ev.regional_partner_name?.toLowerCase() || ''
-    const date = dayjs(ev.date).format('DD.MM.YY').toLowerCase()
-    return name.includes(query) || regionalPartner.includes(query) || date.includes(query)
-  })
-})
-
-async function selectEventFromDropdown(event: any, regionalPartnerId: number) {
-  try {
-    await axios.post('/user/select-event', {
-      event: event.id,
-      regional_partner: regionalPartnerId
-    })
-    await eventStore.fetchSelectedEvent()
-    mobileMenuOpen.value = false
-    if (route.path.includes('/overview')) {
-      await router.replace('/plan/overview')
-    } else {
-      void router.push('/plan/overview')
-    }
-  } catch (error) {
-    console.error('Failed to select event:', error)
-  }
-}
-
-function eventDropdownLabel() {
-  const ev = eventStore.selectedEvent
-  if (!ev) return 'Veranstaltung auswählen...'
-  const type = getAbbreviatedCompetitionType(ev)
-  const date = dayjs(ev.date).format('DD.MM.YY')
-  return `${type} ${date}`.trim()
-}
-
-function focusSearchAfterDropdownOpen(event: MouseEvent) {
-  if (!isAdmin.value) return
-  const trigger = event.currentTarget as HTMLElement | null
-  if (!trigger) return
-
-  const tryFocus = () => {
-    if (trigger.getAttribute('aria-expanded') !== 'true') return
-    const input = eventSearchInput.value
-    if (!input) return
-    input.focus()
-    input.setSelectionRange(0, input.value.length)
-  }
-
-  ;[0, 40, 120, 220].forEach((ms) => setTimeout(tryFocus, ms))
-}
 
 const readiness = ref({
   explore_teams_ok: true,
@@ -195,9 +84,17 @@ const navEntries = computed<NavEntry[]>(() => [
       {name: 'Slots', path: '/plan/schedule/slots', icon: 'bi-grid-3x3-gap'},
     ],
   },
-  {name: 'Teams', path: '/plan/teams', icon: 'bi-people'},
+  {
+    name: 'Teams',
+    path: '/plan/teams/explore',
+    icon: 'bi-people',
+    children: [
+      {name: 'Explore', path: '/plan/teams/explore', icon: 'bi-compass'},
+      {name: 'Challenge', path: '/plan/teams/challenge', icon: 'bi-trophy'},
+      {name: 'Future 8+', path: '/plan/teams/future8', icon: 'bi-stars'},
+    ],
+  },
   {name: 'Räume', path: '/plan/rooms', icon: 'bi-door-open'},
-  {name: 'Logos', path: '/plan/logos', icon: 'bi-images'},
   {
     name: 'Ausgabe',
     path: '/plan/publish',
@@ -206,6 +103,7 @@ const navEntries = computed<NavEntry[]>(() => [
       {name: 'Verteilung', path: '/plan/publish', icon: 'bi-link-45deg'},
       {name: 'Digital', path: '/plan/publish/digital', icon: 'bi-display'},
       {name: 'Analog', path: '/plan/publish/analog', icon: 'bi-printer'},
+      {name: 'Logos', path: '/plan/publish/logos', icon: 'bi-images'},
     ],
   },
   {name: 'am Tag', path: '/plan/live', icon: 'bi-play-circle'},
@@ -247,16 +145,6 @@ onMounted(async () => {
   }
   // Sidebar warnings only — keep this light so Übersicht/SharePoint stay first
   await checkDataReadiness()
-  // Event switcher list can wait; don't compete with homepage APIs
-  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-    window.requestIdleCallback(() => {
-      void fetchSelectableEvents()
-    }, {timeout: 8000})
-  } else {
-    setTimeout(() => {
-      void fetchSelectableEvents()
-    }, 2000)
-  }
 })
 
 watch(
@@ -282,23 +170,6 @@ watch(
       if (newId) {
         await checkDataReadiness()
       }
-      // Prefetch is owned by HomeOverview (after homepage data). Event list can wait.
-      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        window.requestIdleCallback(() => {
-          void fetchSelectableEvents()
-        }, {timeout: 8000})
-      } else {
-        void fetchSelectableEvents()
-      }
-    }
-)
-
-watch(
-    () => showEventDropdown.value,
-    (isVisible) => {
-      if (!isVisible) {
-        eventSearchQuery.value = ''
-      }
     }
 )
 
@@ -308,7 +179,10 @@ function hasWarning(tabPath: string): boolean {
 
   switch (path) {
     case '/plan/teams':
-      return eventStore.selectedEvent?.hasTeamDiscrepancy
+    case '/plan/teams/explore':
+      return !!eventStore.selectedEvent?.hasTeamDiscrepancy || !readiness.value.explore_teams_ok
+    case '/plan/teams/challenge':
+      return !!eventStore.selectedEvent?.hasTeamDiscrepancy || !readiness.value.challenge_teams_ok
     case '/plan/schedule':
     case '/plan/schedule/expert':
       return !readiness.value.explore_teams_ok || !readiness.value.challenge_teams_ok
@@ -416,85 +290,6 @@ function logout() {
           identity-aria-label="Account"
           settings-aria-label="Einstellungen"
       >
-        <template v-if="showEventDropdown" #prepend>
-          <Menu as="div" class="relative w-full">
-            <MenuButton
-                @click="focusSearchAfterDropdownOpen($event)"
-                class="glass-sidebar__item w-full"
-                :title="collapsed ? eventDropdownLabel() : undefined"
-            >
-              <span class="glass-sidebar__item-icon"><i class="bi bi-calendar2-event" aria-hidden="true"/></span>
-              <span class="glass-sidebar__item-label truncate">{{ eventDropdownLabel() }}</span>
-            </MenuButton>
-            <MenuItems
-                :class="[
-                  'absolute z-50 origin-bottom-left rounded-xl liquid-surface liquid-surface--radius-lg focus:outline-none w-[min(100%,20rem)] max-h-[50vh] overflow-y-auto',
-                  collapsed
-                    ? 'left-full bottom-0 ml-2'
-                    : 'left-0 bottom-full mb-2',
-                ]"
-            >
-              <div class="py-2">
-                <div v-if="isAdmin" class="px-3 pb-2">
-                  <input
-                      ref="eventSearchInput"
-                      v-model="eventSearchQuery"
-                      type="text"
-                      placeholder="Veranstaltung suchen..."
-                      class="w-full px-3 py-2 text-sm liquid-surface-control"
-                  />
-                </div>
-                <div v-if="loadingEvents" class="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
-                  Lade...
-                </div>
-                <div v-else-if="filteredDropdownEvents.length === 0"
-                     class="px-4 py-4 text-center text-sm text-[var(--color-text-muted)]">
-                  Keine Veranstaltungen gefunden.
-                </div>
-                <template v-else>
-                  <MenuItem
-                      v-for="ev in filteredDropdownEvents"
-                      :key="ev.id"
-                      v-slot="{ active }"
-                  >
-                    <button
-                        @click="selectEventFromDropdown(ev, ev.regional_partner_id)"
-                        :class="[
-                      'w-full text-left px-4 py-3 text-sm transition-colors',
-                      active ? 'bg-[var(--color-bg-hover)]' : '',
-                      eventStore.selectedEvent?.id === ev.id ? 'border-l-[3px] border-[var(--color-accent)]' : ''
-                    ]"
-                    >
-                      <div class="flex justify-between items-start gap-2 min-w-0">
-                        <div class="flex-1 min-w-0">
-                          <div class="font-medium truncate">{{ ev.name }}</div>
-                          <div class="text-xs text-[var(--color-text-muted)]">
-                            {{ dayjs(ev.date).format('DD.MM.YY') }} · {{ ev.regional_partner_name }}
-                          </div>
-                        </div>
-                        <div class="flex items-center gap-2 flex-shrink-0">
-                          <img v-if="ev.event_explore" :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
-                               class="w-5 h-5"/>
-                          <img v-if="ev.event_challenge" :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
-                               class="w-5 h-5"/>
-                        </div>
-                      </div>
-                    </button>
-                  </MenuItem>
-                  <MenuItem v-if="isAdmin" v-slot="{ active }">
-                    <button
-                        @click="router.push({ path: '/events' }); mobileMenuOpen = false"
-                        :class="['w-full text-left px-4 py-3 text-sm border-t border-[var(--color-border)]', active ? 'bg-[var(--color-bg-hover)]' : 'text-[var(--color-accent)]']"
-                    >
-                      Mehr Veranstaltungen...
-                    </button>
-                  </MenuItem>
-                </template>
-              </div>
-            </MenuItems>
-          </Menu>
-        </template>
-
         <template #identity="{ close }">
           <div class="glass-sidebar-footer__menu-header">
             <span class="glass-sidebar-footer__menu-title">{{ userLabel }}</span>

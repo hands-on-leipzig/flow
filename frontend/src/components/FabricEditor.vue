@@ -590,7 +590,7 @@ async function paste() {
         </div>
         <div class="mt-6 px-4 py-2 grid grid-cols-2">
           <div>
-            <router-link to="/logos" class="block px-2">
+            <router-link to="/plan/publish/logos" class="block px-2">
               <button class="rounded bg-gray-300 hover:bg-gray-400 w-full py-1">Logos verwalten</button>
             </router-link>
           </div>

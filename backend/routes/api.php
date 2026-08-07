@@ -99,7 +99,8 @@ Route::middleware(['keycloak'])->group(function () {
         }
 
         $event = Event::find($eventId);
-        if (!$event || $event->season !== SeasonService::currentSeasonId() || !$user->hasEventAccess($event->id)) {
+        // Past seasons are allowed (view/switch via event modal). Only clear if missing or no access.
+        if (!$event || !$user->hasEventAccess($event->id)) {
             $user->selection_event = null;
             $user->selection_regional_partner = null;
             $user->save();

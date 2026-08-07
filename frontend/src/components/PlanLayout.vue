@@ -12,18 +12,18 @@ const cachedPages = [
   'Schedule',
   'Teams',
   'Rooms',
-  'Logos',
   'PublishControl',
   'EventDayControl',
 ]
 
 const eventId = computed(() => eventStore.selectedEvent?.id ?? 0)
 
-/** Nested Ablauf / Ausgabe routes share one cache entry so the shell stays mounted. */
+/** Nested Ablauf / Ausgabe / Teams routes share one cache entry so the shell stays mounted. */
 const pageKey = computed(() => {
   const path = route.path
   if (path.includes('/plan/schedule')) return `${eventId.value}:schedule`
   if (path.includes('/plan/publish')) return `${eventId.value}:publish`
+  if (path.includes('/plan/teams')) return `${eventId.value}:teams`
   return `${eventId.value}:${path}`
 })
 </script>

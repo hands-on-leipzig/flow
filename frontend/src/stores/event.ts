@@ -65,21 +65,8 @@ export const useEventStore = defineStore('event', {
         },
 
         async validateSelectedEventSeason(): Promise<boolean> {
-            if (!this.selectedEvent) {
-                return false
-            }
-
-            const currentSeasonId = await this.fetchCurrentSeasonId()
-            if (currentSeasonId === null) {
-                return true
-            }
-
-            if (this.isEventFromCurrentSeason(this.selectedEvent, currentSeasonId)) {
-                return true
-            }
-
-            await this.clearStaleSeasonSelection()
-            return false
+            // Past seasons are allowed for viewing/switching.
+            return !!this.selectedEvent
         },
 
         async fetchSelectedEvent() {
@@ -98,12 +85,6 @@ export const useEventStore = defineStore('event', {
                 }
 
                 const event = new FllEvent(response.data)
-                const currentSeasonId = await this.fetchCurrentSeasonId()
-
-                if (currentSeasonId !== null && !this.isEventFromCurrentSeason(event, currentSeasonId)) {
-                    await this.clearStaleSeasonSelection()
-                    return
-                }
 
                 // Fetch DRAHT team data
                 if (event.id) {

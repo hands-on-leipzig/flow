@@ -25,6 +25,7 @@ import EventDayControl from "@/components/EventDayControl.vue";
 // Admin is lazy-loaded - only loads when /admin route is accessed
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
+import TeamsProgram from "@/components/teams/TeamsProgram.vue";
 import Preview from "@/components/molecules/Preview.vue";
 import PlanPopout from "@/components/PlanPopout.vue";
 import Carousel from "@/components/Carousel.vue";
@@ -68,8 +69,17 @@ const routes = [
                     {path: 'slots', name: 'schedule-slots', component: () => import('@/components/Slots.vue')},
                 ],
             },
-            {path: 'teams', component: Teams},
-            {path: 'logos', component: Logos},
+            {
+                path: 'teams',
+                component: Teams,
+                redirect: '/plan/teams/explore',
+                children: [
+                    {path: 'explore', name: 'teams-explore', component: TeamsProgram, meta: {program: 'explore'}},
+                    {path: 'challenge', name: 'teams-challenge', component: TeamsProgram, meta: {program: 'challenge'}},
+                    {path: 'future8', name: 'teams-future8', component: TeamsProgram, meta: {program: 'future8'}},
+                ],
+            },
+            {path: 'logos', redirect: '/plan/publish/logos'},
             {path: 'events', component: SelectEvent},
             {path: 'rooms', component: Rooms},
             {
@@ -79,6 +89,7 @@ const routes = [
                     {path: '', name: 'publish-distribution', component: PublishDistribution},
                     {path: 'digital', name: 'publish-digital', component: PublishDigital},
                     {path: 'analog', name: 'publish-analog', component: PublishAnalog},
+                    {path: 'logos', name: 'publish-logos', component: Logos},
                 ],
             },
             {path: 'live', component: EventDayControl},
@@ -100,13 +111,17 @@ const routes = [
     {path: '/schedule/free', redirect: '/plan/schedule/free'},
     {path: '/slots', redirect: '/plan/schedule/slots'},
     {path: '/schedule/slots', redirect: '/plan/schedule/slots'},
-    {path: '/teams', redirect: '/plan/teams'},
-    {path: '/logos', redirect: '/plan/logos'},
+    {path: '/teams', redirect: '/plan/teams/explore'},
+    {path: '/teams/explore', redirect: '/plan/teams/explore'},
+    {path: '/teams/challenge', redirect: '/plan/teams/challenge'},
+    {path: '/teams/future8', redirect: '/plan/teams/future8'},
+    {path: '/logos', redirect: '/plan/publish/logos'},
     {path: '/events', redirect: '/plan/events'},
     {path: '/rooms', redirect: '/plan/rooms'},
     {path: '/publish', redirect: '/plan/publish'},
     {path: '/publish/digital', redirect: '/plan/publish/digital'},
     {path: '/publish/analog', redirect: '/plan/publish/analog'},
+    {path: '/publish/logos', redirect: '/plan/publish/logos'},
     {path: '/event-day', redirect: '/plan/live'},
     {path: '/live', redirect: '/plan/live'},
     {path: '/admin', redirect: '/plan/admin'},

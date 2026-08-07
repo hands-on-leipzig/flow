@@ -9,7 +9,7 @@ defineOptions({name: 'PublishControl'})
 <template>
   <div class="publish-shell">
     <router-view v-slot="{ Component, route: paneRoute }">
-      <keep-alive include="PublishDistribution,PublishDigital,PublishAnalog">
+      <keep-alive include="PublishDistribution,PublishDigital,PublishAnalog,Logos">
         <component
             :is="Component"
             v-if="Component"

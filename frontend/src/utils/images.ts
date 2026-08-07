@@ -41,3 +41,15 @@ export function programLogoAlt(first_program: string | number) {
   }
   return 'FIRST LEGO League Logo'
 }
+
+/** Season challenge logo, e.g. BIOGLOW → /flow/season_bioglow_v.png */
+export function seasonLogoSrc(seasonName: string | null | undefined, orientation: 'v' | 'h' = 'v') {
+  if (!seasonName) return imageUrl(`/flow/first+fll_${orientation}.png`)
+  const key = String(seasonName).toLowerCase().trim().replace(/\s+/g, '_')
+  return imageUrl(`/flow/season_${key}_${orientation}.png`)
+}
+
+export function seasonLogoAlt(seasonName: string | null | undefined) {
+  if (!seasonName) return 'Saison-Logo'
+  return `FIRST LEGO League ${seasonName} Logo`
+}

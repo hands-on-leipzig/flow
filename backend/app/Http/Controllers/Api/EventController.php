@@ -126,10 +126,17 @@ class EventController extends Controller
         }
     }
 
-    public function getSelectableEvents()
+    public function getSelectableEvents(Request $request)
     {
         $user = Auth::user();
-        $season = MSeason::latest('year')->first();
+        $seasonId = $request->query('season');
+        $season = $seasonId
+            ? MSeason::find($seasonId)
+            : MSeason::latest('year')->first();
+
+        if (!$season) {
+            return response()->json([]);
+        }
 
         $isAdmin = $user->isFlowAdmin();
 
