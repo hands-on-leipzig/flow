@@ -218,7 +218,7 @@ onMounted(() => {
           >
             <img
                 :src="seasonLogoSrc(s.name)"
-                :alt=""
+                alt=""
                 class="event-modal__chip-logo"
             />
             <span class="event-modal__chip-label">{{ s.name }}</span>
