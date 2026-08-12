@@ -80,7 +80,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="isChromeLess" class="min-h-dvh w-full font-sans">
+  <div v-if="isChromeLess" class="min-h-dvh w-full font-sans liquid-surface-scope pe-page">
     <router-view/>
   </div>
 

@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Models\Event;
@@ -77,6 +78,12 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
+    Route::get('/user/me', [UserAccessController::class, 'me']);
+    Route::get('/user/access', [UserAccessController::class, 'overview']);
+    Route::get('/user/access/events/{eventId}/users', [UserAccessController::class, 'eventUsers']);
+    Route::get('/user/access/users', [UserAccessController::class, 'searchUsers']);
+    Route::post('/user/access/grants', [UserAccessController::class, 'grant']);
+    Route::delete('/user/access/grants', [UserAccessController::class, 'revoke']);
     Route::get('/user/regional-partners', function (Request $request) {
         $user = $request->user();
         if (!$user) {

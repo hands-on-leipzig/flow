@@ -1,33 +1,29 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import {ref, computed, watch} from 'vue'
 import axios from 'axios'
-import { useEventStore } from '@/stores/event'
-import { useAuth } from '@/composables/useAuth'
-import { imageUrl, programLogoSrc, programLogoAlt } from '@/utils/images'
-import { formatTimeOnly, formatDateOnly } from '@/utils/dateTimeFormat'
-import SavingToast from "@/components/atoms/SavingToast.vue"
+import {useEventStore} from '@/stores/event'
+import {useAuth} from '@/composables/useAuth'
+import {formatTimeOnly} from '@/utils/dateTimeFormat'
+import SavingToast from '@/components/atoms/SavingToast.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 
 withDefaults(
-  defineProps<{
-    /**
-     * embed: no outer surface / title / link row — parent owns chrome (for layout experiments).
-     */
-    embed?: boolean
-    /** Hide the large “Veröffentlichte Informationen” preview grid. */
-    hidePreview?: boolean
-  }>(),
-  {
-    embed: false,
-    hidePreview: false,
-  }
+    defineProps<{
+      /** embed: parent owns link chrome (Verteilung). */
+      embed?: boolean
+      /** Hide the visibility matrix / times peek. */
+      hidePreview?: boolean
+    }>(),
+    {
+      embed: false,
+      hidePreview: false,
+    }
 )
 
 const emit = defineEmits<{
   'update:detailLevel': [level: number]
 }>()
 
-// --- Time display with short weekday when event spans multiple days (same as PublicEvent) ---
 function toLocalDateString(dateInput: string | null | undefined): string {
   if (!dateInput) return ''
   const d = new Date(dateInput)
@@ -42,7 +38,7 @@ function formatShortWeekday(dateInput: string | null | undefined): string {
   if (!dateInput) return ''
   const d = new Date(dateInput)
   if (isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(d)
+  return new Intl.DateTimeFormat('de-DE', {weekday: 'short'}).format(d)
 }
 
 function eventSpansMultipleDays(plan: any): boolean {
@@ -73,144 +69,102 @@ function getTimeDisplay(isoDateTime: string | null | undefined, showWeekday: boo
 
 const previewShowWeekday = computed(() => eventSpansMultipleDays(scheduleInfo.value?.plan))
 
-// Store + Selected Event (autark)
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
-const { isAdmin } = useAuth()
+const {isAdmin} = useAuth()
 
 const scheduleInfo = ref<any>(null)
 const regenerating = ref(false)
 const saving = ref(null)
 
-// Detail-Level (3 levels, skipping backend level 2 "Nach Anmeldeschluss")
 const levels = ['Planung und Anmeldung', 'Überblick zum Ablauf', 'volle Details']
+const levelShort = ['Basis', 'Ablauf', 'Alles']
 const levelHints = [
-  'Basisinfos zu Termin, Ort und Teams',
-  'sinnvoll, sobald der Plan grob fertig ist',
-  'nur nutzen, wenn der Plan komplett ist',
+  'Datum, Adresse, Kontakt, Teams',
+  'zusätzlich wichtige Zeiten',
+  'zusätzlich interaktiver Online-Zeitplan',
 ]
 const detailLevel = ref<number | undefined>(undefined)
+const activeLevel = computed(() => detailLevel.value ?? 0)
+
+const visibilityRows = [
+  {label: 'Datum, Ort, Kontakt, Teams', from: 0},
+  {label: 'Wichtige Zeiten', from: 1},
+  {label: 'Online-Zeitplan', from: 2},
+]
 
 watch(detailLevel, (level) => {
   if (level != null) emit('update:detailLevel', level)
 })
 
-// Map frontend level (0,1,2) to backend level (1,3,4) - skipping level 2
 function frontendToBackendLevel(frontendLevel: number): number {
-  if (frontendLevel === 0) return 1 // Planung
-  if (frontendLevel === 1) return 3 // Überblick zum Ablauf
-  return 4 // volle Details
+  if (frontendLevel === 0) return 1
+  if (frontendLevel === 1) return 3
+  return 4
 }
 
-// Map backend level (1,2,3,4) to frontend level (0,1,2) - skipping level 2
 function backendToFrontendLevel(backendLevel: number): number {
-  if (backendLevel === 1) return 0 // Planung
-  if (backendLevel === 2) return 0 // Map level 2 to 0 (skip it, treat as Planung)
-  if (backendLevel === 3) return 1 // Überblick zum Ablauf
-  if (backendLevel === 4) return 2 // volle Details
-  return 0 // Default to Planung
+  if (backendLevel === 1) return 0
+  if (backendLevel === 2) return 0
+  if (backendLevel === 3) return 1
+  if (backendLevel === 4) return 2
+  return 0
 }
-
 
 async function fetchPublicationLevel() {
   try {
-    const { data } = await axios.get(`/publish/level/${event.value?.id}`)
-    const backendLevel = data.level ?? 1
-    detailLevel.value = backendToFrontendLevel(backendLevel)
+    const {data} = await axios.get(`/publish/level/${event.value?.id}`)
+    detailLevel.value = backendToFrontendLevel(data.level ?? 1)
   } catch (e) {
-    if (import.meta.env.DEV) {
-      console.error('Fehler beim Laden des Publication Levels:', e)
-    }
+    if (import.meta.env.DEV) console.error('Fehler beim Laden des Publication Levels:', e)
     detailLevel.value = 0
   }
 }
 
 async function updatePublicationLevel(level: number) {
   try {
-    // Save current scroll position to prevent page movement
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop
     const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft
-    
-    saving?.value?.show();
-    
-    // Restore scroll position immediately to prevent any movement
-    requestAnimationFrame(() => {
-      window.scrollTo(scrollLeft, scrollTop)
-    })
-    
-    const backendLevel = frontendToBackendLevel(level)
-    if (import.meta.env.DEV) {
-      console.debug('Updating publication level to:', backendLevel, '(frontend level:', level, ') for event:', event.value?.id)
-    }
-    await axios.post(`/publish/level/${event.value?.id}`, { level: backendLevel })
-    if (import.meta.env.DEV) {
-      console.debug('Publication level updated successfully')
-    }
-    
-    // Small delay to show the banner
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // Ensure scroll position is maintained
-    requestAnimationFrame(() => {
-      window.scrollTo(scrollLeft, scrollTop)
-    })
+    saving?.value?.show()
+    requestAnimationFrame(() => window.scrollTo(scrollLeft, scrollTop))
+    await axios.post(`/publish/level/${event.value?.id}`, {level: frontendToBackendLevel(level)})
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    requestAnimationFrame(() => window.scrollTo(scrollLeft, scrollTop))
   } catch (e) {
-    if (import.meta.env.DEV) {
-      console.error('Fehler beim Setzen des Publication Levels:', e)
-    }
+    if (import.meta.env.DEV) console.error('Fehler beim Setzen des Publication Levels:', e)
   } finally {
-    saving.value?.hide();
+    saving.value?.hide()
   }
 }
 
 async function fetchScheduleInformation() {
   try {
-    const { data } = await axios.post(`/publish/information/${event.value?.id}`, { level: 4 })
+    const {data} = await axios.post(`/publish/information/${event.value?.id}`, {level: 4})
     scheduleInfo.value = data
   } catch (e) {
-    if (import.meta.env.DEV) {
-      console.error('Fehler beim Laden von Schedule Information:', e)
-    }
+    if (import.meta.env.DEV) console.error('Fehler beim Laden von Schedule Information:', e)
     scheduleInfo.value = null
   }
 }
 
 watch(
-  () => event.value?.id,
-  async (id) => {
-    if (!id) return
-    await Promise.all([
-      fetchPublicationLevel(),
-      fetchScheduleInformation()
-    ])
-  },
-  { immediate: true }
+    () => event.value?.id,
+    async (id) => {
+      if (!id) return
+      await Promise.all([fetchPublicationLevel(), fetchScheduleInformation()])
+    },
+    {immediate: true}
 )
 
 watch(detailLevel, (newLevel, oldLevel) => {
-  // Only update if the level actually changed and we have an event
   if (event.value?.id && oldLevel !== undefined && newLevel !== oldLevel) {
-    // Save scroll position before update to prevent page movement
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop
     const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft
-    
     updatePublicationLevel(newLevel).then(() => {
-      // Restore scroll position after update
-      requestAnimationFrame(() => {
-        window.scrollTo(scrollLeft, scrollTop)
-      })
+      requestAnimationFrame(() => window.scrollTo(scrollLeft, scrollTop))
     })
   }
 })
-
-
-// ----------------- Helpers -----------------
-function isCardActive(card: number, level: number) {
-  if (card === 1) return true // First card always active (Level 0: Info, Date, Teams)
-  if (card === 2 && level >= 1) return true // Level 2 (frontend level 1): Basic times
-  if (card === 3 && level >= 2) return true // Level 3 (frontend level 2): Online plan
-  return false
-}
 
 function previewOnlinePlan() {
   const planId = scheduleInfo.value?.plan?.plan_id
@@ -221,29 +175,17 @@ function previewOnlinePlan() {
 
 async function regenerateLinkAndQR() {
   if (!event.value?.id) return
-  
   try {
     regenerating.value = true
-    const { data } = await axios.post(`/publish/regenerate/${event.value.id}`)
-    
-    // Backend returns only the slug, so we need to construct the full URL
+    const {data} = await axios.post(`/publish/regenerate/${event.value.id}`)
     const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin
-    const fullLink = `${baseUrl}/${data.link}`
-    
-    // Update the event in the store with new link and QR code
     if (eventStore.selectedEvent) {
-      eventStore.selectedEvent.link = fullLink
+      eventStore.selectedEvent.link = `${baseUrl}/${data.link}`
       eventStore.selectedEvent.qrcode = data.qrcode.replace('data:image/png;base64,', '')
-      eventStore.selectedEvent.slug = data.link // Also update the slug
-    }
-    
-    if (import.meta.env.DEV) {
-      console.debug('Link and QR code regenerated successfully')
+      eventStore.selectedEvent.slug = data.link
     }
   } catch (error) {
-    if (import.meta.env.DEV) {
-      console.error('Error regenerating link and QR code:', error)
-    }
+    if (import.meta.env.DEV) console.error('Error regenerating link and QR code:', error)
     showGlassToast('Fehler beim Regenerieren des Links und QR-Codes', 'error')
   } finally {
     regenerating.value = false
@@ -259,360 +201,373 @@ defineExpose({
 </script>
 
 <template>
-  <SavingToast ref="saving" message="Publikations-Level wird gespeichert..." />
+  <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
 
-  <div
-    class="space-y-4"
-    :class="embed ? '' : 'glass-surface-lg'"
-    style="overflow-anchor: none;"
-  >
-    <template v-if="!embed">
-      <h2 class="text-lg font-semibold">Online – von der Planung bis zur Veranstaltung</h2>
-
-      <!-- Link + Erklärung -->
-      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
-        <div class="flex-1 min-w-0">
-          <a
-            v-if="event?.link"
-            :href="event?.link"
-            target="_blank"
-            rel="noopener"
-            class="text-[var(--color-accent)] underline font-medium text-base break-all"
-          >
-            {{ event?.link }}
-          </a>
-          <p class="text-sm text-[var(--color-text-muted)] mt-1">
-            gibt Teams, Freiwilligen und dem Publikum alle Informationen zur Veranstaltung.
-          </p>
-        </div>
-        <button
+  <section class="vis" style="overflow-anchor: none;" aria-labelledby="vis-heading">
+    <div v-if="!embed" class="vis__legacy-link">
+      <a
+          v-if="event?.link"
+          :href="event?.link"
+          target="_blank"
+          rel="noopener"
+          class="vis__legacy-url"
+      >{{ event?.link }}</a>
+      <button
           v-if="isAdmin && event?.id"
-          @click="regenerateLinkAndQR"
+          type="button"
+          class="glass-btn-secondary !px-3 !py-1.5 !text-sm"
           :disabled="regenerating"
-          class="glass-btn-secondary lg:ml-auto !px-3 !py-2 !text-sm inline-flex items-center justify-center gap-2 flex-shrink-0"
+          @click="regenerateLinkAndQR"
+      >
+        {{ regenerating ? '…' : 'Link & QR neu' }}
+      </button>
+    </div>
+
+    <header class="vis__head">
+      <div>
+        <h2 id="vis-heading" class="vis__title">Sichtbarkeit</h2>
+        <p class="vis__sub">Welche Inhalte auf dem öffentlichen Link sichtbar sind.</p>
+      </div>
+      <span class="vis__status" aria-live="polite">Aktiv: {{ levelShort[activeLevel] }}</span>
+    </header>
+
+    <div class="vis__levels" role="radiogroup" aria-label="Sichtbarkeitsstufe">
+      <button
+          v-for="(label, idx) in levels"
+          :key="idx"
+          type="button"
+          role="radio"
+          class="vis__level"
+          :class="{'is-active': activeLevel === idx}"
+          :aria-checked="activeLevel === idx"
+          @click="detailLevel = idx"
+      >
+        <span class="vis__level-idx">{{ idx + 1 }}</span>
+        <span class="vis__level-body">
+          <span class="vis__level-name">{{ label }}</span>
+          <span class="vis__level-hint">{{ levelHints[idx] }}</span>
+        </span>
+      </button>
+    </div>
+
+    <div v-if="!hidePreview" class="vis__matrix">
+      <div class="vis__matrix-head">
+        <h3 class="vis__matrix-title">Inhalt</h3>
+        <button
+            v-if="activeLevel >= 2 && scheduleInfo?.plan?.plan_id"
+            type="button"
+            class="vis__matrix-action"
+            @click="previewOnlinePlan"
         >
-          <svg v-if="regenerating" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-          </svg>
-          {{ regenerating ? 'Regeneriere...' : 'Link & QR neu generieren' }}
+          Zeitplan-Vorschau
         </button>
       </div>
-    </template>
+      <table class="vis__table">
+        <thead>
+          <tr>
+            <th>Inhalt</th>
+            <th>Sichtbar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in visibilityRows" :key="row.label">
+            <td>{{ row.label }}</td>
+            <td>
+              <span
+                  class="vis__pill"
+                  :class="activeLevel >= row.from ? 'is-on' : 'is-off'"
+              >
+                {{ activeLevel >= row.from ? 'Ja' : 'Nein' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-    <div
-      class="flex flex-col gap-5"
-      :class="embed ? '' : 'lg:flex-row lg:items-start lg:gap-6'"
-    >
-      <!-- Level radios (primary on mobile) -->
-      <div
-        class="flex flex-col w-full"
-        :class="embed ? 'gap-2.5' : 'space-y-3 lg:max-w-xs'"
-      >
-        <h3 v-if="!embed" class="text-sm font-semibold mb-2">Detaillevel</h3>
-        <div
-          class="grid gap-2"
-          :class="embed ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'"
-        >
-          <label
-            v-for="(label, idx) in levels"
-            :key="idx"
-            class="online-level"
-            :class="{
-              'online-level--active': detailLevel === idx,
-              'online-level--compact': !embed,
-            }"
+      <div v-if="scheduleInfo && activeLevel >= 1" class="vis__times">
+        <p class="vis__times-label">Zeiten (Auszug)</p>
+        <template v-if="scheduleInfo.plan?.challenge?.length">
+          <div
+              v-for="(timeEntry, timeIdx) in scheduleInfo.plan.challenge.slice(0, 4)"
+              :key="'c' + timeIdx"
+              class="vis__times-row"
           >
-            <input
-              type="radio"
-              :value="idx"
-              v-model="detailLevel"
-              class="online-level__input"
-              @focus="(e: Event) => { (e.target as HTMLInputElement)?.blur() }"
-            />
-            <span class="online-level__radio" aria-hidden="true"/>
-            <span class="online-level__body">
-              <span class="online-level__title">{{ label }}</span>
-              <span class="online-level__hint">{{ levelHints[idx] }}</span>
-            </span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Level preview (hidden on mobile; checkboxes + link are more important) -->
-      <div v-if="!hidePreview" class="hidden lg:block flex-1 min-w-0">
-        <h3 class="text-sm font-semibold mb-2">Veröffentlichte Informationen</h3>
-
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <template v-for="(_, idx) in Array(3)" :key="idx">
-            <div
-              class="relative glass-card liquid-surface-inner !p-3 text-sm"
-              :class="{
-                'opacity-100': isCardActive(idx + 1, detailLevel),
-                'opacity-50': !isCardActive(idx + 1, detailLevel),
-                'sm:col-span-2': idx === 0,
-                'sm:col-span-1': idx === 1 || idx === 2,
-              }"
-            >
-              <div class="absolute top-2 right-2">
-                <div
-                  v-if="isCardActive(idx + 1, detailLevel)"
-                  class="w-4 h-4 bg-green-500 text-white flex items-center justify-center rounded-sm text-xs"
-                >
-                  ✓
-                </div>
-                <div v-else class="w-4 h-4 bg-gray-300 rounded-sm"></div>
-              </div>
-
-              <!-- Card Inhalte -->
-              <!-- Card 1: Level 0 (Planung) - Basic event information -->
-              <template v-if="idx === 0 && scheduleInfo">
-                <div class="grid grid-cols-2 gap-4">
-                  <!-- Left column: Datum, Adresse, Kontakt -->
-                  <div>
-                    <div class="font-semibold mb-1">Datum</div>
-                    <div v-if="scheduleInfo.date" class="text-[var(--color-text-muted)] mb-3">{{ formatDateOnly(scheduleInfo.date) }}</div>
-                    <div v-else class="text-[var(--color-text-subtle)] mb-3 italic">–</div>
-                    
-                    <div class="font-semibold mb-1">Adresse</div>
-                    <div v-if="scheduleInfo.address" class="text-[var(--color-text-muted)] mb-3 whitespace-pre-line text-xs">{{ scheduleInfo.address }}</div>
-                    <div v-else class="text-[var(--color-text-subtle)] mb-3 italic text-xs">–</div>
-                    
-                    <div class="font-semibold mb-1">Kontakt</div>
-                    <div v-if="scheduleInfo.contact && scheduleInfo.contact.length > 0" class="text-[var(--color-text-muted)] mb-3 text-xs">
-                      <div v-for="(contact, contactIdx) in scheduleInfo.contact" :key="contactIdx" class="mb-1">
-                        <div class="font-medium">{{ contact.contact }}</div>
-                        <div v-if="contact.contact_email" class="text-[var(--color-text-muted)]">{{ contact.contact_email }}</div>
-                        <div v-if="contact.contact_infos" class="text-[var(--color-text-subtle)]">{{ contact.contact_infos }}</div>
-                      </div>
-                    </div>
-                    <div v-else class="text-[var(--color-text-subtle)] mb-3 italic text-xs">–</div>
-                  </div>
-                  
-                  <!-- Right column: Angemeldete Teams -->
-                  <div>
-                    <div class="font-semibold mb-1">Angemeldete Teams</div>
-                    <div v-if="scheduleInfo.teams" class="text-xs">
-                      <div v-if="scheduleInfo.teams.explore && scheduleInfo.teams.explore.capacity > 0" class="mb-4">
-                        <div class="font-medium mb-1 text-sm flex items-center gap-2">
-                          <img
-                            :src="programLogoSrc('E')"
-                            :alt="programLogoAlt('E')"
-                            class="w-5 h-5 flex-shrink-0"
-                          />
-                          <span class="italic">FIRST</span> LEGO League Explore
-                        </div>
-                        <div class="text-[var(--color-text-muted)] text-xs font-normal mb-2 pl-7">
-                          {{ scheduleInfo.teams.explore.registered }} von {{ scheduleInfo.teams.explore.capacity }} angemeldet
-                        </div>
-                        <div v-if="scheduleInfo.teams.explore.list && scheduleInfo.teams.explore.list.length > 0" class="text-[var(--color-text-muted)] pl-2 text-xs">
-                          <span v-for="(team, teamIdx) in scheduleInfo.teams.explore.list" :key="teamIdx">
-                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-[var(--color-text-subtle)]"> ({{ team.team_number_hot }})</span><span v-if="teamIdx < scheduleInfo.teams.explore.list.length - 1">, </span>
-                          </span>
-                        </div>
-                      </div>
-                      <div v-if="scheduleInfo.teams.challenge && scheduleInfo.teams.challenge.capacity > 0">
-                        <div class="font-medium mb-1 text-sm flex items-center gap-2">
-                          <img
-                            :src="programLogoSrc('C')"
-                            :alt="programLogoAlt('C')"
-                            class="w-5 h-5 flex-shrink-0"
-                          />
-                          <span class="italic">FIRST</span> LEGO League Challenge
-                        </div>
-                        <div class="text-[var(--color-text-muted)] text-xs font-normal mb-2 pl-7">
-                          {{ scheduleInfo.teams.challenge.registered }} von {{ scheduleInfo.teams.challenge.capacity }} angemeldet
-                        </div>
-                        <div v-if="scheduleInfo.teams.challenge.list && scheduleInfo.teams.challenge.list.length > 0" class="text-[var(--color-text-muted)] pl-2 text-xs">
-                          <span v-for="(team, teamIdx) in scheduleInfo.teams.challenge.list" :key="teamIdx">
-                            {{ team.name || '–' }}<span v-if="team.team_number_hot" class="text-[var(--color-text-subtle)]"> ({{ team.team_number_hot }})</span><span v-if="teamIdx < scheduleInfo.teams.challenge.list.length - 1">, </span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div v-else class="text-[var(--color-text-subtle)] italic text-xs">–</div>
-                  </div>
-                </div>
-              </template>
-
-              <!-- Card 2: Level 2 (Überblick zum Ablauf) - What's actually shown on the page -->
-              <template v-else-if="idx === 1 && scheduleInfo && scheduleInfo.plan">
-                <div class="font-semibold mb-3">Wichtige Zeiten</div>
-                
-                <!-- Explore Section - Single group or 2x groups -->
-                <template v-if="scheduleInfo.plan?.explore_morning || scheduleInfo.plan?.explore_afternoon">
-                  <!-- 2x Explore: Morning and Afternoon sections -->
-                  <div v-if="scheduleInfo.plan?.explore_morning && Array.isArray(scheduleInfo.plan.explore_morning) && scheduleInfo.plan.explore_morning.length > 0" class="mb-4">
-                    <div class="font-medium mb-2 flex items-center gap-2">
-                      <img
-                        :src="programLogoSrc('E')"
-                        :alt="programLogoAlt('E')"
-                        class="w-5 h-5 flex-shrink-0"
-                      />
-                      <span class="italic">FIRST</span> LEGO League Explore <span style="color: #1e40af;">Vormittag</span>
-                    </div>
-                    <div class="space-y-1 text-xs">
-                      <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore_morning" :key="timeIdx" class="flex justify-between">
-                        <span class="text-[var(--color-text-muted)]">{{ timeEntry.label }}</span>
-                        <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div v-if="scheduleInfo.plan?.explore_afternoon && Array.isArray(scheduleInfo.plan.explore_afternoon) && scheduleInfo.plan.explore_afternoon.length > 0" class="mb-4">
-                    <div class="font-medium mb-2 flex items-center gap-2">
-                      <img
-                        :src="programLogoSrc('E')"
-                        :alt="programLogoAlt('E')"
-                        class="w-5 h-5 flex-shrink-0"
-                      />
-                      <span class="italic">FIRST</span> LEGO League Explore <span style="color: #93c5fd;">Nachmittag</span>
-                    </div>
-                    <div class="space-y-1 text-xs">
-                      <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore_afternoon" :key="timeIdx" class="flex justify-between">
-                        <span class="text-[var(--color-text-muted)]">{{ timeEntry.label }}</span>
-                        <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </template>
-                
-                <!-- Single Explore Section -->
-                <div v-else-if="scheduleInfo.plan?.explore && Array.isArray(scheduleInfo.plan.explore) && scheduleInfo.plan.explore.length > 0" class="mb-4">
-                  <div class="font-medium mb-2 flex items-center gap-2">
-                    <img
-                      :src="programLogoSrc('E')"
-                      :alt="programLogoAlt('E')"
-                      class="w-5 h-5 flex-shrink-0"
-                    />
-                    <span class="italic">FIRST</span> LEGO League Explore
-                  </div>
-                  <div class="space-y-1 text-xs">
-                    <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore" :key="timeIdx" class="flex justify-between">
-                      <span class="text-[var(--color-text-muted)]">{{ timeEntry.label }}</span>
-                      <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Challenge Section - Loop through times array from backend -->
-                <div v-if="scheduleInfo.plan?.challenge && Array.isArray(scheduleInfo.plan.challenge) && scheduleInfo.plan.challenge.length > 0">
-                  <div class="font-medium mb-2 flex items-center gap-2">
-                    <img
-                      :src="programLogoSrc('C')"
-                      :alt="programLogoAlt('C')"
-                      class="w-5 h-5 flex-shrink-0"
-                    />
-                    <span class="italic">FIRST</span> LEGO League Challenge
-                  </div>
-                  <div class="space-y-1 text-xs">
-                    <div v-for="(timeEntry, timeIdx) in scheduleInfo.plan.challenge" :key="timeIdx" class="flex justify-between">
-                      <span class="text-[var(--color-text-muted)]">{{ timeEntry.label }}</span>
-                      <span class="font-medium">{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
-                    </div>
-                  </div>
-                </div>
-              </template>
-
-              <!-- Card 3: Level 3 (volle Details) - Online plan -->
-              <template v-else-if="idx === 2">
-                <div class="h-full flex flex-col justify-between">
-                  <div>
-                    <div class="font-semibold mb-1">Online Zeitplan</div>
-                    <img
-                      :src="imageUrl('/flow/öplan.png')"
-                      alt="Plan Vorschau"
-                      class="h-28 w-auto border mx-auto"
-                    />
-                  </div>
-                  <div class="mt-4 flex justify-center">
-                    <button type="button" class="glass-btn-secondary !px-3 !py-1 !text-sm" @click="previewOnlinePlan">
-                      Vorschau
-                    </button>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </template>
-        </div>
+            <span>{{ timeEntry.label }}</span>
+            <span>{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
+          </div>
+        </template>
+        <template v-else-if="scheduleInfo.plan?.explore?.length">
+          <div
+              v-for="(timeEntry, timeIdx) in scheduleInfo.plan.explore.slice(0, 4)"
+              :key="'e' + timeIdx"
+              class="vis__times-row"
+          >
+            <span>{{ timeEntry.label }}</span>
+            <span>{{ getTimeDisplay(timeEntry.value, previewShowWeekday) }}</span>
+          </div>
+        </template>
+        <p v-else class="vis__times-empty">Keine Zeiten geladen.</p>
       </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <style scoped>
-.online-level {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  padding: 0.75rem 0.85rem;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
-  background: color-mix(in srgb, var(--color-bg-muted) 35%, #fff);
-  cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
-}
-
-.online-level:hover {
-  border-color: color-mix(in srgb, var(--color-border-strong) 60%, transparent);
-  background: #fff;
-}
-
-.online-level--active {
-  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 10%, #fff);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 25%, transparent);
-}
-
-.online-level--compact {
-  padding: 0.55rem 0.65rem;
-}
-
-.online-level__input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.online-level__radio {
-  flex-shrink: 0;
-  width: 1rem;
-  height: 1rem;
-  margin-top: 0.15rem;
-  border-radius: 999px;
-  border: 2px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
-  background: #fff;
-  box-shadow: inset 0 0 0 0 var(--color-accent);
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
-}
-
-.online-level--active .online-level__radio {
-  border-color: var(--color-accent);
-  box-shadow: inset 0 0 0 3px var(--color-accent);
-}
-
-.online-level__body {
+.vis {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.95rem;
+  padding: 0.95rem 1.05rem 1.1rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+  background: #fff;
+}
+
+.vis__legacy-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 18%, transparent);
+}
+
+.vis__legacy-url {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+.vis__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.vis__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.vis__sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+}
+
+.vis__status {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--color-text);
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--color-bg-muted) 70%, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, transparent);
+}
+
+.vis__levels {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.4rem;
+}
+
+@media (min-width: 720px) {
+  .vis__levels {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.vis__level {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 32%, transparent);
+  background: color-mix(in srgb, var(--color-bg-muted) 35%, #fff);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.vis__level:hover {
+  background: #fff;
+  border-color: color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+}
+
+.vis__level.is-active {
+  background: #fff;
+  border-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+.vis__level-idx {
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 750;
+  color: var(--color-text-muted);
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
+}
+
+.vis__level.is-active .vis__level-idx {
+  color: var(--color-on-accent, #fff);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.vis__level-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
   min-width: 0;
 }
 
-.online-level__title {
-  font-size: 0.9rem;
+.vis__level-name {
+  font-size: 0.88rem;
   font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
   color: var(--color-text);
+  line-height: 1.25;
 }
 
-.online-level__hint {
-  font-size: 0.75rem;
+.vis__level-hint {
+  font-size: 0.76rem;
+  color: var(--color-text-muted);
   line-height: 1.35;
+}
+
+.vis__matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 18%, transparent);
+}
+
+.vis__matrix-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.vis__matrix-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.vis__matrix-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--color-accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.vis__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.vis__table th,
+.vis__table td {
+  padding: 0.45rem 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 16%, transparent);
+  text-align: left;
+}
+
+.vis__table th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-subtle);
+}
+
+.vis__table td:last-child {
+  width: 5.5rem;
+  text-align: right;
+}
+
+.vis__pill {
+  display: inline-block;
+  min-width: 2.4rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 0.3rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.vis__pill.is-on {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.vis__pill.is-off {
+  color: var(--color-text-subtle);
+  background: color-mix(in srgb, var(--color-bg-muted) 80%, #fff);
+}
+
+.vis__times {
+  margin-top: 0.15rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 22%, transparent);
+  background: color-mix(in srgb, var(--color-bg-muted) 40%, #fff);
+}
+
+.vis__times-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.vis__times-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  padding: 0.18rem 0;
+  color: var(--color-text-muted);
+}
+
+.vis__times-row span:last-child {
+  font-weight: 650;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.vis__times-empty {
+  margin: 0;
+  font-size: 0.8rem;
   color: var(--color-text-muted);
 }
 </style>

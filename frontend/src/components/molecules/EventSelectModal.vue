@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import {computed, nextTick, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import {useEventStore} from '@/stores/event'
 import {useAuth} from '@/composables/useAuth'
+import {showGlassToast} from '@/composables/useGlassToast'
 import {programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {getAbbreviatedCompetitionType, cleanEventName} from '@/utils/eventTitle'
 
@@ -37,9 +38,12 @@ const selectedSeasonId = ref<number | null>(null)
 const currentSeasonId = ref<number | null>(null)
 const groups = ref<any[]>([])
 const loading = ref(false)
+const selecting = ref(false)
 const searchQuery = ref('')
-const userRegionalPartners = ref<number[]>([])
 const searchInput = ref<HTMLInputElement | null>(null)
+let loadSeq = 0
+/** Suppress season→events reload while we set the initial season on open. */
+let suppressSeasonReload = false
 
 const selectedSeason = computed(() =>
     seasons.value.find((s) => s.id === selectedSeasonId.value) ?? null
@@ -57,10 +61,7 @@ const flatEvents = computed<SelectableEvent[]>(() => {
 })
 
 const visibleEvents = computed(() => {
-  let list = flatEvents.value
-  if (isAdmin.value && userRegionalPartners.value.length > 0) {
-    list = list.filter((e) => userRegionalPartners.value.includes(e.regional_partner_id))
-  }
+  const list = flatEvents.value
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return list
   return list.filter((ev) => {
@@ -72,57 +73,83 @@ const visibleEvents = computed(() => {
   })
 })
 
+function asArray<T = unknown>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[]
+  if (data && typeof data === 'object') return Object.values(data as Record<string, T>)
+  return []
+}
+
+function preferredSeasonId(): number | null {
+  const selected = eventStore.selectedEvent as {season?: number | {id?: number}} | null
+  if (selected?.season != null) {
+    const sid = typeof selected.season === 'object' ? selected.season.id : selected.season
+    if (sid != null && !Number.isNaN(Number(sid))) return Number(sid)
+  }
+  return currentSeasonId.value
+}
+
 async function loadSeasons() {
   const [{data: seasonList}, {data: current}] = await Promise.all([
     axios.get('/seasons'),
     axios.get('/current-season'),
   ])
-  seasons.value = Array.isArray(seasonList) ? seasonList : []
+  seasons.value = asArray<Season>(seasonList)
   currentSeasonId.value = current?.id ?? seasons.value[0]?.id ?? null
   if (selectedSeasonId.value == null) {
-    selectedSeasonId.value = currentSeasonId.value
+    selectedSeasonId.value = preferredSeasonId()
   }
 }
 
 async function loadEvents() {
   if (!selectedSeasonId.value) return
+  const seq = ++loadSeq
+  const seasonForRequest = selectedSeasonId.value
   loading.value = true
   try {
     const {data} = await axios.get('/events/selectable', {
-      params: {season: selectedSeasonId.value},
+      params: {season: seasonForRequest},
     })
-    groups.value = data || []
-    if (isAdmin.value && userRegionalPartners.value.length === 0) {
-      try {
-        const rpResponse = await axios.get('/user/regional-partners')
-        if (rpResponse.data?.regional_partners) {
-          userRegionalPartners.value = rpResponse.data.regional_partners.map((rp: any) => rp.id)
-        }
-      } catch {
-        /* ignore */
-      }
-    }
+    if (seq !== loadSeq) return
+    groups.value = asArray<any>(data)
+        .filter((g) => g && typeof g === 'object')
+        .map((g) => ({
+          ...g,
+          events: asArray(g.events),
+        }))
   } catch (e) {
+    if (seq !== loadSeq) return
     console.error('Failed to load selectable events', e)
     groups.value = []
+    showGlassToast('Veranstaltungen konnten nicht geladen werden.', 'error')
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 
 async function selectEvent(ev: SelectableEvent) {
+  if (selecting.value) return
+  if (!ev.regional_partner_id) {
+    showGlassToast('Regionalpartner fehlt — Auswahl nicht möglich.', 'error')
+    return
+  }
+  selecting.value = true
   try {
     await axios.post('/user/select-event', {
       event: ev.id,
       regional_partner: ev.regional_partner_id,
     })
+    eventStore.staleSeasonCleared = false
     await eventStore.fetchSelectedEvent()
     emit('close')
     if (!router.currentRoute.value.path.includes('/overview')) {
       void router.push('/plan/overview')
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('Failed to select event', e)
+    const msg = e?.response?.data?.error || e?.response?.data?.message || 'Veranstaltung konnte nicht gewählt werden.'
+    showGlassToast(msg, 'error')
+  } finally {
+    selecting.value = false
   }
 }
 
@@ -138,36 +165,66 @@ function isSelected(ev: SelectableEvent) {
   return eventStore.selectedEvent?.id === ev.id
 }
 
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && props.open) {
+    event.preventDefault()
+    emit('close')
+  }
+}
+
 watch(
     () => props.open,
     async (open) => {
       if (!open) return
       searchQuery.value = ''
-      if (!seasons.value.length) await loadSeasons()
-      else if (selectedSeasonId.value == null) selectedSeasonId.value = currentSeasonId.value
-      await loadEvents()
+      suppressSeasonReload = true
+      try {
+        if (!seasons.value.length) {
+          await loadSeasons()
+        } else if (selectedSeasonId.value == null) {
+          selectedSeasonId.value = preferredSeasonId()
+        }
+        await loadEvents()
+      } finally {
+        suppressSeasonReload = false
+      }
       await nextTick()
       searchInput.value?.focus()
     }
 )
 
-watch(selectedSeasonId, () => {
-  if (props.open) void loadEvents()
-})
+watch(
+    selectedSeasonId,
+    () => {
+      if (suppressSeasonReload || !props.open) return
+      void loadEvents()
+    },
+    {flush: 'sync'}
+)
 
 onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
   if (props.open) {
-    void loadSeasons().then(() => loadEvents())
+    suppressSeasonReload = true
+    void loadSeasons()
+        .then(() => loadEvents())
+        .finally(() => {
+          suppressSeasonReload = false
+        })
   }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
 <template>
+  <Teleport to="body">
   <div
       v-if="open"
       class="event-modal-backdrop"
       @click.self="emit('close')"
-      @keydown.esc.prevent="emit('close')"
   >
     <div
         class="event-modal"
@@ -246,7 +303,13 @@ onMounted(() => {
 
         <div v-else-if="visibleEvents.length === 0" class="event-modal__state">
           <i class="bi bi-calendar2-x text-2xl opacity-50" aria-hidden="true"/>
-          <span>Keine Veranstaltungen gefunden.</span>
+          <span v-if="searchQuery.trim()">
+            Keine Treffer für „{{ searchQuery.trim() }}“ in {{ selectedSeason?.name || 'dieser Saison' }}.
+          </span>
+          <span v-else>
+            Keine Veranstaltungen in {{ selectedSeason?.name || 'dieser Saison' }}.
+            Andere Saison oben wählen.
+          </span>
         </div>
 
         <ul v-else class="event-modal__list">
@@ -255,6 +318,7 @@ onMounted(() => {
                 type="button"
                 class="event-modal__item"
                 :class="{ 'is-selected': isSelected(ev) }"
+                :disabled="selecting"
                 @click="selectEvent(ev)"
             >
               <div class="event-modal__item-main min-w-0">
@@ -319,13 +383,14 @@ onMounted(() => {
       </footer>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <style scoped>
 .event-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;

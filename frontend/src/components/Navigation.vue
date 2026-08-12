@@ -297,12 +297,30 @@ function logout() {
           </div>
           <button
               type="button"
+              class="glass-sidebar-footer__menu-item"
+              role="menuitem"
+              @click="goToPath('/plan/profile'); close()"
+          >
+            <i class="bi bi-person" aria-hidden="true"/>
+            <span>Profil</span>
+          </button>
+          <button
+              type="button"
+              class="glass-sidebar-footer__menu-item"
+              role="menuitem"
+              @click="goToPath('/plan/access'); close()"
+          >
+            <i class="bi bi-shield-lock" aria-hidden="true"/>
+            <span>Zugangsverwaltung</span>
+          </button>
+          <button
+              type="button"
               class="glass-sidebar-footer__menu-item glass-sidebar-footer__menu-item--danger"
               role="menuitem"
               @click="logout(); close()"
           >
             <i class="bi bi-box-arrow-right" aria-hidden="true"/>
-            <span>Logout</span>
+            <span>Ausloggen</span>
           </button>
         </template>
 

@@ -36,6 +36,8 @@ import PublicSchedule from "@/components/PublicSchedule.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
 import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
 import PublicScores from "@/components/PublicScores.vue";
+import Profile from "@/components/Profile.vue";
+import AccessManagement from "@/components/AccessManagement.vue";
 import {useEventStore} from "@/stores/event";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
@@ -94,6 +96,8 @@ const routes = [
             },
             {path: 'live', component: EventDayControl},
             {path: 'slots', redirect: '/plan/schedule/slots'},
+            {path: 'profile', component: Profile},
+            {path: 'access', component: AccessManagement},
             // Lazy-load Admin component - only loads when route is accessed
             // This significantly reduces initial bundle size since most users are not admins
             {path: 'admin', component: () => import('@/components/Admin.vue')},
@@ -203,6 +207,8 @@ router.beforeEach(async (to, from, next) => {
         !to.meta?.popout &&
         to.path !== '/plan/events' &&
         to.path !== '/events' &&
+        to.path !== '/plan/profile' &&
+        to.path !== '/plan/access' &&
         to.path.startsWith('/plan')
     ) {
         // Use the store - pinia is already active

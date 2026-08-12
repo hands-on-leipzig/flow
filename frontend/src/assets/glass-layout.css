@@ -3,6 +3,13 @@
  * Shell / sidebar chrome lives in @hands-on/glass (AppShell + app-shell.css).
  */
 
+/* Public / chrome-less routes: same cool canvas as the app shell */
+.pe-page {
+  background-image: var(--orbit-glow), var(--orbit-gradient);
+  background-attachment: fixed;
+  color: var(--color-text);
+}
+
 /* Content cards inside the main panel */
 .glass-card {
   padding: 1.35rem 1.5rem 1.5rem;
