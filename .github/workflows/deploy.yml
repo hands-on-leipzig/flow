@@ -9,13 +9,12 @@ on:
     branches:
       - main
       - test
-      - horizontal-design
   release:
     types: [ created ]
 
 jobs:
   deploy-dev:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/horizontal-design'
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy-reusable.yml
     with:
       checkout_ref: ${{ github.ref }}
