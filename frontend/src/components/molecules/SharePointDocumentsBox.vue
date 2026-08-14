@@ -166,6 +166,7 @@ onMounted(async () => {
   configured.value = statusRes.data.configured ?? false
   if (statusRes.data.folder_url) {
     folderWebUrl.value = statusRes.data.folder_url
+    folderWebUrl.value = "https://handsontechnology.sharepoint.com/:f:/s/DokumenteundInformationenfrRegionalpartnerInnen/IgDx5Nnfg4GETKBBmnDs0oXEAZXJjJYQ9mnqSzRrDTFktMI?e=TvqXBp"
   }
   if (configured.value) {
     await loadFolder(null)
