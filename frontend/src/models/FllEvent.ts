@@ -15,6 +15,8 @@ export default class FllEvent {
     qrcode: string | null
     wifi_ssid: string | null
     wifi_password: string | null
+    wifi_instruction: string | null
+    wifi_qrcode: string | null
     slideshows: Slideshow[] | null
 
     // DRAHT team counts

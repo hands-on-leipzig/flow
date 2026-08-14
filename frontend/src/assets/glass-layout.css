@@ -3,6 +3,13 @@
  * Shell / sidebar chrome lives in @hands-on/glass (AppShell + app-shell.css).
  */
 
+/* Public / chrome-less routes: same cool canvas as the app shell */
+.pe-page {
+  background-image: var(--orbit-glow), var(--orbit-gradient);
+  background-attachment: fixed;
+  color: var(--color-text);
+}
+
 /* Content cards inside the main panel */
 .glass-card {
   padding: 1.35rem 1.5rem 1.5rem;
@@ -408,34 +415,7 @@
   }
 }
 
-.glass-tabs {
-  display: flex;
-  gap: 0.25rem;
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 0.5rem;
-}
-
-.glass-tab {
-  padding: 0.5rem 1rem;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
-  margin-bottom: -1px;
-}
-
-.glass-tab:hover {
-  color: var(--color-accent);
-}
-
-.glass-tab--active {
-  color: var(--color-accent);
-  border-bottom-color: var(--color-accent);
-}
+/* Page tabs (.glass-tabs / .glass-page-tabs) live in @hands-on/glass 1.6+ */
 
 .glass-dropdown {
   border-radius: var(--radius-lg);

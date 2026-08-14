@@ -166,7 +166,6 @@ export const usePlanCacheStore = defineStore('planCache', {
           () => import('@/components/Teams.vue'),
           () => import('@/components/Rooms.vue'),
           () => import('@/components/Slots.vue'),
-          () => import('@/components/EventOverview.vue'),
           () => import('@/components/PublishControl.vue'),
         ]
         for (const load of chunkLoaders) {

@@ -1196,7 +1196,7 @@ const currentTabLabel = computed(() =>
       <p class="text-sm text-[var(--color-text-muted)] mb-4">
         Als Veranstalter-Logo wird das erste aktive aus dem
         <a
-          href="/plan/logos"
+          href="/plan/publish/logos"
           class="text-blue-600 underline hover:text-blue-800"
         >
           View Logos</a>

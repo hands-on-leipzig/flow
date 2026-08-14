@@ -226,7 +226,7 @@ function updateDuration(value: number) {
   <!-- Header -->
   <div class="flex items-center justify-between border-b pb-4 mb-6 mt-4">
     <router-link
-        to="/plan/presentation"
+        to="/plan/publish/digital"
         class="flex items-center gap-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
     >
       <i class="bi bi-arrow-left"></i>

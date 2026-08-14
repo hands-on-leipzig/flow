@@ -126,67 +126,87 @@ class EventController extends Controller
         }
     }
 
-    public function getSelectableEvents()
+    public function getSelectableEvents(Request $request)
     {
-        $user = Auth::user();
-        $season = MSeason::latest('year')->first();
-
-        $isAdmin = $user->isFlowAdmin();
-
-        if ($isAdmin) {
-            // Admin users can see all events
-            $regionalPartners = RegionalPartner::whereHas('events', function ($query) use ($season) {
-                $query->where('season', $season->id);
-            })
-                ->with(['events' => function ($query) use ($season) {
-                    $query->where('season', $season->id)
-                        ->orderBy('date')
-                        ->with(['seasonRel', 'levelRel']);
-                }])
-                ->orderBy('name')
-                ->get();
-        } else {
-            // Non-admin users can only see their regional partner events
-            $regionalPartners = $user->regionalPartners()
-                ->whereHas('events', function ($query) use ($season) {
-                    $query->where('season', $season->id);
-                })
-                ->with(['events' => function ($query) use ($season) {
-                    $query->where('season', $season->id)
-                        ->orderBy('date')
-                        ->with(['seasonRel', 'levelRel']);
-                }])
-                ->get();
+        $user = $request->user() ?? Auth::user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
-        ini_set('max_execution_time', 300);
-        return $regionalPartners->map(function ($rp) {
-            return [
-                'regional_partner' => [
-                    'id' => $rp->id,
-                    'name' => $rp->name,
-                    'region' => $rp->region,
-                ],
-                'events' => $rp->events->map(function ($event) {
-                    return [
-                        'id' => $event->id,
-                        'name' => $event->name,
-                        'date' => $event->date,
-                        'slug' => $event->slug,
-                        'season' => [
-                            'id' => $event->seasonRel?->id,
-                            'name' => $event->seasonRel?->name,
-                            'year' => $event->seasonRel?->year,
-                        ],
-                        'level' => [
-                            'id' => $event->levelRel?->id,
-                            'name' => $event->levelRel?->name,
-                        ],
-                        'event_explore' => $event->event_explore,
-                        'event_challenge' => $event->event_challenge,
-                    ];
-                }),
-            ];
-        });
+
+        $seasonId = $request->query('season');
+        $season = $seasonId
+            ? MSeason::find($seasonId)
+            : MSeason::latest('year')->first();
+
+        if (!$season) {
+            return response()->json([]);
+        }
+
+        // Prefer roles from the current JWT attribute (same source as middleware).
+        $roles = \App\Support\FlowAccess::rolesFromJwt($request->attributes->get('jwt'));
+        $isAdmin = \App\Support\FlowAccess::isAdmin($roles) || $user->isFlowAdmin();
+
+        // One events query (+ light joins) instead of whereHas-per-partner (was 20s+).
+        $eventsQuery = Event::query()
+            ->where('season', $season->id)
+            ->with(['seasonRel', 'levelRel', 'regionalPartner'])
+            ->orderBy('date')
+            ->orderBy('name');
+
+        if (!$isAdmin) {
+            $rpIds = $user->regionalPartners()
+                ->pluck('regional_partner.id')
+                ->filter()
+                ->values()
+                ->all();
+
+            if ($rpIds === []) {
+                return response()->json([]);
+            }
+
+            $eventsQuery->whereIn('regional_partner', $rpIds);
+        }
+
+        $events = $eventsQuery->get();
+
+        $grouped = $events
+            ->groupBy(fn (Event $event) => $event->regional_partner)
+            ->map(function ($rpEvents) {
+                /** @var Event $first */
+                $first = $rpEvents->first();
+                $rp = $first?->regionalPartner;
+
+                return [
+                    'regional_partner' => [
+                        'id' => $rp?->id ?? $first?->regional_partner,
+                        'name' => $rp?->name ?? '—',
+                        'region' => $rp?->region,
+                    ],
+                    'events' => $rpEvents->map(function (Event $event) {
+                        return [
+                            'id' => $event->id,
+                            'name' => $event->name,
+                            'date' => $event->date,
+                            'slug' => $event->slug,
+                            'season' => [
+                                'id' => $event->seasonRel?->id,
+                                'name' => $event->seasonRel?->name,
+                                'year' => $event->seasonRel?->year,
+                            ],
+                            'level' => [
+                                'id' => $event->levelRel?->id,
+                                'name' => $event->levelRel?->name,
+                            ],
+                            'event_explore' => $event->event_explore,
+                            'event_challenge' => $event->event_challenge,
+                        ];
+                    })->values(),
+                ];
+            })
+            ->sortBy(fn (array $group) => mb_strtolower($group['regional_partner']['name'] ?? ''))
+            ->values();
+
+        return response()->json($grouped);
     }
 
     public function getCreateEventData()
