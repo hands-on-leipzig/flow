@@ -6,6 +6,7 @@ import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import TeamPlanBar from '@/components/molecules/TeamPlanBar.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import {useEventStore} from '@/stores/event'
+import {eventPrograms, programId} from '@/utils/eventPrograms'
 
 const PROGRAM_ID = 2
 
@@ -121,15 +122,12 @@ function timingFromMode(mode: number): string {
   return 'morning'
 }
 
-function integrationFromMode(mode: number): string {
-  if (mode === 5 || mode === 8) return mode === 8 ? 'yes' : 'no'
-  if (mode === 1 || mode === 3 || mode === 6) return mode === 1 ? 'yes' : 'no'
-  if (mode === 2 || mode === 4 || mode === 7) return mode === 2 ? 'yes' : 'no'
-  return 'no'
-}
+const hasOtherPrograms = computed(() =>
+    eventPrograms(event.value).some((program) => programId(program) !== PROGRAM_ID)
+)
 
 const dummyTiming = ref<string | null>(null)
-const dummyIntegration = ref<string | null>(null)
+const dummyConnection = ref('integrated')
 
 const storedMode = computed(() => Number(paramMapByName.value['e_mode']?.value || 0))
 
@@ -137,13 +135,6 @@ const dummyTimingProxy = computed<string>({
   get: () => dummyTiming.value ?? timingFromMode(storedMode.value),
   set: (val) => {
     dummyTiming.value = val
-  },
-})
-
-const dummyIntegrationProxy = computed<string>({
-  get: () => dummyIntegration.value ?? integrationFromMode(storedMode.value),
-  set: (val) => {
-    dummyIntegration.value = val
   },
 })
 
@@ -156,6 +147,33 @@ const timingOptions = [
 
 <template>
   <ProgramSection program="explore">
+    <div class="flex flex-col gap-1.5">
+      <div class="flex items-center gap-1 min-w-0">
+        <span class="glass-settings-label">Explore im</span>
+        <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
+      </div>
+      <div class="glass-settings-row">
+        <RadioGroup v-model="dummyTimingProxy" class="flex gap-1.5 flex-wrap">
+          <RadioGroupOption
+              v-for="option in timingOptions"
+              :key="option.value"
+              v-slot="{ checked }"
+              :value="option.value"
+              as="template"
+          >
+            <button
+                :class="checked ? 'glass-choice--active' : ''"
+                class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
+                type="button"
+                @click="dummyTimingProxy = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </RadioGroupOption>
+        </RadioGroup>
+      </div>
+    </div>
+
     <TeamPlanBar
         :plan-teams="planTeams"
         :registered-teams="registeredTeams"
@@ -220,56 +238,27 @@ const timingOptions = [
       <span>{{ currentLaneNote }}</span>
     </div>
 
-    <div class="flex flex-wrap items-start gap-x-8 gap-y-3">
-      <div class="flex flex-col gap-1.5">
-        <div class="flex items-center gap-1 min-w-0">
-          <span class="glass-settings-label">Explore im</span>
-          <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
-        </div>
-        <div class="glass-settings-row">
-          <RadioGroup v-model="dummyTimingProxy" class="flex gap-1.5 flex-wrap">
-            <RadioGroupOption
-                v-for="option in timingOptions"
-                :key="option.value"
-                v-slot="{ checked }"
-                :value="option.value"
-                as="template"
+    <div v-if="hasOtherPrograms" class="flex flex-col gap-1.5">
+      <span class="glass-settings-label">Verbindung mit anderen Programmen</span>
+      <div class="glass-settings-row">
+        <RadioGroup v-model="dummyConnection" class="flex gap-1.5 flex-wrap">
+          <RadioGroupOption
+              v-for="opt in [{value: 'integrated', label: 'Integriert'}, {value: 'independent', label: 'unabhängig'}]"
+              :key="'explore_connection_' + opt.value"
+              v-slot="{ checked }"
+              :value="opt.value"
+              as="template"
+          >
+            <button
+                :class="checked ? 'glass-choice--active' : ''"
+                class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
+                type="button"
+                @click="dummyConnection = opt.value"
             >
-              <button
-                  :class="checked ? 'glass-choice--active' : ''"
-                  class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                  type="button"
-                  @click="dummyTimingProxy = option.value"
-              >
-                {{ option.label }}
-              </button>
-            </RadioGroupOption>
-          </RadioGroup>
-        </div>
-      </div>
-
-      <div class="flex flex-col gap-1.5">
-        <span class="glass-settings-label">Integration mit Challenge</span>
-        <div class="glass-settings-row">
-          <RadioGroup v-model="dummyIntegrationProxy" class="flex gap-1.5 flex-wrap">
-            <RadioGroupOption
-                v-for="opt in [{value: 'yes', label: 'ja'}, {value: 'no', label: 'nein'}]"
-                :key="'explore_integration_' + opt.value"
-                v-slot="{ checked }"
-                :value="opt.value"
-                as="template"
-            >
-              <button
-                  :class="checked ? 'glass-choice--active' : ''"
-                  class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                  type="button"
-                  @click="dummyIntegrationProxy = opt.value"
-              >
-                {{ opt.label }}
-              </button>
-            </RadioGroupOption>
-          </RadioGroup>
-        </div>
+              {{ opt.label }}
+            </button>
+          </RadioGroupOption>
+        </RadioGroup>
       </div>
     </div>
   </ProgramSection>
