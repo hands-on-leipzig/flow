@@ -150,6 +150,15 @@ const rTablesProxy = computed<number>({
   set: (val) => updateByName('r_tables', val)
 })
 
+function isParamTrue(val: unknown): boolean {
+  return val === 1 || val === true || val === '1'
+}
+
+const rFinal8Proxy = computed<string>({
+  get: () => isParamTrue(paramMapByName.value['r_final_8']?.value) ? 'yes' : 'no',
+  set: (val) => updateByName('r_final_8', val === 'yes' ? 1 : 0)
+})
+
 // Note for the current EXACT combo from database data
 const currentLaneNote = computed<string | undefined>(() => {
   if (!props.supportedPlanData || !cTeams.value || !rTables.value || !jLanesProxy.value) return
@@ -305,6 +314,36 @@ const teamsPerJuryHint = computed(() => {
                   @click="!disabled && selectTables(tb)"
               >
                 {{ tb }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
+        </div>
+      </div>
+
+      <!-- Quarter-final (r_final_8) -->
+      <div v-if="paramMapByName['r_final_8']" class="flex flex-col gap-1.5">
+        <div class="flex items-center gap-1 min-w-0">
+          <span class="glass-settings-label">{{ paramMapByName['r_final_8']?.ui_label }}</span>
+          <InfoPopover :text="paramMapByName['r_final_8']?.ui_description"/>
+        </div>
+        <div class="glass-settings-row">
+          <RadioGroup v-model="rFinal8Proxy" class="flex gap-1.5 flex-wrap">
+            <RadioGroupOption
+                v-for="opt in [{value: 'yes', label: 'ja'}, {value: 'no', label: 'nein'}]"
+                :key="'r_final_8_' + opt.value"
+                v-slot="{ checked }"
+                :value="opt.value"
+                as="template"
+            >
+              <button
+                  :class="[
+                    'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                    checked ? 'glass-choice--active' : '',
+                  ]"
+                  type="button"
+                  @click="rFinal8Proxy = opt.value"
+              >
+                {{ opt.label }}
               </button>
             </RadioGroupOption>
           </RadioGroup>
