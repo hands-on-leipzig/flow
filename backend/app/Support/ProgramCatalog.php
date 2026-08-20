@@ -210,14 +210,6 @@ class ProgramCatalog
         return (string) ($program?->name ?? $name ?? '');
     }
 
-    public static function letter(int|string|null $name): ?string
-    {
-        $program = self::resolve($name);
-        $letter = $program?->letter;
-
-        return is_string($letter) && $letter !== '' ? $letter : null;
-    }
-
     /** Catalog color without #, e.g. ED1C24. */
     public static function colorHex(?string $name, string $fallback = '888888'): string
     {
