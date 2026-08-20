@@ -42,7 +42,7 @@ class PublicPlanService
                 'm_role.differentiation_source',
                 'm_role.differentiation_parameter',
                 'm_first_program.color_hex',
-                'm_first_program.logo',
+                'm_first_program.logo_stem',
                 'm_first_program.logo_white',
                 'm_first_program.name as first_program_name',
             ])
@@ -78,7 +78,7 @@ class PublicPlanService
                 'first_program' => $role->first_program !== null ? (int) $role->first_program : null,
                 'first_program_name' => $role->first_program_name,
                 'color_hex' => $role->color_hex ?: '888888',
-                'logo' => $role->logo,
+                'logo_stem' => $role->logo_stem,
                 'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
                 'differentiation_parameter' => $role->differentiation_parameter,
                 'options' => $this->roleOptions($role, $planId, $teams, $tableNames),

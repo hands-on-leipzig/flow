@@ -13,7 +13,7 @@ class FirstProgram extends Model
         'name',
         'sequence',
         'color_hex',
-        'logo',
+        'logo_stem',
         'logo_white',
     ];
 

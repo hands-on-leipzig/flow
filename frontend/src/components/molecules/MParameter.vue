@@ -10,7 +10,7 @@ type CatalogProgram = {
   id: number
   name: string
   sequence?: number | null
-  logo?: string | null
+  logo_stem?: string | null
 }
 
 // Daten

@@ -23,7 +23,7 @@ class EventProgram extends Model
         'name',
         'sequence',
         'color_hex',
-        'logo',
+        'logo_stem',
         'logo_white',
     ];
 
@@ -56,9 +56,9 @@ class EventProgram extends Model
         return $this->firstProgram?->color_hex;
     }
 
-    public function getLogoAttribute(): ?string
+    public function getLogoStemAttribute(): ?string
     {
-        return $this->firstProgram?->logo;
+        return $this->firstProgram?->logo_stem;
     }
 
     public function getLogoWhiteAttribute(): ?string

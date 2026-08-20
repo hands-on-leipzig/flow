@@ -5,7 +5,7 @@ export type EventProgramRef = {
   draht_id?: number | null
   contao_id?: number | null
   color_hex?: string | null
-  logo?: string | null
+  logo_stem?: string | null
   logo_white?: string | null
   sequence?: number | null
 }

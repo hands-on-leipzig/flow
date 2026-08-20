@@ -25,7 +25,7 @@ function isStem(value: string): boolean {
 }
 
 function rowMatches(row: EventProgramRef, raw: string, compactKey: string): boolean {
-  if (row.logo && (row.logo === raw || programCompact(row.logo) === compactKey)) return true
+  if (row.logo_stem && (row.logo_stem === raw || programCompact(row.logo_stem) === compactKey)) return true
   if (row.name && (row.name === raw || programCompact(row.name) === compactKey)) return true
   const id = programId(row)
   return id > 0 && String(id) === raw
@@ -33,7 +33,7 @@ function rowMatches(row: EventProgramRef, raw: string, compactKey: string): bool
 
 function resolveLogoStem(program: ProgramLogoRef): string {
   if (program && typeof program === 'object') {
-    if (program.logo) return program.logo
+    if (program.logo_stem) return program.logo_stem
     const fromName = resolveLogoStem(program.name ?? null)
     if (fromName !== FALLBACK_STEM) return fromName
     const id = programId(program)
@@ -46,16 +46,16 @@ function resolveLogoStem(program: ProgramLogoRef): string {
 
   const compactKey = programCompact(raw)
   const match = logoRows().find((row) => rowMatches(row, raw, compactKey))
-  return match?.logo || FALLBACK_STEM
+  return match?.logo_stem || FALLBACK_STEM
 }
 
 function catalogNameFor(program: ProgramLogoRef): string | null {
   if (program && typeof program === 'object') {
-    return program.name || catalogNameFor(programId(program) || program.logo || null)
+    return program.name || catalogNameFor(programId(program) || program.logo_stem || null)
   }
   const raw = String(program ?? '').trim()
   if (!raw || isStem(raw)) {
-    const match = logoRows().find((row) => row.logo === raw)
+    const match = logoRows().find((row) => row.logo_stem === raw)
     return match?.name ?? null
   }
   const compactKey = programCompact(raw)

@@ -40,7 +40,7 @@ export const useProgramsStore = defineStore('programs', {
           name: program.name,
           sequence: program.sequence ?? null,
           color_hex: program.color_hex ?? null,
-          logo: program.logo ?? null,
+          logo_stem: program.logo_stem ?? null,
           logo_white: program.logo_white ?? null,
         }))
         setProgramLogoCatalog(this.catalog)

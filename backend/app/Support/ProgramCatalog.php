@@ -225,7 +225,7 @@ class ProgramCatalog
         }
 
         $program = self::resolve($name);
-        $stem = $program?->logo;
+        $stem = $program?->logo_stem;
         if (is_string($stem) && $stem !== '') {
             return $stem;
         }

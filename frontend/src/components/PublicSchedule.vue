@@ -28,7 +28,7 @@ type Role = {
   first_program: number | null
   first_program_name?: string | null
   color_hex: string
-  logo?: string | null
+  logo_stem?: string | null
   logo_white: string
   differentiation_parameter: string | null
   options: RoleOption[]

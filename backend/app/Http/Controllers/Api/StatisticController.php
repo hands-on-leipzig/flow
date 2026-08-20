@@ -96,7 +96,7 @@ class StatisticController extends Controller
                 'm_first_program.name',
                 'm_first_program.sequence',
                 'm_first_program.color_hex',
-                'm_first_program.logo',
+                'm_first_program.logo_stem',
                 'm_first_program.logo_white',
             ])
             ->groupBy('event');
