@@ -287,66 +287,67 @@ const teamsPerJuryHint = computed(() => {
       </div>
 
 
-      <!-- Robot game tables -->
-      <div class="flex flex-col gap-1.5">
-        <div class="flex items-center gap-1 min-w-0">
-          <span class="glass-settings-label">{{ paramMapByName['r_tables']?.ui_label }}</span>
-          <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
-        </div>
-        <div class="glass-settings-row">
-          <RadioGroup v-model="rTablesProxy" class="flex gap-1.5 flex-wrap">
-            <RadioGroupOption
-                v-for="tb in [2,4]"
-                :key="'tables_' + tb"
-                v-slot="{ checked, disabled }"
-                :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
-                :value="tb"
-                as="template"
-            >
-              <button
-                  :aria-disabled="disabled"
-                  :class="[
-                    'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
-                    checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
-                    disabled ? 'opacity-40 cursor-not-allowed' : '',
-                  ]"
-                  type="button"
-                  @click="!disabled && selectTables(tb)"
+      <!-- Robot game tables + quarter-final -->
+      <div class="flex flex-wrap items-start gap-x-8 gap-y-3">
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center gap-1 min-w-0">
+            <span class="glass-settings-label">{{ paramMapByName['r_tables']?.ui_label }}</span>
+            <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
+          </div>
+          <div class="glass-settings-row">
+            <RadioGroup v-model="rTablesProxy" class="flex gap-1.5 flex-wrap">
+              <RadioGroupOption
+                  v-for="tb in [2,4]"
+                  :key="'tables_' + tb"
+                  v-slot="{ checked, disabled }"
+                  :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
+                  :value="tb"
+                  as="template"
               >
-                {{ tb }}
-              </button>
-            </RadioGroupOption>
-          </RadioGroup>
+                <button
+                    :aria-disabled="disabled"
+                    :class="[
+                      'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                      checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
+                      disabled ? 'opacity-40 cursor-not-allowed' : '',
+                    ]"
+                    type="button"
+                    @click="!disabled && selectTables(tb)"
+                >
+                  {{ tb }}
+                </button>
+              </RadioGroupOption>
+            </RadioGroup>
+          </div>
         </div>
-      </div>
 
-      <!-- Quarter-final (r_final_8) -->
-      <div v-if="paramMapByName['r_final_8']" class="flex flex-col gap-1.5">
-        <div class="flex items-center gap-1 min-w-0">
-          <span class="glass-settings-label">{{ paramMapByName['r_final_8']?.ui_label }}</span>
-          <InfoPopover :text="paramMapByName['r_final_8']?.ui_description"/>
-        </div>
-        <div class="glass-settings-row">
-          <RadioGroup v-model="rFinal8Proxy" class="flex gap-1.5 flex-wrap">
-            <RadioGroupOption
-                v-for="opt in [{value: 'yes', label: 'ja'}, {value: 'no', label: 'nein'}]"
-                :key="'r_final_8_' + opt.value"
-                v-slot="{ checked }"
-                :value="opt.value"
-                as="template"
-            >
-              <button
-                  :class="[
-                    'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
-                    checked ? 'glass-choice--active' : '',
-                  ]"
-                  type="button"
-                  @click="rFinal8Proxy = opt.value"
+        <div v-if="paramMapByName['r_final_8']" class="flex flex-col gap-1.5">
+          <div class="flex items-center gap-1 min-w-0">
+            <span class="glass-settings-label">{{ paramMapByName['r_final_8']?.ui_label }}</span>
+            <InfoPopover :text="paramMapByName['r_final_8']?.ui_description"/>
+          </div>
+          <div class="glass-settings-row">
+            <RadioGroup v-model="rFinal8Proxy" class="flex gap-1.5 flex-wrap">
+              <RadioGroupOption
+                  v-for="opt in [{value: 'yes', label: 'ja'}, {value: 'no', label: 'nein'}]"
+                  :key="'r_final_8_' + opt.value"
+                  v-slot="{ checked }"
+                  :value="opt.value"
+                  as="template"
               >
-                {{ opt.label }}
-              </button>
-            </RadioGroupOption>
-          </RadioGroup>
+                <button
+                    :class="[
+                      'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                      checked ? 'glass-choice--active' : '',
+                    ]"
+                    type="button"
+                    @click="rFinal8Proxy = opt.value"
+                >
+                  {{ opt.label }}
+                </button>
+              </RadioGroupOption>
+            </RadioGroup>
+          </div>
         </div>
       </div>
 
