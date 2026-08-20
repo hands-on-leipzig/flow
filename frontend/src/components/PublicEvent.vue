@@ -3,6 +3,7 @@ import {ref, computed, onMounted} from 'vue'
 import {useRoute} from 'vue-router'
 import axios from 'axios'
 import {programLogoSrc, programLogoAlt, imageUrl} from '@/utils/images'
+import {PROGRAM_COLOR_HEX} from '@/utils/programTheme'
 import {formatTimeOnly} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
@@ -213,12 +214,12 @@ const showInteractiveSchedule = computed(() =>
 )
 
 const exploreColor = computed(() => {
-  if (!scheduleInfo.value?.teams?.explore?.color_hex) return '#00A651'
+  if (!scheduleInfo.value?.teams?.explore?.color_hex) return PROGRAM_COLOR_HEX.EXPLORE
   return `#${scheduleInfo.value.teams.explore.color_hex}`
 })
 
 const challengeColor = computed(() => {
-  if (!scheduleInfo.value?.teams?.challenge?.color_hex) return '#ED1C24'
+  if (!scheduleInfo.value?.teams?.challenge?.color_hex) return PROGRAM_COLOR_HEX.CHALLENGE
   return `#${scheduleInfo.value.teams.challenge.color_hex}`
 })
 

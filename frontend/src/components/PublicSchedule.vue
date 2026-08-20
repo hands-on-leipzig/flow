@@ -8,6 +8,7 @@ import {
   projectClockOntoBerlinDay,
 } from '@/utils/dateTimeFormat'
 import {imageUrl, programLogoAlt, programLogoSrc} from '@/utils/images'
+import {PROGRAM_COLOR_HEX} from '@/utils/programTheme'
 
 const props = defineProps<{
   planId: number | string
@@ -160,8 +161,8 @@ type RoleSection = {
 /** Sections for the flat role picker (Challenge → Explore → Allgemein) */
 const roleSections = computed((): RoleSection[] => {
   const buckets: Record<RoleSection['key'], RoleSection> = {
-    challenge: {key: 'challenge', label: 'Challenge', accent: '#ED1C24', roles: []},
-    explore: {key: 'explore', label: 'Explore', accent: '#00A651', roles: []},
+    challenge: {key: 'challenge', label: 'Challenge', accent: PROGRAM_COLOR_HEX.CHALLENGE, roles: []},
+    explore: {key: 'explore', label: 'Explore', accent: PROGRAM_COLOR_HEX.EXPLORE, roles: []},
     general: {key: 'general', label: 'Allgemein', accent: '#6b7280', roles: []},
   }
 

@@ -574,7 +574,7 @@ const teamsPerJuryHint2 = computed(() => {
             @change="handleToggleChange($event.target as HTMLInputElement)"
         >
         <div
-            class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-[var(--program-accent,#00A651)] transition-colors"
+            class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-[var(--program-accent)] transition-colors"
         />
         <div
             class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"

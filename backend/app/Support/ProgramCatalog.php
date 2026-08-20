@@ -171,4 +171,41 @@ class ProgramCatalog
             ]
         );
     }
+
+    /**
+     * m_first_program.color_hex keyed by catalog name (EXPLORE, CHALLENGE, …).
+     *
+     * @return array<string, string|null>
+     */
+    public static function colorHexByName(): array
+    {
+        static $map = null;
+        if ($map === null) {
+            $map = FirstProgram::query()
+                ->get(['name', 'color_hex'])
+                ->mapWithKeys(fn (FirstProgram $row) => [
+                    strtoupper((string) $row->name) => $row->color_hex
+                        ? ltrim((string) $row->color_hex, '#')
+                        : null,
+                ])
+                ->all();
+        }
+
+        return $map;
+    }
+
+    /** Catalog color without #, e.g. ED1C24. */
+    public static function colorHex(?string $name, string $fallback = '888888'): string
+    {
+        $key = strtoupper((string) $name);
+        $hex = self::colorHexByName()[$key] ?? null;
+
+        return $hex ?: ltrim($fallback, '#');
+    }
+
+    /** CSS hex from the catalog, e.g. #ED1C24. */
+    public static function colorCss(?string $name, string $fallback = '888888'): string
+    {
+        return '#'.self::colorHex($name, $fallback);
+    }
 }

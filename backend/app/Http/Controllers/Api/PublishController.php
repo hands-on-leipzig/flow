@@ -9,6 +9,7 @@ use App\Models\OneLinkAccess;
 use App\Services\ActivityFetcherService;
 use App\Services\PdfLayoutService;
 use App\Support\PlanParameter;
+use App\Support\ProgramCatalog;
 use App\Enums\ExploreMode;
 
 use App\Services\SeasonService;
@@ -337,14 +338,8 @@ class PublishController extends Controller
         $drahtCtrl = app(\App\Http\Controllers\Api\DrahtController::class);
         $drahtData = $drahtCtrl->show($event)->getData(true);
 
-        // Get color information from m_first_program table
-        $exploreColor = DB::table('m_first_program')
-            ->where('name', 'EXPLORE')
-            ->value('color_hex') ?? '00A651'; // Default green if not found
-
-        $challengeColor = DB::table('m_first_program')
-            ->where('name', 'CHALLENGE')
-            ->value('color_hex') ?? 'ED1C24'; // Default red if not found
+        $exploreColor = ProgramCatalog::colorHex('EXPLORE', '00A651');
+        $challengeColor = ProgramCatalog::colorHex('CHALLENGE', 'ED1C24');
 
         // JSON bauen
         $data = [
