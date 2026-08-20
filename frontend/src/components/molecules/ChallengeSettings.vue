@@ -254,9 +254,13 @@ const teamsPerJuryHint = computed(() => {
     />
 
       <!-- Jury lanes -->
-      <div>
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center gap-1 min-w-0">
+          <span class="glass-settings-label">{{ paramMapByName['j_lanes']?.ui_label }}</span>
+          <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
+        </div>
         <div class="glass-settings-row">
-          <RadioGroup v-model="jLanesProxy" class="flex gap-1.5 flex-wrap">
+          <RadioGroup v-model="jLanesProxy" class="flex gap-1.5 flex-wrap shrink-0">
             <RadioGroupOption
                 v-for="n in lanePalette"
                 :key="'j_lane_' + n"
@@ -280,10 +284,7 @@ const teamsPerJuryHint = computed(() => {
               </button>
             </RadioGroupOption>
           </RadioGroup>
-
-          <span class="glass-settings-label whitespace-nowrap">{{ paramMapByName['j_lanes']?.ui_label }}</span>
-          <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
-          <span class="glass-settings-hint break-words">
+          <span class="glass-settings-hint whitespace-nowrap">
             {{ teamsPerJuryHint }}
           </span>
         </div>
@@ -295,32 +296,36 @@ const teamsPerJuryHint = computed(() => {
 
 
       <!-- Robot game tables -->
-      <div class="glass-settings-row">
-        <RadioGroup v-model="rTablesProxy" class="flex gap-1.5 flex-wrap">
-          <RadioGroupOption
-              v-for="tb in [2,4]"
-              :key="'tables_' + tb"
-              v-slot="{ checked, disabled }"
-              :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
-              :value="tb"
-              as="template"
-          >
-            <button
-                :aria-disabled="disabled"
-                :class="[
-                  'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
-                  checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
-                  disabled ? 'opacity-40 cursor-not-allowed' : '',
-                ]"
-                type="button"
-                @click="!disabled && selectTables(tb)"
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center gap-1 min-w-0">
+          <span class="glass-settings-label">{{ paramMapByName['r_tables']?.ui_label }}</span>
+          <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
+        </div>
+        <div class="glass-settings-row">
+          <RadioGroup v-model="rTablesProxy" class="flex gap-1.5 flex-wrap">
+            <RadioGroupOption
+                v-for="tb in [2,4]"
+                :key="'tables_' + tb"
+                v-slot="{ checked, disabled }"
+                :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
+                :value="tb"
+                as="template"
             >
-              {{ tb }}
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
-        <span class="glass-settings-label whitespace-nowrap">{{ paramMapByName['r_tables']?.ui_label }}</span>
-        <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
+              <button
+                  :aria-disabled="disabled"
+                  :class="[
+                    'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                    checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
+                    disabled ? 'opacity-40 cursor-not-allowed' : '',
+                  ]"
+                  type="button"
+                  @click="!disabled && selectTables(tb)"
+              >
+                {{ tb }}
+              </button>
+            </RadioGroupOption>
+          </RadioGroup>
+        </div>
       </div>
 
       <!-- Alert message banner -->
