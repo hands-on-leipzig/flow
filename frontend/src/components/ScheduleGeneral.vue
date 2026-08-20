@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ExploreSettings from '@/components/molecules/ExploreSettings.vue'
 import ChallengeSettings from '@/components/molecules/ChallengeSettings.vue'
+import Future8Settings from '@/components/molecules/Future8Settings.vue'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import { programId, type EventProgramRef } from '@/utils/eventPrograms'
 
@@ -21,6 +22,10 @@ function isExplore(program: EventProgramRef): boolean {
 function isChallenge(program: EventProgramRef): boolean {
   return String(program.name || '').toUpperCase() === 'CHALLENGE'
 }
+
+function isFuture8(program: EventProgramRef): boolean {
+  return String(program.name || '').toUpperCase() === 'FUTURE_8'
+}
 </script>
 
 <template>
@@ -39,6 +44,13 @@ function isChallenge(program: EventProgramRef): boolean {
       />
       <ChallengeSettings
           v-else-if="isChallenge(program)"
+          :parameters="parameters"
+          :lanes-index="lanesIndex"
+          :supported-plan-data="supportedPlanData"
+          @update-param="handleParamUpdate"
+      />
+      <Future8Settings
+          v-else-if="isFuture8(program)"
           :parameters="parameters"
           :lanes-index="lanesIndex"
           :supported-plan-data="supportedPlanData"
